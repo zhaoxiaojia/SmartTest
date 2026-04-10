@@ -54,7 +54,7 @@ class AppInfo(QObject):
         callback.onStart()
         try:
             if not self._updateCheckUrl:
-                callback.onError(status=0, errorString="Update check disabled")
+                callback.onError(code=0, errorString="Update check disabled")
                 return
             r = await Async.http().get(self._updateCheckUrl)
             callback.onSuccess(await r.text())

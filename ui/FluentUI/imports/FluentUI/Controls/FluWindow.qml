@@ -4,8 +4,6 @@ import QtQuick.Layouts
 import FluentUI
 
 Window {
-    // Ensure the OS-level window/taskbar icon is set from FluentUI.
-    icon: windowIcon
     default property alias contentData : layout_content.data
     property string windowIcon: FluApp.windowIcon
     property int launchMode: FluWindowType.Standard

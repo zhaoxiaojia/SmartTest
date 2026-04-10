@@ -2,14 +2,34 @@ import os
 import sys
 
 APP_NAME = "SmartTest"
-mainPath = os.path.join(".", "main.py")
+
+
+def _find_repo_root(start_dir: str) -> str:
+    cur = os.path.abspath(start_dir)
+    for _ in range(8):
+        if os.path.isfile(os.path.join(cur, "main.py")):
+            return cur
+        parent = os.path.dirname(cur)
+        if parent == cur:
+            break
+        cur = parent
+    return os.path.abspath(start_dir)
+
+
+repo_root = os.environ.get("SMARTTEST_REPO_ROOT") or _find_repo_root(os.getcwd())
+mainPath = os.path.join(repo_root, "main.py")
+ui_root = os.path.join(repo_root, "ui")
 
 a = Analysis(
     [mainPath],
-    pathex=[],
+    pathex=[repo_root, ui_root],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=[
+        # Ensure UI packages are discoverable even if imports are indirect.
+        "example.main",
+        "FluentUI.FluentUI",
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -94,7 +114,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=os.path.join(".", "tools", "packaging", "assets", "SmartTest.ico")
+    icon=os.path.join(repo_root, "tools", "packaging", "assets", "SmartTest.ico")
 )
 
 coll = COLLECT(
@@ -110,6 +130,6 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name=APP_NAME + '.app',
-    icon=os.path.join(".", "tools", "packaging", "assets", "favicon.icns"),
+    icon=os.path.join(repo_root, "tools", "packaging", "assets", "favicon.icns"),
     bundle_identifier=None
 )

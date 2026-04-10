@@ -6,7 +6,13 @@ import env
 
 # noinspection PyPep8Naming
 def generateResource(_projectName):
-    subprocess.run([env.pyside6_rcc(), os.path.join('.', _projectName, 'imports', 'resource.qrc'), "-o", os.path.join('.', _projectName, 'imports', 'resource_rc.py')])
+    project_dir = env.uiProjectPath(_projectName)
+    subprocess.run([
+        env.pyside6_rcc(),
+        os.path.join(project_dir, 'imports', 'resource.qrc'),
+        "-o",
+        os.path.join(project_dir, 'imports', 'resource_rc.py')
+    ], check=True)
 
 
 if __name__ == "__main__":

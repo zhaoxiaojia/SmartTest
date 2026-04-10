@@ -6,9 +6,25 @@ projectName = "example"
 
 # noinspection PyPep8Naming
 def _scriptsPath():
+    venv_dir = _venvDir()
     if sys.platform.startswith("win"):
-        return os.path.join('.', 'venv', "Scripts")
-    return os.path.join('.', 'venv', "bin")
+        return os.path.join(venv_dir, "Scripts")
+    return os.path.join(venv_dir, "bin")
+
+
+def _venvDir():
+    # Prefer ".venv" (common convention). Fall back to "venv" for compatibility.
+    if os.path.isdir(os.path.join(".", ".venv")):
+        return os.path.join(".", ".venv")
+    return os.path.join(".", "venv")
+
+
+def uiRoot():
+    return os.path.join(".", "ui")
+
+
+def uiProjectPath(name: str):
+    return os.path.join(uiRoot(), name)
 
 
 # noinspection PyPep8Naming

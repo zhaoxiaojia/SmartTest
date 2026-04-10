@@ -5,6 +5,7 @@ import subprocess
 import env
 
 if __name__ == "__main__":
+    scripts_dir = os.path.dirname(os.path.abspath(__file__))
     buildDir = os.path.join('.', 'build')
     distDir = os.path.join('.', 'dist')
     try:
@@ -12,10 +13,14 @@ if __name__ == "__main__":
         shutil.rmtree(distDir)
     except FileNotFoundError:
         pass
-    subprocess.run([env.python(), os.path.join('.', 'script-update-translations.py')])
-    subprocess.run([env.python(), os.path.join('.', 'script-update-resource.py')])
-    subprocess.run([env.python(), os.path.join('.', 'script-zip-source.py')])
-    path = os.path.join('.', env.projectName, 'main.py')
+
+    # Refresh i18n and QRC outputs first so packaged app is up to date.
+    subprocess.run([env.python(), os.path.join(scripts_dir, 'script-update-translations.py')], check=True)
+    subprocess.run([env.python(), os.path.join(scripts_dir, 'script-update-resource.py')], check=True)
+
+    repo_root = os.path.abspath(".")
+    path = os.path.join(repo_root, 'main.py')
+    assets_dir = os.path.join(repo_root, "tools", "packaging", "assets")
     args = [
         env.nuitka(),
         "--standalone",
@@ -23,13 +28,13 @@ if __name__ == "__main__":
         "--show-progress",
         "--plugin-enable=pyside6",
         "--include-qt-plugins=qml",
-        f"--macos-app-icon={os.path.join('.', 'favicon.icns')}",
-        f"--linux-icon={os.path.join('.', 'favicon.jpg')}",
-        f"--windows-icon-from-ico={os.path.join('.', 'favicon.ico')}",
-        f"--output-filename={env.projectName}",
+        f"--macos-app-icon={os.path.join(assets_dir, 'favicon.icns')}",
+        f"--linux-icon={os.path.join(assets_dir, 'favicon.jpg')}",
+        f"--windows-icon-from-ico={os.path.join(assets_dir, 'SmartTest.ico')}",
+        f"--output-filename=SmartTest",
         path
     ]
-    subprocess.run(args, env=env.environment())
+    subprocess.run(args, env=env.environment(), check=True)
     os.rename("main.build", "build")
     os.rename("main.dist", "dist")
     excludeFiles = [

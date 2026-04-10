@@ -32,6 +32,51 @@ FluObject{
         }
     }
 
+    FluPaneItem{
+        id: item_test_config
+        title: qsTr("TestConfig")
+        menuDelegate: paneItemMenu
+        icon: FluentIcons.DeveloperTools
+        url: "qrc:/example/qml/page/T_TestConfig.qml"
+        onTap: { navigationView.push(url) }
+    }
+
+    FluPaneItem{
+        id: item_run
+        title: qsTr("Run")
+        menuDelegate: paneItemMenu
+        icon: FluentIcons.PlaySolid
+        url: "qrc:/example/qml/page/T_Run.qml"
+        onTap: { navigationView.push(url) }
+    }
+
+    FluPaneItem{
+        id: item_report
+        title: qsTr("Report")
+        menuDelegate: paneItemMenu
+        icon: FluentIcons.ReportDocument
+        url: "qrc:/example/qml/page/T_Report.qml"
+        onTap: { navigationView.push(url) }
+    }
+
+    FluPaneItem{
+        id: item_debug
+        title: qsTr("Debug")
+        menuDelegate: paneItemMenu
+        icon: FluentIcons.Bug
+        url: "qrc:/example/qml/page/T_Debug.qml"
+        onTap: { navigationView.push(url) }
+    }
+
+    FluPaneItem{
+        id: item_jira
+        title: qsTr("Jira")
+        menuDelegate: paneItemMenu
+        icon: FluentIcons.Link
+        url: "qrc:/example/qml/page/T_Jira.qml"
+        onTap: { navigationView.push(url) }
+    }
+
     FluPaneItemExpander{
         title: qsTr("PaneItemExpander Disabled")
         iconVisible: false
