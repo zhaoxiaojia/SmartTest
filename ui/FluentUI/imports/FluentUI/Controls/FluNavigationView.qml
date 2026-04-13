@@ -26,6 +26,7 @@ Item {
     property alias buttonBack: btn_back
     property alias imageLogo: image_logo
     signal logoClicked
+    signal collapseRequested(bool collapsed)
     id:control
     Item{
         id:d
@@ -496,6 +497,28 @@ Item {
                     delay: 800
                 }
                 onClicked:{
+                    var isCurrent = false
+                    if(type === 0){
+                        isCurrent = (nav_list.currentIndex === _idx) && (layout_footer.currentIndex === -1)
+                    }else{
+                        isCurrent = (layout_footer.currentIndex === _idx) && (nav_list.currentIndex === (nav_list.count-layout_footer.count+_idx))
+                    }
+                    if(isCurrent){
+                        if(d.isMinimal){
+                            d.enableNavigationPanel = false
+                            return
+                        }
+                        if(d.isCompact){
+                            if(d.enableNavigationPanel){
+                                d.enableNavigationPanel = false
+                                return
+                            }
+                            control.collapseRequested(false)
+                            return
+                        }
+                        control.collapseRequested(true)
+                        return
+                    }
                     if(type === 0){
                         if(model.onTapListener){
                             model.onTapListener()
@@ -1229,6 +1252,12 @@ Item {
                 item.isExpand = false
             }
         }
+    }
+    function toggleCollapse(){
+        control.collapseRequested(!d.isCompactAndNotPanel)
+    }
+    function setCollapsed(collapsed){
+        control.collapseRequested(collapsed)
     }
     function setCurrentIndex(index){
         var item = nav_list.model[index]

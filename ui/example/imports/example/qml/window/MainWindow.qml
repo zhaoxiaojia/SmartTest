@@ -202,6 +202,9 @@ FluWindow {
                 displayMode: GlobalModel.displayMode
                 logo: "qrc:/example/res/image/app_icon.png"
                 title:"SmartTest"
+                onCollapseRequested: {
+                    GlobalModel.displayMode = collapsed ? FluNavigationViewType.Compact : FluNavigationViewType.Open
+                }
                 onLogoClicked:{
                     clickCount += 1
                     showSuccess("%1:%2".arg(qsTr("Click Time")).arg(clickCount))
