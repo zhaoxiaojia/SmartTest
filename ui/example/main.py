@@ -1,6 +1,7 @@
 import os
 import sys
 import asyncio
+from pathlib import Path
 from qasync import QEventLoop
 
 from PySide6.QtCore import QProcess, QUrl
@@ -21,6 +22,7 @@ from example.helper.TranslateHelper import TranslateHelper
 from example.component.Callback import Callback
 from example.imports import resource_rc as rc
 from example.helper import Async
+from example.bridge.TestPageBridge import TestPageBridge
 
 _uri = "example"
 _major = 1
@@ -81,6 +83,7 @@ def main():
     context.setContextProperty("InitializrHelper", InitializrHelper())
     context.setContextProperty("SettingsHelper", SettingsHelper())
     context.setContextProperty("TranslateHelper", TranslateHelper())
+    context.setContextProperty("TestPageBridge", TestPageBridge(Path(__file__).resolve().parents[2]))
     FluentUI.registerTypes(engine)
     qml_file = QUrl("qrc:/example/qml/App.qml")
     engine.load(qml_file)
