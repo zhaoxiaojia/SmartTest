@@ -54,3 +54,19 @@ class SettingsHelper(QObject):
     @Slot(bool)
     def saveTourShown(self, shown: bool):
         self._save("tourShown", shown)
+
+    @Slot(result=bool)
+    def getRememberCloseAction(self):
+        return bool(self._get("rememberCloseAction", "false") == "true")
+
+    @Slot(bool)
+    def saveRememberCloseAction(self, remember: bool):
+        self._save("rememberCloseAction", "true" if remember else "false")
+
+    @Slot(result=str)
+    def getCloseAction(self):
+        return str(self._get("closeAction", ""))
+
+    @Slot(str)
+    def saveCloseAction(self, action: str):
+        self._save("closeAction", action)

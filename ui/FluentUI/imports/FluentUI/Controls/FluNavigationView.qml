@@ -27,6 +27,7 @@ Item {
     property alias imageLogo: image_logo
     signal logoClicked
     signal collapseRequested(bool collapsed)
+    property int pageSwitchOffset: 18
     id:control
     Item{
         id:d
@@ -777,7 +778,15 @@ Item {
                             }
                         }
                     }else if(pageMode === FluNavigationViewType.NoStack){
-                        loader_content.setSource(item._ext.url,item._ext.argument)
+                        if(FluTheme.animationEnabled && d.animDisabled){
+                            anim_switch_page.stop()
+                            anim_switch_page.nextUrl = item._ext.url
+                            anim_switch_page.nextArgument = item._ext.argument
+                            anim_switch_page.start()
+                        }else{
+                            loader_content.opacity = 1
+                            loader_content.setSource(item._ext.url,item._ext.argument)
+                        }
                     }
                 }
             }
@@ -886,8 +895,57 @@ Item {
             }
         }
     }
+
+    SequentialAnimation{
+        id:anim_switch_page
+        property url nextUrl
+        property var nextArgument
+        ParallelAnimation{
+            NumberAnimation{
+                target: loader_content
+                property: "opacity"
+                to: 0
+                duration: 120
+                easing.type: Easing.OutCubic
+            }
+            NumberAnimation{
+                target: trans_switch_page
+                property: "x"
+                to: -control.pageSwitchOffset
+                duration: 120
+                easing.type: Easing.OutCubic
+            }
+        }
+        ScriptAction{
+            script: {
+                trans_switch_page.x = control.pageSwitchOffset
+                loader_content.setSource(anim_switch_page.nextUrl,anim_switch_page.nextArgument)
+            }
+        }
+        ParallelAnimation{
+            NumberAnimation{
+                target: loader_content
+                property: "opacity"
+                to: 1
+                duration: 220
+                easing.type: Easing.OutCubic
+            }
+            NumberAnimation{
+                target: trans_switch_page
+                property: "x"
+                to: 0
+                duration: 220
+                easing.type: Easing.OutCubic
+            }
+        }
+    }
+
     FluLoader{
         id:loader_content
+        transform: Translate{
+            id:trans_switch_page
+            x: 0
+        }
         anchors{
             left: parent.left
             top: nav_app_bar.bottom
@@ -1036,21 +1094,8 @@ Item {
                 interactive: false
                 model:d.handleItems()
                 boundsBehavior: ListView.StopAtBounds
-                highlightMoveDuration: FluTheme.animationEnabled && d.animDisabled ? 167 : 0
-                highlight: Item{
-                    clip: true
-                    Rectangle{
-                        height: 18
-                        radius: 1.5
-                        color: FluTheme.primaryColor
-                        width: 3
-                        anchors{
-                            verticalCenter: parent.verticalCenter
-                            left: parent.left
-                            leftMargin: 6
-                        }
-                    }
-                }
+                highlightMoveDuration: 0
+                highlight: Item{ visible: false }
                 currentIndex: -1
                 delegate: FluLoader{
                     property var model: modelData
@@ -1078,6 +1123,30 @@ Item {
                     }
                 }
             }
+
+            Rectangle{
+                id:nav_indicator
+                width: 3
+                height: 18
+                radius: 1.5
+                color: FluTheme.primaryColor
+                visible: nav_list.currentIndex !== -1
+                x: 6
+                y: {
+                    if(!nav_list.currentItem){
+                        return 0
+                    }
+                    return nav_list.y + (nav_list.currentItem.y - nav_list.contentY) + (nav_list.currentItem.height - height)/2
+                }
+                Behavior on y{
+                    enabled: FluTheme.animationEnabled && d.animDisabled
+                    SpringAnimation{
+                        spring: 4.6
+                        damping: 0.22
+                        epsilon: 0.5
+                    }
+                }
+            }
         }
 
         ListView{
@@ -1090,21 +1159,8 @@ Item {
             boundsBehavior: ListView.StopAtBounds
             currentIndex: -1
             model: d.handleFooterItems()
-            highlightMoveDuration: 150
-            highlight: Item{
-                clip: true
-                Rectangle{
-                    height: 18
-                    radius: 1.5
-                    color: FluTheme.primaryColor
-                    width: 3
-                    anchors{
-                        verticalCenter: parent.verticalCenter
-                        left: parent.left
-                        leftMargin: 6
-                    }
-                }
-            }
+            highlightMoveDuration: 0
+            highlight: Item{ visible: false }
             delegate: FluLoader{
                 property var model: modelData
                 property var _idx: index
@@ -1119,6 +1175,30 @@ Item {
                     if(modelData instanceof FluPaneItemSeparator){
                         return com_panel_item_separatorr
                     }
+                }
+            }
+        }
+
+        Rectangle{
+            id:footer_indicator
+            width: 3
+            height: 18
+            radius: 1.5
+            color: FluTheme.primaryColor
+            visible: layout_footer.currentIndex !== -1
+            x: 6
+            y: {
+                if(!layout_footer.currentItem){
+                    return layout_footer.y
+                }
+                return layout_footer.y + layout_footer.currentItem.y + (layout_footer.currentItem.height - height)/2
+            }
+            Behavior on y{
+                enabled: FluTheme.animationEnabled && d.animDisabled
+                SpringAnimation{
+                    spring: 4.6
+                    damping: 0.22
+                    epsilon: 0.5
                 }
             }
         }
@@ -1346,7 +1426,15 @@ Item {
             if(loader_content.source.toString() === url){
                 return
             }
-            loader_content.setSource(url,argument)
+            if(FluTheme.animationEnabled && d.animDisabled){
+                anim_switch_page.stop()
+                anim_switch_page.nextUrl = url
+                anim_switch_page.nextArgument = argument
+                anim_switch_page.start()
+            }else{
+                loader_content.opacity = 1
+                loader_content.setSource(url,argument)
+            }
             var obj = nav_list.model[nav_list.currentIndex]
             obj._ext = {url:url,argument:argument}
             d.stackItems = d.stackItems.concat(obj)

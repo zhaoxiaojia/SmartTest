@@ -34,7 +34,7 @@ FluObject{
 
     FluPaneItem{
         id: item_test_config
-        title: qsTr("TestConfig")
+        title: qsTr("Test")
         menuDelegate: paneItemMenu
         icon: FluentIcons.DeveloperTools
         url: "qrc:/example/qml/page/T_TestConfig.qml"

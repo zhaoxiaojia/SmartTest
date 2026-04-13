@@ -9,7 +9,7 @@ import example 1.0
 import "../component"
 import "../global"
 
-FluWindow {
+    FluWindow {
 
     id:window
     title: "SmartTest"
@@ -24,7 +24,7 @@ FluWindow {
         height: 30
         showDark: true
         darkClickListener:(button)=>handleDarkChanged(button)
-        closeClickListener: ()=>{dialog_close.open()}
+        closeClickListener: function(){ handleCloseRequest() }
         z:7
     }
 
@@ -87,18 +87,48 @@ FluWindow {
 
     FluContentDialog{
         id: dialog_close
+        property bool rememberChoice: false
         title: qsTr("Quit")
         message: qsTr("Are you sure you want to exit the program?")
         negativeText: qsTr("Minimize")
         buttonFlags: FluContentDialogType.NegativeButton | FluContentDialogType.NeutralButton | FluContentDialogType.PositiveButton
+        contentDelegate: Component{
+            Item{
+                implicitHeight: 42
+                implicitWidth: 400
+                FluCheckBox{
+                    id:chk_remember_close_action
+                    text: qsTr("Remember my choice")
+                    anchors{
+                        left: parent.left
+                        right: parent.right
+                        leftMargin: 20
+                        rightMargin: 20
+                        verticalCenter: parent.verticalCenter
+                    }
+                    checked: false
+                    clickListener: function(){
+                        dialog_close.rememberChoice = !dialog_close.rememberChoice
+                        chk_remember_close_action.checked = dialog_close.rememberChoice
+                    }
+                }
+            }
+        }
         onNegativeClicked: {
-            system_tray.showMessage(qsTr("Friendly Reminder"),qsTr("SmartTest is hidden from the tray, click on the tray to activate the window again"));
-            timer_window_hide_delay.restart()
+            if(dialog_close.rememberChoice){
+                SettingsHelper.saveRememberCloseAction(true)
+                SettingsHelper.saveCloseAction("minimize")
+            }
+            minimizeToTray()
         }
         positiveText: qsTr("Quit")
         neutralText: qsTr("Cancel")
         onPositiveClicked:{
-            FluRouter.exit(0)
+            if(dialog_close.rememberChoice){
+                SettingsHelper.saveRememberCloseAction(true)
+                SettingsHelper.saveCloseAction("quit")
+            }
+            quitNow()
         }
     }
 
@@ -260,6 +290,31 @@ FluWindow {
 
     function distance(x1,y1,x2,y2){
         return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2))
+    }
+
+    function minimizeToTray(){
+        system_tray.showMessage(qsTr("Friendly Reminder"),qsTr("SmartTest is hidden from the tray, click on the tray to activate the window again"));
+        timer_window_hide_delay.restart()
+    }
+
+    function quitNow(){
+        FluRouter.exit(0)
+    }
+
+    function handleCloseRequest(){
+        if(SettingsHelper.getRememberCloseAction()){
+            var action = SettingsHelper.getCloseAction()
+            if(action === "minimize"){
+                minimizeToTray()
+                return
+            }
+            if(action === "quit"){
+                quitNow()
+                return
+            }
+        }
+        dialog_close.rememberChoice = false
+        dialog_close.open()
     }
 
     function handleDarkChanged(button){
