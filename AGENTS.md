@@ -15,6 +15,14 @@ This file defines how Codex should work in this repository.
 - If a requirement cannot be met cleanly with existing FluentUI controls, stop and discuss tradeoffs before introducing new UI code or alternative libraries.
 - Do not replace FluentUI controls with Qt Quick Controls equivalents "for simplicity" without explicit user approval.
 
+### QRC Resource Rebuild
+
+- `ui/example/main.py` loads QML from `qrc:/...`, not directly from source files.
+- After any change to files covered by `ui/example/imports/resource.qrc`, you must rebuild `ui/example/imports/resource_rc.py` before handing off or asking the user to run the app.
+- Use this command from repo root:
+  - `.\.venv\Scripts\pyside6-rcc.exe ui\example\imports\resource.qrc -o ui\example\imports\resource_rc.py`
+- If FluentUI resource files under `ui/FluentUI/imports/resource.qrc` are changed, rebuild that resource file too before finishing.
+
 ## 2. Backend/Framework Layering
 
 Target architecture:

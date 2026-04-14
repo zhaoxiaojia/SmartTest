@@ -55,6 +55,13 @@ class TestPageBridge(QObject):
             "enum_values": field.enum_values,
         }
 
+    def _selected_nodeids(self) -> list[str]:
+        return [c.nodeid for c in self._state.selected]
+
+    def _matched_case_nodeids(self) -> list[str]:
+        selected = set(self._selected_nodeids())
+        return [str(item.get("nodeid", "")) for item in self._cases if str(item.get("nodeid", "")) in selected]
+
     @Slot()
     def discoverCases(self) -> None:
         try:
@@ -83,8 +90,25 @@ class TestPageBridge(QObject):
         return self._cases
 
     @Slot(result="QVariantList")
+    def caseRows(self):
+        selected = set(self._selected_nodeids())
+        rows = [
+            {
+                "nodeid": str(item.get("nodeid", "")),
+                "file": str(item.get("file", "")),
+                "name": str(item.get("name", "")),
+                "markers": list(item.get("markers", [])),
+                "case_type": str(item.get("case_type", "default")),
+                "selected": str(item.get("nodeid", "")) in selected,
+            }
+            for item in self._cases
+        ]
+        return rows
+
+    @Slot(result="QVariantList")
     def selectedCases(self):
-        return [{"nodeid": c.nodeid, "case_type": c.case_type} for c in self._state.selected]
+        selected = [{"nodeid": c.nodeid, "case_type": c.case_type} for c in self._state.selected]
+        return selected
 
     @Slot(result="QVariantList")
     def activeCaseTypes(self):
@@ -179,4 +203,3 @@ class TestPageBridge(QObject):
     def _save_and_emit(self) -> None:
         save_state(self._state_path, self._state)
         self.stateChanged.emit()
-
