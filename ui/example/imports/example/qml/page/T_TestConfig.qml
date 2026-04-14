@@ -8,9 +8,42 @@ FluPage {
     title: qsTr("Test")
 
     property var selectedModel: []
-    property var selectedOrderNodeids: []
+    property var selectedOrderFiles: []
+    property var caseTreeDataSource: []
+    property var caseExpandState: ({})
     ListModel{
         id: caseListModel
+    }
+
+    function trimmedCasePath(filePath){
+        var path = (filePath || "").toString()
+        if(path.indexOf("testing/tests/") === 0){
+            return path.substring("testing/tests/".length)
+        }
+        return path
+    }
+
+    function caseMatchesFilter(caseRow){
+        var filterText = (txt_filter.text || "").toString().trim().toLowerCase()
+        if(!filterText){
+            return true
+        }
+        return ((caseRow.file || "").toLowerCase().indexOf(filterText) !== -1)
+            || ((caseRow.name || "").toLowerCase().indexOf(filterText) !== -1)
+            || (trimmedCasePath(caseRow.file).toLowerCase().indexOf(filterText) !== -1)
+    }
+
+    function fileBaseName(filePath){
+        var shortFile = trimmedCasePath(filePath)
+        var parts = shortFile ? shortFile.split("/") : []
+        return parts.length > 0 ? parts[parts.length - 1] : shortFile
+    }
+
+    function isExpandedByDefault(key){
+        if(caseExpandState[key] === undefined){
+            caseExpandState[key] = false
+        }
+        return caseExpandState[key] === true
     }
 
     function refreshCasesModel(){
@@ -18,18 +51,195 @@ FluPage {
         var keepChecked = {}
         for(var i = 0; i < caseListModel.count; i++){
             var current = caseListModel.get(i)
-            keepChecked[current.nodeid] = current.checked === true
+            keepChecked[current.file] = current.checked === true
         }
-        caseListModel.clear()
+        var grouped = {}
+        var fileOrder = []
         for(var j = 0; j < rawCases.length; j++){
             var row = rawCases[j]
+            var filePath = row.file || ""
+            if(grouped[filePath] === undefined){
+                grouped[filePath] = {
+                    file: filePath,
+                    name: fileBaseName(filePath)
+                }
+                fileOrder.push(filePath)
+            }
+        }
+        caseListModel.clear()
+        for(var k = 0; k < fileOrder.length; k++){
+            var file = fileOrder[k]
+            var item = grouped[file]
             caseListModel.append({
-                nodeid: row.nodeid,
-                name: row.name,
-                checked: keepChecked[row.nodeid] === true
+                file: item.file,
+                name: item.name,
+                checked: keepChecked[item.file] === true
             })
         }
+        rebuildCaseTreeDataSource()
         rebuildSelectedModel()
+    }
+
+    function rebuildCaseTreeDataSource(){
+        var root = {
+            folders: [],
+            files: []
+        }
+
+        function createFolder(key, label){
+            return {
+                type: "folder",
+                key: key,
+                label: label,
+                folders: [],
+                files: []
+            }
+        }
+
+        function createFile(key, label, filePath){
+            return {
+                type: "file",
+                key: key,
+                label: label,
+                file: filePath,
+                checked: false,
+                fileIndex: -1
+            }
+        }
+
+        function sortNodes(nodes){
+            nodes.sort(function(a, b){
+                return a.label.localeCompare(b.label)
+            })
+        }
+
+        for(var i = 0; i < caseListModel.count; i++){
+            var caseRow = caseListModel.get(i)
+            var shortFile = trimmedCasePath(caseRow.file)
+            var parts = shortFile ? shortFile.split("/") : []
+            var fileName = parts.length > 0 ? parts[parts.length - 1] : caseRow.file
+            var folderParts = parts.slice(0, Math.max(parts.length - 1, 0))
+            var folderPath = ""
+            var parent = root
+            for(var j = 0; j < folderParts.length; j++){
+                folderPath = folderPath ? folderPath + "/" + folderParts[j] : folderParts[j]
+                var folderKey = "folder:" + folderPath
+                var folderNode = null
+                for(var k = 0; k < parent.folders.length; k++){
+                    if(parent.folders[k].key === folderKey){
+                        folderNode = parent.folders[k]
+                        break
+                    }
+                }
+                if(folderNode === null){
+                    folderNode = createFolder(folderKey, folderParts[j])
+                    parent.folders.push(folderNode)
+                }
+                parent = folderNode
+            }
+
+            var fileKey = "file:" + shortFile
+            var fileNode = null
+            for(var m = 0; m < parent.files.length; m++){
+                if(parent.files[m].key === fileKey){
+                    fileNode = parent.files[m]
+                    break
+                }
+            }
+            if(fileNode === null){
+                fileNode = createFile(fileKey, fileName, shortFile)
+                parent.files.push(fileNode)
+            }
+            fileNode.checked = caseRow.checked === true
+            fileNode.fileIndex = i
+        }
+
+        function branchHasMatch(node){
+            if(node.type === "file"){
+                return caseMatchesFilter(node)
+            }
+            for(var f = 0; f < node.folders.length; f++){
+                if(branchHasMatch(node.folders[f])){
+                    return true
+                }
+            }
+            for(var g = 0; g < node.files.length; g++){
+                if(branchHasMatch(node.files[g])){
+                    return true
+                }
+            }
+            return false
+        }
+
+        function appendFolder(folderNode, forceExpand){
+            if(!branchHasMatch(folderNode)){
+                return null
+            }
+            sortNodes(folderNode.folders)
+            sortNodes(folderNode.files)
+            var expanded = forceExpand || isExpandedByDefault(folderNode.key)
+            var children = []
+            for(var i2 = 0; i2 < folderNode.folders.length; i2++){
+                var folderChild = appendFolder(folderNode.folders[i2], forceExpand)
+                if(folderChild !== null){
+                    children.push(folderChild)
+                }
+            }
+            for(var j2 = 0; j2 < folderNode.files.length; j2++){
+                var fileChild = appendFile(folderNode.files[j2], forceExpand)
+                if(fileChild !== null){
+                    children.push(fileChild)
+                }
+            }
+            return {
+                title: folderNode.label,
+                _key: folderNode.key,
+                rowType: "folder",
+                iconSource: FluentIcons.Folder,
+                expanded: expanded,
+                children: children
+            }
+        }
+
+        function appendFile(fileNode, forceExpand){
+            if(!branchHasMatch(fileNode)){
+                return null
+            }
+            return {
+                title: fileNode.label,
+                _key: fileNode.key,
+                rowType: "file",
+                iconSource: FluentIcons.Document,
+                file: fileNode.file,
+                checked: fileNode.checked,
+                fileIndex: fileNode.fileIndex
+            }
+        }
+
+        sortNodes(root.folders)
+        sortNodes(root.files)
+        var forceExpand = (txt_filter.text || "").toString().trim().length > 0
+        var nextData = []
+        for(var n = 0; n < root.folders.length; n++){
+            var folderRoot = appendFolder(root.folders[n], forceExpand)
+            if(folderRoot !== null){
+                nextData.push(folderRoot)
+            }
+        }
+        for(var p = 0; p < root.files.length; p++){
+            var fileRoot = appendFile(root.files[p], forceExpand)
+            if(fileRoot !== null){
+                nextData.push(fileRoot)
+            }
+        }
+        caseTreeDataSource = nextData.length === 0 ? [] : [{
+            title: "tests",
+            _key: "root:tests",
+            rowType: "root",
+            iconSource: FluentIcons.Folder,
+            expanded: true,
+            children: nextData
+        }]
     }
 
     function rebuildSelectedModel(){
@@ -37,37 +247,37 @@ FluPage {
         for(var i = 0; i < caseListModel.count; i++){
             var current = caseListModel.get(i)
             if(current.checked === true){
-                checkedMap[current.nodeid] = {
-                    nodeid: current.nodeid,
+                checkedMap[current.file] = {
+                    file: current.file,
                     name: current.name
                 }
             }
         }
         var nextOrder = []
-        for(var j = 0; j < selectedOrderNodeids.length; j++){
-            var orderedNodeid = selectedOrderNodeids[j]
-            if(checkedMap[orderedNodeid] !== undefined){
-                nextOrder.push(orderedNodeid)
-                delete checkedMap[orderedNodeid]
+        for(var j = 0; j < selectedOrderFiles.length; j++){
+            var orderedFile = selectedOrderFiles[j]
+            if(checkedMap[orderedFile] !== undefined){
+                nextOrder.push(orderedFile)
+                delete checkedMap[orderedFile]
             }
         }
         for(var k = 0; k < caseListModel.count; k++){
             var row = caseListModel.get(k)
-            if(row.checked === true && checkedMap[row.nodeid] !== undefined){
-                nextOrder.push(row.nodeid)
-                delete checkedMap[row.nodeid]
+            if(row.checked === true && checkedMap[row.file] !== undefined){
+                nextOrder.push(row.file)
+                delete checkedMap[row.file]
             }
         }
-        selectedOrderNodeids = nextOrder
+        selectedOrderFiles = nextOrder
 
         var rows = []
-        for(var m = 0; m < selectedOrderNodeids.length; m++){
-            var nodeid = selectedOrderNodeids[m]
+        for(var m = 0; m < selectedOrderFiles.length; m++){
+            var file = selectedOrderFiles[m]
             for(var n = 0; n < caseListModel.count; n++){
                 var item = caseListModel.get(n)
-                if(item.nodeid === nodeid && item.checked === true){
+                if(item.file === file && item.checked === true){
                     rows.push({
-                        nodeid: item.nodeid,
+                        file: item.file,
                         name: item.name
                     })
                     break
@@ -81,15 +291,15 @@ FluPage {
         if(index < 0 || index >= caseListModel.count){
             return
         }
-        var current = caseListModel.get(index)
         caseListModel.setProperty(index, "checked", checked === true)
+        rebuildCaseTreeDataSource()
         rebuildSelectedModel()
     }
 
-    function setCaseCheckedByNodeid(nodeid, checked, reason){
+    function setCaseCheckedByFile(filePath, checked, reason){
         for(var i = 0; i < caseListModel.count; i++){
             var current = caseListModel.get(i)
-            if(current.nodeid === nodeid){
+            if(current.file === filePath){
                 setCaseCheckedAt(i, checked, reason)
                 return
             }
@@ -100,16 +310,16 @@ FluPage {
         if(fromIndex < 0 || toIndex < 0){
             return
         }
-        if(fromIndex >= selectedOrderNodeids.length || toIndex >= selectedOrderNodeids.length){
+        if(fromIndex >= selectedOrderFiles.length || toIndex >= selectedOrderFiles.length){
             return
         }
         if(fromIndex === toIndex){
             return
         }
-        var nextOrder = selectedOrderNodeids.slice(0)
+        var nextOrder = selectedOrderFiles.slice(0)
         var moved = nextOrder.splice(fromIndex, 1)[0]
         nextOrder.splice(toIndex, 0, moved)
-        selectedOrderNodeids = nextOrder
+        selectedOrderFiles = nextOrder
         rebuildSelectedModel()
     }
 
@@ -155,80 +365,39 @@ FluPage {
                     }
                     FluTextBox{
                         id:txt_filter
-                        placeholderText: qsTr("Filter by nodeid...")
+                        placeholderText: qsTr("Filter by file...")
                         Layout.fillWidth: true
+                        onTextChanged: rebuildCaseTreeDataSource()
                     }
                     FluGroupBox{
                         title: ""
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         padding: 8
-                        Flickable{
+                        FluTreeView{
+                            id:tree_cases
                             anchors.fill: parent
-                            clip: true
-                            contentHeight: col_cases.implicitHeight
-                            boundsBehavior: Flickable.StopAtBounds
-                            ScrollBar.vertical: FluScrollBar{}
-                            ColumnLayout{
-                                id:col_cases
-                                width: parent.width
-                                spacing: 6
-                                Repeater{
-                                    model: caseListModel
-                                    Item{
-                                        width: col_cases.width
-                                        height: visible ? 42 : 0
-                                        visible: {
-                                            if(!txt_filter.text){
-                                                return true
-                                            }
-                                            return (model.nodeid + "").indexOf(txt_filter.text) !== -1
-                                        }
-                                        RowLayout{
-                                            anchors.fill: parent
-                                            spacing: 8
-                                            FluCheckBox{
-                                                id: case_checkbox
-                                                Layout.alignment: Qt.AlignTop
-                                                checked: model.checked === true
-                                                text: ""
-                                                clickListener: function(){
-                                                    var newChecked = !(model.checked === true)
-                                                    setCaseCheckedAt(index, newChecked, "checkbox")
-                                                }
-                                            }
-                                            Item{
-                                                Layout.fillWidth: true
-                                                Layout.fillHeight: true
-                                                ColumnLayout{
-                                                    anchors.fill: parent
-                                                    spacing: 2
-                                                    FluText{
-                                                        text: model.name
-                                                        elide: Text.ElideRight
-                                                        Layout.fillWidth: true
-                                                    }
-                                                    FluText{
-                                                        text: model.nodeid
-                                                        font: FluTextStyle.Caption
-                                                        color: FluTheme.fontSecondaryColor
-                                                        elide: Text.ElideRight
-                                                        Layout.fillWidth: true
-                                                    }
-                                                }
-                                                MouseArea{
-                                                    anchors.fill: parent
-                                                    acceptedButtons: Qt.LeftButton
-                                                    hoverEnabled: true
-                                                    cursorShape: Qt.PointingHandCursor
-                                                    onClicked: {
-                                                        var newChecked = !(model.checked === true)
-                                                        setCaseCheckedAt(index, newChecked, "text")
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+                            headerVisible: false
+                            showLine: false
+                            cellHeight: 32
+                            depthPadding: 10
+                            checkable: true
+                            checkLeafOnly: true
+                            clickLeafRowToToggleCheckOnly: true
+                            columnSource: [{
+                                title: "",
+                                dataIndex: "title",
+                                width: Math.max(220, tree_cases.width - 8)
+                            }]
+                            dataSource: caseTreeDataSource
+                            onLeafCheckToggled: (rowData, checked)=>{
+                                if(rowData && rowData.fileIndex !== undefined){
+                                    setCaseCheckedAt(rowData.fileIndex, checked, "tree")
+                                }
+                            }
+                            onBranchToggled: (rowData, expanded)=>{
+                                if(rowData && rowData._key){
+                                    caseExpandState[rowData._key] = expanded === true
                                 }
                             }
                         }
@@ -284,7 +453,7 @@ FluPage {
                                         color: FluTheme.fontSecondaryColor
                                     }
                                     FluText{
-                                        text: modelData.nodeid
+                                        text: trimmedCasePath(modelData.file)
                                         elide: Text.ElideRight
                                         Layout.fillWidth: true
                                     }
@@ -295,7 +464,7 @@ FluPage {
                                         width: 30
                                         height: 30
                                         onClicked: {
-                                            setCaseCheckedByNodeid(modelData.nodeid, false, "selected_remove")
+                                            setCaseCheckedByFile(modelData.file, false, "selected_remove")
                                         }
                                     }
                                 }
@@ -388,13 +557,13 @@ FluPage {
                                     width: parent.width
                                     spacing: 6
                                     FluText{
-                                        text: modelData.nodeid
+                                        text: trimmedCasePath(modelData.file)
                                         font: FluTextStyle.BodyStrong
                                         elide: Text.ElideRight
                                         Layout.fillWidth: true
                                     }
                                     FluText{
-                                        text: qsTr("Per-case parameters schema will be generated from Python (factory) in the next step.")
+                                        text: qsTr("Per-file parameters schema will be generated from Python (factory) in the next step.")
                                         font: FluTextStyle.Caption
                                         color: FluTheme.fontSecondaryColor
                                         wrapMode: Text.WordWrap

@@ -242,7 +242,7 @@ class FluTreeModel(QAbstractTableModel):
         data = []
         for item in self._dataSource:
             if not item.hasChildren():
-                if item.checked():
+                if item.checked:
                     data.append(item)
         self.selectionModel = data
 
@@ -263,7 +263,8 @@ class FluTreeModel(QAbstractTableModel):
             else:
                 node.parent_ = None
             node._data = item
-            node.isExpanded = True
+            node.isExpanded = bool(item.get("expanded", True))
+            node._checked = bool(item.get("checked", False))
             if node.parent_ is not None:
                 node.parent_.children_.append(node)
             else:
@@ -281,10 +282,27 @@ class FluTreeModel(QAbstractTableModel):
                             child["__depth"] = 1
                         child["__parent"] = node
                         data.append(child)
+        visible_rows = []
+        stack = self._root.children_.copy()
+        stack.reverse()
+        while len(stack) > 0:
+            item = stack.pop()
+            visible_rows.append(item)
+            if item.hasChildren() and item.isExpanded:
+                children = item.children_.copy()
+                if len(children) != 0:
+                    children.reverse()
+                    for c in children:
+                        stack.append(c)
         self.beginResetModel()
-        self._rows = self._dataSource
+        self._rows = visible_rows
         self.endResetModel()
         self.dataSourceSize = len(self._dataSource)
+        selected = []
+        for item in self._dataSource:
+            if not item.hasChildren() and item.checked:
+                selected.append(item)
+        self.selectionModel = selected
 
     @Slot(int)
     def collapse(self, row: int):

@@ -7,6 +7,9 @@ Scope: everything under `ui/`.
 
 - Prefer existing FluentUI QML controls/patterns in this repo.
 - Avoid introducing alternative UI libraries without explicit approval.
+- Before implementing any new frontend/UI requirement, first inspect the available FluentUI controls/patterns in this repo and propose the best matching control(s) for the requirement.
+- Pause for user confirmation on the chosen FluentUI control/pattern before modifying UI code.
+- Only proceed to implementation after the user confirms the control choice.
 
 ## Layering
 
@@ -26,4 +29,3 @@ Current bridge (Test page):
   - global context (DUT/env/report info) persisted locally
   - per-case-type “special params” persisted locally
 </INSTRUCTIONS>
-

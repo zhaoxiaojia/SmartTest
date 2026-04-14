@@ -6,12 +6,17 @@ import Qt.labs.qmlmodels
 import FluentUI
 
 Rectangle {
+    signal leafCheckToggled(var rowData, bool checked)
+    signal branchToggled(var rowData, bool expanded)
     property var dataSource
     property var columnSource : []
     property bool showLine: true
     property int cellHeight: 30
     property int depthPadding: 15
     property bool checkable: false
+    property bool checkLeafOnly: false
+    property bool clickLeafRowToToggleCheckOnly: false
+    property bool headerVisible: true
     property color lineColor: FluTheme.dividerColor
     property color borderColor: FluTheme.dark ? Qt.rgba(37/255,37/255,37/255,1) : Qt.rgba(228/255,228/255,228/255,1)
     property color selectedBorderColor: FluTheme.primaryColor
@@ -176,6 +181,7 @@ Rectangle {
                 }else{
                     tree_model.expand(row)
                 }
+                control.branchToggled(rowModel.data, rowModel.isExpanded)
                 delay_force_layout.restart()
             }
             MouseArea{
@@ -184,12 +190,15 @@ Rectangle {
                 anchors.fill: parent
                 onClicked: {
                     d.current = rowModel
-                }
-                onDoubleClicked: {
                     if(rowModel.hasChildren()){
                         item_container.toggle()
+                    }else if(control.checkable && control.clickLeafRowToToggleCheckOnly){
+                        var nextChecked = !rowModel.checked
+                        tree_model.checkRow(row,nextChecked)
+                        control.leafCheckToggled(rowModel.data, nextChecked)
                     }
                 }
+                onDoubleClicked: {}
             }
             FluRectangle{
                 width: 1
@@ -265,12 +274,28 @@ Rectangle {
                     verticalPadding: 0
                     checked: rowModel.checked
                     animationEnabled:false
-                    visible: control.checkable
+                    visible: control.checkable && (!control.checkLeafOnly || !rowModel.hasChildren())
                     padding: 0
                     clickListener: function(){
-                        tree_model.checkRow(row,!rowModel.checked)
+                        var nextChecked = !rowModel.checked
+                        tree_model.checkRow(row,nextChecked)
+                        if(!rowModel.hasChildren()){
+                            control.leafCheckToggled(rowModel.data, nextChecked)
+                        }
                     }
                     Layout.alignment: Qt.AlignVCenter
+                }
+                Item{
+                    Layout.preferredWidth: rowModel.data && rowModel.data.iconSource ? 18 : 0
+                    Layout.preferredHeight: 18
+                    Layout.leftMargin: rowModel.data && rowModel.data.iconSource ? 6 : 0
+                    visible: rowModel.data && rowModel.data.iconSource
+                    FluIcon{
+                        anchors.centerIn: parent
+                        iconSource: rowModel.data.iconSource
+                        iconSize: 14
+                        color: FluTheme.fontSecondaryColor
+                    }
                 }
                 Item{
                     Layout.fillHeight: true
@@ -679,12 +704,13 @@ Rectangle {
     TableView {
         id: header_horizontal
         model: header_column_model
+        visible: control.headerVisible
         anchors{
             left: table_view.left
             right: table_view.right
             top: parent.top
         }
-        height: Math.max(1, contentHeight)
+        height: control.headerVisible ? Math.max(1, contentHeight) : 0
         boundsBehavior: Flickable.StopAtBounds
         clip: true
         syncDirection: Qt.Horizontal
@@ -748,8 +774,5 @@ Rectangle {
     function closeEditor(){
         d.editPosition = undefined
         d.editDelegate = undefined
-    }
-    function selectionModel(){
-        return tree_model.selectionModel()
     }
 }
