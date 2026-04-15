@@ -7,11 +7,69 @@ FluObject{
 
     property var navigationView
     property var paneItemMenu
+    property var protectedLoginHandler
+    property string testPageUrl: "qrc:/example/qml/page/T_TestConfig.qml"
+    property var pendingProtectedItem: null
 
     function rename(item, newName){
         if(newName && newName.trim().length>0){
             item.title = newName;
         }
+    }
+
+    function isProtectedItem(item){
+        return item && item.url === testPageUrl
+    }
+
+    function openItem(item){
+        if(!item || !navigationView){
+            console.warn("ItemsOriginal.openItem aborted", "item=", item, "navigationView=", navigationView)
+            return
+        }
+        console.log(
+                    "ItemsOriginal.openItem",
+                    "title=", item.title ? item.title : "<search>",
+                    "url=", item.url ? item.url : "<none>",
+                    "key=", item.key !== undefined ? item.key : "<none>"
+                    )
+        if(item.url){
+            console.log("ItemsOriginal.openItem push", item.url)
+            navigationView.push(item.url)
+            return
+        }
+        if(item.key !== undefined && item.key !== null){
+            console.log("ItemsOriginal.openItem startPageByItem", item.key)
+            navigationView.startPageByItem(item)
+            return
+        }
+        console.warn("ItemsOriginal.openItem no supported route payload", item)
+    }
+
+    function startProtectedFlow(item){
+        if(!protectedLoginHandler){
+            console.warn("ItemsOriginal protected login handler is not ready")
+            return
+        }
+        pendingProtectedItem = item
+        protectedLoginHandler()
+    }
+
+    function handleProtectedLoginResult(data){
+        if(data && data.success && pendingProtectedItem){
+            openItem(pendingProtectedItem)
+        }
+        pendingProtectedItem = null
+    }
+
+    function navigateWithAuth(item){
+        if(!item){
+            return
+        }
+        if(isProtectedItem(item) && !AuthBridge.authenticated){
+            startProtectedFlow(item)
+            return
+        }
+        openItem(item)
     }
 
     FluPaneItem{
@@ -38,7 +96,7 @@ FluObject{
         menuDelegate: paneItemMenu
         icon: FluentIcons.DeveloperTools
         url: "qrc:/example/qml/page/T_TestConfig.qml"
-        onTap: { navigationView.push(url) }
+        onTap: { navigateWithAuth(item_test_config) }
     }
 
     FluPaneItem{
@@ -570,7 +628,7 @@ FluObject{
     }
 
     function startPageByItem(data){
-        navigationView.startPageByItem(data)
+        navigateWithAuth(data)
     }
 
 }

@@ -65,6 +65,21 @@ Guidelines:
 - UI work must stay in the UI layer (FluentUI/QML usage). Test execution logic must stay in the pytest layer.
 - Keep layers strictly decoupled to keep issues easy to localize and fix.
 
+### Controller-Owned UI Data
+
+- QML is display-only for business data: show/hide, layout, visual state, and emitting user actions.
+- Do not rebuild business relationships inside QML from raw data snapshots.
+- For the Test page specifically, these relationships must be produced by Python bridge/controller code, not recomputed in QML:
+  - `TestTree -> Selected`
+  - `Selected -> Parameter`
+  - `TestTree -> Selected -> CaseType`
+- UI-only state may stay in QML when it is purely presentational, such as:
+  - current filter text
+  - expand/collapse state
+  - focus state
+  - transient drag hover visuals
+- If QML starts assembling ordered models, grouping trees, selection mappings, or parameter applicability from raw case data, move that logic into the bridge/controller layer.
+
 ## 3. Bug Fix Policy (No Workarounds)
 
 When the user says a feature "was working before":

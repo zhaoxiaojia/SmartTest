@@ -11,13 +11,9 @@ FluPage {
     property var selectedModel: []
     property var selectedCaseParamsModel: []
     property var selectedCaseTypesModel: []
-    property var selectedOrderFiles: []
     property var caseTreeDataSource: []
     property var caseExpandState: ({})
     property var caseParamExpandState: ({})
-    ListModel{
-        id: caseListModel
-    }
 
     function trimmedCasePath(filePath){
         var path = (filePath || "").toString()
@@ -25,22 +21,6 @@ FluPage {
             return path.substring("testing/tests/".length)
         }
         return path
-    }
-
-    function caseMatchesFilter(caseRow){
-        var filterText = (txt_filter.text || "").toString().trim().toLowerCase()
-        if(!filterText){
-            return true
-        }
-        return ((caseRow.file || "").toLowerCase().indexOf(filterText) !== -1)
-            || ((caseRow.name || "").toLowerCase().indexOf(filterText) !== -1)
-            || (trimmedCasePath(caseRow.file).toLowerCase().indexOf(filterText) !== -1)
-    }
-
-    function fileBaseName(filePath){
-        var shortFile = trimmedCasePath(filePath)
-        var parts = shortFile ? shortFile.split("/") : []
-        return parts.length > 0 ? parts[parts.length - 1] : shortFile
     }
 
     function paramScopeLabel(scope){
@@ -97,330 +77,60 @@ FluPage {
         return caseExpandState[key] === true
     }
 
-    function refreshCasesModel(){
-        var rawCases = TestPageBridge.cases()
-        var persistedSelectedFiles = TestPageBridge.selectedFiles()
-        var persistedSelectedMap = {}
-        for(var selectedIndex = 0; selectedIndex < persistedSelectedFiles.length; selectedIndex++){
-            persistedSelectedMap[persistedSelectedFiles[selectedIndex]] = true
-        }
-        var keepChecked = {}
-        for(var i = 0; i < caseListModel.count; i++){
-            var current = caseListModel.get(i)
-            keepChecked[current.file] = current.checked === true
-        }
-        var grouped = {}
-        var fileOrder = []
-        for(var j = 0; j < rawCases.length; j++){
-            var row = rawCases[j]
-            var filePath = row.file || ""
-            if(grouped[filePath] === undefined){
-                grouped[filePath] = {
-                    file: filePath,
-                    name: fileBaseName(filePath)
-                }
-                fileOrder.push(filePath)
+    function expandedKeys(){
+        var keys = []
+        for(var key in caseExpandState){
+            if(caseExpandState[key] === true){
+                keys.push(key)
             }
         }
-        caseListModel.clear()
-        for(var k = 0; k < fileOrder.length; k++){
-            var file = fileOrder[k]
-            var item = grouped[file]
-            caseListModel.append({
-                file: item.file,
-                name: item.name,
-                checked: keepChecked[item.file] === true || persistedSelectedMap[item.file] === true
-            })
-        }
-        if(selectedOrderFiles.length === 0 && persistedSelectedFiles.length > 0){
-            selectedOrderFiles = persistedSelectedFiles.slice(0)
-        }
-        rebuildCaseTreeDataSource()
-        rebuildSelectedModel()
+        return keys
     }
 
-    function rebuildCaseTreeDataSource(){
-        var root = {
-            folders: [],
-            files: []
+    function decorateTreeNodes(nodes){
+        var source = nodes || []
+        var decorated = []
+        for(var i = 0; i < source.length; i++){
+            var node = source[i]
+            var rowType = node.rowType || ""
+            var iconSource = 0
+            if(rowType === "folder" || rowType === "root"){
+                iconSource = FluentIcons.Folder
+            }else if(rowType === "file"){
+                iconSource = FluentIcons.Document
+            }
+            var copy = {
+                title: node.title,
+                _key: node._key,
+                rowType: rowType,
+                iconSource: iconSource,
+                expanded: node.expanded === true,
+                file: node.file,
+                checked: node.checked === true
+            }
+            if(node.children !== undefined){
+                copy.children = decorateTreeNodes(node.children)
+            }
+            decorated.push(copy)
         }
-
-        function createFolder(key, label){
-            return {
-                type: "folder",
-                key: key,
-                label: label,
-                folders: [],
-                files: []
-            }
-        }
-
-        function createFile(key, label, filePath){
-            return {
-                type: "file",
-                key: key,
-                label: label,
-                file: filePath,
-                checked: false,
-                fileIndex: -1
-            }
-        }
-
-        function sortNodes(nodes){
-            nodes.sort(function(a, b){
-                return a.label.localeCompare(b.label)
-            })
-        }
-
-        for(var i = 0; i < caseListModel.count; i++){
-            var caseRow = caseListModel.get(i)
-            var shortFile = trimmedCasePath(caseRow.file)
-            var parts = shortFile ? shortFile.split("/") : []
-            var fileName = parts.length > 0 ? parts[parts.length - 1] : caseRow.file
-            var folderParts = parts.slice(0, Math.max(parts.length - 1, 0))
-            var folderPath = ""
-            var parent = root
-            for(var j = 0; j < folderParts.length; j++){
-                folderPath = folderPath ? folderPath + "/" + folderParts[j] : folderParts[j]
-                var folderKey = "folder:" + folderPath
-                var folderNode = null
-                for(var k = 0; k < parent.folders.length; k++){
-                    if(parent.folders[k].key === folderKey){
-                        folderNode = parent.folders[k]
-                        break
-                    }
-                }
-                if(folderNode === null){
-                    folderNode = createFolder(folderKey, folderParts[j])
-                    parent.folders.push(folderNode)
-                }
-                parent = folderNode
-            }
-
-            var fileKey = "file:" + shortFile
-            var fileNode = null
-            for(var m = 0; m < parent.files.length; m++){
-                if(parent.files[m].key === fileKey){
-                    fileNode = parent.files[m]
-                    break
-                }
-            }
-            if(fileNode === null){
-                fileNode = createFile(fileKey, fileName, shortFile)
-                parent.files.push(fileNode)
-            }
-            fileNode.checked = caseRow.checked === true
-            fileNode.fileIndex = i
-        }
-
-        function branchHasMatch(node){
-            if(node.type === "file"){
-                return caseMatchesFilter(node)
-            }
-            for(var f = 0; f < node.folders.length; f++){
-                if(branchHasMatch(node.folders[f])){
-                    return true
-                }
-            }
-            for(var g = 0; g < node.files.length; g++){
-                if(branchHasMatch(node.files[g])){
-                    return true
-                }
-            }
-            return false
-        }
-
-        function appendFolder(folderNode, forceExpand){
-            if(!branchHasMatch(folderNode)){
-                return null
-            }
-            sortNodes(folderNode.folders)
-            sortNodes(folderNode.files)
-            var expanded = forceExpand || isExpandedByDefault(folderNode.key)
-            var children = []
-            for(var i2 = 0; i2 < folderNode.folders.length; i2++){
-                var folderChild = appendFolder(folderNode.folders[i2], forceExpand)
-                if(folderChild !== null){
-                    children.push(folderChild)
-                }
-            }
-            for(var j2 = 0; j2 < folderNode.files.length; j2++){
-                var fileChild = appendFile(folderNode.files[j2], forceExpand)
-                if(fileChild !== null){
-                    children.push(fileChild)
-                }
-            }
-            return {
-                title: folderNode.label,
-                _key: folderNode.key,
-                rowType: "folder",
-                iconSource: FluentIcons.Folder,
-                expanded: expanded,
-                children: children
-            }
-        }
-
-        function appendFile(fileNode, forceExpand){
-            if(!branchHasMatch(fileNode)){
-                return null
-            }
-            return {
-                title: fileNode.label,
-                _key: fileNode.key,
-                rowType: "file",
-                iconSource: FluentIcons.Document,
-                file: fileNode.file,
-                checked: fileNode.checked,
-                fileIndex: fileNode.fileIndex
-            }
-        }
-
-        sortNodes(root.folders)
-        sortNodes(root.files)
-        var forceExpand = (txt_filter.text || "").toString().trim().length > 0
-        var nextData = []
-        for(var n = 0; n < root.folders.length; n++){
-            var folderRoot = appendFolder(root.folders[n], forceExpand)
-            if(folderRoot !== null){
-                nextData.push(folderRoot)
-            }
-        }
-        for(var p = 0; p < root.files.length; p++){
-            var fileRoot = appendFile(root.files[p], forceExpand)
-            if(fileRoot !== null){
-                nextData.push(fileRoot)
-            }
-        }
-        caseTreeDataSource = nextData.length === 0 ? [] : [{
-            title: "tests",
-            _key: "root:tests",
-            rowType: "root",
-            iconSource: FluentIcons.Folder,
-            expanded: true,
-            children: nextData
-        }]
+        return decorated
     }
 
-    function rebuildSelectedModel(){
-        var checkedMap = {}
-        for(var i = 0; i < caseListModel.count; i++){
-            var current = caseListModel.get(i)
-            if(current.checked === true){
-                checkedMap[current.file] = {
-                    file: current.file,
-                    name: current.name
-                }
-            }
-        }
-        var nextOrder = []
-        for(var j = 0; j < selectedOrderFiles.length; j++){
-            var orderedFile = selectedOrderFiles[j]
-            if(checkedMap[orderedFile] !== undefined){
-                nextOrder.push(orderedFile)
-                delete checkedMap[orderedFile]
-            }
-        }
-        for(var k = 0; k < caseListModel.count; k++){
-            var row = caseListModel.get(k)
-            if(row.checked === true && checkedMap[row.file] !== undefined){
-                nextOrder.push(row.file)
-                delete checkedMap[row.file]
-            }
-        }
-        selectedOrderFiles = nextOrder
-
-        var rows = []
-        for(var m = 0; m < selectedOrderFiles.length; m++){
-            var file = selectedOrderFiles[m]
-            for(var n = 0; n < caseListModel.count; n++){
-                var item = caseListModel.get(n)
-                if(item.file === file && item.checked === true){
-                    rows.push({
-                        file: item.file,
-                        name: item.name
-                    })
-                    break
-                }
-            }
-        }
-        selectedModel = rows
-
-        var rawCases = TestPageBridge.cases()
-        var caseRows = []
-        var seenCaseTypes = {}
-        var caseTypes = []
-        for(var fileIndex = 0; fileIndex < selectedOrderFiles.length; fileIndex++){
-            var selectedFile = selectedOrderFiles[fileIndex]
-            for(var caseIndex = 0; caseIndex < rawCases.length; caseIndex++){
-                var caseRow = rawCases[caseIndex]
-                if((caseRow.file || "") !== selectedFile){
-                    continue
-                }
-                caseRows.push({
-                    nodeid: caseRow.nodeid || "",
-                    file: caseRow.file || "",
-                    name: caseRow.name || "",
-                    case_type: caseRow.case_type || "default",
-                    required_params: caseRow.required_params || [],
-                    required_param_groups: caseRow.required_param_groups || []
-                })
-                var caseType = caseRow.case_type || "default"
-                if(seenCaseTypes[caseType] !== true){
-                    seenCaseTypes[caseType] = true
-                    caseTypes.push(caseType)
-                }
-            }
-        }
-        selectedCaseParamsModel = caseRows
-        selectedCaseTypesModel = caseTypes
-    }
-
-    function setCaseCheckedAt(index, checked, reason){
-        if(index < 0 || index >= caseListModel.count){
-            return
-        }
-        var filePath = caseListModel.get(index).file
-        caseListModel.setProperty(index, "checked", checked === true)
-        TestPageBridge.setFileSelected(filePath, checked === true)
-        rebuildCaseTreeDataSource()
-        rebuildSelectedModel()
-    }
-
-    function setCaseCheckedByFile(filePath, checked, reason){
-        for(var i = 0; i < caseListModel.count; i++){
-            var current = caseListModel.get(i)
-            if(current.file === filePath){
-                setCaseCheckedAt(i, checked, reason)
-                return
-            }
-        }
-    }
-
-    function moveSelectedLocal(fromIndex, toIndex){
-        if(fromIndex < 0 || toIndex < 0){
-            return
-        }
-        if(fromIndex >= selectedOrderFiles.length || toIndex >= selectedOrderFiles.length){
-            return
-        }
-        if(fromIndex === toIndex){
-            return
-        }
-        var nextOrder = selectedOrderFiles.slice(0)
-        var moved = nextOrder.splice(fromIndex, 1)[0]
-        nextOrder.splice(toIndex, 0, moved)
-        selectedOrderFiles = nextOrder
-        rebuildSelectedModel()
+    function refreshViewModels(){
+        caseTreeDataSource = decorateTreeNodes(TestPageBridge.caseTree((txt_filter.text || "").toString(), expandedKeys()))
+        selectedModel = TestPageBridge.selectedFileRows()
+        selectedCaseParamsModel = TestPageBridge.selectedCaseParamRows()
+        selectedCaseTypesModel = TestPageBridge.activeCaseTypes()
     }
 
     Connections{
         target: TestPageBridge
         function onCasesChanged(){
-            refreshCasesModel()
+            refreshViewModels()
         }
         function onStateChanged(){
             stateVersion = stateVersion + 1
-            rebuildSelectedModel()
+            refreshViewModels()
         }
         function onErrorOccurred(msg){
             showError(msg)
@@ -429,7 +139,7 @@ FluPage {
 
     Component.onCompleted: {
         TestPageBridge.discoverCases()
-        refreshCasesModel()
+        refreshViewModels()
     }
 
     FluSplitLayout{
@@ -459,7 +169,7 @@ FluPage {
                         id:txt_filter
                         placeholderText: qsTr("Filter by file...")
                         Layout.fillWidth: true
-                        onTextChanged: rebuildCaseTreeDataSource()
+                        onTextChanged: refreshViewModels()
                     }
                     FluGroupBox{
                         title: ""
@@ -483,8 +193,8 @@ FluPage {
                             }]
                             dataSource: caseTreeDataSource
                             onLeafCheckToggled: (rowData, checked)=>{
-                                if(rowData && rowData.fileIndex !== undefined){
-                                    setCaseCheckedAt(rowData.fileIndex, checked, "tree")
+                                if(rowData && rowData.file){
+                                    TestPageBridge.setFileSelected(rowData.file, checked === true)
                                 }
                             }
                             onBranchToggled: (rowData, expanded)=>{
@@ -556,7 +266,7 @@ FluPage {
                                         width: 30
                                         height: 30
                                         onClicked: {
-                                            setCaseCheckedByFile(modelData.file, false, "selected_remove")
+                                            TestPageBridge.setFileSelected(modelData.file, false)
                                         }
                                     }
                                 }
@@ -600,7 +310,7 @@ FluPage {
                                         list_selected.dragFromIndex = -1
                                         list_selected.dragToIndex = -1
                                         if(finalFromIndex >= 0 && finalToIndex >= 0 && finalFromIndex !== finalToIndex){
-                                            moveSelectedLocal(finalFromIndex, finalToIndex)
+                                            TestPageBridge.moveSelectedFile(finalFromIndex, finalToIndex)
                                         }
                                     }
                                     onCanceled: {

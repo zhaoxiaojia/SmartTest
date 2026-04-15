@@ -20,6 +20,17 @@ Scope: everything under `ui/`.
 
 - Bridges live in `ui/example/bridge/`.
 - Bridges are registered as QML context properties in `ui/example/main.py`.
+- Bridges/controllers own business-facing view models for QML.
+- QML must not reconstruct business relationships from raw bridge payloads when the relationship can be produced in Python.
+- For the Test page, tree structure, selected rows, selected-parameter rows, and selected case-type rows must come from bridge/controller logic.
+- QML may keep only presentational state such as filter text, expand/collapse flags, focus, and drag visuals.
+
+Current bridge (Auth):
+
+- `AuthBridge` provides:
+  - LDAP sign-in
+  - persisted authenticated username/state
+  - login gating for the Test page
 
 Current bridge (Test page):
 

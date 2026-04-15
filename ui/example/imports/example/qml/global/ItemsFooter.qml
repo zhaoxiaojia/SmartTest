@@ -7,16 +7,21 @@ FluObject{
 
     property var navigationView
     property var paneItemMenu
+    property var accountLoginHandler
 
     id:footer_items
 
     FluPaneItemSeparator{}
 
     FluPaneItem{
-        title:qsTr("About")
+        title:qsTr("Account")
         icon:FluentIcons.Contact
         onTapListener:function(){
-            FluRouter.navigate("/about")
+            if(accountLoginHandler){
+                accountLoginHandler()
+            }else{
+                console.warn("ItemsFooter.Account login handler is not ready")
+            }
         }
     }
 

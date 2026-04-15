@@ -35,6 +35,8 @@ class TestPageBridge(QObject):
         global_defaults = defaults_for_schema(self._registry.global_context)
         for key, value in global_defaults.items():
             self._state.global_context.setdefault(key, value)
+        if not hasattr(self._state, "selected_files"):
+            self._state.selected_files = []
 
     def _schema_to_jsonable(self, schema: ParamSchema) -> dict[str, Any]:
         return {
@@ -77,6 +79,79 @@ class TestPageBridge(QObject):
         if not normalized:
             return []
         return [case for case in self._cases if str(case.get("file", "")) == normalized]
+
+    def _trimmed_case_path(self, file_path: str) -> str:
+        path = str(file_path or "").strip()
+        prefix = "testing/tests/"
+        if path.startswith(prefix):
+            return path[len(prefix) :]
+        return path
+
+    def _file_base_name(self, file_path: str) -> str:
+        short_file = self._trimmed_case_path(file_path)
+        return short_file.split("/")[-1] if short_file else short_file
+
+    def _selected_file_paths_from_cases(self) -> list[str]:
+        file_paths: list[str] = []
+        seen: set[str] = set()
+        for selected in self._state.selected:
+            case_info = self._case_info(selected.nodeid)
+            if case_info is None:
+                continue
+            file_path = str(case_info.get("file", "")).strip()
+            if not file_path or file_path in seen:
+                continue
+            seen.add(file_path)
+            file_paths.append(file_path)
+        return file_paths
+
+    def _reorder_selected_cases_by_file_order(self) -> bool:
+        if not self._cases or not self._state.selected:
+            return False
+
+        grouped: dict[str, list[SelectedCase]] = {}
+        remaining_files: list[str] = []
+        for selected in self._state.selected:
+            case_info = self._case_info(selected.nodeid)
+            if case_info is None:
+                continue
+            file_path = str(case_info.get("file", "")).strip()
+            if not file_path:
+                continue
+            grouped.setdefault(file_path, []).append(selected)
+            if file_path not in remaining_files:
+                remaining_files.append(file_path)
+
+        ordered_files = [path for path in self._state.selected_files if path in grouped]
+        ordered_files.extend(path for path in remaining_files if path not in ordered_files)
+        reordered: list[SelectedCase] = []
+        for file_path in ordered_files:
+            reordered.extend(grouped.get(file_path, []))
+
+        if [c.nodeid for c in reordered] == [c.nodeid for c in self._state.selected]:
+            return False
+        self._state.selected = reordered
+        return True
+
+    def _sync_selected_file_order(self) -> bool:
+        selected_files = self._selected_file_paths_from_cases()
+        next_order: list[str] = []
+        seen: set[str] = set()
+
+        for file_path in self._state.selected_files:
+            if file_path in selected_files and file_path not in seen:
+                seen.add(file_path)
+                next_order.append(file_path)
+
+        for file_path in selected_files:
+            if file_path not in seen:
+                seen.add(file_path)
+                next_order.append(file_path)
+
+        if next_order == self._state.selected_files:
+            return False
+        self._state.selected_files = next_order
+        return True
 
     def _resolve_case_value(self, *, nodeid: str, key: str) -> Any:
         case = self._case_info(nodeid)
@@ -121,10 +196,6 @@ class TestPageBridge(QObject):
     def _selected_nodeids(self) -> list[str]:
         return [c.nodeid for c in self._state.selected]
 
-    def _matched_case_nodeids(self) -> list[str]:
-        selected = set(self._selected_nodeids())
-        return [str(item.get("nodeid", "")) for item in self._cases if str(item.get("nodeid", "")) in selected]
-
     def _set_case_selected(self, nodeid: str, selected: bool) -> bool:
         normalized = (nodeid or "").strip()
         if not normalized:
@@ -139,6 +210,11 @@ class TestPageBridge(QObject):
                     case_type = str(case.get("case_type") or "default")
                     break
             self._state.selected.append(SelectedCase(nodeid=normalized, case_type=case_type))
+            case_info = self._case_info(normalized)
+            if case_info is not None:
+                file_path = str(case_info.get("file", "")).strip()
+                if file_path and file_path not in self._state.selected_files:
+                    self._state.selected_files.append(file_path)
             self._state.case_configs.setdefault(normalized, {})
             schema = self._registry.get_case_type_schema(case_type)
             if schema:
@@ -147,6 +223,16 @@ class TestPageBridge(QObject):
 
         original_len = len(self._state.selected)
         self._state.selected = [case for case in self._state.selected if case.nodeid != normalized]
+        case_info = self._case_info(normalized)
+        if case_info is not None:
+            file_path = str(case_info.get("file", "")).strip()
+            if file_path:
+                still_selected = any(
+                    str((self._case_info(case.nodeid) or {}).get("file", "")).strip() == file_path
+                    for case in self._state.selected
+                )
+                if not still_selected:
+                    self._state.selected_files = [path for path in self._state.selected_files if path != file_path]
         # Keep per-case configs on deselect so previously entered values can be restored
         # when the user selects the same case again in a later session.
         return len(self._state.selected) != original_len
@@ -174,6 +260,10 @@ class TestPageBridge(QObject):
             }
             for c in cases
         ]
+        changed = self._sync_selected_file_order()
+        changed = self._reorder_selected_cases_by_file_order() or changed
+        if changed:
+            save_state(self._state_path, self._state)
         self.casesChanged.emit()
 
     @Slot(result="QVariantList")
@@ -205,29 +295,149 @@ class TestPageBridge(QObject):
 
     @Slot(result="QVariantList")
     def selectedFiles(self):
-        file_paths: list[str] = []
-        seen: set[str] = set()
-        for case in self._state.selected:
-            case_info = self._case_info(case.nodeid)
-            if case_info is None:
-                continue
-            file_path = str(case_info.get("file", "")).strip()
-            if not file_path or file_path in seen:
-                continue
-            seen.add(file_path)
-            file_paths.append(file_path)
-        return file_paths
+        self._sync_selected_file_order()
+        return list(self._state.selected_files)
+
+    @Slot(result="QVariantList")
+    def selectedFileRows(self):
+        self._sync_selected_file_order()
+        rows: list[dict[str, Any]] = []
+        for file_path in self._state.selected_files:
+            rows.append(
+                {
+                    "file": file_path,
+                    "name": self._file_base_name(file_path),
+                    "short_file": self._trimmed_case_path(file_path),
+                }
+            )
+        return rows
+
+    @Slot(result="QVariantList")
+    def selectedCaseParamRows(self):
+        self._sync_selected_file_order()
+        rows: list[dict[str, Any]] = []
+        for file_path in self._state.selected_files:
+            for case in self._cases_for_file(file_path):
+                rows.append(
+                    {
+                        "nodeid": str(case.get("nodeid", "")),
+                        "file": str(case.get("file", "")),
+                        "name": str(case.get("name", "")),
+                        "case_type": str(case.get("case_type", "default")),
+                        "required_params": list(case.get("required_params", [])),
+                        "required_param_groups": list(case.get("required_param_groups", [])),
+                    }
+                )
+        return rows
 
     @Slot(result="QVariantList")
     def activeCaseTypes(self):
-        types = []
-        seen = set()
-        for c in self._state.selected:
-            if c.case_type in seen:
+        types: list[str] = []
+        seen: set[str] = set()
+        for row in self.selectedCaseParamRows():
+            case_type = str(row.get("case_type", "default"))
+            if case_type in seen:
                 continue
-            seen.add(c.case_type)
-            types.append(c.case_type)
+            seen.add(case_type)
+            types.append(case_type)
         return types
+
+    @Slot(str, "QVariantList", result="QVariantList")
+    def caseTree(self, filter_text: str, expanded_keys: list[Any]):
+        selected_files = set(self.selectedFiles())
+        expanded = {str(item) for item in (expanded_keys or []) if str(item)}
+        normalized_filter = str(filter_text or "").strip().lower()
+
+        root: dict[str, Any] = {"folders": [], "files": []}
+
+        def case_matches(file_path: str, case_name: str) -> bool:
+            if not normalized_filter:
+                return True
+            short_file = self._trimmed_case_path(file_path).lower()
+            return (
+                normalized_filter in str(file_path or "").lower()
+                or normalized_filter in short_file
+                or normalized_filter in str(case_name or "").lower()
+            )
+
+        def sort_nodes(nodes: list[dict[str, Any]]) -> None:
+            nodes.sort(key=lambda item: str(item.get("label", "")))
+
+        for case in self._cases:
+            file_path = str(case.get("file", "")).strip()
+            if not file_path:
+                continue
+            if not case_matches(file_path, str(case.get("name", ""))):
+                continue
+
+            short_file = self._trimmed_case_path(file_path)
+            parts = short_file.split("/") if short_file else []
+            folder_parts = parts[:-1]
+            file_name = parts[-1] if parts else short_file
+            parent = root
+            folder_path = ""
+            for part in folder_parts:
+                folder_path = f"{folder_path}/{part}" if folder_path else part
+                folder_key = f"folder:{folder_path}"
+                folder_node = next((item for item in parent["folders"] if item["key"] == folder_key), None)
+                if folder_node is None:
+                    folder_node = {"key": folder_key, "label": part, "folders": [], "files": []}
+                    parent["folders"].append(folder_node)
+                parent = folder_node
+
+            file_key = f"file:{short_file}"
+            if not any(item["key"] == file_key for item in parent["files"]):
+                parent["files"].append(
+                    {
+                        "key": file_key,
+                        "label": file_name,
+                        "file": file_path,
+                        "checked": file_path in selected_files,
+                    }
+                )
+
+        force_expand = bool(normalized_filter)
+
+        def build_folder(node: dict[str, Any]) -> dict[str, Any]:
+            sort_nodes(node["folders"])
+            sort_nodes(node["files"])
+            children = [build_folder(item) for item in node["folders"]]
+            children.extend(build_file(item) for item in node["files"])
+            return {
+                "title": node["label"],
+                "_key": node["key"],
+                "rowType": "folder",
+                "iconSource": "Folder",
+                "expanded": force_expand or node["key"] in expanded,
+                "children": children,
+            }
+
+        def build_file(node: dict[str, Any]) -> dict[str, Any]:
+            return {
+                "title": node["label"],
+                "_key": node["key"],
+                "rowType": "file",
+                "iconSource": "Document",
+                "file": node["file"],
+                "checked": node["checked"],
+            }
+
+        sort_nodes(root["folders"])
+        sort_nodes(root["files"])
+        children = [build_folder(item) for item in root["folders"]]
+        children.extend(build_file(item) for item in root["files"])
+        if not children:
+            return []
+        return [
+            {
+                "title": "tests",
+                "_key": "root:tests",
+                "rowType": "root",
+                "iconSource": "Folder",
+                "expanded": True,
+                "children": children,
+            }
+        ]
 
     @Slot(str, result="QVariantMap")
     def caseTypeSchema(self, case_type: str):
@@ -276,10 +486,21 @@ class TestPageBridge(QObject):
         if not cases:
             return
         changed = False
+        normalized = (file_path or "").strip()
+        if selected and normalized and normalized not in self._state.selected_files:
+            self._state.selected_files.append(normalized)
+            changed = True
+        if not selected and normalized:
+            next_files = [path for path in self._state.selected_files if path != normalized]
+            if next_files != self._state.selected_files:
+                self._state.selected_files = next_files
+                changed = True
         for case in cases:
             changed = self._set_case_selected(str(case.get("nodeid", "")), selected) or changed
         if not changed:
             return
+        self._sync_selected_file_order()
+        self._reorder_selected_cases_by_file_order()
         self._save_and_emit()
 
     @Slot(str, result=bool)
@@ -288,14 +509,19 @@ class TestPageBridge(QObject):
 
     @Slot(int, int)
     def moveSelected(self, from_index: int, to_index: int) -> None:
+        self.moveSelectedFile(from_index, to_index)
+
+    @Slot(int, int)
+    def moveSelectedFile(self, from_index: int, to_index: int) -> None:
         if from_index == to_index:
             return
         if from_index < 0 or to_index < 0:
             return
-        if from_index >= len(self._state.selected) or to_index >= len(self._state.selected):
+        if from_index >= len(self._state.selected_files) or to_index >= len(self._state.selected_files):
             return
-        item = self._state.selected.pop(from_index)
-        self._state.selected.insert(to_index, item)
+        item = self._state.selected_files.pop(from_index)
+        self._state.selected_files.insert(to_index, item)
+        self._reorder_selected_cases_by_file_order()
         self._save_and_emit()
 
     @Slot(str, str, "QVariant")
@@ -323,6 +549,10 @@ class TestPageBridge(QObject):
     def reloadState(self) -> None:
         self._state = load_state(self._state_path)
         self._ensure_state_defaults()
+        changed = self._sync_selected_file_order()
+        changed = self._reorder_selected_cases_by_file_order() or changed
+        if changed:
+            save_state(self._state_path, self._state)
         self.stateChanged.emit()
 
     def _save_and_emit(self) -> None:

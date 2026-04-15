@@ -32,6 +32,49 @@ import "../global"
         id:fluent_Initializr
     }
 
+    FluWindowResultLauncher{
+        id: loginResultLauncher
+        path: "/login"
+        onResult:
+            (data)=>{
+                if(data && data.success){
+                    showSuccess(data.message)
+                }
+                ItemsOriginal.handleProtectedLoginResult(data)
+            }
+    }
+
+    FluWindowResultLauncher{
+        id: accountLoginLauncher
+        path: "/login"
+        onResult:
+            (data)=>{
+                if(data && data.success){
+                    showSuccess(data.message)
+                }
+            }
+    }
+
+    FluIconButton{
+        id: button_about
+        width: 40
+        height: 30
+        z: 8
+        iconSource: FluentIcons.Important
+        iconSize: 16
+        text: qsTr("About")
+        radius: 0
+        anchors{
+            top: parent.top
+            right: parent.right
+            rightMargin: FluTools.isMacos() ? 8 : appBar.layoutStandardbuttons.width
+        }
+        y: 0
+        onClicked: {
+            FluRouter.navigate("/about")
+        }
+    }
+
     FluEvent{
         name: "checkUpdate"
         onTriggered: {
@@ -256,11 +299,14 @@ import "../global"
                 Component.onCompleted: {
                     ItemsOriginal.navigationView = nav_view
                     ItemsOriginal.paneItemMenu = nav_item_right_menu
+                    ItemsOriginal.protectedLoginHandler = launchProtectedLogin
                     ItemsFooter.navigationView = nav_view
                     ItemsFooter.paneItemMenu = nav_item_right_menu
+                    ItemsFooter.accountLoginHandler = launchAccountLogin
                     window.setHitTestVisible(nav_view.buttonMenu)
                     window.setHitTestVisible(nav_view.buttonBack)
                     window.setHitTestVisible(nav_view.imageLogo)
+                    window.setHitTestVisible(button_about)
                     setCurrentIndex(0)
                 }
             }
@@ -341,6 +387,14 @@ import "../global"
         }else{
             FluTheme.darkMode = FluThemeType.Dark
         }
+    }
+
+    function launchProtectedLogin(){
+        loginResultLauncher.launch({username: AuthBridge.username})
+    }
+
+    function launchAccountLogin(){
+        accountLoginLauncher.launch({username: AuthBridge.username})
     }
 
     Shortcut {

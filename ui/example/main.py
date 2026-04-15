@@ -22,6 +22,7 @@ from example.helper.TranslateHelper import TranslateHelper
 from example.component.Callback import Callback
 from example.imports import resource_rc as rc
 from example.helper import Async
+from example.bridge.AuthBridge import AuthBridge
 from example.bridge.TestPageBridge import TestPageBridge
 
 _uri = "example"
@@ -83,6 +84,7 @@ def main():
     context.setContextProperty("InitializrHelper", InitializrHelper())
     context.setContextProperty("SettingsHelper", SettingsHelper())
     context.setContextProperty("TranslateHelper", TranslateHelper())
+    context.setContextProperty("AuthBridge", AuthBridge())
     context.setContextProperty("TestPageBridge", TestPageBridge(Path(__file__).resolve().parents[2]))
     FluentUI.registerTypes(engine)
     qml_file = QUrl("qrc:/example/qml/App.qml")
