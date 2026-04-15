@@ -1,4 +1,4 @@
-"""High-level control interfaces for SNMP-based power distribution units.
+﻿"""High-level control interfaces for SNMP-based power distribution units.
 
 This module provides a simple wrapper around SNMP commands to control power
 relays. It exposes a :class:`power_ctrl` class that reads configuration
@@ -7,7 +7,7 @@ information, constructs SNMP command strings and executes them using
 ``Parameters`` section.
 """
 import logging
-from testing.tool.connect_tool import command_batch as subprocess
+from testing.tool.dut_tool import command_batch as subprocess
 import time
 from typing import Any, Sequence
 
@@ -154,8 +154,8 @@ class power_ctrl(Relay):
             return
         ip, relay_port = target
         action = (direction or "power_off").strip().lower()
-        off_alias = {"power_off", "off", "断通"}
-        on_alias = {"power_on", "on", "通断"}
+        off_alias = {"power_off", "off", "鏂€?}
+        on_alias = {"power_on", "on", "閫氭柇"}
         if action not in off_alias | on_alias:
             logging.warning("Unknown direction %s; defaulting to power_off", direction)
             action = "power_off"
@@ -174,3 +174,4 @@ class power_ctrl(Relay):
 
 # s = power_ctrl()
 # s.switch('192.168.200.4',4,1)
+
