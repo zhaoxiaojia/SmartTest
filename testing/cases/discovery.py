@@ -75,6 +75,8 @@ def discover_pytest_cases(
                     name=str(item.get("name", "")),
                     markers=[str(m) for m in item.get("markers", [])],
                     case_type=str(item.get("case_type", "default")),
+                    required_params=[str(p) for p in item.get("required_params", [])],
+                    required_param_groups=[str(g) for g in item.get("required_param_groups", [])],
                 )
             )
         return cases

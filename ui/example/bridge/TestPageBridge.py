@@ -47,7 +47,7 @@ class TestPageBridge(QObject):
         return {
             "key": field.key,
             "label": field.label,
-            "type": field.type,
+            "type": field.type.value if hasattr(field.type, "value") else field.type,
             "default": field.default,
             "description": field.description,
             "group": field.group,
@@ -80,6 +80,8 @@ class TestPageBridge(QObject):
                 "name": c.name,
                 "markers": c.markers,
                 "case_type": c.case_type,
+                "required_params": c.required_params,
+                "required_param_groups": c.required_param_groups,
             }
             for c in cases
         ]
@@ -99,6 +101,8 @@ class TestPageBridge(QObject):
                 "name": str(item.get("name", "")),
                 "markers": list(item.get("markers", [])),
                 "case_type": str(item.get("case_type", "default")),
+                "required_params": list(item.get("required_params", [])),
+                "required_param_groups": list(item.get("required_param_groups", [])),
                 "selected": str(item.get("nodeid", "")) in selected,
             }
             for item in self._cases
