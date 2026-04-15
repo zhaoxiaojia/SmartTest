@@ -23,6 +23,26 @@ This file defines how Codex should work in this repository.
   - `.\.venv\Scripts\pyside6-rcc.exe ui\example\imports\resource.qrc -o ui\example\imports\resource_rc.py`
 - If FluentUI resource files under `ui/FluentUI/imports/resource.qrc` are changed, rebuild that resource file too before finishing.
 
+### UI Verification After Rebuild
+
+- Rebuilding `resource_rc.py` is required but not sufficient. After rebuilding, verify that the updated resource is actually loadable before handoff.
+- Minimum verification for `ui/example/imports/resource.qrc` changes:
+  - confirm `ui/example/imports/resource_rc.py` has been regenerated after the edited QML file
+  - run the app from the source entrypoint at repo root: `.\.venv\Scripts\python.exe main.py`
+  - if a full interactive run is not practical, perform a short startup validation and inspect startup logs/errors
+- If the user reports a QML runtime error after a UI change, do not assume rebuild already took effect. Rebuild again, then reproduce from the source entrypoint before answering.
+- Do not rely on static inspection alone for QRC-backed UI changes when a runtime validation is feasible.
+
+### Source vs Packaged App
+
+- Distinguish clearly between the source-run app and packaged binaries.
+- Source validation must use repo root `main.py`, which ensures the in-repo `ui/` packages are imported first.
+- Do not assume `SmartTest.exe` reflects current source edits. A previously built exe may contain stale QML/resources.
+- Before telling the user to test with `SmartTest.exe`, confirm whether a packaging/build step is also required and say so explicitly.
+- In handoff notes for UI work, state which entrypoint was verified:
+  - source: `.\.venv\Scripts\python.exe main.py`
+  - packaged: `SmartTest.exe` or other built artifact
+
 ## 2. Backend/Framework Layering
 
 Target architecture:

@@ -232,7 +232,7 @@ import "../global"
                 displayMode: GlobalModel.displayMode
                 logo: "qrc:/example/res/image/app_icon.png"
                 title:"SmartTest"
-                onCollapseRequested: {
+                onCollapseRequested: (collapsed)=>{
                     GlobalModel.displayMode = collapsed ? FluNavigationViewType.Compact : FluNavigationViewType.Open
                 }
                 onLogoClicked:{

@@ -7,10 +7,14 @@ import "../global"
 FluPage {
     title: qsTr("Test")
 
+    property int stateVersion: 0
     property var selectedModel: []
+    property var selectedCaseParamsModel: []
+    property var selectedCaseTypesModel: []
     property var selectedOrderFiles: []
     property var caseTreeDataSource: []
     property var caseExpandState: ({})
+    property var caseParamExpandState: ({})
     ListModel{
         id: caseListModel
     }
@@ -39,6 +43,53 @@ FluPage {
         return parts.length > 0 ? parts[parts.length - 1] : shortFile
     }
 
+    function paramScopeLabel(scope){
+        if(scope === "global_context"){
+            return qsTr("Global")
+        }
+        if(scope === "case_type_shared"){
+            return qsTr("Shared by Case Type")
+        }
+        return qsTr("Per Case")
+    }
+
+    function caseParamTextValue(nodeid, key){
+        var _version = stateVersion
+        var value = TestPageBridge.caseParamValue(nodeid, key)
+        if(value === undefined || value === null){
+            return ""
+        }
+        return value + ""
+    }
+
+    function caseParamIntValue(nodeid, key, fallbackValue){
+        var _version = stateVersion
+        var value = TestPageBridge.caseParamValue(nodeid, key)
+        var parsed = parseInt(value, 10)
+        if(!isNaN(parsed)){
+            return parsed
+        }
+        var fallbackParsed = parseInt(fallbackValue, 10)
+        return isNaN(fallbackParsed) ? 0 : fallbackParsed
+    }
+
+    function caseParamBoolValue(nodeid, key){
+        var _version = stateVersion
+        var value = TestPageBridge.caseParamValue(nodeid, key)
+        if(value === true || value === false){
+            return value
+        }
+        var text = (value === undefined || value === null) ? "" : (value + "").toLowerCase()
+        return text === "true" || text === "1" || text === "yes" || text === "on"
+    }
+
+    function isCaseParamExpanded(nodeid, requiredCount){
+        if(caseParamExpandState[nodeid] === undefined){
+            caseParamExpandState[nodeid] = requiredCount > 0
+        }
+        return caseParamExpandState[nodeid] === true
+    }
+
     function isExpandedByDefault(key){
         if(caseExpandState[key] === undefined){
             caseExpandState[key] = false
@@ -48,6 +99,11 @@ FluPage {
 
     function refreshCasesModel(){
         var rawCases = TestPageBridge.cases()
+        var persistedSelectedFiles = TestPageBridge.selectedFiles()
+        var persistedSelectedMap = {}
+        for(var selectedIndex = 0; selectedIndex < persistedSelectedFiles.length; selectedIndex++){
+            persistedSelectedMap[persistedSelectedFiles[selectedIndex]] = true
+        }
         var keepChecked = {}
         for(var i = 0; i < caseListModel.count; i++){
             var current = caseListModel.get(i)
@@ -73,8 +129,11 @@ FluPage {
             caseListModel.append({
                 file: item.file,
                 name: item.name,
-                checked: keepChecked[item.file] === true
+                checked: keepChecked[item.file] === true || persistedSelectedMap[item.file] === true
             })
+        }
+        if(selectedOrderFiles.length === 0 && persistedSelectedFiles.length > 0){
+            selectedOrderFiles = persistedSelectedFiles.slice(0)
         }
         rebuildCaseTreeDataSource()
         rebuildSelectedModel()
@@ -285,13 +344,44 @@ FluPage {
             }
         }
         selectedModel = rows
+
+        var rawCases = TestPageBridge.cases()
+        var caseRows = []
+        var seenCaseTypes = {}
+        var caseTypes = []
+        for(var fileIndex = 0; fileIndex < selectedOrderFiles.length; fileIndex++){
+            var selectedFile = selectedOrderFiles[fileIndex]
+            for(var caseIndex = 0; caseIndex < rawCases.length; caseIndex++){
+                var caseRow = rawCases[caseIndex]
+                if((caseRow.file || "") !== selectedFile){
+                    continue
+                }
+                caseRows.push({
+                    nodeid: caseRow.nodeid || "",
+                    file: caseRow.file || "",
+                    name: caseRow.name || "",
+                    case_type: caseRow.case_type || "default",
+                    required_params: caseRow.required_params || [],
+                    required_param_groups: caseRow.required_param_groups || []
+                })
+                var caseType = caseRow.case_type || "default"
+                if(seenCaseTypes[caseType] !== true){
+                    seenCaseTypes[caseType] = true
+                    caseTypes.push(caseType)
+                }
+            }
+        }
+        selectedCaseParamsModel = caseRows
+        selectedCaseTypesModel = caseTypes
     }
 
     function setCaseCheckedAt(index, checked, reason){
         if(index < 0 || index >= caseListModel.count){
             return
         }
+        var filePath = caseListModel.get(index).file
         caseListModel.setProperty(index, "checked", checked === true)
+        TestPageBridge.setFileSelected(filePath, checked === true)
         rebuildCaseTreeDataSource()
         rebuildSelectedModel()
     }
@@ -329,6 +419,8 @@ FluPage {
             refreshCasesModel()
         }
         function onStateChanged(){
+            stateVersion = stateVersion + 1
+            rebuildSelectedModel()
         }
         function onErrorOccurred(msg){
             showError(msg)
@@ -524,7 +616,7 @@ FluPage {
             }
         }
 
-        // Middle: per-case parameters (v1 placeholder)
+        // Middle: selected case parameters
         FluFrame{
             SplitView.fillWidth: true
             SplitView.preferredWidth: layout_main.width/3
@@ -535,7 +627,7 @@ FluPage {
                 anchors.fill: parent
                 spacing: 8
                 FluText{
-                    text: qsTr("Case Parameters")
+                    text: qsTr("Case Parameters (%1)").arg(selectedCaseParamsModel.length)
                     font: FluTextStyle.Subtitle
                 }
                 Flickable{
@@ -548,26 +640,154 @@ FluPage {
                         id:col_case_params
                         width: parent.width
                         spacing: 8
+                        FluText{
+                            visible: selectedCaseParamsModel.length === 0
+                            Layout.fillWidth: true
+                            text: qsTr("Select one or more test files to inspect the required parameters for each case.")
+                            font: FluTextStyle.Body
+                            color: FluTheme.fontSecondaryColor
+                            wrapMode: Text.WordWrap
+                        }
                         Repeater{
-                            model: selectedModel
-                            FluFrame{
+                            model: selectedCaseParamsModel
+                            FluExpander{
+                                id: case_param_expander
+                                property string caseNodeId: modelData.nodeid || ""
                                 Layout.fillWidth: true
-                                padding: 10
-                                ColumnLayout{
+                                headerText: modelData.name + "  (" + modelData.required_params.length + ")"
+                                expand: isCaseParamExpanded(caseNodeId, modelData.required_params.length)
+                                contentHeight: expander_content.implicitHeight
+                                onExpandChanged: {
+                                    caseParamExpandState[caseNodeId] = expand
+                                }
+
+                                Item{
+                                    id: expander_content
                                     width: parent.width
-                                    spacing: 6
-                                    FluText{
-                                        text: trimmedCasePath(modelData.file)
-                                        font: FluTextStyle.BodyStrong
-                                        elide: Text.ElideRight
-                                        Layout.fillWidth: true
-                                    }
-                                    FluText{
-                                        text: qsTr("Per-file parameters schema will be generated from Python (factory) in the next step.")
-                                        font: FluTextStyle.Caption
-                                        color: FluTheme.fontSecondaryColor
-                                        wrapMode: Text.WordWrap
-                                        Layout.fillWidth: true
+                                    implicitHeight: col_case_form.implicitHeight + 24
+
+                                    ColumnLayout{
+                                        id: col_case_form
+                                        x: 12
+                                        y: 12
+                                        width: parent.width - 24
+                                        spacing: 8
+
+                                        FluText{
+                                            text: trimmedCasePath(modelData.file)
+                                            font: FluTextStyle.Caption
+                                            color: FluTheme.fontSecondaryColor
+                                            elide: Text.ElideMiddle
+                                            Layout.fillWidth: true
+                                        }
+
+                                        FluText{
+                                            visible: modelData.required_params.length === 0
+                                            Layout.fillWidth: true
+                                            text: qsTr("No configurable parameters are required for this case.")
+                                            font: FluTextStyle.Body
+                                            color: FluTheme.fontSecondaryColor
+                                            wrapMode: Text.WordWrap
+                                        }
+
+                                        Repeater{
+                                            model: TestPageBridge.caseParamFields(case_param_expander.caseNodeId)
+                                            ColumnLayout{
+                                                property string caseNodeId: case_param_expander.caseNodeId
+                                                property var fieldData: modelData
+                                                Layout.fillWidth: true
+                                                spacing: 4
+
+                                                FluText{
+                                                    text: fieldData.label
+                                                    font: FluTextStyle.BodyStrong
+                                                    Layout.fillWidth: true
+                                                    wrapMode: Text.WordWrap
+                                                }
+
+                                                FluText{
+                                                    Layout.fillWidth: true
+                                                    text: {
+                                                        var summary = paramScopeLabel(fieldData.scope)
+                                                        if(fieldData.description){
+                                                            summary += " - " + fieldData.description
+                                                        }
+                                                        return summary
+                                                    }
+                                                    font: FluTextStyle.Caption
+                                                    color: FluTheme.fontSecondaryColor
+                                                    wrapMode: Text.WordWrap
+                                                }
+
+                                                FluTextBox{
+                                                    visible: fieldData.type === "string" || fieldData.type === "path" || fieldData.type === "float"
+                                                    Layout.fillWidth: true
+                                                    text: caseParamTextValue(caseNodeId, fieldData.key)
+                                                    placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
+                                                    onEditingFinished: {
+                                                        TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
+                                                    }
+                                                }
+
+                                                FluSpinBox{
+                                                    visible: fieldData.type === "int"
+                                                    Layout.fillWidth: true
+                                                    editable: true
+                                                    from: -1000000
+                                                    to: 1000000
+                                                    value: caseParamIntValue(caseNodeId, fieldData.key, fieldData.default)
+                                                    onValueModified: {
+                                                        TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, value)
+                                                    }
+                                                }
+
+                                                FluComboBox{
+                                                    visible: fieldData.type === "enum"
+                                                    Layout.fillWidth: true
+                                                    model: fieldData.enum_values || []
+                                                    currentIndex: {
+                                                        var currentValue = caseParamTextValue(caseNodeId, fieldData.key)
+                                                        var options = fieldData.enum_values || []
+                                                        return options.indexOf(currentValue)
+                                                    }
+                                                    onActivated: {
+                                                        if(currentIndex >= 0){
+                                                            TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, currentText)
+                                                        }
+                                                    }
+                                                }
+
+                                                FluToggleSwitch{
+                                                    visible: fieldData.type === "bool"
+                                                    checked: caseParamBoolValue(caseNodeId, fieldData.key)
+                                                    text: checked ? qsTr("Enabled") : qsTr("Disabled")
+                                                    onClicked: {
+                                                        TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, checked)
+                                                    }
+                                                }
+
+                                                FluMultilineTextBox{
+                                                    visible: fieldData.type === "multiline"
+                                                    Layout.fillWidth: true
+                                                    Layout.preferredHeight: 96
+                                                    text: caseParamTextValue(caseNodeId, fieldData.key)
+                                                    placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
+                                                    isCtrlEnterForNewline: true
+                                                    onCommit: {
+                                                        TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
+                                                    }
+                                                    onActiveFocusChanged: {
+                                                        if(!activeFocus){
+                                                            TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
+                                                        }
+                                                    }
+                                                }
+
+                                                FluDivider{
+                                                    Layout.fillWidth: true
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -611,7 +831,10 @@ FluPage {
                             }
                             FluTextBox{
                                 Layout.fillWidth: true
-                                text: (TestPageBridge.globalContext()[modelData.key] + "")
+                                text: {
+                                    var _version = stateVersion
+                                    return TestPageBridge.globalContext()[modelData.key] + ""
+                                }
                                 onEditingFinished: {
                                     TestPageBridge.setGlobalValue(modelData.key, text)
                                 }
@@ -627,7 +850,7 @@ FluPage {
                     }
 
                     Repeater{
-                        model: TestPageBridge.activeCaseTypes()
+                        model: selectedCaseTypesModel
                         ColumnLayout{
                             property string caseType: modelData
                             Layout.fillWidth: true
@@ -649,6 +872,7 @@ FluPage {
                                     FluTextBox{
                                         Layout.fillWidth: true
                                         text: {
+                                            var _version = stateVersion
                                             var cfg = TestPageBridge.caseTypeConfig(caseType)
                                             if(cfg && cfg[modelData.key] !== undefined){
                                                 return cfg[modelData.key] + ""

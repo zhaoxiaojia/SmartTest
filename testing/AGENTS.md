@@ -31,6 +31,28 @@ Fallback marker-as-type (when no `case_type` marker exists):
 - Parameter schema definitions: `testing/params/schema.py`
 - Schema registry (global + per-case-type special params): `testing/params/registry.py`
 
+## Case-to-parameter mapping
+
+- Use-case/parameter applicability is owned by the `testing/` layer, not by QML.
+- Keep parameter definition and parameter binding separate:
+  - definitions live in `testing/params/schema.py` and `testing/params/registry.py`
+  - bindings are exported during pytest collection in `testing/conftest.py`
+- The mapping is many-to-many:
+  - one case may require zero, one, or many parameters
+  - one parameter may be reused by many cases
+- Declare case requirements close to the pytest case with markers:
+  - `@pytest.mark.requires_params("operator", "duration_s")`
+  - `@pytest.mark.requires_param_groups("stress_runtime")`
+- `testing/conftest.py` is responsible for expanding groups into concrete parameter keys and exporting:
+  - `required_params`
+  - `required_param_groups`
+- UI must consume exported metadata through the bridge only. Do not reimplement group expansion or mapping rules in QML.
+- Scope rules must stay explicit in the schema:
+  - `global_context`: shared global value
+  - `case_type_shared`: shared by case type
+  - `case`: owned by a single case
+- Cases with no mapping must remain valid. The exported required-params list should be empty, not synthesized with placeholder fields.
+
 ## Persistent Test page state
 
 Test page selection/order and configs are stored locally (app data directory):
@@ -38,4 +60,3 @@ Test page selection/order and configs are stored locally (app data directory):
 - State model: `testing/state/models.py`
 - Store: `testing/state/store.py`
 </INSTRUCTIONS>
-
