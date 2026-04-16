@@ -13,14 +13,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.microsoft.fluentui.theme.token.controlTokens.CardType
 import com.microsoft.fluentui.theme.token.controlTokens.ButtonStyle
+import com.microsoft.fluentui.theme.token.controlTokens.CardType
 import com.microsoft.fluentui.tokenized.controls.BasicCard
 import com.microsoft.fluentui.tokenized.controls.Button
+import com.smarttest.mobile.runner.RunnerSnapshot
 
 @Composable
-fun ReportScreen() {
-    val metrics = reportMetrics(MaterialTheme.colorScheme.error)
+fun ReportScreen(
+    snapshot: RunnerSnapshot,
+) {
+    val report = snapshot.report
+    val metrics = if (report == null) {
+        reportMetrics(MaterialTheme.colorScheme.error)
+    } else {
+        listOf(
+            ReportMetric("总数", "${report.totalCount}", MaterialTheme.colorScheme.primary),
+            ReportMetric("成功", "${report.successCount}", MaterialTheme.colorScheme.tertiary),
+            ReportMetric("失败", "${report.failedCount}", MaterialTheme.colorScheme.error),
+        )
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -44,7 +56,7 @@ fun ReportScreen() {
                         fontWeight = FontWeight.SemiBold,
                     )
                     androidx.compose.material3.Text(
-                        text = "报告页沿用同一套风格，但重心转到分类汇总、失败聚焦和导出动作。",
+                        text = report?.statusText ?: "报告页已接入测试框架，当前还没有完成过的批次。",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -93,20 +105,22 @@ fun ReportScreen() {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     androidx.compose.material3.Text(
-                        text = "失败聚焦",
+                        text = "命令触发记录",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                     androidx.compose.material3.Text(
-                        text = "Wi‑Fi Reboot 回连在第 143 次循环中超过 1 分钟未恢复，当前已保留现场并等待日志归档。",
+                        text = snapshot.lastCommandSummary.ifBlank { "当前没有收到命令触发记录。" },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    TokenPill(
-                        text = "高优先级",
-                        background = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
-                        foreground = MaterialTheme.colorScheme.error,
-                    )
+                    if (snapshot.runningCases.isNotEmpty()) {
+                        TokenPill(
+                            text = "最近批次 ${snapshot.runningCases.size} 项",
+                            background = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            foreground = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
             }
         }

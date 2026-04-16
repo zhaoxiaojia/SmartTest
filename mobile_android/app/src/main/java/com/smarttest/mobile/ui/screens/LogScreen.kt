@@ -22,12 +22,15 @@ import com.microsoft.fluentui.theme.token.controlTokens.ButtonSize
 import com.microsoft.fluentui.theme.token.controlTokens.ButtonStyle
 import com.microsoft.fluentui.tokenized.controls.BasicCard
 import com.microsoft.fluentui.tokenized.controls.Button
+import com.smarttest.mobile.runner.RunningCase
 
 @Composable
 fun LogScreen(
     runningCases: List<RunningCase>,
     logLines: List<String>,
     isRunning: Boolean,
+    statusText: String,
+    commandSummary: String,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -49,13 +52,25 @@ fun LogScreen(
                     )
                     Text(
                         text = if (isRunning) {
-                            "页面只打印运行过程信息，不介入运行逻辑。"
+                            "当前由测试框架接管执行，日志页只显示运行过程，不介入控制逻辑。"
                         } else {
-                            "当前未运行任务。你可以返回用例页重新选择并启动。"
+                            "当前没有运行中的任务，你可以通过 UI 或 am start 指令再次触发测试。"
                         },
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Text(
+                        text = "状态: $statusText",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (commandSummary.isNotBlank()) {
+                        Text(
+                            text = "最近命令: $commandSummary",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     if (runningCases.isNotEmpty()) {
                         Text(
                             text = "当前批次: ${runningCases.joinToString(" / ") { it.title }}",

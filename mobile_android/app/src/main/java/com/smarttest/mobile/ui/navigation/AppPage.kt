@@ -10,10 +10,10 @@ enum class AppPage(
     ),
     Log(
         title = "日志",
-        subtitle = "只打印运行过程信息，不在这里介入执行流程。",
+        subtitle = "由测试框架统一接管运行状态和日志输出。",
     ),
     Report(
         title = "报告",
-        subtitle = "汇总结果、定位失败项，并为后续导出预留结构。",
+        subtitle = "汇总最近一次批次结果，并为导出预留结构。",
     ),
 }

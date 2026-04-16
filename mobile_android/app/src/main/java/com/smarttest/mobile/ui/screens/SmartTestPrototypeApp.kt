@@ -16,14 +16,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.microsoft.fluentui.theme.FluentTheme
 import com.microsoft.fluentui.theme.ThemeMode
@@ -34,48 +35,36 @@ import com.microsoft.fluentui.theme.token.controlTokens.ButtonStyle
 import com.microsoft.fluentui.tokenized.AppBar
 import com.microsoft.fluentui.tokenized.controls.Button
 import com.smarttest.mobile.ui.navigation.AppPage
+import com.smarttest.mobile.runner.SmartTestRunStore
+import com.smarttest.mobile.runner.SmartTestRunnerService
+import com.smarttest.mobile.runner.TestRunRequest
 import com.smarttest.mobile.ui.theme.SmartTestMobileTheme
-import kotlinx.coroutines.delay
 
 @Composable
 fun SmartTestPrototypeApp() {
+    val context = LocalContext.current
+    val runnerSnapshot by SmartTestRunStore.state.collectAsState()
     var darkMode by remember { mutableStateOf(false) }
     var currentPage by remember { mutableStateOf(AppPage.Cases) }
     val selectedCaseIds = remember { mutableStateListOf<String>() }
+    val expandedCaseIds = remember { mutableStateListOf<String>() }
     val parameterValues = remember { mutableStateMapOf<String, String>() }
-    val logLines = remember { mutableStateListOf<String>() }
-    var expandedCaseId by remember { mutableStateOf<String?>(null) }
-    var isRunning by remember { mutableStateOf(false) }
-    var sessionKey by remember { mutableIntStateOf(0) }
-    var runningCases by remember { mutableStateOf<List<RunningCase>>(emptyList()) }
 
     val categories = buildCaseCategories()
     val allCases = categories.flatMap { category -> category.cases.map { category.title to it } }
     val caseById = allCases.associate { (category, case) -> case.id to (category to case) }
     val selectedCases = selectedCaseIds.mapNotNull { caseById[it] }
 
-    LaunchedEffect(sessionKey, isRunning) {
-        if (!isRunning || runningCases.isEmpty()) return@LaunchedEffect
-        runningCases.forEachIndexed { index, runningCase ->
-            delay(280)
-            logLines += "08:${40 + index}:00  [${runningCase.category}] ${runningCase.title} 开始执行"
-            if (runningCase.parameters.isNotEmpty()) {
-                delay(180)
-                logLines += "08:${40 + index}:01  参数: ${
-                    runningCase.parameters.joinToString(" / ") { "${it.first}=${it.second}" }
-                }"
-            }
-            delay(220)
-            logLines += "08:${40 + index}:02  设备状态正常，持续采集中"
+    LaunchedEffect(runnerSnapshot.phase) {
+        if (runnerSnapshot.isRunning || runnerSnapshot.logLines.isNotEmpty()) {
+            currentPage = AppPage.Log
         }
-        delay(260)
-        logLines += "08:59:59  批次已启动，等待后续设备日志..."
     }
 
     fun toggleCase(case: CaseTemplate) {
         if (selectedCaseIds.contains(case.id)) {
             selectedCaseIds.remove(case.id)
-            if (expandedCaseId == case.id) expandedCaseId = null
+            expandedCaseIds.remove(case.id)
             return
         }
         selectedCaseIds += case.id
@@ -85,33 +74,33 @@ fun SmartTestPrototypeApp() {
                 parameterValues[key] = parameter.defaultValue
             }
         }
-        expandedCaseId = if (case.parameters.isNotEmpty()) case.id else null
+        if (case.parameters.isNotEmpty() && !expandedCaseIds.contains(case.id)) {
+            expandedCaseIds += case.id
+        }
+    }
+
+    fun toggleExpandedCase(caseId: String) {
+        if (expandedCaseIds.contains(caseId)) {
+            expandedCaseIds.remove(caseId)
+        } else {
+            expandedCaseIds += caseId
+        }
     }
 
     fun startRun() {
         if (selectedCaseIds.isEmpty()) return
-        runningCases = selectedCaseIds.mapNotNull { id ->
-            val (category, case) = caseById[id] ?: return@mapNotNull null
-            RunningCase(
-                title = case.title,
-                category = category,
-                parameters = case.parameters.map { parameter ->
-                    parameter.label to (parameterValues["${case.id}:${parameter.id}"] ?: parameter.defaultValue)
-                },
-            )
-        }
-        logLines.clear()
-        logLines += "08:39:58  创建测试批次，共 ${runningCases.size} 项"
-        logLines += "08:39:59  跳转日志页，等待执行器接管"
-        isRunning = true
-        sessionKey += 1
+        val request = TestRunRequest(
+            caseIds = selectedCaseIds.toList(),
+            parameterOverrides = parameterValues.toMap(),
+            source = "ui",
+            trigger = "start_button",
+        )
+        SmartTestRunnerService.enqueueRun(context, request)
         currentPage = AppPage.Log
     }
 
     fun stopRun() {
-        if (!isRunning) return
-        isRunning = false
-        logLines += "09:00:10  用户触发停止，等待测试任务安全退出"
+        SmartTestRunnerService.enqueueStop(context, "UI 停止按钮")
     }
 
     SmartTestMobileTheme(darkTheme = darkMode) {
@@ -134,7 +123,7 @@ fun SmartTestPrototypeApp() {
                 bottomBar = {
                     when (currentPage) {
                         AppPage.Cases -> CasesBottomBar(selectedCaseIds.size, ::startRun)
-                        AppPage.Log -> LogBottomBar(isRunning, ::stopRun)
+                        AppPage.Log -> LogBottomBar(runnerSnapshot.isRunning, ::stopRun)
                         AppPage.Report -> {}
                     }
                 },
@@ -151,20 +140,24 @@ fun SmartTestPrototypeApp() {
                             categories = categories,
                             selectedCases = selectedCases,
                             selectedCaseIds = selectedCaseIds,
-                            expandedCaseId = expandedCaseId,
+                            expandedCaseIds = expandedCaseIds,
                             parameterValues = parameterValues,
                             onToggleCase = ::toggleCase,
-                            onExpandCase = { expandedCaseId = if (expandedCaseId == it) null else it },
+                            onToggleExpandedCase = ::toggleExpandedCase,
                             onParameterChange = { caseId, parameterId, value ->
                                 parameterValues["$caseId:$parameterId"] = value
                             },
                         )
+
                         AppPage.Log -> LogScreen(
-                            runningCases = runningCases,
-                            logLines = logLines,
-                            isRunning = isRunning,
+                            runningCases = runnerSnapshot.runningCases,
+                            logLines = runnerSnapshot.logLines,
+                            isRunning = runnerSnapshot.isRunning,
+                            statusText = runnerSnapshot.phase.name,
+                            commandSummary = runnerSnapshot.lastCommandSummary,
                         )
-                        AppPage.Report -> ReportScreen()
+
+                        AppPage.Report -> ReportScreen(snapshot = runnerSnapshot)
                     }
                 }
             }

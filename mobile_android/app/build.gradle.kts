@@ -65,6 +65,7 @@ dependencies {
     implementation("androidx.compose.runtime:runtime-livedata")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.material3:material3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("com.microsoft.fluentui:FluentUIAndroid:0.3.13")
 
     debugImplementation("androidx.compose.ui:ui-tooling")

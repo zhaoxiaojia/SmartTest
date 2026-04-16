@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,6 +18,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,10 +41,10 @@ fun CasesScreen(
     categories: List<CaseCategory>,
     selectedCases: List<Pair<String, CaseTemplate>>,
     selectedCaseIds: List<String>,
-    expandedCaseId: String?,
+    expandedCaseIds: List<String>,
     parameterValues: Map<String, String>,
     onToggleCase: (CaseTemplate) -> Unit,
-    onExpandCase: (String) -> Unit,
+    onToggleExpandedCase: (String) -> Unit,
     onParameterChange: (String, String, String) -> Unit,
 ) {
     Column(
@@ -65,10 +66,10 @@ fun CasesScreen(
                 CaseCategoryCard(
                     category = category,
                     selectedCaseIds = selectedCaseIds,
-                    expandedCaseId = expandedCaseId,
+                    expandedCaseIds = expandedCaseIds,
                     parameterValues = parameterValues,
                     onToggleCase = onToggleCase,
-                    onExpandCase = onExpandCase,
+                    onToggleExpandedCase = onToggleExpandedCase,
                     onParameterChange = onParameterChange,
                 )
             }
@@ -164,10 +165,10 @@ private fun SelectedQueueCard(
 private fun CaseCategoryCard(
     category: CaseCategory,
     selectedCaseIds: List<String>,
-    expandedCaseId: String?,
+    expandedCaseIds: List<String>,
     parameterValues: Map<String, String>,
     onToggleCase: (CaseTemplate) -> Unit,
-    onExpandCase: (String) -> Unit,
+    onToggleExpandedCase: (String) -> Unit,
     onParameterChange: (String, String, String) -> Unit,
 ) {
     BasicCard(
@@ -220,12 +221,12 @@ private fun CaseCategoryCard(
                             CaseGridItemCard(
                                 case = case,
                                 isSelected = selectedCaseIds.contains(case.id),
-                                isExpanded = expandedCaseId == case.id &&
-                                    selectedCaseIds.contains(case.id) &&
+                                isExpanded = selectedCaseIds.contains(case.id) &&
+                                    expandedCaseIds.contains(case.id) &&
                                     case.parameters.isNotEmpty(),
                                 parameterValues = parameterValues,
                                 onToggleCase = onToggleCase,
-                                onExpandCase = onExpandCase,
+                                onToggleExpandedCase = onToggleExpandedCase,
                                 onParameterChange = onParameterChange,
                                 modifier = Modifier.weight(1f),
                             )
@@ -247,12 +248,21 @@ private fun CaseGridItemCard(
     isExpanded: Boolean,
     parameterValues: Map<String, String>,
     onToggleCase: (CaseTemplate) -> Unit,
-    onExpandCase: (String) -> Unit,
+    onToggleExpandedCase: (String) -> Unit,
     onParameterChange: (String, String, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val cardInteractionSource = remember { MutableInteractionSource() }
     Surface(
-        modifier = modifier,
+        modifier = modifier.clickable(
+            interactionSource = cardInteractionSource,
+            indication = null,
+        ) {
+            when {
+                !isSelected -> onToggleCase(case)
+                case.parameters.isNotEmpty() -> onToggleExpandedCase(case.id)
+            }
+        },
         color = if (isSelected) Grey20 else Grey10.copy(alpha = 0.82f),
         shape = MaterialTheme.shapes.medium,
     ) {
@@ -260,12 +270,10 @@ private fun CaseGridItemCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onToggleCase(case) },
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top,
             ) {
@@ -285,18 +293,6 @@ private fun CaseGridItemCard(
                         checkmarkColor = Color.White,
                     ),
                 )
-            }
-
-            Spacer(modifier = Modifier.height(44.dp))
-
-            if (isSelected && case.parameters.isNotEmpty()) {
-                Button(
-                    onClick = { onExpandCase(case.id) },
-                    text = if (isExpanded) "收起参数" else "展开参数",
-                    style = ButtonStyle.TextButton,
-                )
-            } else {
-                Spacer(modifier = Modifier.height(4.dp))
             }
 
             if (isExpanded) {

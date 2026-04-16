@@ -4,4 +4,6 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
     </style>
+
+    <style name="Theme.SmartTestMobile.Command" parent="@android:style/Theme.NoDisplay" />
 </resources>
