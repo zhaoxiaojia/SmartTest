@@ -8,17 +8,26 @@ FluObject{
     property var navigationView
     property var paneItemMenu
     property var protectedLoginHandler
-    property string testPageUrl: "qrc:/example/qml/page/T_TestConfig.qml"
     property var pendingProtectedItem: null
 
-    function rename(item, newName){
-        if(newName && newName.trim().length>0){
-            item.title = newName;
+    function isProtectedRoute(item, protectedItem){
+        if(!item || !protectedItem){
+            return false
         }
+        if(item === protectedItem){
+            return true
+        }
+        if(item.url && protectedItem.url && item.url === protectedItem.url){
+            return true
+        }
+        if(item.key !== undefined && protectedItem.key !== undefined && item.key === protectedItem.key){
+            return true
+        }
+        return false
     }
 
     function isProtectedItem(item){
-        return item && item.url === testPageUrl
+        return isProtectedRoute(item, item_test_config) || isProtectedRoute(item, item_jira)
     }
 
     function openItem(item){
@@ -132,7 +141,7 @@ FluObject{
         menuDelegate: paneItemMenu
         icon: FluentIcons.Link
         url: "qrc:/example/qml/page/T_Jira.qml"
-        onTap: { navigationView.push(url) }
+        onTap: { navigateWithAuth(item_jira) }
     }
 
     FluPaneItemExpander{

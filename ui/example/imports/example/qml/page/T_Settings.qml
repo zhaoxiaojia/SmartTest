@@ -181,7 +181,6 @@ FluScrollablePage{
                         text:modelData
                         clickListener:function(){
                             TranslateHelper.current = modelData
-                            dialog_restart.open()
                         }
                     }
                 }

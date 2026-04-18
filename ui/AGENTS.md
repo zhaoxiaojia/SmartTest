@@ -11,6 +11,17 @@ Scope: everything under `ui/`.
 - Pause for user confirmation on the chosen FluentUI control/pattern before modifying UI code.
 - Only proceed to implementation after the user confirms the control choice.
 
+## Localization Is Mandatory
+
+- Every newly added or modified UI text must ship with both `en_US` and `zh_CN` translations in the same change.
+- This applies to all user-visible text, including:
+  - QML `qsTr(...)` strings
+  - Python bridge/controller text produced with `tr(...)` / `QCoreApplication.translate(...)`
+  - placeholder text, button labels, tooltips, empty states, error text, status text, and summary text
+- Do not leave new or changed UI text as `unfinished` in the translation sources for either language.
+- Do not hand off UI work until the translation sources are updated, `.qm` files are regenerated, the generated `.qm` files are copied into the QRC-backed `ui/example/imports/example/i18n/` folder, and the QRC resource has been rebuilt when applicable.
+- Do not land hard-coded display strings that bypass the translation system.
+
 ## Layering
 
 - Keep UI logic in QML/FluentUI and thin Python bridges (signals/slots).

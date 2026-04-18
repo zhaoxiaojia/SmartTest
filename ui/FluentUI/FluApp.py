@@ -73,12 +73,29 @@ class FluApp(QObject):
         translator = QTranslator()
         self._translator = translator
         QGuiApplication.installTranslator(self._translator)
-        uiLanguages = self._locale.uiLanguages()
+        self._reload_translator()
+
+    @Slot(QLocale)
+    def applyLocale(self, locale):
+        if locale is None:
+            return
+        self._locale = locale
+        self._reload_translator()
+        self.localeChanged.emit()
+
+    def _reload_translator(self):
+        if self._translator is None:
+            return
+        QGuiApplication.removeTranslator(self._translator)
+        self._translator = QTranslator()
+        QGuiApplication.installTranslator(self._translator)
+        uiLanguages = self._locale.uiLanguages() if self._locale is not None else QLocale.system().uiLanguages()
         for lang in uiLanguages:
             name = "FluentUI_" + QLocale(lang).name()
             if self._translator.load(":/FluentUI/i18n/" + name):
-                self._engine.retranslate()
                 break
+        if self._engine is not None:
+            self._engine.retranslate()
 
     # noinspection PyUnresolvedReferences
     @Slot(result=list)

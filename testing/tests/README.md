@@ -1,9 +1,14 @@
 # Tests
 
-Pytest test suite for SmartTest.
+Pytest business-entry suite for SmartTest.
 
-Includes flat demo cases and nested folder demos under:
+Current real case layout:
 
-- `testing/tests/smoke/`
-- `testing/tests/stress/wifi/`
-- `testing/tests/performance/rf/chamber/`
+- `testing/tests/IPTV/system/`
+- `testing/tests/IPTV/media/`
+- `testing/tests/IPTV/wifi_bt/`
+- `testing/tests/Smart Home/`
+
+These pytest cases do not reimplement Android-side business logic.
+They trigger `mobile_android` through `adb shell am start ...` and keep
+parameter applicability in the `testing/` layer via pytest markers.
