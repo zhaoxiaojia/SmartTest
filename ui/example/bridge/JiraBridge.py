@@ -6,7 +6,8 @@ import os
 from pathlib import Path
 from threading import Lock, Thread
 import time
-from typing import Any
+from typing import Any, Callable
+from urllib.parse import quote
 
 from PySide6.QtCore import QObject, Property, QCoreApplication, QT_TRANSLATE_NOOP, QStandardPaths, Signal, Slot
 from PySide6.QtGui import QGuiApplication
@@ -43,6 +44,31 @@ _TIMEFRAME_OPTION_IDS = (
     "this_year",
 )
 
+_STATUS_OPTION_IDS = (
+    "open",
+    "in_progress",
+    "blocked",
+    "ready_for_test",
+    "verified",
+    "resolved",
+    "closed",
+)
+
+_PRIORITY_OPTION_IDS = (
+    "highest",
+    "critical",
+    "high",
+    "medium",
+    "low",
+)
+
+_ISSUE_TYPE_OPTION_IDS = (
+    "bug",
+    "task",
+    "story",
+    "improvement",
+)
+
 # Register dynamic bridge strings so `pyside6-lupdate` can extract them even
 # when they are stored first and translated later during rendering.
 _JIRA_BRIDGE_TRANSLATION_MARKERS = (
@@ -65,6 +91,20 @@ _JIRA_BRIDGE_TRANSLATION_MARKERS = (
     QT_TRANSLATE_NOOP("JiraBridge", "Last 30 Days"),
     QT_TRANSLATE_NOOP("JiraBridge", "Last 90 Days"),
     QT_TRANSLATE_NOOP("JiraBridge", "This Year"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Open"),
+    QT_TRANSLATE_NOOP("JiraBridge", "In Progress"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Verified"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Resolved"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Closed"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Highest"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Critical"),
+    QT_TRANSLATE_NOOP("JiraBridge", "High"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Medium"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Low"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Bug"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Task"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Story"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Improvement"),
     QT_TRANSLATE_NOOP("JiraBridge", "Unassigned"),
     QT_TRANSLATE_NOOP("JiraBridge", "LDAP session is missing Jira credentials. Please sign in again."),
     QT_TRANSLATE_NOOP("JiraBridge", "Connected to {base_url} | loaded {loaded} of {total}"),
@@ -88,7 +128,24 @@ _JIRA_BRIDGE_TRANSLATION_MARKERS = (
     QT_TRANSLATE_NOOP("JiraBridge", "Highest, critical, or high in the current result set"),
     QT_TRANSLATE_NOOP("JiraBridge", "Blocked"),
     QT_TRANSLATE_NOOP("JiraBridge", "Blocked items from the displayed Jira scope"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Projects"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Workflow Preset"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Time Window"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Statuses"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Priorities"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Issue Types"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Keyword text"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Assignee"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Reporter"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Labels"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Not limited"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Current user"),
+    QT_TRANSLATE_NOOP("JiraBridge", "JQL"),
     QT_TRANSLATE_NOOP("JiraBridge", "Useful candidates for the next regression batch"),
+    QT_TRANSLATE_NOOP("JiraBridge", "My Filters"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Loading your Jira filters..."),
+    QT_TRANSLATE_NOOP("JiraBridge", "No favourite filters were found for this account."),
+    QT_TRANSLATE_NOOP("JiraBridge", "Click to apply this filter to the current JQL box."),
     QT_TRANSLATE_NOOP("JiraBridge", "Comments"),
     QT_TRANSLATE_NOOP("JiraBridge", "No Jira issues matched the current scope."),
     QT_TRANSLATE_NOOP(
@@ -105,6 +162,7 @@ class JiraBridge(QObject):
     _applyResult = Signal(object)
     _applyError = Signal(object)
     _applyDetailResult = Signal(object)
+    _applyFiltersResult = Signal(object)
 
     def __init__(self, auth_bridge: AuthBridge):
         super().__init__(QGuiApplication.instance())
@@ -115,11 +173,14 @@ class JiraBridge(QObject):
         self._analysis_summary_state = self._translated_state("Run a Jira query to get a live AI summary.")
         self._analysis_actions: list[str] = []
         self._issues: list[dict[str, Any]] = []
+        self._saved_filters: list[dict[str, str]] = []
+        self._filters_loading = False
         self._conversation = [self._workspace_ready_row()]
         self._selected_issue_index = 0
         self._displayed_total = 0
         self._worker_seq = 0
         self._detail_worker_seq = 0
+        self._filters_worker_seq = 0
         self._can_load_more = False
         self._next_start_at = 0
         self._active_scope: dict[str, Any] = {}
@@ -132,6 +193,7 @@ class JiraBridge(QObject):
         self._applyResult.connect(self._on_worker_result)
         self._applyError.connect(self._on_worker_error)
         self._applyDetailResult.connect(self._on_detail_result)
+        self._applyFiltersResult.connect(self._on_filters_result)
 
     def _trace(self, stage: str, **values: Any) -> None:
         details = " ".join(f"{key}={values[key]}" for key in sorted(values))
@@ -231,6 +293,132 @@ class JiraBridge(QObject):
         }
         return labels.get(option_id, self._t("Last 30 Days"))
 
+    def _status_label(self, option_id: str) -> str:
+        labels = {
+            "open": self._t("Open"),
+            "in_progress": self._t("In Progress"),
+            "blocked": self._t("Blocked"),
+            "ready_for_test": self._t("Ready for Test"),
+            "verified": self._t("Verified"),
+            "resolved": self._t("Resolved"),
+            "closed": self._t("Closed"),
+        }
+        return labels.get(option_id, self._t("Open"))
+
+    def _priority_label(self, option_id: str) -> str:
+        labels = {
+            "highest": self._t("Highest"),
+            "critical": self._t("Critical"),
+            "high": self._t("High"),
+            "medium": self._t("Medium"),
+            "low": self._t("Low"),
+        }
+        return labels.get(option_id, self._t("Medium"))
+
+    def _issue_type_label(self, option_id: str) -> str:
+        labels = {
+            "bug": self._t("Bug"),
+            "task": self._t("Task"),
+            "story": self._t("Story"),
+            "improvement": self._t("Improvement"),
+        }
+        return labels.get(option_id, self._t("Bug"))
+
+    def _summarize_option_ids(
+        self,
+        raw_value: str,
+        *,
+        valid_ids: tuple[str, ...],
+        labeler: Callable[[str], str],
+        default_label: str,
+        collapse_all_id: str | None = None,
+    ) -> str:
+        option_ids = [option_id for option_id in self._parse_csv_ids(raw_value) if option_id in valid_ids]
+        if collapse_all_id and collapse_all_id in option_ids:
+            option_ids = [collapse_all_id]
+        if not option_ids:
+            return default_label
+        return ", ".join(labeler(option_id) for option_id in option_ids)
+
+    def _summarize_terms(self, raw_value: str, *, default_label: str) -> str:
+        values = self._parse_csv_terms(raw_value)
+        if not values:
+            return default_label
+        return ", ".join(values)
+
+    def _active_scope_summary_text(self) -> str:
+        if not self._active_scope:
+            return ""
+        raw_jql_text = str(self._active_scope.get("raw_jql_text", "") or "").strip()
+        if raw_jql_text:
+            return f"{self._t('JQL')}: {raw_jql_text}"
+
+        not_limited = self._t("Not limited")
+        all_projects = self._t("All Supported Projects")
+
+        project_summary = self._summarize_option_ids(
+            str(self._active_scope.get("project_ids_csv", "all_supported_projects") or ""),
+            valid_ids=_PROJECT_OPTION_IDS,
+            labeler=self._project_label,
+            default_label=all_projects,
+            collapse_all_id="all_supported_projects",
+        )
+
+        board_label = str(self._active_scope.get("board_label", "") or "").strip()
+        timeframe_label = str(self._active_scope.get("timeframe_label", "") or "").strip()
+        board_summary = board_label or self._board_label(_BOARD_OPTION_IDS[0])
+        timeframe_summary = timeframe_label or self._timeframe_label(_TIMEFRAME_OPTION_IDS[1])
+
+        status_summary = self._summarize_option_ids(
+            str(self._active_scope.get("status_ids_csv", "") or ""),
+            valid_ids=_STATUS_OPTION_IDS,
+            labeler=self._status_label,
+            default_label=not_limited,
+        )
+        priority_summary = self._summarize_option_ids(
+            str(self._active_scope.get("priority_ids_csv", "") or ""),
+            valid_ids=_PRIORITY_OPTION_IDS,
+            labeler=self._priority_label,
+            default_label=not_limited,
+        )
+        issue_type_summary = self._summarize_option_ids(
+            str(self._active_scope.get("issue_type_ids_csv", "") or ""),
+            valid_ids=_ISSUE_TYPE_OPTION_IDS,
+            labeler=self._issue_type_label,
+            default_label=not_limited,
+        )
+        keyword_summary = str(self._active_scope.get("keyword_text", "") or "").strip() or not_limited
+        assignee_summary = (
+            self._t("Current user")
+            if bool(self._active_scope.get("only_mine", False))
+            else self._summarize_terms(
+                str(self._active_scope.get("assignee_text", "") or ""),
+                default_label=not_limited,
+            )
+        )
+        reporter_summary = self._summarize_terms(
+            str(self._active_scope.get("reporter_text", "") or ""),
+            default_label=not_limited,
+        )
+        labels_summary = self._summarize_terms(
+            str(self._active_scope.get("labels_text", "") or ""),
+            default_label=not_limited,
+        )
+
+        parts = [
+            f"{self._t('Projects')}: {project_summary}",
+            f"{self._t('Workflow Preset')}: {board_summary}",
+            f"{self._t('Time Window')}: {timeframe_summary}",
+            f"{self._t('Statuses')}: {status_summary}",
+            f"{self._t('Priorities')}: {priority_summary}",
+            f"{self._t('Issue Types')}: {issue_type_summary}",
+            f"{self._t('Keyword text')}: {keyword_summary}",
+            f"{self._t('Assignee')}: {assignee_summary}",
+            f"{self._t('Reporter')}: {reporter_summary}",
+            f"{self._t('Labels')}: {labels_summary}",
+        ]
+        return " | ".join(parts)
+
     def _resolve_option_id(self, option_type: str, label: str) -> str:
         clean_label = str(label or "").strip()
         mapping: dict[str, str] = {}
@@ -248,6 +436,30 @@ class JiraBridge(QObject):
             mapping[option_id] = option_id
             mapping[self._timeframe_label(option_id)] = option_id
         return mapping.get(clean_label, _TIMEFRAME_OPTION_IDS[1])
+
+    @staticmethod
+    def _parse_csv_ids(raw_value: str) -> list[str]:
+        values = []
+        for item in str(raw_value or "").split(","):
+            clean = item.strip()
+            if clean and clean not in values:
+                values.append(clean)
+        return values
+
+    @staticmethod
+    def _parse_csv_terms(raw_value: str) -> list[str]:
+        values = []
+        normalized = str(raw_value or "").replace(";", ",")
+        for item in normalized.split(","):
+            clean = item.strip()
+            if clean and clean not in values:
+                values.append(clean)
+        return values
+
+    @staticmethod
+    def _quote_jql_value(value: str) -> str:
+        escaped = str(value or "").replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"'
 
     def _render_issue_row(self, issue: dict[str, Any]) -> dict[str, Any]:
         rendered = dict(issue)
@@ -322,26 +534,87 @@ class JiraBridge(QObject):
         )
         return issue_service, ai_service
 
+    def _start_saved_filters_worker(self) -> None:
+        if self._filters_loading:
+            return
+        if not self._auth_bridge.isAuthenticated() or not self._auth_bridge.hasCredential():
+            return
+        self._filters_worker_seq += 1
+        worker_id = self._filters_worker_seq
+        self._filters_loading = True
+        self.stateChanged.emit()
+        Thread(
+            target=self._fetch_saved_filters,
+            kwargs={"worker_id": worker_id},
+            daemon=True,
+        ).start()
+
+    def _fetch_saved_filters(self, *, worker_id: int) -> None:
+        started_at = time.monotonic()
+        self._trace("filters_start", worker_id=worker_id)
+        try:
+            issue_service, _ = self._ensure_services()
+            items = issue_service._client.fetch_favourite_filters()
+            filters = self._normalize_saved_filters(items)
+            self._trace(
+                "filters_done",
+                worker_id=worker_id,
+                returned=len(filters),
+                elapsed_ms=int((time.monotonic() - started_at) * 1000),
+            )
+            self._applyFiltersResult.emit({"worker_id": worker_id, "filters": filters})
+        except Exception:  # noqa: BLE001
+            logging.exception("JiraBridge favourite filters load failed")
+            self._applyFiltersResult.emit({"worker_id": worker_id, "filters": []})
+
     def _build_scope_context(
         self,
         *,
-        project_label: str,
+        raw_jql_text: str,
+        project_ids_csv: str,
         board_label: str,
         timeframe_label: str,
-        filter_text: str,
+        status_ids_csv: str,
+        priority_ids_csv: str,
+        issue_type_ids_csv: str,
+        keyword_text: str,
+        assignee_text: str,
+        reporter_text: str,
+        labels_text: str,
         include_comments: bool,
         include_links: bool,
         only_mine: bool,
     ) -> dict[str, Any]:
         return {
-            "project_label": project_label,
+            "raw_jql_text": raw_jql_text,
+            "project_ids_csv": project_ids_csv,
             "board_label": board_label,
             "timeframe_label": timeframe_label,
-            "filter_text": filter_text,
+            "status_ids_csv": status_ids_csv,
+            "priority_ids_csv": priority_ids_csv,
+            "issue_type_ids_csv": issue_type_ids_csv,
+            "keyword_text": keyword_text,
+            "assignee_text": assignee_text,
+            "reporter_text": reporter_text,
+            "labels_text": labels_text,
             "include_comments": include_comments,
             "include_links": include_links,
             "only_mine": only_mine,
         }
+
+    @staticmethod
+    def _normalize_saved_filters(items: list[dict[str, Any]]) -> list[dict[str, str]]:
+        normalized: list[dict[str, str]] = []
+        seen_ids: set[str] = set()
+        for item in items:
+            filter_id = str(item.get("id", "") or "").strip()
+            name = str(item.get("name", "") or "").strip()
+            jql = str(item.get("jql", "") or "").strip()
+            if not filter_id or not name or not jql or filter_id in seen_ids:
+                continue
+            seen_ids.add(filter_id)
+            normalized.append({"id": filter_id, "name": name, "jql": jql})
+        return normalized
 
     @staticmethod
     def _requires_full_dataset(prompt: str) -> bool:
@@ -366,7 +639,9 @@ class JiraBridge(QObject):
             "summary",
             "status",
             "assignee",
+            "reporter",
             "priority",
+            "labels",
             "updated",
             FieldSpec(name="project", path="fields.project.key", jira_fields=("project",)),
         ]
@@ -377,9 +652,14 @@ class JiraBridge(QObject):
             "summary",
             "status",
             "assignee",
+            "reporter",
             "priority",
+            "labels",
             "updated",
             FieldSpec(name="project", path="fields.project.key", jira_fields=("project",)),
+            FieldSpec(name="issueType", path="fields.issuetype.name", jira_fields=("issuetype",)),
+            FieldSpec(name="resolution", path="fields.resolution.name", jira_fields=("resolution",)),
+            FieldSpec(name="components", path="fields.components[].name", jira_fields=("components",)),
             FieldSpec(name="description", path="fields.description", jira_fields=("description",)),
         ]
         if include_comments:
@@ -403,24 +683,33 @@ class JiraBridge(QObject):
     def _build_base_jql(
         self,
         *,
-        project_label: str,
+        raw_jql_text: str,
+        project_ids_csv: str,
         board_label: str,
         timeframe_label: str,
-        filter_text: str,
+        status_ids_csv: str,
+        priority_ids_csv: str,
+        issue_type_ids_csv: str,
+        keyword_text: str,
+        assignee_text: str,
+        reporter_text: str,
+        labels_text: str,
         only_mine: bool,
     ) -> str:
+        if raw_jql_text.strip():
+            return raw_jql_text.strip()
         clauses: list[str] = []
-        project_id = self._resolve_option_id("project", project_label)
+        project_ids = self._parse_csv_ids(project_ids_csv)
         board_id = self._resolve_option_id("board", board_label)
         timeframe_id = self._resolve_option_id("timeframe", timeframe_label)
         project_map = {
-            "all_supported_projects": "project in (RK, TV, OTT, IPTV, GH, SH)",
-            "rk": "project = RK",
-            "tv": "project = TV",
-            "ott": "project = OTT",
-            "iptv": "project = IPTV",
-            "gh": "project = GH",
-            "sh": "project = SH",
+            "all_supported_projects": ("RK", "TV", "OTT", "IPTV", "GH", "SH"),
+            "rk": ("RK",),
+            "tv": ("TV",),
+            "ott": ("OTT",),
+            "iptv": ("IPTV",),
+            "gh": ("GH",),
+            "sh": ("SH",),
         }
         board_map = {
             "open_work": "statusCategory != Done",
@@ -433,16 +722,101 @@ class JiraBridge(QObject):
             "last_90_days": "updated >= -90d",
             "this_year": "created >= startOfYear()",
         }
+        status_map = {
+            "open": "Open",
+            "in_progress": "In Progress",
+            "blocked": "Blocked",
+            "ready_for_test": "Ready for Test",
+            "verified": "Verified",
+            "resolved": "Resolved",
+            "closed": "Closed",
+        }
+        priority_map = {
+            "highest": "Highest",
+            "critical": "Critical",
+            "high": "High",
+            "medium": "Medium",
+            "low": "Low",
+        }
+        issue_type_map = {
+            "bug": "Bug",
+            "task": "Task",
+            "story": "Story",
+            "improvement": "Improvement",
+        }
 
-        clauses.append(project_map.get(project_id, project_map["all_supported_projects"]))
-        clauses.append("issuetype = Bug")
-        clauses.append(board_map.get(board_id, board_map["open_work"]))
+        selected_projects: list[str] = []
+        for project_id in project_ids:
+            selected_projects.extend(project_map.get(project_id, ()))
+        if not selected_projects or "all_supported_projects" in project_ids:
+            selected_projects = list(project_map["all_supported_projects"])
+        clauses.append(f'project in ({", ".join(selected_projects)})')
+
+        selected_issue_types = [
+            issue_type_map[issue_type_id]
+            for issue_type_id in self._parse_csv_ids(issue_type_ids_csv)
+            if issue_type_id in issue_type_map
+        ]
+        if selected_issue_types:
+            clauses.append(
+                "issuetype in ("
+                + ", ".join(self._quote_jql_value(issue_type) for issue_type in selected_issue_types)
+                + ")"
+            )
+
+        selected_statuses = [
+            status_map[status_id]
+            for status_id in self._parse_csv_ids(status_ids_csv)
+            if status_id in status_map
+        ]
+        if selected_statuses:
+            clauses.append(
+                "status in ("
+                + ", ".join(self._quote_jql_value(status) for status in selected_statuses)
+                + ")"
+            )
+        else:
+            clauses.append(board_map.get(board_id, board_map["open_work"]))
+
         clauses.append(timeframe_map.get(timeframe_id, timeframe_map["last_30_days"]))
 
         if only_mine:
             clauses.append("assignee = currentUser()")
-        if filter_text.strip():
-            escaped = filter_text.strip().replace('"', '\\"')
+        else:
+            assignees = self._parse_csv_terms(assignee_text)
+            if assignees:
+                clauses.append(
+                    "assignee in ("
+                    + ", ".join(self._quote_jql_value(assignee) for assignee in assignees)
+                    + ")"
+                )
+
+        reporters = self._parse_csv_terms(reporter_text)
+        if reporters:
+            clauses.append(
+                "reporter in ("
+                + ", ".join(self._quote_jql_value(reporter) for reporter in reporters)
+                + ")"
+            )
+
+        selected_priorities = [
+            priority_map[priority_id]
+            for priority_id in self._parse_csv_ids(priority_ids_csv)
+            if priority_id in priority_map
+        ]
+        if selected_priorities:
+            clauses.append(
+                "priority in ("
+                + ", ".join(self._quote_jql_value(priority) for priority in selected_priorities)
+                + ")"
+            )
+
+        labels = self._parse_csv_terms(labels_text)
+        if labels:
+            clauses.append("labels in (" + ", ".join(self._quote_jql_value(label) for label in labels) + ")")
+
+        if keyword_text.strip():
+            escaped = keyword_text.strip().replace("\\", "\\\\").replace('"', '\\"')
             clauses.append(f'text ~ "{escaped}"')
 
         return " AND ".join(clauses) + " ORDER BY updated DESC"
@@ -475,10 +849,17 @@ class JiraBridge(QObject):
     def _browse_scope(
         self,
         *,
-        project_label: str,
+        raw_jql_text: str,
+        project_ids_csv: str,
         board_label: str,
         timeframe_label: str,
-        filter_text: str,
+        status_ids_csv: str,
+        priority_ids_csv: str,
+        issue_type_ids_csv: str,
+        keyword_text: str,
+        assignee_text: str,
+        reporter_text: str,
+        labels_text: str,
         include_comments: bool,
         include_links: bool,
         only_mine: bool,
@@ -492,7 +873,7 @@ class JiraBridge(QObject):
             worker_id=worker_id,
             start_at=start_at,
             append=append,
-            project=project_label,
+            projects=project_ids_csv,
             board=board_label,
             timeframe=timeframe_label,
         )
@@ -501,10 +882,17 @@ class JiraBridge(QObject):
             specs = self._browse_specs()
             plan = issue_service._registry.build_plan(specs, include_heavy=False)
             effective_jql = self._build_base_jql(
-                project_label=project_label,
+                raw_jql_text=raw_jql_text,
+                project_ids_csv=project_ids_csv,
                 board_label=board_label,
                 timeframe_label=timeframe_label,
-                filter_text=filter_text,
+                status_ids_csv=status_ids_csv,
+                priority_ids_csv=priority_ids_csv,
+                issue_type_ids_csv=issue_type_ids_csv,
+                keyword_text=keyword_text,
+                assignee_text=assignee_text,
+                reporter_text=reporter_text,
+                labels_text=labels_text,
                 only_mine=only_mine,
             )
             page = issue_service._client.search_page(
@@ -549,10 +937,17 @@ class JiraBridge(QObject):
                     "next_start_at": page.start_at + len(page.issues),
                     "can_load_more": (page.start_at + len(page.issues)) < page.total,
                     "scope": self._build_scope_context(
-                        project_label=project_label,
+                        raw_jql_text=raw_jql_text,
+                        project_ids_csv=project_ids_csv,
                         board_label=board_label,
                         timeframe_label=timeframe_label,
-                        filter_text=filter_text,
+                        status_ids_csv=status_ids_csv,
+                        priority_ids_csv=priority_ids_csv,
+                        issue_type_ids_csv=issue_type_ids_csv,
+                        keyword_text=keyword_text,
+                        assignee_text=assignee_text,
+                        reporter_text=reporter_text,
+                        labels_text=labels_text,
                         include_comments=include_comments,
                         include_links=include_links,
                         only_mine=only_mine,
@@ -606,10 +1001,17 @@ class JiraBridge(QObject):
         self,
         *,
         prompt: str,
-        project_label: str,
+        raw_jql_text: str,
+        project_ids_csv: str,
         board_label: str,
         timeframe_label: str,
-        filter_text: str,
+        status_ids_csv: str,
+        priority_ids_csv: str,
+        issue_type_ids_csv: str,
+        keyword_text: str,
+        assignee_text: str,
+        reporter_text: str,
+        labels_text: str,
         include_comments: bool,
         include_links: bool,
         only_mine: bool,
@@ -621,7 +1023,7 @@ class JiraBridge(QObject):
             self._trace(
                 "analyze_start",
                 worker_id=worker_id,
-                project=project_label,
+                projects=project_ids_csv,
                 board=board_label,
                 timeframe=timeframe_label,
                 full_dataset=self._requires_full_dataset(prompt),
@@ -629,13 +1031,20 @@ class JiraBridge(QObject):
             issue_service, ai_service = self._ensure_services()
             specs = self._build_specs(include_comments=include_comments, include_links=include_links)
             base_jql = self._build_base_jql(
-                project_label=project_label,
+                raw_jql_text=raw_jql_text,
+                project_ids_csv=project_ids_csv,
                 board_label=board_label,
                 timeframe_label=timeframe_label,
-                filter_text=filter_text,
+                status_ids_csv=status_ids_csv,
+                priority_ids_csv=priority_ids_csv,
+                issue_type_ids_csv=issue_type_ids_csv,
+                keyword_text=keyword_text,
+                assignee_text=assignee_text,
+                reporter_text=reporter_text,
+                labels_text=labels_text,
                 only_mine=only_mine,
             )
-            extra_clause = self._nl_clause(ai_service, prompt, project_label=project_label)
+            extra_clause = "" if raw_jql_text.strip() else self._nl_clause(ai_service, prompt, project_label=project_ids_csv)
             effective_jql = f"({base_jql}) AND ({extra_clause})" if extra_clause else base_jql
             full_dataset = self._requires_full_dataset(prompt)
             if full_dataset:
@@ -659,7 +1068,7 @@ class JiraBridge(QObject):
                 total_count = page.total
             issues = [_record_to_issue_row(record) for record in records]
             analysis_prompt = prompt.strip() or (
-                f"Summarize the main Jira risks for {project_label} / {board_label} in {timeframe_label}."
+                f"Summarize the main Jira risks for {project_ids_csv} / {board_label} in {timeframe_label}."
             )
             analysis_response = ai_service.ask(
                 analysis_prompt,
@@ -705,10 +1114,17 @@ class JiraBridge(QObject):
                 "next_start_at": len(issues),
                 "can_load_more": (not full_dataset) and len(issues) < total_count,
                 "scope": self._build_scope_context(
-                    project_label=project_label,
+                    raw_jql_text=raw_jql_text,
+                    project_ids_csv=project_ids_csv,
                     board_label=board_label,
                     timeframe_label=timeframe_label,
-                    filter_text=filter_text,
+                    status_ids_csv=status_ids_csv,
+                    priority_ids_csv=priority_ids_csv,
+                    issue_type_ids_csv=issue_type_ids_csv,
+                    keyword_text=keyword_text,
+                    assignee_text=assignee_text,
+                    reporter_text=reporter_text,
+                    labels_text=labels_text,
                     include_comments=include_comments,
                     include_links=include_links,
                     only_mine=only_mine,
@@ -733,32 +1149,47 @@ class JiraBridge(QObject):
             )
             self.stateChanged.emit()
             return
-        self.refreshScope(
-            self._project_label(_PROJECT_OPTION_IDS[0]),
-            self._board_label(_BOARD_OPTION_IDS[0]),
-            self._timeframe_label(_TIMEFRAME_OPTION_IDS[1]),
-            "",
-            True,
-            True,
-            False,
+        self._set_connection(
+            connected=True,
+            status_state=self._translated_state("Ready"),
         )
+        self._analysis_summary_state = self._translated_state(
+            "Run a Jira query to get a live AI summary."
+        )
+        if not self._saved_filters:
+            self._start_saved_filters_worker()
+        self.stateChanged.emit()
 
-    @Slot(str, str, str, str, bool, bool, bool)
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, bool, bool, bool)
     def refreshScope(
         self,
-        project_label: str,
+        raw_jql_text: str,
+        project_ids_csv: str,
         board_label: str,
         timeframe_label: str,
-        filter_text: str,
+        status_ids_csv: str,
+        priority_ids_csv: str,
+        issue_type_ids_csv: str,
+        keyword_text: str,
+        assignee_text: str,
+        reporter_text: str,
+        labels_text: str,
         include_comments: bool,
         include_links: bool,
         only_mine: bool,
     ) -> None:
         self._start_browse_worker(
-            project_label=project_label,
+            raw_jql_text=raw_jql_text,
+            project_ids_csv=project_ids_csv,
             board_label=board_label,
             timeframe_label=timeframe_label,
-            filter_text=filter_text,
+            status_ids_csv=status_ids_csv,
+            priority_ids_csv=priority_ids_csv,
+            issue_type_ids_csv=issue_type_ids_csv,
+            keyword_text=keyword_text,
+            assignee_text=assignee_text,
+            reporter_text=reporter_text,
+            labels_text=labels_text,
             include_comments=include_comments,
             include_links=include_links,
             only_mine=only_mine,
@@ -766,14 +1197,21 @@ class JiraBridge(QObject):
             append=False,
         )
 
-    @Slot(str, str, str, str, bool, bool, bool)
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, bool, bool, bool)
     def submitPrompt(
         self,
         prompt: str,
-        project_label: str,
+        raw_jql_text: str,
+        project_ids_csv: str,
         board_label: str,
         timeframe_label: str,
-        filter_text: str,
+        status_ids_csv: str,
+        priority_ids_csv: str,
+        issue_type_ids_csv: str,
+        keyword_text: str,
+        assignee_text: str,
+        reporter_text: str,
+        labels_text: str,
         include_comments: bool,
         include_links: bool,
         only_mine: bool,
@@ -793,10 +1231,17 @@ class JiraBridge(QObject):
         self.stateChanged.emit()
         self._start_analysis_worker(
             prompt=clean_prompt,
-            project_label=project_label,
+            raw_jql_text=raw_jql_text,
+            project_ids_csv=project_ids_csv,
             board_label=board_label,
             timeframe_label=timeframe_label,
-            filter_text=filter_text,
+            status_ids_csv=status_ids_csv,
+            priority_ids_csv=priority_ids_csv,
+            issue_type_ids_csv=issue_type_ids_csv,
+            keyword_text=keyword_text,
+            assignee_text=assignee_text,
+            reporter_text=reporter_text,
+            labels_text=labels_text,
             include_comments=include_comments,
             include_links=include_links,
             only_mine=only_mine,
@@ -806,10 +1251,17 @@ class JiraBridge(QObject):
     def _start_browse_worker(
         self,
         *,
-        project_label: str,
+        raw_jql_text: str,
+        project_ids_csv: str,
         board_label: str,
         timeframe_label: str,
-        filter_text: str,
+        status_ids_csv: str,
+        priority_ids_csv: str,
+        issue_type_ids_csv: str,
+        keyword_text: str,
+        assignee_text: str,
+        reporter_text: str,
+        labels_text: str,
         include_comments: bool,
         include_links: bool,
         only_mine: bool,
@@ -826,10 +1278,17 @@ class JiraBridge(QObject):
         Thread(
             target=self._browse_scope,
             kwargs={
-                "project_label": project_label,
+                "raw_jql_text": raw_jql_text,
+                "project_ids_csv": project_ids_csv,
                 "board_label": board_label,
                 "timeframe_label": timeframe_label,
-                "filter_text": filter_text,
+                "status_ids_csv": status_ids_csv,
+                "priority_ids_csv": priority_ids_csv,
+                "issue_type_ids_csv": issue_type_ids_csv,
+                "keyword_text": keyword_text,
+                "assignee_text": assignee_text,
+                "reporter_text": reporter_text,
+                "labels_text": labels_text,
                 "include_comments": include_comments,
                 "include_links": include_links,
                 "only_mine": only_mine,
@@ -844,10 +1303,17 @@ class JiraBridge(QObject):
         self,
         *,
         prompt: str,
-        project_label: str,
+        raw_jql_text: str,
+        project_ids_csv: str,
         board_label: str,
         timeframe_label: str,
-        filter_text: str,
+        status_ids_csv: str,
+        priority_ids_csv: str,
+        issue_type_ids_csv: str,
+        keyword_text: str,
+        assignee_text: str,
+        reporter_text: str,
+        labels_text: str,
         include_comments: bool,
         include_links: bool,
         only_mine: bool,
@@ -864,10 +1330,17 @@ class JiraBridge(QObject):
             target=self._search_and_analyze,
             kwargs={
                 "prompt": prompt,
-                "project_label": project_label,
+                "raw_jql_text": raw_jql_text,
+                "project_ids_csv": project_ids_csv,
                 "board_label": board_label,
                 "timeframe_label": timeframe_label,
-                "filter_text": filter_text,
+                "status_ids_csv": status_ids_csv,
+                "priority_ids_csv": priority_ids_csv,
+                "issue_type_ids_csv": issue_type_ids_csv,
+                "keyword_text": keyword_text,
+                "assignee_text": assignee_text,
+                "reporter_text": reporter_text,
+                "labels_text": labels_text,
                 "include_comments": include_comments,
                 "include_links": include_links,
                 "only_mine": only_mine,
@@ -905,12 +1378,19 @@ class JiraBridge(QObject):
             return
         self._trace("load_more_request", next_start_at=self._next_start_at)
         self._start_browse_worker(
-            project_label=str(self._active_scope.get("project_label", self._project_label(_PROJECT_OPTION_IDS[0]))),
+            raw_jql_text=str(self._active_scope.get("raw_jql_text", "")),
+            project_ids_csv=str(self._active_scope.get("project_ids_csv", "all_supported_projects")),
             board_label=str(self._active_scope.get("board_label", self._board_label(_BOARD_OPTION_IDS[0]))),
             timeframe_label=str(
                 self._active_scope.get("timeframe_label", self._timeframe_label(_TIMEFRAME_OPTION_IDS[1]))
             ),
-            filter_text=str(self._active_scope.get("filter_text", "")),
+            status_ids_csv=str(self._active_scope.get("status_ids_csv", "")),
+            priority_ids_csv=str(self._active_scope.get("priority_ids_csv", "")),
+            issue_type_ids_csv=str(self._active_scope.get("issue_type_ids_csv", "bug")),
+            keyword_text=str(self._active_scope.get("keyword_text", "")),
+            assignee_text=str(self._active_scope.get("assignee_text", "")),
+            reporter_text=str(self._active_scope.get("reporter_text", "")),
+            labels_text=str(self._active_scope.get("labels_text", "")),
             include_comments=bool(self._active_scope.get("include_comments", False)),
             include_links=bool(self._active_scope.get("include_links", False)),
             only_mine=bool(self._active_scope.get("only_mine", False)),
@@ -925,8 +1405,13 @@ class JiraBridge(QObject):
 
     def _handle_auth_changed(self) -> None:
         if self._auth_bridge.isAuthenticated() and self._auth_bridge.hasCredential():
+            if not self._saved_filters:
+                self._start_saved_filters_worker()
             return
         self._issues = []
+        self._saved_filters = []
+        self._filters_loading = False
+        self._filters_worker_seq += 1
         self._displayed_total = 0
         self._selected_issue_index = 0
         self._analysis_summary_state = self._translated_state("Sign in again to restore Jira access.")
@@ -981,6 +1466,15 @@ class JiraBridge(QObject):
         self.stateChanged.emit()
 
     @Slot(object)
+    def _on_filters_result(self, payload: dict[str, Any]) -> None:
+        worker_id = int(payload.get("worker_id", 0))
+        if worker_id != self._filters_worker_seq:
+            return
+        self._saved_filters = list(payload.get("filters") or [])
+        self._filters_loading = False
+        self.stateChanged.emit()
+
+    @Slot(object)
     def _on_detail_result(self, payload: dict[str, Any]) -> None:
         worker_id = int((payload or {}).get("worker_id", 0))
         if worker_id != self._detail_worker_seq:
@@ -1016,8 +1510,8 @@ class JiraBridge(QObject):
         self.stateChanged.emit()
 
     @Slot(result="QVariantList")
-    def projectOptions(self):
-        return [self._project_label(option_id) for option_id in _PROJECT_OPTION_IDS]
+    def projectFilterOptions(self):
+        return [{"id": option_id, "label": self._project_label(option_id)} for option_id in _PROJECT_OPTION_IDS]
 
     @Slot(result="QVariantList")
     def boardOptions(self):
@@ -1026,6 +1520,22 @@ class JiraBridge(QObject):
     @Slot(result="QVariantList")
     def timeframeOptions(self):
         return [self._timeframe_label(option_id) for option_id in _TIMEFRAME_OPTION_IDS]
+
+    @Slot(result="QVariantList")
+    def statusFilterOptions(self):
+        return [{"id": option_id, "label": self._status_label(option_id)} for option_id in _STATUS_OPTION_IDS]
+
+    @Slot(result="QVariantList")
+    def priorityFilterOptions(self):
+        return [{"id": option_id, "label": self._priority_label(option_id)} for option_id in _PRIORITY_OPTION_IDS]
+
+    @Slot(result="QVariantList")
+    def issueTypeFilterOptions(self):
+        return [{"id": option_id, "label": self._issue_type_label(option_id)} for option_id in _ISSUE_TYPE_OPTION_IDS]
+
+    @Slot(result="QVariantList")
+    def savedFilters(self):
+        return list(self._saved_filters)
 
     @Slot(result="QVariantList")
     def conversationRows(self):
@@ -1041,6 +1551,13 @@ class JiraBridge(QObject):
             return {}
         safe_index = max(0, min(self._selected_issue_index, len(self._issues) - 1))
         return self._render_issue_row(self._issues[safe_index])
+
+    @Slot(str, result=str)
+    def issueBrowseUrl(self, issue_key: str) -> str:
+        clean_key = str(issue_key or "").strip()
+        if not clean_key:
+            return ""
+        return f"{JIRA_BASE_URL.rstrip('/')}/browse/{quote(clean_key)}"
 
     @Slot(result="QVariantList")
     def quickStats(self):
@@ -1100,36 +1617,43 @@ class JiraBridge(QObject):
     def _get_status_text(self) -> str:
         return self._render_state_text(self._status_state)
 
+    def _get_active_scope_summary(self) -> str:
+        return self._active_scope_summary_text()
+
+    def _get_filters_loading(self) -> bool:
+        return self._filters_loading
+
     loading = Property(bool, _get_loading, notify=loadingChanged)
     connected = Property(bool, _get_connected, notify=connectionChanged)
     statusText = Property(str, _get_status_text, notify=connectionChanged)
+    activeScopeSummary = Property(str, _get_active_scope_summary, notify=stateChanged)
+    filtersLoading = Property(bool, _get_filters_loading, notify=stateChanged)
 
 
 def _record_to_issue_row(record) -> dict[str, Any]:
-    raw_fields = (record.raw or {}).get("fields") or {}
     comments = record.fields.get("comments") or []
     links = record.fields.get("issuelinks") or []
     description = _normalize_text(record.fields.get("description"))
     if not description:
         description = record.fields.get("summary") or ""
-    if comments:
-        description = (
-            f"{description}\n\n"
-            f"{QCoreApplication.translate('JiraBridge', 'Comments')}:\n"
-            + "\n".join(_normalize_text(item) for item in comments[:3])
-        )
+    normalized_comments = [_normalize_text(item) for item in comments if _normalize_text(item)]
     return {
         "keyId": record.key,
         "summary": str(record.fields.get("summary", "") or ""),
         "status": str(record.fields.get("status", "") or ""),
         "priority": str(record.fields.get("priority", "") or ""),
         "assignee": str(record.fields.get("assignee", "") or ""),
+        "reporter": str(record.fields.get("reporter", "") or ""),
+        "labels": list(record.fields.get("labels") or []),
+        "components": list(record.fields.get("components") or []),
         "project": str(record.fields.get("project", "") or ""),
         "updatedAt": str(record.fields.get("updated", "") or ""),
         "detail": description.strip(),
-        "commentCount": len(comments) if isinstance(comments, list) else 0,
+        "comments": normalized_comments,
+        "commentCount": len(normalized_comments),
         "linkCount": len(links) if isinstance(links, list) else 0,
-        "issueType": str(((raw_fields.get("issuetype") or {}).get("name")) or ""),
+        "issueType": str(record.fields.get("issueType", "") or ""),
+        "resolution": str(record.fields.get("resolution", "") or ""),
     }
 
 

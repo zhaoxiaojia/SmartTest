@@ -21,6 +21,17 @@ Scope: everything under `ui/`.
 - Do not leave new or changed UI text as `unfinished` in the translation sources for either language.
 - Do not hand off UI work until the translation sources are updated, `.qm` files are regenerated, the generated `.qm` files are copied into the QRC-backed `ui/example/imports/example/i18n/` folder, and the QRC resource has been rebuilt when applicable.
 - Do not land hard-coded display strings that bypass the translation system.
+- If a translation changes, verify the runtime translation path, not just the `.ts` file. The effective chain is: source text -> `.ts` -> `.qm` -> QRC -> `QTranslator`.
+- Do not mask translation corruption in QML. Find the broken step in the translation resource pipeline and fix that step.
+- Treat placeholder-like translations such as `?`, `??`, `???`, or mojibake text as translation failures.
+
+## UI State Persistence Is Mandatory
+
+- User-visible UI selections should persist by default unless the state is explicitly transient.
+- Persisted UI state must be stored through `SettingsHelper` in the local ini-backed settings file.
+- On page initialization, restore persisted values before triggering data loads that depend on them.
+- This applies to toggles, combo selections, filter inputs, multi-select state, and similar preference-like controls.
+- Do not implement page-specific ad hoc persistence when a generic `SettingsHelper` getter/setter can be reused.
 
 ## Layering
 

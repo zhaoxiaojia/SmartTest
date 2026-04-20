@@ -70,3 +70,34 @@ class SettingsHelper(QObject):
     @Slot(str)
     def saveCloseAction(self, action: str):
         self._save("closeAction", action)
+
+    @Slot(str, str, result=str)
+    def getString(self, key: str, default: str = ""):
+        return str(self._get(key, default))
+
+    @Slot(str, str)
+    def saveString(self, key: str, value: str):
+        self._save(key, value)
+
+    @Slot(str, bool, result=bool)
+    def getBool(self, key: str, default: bool = False):
+        data = self._get(key, "true" if default else "false")
+        if isinstance(data, bool):
+            return data
+        return str(data).lower() == "true"
+
+    @Slot(str, bool)
+    def saveBool(self, key: str, value: bool):
+        self._save(key, "true" if value else "false")
+
+    @Slot(str, int, result=int)
+    def getInt(self, key: str, default: int = 0):
+        data = self._get(key, default)
+        try:
+            return int(data)
+        except (TypeError, ValueError):
+            return int(default)
+
+    @Slot(str, int)
+    def saveInt(self, key: str, value: int):
+        self._save(key, int(value))

@@ -24,3 +24,23 @@ def test_get_validate_query_keeps_jira_string_modes() -> None:
     assert client._normalize_validate_query("strict", use_post=False) == "strict"
     assert client._normalize_validate_query("warn", use_post=False) == "warn"
     assert client._normalize_validate_query(True, use_post=False) == "true"
+
+
+def test_fetch_favourite_filters_returns_dict_items() -> None:
+    client = _client()
+
+    class _Response:
+        data = [
+            {"id": "101", "name": "My open issues", "jql": "assignee = currentUser()"},
+            "skip-me",
+            {"id": "102", "name": "Reported by me", "jql": "reporter = currentUser()"},
+        ]
+
+    client._request = lambda method, url: _Response()  # type: ignore[method-assign]
+
+    filters = client.fetch_favourite_filters()
+
+    assert filters == [
+        {"id": "101", "name": "My open issues", "jql": "assignee = currentUser()"},
+        {"id": "102", "name": "Reported by me", "jql": "reporter = currentUser()"},
+    ]

@@ -166,6 +166,11 @@ class JiraClient:
             for item in payload
         ]
 
+    def fetch_favourite_filters(self) -> list[dict[str, Any]]:
+        response = self._request("GET", self._api_path("filter/favourite"))
+        payload = response.data if isinstance(response.data, list) else []
+        return [item for item in payload if isinstance(item, dict)]
+
     def _api_path(self, suffix: str) -> str:
         base = self._config.base_url.rstrip("/") + "/"
         return urljoin(base, f"rest/api/{self._config.api_version}/{suffix.lstrip('/')}")
