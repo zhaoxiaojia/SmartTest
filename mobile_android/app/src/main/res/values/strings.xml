@@ -1,7 +1,0 @@
-<resources>
-    <string name="app_name">SmartTest Mobile</string>
-    <string name="runner_channel_name">SmartTest Runner</string>
-    <string name="runner_channel_description">SmartTest 前台测试执行与日志通道</string>
-    <string name="runner_notification_title">SmartTest 测试运行中</string>
-    <string name="runner_notification_idle">等待测试指令</string>
-</resources>

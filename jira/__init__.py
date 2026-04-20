@@ -9,7 +9,16 @@ from jira.fields import (
     infer_field_spec_from_metadata,
     registry_from_metadata,
 )
-from jira.services import JiraIssueService, JiraSyncService
+from jira.services import (
+    JiraAIAnalysisService,
+    JiraIssueService,
+    JiraSyncService,
+    JiraWorkspaceService,
+    create_default_jira_ai_analysis_service,
+    create_jira_workspace_service,
+    parse_csv_ids,
+    parse_csv_terms,
+)
 from jira.transport import JiraClient, JiraClientConfig
 
 __all__ = [
@@ -20,6 +29,7 @@ __all__ = [
     "IssueStoreQuery",
     "JiraConfigurationError",
     "JiraBasicAuth",
+    "JiraAIAnalysisService",
     "JiraClient",
     "JiraClientConfig",
     "JiraError",
@@ -27,10 +37,15 @@ __all__ = [
     "JiraFieldMetadataCache",
     "JiraIssueService",
     "JiraSyncService",
+    "JiraWorkspaceService",
     "JiraRequestError",
     "JiraSearchCache",
     "SearchPage",
     "build_default_registry",
+    "create_default_jira_ai_analysis_service",
+    "create_jira_workspace_service",
     "infer_field_spec_from_metadata",
+    "parse_csv_ids",
+    "parse_csv_terms",
     "registry_from_metadata",
 ]

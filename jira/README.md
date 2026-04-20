@@ -169,8 +169,13 @@ Responsibilities:
 - local reprojection of stored issues
 - delayed issue hydration
 - incremental sync
+- service assembly for UI-facing Jira workflows
 
 It should not own QML state or translation logic.
+
+UI bridges should obtain ready-to-use Jira services from `jira/services/`,
+not assemble `auth`, `transport`, metadata cache, and registry pieces
+directly inside the bridge.
 
 ## Performance Rules For This Repo
 

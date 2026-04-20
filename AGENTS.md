@@ -65,6 +65,45 @@ Guidelines:
 - UI work must stay in the UI layer (FluentUI/QML usage). Test execution logic must stay in the pytest layer.
 - Keep layers strictly decoupled to keep issues easy to localize and fix.
 
+## 2.2 Architecture Optimization Principles
+
+Apply these principles when improving existing modules or adding new ones:
+
+- Decoupling:
+  - Reduce direct module-to-module knowledge.
+  - Prefer stable interfaces, injected dependencies, and event/message style coordination over hard references.
+- High cohesion:
+  - Keep each module focused on one business responsibility.
+  - If a class or file is doing unrelated jobs, split it by responsibility rather than growing condition branches.
+- Depend on abstractions:
+  - Depend on contracts, protocols, service interfaces, or narrow bridge APIs rather than concrete implementations.
+  - Keep callers stable when implementations change.
+- Encapsulation:
+  - Hide internal state and implementation details.
+  - Expose the minimum surface needed by the caller; avoid leaking raw internal structures when a shaped view model is better.
+- Composition over inheritance:
+  - Prefer assembling smaller services/components instead of building deep inheritance chains.
+  - Use inheritance only for true `is-a` relationships; prefer composition for `has-a` relationships.
+- Open/closed principle:
+  - Extend behavior by adding new implementations, adapters, or handlers where practical.
+  - Avoid rewriting stable code paths when a new strategy/module can be introduced alongside them.
+- Dependency injection:
+  - Pass dependencies in from the outside where practical, especially for services, clients, caches, and adapters.
+  - Prefer constructor injection or explicit factory assembly over hidden global lookups.
+- YAGNI:
+  - Implement what the current product needs, not speculative framework layers.
+  - Start simple, then refactor once a real second use case or extension point exists.
+
+### Practical Review Questions
+
+Before finalizing an optimization or refactor, check:
+
+- Does this change reduce coupling, or just move code around?
+- Is each module/class easier to describe in one sentence after the change?
+- Did we introduce a new abstraction because it is already needed now, or only because it might be useful later?
+- Did we keep business ownership clear by layer?
+- Did we improve extension points without making the common path harder to follow?
+
 ### Controller-Owned UI Data
 
 - QML is display-only for business data: show/hide, layout, visual state, and emitting user actions.

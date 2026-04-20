@@ -8,7 +8,6 @@ import os
 from pathlib import Path
 from sys import platform
 
-from AI.config.defaults import SMARTTEST_AI_API_KEY_ENV, decode_default_api_key
 from AI.core.errors import AIConfigurationError
 
 _DPAPI_ENTROPY = b"SmartTest.AI.SecretStore.v1"
@@ -22,19 +21,6 @@ class AISecretStore:
     @property
     def store_path(self) -> Path:
         return self._store_path
-
-    def resolve_api_key(self) -> str:
-        env_value = os.getenv(SMARTTEST_AI_API_KEY_ENV, "").strip()
-        if env_value:
-            return env_value
-
-        stored_value = self.read_api_key()
-        if stored_value:
-            return stored_value
-
-        default_value = decode_default_api_key()
-        self.write_api_key(default_value)
-        return default_value
 
     def read_api_key(self) -> str | None:
         payload = self._read_payload()

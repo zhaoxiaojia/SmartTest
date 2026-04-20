@@ -4,12 +4,12 @@ from dataclasses import dataclass
 import json
 import ssl
 import time
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin
 from urllib.request import HTTPSHandler, Request, build_opener
 
-from AI.config import AISecretStore, DEFAULT_AI_TIMEOUT_SECONDS
+from AI.config.defaults import DEFAULT_AI_TIMEOUT_SECONDS
 from AI.core.errors import AIConfigurationError, AIRequestError
 from AI.core.models import AIChatMessage, AIChatResponse
 
@@ -23,13 +23,13 @@ class AIClientConfig:
 
 
 class AIChatClient:
-    def __init__(self, config: AIClientConfig, *, secret_store: AISecretStore):
+    def __init__(self, config: AIClientConfig, *, api_key_provider: Callable[[], str]):
         if not config.base_url.strip():
             raise AIConfigurationError("AI base URL cannot be empty")
         if config.timeout_seconds <= 0:
             raise AIConfigurationError("AI timeout must be positive")
         self._config = config
-        self._secret_store = secret_store
+        self._api_key_provider = api_key_provider
 
     @property
     def config(self) -> AIClientConfig:
@@ -37,7 +37,7 @@ class AIChatClient:
 
     def chat_completion(
         self,
-        messages: Iterable[AIChatMessage | dict[str, Any]],
+        messages: Iterable[AIChatMessage],
         *,
         model: str,
         max_tokens: int | None = None,
@@ -48,7 +48,7 @@ class AIChatClient:
             raise AIConfigurationError("AI model cannot be empty")
         payload: dict[str, Any] = {
             "model": model,
-            "messages": [_serialize_message(item) for item in messages],
+            "messages": [item.to_payload() for item in messages],
         }
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
@@ -63,7 +63,9 @@ class AIChatClient:
         return AIChatResponse.from_payload(response_payload)
 
     def _request_json(self, payload: dict[str, Any]) -> dict[str, Any]:
-        api_key = self._secret_store.resolve_api_key()
+        api_key = self._api_key_provider().strip()
+        if not api_key:
+            raise AIConfigurationError("AI API key cannot be empty")
         started_at = time.monotonic()
         request = Request(
             url=self._endpoint_url(),
@@ -115,16 +117,6 @@ class AIChatClient:
         if not self._config.verify_ssl:
             context = ssl._create_unverified_context()
         return build_opener(HTTPSHandler(context=context))
-
-
-def _serialize_message(item: AIChatMessage | dict[str, Any]) -> dict[str, Any]:
-    if isinstance(item, AIChatMessage):
-        return item.to_payload()
-    if isinstance(item, dict):
-        return dict(item)
-    raise AIConfigurationError(f"Unsupported AI message type: {type(item)!r}")
-
-
 def _json_loads(text: str) -> dict[str, Any]:
     if text.strip() == "":
         raise AIRequestError("AI endpoint returned an empty response")

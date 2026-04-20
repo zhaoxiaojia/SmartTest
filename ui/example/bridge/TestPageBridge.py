@@ -23,6 +23,8 @@ class TestPageBridge(QObject):
         self._root_dir = root_dir.resolve()
         self._registry: SchemaRegistry = default_registry()
         self._cases: list[dict[str, Any]] = []
+        self._cases_by_nodeid: dict[str, dict[str, Any]] = {}
+        self._cases_by_file: dict[str, list[dict[str, Any]]] = {}
         self._state_path = self._default_state_path()
         self._state = load_state(self._state_path)
         self._ensure_state_defaults()
@@ -59,14 +61,22 @@ class TestPageBridge(QObject):
             "enum_values": field.enum_values,
         }
 
+    def _rebuild_case_indexes(self) -> None:
+        self._cases_by_nodeid = {}
+        self._cases_by_file = {}
+        for case in self._cases:
+            nodeid = str(case.get("nodeid", "")).strip()
+            file_path = str(case.get("file", "")).strip()
+            if nodeid:
+                self._cases_by_nodeid[nodeid] = case
+            if file_path:
+                self._cases_by_file.setdefault(file_path, []).append(case)
+
     def _case_info(self, nodeid: str) -> dict[str, Any] | None:
         normalized = (nodeid or "").strip()
         if not normalized:
             return None
-        for case in self._cases:
-            if str(case.get("nodeid", "")) == normalized:
-                return case
-        return None
+        return self._cases_by_nodeid.get(normalized)
 
     def _field_for_key(self, key: str) -> ParamField | None:
         normalized = (key or "").strip()
@@ -78,7 +88,7 @@ class TestPageBridge(QObject):
         normalized = (file_path or "").strip()
         if not normalized:
             return []
-        return [case for case in self._cases if str(case.get("file", "")) == normalized]
+        return list(self._cases_by_file.get(normalized, ()))
 
     def _trimmed_case_path(self, file_path: str) -> str:
         path = str(file_path or "").strip()
@@ -260,6 +270,7 @@ class TestPageBridge(QObject):
             }
             for c in cases
         ]
+        self._rebuild_case_indexes()
         changed = self._sync_selected_file_order()
         changed = self._reorder_selected_cases_by_file_order() or changed
         if changed:
@@ -334,12 +345,14 @@ class TestPageBridge(QObject):
     def activeCaseTypes(self):
         types: list[str] = []
         seen: set[str] = set()
-        for row in self.selectedCaseParamRows():
-            case_type = str(row.get("case_type", "default"))
-            if case_type in seen:
-                continue
-            seen.add(case_type)
-            types.append(case_type)
+        self._sync_selected_file_order()
+        for file_path in self._state.selected_files:
+            for case in self._cases_for_file(file_path):
+                case_type = str(case.get("case_type", "default"))
+                if case_type in seen:
+                    continue
+                seen.add(case_type)
+                types.append(case_type)
         return types
 
     @Slot(str, "QVariantList", result="QVariantList")

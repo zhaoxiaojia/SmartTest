@@ -48,7 +48,7 @@ def test_discovery_exports_required_params_and_empty_cases():
 
     cases_by_nodeid = {case.nodeid: case for case in cases}
 
-    emmc_case = cases_by_nodeid["testing/tests/IPTV/system/test_system_cases.py::test_emmc_rw_via_mobile_android"]
+    emmc_case = cases_by_nodeid["testing/tests/IPTV/system/test_system_cases.py::test_emmc_rw_via_android_client"]
     assert emmc_case.required_param_groups == []
     assert emmc_case.required_params == [
         "emmc_rw:loop_count",
@@ -58,17 +58,17 @@ def test_discovery_exports_required_params_and_empty_cases():
         "emmc_rw:work_dir",
     ]
 
-    reboot_case = cases_by_nodeid["testing/tests/IPTV/system/test_system_cases.py::test_auto_reboot_via_mobile_android"]
+    reboot_case = cases_by_nodeid["testing/tests/IPTV/system/test_system_cases.py::test_auto_reboot_via_android_client"]
     assert reboot_case.required_param_groups == []
     assert reboot_case.required_params == [
         "auto_reboot:cycle_count",
         "auto_reboot:interval_sec",
     ]
 
-    wifi_onoff_case = cases_by_nodeid["testing/tests/IPTV/wifi_bt/test_wifi_bt_cases.py::test_wifi_onoff_scan_via_mobile_android"]
+    wifi_onoff_case = cases_by_nodeid["testing/tests/IPTV/wifi_bt/test_wifi_bt_cases.py::test_wifi_onoff_scan_via_android_client"]
     assert wifi_onoff_case.required_param_groups == []
     assert wifi_onoff_case.required_params == ["wifi_onoff_scan:cycle_count"]
 
-    paramless_case = cases_by_nodeid["testing/tests/IPTV/system/test_system_cases.py::test_ddr_stress_via_mobile_android"]
+    paramless_case = cases_by_nodeid["testing/tests/IPTV/system/test_system_cases.py::test_ddr_stress_via_android_client"]
     assert paramless_case.required_param_groups == []
     assert paramless_case.required_params == []

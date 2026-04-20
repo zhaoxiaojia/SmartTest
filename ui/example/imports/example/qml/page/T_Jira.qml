@@ -1393,31 +1393,41 @@ FluPage {
                                                     spacing: 6
                                                     visible: !!selectedIssue.keyId
 
-                                                    FluText{
-                                                        text: selectedIssue.keyId
-                                                        font: FluTextStyle.Caption
-                                                        color: FluTheme.primaryColor
+                                                    Item{
+                                                        implicitWidth: selected_issue_key_text.implicitWidth
+                                                        implicitHeight: selected_issue_key_text.implicitHeight
+
+                                                        FluText{
+                                                            id: selected_issue_key_text
+                                                            text: selectedIssue.keyId || ""
+                                                            font: FluTextStyle.Caption
+                                                            color: FluTheme.primaryColor
+                                                        }
+
+                                                        MouseArea{
+                                                            anchors.fill: parent
+                                                            enabled: (selectedIssue.keyId || "").length > 0
+                                                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                                            onClicked: {
+                                                                var selectedIssueUrl = JiraBridge.issueBrowseUrl(selectedIssue.keyId || "")
+                                                                if(selectedIssueUrl.length > 0){
+                                                                    Qt.openUrlExternally(selectedIssueUrl)
+                                                                }
+                                                            }
+                                                        }
                                                     }
 
                                                     FluText{
                                                         Layout.fillWidth: true
-                                                        text: selectedIssue.keyId
-                                                              ? qsTr("| Updated %1 | %2 comments | %3 links").arg(selectedIssue.updatedAt).arg(selectedIssue.commentCount).arg(selectedIssue.linkCount)
+                                                        text: (selectedIssue.keyId || "").length > 0
+                                                              ? qsTr("| Updated %1 | %2 comments | %3 links")
+                                                                    .arg(selectedIssue.updatedAt || "")
+                                                                    .arg(selectedIssue.commentCount || 0)
+                                                                    .arg(selectedIssue.linkCount || 0)
                                                               : ""
                                                         font: FluTextStyle.Caption
                                                         color: FluTheme.fontSecondaryColor
                                                         wrapMode: Text.WordWrap
-                                                    }
-
-                                                    MouseArea{
-                                                        anchors.fill: parent
-                                                        cursorShape: Qt.PointingHandCursor
-                                                        onClicked: {
-                                                            var selectedIssueUrl = JiraBridge.issueBrowseUrl(selectedIssue.keyId)
-                                                            if(selectedIssueUrl.length > 0){
-                                                                Qt.openUrlExternally(selectedIssueUrl)
-                                                            }
-                                                        }
                                                     }
                                                 }
 

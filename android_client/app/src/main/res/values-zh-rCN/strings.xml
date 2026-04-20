@@ -1,0 +1,60 @@
+<resources>
+    <string name="app_name">SmartTest</string>
+    <string name="runner_channel_name">SmartTest 执行器</string>
+    <string name="runner_channel_description">SmartTest 测试执行与日志的前台通知通道</string>
+    <string name="runner_notification_title">SmartTest 测试执行中</string>
+    <string name="runner_notification_idle">等待测试指令</string>
+
+    <string name="page_cases">用例</string>
+    <string name="page_cases_subtitle">按分类管理测试用例，并加入待执行队列。</string>
+    <string name="page_log">日志</string>
+    <string name="page_log_subtitle">集中查看执行状态与运行日志。</string>
+    <string name="page_report">报告</string>
+    <string name="page_report_subtitle">查看最新批次结果，并为导出流程预留入口。</string>
+    <string name="page_settings">设置</string>
+    <string name="page_settings_subtitle">管理移动端的主题与语言偏好。</string>
+
+    <string name="settings_button">设置</string>
+    <string name="settings_heading">设置</string>
+    <string name="settings_theme_title">主题</string>
+    <string name="settings_theme_summary">选择 SmartTest 使用浅色、深色或跟随系统。</string>
+    <string name="settings_language_title">语言</string>
+    <string name="settings_language_summary">选择移动端界面的显示语言。</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="language_system">跟随系统</string>
+    <string name="language_english">English</string>
+    <string name="language_simplified_chinese">简体中文</string>
+
+    <string name="cases_selected_count">已选择 %1$d 个用例</string>
+    <string name="cases_start_hint_idle">请至少选择一个用例后再启动批次。</string>
+    <string name="cases_start_hint_ready">开始执行后，应用会自动切换到日志页。</string>
+    <string name="cases_start_run">开始执行</string>
+    <string name="cases_selected_queue">已选队列</string>
+    <string name="cases_category_count">%1$d 个用例</string>
+
+    <string name="log_heading">执行日志</string>
+    <string name="log_running_hint">测试执行由 Runner 接管，此页只负责展示状态和日志。</string>
+    <string name="log_idle_hint">当前没有正在执行的任务。请从界面触发新批次，或使用 am start 命令。</string>
+    <string name="log_status">状态：%1$s</string>
+    <string name="log_last_command">最近命令：%1$s</string>
+    <string name="log_current_batch">当前批次：%1$s</string>
+    <string name="log_waiting">等待日志输出...</string>
+    <string name="log_stop_run">停止执行</string>
+    <string name="log_run_stopped">执行已停止</string>
+
+    <string name="report_heading">执行报告</string>
+    <string name="report_empty">报告页已接入执行流程，但当前还没有可展示的已完成批次。</string>
+    <string name="report_export_pdf">导出 PDF</string>
+    <string name="report_share_link">分享链接</string>
+    <string name="report_metric_total">总数</string>
+    <string name="report_metric_passed">通过</string>
+    <string name="report_metric_failed">失败</string>
+    <string name="report_metric_platform">平台</string>
+    <string name="report_metric_system">系统</string>
+    <string name="report_metric_network">网络</string>
+    <string name="report_command_history">命令历史</string>
+    <string name="report_no_command">当前还没有记录任何命令。</string>
+    <string name="report_last_batch">最近批次：%1$d 个用例</string>
+</resources>

@@ -10,5 +10,5 @@ Current real case layout:
 - `testing/tests/Smart Home/`
 
 These pytest cases do not reimplement Android-side business logic.
-They trigger `mobile_android` through `adb shell am start ...` and keep
+They trigger `android_client` through `adb shell am start ...` and keep
 parameter applicability in the `testing/` layer via pytest markers.

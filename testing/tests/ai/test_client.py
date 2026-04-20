@@ -1,20 +1,11 @@
-from AI.config.secret_store import AISecretStore
 from AI.core.models import AIChatMessage
 from AI.transport.client import AIChatClient, AIClientConfig
-
-
-class _StubSecretStore(AISecretStore):
-    def __init__(self):
-        pass
-
-    def resolve_api_key(self) -> str:
-        return "stub-key"
 
 
 def test_chat_client_builds_openai_compatible_payload(monkeypatch):
     client = AIChatClient(
         AIClientConfig(base_url="https://example.com/base"),
-        secret_store=_StubSecretStore(),
+        api_key_provider=lambda: "stub-key",
     )
     captured = {}
 
