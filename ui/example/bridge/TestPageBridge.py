@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
-from datetime import datetime
 from typing import Any
 
 from PySide6.QtCore import QObject, Signal, Slot, QStandardPaths
@@ -29,76 +28,9 @@ class TestPageBridge(QObject):
         self._cases_by_nodeid: dict[str, dict[str, Any]] = {}
         self._cases_by_file: dict[str, list[dict[str, Any]]] = {}
         self._state_path = self._default_state_path()
-        self._debug_log_path = self._state_path.with_name("test_page_debug.log")
         self._state = load_state(self._state_path)
         self._adb_devices: list[str] = []
         self._ensure_state_defaults()
-
-    def _debug_emit(self, message: str) -> None:
-        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        line = f"[TestPageBridge][{timestamp}] {message}"
-        print(line, flush=True)
-        try:
-            self._debug_log_path.parent.mkdir(parents=True, exist_ok=True)
-            with self._debug_log_path.open("a", encoding="utf-8") as fh:
-                fh.write(line + "\n")
-        except Exception:  # noqa: BLE001
-            pass
-
-    def _saved_value_for_debug(self, *, nodeid: str = "", key: str = "") -> Any:
-        try:
-            saved_state = load_state(self._state_path)
-        except Exception as exc:  # noqa: BLE001
-            return f"<failed to load saved state: {exc}>"
-
-        normalized_nodeid = str(nodeid or "").strip()
-        normalized_key = str(key or "").strip()
-        if not normalized_key:
-            return None
-
-        if normalized_nodeid:
-            case_values = saved_state.case_configs.get(normalized_nodeid, {})
-            if normalized_key in case_values:
-                return case_values.get(normalized_key)
-        if normalized_key in saved_state.global_context:
-            return saved_state.global_context.get(normalized_key)
-        return "<missing>"
-
-    def _debug_log_state_change(
-        self,
-        *,
-        action: str,
-        nodeid: str = "",
-        key: str = "",
-        value: Any = None,
-    ) -> None:
-        memory_value: Any = None
-        normalized_nodeid = str(nodeid or "").strip()
-        normalized_key = str(key or "").strip()
-        saved_value: Any = None
-        if normalized_key:
-            if normalized_nodeid:
-                memory_value = self._resolve_case_value(nodeid=normalized_nodeid, key=normalized_key)
-            else:
-                memory_value = self._state.global_context.get(normalized_key)
-            saved_value = self._saved_value_for_debug(nodeid=normalized_nodeid, key=normalized_key)
-        self._debug_emit(f"action={action}")
-        if normalized_nodeid:
-            self._debug_emit(f"selected.nodeid={normalized_nodeid}")
-        if normalized_key:
-            self._debug_emit(f"field.key={normalized_key}")
-        if value is not None:
-            self._debug_emit(f"user.value={value!r}")
-        if normalized_key:
-            self._debug_emit(f"memory.value={memory_value!r}")
-            self._debug_emit(f"saved.value={saved_value!r}")
-        self._debug_emit(f"selected={[(case.nodeid, case.case_type) for case in self._state.selected]}")
-        self._debug_emit(f"selected_files={list(self._state.selected_files)}")
-        self._debug_emit(f"saved_state_path={self._state_path}")
-
-    @Slot(str, str, str, "QVariant")
-    def debugUiEvent(self, event: str, nodeid: str, key: str, value: Any) -> None:
-        self._debug_log_state_change(action=f"ui:{event}", nodeid=nodeid, key=key, value=value)
 
     def _default_state_path(self) -> Path:
         base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
@@ -287,12 +219,16 @@ class TestPageBridge(QObject):
             return False
 
         if field.scope == ParamScope.GLOBAL_CONTEXT:
+            if self._state.global_context.get(field.key) == value:
+                return False
             self._state.global_context[field.key] = value
             return True
 
         if field.scope == ParamScope.CASE_TYPE_SHARED:
             case_type = str(case.get("case_type") or "default")
             self._state.case_type_configs.setdefault(case_type, {})
+            if self._state.case_type_configs[case_type].get(field.key) == value:
+                return False
             self._state.case_type_configs[case_type][field.key] = value
             return True
 
@@ -300,6 +236,8 @@ class TestPageBridge(QObject):
         if not case_nodeid:
             return False
         self._state.case_configs.setdefault(case_nodeid, {})
+        if self._state.case_configs[case_nodeid].get(field.key) == value:
+            return False
         self._state.case_configs[case_nodeid][field.key] = value
         return True
 
@@ -595,18 +533,13 @@ class TestPageBridge(QObject):
 
     @Slot(str, str, result="QVariant")
     def caseParamValue(self, nodeid: str, key: str):
-        value = self._resolve_case_value(nodeid=nodeid, key=key)
-        self._debug_emit(
-            f"getter.caseParamValue nodeid={str(nodeid or '').strip()} key={str(key or '').strip()} -> {value!r}"
-        )
-        return value
+        return self._resolve_case_value(nodeid=nodeid, key=key)
 
     @Slot(str, bool)
     def setCaseSelected(self, nodeid: str, selected: bool) -> None:
         if not self._set_case_selected(nodeid, selected):
             return
         self._save_and_emit()
-        self._debug_log_state_change(action="setCaseSelected", nodeid=nodeid, value=selected)
 
     @Slot(str, bool)
     def setFileSelected(self, file_path: str, selected: bool) -> None:
@@ -630,7 +563,6 @@ class TestPageBridge(QObject):
         self._sync_selected_file_order()
         self._reorder_selected_cases_by_file_order()
         self._save_and_emit()
-        self._debug_log_state_change(action="setFileSelected", key="file_path", value={"file_path": file_path, "selected": selected})
 
     @Slot(str, result=bool)
     def isCaseSelected(self, nodeid: str) -> bool:
@@ -657,9 +589,10 @@ class TestPageBridge(QObject):
     def setGlobalValue(self, key: str, value: Any) -> None:
         if not key:
             return
+        if self._state.global_context.get(key) == value:
+            return
         self._state.global_context[key] = value
         self._save_and_emit()
-        self._debug_log_state_change(action="setGlobalValue", key=key, value=value)
 
     @Slot(str, str, "QVariant")
     def setCaseTypeValue(self, case_type: str, key: str, value: Any) -> None:
@@ -668,14 +601,12 @@ class TestPageBridge(QObject):
         self._state.case_type_configs.setdefault(case_type, {})
         self._state.case_type_configs[case_type][key] = value
         self._save_and_emit()
-        self._debug_log_state_change(action="setCaseTypeValue", nodeid=case_type, key=key, value=value)
 
     @Slot(str, str, "QVariant")
     def setCaseParamValue(self, nodeid: str, key: str, value: Any) -> None:
         if not self._set_case_param_value(nodeid=nodeid, key=key, value=value):
             return
         self._save_and_emit()
-        self._debug_log_state_change(action="setCaseParamValue", nodeid=nodeid, key=key, value=value)
 
     @Slot()
     def reloadState(self) -> None:

@@ -6,6 +6,7 @@ import FluentUI 1.0
 import "../global"
 
 FluPage {
+    id: page_root
     title: qsTr("Test")
     property int footerHeight: 30
 
@@ -32,10 +33,6 @@ FluPage {
             return qsTr("Shared by Case Type")
         }
         return qsTr("Per Case")
-    }
-
-    function traceUiEvent(event, nodeid, key, value){
-        TestPageBridge.debugUiEvent(event, nodeid || "", key || "", value)
     }
 
     function caseParamTextValue(nodeid, key){
@@ -443,68 +440,98 @@ FluPage {
                                                     id: text_case_param
                                                     visible: fieldData.type === "string" || fieldData.type === "path" || fieldData.type === "float"
                                                     Layout.fillWidth: true
-                                                    text: caseParamTextValue(caseNodeId, fieldData.key)
                                                     placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
-                                                    onTextChanged: {
-                                                        traceUiEvent("textChanged", caseNodeId, fieldData.key, text)
+                                                    Binding {
+                                                        target: text_case_param
+                                                        property: "text"
+                                                        when: text_case_param.visible && !text_case_param.activeFocus
+                                                        value: caseParamTextValue(caseNodeId, fieldData.key)
                                                     }
-                                                    onEditingFinished: {
-                                                        traceUiEvent("editingFinished", caseNodeId, fieldData.key, text)
-                                                        TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
-                                                    }
-                                                    onActiveFocusChanged: {
-                                                        if(!activeFocus){
-                                                            traceUiEvent("focusLost", caseNodeId, fieldData.key, text)
-                                                        }
-                                                    }
+                                                    onTextChanged: TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
+                                                    onEditingFinished: TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
                                                 }
 
                                                 FluSpinBox{
                                                     id: spin_case_param
                                                     property bool persistReady: false
+                                                    property int _lastPersistedValue: 0
+                                                    function syncFromState(){
+                                                        if(!visible){
+                                                            return
+                                                        }
+                                                        if(activeFocus){
+                                                            return
+                                                        }
+                                                        if(contentItem && contentItem.activeFocus){
+                                                            return
+                                                        }
+                                                        var nextValue = caseParamIntValue(caseNodeId, fieldData.key, fieldData.default)
+                                                        if(value !== nextValue){
+                                                            value = nextValue
+                                                        }
+                                                        _lastPersistedValue = nextValue
+                                                    }
+                                                    function persistParsedText(rawText, eventName){
+                                                        if(!persistReady){
+                                                            return
+                                                        }
+                                                        var parsed = parseInt(rawText, 10)
+                                                        if(isNaN(parsed)){
+                                                            return
+                                                        }
+                                                        if(parsed < from){
+                                                            parsed = from
+                                                        }
+                                                        if(parsed > to){
+                                                            parsed = to
+                                                        }
+                                                        if(_lastPersistedValue === parsed){
+                                                            return
+                                                        }
+                                                        _lastPersistedValue = parsed
+                                                        TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, parsed)
+                                                    }
                                                     visible: fieldData.type === "int"
                                                     Layout.fillWidth: true
                                                     editable: true
                                                     from: -1000000
                                                     to: 1000000
                                                     Component.onCompleted: {
+                                                        syncFromState()
                                                         persistReady = true
+                                                    }
+                                                    onVisibleChanged: syncFromState()
+                                                    onActiveFocusChanged: {
+                                                        if(!activeFocus){
+                                                            syncFromState()
+                                                        }
                                                     }
                                                     onValueModified: {
                                                         if(!persistReady){
                                                             return
                                                         }
-                                                        traceUiEvent("valueModified", caseNodeId, fieldData.key, value)
+                                                        _lastPersistedValue = value
                                                         TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, value)
                                                     }
-                                                    onValueChanged: {
-                                                        if(!persistReady){
-                                                            return
+                                                    Connections {
+                                                        target: page_root
+                                                        function onStateVersionChanged() {
+                                                            spin_case_param.syncFromState()
                                                         }
-                                                        traceUiEvent("valueChanged", caseNodeId, fieldData.key, value)
-                                                    }
-                                                    Binding {
-                                                        target: spin_case_param
-                                                        property: "value"
-                                                        when: spin_case_param.visible && !spin_case_param.activeFocus
-                                                        value: caseParamIntValue(caseNodeId, fieldData.key, fieldData.default)
                                                     }
                                                     Connections {
                                                         target: spin_case_param.contentItem
                                                         function onTextEdited() {
-                                                            traceUiEvent("spinTextEdited", caseNodeId, fieldData.key, spin_case_param.contentItem.text)
+                                                            spin_case_param.persistParsedText(spin_case_param.contentItem.text)
                                                         }
                                                         function onEditingFinished() {
-                                                            traceUiEvent("spinEditingFinished", caseNodeId, fieldData.key, spin_case_param.contentItem.text)
+                                                            spin_case_param.persistParsedText(spin_case_param.contentItem.text)
                                                         }
                                                         function onActiveFocusChanged() {
-                                                            traceUiEvent("spinFocusChanged", caseNodeId, fieldData.key, {
-                                                                "activeFocus": spin_case_param.contentItem.activeFocus,
-                                                                "text": spin_case_param.contentItem.text
-                                                            })
-                                                        }
-                                                        function onTextChanged() {
-                                                            traceUiEvent("spinTextChanged", caseNodeId, fieldData.key, spin_case_param.contentItem.text)
+                                                            if(!spin_case_param.contentItem.activeFocus){
+                                                                spin_case_param.persistParsedText(spin_case_param.contentItem.text)
+                                                                spin_case_param.syncFromState()
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -520,7 +547,6 @@ FluPage {
                                                     }
                                                     onActivated: {
                                                         if(currentIndex >= 0){
-                                                            traceUiEvent("activated", caseNodeId, fieldData.key, currentText)
                                                             TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, currentText)
                                                         }
                                                     }
@@ -530,31 +556,24 @@ FluPage {
                                                     visible: fieldData.type === "bool"
                                                     checked: caseParamBoolValue(caseNodeId, fieldData.key)
                                                     text: checked ? qsTr("Enabled") : qsTr("Disabled")
-                                                    onClicked: {
-                                                        traceUiEvent("clicked", caseNodeId, fieldData.key, checked)
-                                                        TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, checked)
-                                                    }
+                                                    onClicked: TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, checked)
                                                 }
 
                                                 FluMultilineTextBox{
+                                                    id: text_case_param_multiline
                                                     visible: fieldData.type === "multiline"
                                                     Layout.fillWidth: true
                                                     Layout.preferredHeight: 96
-                                                    text: caseParamTextValue(caseNodeId, fieldData.key)
                                                     placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
                                                     isCtrlEnterForNewline: true
-                                                    onTextChanged: {
-                                                        traceUiEvent("multilineTextChanged", caseNodeId, fieldData.key, text)
+                                                    Binding {
+                                                        target: text_case_param_multiline
+                                                        property: "text"
+                                                        when: text_case_param_multiline.visible && !text_case_param_multiline.activeFocus
+                                                        value: caseParamTextValue(caseNodeId, fieldData.key)
                                                     }
-                                                    onCommit: {
-                                                        traceUiEvent("multilineCommit", caseNodeId, fieldData.key, text)
-                                                        TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
-                                                    }
-                                                    onActiveFocusChanged: {
-                                                        if(!activeFocus){
-                                                            traceUiEvent("multilineFocusLost", caseNodeId, fieldData.key, text)
-                                                        }
-                                                    }
+                                                    onTextChanged: TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
+                                                    onCommit: TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
                                                 }
 
                                                 FluDivider{
@@ -623,31 +642,26 @@ FluPage {
                                 }
                                 onActivated: {
                                     if(currentIndex >= 0){
-                                        traceUiEvent("globalActivated", "", modelData.key, currentText)
                                         TestPageBridge.setGlobalValue(modelData.key, currentText)
                                     }
                                 }
                             }
                             FluTextBox{
+                                id: text_global_param
                                 visible: modelData.type !== "enum"
                                 Layout.fillWidth: true
-                                text: {
-                                    var _version = stateVersion
-                                    var value = TestPageBridge.globalContext()[modelData.key]
-                                    return value === undefined || value === null ? "" : (value + "")
-                                }
-                                onTextChanged: {
-                                    traceUiEvent("globalTextChanged", "", modelData.key, text)
-                                }
-                                onEditingFinished: {
-                                    traceUiEvent("globalEditingFinished", "", modelData.key, text)
-                                    TestPageBridge.setGlobalValue(modelData.key, text)
-                                }
-                                onActiveFocusChanged: {
-                                    if(!activeFocus){
-                                        traceUiEvent("globalFocusLost", "", modelData.key, text)
+                                Binding {
+                                    target: text_global_param
+                                    property: "text"
+                                    when: text_global_param.visible && !text_global_param.activeFocus
+                                    value: {
+                                        var _version = stateVersion
+                                        var value = TestPageBridge.globalContext()[modelData.key]
+                                        return value === undefined || value === null ? "" : (value + "")
                                     }
                                 }
+                                onTextChanged: TestPageBridge.setGlobalValue(modelData.key, text)
+                                onEditingFinished: TestPageBridge.setGlobalValue(modelData.key, text)
                             }
                         }
                     }
