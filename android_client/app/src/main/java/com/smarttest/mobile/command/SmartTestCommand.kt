@@ -15,6 +15,7 @@ object SmartTestCommand {
     const val EXTRA_PARAMS = "params"
     const val EXTRA_SOURCE = "source"
     const val EXTRA_TRIGGER = "trigger"
+    const val EXTRA_REQUEST_ID = "request_id"
 
     fun buildRunRequest(intent: Intent): TestRunRequest? {
         val directCase = intent.getStringExtra(EXTRA_CASE_ID)?.trim().orEmpty()
@@ -39,6 +40,7 @@ object SmartTestCommand {
             parameterOverrides = parseParameters(intent.getStringExtra(EXTRA_PARAMS).orEmpty()),
             source = intent.getStringExtra(EXTRA_SOURCE)?.trim().orEmpty().ifBlank { "adb" },
             trigger = intent.getStringExtra(EXTRA_TRIGGER)?.trim().orEmpty().ifBlank { "am start" },
+            requestId = intent.getStringExtra(EXTRA_REQUEST_ID)?.trim().orEmpty().ifBlank { "manual" },
         )
     }
 
@@ -47,8 +49,10 @@ object SmartTestCommand {
             append(intent.action ?: "NO_ACTION")
             val caseId = intent.getStringExtra(EXTRA_CASE_ID).orEmpty()
             val caseIds = intent.getStringExtra(EXTRA_CASE_IDS).orEmpty()
+            val requestId = intent.getStringExtra(EXTRA_REQUEST_ID).orEmpty()
             if (caseId.isNotBlank()) append(" case_id=$caseId")
             if (caseIds.isNotBlank()) append(" case_ids=$caseIds")
+            if (requestId.isNotBlank()) append(" request_id=$requestId")
         }
     }
 
@@ -62,6 +66,7 @@ object SmartTestCommand {
             )
             putExtra(EXTRA_SOURCE, "ui")
             putExtra(EXTRA_TRIGGER, "button")
+            putExtra(EXTRA_REQUEST_ID, "example-run")
         }
     }
 

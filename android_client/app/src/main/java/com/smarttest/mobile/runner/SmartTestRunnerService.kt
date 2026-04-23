@@ -25,6 +25,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlin.math.max
 
 class SmartTestRunnerService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -37,6 +38,7 @@ class SmartTestRunnerService : Service() {
     override fun onCreate() {
         super.onCreate()
         ensureChannel()
+        SmartTestRunStore.initialize(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -64,6 +66,11 @@ class SmartTestRunnerService : Service() {
     }
 
     private fun handleRun(request: TestRunRequest) {
+        Log.i(
+            "SmartTestRunner",
+            "RUN requestId=${request.requestId}, source=${request.source}, trigger=${request.trigger}, " +
+                "cases=${request.caseIds}, params=${request.parameterOverrides}",
+        )
         ServiceCompat.startForeground(
             this,
             NOTIFICATION_ID,
@@ -110,6 +117,14 @@ class SmartTestRunnerService : Service() {
                 )
             } catch (_: CancellationException) {
                 SmartTestRunStore.resetToIdle("Run cancelled")
+            } catch (error: Throwable) {
+                val message = error.message ?: error.javaClass.simpleName
+                Log.e("SmartTestRunner", "Unhandled runner failure", error)
+                SmartTestRunStore.appendLog("Unhandled runner failure: $message")
+                SmartTestRunStore.finishRun(
+                    statusText = "Batch failed: $message",
+                    failedCount = max(1, cases.size),
+                )
             } finally {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -120,8 +135,13 @@ class SmartTestRunnerService : Service() {
     private fun handleStop(reason: String) {
         val stopReason = reason.ifBlank { "am start STOP" }
         AutoRebootSessionStore(applicationContext).clear()
-        SmartTestRunStore.markStopping(stopReason)
-        runJob?.cancel()
+        val activeJob = runJob
+        if (activeJob != null && activeJob.isActive) {
+            SmartTestRunStore.markStopping(stopReason)
+            activeJob.cancel()
+        } else {
+            SmartTestRunStore.resetToIdle(stopReason)
+        }
         runJob = null
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -171,6 +191,7 @@ class SmartTestRunnerService : Service() {
                 )
                 putExtra(SmartTestCommand.EXTRA_SOURCE, request.source)
                 putExtra(SmartTestCommand.EXTRA_TRIGGER, request.trigger)
+                putExtra(SmartTestCommand.EXTRA_REQUEST_ID, request.requestId)
             }
             ContextCompat.startForegroundService(context, intent)
         }

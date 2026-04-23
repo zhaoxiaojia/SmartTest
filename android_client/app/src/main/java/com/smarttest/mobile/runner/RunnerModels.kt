@@ -20,10 +20,12 @@ data class TestRunRequest(
     val parameterOverrides: Map<String, String>,
     val source: String,
     val trigger: String,
+    val requestId: String,
 )
 
 data class RunReport(
     val batchLabel: String,
+    val requestId: String,
     val totalCount: Int,
     val successCount: Int,
     val failedCount: Int,
@@ -37,6 +39,9 @@ data class RunnerSnapshot(
     val logLines: List<String> = emptyList(),
     val report: RunReport? = null,
     val lastCommandSummary: String = "",
+    val currentLoop: Int? = null,
+    val totalLoops: Int? = null,
+    val currentStage: String = "",
 ) {
     val isRunning: Boolean
         get() = phase == RunPhase.Running || phase == RunPhase.Stopping

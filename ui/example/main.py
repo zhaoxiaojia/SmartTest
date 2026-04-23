@@ -14,7 +14,6 @@ from FluentUI.FluLogger import LogSetup, Logger
 from example.AppInfo import AppInfo
 from example.component.CircularReveal import CircularReveal
 from example.component.FileWatcher import FileWatcher
-from example.component.FpsItem import FpsItem
 from example.component.OpenGLItem import OpenGLItem
 from example.helper.InitializrHelper import InitializrHelper
 from example.helper.SettingsHelper import SettingsHelper
@@ -24,6 +23,7 @@ from example.imports import resource_rc as rc
 from example.helper import Async
 from example.bridge.AuthBridge import AuthBridge
 from example.bridge.JiraBridge import JiraBridge
+from example.bridge.RunBridge import RunBridge
 from example.bridge.TestPageBridge import TestPageBridge
 
 _uri = "example"
@@ -52,7 +52,6 @@ def main():
     qmlRegisterType(Callback, _uri, _major, _minor, "Callback")
     qmlRegisterType(CircularReveal, _uri, _major, _minor, "CircularReveal")
     qmlRegisterType(FileWatcher, _uri, _major, _minor, "FileWatcher")
-    qmlRegisterType(FpsItem, _uri, _major, _minor, "FpsItem")
     qmlRegisterType(OpenGLItem, _uri, _major, _minor, "OpenGLItem")
 
     engine = QQmlApplicationEngine()
@@ -88,6 +87,7 @@ def main():
     auth_bridge = AuthBridge()
     context.setContextProperty("AuthBridge", auth_bridge)
     context.setContextProperty("TestPageBridge", TestPageBridge(Path(__file__).resolve().parents[2]))
+    context.setContextProperty("RunBridge", RunBridge(Path(__file__).resolve().parents[2]))
     context.setContextProperty("JiraBridge", JiraBridge(auth_bridge))
     FluentUI.registerTypes(engine)
     qml_file = QUrl("qrc:/example/qml/App.qml")

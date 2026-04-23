@@ -136,6 +136,9 @@ fun SmartTestPrototypeApp() {
                                     isRunning = runnerSnapshot.isRunning,
                                     statusText = runnerSnapshot.phase.name,
                                     commandSummary = runnerSnapshot.lastCommandSummary,
+                                    currentLoop = runnerSnapshot.currentLoop,
+                                    totalLoops = runnerSnapshot.totalLoops,
+                                    currentStage = runnerSnapshot.currentStage,
                                 )
 
                                 AppPage.Report -> ReportScreen(snapshot = runnerSnapshot)

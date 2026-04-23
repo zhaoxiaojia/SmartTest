@@ -3,6 +3,7 @@ package com.smarttest.mobile.runner
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.smarttest.mobile.runner.cases.power.AutoRebootSessionStore
 
 class AutoRebootResumeReceiver : BroadcastReceiver() {
@@ -12,10 +13,16 @@ class AutoRebootResumeReceiver : BroadcastReceiver() {
             return
         }
 
-        val session = AutoRebootSessionStore(context).load() ?: return
+        val session = AutoRebootSessionStore(context).load()
+        if (session == null) return
         if (!session.active || !session.awaitingPostBootCheck) {
             return
         }
+        Log.i(
+            "AutoRebootResume",
+            "boot receiver resume requestId=${session.requestId}, trigger=${session.trigger}, " +
+                "cycles=${session.totalCycles}, completed=${session.completedCycles}",
+        )
 
         SmartTestRunnerService.enqueueRun(
             context = context,
@@ -25,9 +32,11 @@ class AutoRebootResumeReceiver : BroadcastReceiver() {
                     "auto_reboot:cycle_count" to session.totalCycles.toString(),
                     "auto_reboot:interval_sec" to session.intervalSec.toString(),
                 ),
-                source = "boot",
-                trigger = "boot_completed",
+                source = session.source,
+                trigger = session.trigger,
+                requestId = session.requestId,
             ),
         )
+        SmartTestUiLauncher.launchMainActivity(context)
     }
 }

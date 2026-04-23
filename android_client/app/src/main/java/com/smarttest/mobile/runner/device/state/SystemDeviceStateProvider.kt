@@ -7,6 +7,7 @@ import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.PowerManager
+import android.util.Log
 import com.smarttest.mobile.runner.device.model.BluetoothState
 import com.smarttest.mobile.runner.device.model.CpuCoreState
 import com.smarttest.mobile.runner.device.model.CpuState
@@ -26,6 +27,7 @@ class SystemDeviceStateProvider(
     context: Context,
     private val shellGateway: ShellGateway,
 ) : DeviceStateProvider {
+    private val tag = "SystemDeviceState"
     private val appContext = context.applicationContext
     private val wifiManager: WifiManager? = appContext.getSystemService(WifiManager::class.java)
     private val bluetoothManager: BluetoothManager? = appContext.getSystemService(BluetoothManager::class.java)
@@ -56,12 +58,14 @@ class SystemDeviceStateProvider(
             return WifiState(enabled = false, connectedSsid = null, ipAddress = null, scanResultCount = null)
         }
 
-        val connectionInfo = runCatching { manager.connectionInfo }.getOrNull()
+        val connectionInfo = runSystemAccess("wifi.connectionInfo") { manager.connectionInfo }
+        val scanResultCount = runSystemAccess("wifi.scanResults") { manager.scanResults?.size }
+        val enabled = runSystemAccess("wifi.isWifiEnabled") { manager.isWifiEnabled } ?: false
         return WifiState(
-            enabled = manager.isWifiEnabled,
+            enabled = enabled,
             connectedSsid = connectionInfo?.ssid?.takeUnless { it == WifiManager.UNKNOWN_SSID },
             ipAddress = connectionInfo?.ipAddress?.takeIf { it != 0 }?.let(::intToIpAddress),
-            scanResultCount = runCatching { manager.scanResults?.size }.getOrNull(),
+            scanResultCount = scanResultCount,
             detail = connectionInfo?.supplicantState?.name,
         )
     }
@@ -69,10 +73,10 @@ class SystemDeviceStateProvider(
     override suspend fun readBluetoothState(): BluetoothState {
         val adapter = bluetoothManager?.adapter
         return BluetoothState(
-            enabled = adapter?.isEnabled == true,
-            adapterName = runCatching { adapter?.name }.getOrNull(),
+            enabled = runSystemAccess("bluetooth.enabled") { adapter?.isEnabled } == true,
+            adapterName = runSystemAccess("bluetooth.adapterName") { adapter?.name },
             connectedDevices = emptyList(),
-            discovering = adapter?.isDiscovering == true,
+            discovering = runSystemAccess("bluetooth.isDiscovering") { adapter?.isDiscovering } == true,
         )
     }
 
@@ -192,5 +196,14 @@ class SystemDeviceStateProvider(
     private fun intToIpAddress(value: Int): String {
         val bytes = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(value).array()
         return InetAddress.getByAddress(bytes).hostAddress.orEmpty()
+    }
+
+    private inline fun <T> runSystemAccess(label: String, block: () -> T): T? {
+        return try {
+            block()
+        } catch (error: SecurityException) {
+            Log.w(tag, "system access denied for $label: ${error.message}")
+            null
+        }
     }
 }

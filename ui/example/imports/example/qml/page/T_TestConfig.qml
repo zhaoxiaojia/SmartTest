@@ -1,16 +1,17 @@
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
+import QtQml 2.15
 import FluentUI 1.0
 import "../global"
 
 FluPage {
     title: qsTr("Test")
+    property int footerHeight: 30
 
     property int stateVersion: 0
     property var selectedModel: []
     property var selectedCaseParamsModel: []
-    property var selectedCaseTypesModel: []
     property var caseTreeDataSource: []
     property var caseExpandState: ({})
     property var caseParamExpandState: ({})
@@ -31,6 +32,10 @@ FluPage {
             return qsTr("Shared by Case Type")
         }
         return qsTr("Per Case")
+    }
+
+    function traceUiEvent(event, nodeid, key, value){
+        TestPageBridge.debugUiEvent(event, nodeid || "", key || "", value)
     }
 
     function caseParamTextValue(nodeid, key){
@@ -120,7 +125,6 @@ FluPage {
         caseTreeDataSource = decorateTreeNodes(TestPageBridge.caseTree((txt_filter.text || "").toString(), expandedKeys()))
         selectedModel = TestPageBridge.selectedFileRows()
         selectedCaseParamsModel = TestPageBridge.selectedCaseParamRows()
-        selectedCaseTypesModel = TestPageBridge.activeCaseTypes()
     }
 
     Connections{
@@ -137,17 +141,24 @@ FluPage {
         }
     }
 
+    Connections{
+        target: RunBridge
+        function onErrorOccurred(msg){
+            showError(msg)
+        }
+    }
+
     Component.onCompleted: {
         TestPageBridge.discoverCases()
         refreshViewModels()
     }
 
     FluSplitLayout{
-        id:layout_main
+        id: layout_main
         anchors.fill: parent
+        anchors.bottomMargin: footerHeight
         orientation: Qt.Horizontal
 
-        // Left: case library + selected list (vertical split)
         FluSplitLayout{
             SplitView.fillWidth: true
             SplitView.preferredWidth: layout_main.width/3
@@ -166,7 +177,7 @@ FluPage {
                         font: FluTextStyle.Subtitle
                     }
                     FluTextBox{
-                        id:txt_filter
+                        id: txt_filter
                         placeholderText: qsTr("Filter by file...")
                         Layout.fillWidth: true
                         onTextChanged: refreshViewModels()
@@ -177,7 +188,7 @@ FluPage {
                         Layout.fillHeight: true
                         padding: 8
                         FluTreeView{
-                            id:tree_cases
+                            id: tree_cases
                             anchors.fill: parent
                             headerVisible: false
                             showLine: false
@@ -221,7 +232,7 @@ FluPage {
                         }
                     }
                     ListView{
-                        id:list_selected
+                        id: list_selected
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
@@ -236,12 +247,12 @@ FluPage {
                             NumberAnimation{ properties: "y"; duration: 220; easing.type: Easing.OutCubic }
                         }
                         delegate: Item{
-                            id:row_sel
+                            id: row_sel
                             width: list_selected.width
                             height: 40
                             z: drag_area_sel.pressed ? 3 : 1
                             Rectangle{
-                                id:sel_item_bg
+                                id: sel_item_bg
                                 anchors.fill: parent
                                 radius: 4
                                 color: drag_area_sel.containsMouse ? FluTheme.itemHoverColor : "transparent"
@@ -271,7 +282,7 @@ FluPage {
                                     }
                                 }
                                 MouseArea{
-                                    id:drag_area_sel
+                                    id: drag_area_sel
                                     anchors.top: parent.top
                                     anchors.bottom: parent.bottom
                                     anchors.left: parent.left
@@ -326,7 +337,6 @@ FluPage {
             }
         }
 
-        // Middle: selected case parameters
         FluFrame{
             SplitView.fillWidth: true
             SplitView.preferredWidth: layout_main.width/3
@@ -347,7 +357,7 @@ FluPage {
                     contentHeight: col_case_params.implicitHeight
                     ScrollBar.vertical: FluScrollBar{}
                     ColumnLayout{
-                        id:col_case_params
+                        id: col_case_params
                         width: parent.width
                         spacing: 8
                         FluText{
@@ -430,24 +440,72 @@ FluPage {
                                                 }
 
                                                 FluTextBox{
+                                                    id: text_case_param
                                                     visible: fieldData.type === "string" || fieldData.type === "path" || fieldData.type === "float"
                                                     Layout.fillWidth: true
                                                     text: caseParamTextValue(caseNodeId, fieldData.key)
                                                     placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
+                                                    onTextChanged: {
+                                                        traceUiEvent("textChanged", caseNodeId, fieldData.key, text)
+                                                    }
                                                     onEditingFinished: {
+                                                        traceUiEvent("editingFinished", caseNodeId, fieldData.key, text)
                                                         TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
+                                                    }
+                                                    onActiveFocusChanged: {
+                                                        if(!activeFocus){
+                                                            traceUiEvent("focusLost", caseNodeId, fieldData.key, text)
+                                                        }
                                                     }
                                                 }
 
                                                 FluSpinBox{
+                                                    id: spin_case_param
+                                                    property bool persistReady: false
                                                     visible: fieldData.type === "int"
                                                     Layout.fillWidth: true
                                                     editable: true
                                                     from: -1000000
                                                     to: 1000000
-                                                    value: caseParamIntValue(caseNodeId, fieldData.key, fieldData.default)
+                                                    Component.onCompleted: {
+                                                        persistReady = true
+                                                    }
                                                     onValueModified: {
+                                                        if(!persistReady){
+                                                            return
+                                                        }
+                                                        traceUiEvent("valueModified", caseNodeId, fieldData.key, value)
                                                         TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, value)
+                                                    }
+                                                    onValueChanged: {
+                                                        if(!persistReady){
+                                                            return
+                                                        }
+                                                        traceUiEvent("valueChanged", caseNodeId, fieldData.key, value)
+                                                    }
+                                                    Binding {
+                                                        target: spin_case_param
+                                                        property: "value"
+                                                        when: spin_case_param.visible && !spin_case_param.activeFocus
+                                                        value: caseParamIntValue(caseNodeId, fieldData.key, fieldData.default)
+                                                    }
+                                                    Connections {
+                                                        target: spin_case_param.contentItem
+                                                        function onTextEdited() {
+                                                            traceUiEvent("spinTextEdited", caseNodeId, fieldData.key, spin_case_param.contentItem.text)
+                                                        }
+                                                        function onEditingFinished() {
+                                                            traceUiEvent("spinEditingFinished", caseNodeId, fieldData.key, spin_case_param.contentItem.text)
+                                                        }
+                                                        function onActiveFocusChanged() {
+                                                            traceUiEvent("spinFocusChanged", caseNodeId, fieldData.key, {
+                                                                "activeFocus": spin_case_param.contentItem.activeFocus,
+                                                                "text": spin_case_param.contentItem.text
+                                                            })
+                                                        }
+                                                        function onTextChanged() {
+                                                            traceUiEvent("spinTextChanged", caseNodeId, fieldData.key, spin_case_param.contentItem.text)
+                                                        }
                                                     }
                                                 }
 
@@ -462,6 +520,7 @@ FluPage {
                                                     }
                                                     onActivated: {
                                                         if(currentIndex >= 0){
+                                                            traceUiEvent("activated", caseNodeId, fieldData.key, currentText)
                                                             TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, currentText)
                                                         }
                                                     }
@@ -472,6 +531,7 @@ FluPage {
                                                     checked: caseParamBoolValue(caseNodeId, fieldData.key)
                                                     text: checked ? qsTr("Enabled") : qsTr("Disabled")
                                                     onClicked: {
+                                                        traceUiEvent("clicked", caseNodeId, fieldData.key, checked)
                                                         TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, checked)
                                                     }
                                                 }
@@ -483,12 +543,16 @@ FluPage {
                                                     text: caseParamTextValue(caseNodeId, fieldData.key)
                                                     placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
                                                     isCtrlEnterForNewline: true
+                                                    onTextChanged: {
+                                                        traceUiEvent("multilineTextChanged", caseNodeId, fieldData.key, text)
+                                                    }
                                                     onCommit: {
+                                                        traceUiEvent("multilineCommit", caseNodeId, fieldData.key, text)
                                                         TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
                                                     }
                                                     onActiveFocusChanged: {
                                                         if(!activeFocus){
-                                                            TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
+                                                            traceUiEvent("multilineFocusLost", caseNodeId, fieldData.key, text)
                                                         }
                                                     }
                                                 }
@@ -507,7 +571,6 @@ FluPage {
             }
         }
 
-        // Right: global context + type special params (multi-type)
         FluFrame{
             SplitView.fillWidth: true
             SplitView.preferredWidth: layout_main.width/3
@@ -520,17 +583,20 @@ FluPage {
                 contentHeight: col_right.implicitHeight
                 ScrollBar.vertical: FluScrollBar{}
                 ColumnLayout{
-                    id:col_right
+                    id: col_right
                     width: parent.width
                     spacing: 10
 
                     FluText{
-                        text: qsTr("Global (DUT / Environment)")
+                        text: qsTr("DUT")
                         font: FluTextStyle.Subtitle
                     }
 
                     Repeater{
-                        model: TestPageBridge.globalSchema().fields
+                        model: {
+                            var _version = stateVersion
+                            return TestPageBridge.globalSchema().fields
+                        }
                         RowLayout{
                             Layout.fillWidth: true
                             spacing: 8
@@ -539,68 +605,72 @@ FluPage {
                                 Layout.preferredWidth: 140
                                 elide: Text.ElideRight
                             }
+                            FluComboBox{
+                                id: combo_dut
+                                visible: modelData.type === "enum"
+                                Layout.fillWidth: true
+                                model: modelData.enum_values || []
+                                currentIndex: {
+                                    var _version = stateVersion
+                                    var options = modelData.enum_values || []
+                                    var currentValue = TestPageBridge.globalContext()[modelData.key] + ""
+                                    return options.indexOf(currentValue)
+                                }
+                                onDownChanged: {
+                                    if(down && modelData.key === "dut"){
+                                        TestPageBridge.refreshGlobalSchema()
+                                    }
+                                }
+                                onActivated: {
+                                    if(currentIndex >= 0){
+                                        traceUiEvent("globalActivated", "", modelData.key, currentText)
+                                        TestPageBridge.setGlobalValue(modelData.key, currentText)
+                                    }
+                                }
+                            }
                             FluTextBox{
+                                visible: modelData.type !== "enum"
                                 Layout.fillWidth: true
                                 text: {
                                     var _version = stateVersion
-                                    return TestPageBridge.globalContext()[modelData.key] + ""
+                                    var value = TestPageBridge.globalContext()[modelData.key]
+                                    return value === undefined || value === null ? "" : (value + "")
+                                }
+                                onTextChanged: {
+                                    traceUiEvent("globalTextChanged", "", modelData.key, text)
                                 }
                                 onEditingFinished: {
+                                    traceUiEvent("globalEditingFinished", "", modelData.key, text)
                                     TestPageBridge.setGlobalValue(modelData.key, text)
+                                }
+                                onActiveFocusChanged: {
+                                    if(!activeFocus){
+                                        traceUiEvent("globalFocusLost", "", modelData.key, text)
+                                    }
                                 }
                             }
                         }
                     }
 
                     FluDivider{}
-
-                    FluText{
-                        text: qsTr("Special Params (by Case Type)")
-                        font: FluTextStyle.Subtitle
-                    }
-
-                    Repeater{
-                        model: selectedCaseTypesModel
-                        ColumnLayout{
-                            property string caseType: modelData
-                            Layout.fillWidth: true
-                            spacing: 6
-                            FluText{
-                                text: caseType
-                                font: FluTextStyle.BodyStrong
-                            }
-                            Repeater{
-                                model: TestPageBridge.caseTypeSchema(caseType).fields
-                                RowLayout{
-                                    Layout.fillWidth: true
-                                    spacing: 8
-                                    FluText{
-                                        text: modelData.label
-                                        Layout.preferredWidth: 140
-                                        elide: Text.ElideRight
-                                    }
-                                    FluTextBox{
-                                        Layout.fillWidth: true
-                                        text: {
-                                            var _version = stateVersion
-                                            var cfg = TestPageBridge.caseTypeConfig(caseType)
-                                            if(cfg && cfg[modelData.key] !== undefined){
-                                                return cfg[modelData.key] + ""
-                                            }
-                                            return modelData.default + ""
-                                        }
-                                        onEditingFinished: {
-                                            TestPageBridge.setCaseTypeValue(caseType, modelData.key, text)
-                                        }
-                                    }
-                                }
-                            }
-                            FluDivider{}
-                        }
-                    }
                 }
             }
         }
     }
 
+    FluFilledButton{
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: footerHeight
+        text: RunBridge.isRunning ? qsTr("Stop") : qsTr("Start")
+        onClicked: {
+            if(RunBridge.isRunning){
+                RunBridge.stopRun()
+                return
+            }
+            ItemsOriginal.startPageByItem({ title: qsTr("Run"), url: "qrc:/example/qml/page/T_Run.qml" })
+            RunBridge.startRun()
+        }
+    }
 }

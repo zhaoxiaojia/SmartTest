@@ -35,7 +35,7 @@ class RootDeviceOperationGateway(
 
     private fun buildShellCommand(command: DeviceCommand): String {
         return when (command.type) {
-            CommandType.Reboot -> "svc power reboot || reboot"
+            CommandType.Reboot -> "svc power reboot || cmd power reboot || reboot"
             CommandType.Suspend -> buildSuspendCommand(command)
             CommandType.Wakeup -> command.args["raw"]
                 ?: "input keyevent KEYCODE_WAKEUP"

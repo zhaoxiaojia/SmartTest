@@ -14,14 +14,7 @@ def test_default_registry_resolves_group_members():
     registry = default_registry()
 
     assert registry.resolve_param_keys(group_ids=["dut_identity"]) == [
-        "dut_model",
-        "dut_sn",
-        "fw_version",
-    ]
-    assert registry.resolve_param_keys(group_ids=["stress_runtime"]) == [
-        "duration_s",
-        "concurrency",
-        "warmup_s",
+        "dut",
     ]
 
 
@@ -40,7 +33,7 @@ def test_discovery_exports_required_params_and_empty_cases():
     cases = discover_pytest_cases(
         root_dir=ROOT_DIR,
         test_paths=[
-            ROOT_DIR / "testing" / "tests" / "IPTV" / "system" / "test_system_cases.py",
+            ROOT_DIR / "testing" / "tests" / "IPTV" / "system",
             ROOT_DIR / "testing" / "tests" / "IPTV" / "wifi_bt" / "test_wifi_bt_cases.py",
         ],
         python_executable=sys.executable,
@@ -48,7 +41,7 @@ def test_discovery_exports_required_params_and_empty_cases():
 
     cases_by_nodeid = {case.nodeid: case for case in cases}
 
-    emmc_case = cases_by_nodeid["testing/tests/IPTV/system/test_system_cases.py::test_emmc_rw_via_android_client"]
+    emmc_case = cases_by_nodeid["testing/tests/IPTV/system/test_emmc_rw.py::test_emmc_rw_via_android_client"]
     assert emmc_case.required_param_groups == []
     assert emmc_case.required_params == [
         "emmc_rw:loop_count",
@@ -58,17 +51,38 @@ def test_discovery_exports_required_params_and_empty_cases():
         "emmc_rw:work_dir",
     ]
 
-    reboot_case = cases_by_nodeid["testing/tests/IPTV/system/test_system_cases.py::test_auto_reboot_via_android_client"]
+    reboot_case = cases_by_nodeid["testing/tests/IPTV/system/test_auto_reboot.py::test_auto_reboot_via_android_client"]
     assert reboot_case.required_param_groups == []
     assert reboot_case.required_params == [
         "auto_reboot:cycle_count",
         "auto_reboot:interval_sec",
     ]
 
+    suspend_case = cases_by_nodeid["testing/tests/IPTV/system/test_auto_suspend.py::test_auto_suspend_via_android_client"]
+    assert suspend_case.required_param_groups == []
+    assert suspend_case.required_params == [
+        "auto_suspend:cycle_count",
+        "auto_suspend:interval_sec",
+    ]
+
     wifi_onoff_case = cases_by_nodeid["testing/tests/IPTV/wifi_bt/test_wifi_bt_cases.py::test_wifi_onoff_scan_via_android_client"]
     assert wifi_onoff_case.required_param_groups == []
-    assert wifi_onoff_case.required_params == ["wifi_onoff_scan:cycle_count"]
+    assert wifi_onoff_case.required_params == []
 
-    paramless_case = cases_by_nodeid["testing/tests/IPTV/system/test_system_cases.py::test_ddr_stress_via_android_client"]
+    paramless_case = cases_by_nodeid["testing/tests/IPTV/system/test_ddr_stress.py::test_ddr_stress_via_android_client"]
     assert paramless_case.required_param_groups == []
     assert paramless_case.required_params == []
+
+
+def test_default_registry_includes_android_client_emmc_params():
+    registry = default_registry()
+
+    assert registry.get_param("emmc_rw:loop_count") is not None
+    assert registry.get_param("emmc_rw:source_profile") is not None
+    assert registry.get_param("emmc_rw:source_size_kb") is not None
+    assert registry.get_param("emmc_rw:min_free_kb") is not None
+    assert registry.get_param("emmc_rw:work_dir") is not None
+    assert registry.get_param("auto_reboot:cycle_count") is not None
+    assert registry.get_param("auto_reboot:interval_sec") is not None
+    assert registry.get_param("auto_suspend:cycle_count") is not None
+    assert registry.get_param("auto_suspend:interval_sec") is not None

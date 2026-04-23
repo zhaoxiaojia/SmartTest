@@ -51,15 +51,18 @@ REQUIRED_TRANSLATIONS = {
         "No configurable parameters are required for this case.",
         "Enabled",
         "Disabled",
-        "Global (DUT / Environment)",
-        "Special Params (by Case Type)",
+        "DUT",
     },
     "T_Run": {
         "Run",
-        "Run Tests",
         "Start",
         "Stop",
-        "Execution output and progress will appear here.",
+        "Steps",
+        "Logs",
+    },
+    "RunBridge": {
+        "No selected test cases to run.",
+        "Failed to start pytest run. {detail}",
     },
     "T_Report": {
         "Report",
@@ -119,6 +122,9 @@ REQUIRED_TRANSLATIONS = {
         "LDAP sign-in failed. {detail}",
         "LDAP sign-in failed. Please check your account or password.",
         "Sign-in successful. Welcome, {username}",
+    },
+    "TestPageBridge": {
+        "DUT",
     },
     "JiraBridge": {
         "Ready",

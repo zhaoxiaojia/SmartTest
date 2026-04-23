@@ -4,6 +4,8 @@ import com.smarttest.mobile.runner.cases.TestCaseExecutionContext
 import com.smarttest.mobile.runner.cases.TestCaseExecutionResult
 import com.smarttest.mobile.runner.cases.TestCaseExecutor
 import com.smarttest.mobile.runner.device.model.CommandType
+import com.smarttest.mobile.runner.SmartTestRunStore
+import com.smarttest.mobile.runner.SmartTestUiLauncher
 
 class AutoSuspendCaseExecutor : TestCaseExecutor {
     override val caseId: String = "auto_suspend"
@@ -15,6 +17,11 @@ class AutoSuspendCaseExecutor : TestCaseExecutor {
 
         context.log("start auto suspend: cycles=$cycleCount, interval=${intervalSec}s")
         for (cycle in 1..cycleCount) {
+            SmartTestRunStore.updateProgress(
+                currentLoop = cycle,
+                totalLoops = cycleCount,
+                stage = "loop $cycle/$cycleCount entering suspend for ${intervalSec}s",
+            )
             context.log("cycle $cycle/$cycleCount suspend")
 
             val suspendRecord = context.execDeviceCommand(
@@ -31,6 +38,12 @@ class AutoSuspendCaseExecutor : TestCaseExecutor {
                 continue
             }
 
+            SmartTestUiLauncher.launchMainActivity(context.appContext)
+            SmartTestRunStore.updateProgress(
+                currentLoop = cycle,
+                totalLoops = cycleCount,
+                stage = "loop $cycle/$cycleCount resumed from suspend",
+            )
             PowerCycleSupport.captureRadioState(
                 context = context,
                 stage = "cycle $cycle/$cycleCount after suspend",

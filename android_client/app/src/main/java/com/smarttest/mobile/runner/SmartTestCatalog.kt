@@ -157,8 +157,8 @@ object SmartTestCatalog {
                         "Boot-log keywords",
                     ),
                     parameters = listOf(
-                        TestParameterDefinition("cycle_count", "Reboot Count", "For example: 20", "20"),
-                        TestParameterDefinition("interval_sec", "Interval After Reboot (s)", "For example: 100", "100"),
+                        TestParameterDefinition("cycle_count", "Loop Count", "For example: 20", "20"),
+                        TestParameterDefinition("interval_sec", "Interval (s)", "For example: 100", "100"),
                     ),
                 ),
                 TestCaseDefinition(
@@ -171,8 +171,8 @@ object SmartTestCatalog {
                         "Abnormal scene preservation",
                     ),
                     parameters = listOf(
-                        TestParameterDefinition("cycle_count", "Suspend Count", "For example: 20", "20"),
-                        TestParameterDefinition("interval_sec", "Suspend Interval (s)", "For example: 100", "100"),
+                        TestParameterDefinition("cycle_count", "Loop Count", "For example: 20", "20"),
+                        TestParameterDefinition("interval_sec", "Interval (s)", "For example: 100", "100"),
                     ),
                 ),
                 TestCaseDefinition(

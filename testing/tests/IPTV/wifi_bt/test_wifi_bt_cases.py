@@ -25,7 +25,6 @@ def test_wifi_reboot_reconnect_via_android_client(request):
 
 
 @pytest.mark.wifi
-@pytest.mark.requires_params("wifi_onoff_scan:cycle_count")
 def test_wifi_onoff_scan_via_android_client(request):
     trigger_android_client_case(
         case_id="wifi_onoff_scan",
@@ -45,7 +44,6 @@ def test_bt_reboot_via_android_client(request):
     trigger_android_client_case(case_id="bt_reboot", trigger=request.node.nodeid)
 
 
-@pytest.mark.requires_params("bt_onoff_scan:cycle_count")
 def test_bt_onoff_scan_via_android_client(request):
     trigger_android_client_case(
         case_id="bt_onoff_scan",

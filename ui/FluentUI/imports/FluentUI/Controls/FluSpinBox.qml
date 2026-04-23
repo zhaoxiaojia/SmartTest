@@ -25,6 +25,8 @@ T.SpinBox {
     font: FluTextStyle.Body
 
     contentItem: TextInput {
+        property bool _focusInitialized: false
+        property bool _hadActiveFocus: false
         property color normalColor: FluTheme.dark ?  Qt.rgba(255/255,255/255,255/255,1) : Qt.rgba(27/255,27/255,27/255,1)
         property color disableColor: FluTheme.dark ? Qt.rgba(131/255,131/255,131/255,1) : Qt.rgba(160/255,160/255,160/255,1)
         property color placeholderNormalColor: FluTheme.dark ? Qt.rgba(210/255,210/255,210/255,1) : Qt.rgba(96/255,96/255,96/255,1)
@@ -48,6 +50,36 @@ T.SpinBox {
         readOnly: !control.editable
         validator: control.validator
         inputMethodHints: control.inputMethodHints
+        function commitSpinValue() {
+            if (!control.editable) {
+                return
+            }
+            var previousValue = control.value
+            var nextValue = control.valueFromText(text, control.locale)
+            if (isNaN(nextValue)) {
+                return
+            }
+            var lower = Math.min(control.from, control.to)
+            var upper = Math.max(control.from, control.to)
+            nextValue = Math.max(lower, Math.min(upper, nextValue))
+            if (nextValue !== previousValue) {
+                control.value = nextValue
+                // Propagate keyboard-entered commits through the same signal path
+                // used by button clicks so callers can persist changes consistently.
+                control.valueModified()
+            }
+        }
+        Component.onCompleted: {
+            _focusInitialized = true
+            _hadActiveFocus = activeFocus
+        }
+        onEditingFinished: commitSpinValue()
+        onActiveFocusChanged: {
+            if (_focusInitialized && _hadActiveFocus && !activeFocus) {
+                commitSpinValue()
+            }
+            _hadActiveFocus = activeFocus
+        }
         Rectangle{
             width: parent.width
             height: contentItem.activeFocus ? 2 : 1

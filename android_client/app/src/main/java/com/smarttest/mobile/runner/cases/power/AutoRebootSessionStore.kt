@@ -8,7 +8,34 @@ data class AutoRebootSession(
     val intervalSec: Long,
     val completedCycles: Int,
     val awaitingPostBootCheck: Boolean,
-)
+    val source: String,
+    val trigger: String,
+    val requestId: String,
+) {
+    fun matchesRequest(
+        totalCycles: Int,
+        intervalSec: Long,
+        source: String,
+        trigger: String,
+        requestId: String,
+    ): Boolean {
+        return this.totalCycles == totalCycles &&
+            this.intervalSec == intervalSec &&
+            this.source == source &&
+            this.trigger == trigger &&
+            this.requestId == requestId
+    }
+
+    fun isRecoverable(): Boolean {
+        if (!active || totalCycles <= 0 || intervalSec <= 0L) {
+            return false
+        }
+        if (completedCycles < 0 || completedCycles > totalCycles) {
+            return false
+        }
+        return awaitingPostBootCheck || completedCycles < totalCycles
+    }
+}
 
 class AutoRebootSessionStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -23,6 +50,9 @@ class AutoRebootSessionStore(context: Context) {
             intervalSec = preferences.getLong(KEY_INTERVAL_SEC, 0L),
             completedCycles = preferences.getInt(KEY_COMPLETED_CYCLES, 0),
             awaitingPostBootCheck = preferences.getBoolean(KEY_AWAITING_POST_BOOT, false),
+            source = preferences.getString(KEY_SOURCE, "boot") ?: "boot",
+            trigger = preferences.getString(KEY_TRIGGER, "boot_completed") ?: "boot_completed",
+            requestId = preferences.getString(KEY_REQUEST_ID, "manual") ?: "manual",
         )
     }
 
@@ -33,6 +63,9 @@ class AutoRebootSessionStore(context: Context) {
             .putLong(KEY_INTERVAL_SEC, session.intervalSec)
             .putInt(KEY_COMPLETED_CYCLES, session.completedCycles)
             .putBoolean(KEY_AWAITING_POST_BOOT, session.awaitingPostBootCheck)
+            .putString(KEY_SOURCE, session.source)
+            .putString(KEY_TRIGGER, session.trigger)
+            .putString(KEY_REQUEST_ID, session.requestId)
             .apply()
     }
 
@@ -47,5 +80,8 @@ class AutoRebootSessionStore(context: Context) {
         private const val KEY_INTERVAL_SEC = "interval_sec"
         private const val KEY_COMPLETED_CYCLES = "completed_cycles"
         private const val KEY_AWAITING_POST_BOOT = "awaiting_post_boot"
+        private const val KEY_SOURCE = "source"
+        private const val KEY_TRIGGER = "trigger"
+        private const val KEY_REQUEST_ID = "request_id"
     }
 }

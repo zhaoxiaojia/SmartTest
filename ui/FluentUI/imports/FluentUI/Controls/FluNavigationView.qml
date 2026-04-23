@@ -1341,6 +1341,7 @@ Item {
     }
     function setCurrentIndex(index){
         var item = nav_list.model[index]
+        console.debug("FluNavigationView.setCurrentIndex", "index=", index, "title=", item && item.title ? item.title : "<none>", "url=", item && item.url ? item.url : "<none>")
         if(item.url){
             nav_list.currentIndex = index
             if(item instanceof FluPaneItem){
@@ -1366,6 +1367,57 @@ Item {
             return loader_content.source.toString()
         }
         return undefined
+    }
+    function syncSelectionForItem(item){
+        if(!item){
+            return
+        }
+        if(item._idx < (nav_list.count - layout_footer.count)){
+            nav_list.currentIndex = item._idx
+            layout_footer.currentIndex = -1
+        }else{
+            nav_list.currentIndex = item._idx
+            layout_footer.currentIndex = item._idx - (nav_list.count - layout_footer.count)
+        }
+        if(item._parent && !d.isCompactAndNotPanel){
+            item._parent.isExpand = true
+        }
+        console.debug(
+                    "FluNavigationView.syncSelectionForItem",
+                    "title=", item.title ? item.title : "<none>",
+                    "idx=", item._idx,
+                    "navIndex=", nav_list.currentIndex,
+                    "footerIndex=", layout_footer.currentIndex
+                    )
+    }
+    function navigateByItem(item, argument={}){
+        if(!item){
+            return
+        }
+        syncSelectionForItem(item)
+        if(d.isMinimal || d.isCompact){
+            d.enableNavigationPanel = false
+        }
+        if(item.url){
+            var currentUrl = getCurrentUrl()
+            var normalizedCurrentUrl = currentUrl ? currentUrl.toString() : ""
+            var itemUrl = item.url.toString()
+            console.debug(
+                        "FluNavigationView.navigateByItem",
+                        "title=", item.title ? item.title : "<none>",
+                        "itemUrl=", itemUrl,
+                        "currentUrl=", normalizedCurrentUrl
+                        )
+            if(normalizedCurrentUrl === itemUrl){
+                console.debug("FluNavigationView.navigateByItem noop", item.title ? item.title : "<none>")
+                return
+            }
+            push(item.url, argument)
+            return
+        }
+        if(item.onTapListener){
+            item.onTapListener()
+        }
     }
     function push(url,argument={}){
         function stackPush(){
@@ -1450,13 +1502,22 @@ Item {
         for(var i=0;i<items.length;i++){
             var item =  items[i]
             if(item.key === data.key){
-                if(getCurrentIndex() === i){
+                var currentUrl = getCurrentUrl()
+                var itemUrl = item.url ? item.url.toString() : ""
+                var normalizedCurrentUrl = currentUrl ? currentUrl.toString() : ""
+                console.debug(
+                            "FluNavigationView.startPageByItem",
+                            "targetIndex=", i,
+                            "currentIndex=", getCurrentIndex(),
+                            "title=", item.title ? item.title : "<none>",
+                            "itemUrl=", itemUrl,
+                            "currentUrl=", normalizedCurrentUrl
+                            )
+                if(getCurrentIndex() === i && normalizedCurrentUrl === itemUrl){
+                    console.debug("FluNavigationView.startPageByItem noop", item.title ? item.title : "<none>")
                     return
                 }
-                setCurrentIndex(i)
-                if(item._parent && !d.isCompactAndNotPanel){
-                    item._parent.isExpand = true
-                }
+                navigateByItem(item)
                 return
             }
         }

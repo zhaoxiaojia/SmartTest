@@ -53,6 +53,15 @@ Fallback marker-as-type (when no `case_type` marker exists):
   - `case`: owned by a single case
 - Cases with no mapping must remain valid. The exported required-params list should be empty, not synthesized with placeholder fields.
 
+## android_client case mirroring
+
+- When an `android_client` case is mirrored into `testing/tests`, keep the pytest trigger entry in `testing/`, but align the case parameter contract with `android_client`.
+- Treat `android_client/app/src/main/java/com/smarttest/mobile/runner/SmartTestCatalog.kt` as the parameter source of truth for mirrored cases.
+- If the Android case declares parameters, the mirrored pytest case must expose the same required parameters to the UI.
+- Use case-scoped keys that preserve the Android case id, for example `emmc_rw:loop_count`.
+- The Test page UI is only a trigger/config entry for these mirrored cases. Parameter names, defaults, and required-field exposure must stay aligned with the Android case definition.
+- When the user starts a mirrored case from the frontend, the selected case parameters must be passed from `testing/` into the pytest run and then into the `android_client` trigger path.
+
 ## Persistent Test page state
 
 Test page selection/order and configs are stored locally (app data directory):

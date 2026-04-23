@@ -29,8 +29,15 @@ def generateTranslations(projectName: str, localeDatas, files=None):
 
 if __name__ == "__main__":
     generateTranslations("FluentUI", ["en_US", "zh_CN"])
+    example_project_dir = env.uiProjectPath(env.projectName)
     generateTranslations(
         env.projectName,
         ["en_US", "zh_CN"],
-        [os.path.join(env.uiProjectPath(env.projectName), "helper", "InitializrHelper.py")]
+        [
+            os.path.join(example_project_dir, "helper", "InitializrHelper.py"),
+            os.path.join(example_project_dir, "bridge", "AuthBridge.py"),
+            os.path.join(example_project_dir, "bridge", "JiraBridge.py"),
+            os.path.join(example_project_dir, "bridge", "RunBridge.py"),
+            os.path.join(example_project_dir, "bridge", "TestPageBridge.py"),
+        ],
     )

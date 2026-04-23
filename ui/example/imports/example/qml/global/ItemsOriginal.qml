@@ -35,12 +35,30 @@ FluObject{
             console.warn("ItemsOriginal.openItem aborted", "item=", item, "navigationView=", navigationView)
             return
         }
+        var items = navigationView.getItems ? navigationView.getItems() : []
+        var matchedItem = null
+        for(var i = 0; i < items.length; i++){
+            var candidate = items[i]
+            if(isProtectedRoute(candidate, item)){
+                matchedItem = candidate
+                break
+            }
+            if(item.url && candidate.url && candidate.url === item.url){
+                matchedItem = candidate
+                break
+            }
+        }
         console.log(
                     "ItemsOriginal.openItem",
                     "title=", item.title ? item.title : "<search>",
                     "url=", item.url ? item.url : "<none>",
                     "key=", item.key !== undefined ? item.key : "<none>"
                     )
+        if(matchedItem){
+            console.log("ItemsOriginal.openItem startPageByItem", matchedItem.key !== undefined ? matchedItem.key : "<none>")
+            navigationView.startPageByItem(matchedItem)
+            return
+        }
         if(item.url){
             console.log("ItemsOriginal.openItem push", item.url)
             navigationView.push(item.url)
