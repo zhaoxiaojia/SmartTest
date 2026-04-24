@@ -21,11 +21,15 @@ DEFAULT_EXTRA_PARAMS_B64 = "params_b64"
 DEFAULT_STATUS_URI = "content://com.smarttest.mobile.status/snapshot"
 DEFAULT_STATUS_FILE = "files/runner_snapshot.json"
 DEFAULT_PUBLIC_STATUS_FILE = "/sdcard/Android/data/com.smarttest.mobile/files/runner_snapshot.json"
+DEFAULT_AUTO_SUSPEND_DEBUG_FILE = "/sdcard/Android/data/com.smarttest.mobile/files/auto_suspend_debug.log"
 DEFAULT_POLL_INTERVAL_SEC = 1.0
 DEFAULT_TIMEOUT_SEC = 3600.0
 DEFAULT_MAX_CONSECUTIVE_STATUS_FAILURES = 5
 AUTO_REBOOT_DUT_STAGE_TOKEN = "rebooting dut"
 AUTO_SUSPEND_DUT_STAGE_TOKEN = "entering deep suspend"
+AUTO_SUSPEND_HOST_QUIET_SEC = 25.0
+DEFAULT_NO_POLL_CASE_IDS: set[str] = set()
+DEFAULT_SLOW_POLL_CASE_IDS = {"auto_suspend", "auto_reboot"}
 
 
 def build_case_params(case_id: str, **params: object) -> dict[str, str]:
@@ -401,6 +405,20 @@ def _snapshot_request_id(snapshot: dict[str, object]) -> str:
     return ""
 
 
+def _no_poll_case_ids() -> set[str]:
+    raw = str(os.environ.get("SMARTTEST_ANDROID_NO_POLL_CASES", "") or "").strip()
+    if not raw:
+        return set(DEFAULT_NO_POLL_CASE_IDS)
+    return {token.strip() for token in raw.split(",") if token.strip()}
+
+
+def _slow_poll_case_ids() -> set[str]:
+    raw = str(os.environ.get("SMARTTEST_ANDROID_SLOW_POLL_CASES", "") or "").strip()
+    if not raw:
+        return set(DEFAULT_SLOW_POLL_CASE_IDS)
+    return {token.strip() for token in raw.split(",") if token.strip()}
+
+
 def _snapshot_matches_request(snapshot: dict[str, object], *, request_id: str) -> bool:
     if not request_id:
         return False
@@ -409,6 +427,74 @@ def _snapshot_matches_request(snapshot: dict[str, object], *, request_id: str) -
 
     last_command_summary = str(snapshot.get("lastCommandSummary", "") or "")
     return request_id in last_command_summary
+
+
+def _adb_shell_capture_text(
+    *,
+    adb_executable: str,
+    adb_serial: str | None,
+    shell_args: list[str],
+) -> tuple[int, str, str]:
+    result = _run_snapshot_command(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        shell_args=shell_args,
+    )
+    return result.returncode, str(result.stdout or "").strip(), str(result.stderr or "").strip()
+
+
+def _collect_auto_suspend_failure_debug(
+    *,
+    adb_executable: str,
+    adb_serial: str | None,
+    request_id: str,
+) -> None:
+    print(
+        "[android_client.power] collecting auto_suspend debug artifacts "
+        f"request_id={request_id or '<empty>'}"
+    )
+
+    return_code, stdout, stderr = _adb_shell_capture_text(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        shell_args=["cat", DEFAULT_AUTO_SUSPEND_DEBUG_FILE],
+    )
+    if return_code == 0 and stdout:
+        lines = stdout.splitlines()
+        request_matches = [line for line in lines if request_id and request_id in line]
+        selected = request_matches[-120:] if request_matches else lines[-120:]
+        print("[android_client.power] auto_suspend_debug tail begin")
+        for line in selected:
+            print(f"[android_client.power.log] {line}")
+        print("[android_client.power] auto_suspend_debug tail end")
+    else:
+        print(
+            "[android_client.power] auto_suspend_debug unavailable "
+            f"returncode={return_code} stdout={stdout or '<empty>'} stderr={stderr or '<empty>'}"
+        )
+
+    for prop in ("sys.boot_completed", "sys.powerctl"):
+        code, prop_stdout, prop_stderr = _adb_shell_capture_text(
+            adb_executable=adb_executable,
+            adb_serial=adb_serial,
+            shell_args=["getprop", prop],
+        )
+        print(
+            "[android_client.power] "
+            f"getprop {prop} returncode={code} value={prop_stdout or '<empty>'} "
+            f"stderr={prop_stderr or '<empty>'}"
+        )
+
+    code, uptime_stdout, uptime_stderr = _adb_shell_capture_text(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        shell_args=["cat", "/proc/uptime"],
+    )
+    print(
+        "[android_client.power] "
+        f"/proc/uptime returncode={code} value={uptime_stdout or '<empty>'} "
+        f"stderr={uptime_stderr or '<empty>'}"
+    )
 
 
 def wait_for_android_client_case_completion(
@@ -435,11 +521,28 @@ def wait_for_android_client_case_completion(
     consecutive_failures = 0
     last_status_line = ""
     waiting_for_device_resume = False
+    suspend_quiet_until = 0.0
+    suspend_quiet_logged = False
     last_device_state = ""
     last_boot_completed: bool | None = None
     last_snapshot_channel_ready = False
 
     while time.monotonic() < deadline:
+        if (
+            waiting_for_device_resume
+            and case_id == "auto_suspend"
+            and time.monotonic() < suspend_quiet_until
+        ):
+            if not suspend_quiet_logged:
+                remaining = max(0.0, suspend_quiet_until - time.monotonic())
+                print(
+                    "[android_client.power] "
+                    f"host quiet mode for auto_suspend: hold adb polling for {remaining:.1f}s"
+                )
+                suspend_quiet_logged = True
+            time.sleep(poll_interval_sec)
+            continue
+
         if waiting_for_device_resume:
             device_state = _adb_get_state(adb_executable=adb_executable, adb_serial=adb_serial)
             if device_state != last_device_state:
@@ -542,12 +645,24 @@ def wait_for_android_client_case_completion(
             )
             if next_waiting_for_device_resume:
                 last_snapshot_channel_ready = False
+                if case_id == "auto_suspend":
+                    suspend_quiet_until = time.monotonic() + AUTO_SUSPEND_HOST_QUIET_SEC
+                    suspend_quiet_logged = False
+            else:
+                suspend_quiet_until = 0.0
+                suspend_quiet_logged = False
         waiting_for_device_resume = next_waiting_for_device_resume
 
         if phase == "Completed" and fresh_run_observed:
             return snapshot
 
         if phase == "Failed" and fresh_run_observed:
+            if case_id == "auto_suspend":
+                _collect_auto_suspend_failure_debug(
+                    adb_executable=adb_executable,
+                    adb_serial=adb_serial,
+                    request_id=request_id,
+                )
             report = snapshot.get("report", {})
             status_text = ""
             if isinstance(report, dict):
@@ -692,12 +807,28 @@ def trigger_android_client_case(
             f"stdout:\n{result.stdout}\n"
             f"stderr:\n{result.stderr}"
         )
+    if case_id in _no_poll_case_ids():
+        print(
+            "[testing.runner.android_client] no-poll mode enabled; "
+            f"skip host status polling for case_id={case_id} request_id={request_id}"
+        )
+        return result
+    wait_poll_interval_sec = DEFAULT_POLL_INTERVAL_SEC
+    if case_id in _slow_poll_case_ids():
+        wait_poll_interval_sec = float(
+            os.environ.get("SMARTTEST_ANDROID_SLOW_POLL_INTERVAL_SEC", "5.0"),
+        )
+        print(
+            "[testing.runner.android_client] slow-poll mode enabled; "
+            f"poll_interval={wait_poll_interval_sec}s for case_id={case_id}"
+        )
     snapshot = wait_for_android_client_case_completion(
         adb_executable=adb_executable,
         case_id=case_id,
         request_id=request_id,
         trigger=trigger,
         adb_serial=serial,
+        poll_interval_sec=wait_poll_interval_sec,
         timeout_sec=float(os.environ.get("SMARTTEST_ANDROID_CASE_TIMEOUT_SEC", DEFAULT_TIMEOUT_SEC)),
         baseline_signature=baseline_signature,
         baseline_log_count=baseline_log_count,

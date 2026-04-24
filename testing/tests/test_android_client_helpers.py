@@ -94,7 +94,7 @@ def test_trigger_android_client_case_runs_install_guard(monkeypatch) -> None:
 
     result = runner_android_client.trigger_android_client_case(
         case_id="emmc_rw",
-        trigger="testing/tests/IPTV/system/test_emmc_rw.py::test_emmc_rw_via_android_client",
+        trigger="testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client",
         adb_serial="ABC123",
     )
 
@@ -117,7 +117,7 @@ def test_trigger_android_client_case_rejects_when_install_still_missing(monkeypa
     with pytest.raises(RuntimeError) as exc:
         runner_android_client.trigger_android_client_case(
             case_id="emmc_rw",
-            trigger="testing/tests/IPTV/system/test_emmc_rw.py::test_emmc_rw_via_android_client",
+            trigger="testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client",
             adb_serial="ABC123",
         )
 
@@ -310,13 +310,61 @@ def test_trigger_android_client_case_marks_power_case_as_privileged(monkeypatch)
 
     runner_android_client.trigger_android_client_case(
         case_id="auto_reboot",
-        trigger="testing/tests/IPTV/system/test_auto_reboot.py::test_auto_reboot_via_android_client",
+        trigger="testing/tests/android/common/system/test_auto_reboot.py::test_auto_reboot_via_android_client",
         adb_serial="ABC123",
     )
 
     assert ensure_calls == ["ABC123|priv=True"]
     assert stop_calls == ["prepare privileged provisioning for auto_reboot"]
     assert launch_calls == ["ABC123"]
+
+
+def test_trigger_android_client_case_skips_wait_in_no_poll_mode(monkeypatch) -> None:
+    monkeypatch.setenv("SMARTTEST_ANDROID_NO_POLL_CASES", "auto_suspend")
+    monkeypatch.setattr(runner_android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
+    monkeypatch.setattr("testing.params.adb_devices.list_adb_devices", lambda: ["ABC123"])
+    monkeypatch.setattr(
+        runner_android_client,
+        "ensure_test_apk_installed",
+        lambda adb_serial=None, require_privileged=False: False,
+    )
+    monkeypatch.setattr(runner_android_client, "android_client_installed", lambda adb_serial=None: True)
+    monkeypatch.setattr(
+        runner_android_client,
+        "_force_stop_android_client",
+        lambda **kwargs: subprocess.CompletedProcess(["adb"], 0, stdout="", stderr=""),
+    )
+    monkeypatch.setattr(
+        runner_android_client,
+        "read_android_client_snapshot",
+        lambda **kwargs: {"phase": "Idle", "logLines": [], "activeRequest": {}, "report": {}},
+    )
+    wait_called = {"value": False}
+
+    def fail_wait(**kwargs):  # noqa: ANN001
+        wait_called["value"] = True
+        raise AssertionError("wait_for_android_client_case_completion should not be called")
+
+    monkeypatch.setattr(runner_android_client, "wait_for_android_client_case_completion", fail_wait)
+    monkeypatch.setattr(
+        runner_android_client.subprocess,
+        "run",
+        lambda cmd, capture_output, text, check, **kwargs: subprocess.CompletedProcess(
+            cmd,
+            0,
+            stdout="Starting: Intent { ... }\n",
+            stderr="",
+        ),
+    )
+
+    result = runner_android_client.trigger_android_client_case(
+        case_id="auto_suspend",
+        trigger="testing/tests/android/common/system/test_auto_suspend.py::test_auto_suspend_via_android_client",
+        adb_serial="ABC123",
+    )
+
+    assert result.returncode == 0
+    assert wait_called["value"] is False
 
 
 def test_extract_json_payload_accepts_raw_content_output() -> None:

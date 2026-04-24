@@ -18,11 +18,17 @@ object AutoSuspendPowerController {
         val appContext = context.applicationContext
         AutoSuspendDebugLogger.append(
             appContext,
-            "scheduleResumeAlarm delaySec=$delaySec requestId=$requestId",
+            "scheduleResumeAlarm delaySec=$delaySec requestId=$requestId " +
+                "nowWall=${System.currentTimeMillis()} nowElapsed=${SystemClock.elapsedRealtime()} " +
+                "nowUptime=${SystemClock.uptimeMillis()}",
         )
         val alarmManager = appContext.getSystemService(AlarmManager::class.java)
             ?: error("AlarmManager is unavailable")
         val triggerAtMillis = System.currentTimeMillis() + (delaySec * 1000L)
+        AutoSuspendDebugLogger.append(
+            appContext,
+            "scheduleResumeAlarm triggerAtWall=$triggerAtMillis requestId=$requestId",
+        )
         val pendingIntent = resumePendingIntent(appContext)
         alarmManager.cancel(pendingIntent)
         runCatching {
@@ -48,6 +54,10 @@ object AutoSuspendPowerController {
         val appContext = context.applicationContext
         val alarmManager = appContext.getSystemService(AlarmManager::class.java) ?: return
         alarmManager.cancel(resumePendingIntent(appContext))
+        AutoSuspendDebugLogger.append(
+            appContext,
+            "cancelResumeAlarm nowWall=${System.currentTimeMillis()} nowElapsed=${SystemClock.elapsedRealtime()}",
+        )
     }
 
     fun goToSleep(context: Context) {
@@ -57,11 +67,20 @@ object AutoSuspendPowerController {
         val powerManager = appContext.getSystemService(PowerManager::class.java)
             ?: error("PowerManager is unavailable")
         AutoSuspendDebugLogger.append(appContext, "goToSleep start interactive=${powerManager.isInteractive}")
+        AutoSuspendDebugLogger.append(
+            appContext,
+            "goToSleep clocks before call elapsed=${SystemClock.elapsedRealtime()} uptime=${SystemClock.uptimeMillis()}",
+        )
         invokeHiddenPowerMethod(
             context = appContext,
             powerManager = powerManager,
             methodName = "goToSleep",
             details = "SmartTest auto_suspend",
+        )
+        AutoSuspendDebugLogger.append(
+            appContext,
+            "goToSleep return interactive=${powerManager.isInteractive} " +
+                "elapsed=${SystemClock.elapsedRealtime()} uptime=${SystemClock.uptimeMillis()}",
         )
     }
 
@@ -70,11 +89,20 @@ object AutoSuspendPowerController {
         val powerManager = appContext.getSystemService(PowerManager::class.java)
             ?: error("PowerManager is unavailable")
         AutoSuspendDebugLogger.append(appContext, "wakeUp start interactive=${powerManager.isInteractive}")
+        AutoSuspendDebugLogger.append(
+            appContext,
+            "wakeUp clocks before call elapsed=${SystemClock.elapsedRealtime()} uptime=${SystemClock.uptimeMillis()}",
+        )
         invokeHiddenPowerMethod(
             context = appContext,
             powerManager = powerManager,
             methodName = "wakeUp",
             details = "SmartTest auto_suspend resume",
+        )
+        AutoSuspendDebugLogger.append(
+            appContext,
+            "wakeUp return interactive=${powerManager.isInteractive} " +
+                "elapsed=${SystemClock.elapsedRealtime()} uptime=${SystemClock.uptimeMillis()}",
         )
     }
 

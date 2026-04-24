@@ -7,6 +7,8 @@ data class AutoSuspendSession(
     val intervalSec: Long,
     val completedCycles: Int,
     val awaitingResume: Boolean,
+    val sleepRequestElapsedRealtimeMs: Long,
+    val sleepRequestUptimeMs: Long,
     val source: String,
     val trigger: String,
     val requestId: String,
@@ -32,6 +34,9 @@ data class AutoSuspendSession(
         if (completedCycles < 0 || completedCycles > totalCycles) {
             return false
         }
+        if (sleepRequestElapsedRealtimeMs < 0L || sleepRequestUptimeMs < 0L) {
+            return false
+        }
         return awaitingResume || completedCycles < totalCycles
     }
 }
@@ -48,6 +53,8 @@ class AutoSuspendSessionStore(context: Context) {
             intervalSec = preferences.getLong(KEY_INTERVAL_SEC, 0L),
             completedCycles = preferences.getInt(KEY_COMPLETED_CYCLES, 0),
             awaitingResume = preferences.getBoolean(KEY_AWAITING_RESUME, false),
+            sleepRequestElapsedRealtimeMs = preferences.getLong(KEY_SLEEP_REQUEST_ELAPSED_REALTIME_MS, 0L),
+            sleepRequestUptimeMs = preferences.getLong(KEY_SLEEP_REQUEST_UPTIME_MS, 0L),
             source = preferences.getString(KEY_SOURCE, "alarm") ?: "alarm",
             trigger = preferences.getString(KEY_TRIGGER, "auto_suspend_alarm") ?: "auto_suspend_alarm",
             requestId = preferences.getString(KEY_REQUEST_ID, "manual") ?: "manual",
@@ -60,6 +67,8 @@ class AutoSuspendSessionStore(context: Context) {
             .putLong(KEY_INTERVAL_SEC, session.intervalSec)
             .putInt(KEY_COMPLETED_CYCLES, session.completedCycles)
             .putBoolean(KEY_AWAITING_RESUME, session.awaitingResume)
+            .putLong(KEY_SLEEP_REQUEST_ELAPSED_REALTIME_MS, session.sleepRequestElapsedRealtimeMs)
+            .putLong(KEY_SLEEP_REQUEST_UPTIME_MS, session.sleepRequestUptimeMs)
             .putString(KEY_SOURCE, session.source)
             .putString(KEY_TRIGGER, session.trigger)
             .putString(KEY_REQUEST_ID, session.requestId)
@@ -76,6 +85,8 @@ class AutoSuspendSessionStore(context: Context) {
         private const val KEY_INTERVAL_SEC = "interval_sec"
         private const val KEY_COMPLETED_CYCLES = "completed_cycles"
         private const val KEY_AWAITING_RESUME = "awaiting_resume"
+        private const val KEY_SLEEP_REQUEST_ELAPSED_REALTIME_MS = "sleep_request_elapsed_realtime_ms"
+        private const val KEY_SLEEP_REQUEST_UPTIME_MS = "sleep_request_uptime_ms"
         private const val KEY_SOURCE = "source"
         private const val KEY_TRIGGER = "trigger"
         private const val KEY_REQUEST_ID = "request_id"

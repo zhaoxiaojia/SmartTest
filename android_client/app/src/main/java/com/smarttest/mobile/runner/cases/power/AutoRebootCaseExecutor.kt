@@ -45,14 +45,15 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
 
         if (session.awaitingPostBootCheck) {
             val cycle = session.completedCycles + 1
-            SmartTestUiLauncher.launchMainActivity(context.appContext)
+            launchSmartTestUiAndWait(context, cycle, session.totalCycles)
             SmartTestRunStore.updateProgress(
                 currentLoop = cycle,
                 totalLoops = session.totalCycles,
                 stage = "loop $cycle/${session.totalCycles} waiting ${session.intervalSec}s after reboot",
             )
             context.log(
-                "resume after reboot for cycle $cycle/${session.totalCycles} requestId=${session.requestId}",
+                "resume after reboot for cycle $cycle/${session.totalCycles} requestId=${session.requestId}; " +
+                    "start interval countdown=${session.intervalSec}s after SmartTest UI ready",
             )
             delay(session.intervalSec * 1000L)
             val recovered = PowerCycleRecoveryChecks.verifyRecoveredState(
@@ -185,5 +186,17 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
 
     companion object {
         private const val MIN_INTERVAL_SEC = 30L
+        private const val UI_READY_SETTLE_MS = 3_000L
+    }
+
+    private suspend fun launchSmartTestUiAndWait(
+        context: TestCaseExecutionContext,
+        cycle: Int,
+        totalCycles: Int,
+    ) {
+        context.log("launch SmartTest UI for cycle $cycle/$totalCycles before interval countdown")
+        SmartTestUiLauncher.launchMainActivity(context.appContext)
+        delay(UI_READY_SETTLE_MS)
+        context.log("SmartTest UI ready for cycle $cycle/$totalCycles; settle=${UI_READY_SETTLE_MS}ms")
     }
 }

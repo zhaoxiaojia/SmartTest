@@ -537,19 +537,37 @@ FluPage {
                                                 }
 
                                                 FluComboBox{
+                                                    id: combo_case_param
                                                     visible: fieldData.type === "enum"
                                                     Layout.fillWidth: true
                                                     model: fieldData.enum_values || []
+                                                    enabled: (fieldData.enum_values || []).length > 0
                                                     currentIndex: {
                                                         var currentValue = caseParamTextValue(caseNodeId, fieldData.key)
                                                         var options = fieldData.enum_values || []
                                                         return options.indexOf(currentValue)
+                                                    }
+                                                    onDownChanged: {
+                                                        if(down && fieldData.key.indexOf(":bt_target") >= 0){
+                                                            TestPageBridge.reloadState()
+                                                        }
                                                     }
                                                     onActivated: {
                                                         if(currentIndex >= 0){
                                                             TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, currentText)
                                                         }
                                                     }
+                                                }
+
+                                                FluText{
+                                                    visible: fieldData.type === "enum"
+                                                             && fieldData.key.indexOf(":bt_target") >= 0
+                                                             && (fieldData.enum_values || []).length === 0
+                                                    Layout.fillWidth: true
+                                                    text: qsTr("No paired Bluetooth devices found on the current DUT.")
+                                                    font: FluTextStyle.Caption
+                                                    color: FluTheme.fontSecondaryColor
+                                                    wrapMode: Text.WordWrap
                                                 }
 
                                                 FluToggleSwitch{

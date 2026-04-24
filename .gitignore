@@ -10,3 +10,4 @@ venv
 source.zip
 source_all.zip
 *.qm
+android_client/signapk/

@@ -7,7 +7,7 @@ from testing.runtime.params import case_config, case_param, request_case_param
 
 class _Request:
     class _Node:
-        nodeid = "testing/tests/IPTV/system/test_emmc_rw.py::test_emmc_rw_via_android_client"
+        nodeid = "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client"
 
     node = _Node()
 
@@ -17,7 +17,7 @@ def test_case_param_reads_selected_case_config(monkeypatch) -> None:
         "SMARTTEST_CASE_CONFIGS_JSON",
         json.dumps(
             {
-                "testing/tests/IPTV/system/test_emmc_rw.py::test_emmc_rw_via_android_client": {
+                "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client": {
                     "emmc_rw:loop_count": "360",
                     "emmc_rw:work_dir": "/tmp/emmc",
                 }

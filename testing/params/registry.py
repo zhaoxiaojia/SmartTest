@@ -5,6 +5,7 @@ from functools import cached_property
 from typing import Iterable
 
 from .android_catalog import android_catalog_param
+from .bt_devices import known_bluetooth_targets
 from .binding import CaseParamBinding, ParamGroup
 from .schema import ParamCategory, ParamField, ParamSchema, ParamScope, ParamValueType
 
@@ -181,6 +182,7 @@ def default_registry() -> SchemaRegistry:
                     scope=ParamScope.CASE,
                     default=android_catalog_param("auto_reboot:bt_target").default_value,
                     description=android_catalog_param("auto_reboot:bt_target").hint,
+                    enum_values=known_bluetooth_targets(),
                 ),
                 ParamField(
                     key="auto_suspend:cycle_count",
@@ -217,6 +219,7 @@ def default_registry() -> SchemaRegistry:
                     scope=ParamScope.CASE,
                     default=android_catalog_param("auto_suspend:bt_target").default_value,
                     description=android_catalog_param("auto_suspend:bt_target").hint,
+                    enum_values=known_bluetooth_targets(),
                 ),
             ],
         ),

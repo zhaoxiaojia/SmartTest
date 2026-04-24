@@ -7,6 +7,18 @@ from .adb_devices import _decode_adb_output, resolve_adb_serial_for_command
 
 
 _MAC_PATTERN = r"([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})"
+KNOWN_BLUETOOTH_TARGETS = [
+    "小米小钢炮蓝牙音箱 [74:A3:4A:13:3E:DA]",
+    "HUAWEI Sound Joy-09524 [78:04:E3:54:3E:91]",
+    "EDIFIER M380 [F4:4E:FD:44:A5:89]",
+    "SRS-XB10 [F8:DF:15:22:4A:CC]",
+    "iChocolate Mini [A0:E9:DB:23:17:58]",
+    "JBL Charge 3 [04:21:44:AB:D6:63]",
+]
+
+
+def known_bluetooth_targets() -> list[str]:
+    return list(KNOWN_BLUETOOTH_TARGETS)
 
 
 def parse_paired_bluetooth_devices_output(output: str) -> list[str]:
