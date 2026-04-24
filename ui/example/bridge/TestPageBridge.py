@@ -9,6 +9,7 @@ from PySide6.QtGui import QGuiApplication
 
 from testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
 from testing.params.adb_devices import list_adb_devices
+from testing.params.bt_devices import list_paired_bluetooth_devices
 from testing.params.registry import SchemaRegistry, default_registry
 from testing.params.schema import ParamField, ParamSchema, ParamScope, defaults_for_schema
 from testing.state.models import SelectedCase, TestPageState
@@ -30,6 +31,7 @@ class TestPageBridge(QObject):
         self._state_path = self._default_state_path()
         self._state = load_state(self._state_path)
         self._adb_devices: list[str] = []
+        self._paired_bt_devices: list[str] = []
         self._ensure_state_defaults()
 
     def _default_state_path(self) -> Path:
@@ -51,6 +53,10 @@ class TestPageBridge(QObject):
 
     def _refresh_adb_devices(self) -> None:
         self._adb_devices = list_adb_devices()
+
+    def _refresh_paired_bt_devices(self) -> None:
+        selected_serial = str(self._state.global_context.get("dut", "") or "").strip()
+        self._paired_bt_devices = list_paired_bluetooth_devices(selected_serial)
 
     def _sync_dut_selection(self) -> bool:
         current = str(self._state.global_context.get("dut", "") or "").strip()
@@ -90,8 +96,15 @@ class TestPageBridge(QObject):
             "description": field.description,
             "group": field.group,
             "required": field.required,
-            "enum_values": list(self._adb_devices) if field.key == "dut" else field.enum_values,
+            "enum_values": self._enum_values_for_field(field),
         }
+
+    def _enum_values_for_field(self, field: ParamField) -> list[str]:
+        if field.key == "dut":
+            return list(self._adb_devices)
+        if field.key.endswith(":bt_target"):
+            return list(self._paired_bt_devices)
+        return list(field.enum_values)
 
     def _rebuild_case_indexes(self) -> None:
         self._cases_by_nodeid = {}
@@ -500,14 +513,18 @@ class TestPageBridge(QObject):
     @Slot(result="QVariantMap")
     def globalSchema(self):
         self._refresh_adb_devices()
-        if self._sync_dut_selection():
+        changed = self._sync_dut_selection()
+        self._refresh_paired_bt_devices()
+        if changed:
             save_state(self._state_path, self._state)
         return self._schema_to_jsonable(self._registry.global_context)
 
     @Slot()
     def refreshGlobalSchema(self) -> None:
         self._refresh_adb_devices()
-        if self._sync_dut_selection():
+        changed = self._sync_dut_selection()
+        self._refresh_paired_bt_devices()
+        if changed:
             save_state(self._state_path, self._state)
         self.stateChanged.emit()
 
@@ -521,6 +538,7 @@ class TestPageBridge(QObject):
 
     @Slot(str, result="QVariantList")
     def caseParamFields(self, nodeid: str):
+        self._refresh_paired_bt_devices()
         case = self._case_info(nodeid)
         if case is None:
             return []
@@ -592,6 +610,8 @@ class TestPageBridge(QObject):
         if self._state.global_context.get(key) == value:
             return
         self._state.global_context[key] = value
+        if key == "dut":
+            self._refresh_paired_bt_devices()
         self._save_and_emit()
 
     @Slot(str, str, "QVariant")

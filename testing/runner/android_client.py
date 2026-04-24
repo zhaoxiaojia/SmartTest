@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
-import shlex
 import shutil
 import subprocess
 import time
@@ -17,6 +17,7 @@ DEFAULT_COMPONENT = "com.smarttest.mobile/com.smarttest.mobile.command.CommandAc
 DEFAULT_ACTION_RUN = "com.smarttest.mobile.action.RUN"
 DEFAULT_ACTION_STOP = "com.smarttest.mobile.action.STOP"
 DEFAULT_EXTRA_REQUEST_ID = "request_id"
+DEFAULT_EXTRA_PARAMS_B64 = "params_b64"
 DEFAULT_STATUS_URI = "content://com.smarttest.mobile.status/snapshot"
 DEFAULT_STATUS_FILE = "files/runner_snapshot.json"
 DEFAULT_PUBLIC_STATUS_FILE = "/sdcard/Android/data/com.smarttest.mobile/files/runner_snapshot.json"
@@ -24,6 +25,7 @@ DEFAULT_POLL_INTERVAL_SEC = 1.0
 DEFAULT_TIMEOUT_SEC = 3600.0
 DEFAULT_MAX_CONSECUTIVE_STATUS_FAILURES = 5
 AUTO_REBOOT_DUT_STAGE_TOKEN = "rebooting dut"
+AUTO_SUSPEND_DUT_STAGE_TOKEN = "entering deep suspend"
 
 
 def build_case_params(case_id: str, **params: object) -> dict[str, str]:
@@ -41,25 +43,30 @@ def _adb_base_cmd(*, adb_executable: str, adb_serial: str | None = None) -> list
     return cmd
 
 
-def _next_auto_reboot_wait_state(
+def _next_power_resume_wait_state(
     *,
     case_id: str,
     phase: str,
     current_stage: str,
     matches_request: bool,
-    waiting_for_dut_reboot_resume: bool,
+    waiting_for_device_resume: bool,
 ) -> bool:
-    if case_id != "auto_reboot" or not matches_request:
-        return waiting_for_dut_reboot_resume
+    stage_token = ""
+    if case_id == "auto_reboot":
+        stage_token = AUTO_REBOOT_DUT_STAGE_TOKEN
+    elif case_id == "auto_suspend":
+        stage_token = AUTO_SUSPEND_DUT_STAGE_TOKEN
+    if not stage_token or not matches_request:
+        return waiting_for_device_resume
     if phase in {"Completed", "Failed"}:
         return False
     if phase != "Running":
-        return waiting_for_dut_reboot_resume
-    if AUTO_REBOOT_DUT_STAGE_TOKEN in current_stage:
+        return waiting_for_device_resume
+    if stage_token in current_stage:
         return True
-    if waiting_for_dut_reboot_resume and AUTO_REBOOT_DUT_STAGE_TOKEN not in current_stage:
+    if waiting_for_device_resume and stage_token not in current_stage:
         return False
-    return waiting_for_dut_reboot_resume
+    return waiting_for_device_resume
 
 
 def _force_stop_android_client(
@@ -154,28 +161,35 @@ def _start_android_client_run(
     adb_serial: str | None = None,
     log_prefix: str = "[testing.runner.android_client]",
 ) -> subprocess.CompletedProcess[str]:
-    extras = [
-        "--es case_id " + shlex.quote(case_id),
-        "--es source " + shlex.quote(source),
-        "--es trigger " + shlex.quote(trigger),
-        "--es " + DEFAULT_EXTRA_REQUEST_ID + " " + shlex.quote(request_id),
-    ]
-    if params:
-        raw_params = ";".join(f"{key}={value}" for key, value in params.items())
-        extras.append("--es params " + shlex.quote(raw_params))
-
-    remote_command = " ".join(
-        [
-            "am start",
-            "-n",
-            shlex.quote(component),
-            "-a",
-            shlex.quote(DEFAULT_ACTION_RUN),
-            *extras,
-        ]
-    )
     cmd = _adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
-    cmd.extend(["shell", remote_command])
+    cmd.extend(
+        [
+            "shell",
+            "am",
+            "start",
+            "-n",
+            component,
+            "-a",
+            DEFAULT_ACTION_RUN,
+            "--es",
+            "case_id",
+            case_id,
+            "--es",
+            "source",
+            source,
+            "--es",
+            "trigger",
+            trigger,
+            "--es",
+            DEFAULT_EXTRA_REQUEST_ID,
+            request_id,
+        ],
+    )
+    if params:
+        encoded_params = base64.urlsafe_b64encode(
+            json.dumps(dict(params), ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
+        ).decode("ascii").rstrip("=")
+        cmd.extend(["--es", DEFAULT_EXTRA_PARAMS_B64, encoded_params])
     print(f"{log_prefix} trigger command: {' '.join(cmd)}")
     result = subprocess.run(
         cmd,
@@ -198,19 +212,21 @@ def stop_android_client_run(
         raise RuntimeError("adb is not available in PATH.")
 
     component = os.environ.get("SMARTTEST_ANDROID_COMPONENT", DEFAULT_COMPONENT)
-    remote_command = " ".join(
-        [
-            "am start",
-            "-n",
-            shlex.quote(component),
-            "-a",
-            shlex.quote(DEFAULT_ACTION_STOP),
-            "--es reason",
-            shlex.quote(reason),
-        ]
-    )
     cmd = _adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
-    cmd.extend(["shell", remote_command])
+    cmd.extend(
+        [
+            "shell",
+            "am",
+            "start",
+            "-n",
+            component,
+            "-a",
+            DEFAULT_ACTION_STOP,
+            "--es",
+            "reason",
+            reason,
+        ],
+    )
     result = subprocess.run(
         cmd,
         capture_output=True,
@@ -418,22 +434,22 @@ def wait_for_android_client_case_completion(
     last_error: str = ""
     consecutive_failures = 0
     last_status_line = ""
-    waiting_for_dut_reboot_resume = False
+    waiting_for_device_resume = False
     last_device_state = ""
     last_boot_completed: bool | None = None
     last_snapshot_channel_ready = False
 
     while time.monotonic() < deadline:
-        if waiting_for_dut_reboot_resume:
+        if waiting_for_device_resume:
             device_state = _adb_get_state(adb_executable=adb_executable, adb_serial=adb_serial)
             if device_state != last_device_state:
-                print(f"[android_client.reboot] device_state={device_state}")
+                print(f"[android_client.power] device_state={device_state}")
                 last_device_state = device_state
             boot_completed = None
             if device_state == "device":
                 boot_completed = _adb_is_boot_completed(adb_executable=adb_executable, adb_serial=adb_serial)
                 if boot_completed != last_boot_completed:
-                    print(f"[android_client.reboot] boot_completed={boot_completed}")
+                    print(f"[android_client.power] boot_completed={boot_completed}")
                     last_boot_completed = boot_completed
             else:
                 last_boot_completed = None
@@ -443,17 +459,17 @@ def wait_for_android_client_case_completion(
             snapshot = read_android_client_snapshot(
                 adb_executable=adb_executable,
                 adb_serial=adb_serial,
-                verbose=not waiting_for_dut_reboot_resume,
+                verbose=not waiting_for_device_resume,
             )
             last_snapshot = snapshot
             consecutive_failures = 0
-            if waiting_for_dut_reboot_resume and not last_snapshot_channel_ready:
-                print("[android_client.reboot] snapshot channel ready after DUT reboot")
+            if waiting_for_device_resume and not last_snapshot_channel_ready:
+                print("[android_client.power] snapshot channel ready after DUT resume")
                 last_snapshot_channel_ready = True
         except Exception as exc:  # noqa: BLE001
             last_error = str(exc)
             consecutive_failures += 1
-            if waiting_for_dut_reboot_resume:
+            if waiting_for_device_resume:
                 last_snapshot_channel_ready = False
                 time.sleep(poll_interval_sec)
                 continue
@@ -511,22 +527,22 @@ def wait_for_android_client_case_completion(
             print(status_line)
             last_status_line = status_line
 
-        next_waiting_for_dut_reboot_resume = _next_auto_reboot_wait_state(
+        next_waiting_for_device_resume = _next_power_resume_wait_state(
             case_id=case_id,
             phase=phase,
             current_stage=current_stage,
             matches_request=matches_request,
-            waiting_for_dut_reboot_resume=waiting_for_dut_reboot_resume,
+            waiting_for_device_resume=waiting_for_device_resume,
         )
-        if next_waiting_for_dut_reboot_resume != waiting_for_dut_reboot_resume:
+        if next_waiting_for_device_resume != waiting_for_device_resume:
             print(
-                "[android_client.reboot] "
-                f"waiting_for_resume={next_waiting_for_dut_reboot_resume} "
+                "[android_client.power] "
+                f"waiting_for_resume={next_waiting_for_device_resume} "
                 f"phase={phase or '<empty>'} stage={current_stage or '<empty>'}"
             )
-            if next_waiting_for_dut_reboot_resume:
+            if next_waiting_for_device_resume:
                 last_snapshot_channel_ready = False
-        waiting_for_dut_reboot_resume = next_waiting_for_dut_reboot_resume
+        waiting_for_device_resume = next_waiting_for_device_resume
 
         if phase == "Completed" and fresh_run_observed:
             return snapshot

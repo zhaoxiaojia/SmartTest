@@ -13,11 +13,16 @@ from testing.params.adb_devices import resolve_adb_serial_for_command
 
 PACKAGE_NAME = "com.smarttest.mobile"
 DEFAULT_APK_PATH = Path(__file__).resolve().parent / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk"
+DEFAULT_PLATFORM_SIGNED_APK_PATH = Path(__file__).resolve().parent / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug-platform.apk"
 INSTALL_STATE_PATH = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "SmartTest" / "android_client_install_state.json"
 DEFAULT_PRIVAPP_DIR = "/system/priv-app/SmartTestMobile"
 DEFAULT_PRIVAPP_APK = f"{DEFAULT_PRIVAPP_DIR}/SmartTestMobile.apk"
 DEFAULT_PRIVAPP_PERMISSIONS = "/system/etc/permissions/privapp-permissions-com.smarttest.mobile.xml"
 LOCAL_PRIVAPP_PERMISSIONS = Path(__file__).resolve().parent / "system_app" / "privapp-permissions-com.smarttest.mobile.xml"
+SIGNAPK_DIR = Path(__file__).resolve().parent / "signapk" / "mnt" / "fileroot" / "fae.autobuild" / "workdir" / "workspace" / "FAE" / "AutoBuild" / "IPTV" / "daxiong.cao" / "s6" / "u-1"
+SIGNAPK_JAR = SIGNAPK_DIR / "prebuilts" / "sdk" / "tools" / "lib" / "signapk.jar"
+PLATFORM_CERT_PEM = SIGNAPK_DIR / "build" / "target" / "product" / "security" / "platform.x509.pem"
+PLATFORM_CERT_PK8 = SIGNAPK_DIR / "build" / "target" / "product" / "security" / "platform.pk8"
 DEFAULT_ADB_WAIT_TIMEOUT_SEC = 180.0
 PRIVILEGED_CASE_IDS = frozenset({"auto_reboot", "auto_suspend"})
 PRIVILEGED_PARTITIONS = ("/system", "/product", "/system_ext")
@@ -37,6 +42,133 @@ def _apk_hash(apk_path: Path) -> str:
         for chunk in iter(lambda: fh.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _platform_signing_available() -> bool:
+    return PLATFORM_CERT_PEM.exists() and PLATFORM_CERT_PK8.exists()
+
+
+def _find_apksigner() -> str | None:
+    direct = shutil.which("apksigner")
+    if direct:
+        return direct
+    android_home = os.environ.get("ANDROID_HOME", "").strip()
+    if not android_home:
+        return None
+    build_tools_dir = Path(android_home) / "build-tools"
+    if not build_tools_dir.exists():
+        return None
+    candidates = sorted(
+        [path for path in build_tools_dir.iterdir() if path.is_dir()],
+        key=lambda item: item.name,
+        reverse=True,
+    )
+    for candidate in candidates:
+        apksigner_bat = candidate / "apksigner.bat"
+        if apksigner_bat.exists():
+            return str(apksigner_bat)
+    return None
+
+
+def sign_privileged_apk(
+    *,
+    input_apk_path: str | Path | None = None,
+    output_apk_path: str | Path | None = None,
+) -> Path:
+    source_apk = Path(input_apk_path or DEFAULT_APK_PATH).resolve()
+    target_apk = Path(output_apk_path or DEFAULT_PLATFORM_SIGNED_APK_PATH).resolve()
+    if not source_apk.exists():
+        raise RuntimeError(f"android_client APK was not found for signing: {source_apk}")
+    if not _platform_signing_available():
+        raise RuntimeError(
+            "android_client platform signing files are missing.\n"
+            f"jar={SIGNAPK_JAR}\n"
+            f"pem={PLATFORM_CERT_PEM}\n"
+            f"pk8={PLATFORM_CERT_PK8}"
+        )
+
+    needs_resign = True
+    if target_apk.exists():
+        try:
+            needs_resign = target_apk.stat().st_mtime < source_apk.stat().st_mtime
+        except FileNotFoundError:
+            needs_resign = True
+        if not needs_resign:
+            return target_apk
+
+    target_apk.parent.mkdir(parents=True, exist_ok=True)
+    if target_apk.exists():
+        try:
+            target_apk.unlink()
+        except FileNotFoundError:
+            pass
+
+    apksigner = _find_apksigner()
+    if apksigner:
+        cmd = [
+            apksigner,
+            "sign",
+            "--key",
+            str(PLATFORM_CERT_PK8),
+            "--cert",
+            str(PLATFORM_CERT_PEM),
+            "--out",
+            str(target_apk),
+            str(source_apk),
+        ]
+        print(f"[android_client] platform sign command: {' '.join(cmd)}")
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        print(f"[android_client] platform sign stdout: {result.stdout.strip()}")
+        print(f"[android_client] platform sign stderr: {result.stderr.strip()}")
+        if result.returncode == 0 and target_apk.exists():
+            return target_apk
+        sign_errors = [
+            "Failed to platform-sign android_client APK with apksigner.",
+            f"command: {' '.join(cmd)}",
+            f"stdout:\n{result.stdout}",
+            f"stderr:\n{result.stderr}",
+        ]
+    else:
+        sign_errors = ["Failed to platform-sign android_client APK: apksigner was not found."]
+
+    if SIGNAPK_JAR.exists():
+        fallback_cmd = [
+            "java",
+            "-jar",
+            str(SIGNAPK_JAR),
+            str(PLATFORM_CERT_PEM),
+            str(PLATFORM_CERT_PK8),
+            str(source_apk),
+            str(target_apk),
+        ]
+        print(f"[android_client] fallback sign command: {' '.join(fallback_cmd)}")
+        fallback_result = subprocess.run(
+            fallback_cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        print(f"[android_client] fallback sign stdout: {fallback_result.stdout.strip()}")
+        print(f"[android_client] fallback sign stderr: {fallback_result.stderr.strip()}")
+        if fallback_result.returncode == 0 and target_apk.exists():
+            return target_apk
+        sign_errors.extend(
+            [
+                "Fallback signapk.jar signing also failed.",
+                f"command: {' '.join(fallback_cmd)}",
+                f"stdout:\n{fallback_result.stdout}",
+                f"stderr:\n{fallback_result.stderr}",
+            ],
+        )
+
+    if not target_apk.exists():
+        raise RuntimeError("\n".join(sign_errors))
+    return target_apk
 
 
 def _load_install_state() -> dict[str, str]:
@@ -442,6 +574,8 @@ def ensure_test_apk_installed(
     _ensure_device_ready_before_install(adb_executable=adb_executable, adb_serial=adb_serial)
 
     resolved_apk_path = Path(apk_path or DEFAULT_APK_PATH).resolve()
+    if require_privileged:
+        resolved_apk_path = sign_privileged_apk(input_apk_path=resolved_apk_path)
     if not resolved_apk_path.exists():
         print(f"[android_client] ensure install failed, APK missing: {resolved_apk_path}")
         raise RuntimeError(f"android_client test APK was not found: {resolved_apk_path}")
@@ -495,10 +629,12 @@ def ensure_test_apk_installed(
 
 __all__ = [
     "DEFAULT_APK_PATH",
+    "DEFAULT_PLATFORM_SIGNED_APK_PATH",
     "INSTALL_STATE_PATH",
     "PACKAGE_NAME",
     "PRIVILEGED_CASE_IDS",
     "ensure_test_apk_installed",
     "install_test_apk",
     "is_test_apk_installed",
+    "sign_privileged_apk",
 ]

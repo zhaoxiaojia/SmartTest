@@ -36,7 +36,6 @@ class RootDeviceOperationGateway(
     private fun buildShellCommand(command: DeviceCommand): String {
         return when (command.type) {
             CommandType.Reboot -> "svc power reboot || cmd power reboot || reboot"
-            CommandType.Suspend -> buildSuspendCommand(command)
             CommandType.Wakeup -> command.args["raw"]
                 ?: "input keyevent KEYCODE_WAKEUP"
             CommandType.WifiEnable -> "svc wifi enable"
@@ -51,29 +50,6 @@ class RootDeviceOperationGateway(
             CommandType.WriteSysNode -> "echo ${quote(required(command, "value"))} > ${quote(required(command, "path"))}"
             CommandType.ShellRaw -> required(command, "raw")
         }
-    }
-
-    private fun buildSuspendCommand(command: DeviceCommand): String {
-        command.args["raw"]?.let { return it }
-
-        val wakeAfterSec = command.args["wake_after_sec"]?.toLongOrNull()
-        if (wakeAfterSec == null || wakeAfterSec <= 0L) {
-            return "input keyevent KEYCODE_SLEEP"
-        }
-
-        return """
-            if command -v rtcwake >/dev/null 2>&1; then
-                rtcwake -m mem -s $wakeAfterSec
-            elif [ -w /sys/class/rtc/rtc0/wakealarm ] && [ -w /sys/power/state ]; then
-                echo 0 > /sys/class/rtc/rtc0/wakealarm
-                echo +$wakeAfterSec > /sys/class/rtc/rtc0/wakealarm
-                echo mem > /sys/power/state
-            else
-                input keyevent KEYCODE_SLEEP
-                sleep $wakeAfterSec
-                input keyevent KEYCODE_WAKEUP
-            fi
-        """.trimIndent()
     }
 
     private fun required(command: DeviceCommand, key: String): String {

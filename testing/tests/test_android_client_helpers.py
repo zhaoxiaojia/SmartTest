@@ -342,30 +342,50 @@ def test_read_android_client_snapshot_parses_content_read_output(monkeypatch) ->
     assert snapshot["logLines"] == ["a", "b"]
 
 
-def test_auto_reboot_wait_state_enters_and_exits_on_stage_transition() -> None:
-    waiting = runner_android_client._next_auto_reboot_wait_state(
+def test_power_wait_state_enters_and_exits_for_reboot() -> None:
+    waiting = runner_android_client._next_power_resume_wait_state(
         case_id="auto_reboot",
         phase="Running",
         current_stage="loop 1/3 rebooting dut",
         matches_request=True,
-        waiting_for_dut_reboot_resume=False,
+        waiting_for_device_resume=False,
     )
     assert waiting is True
 
-    waiting = runner_android_client._next_auto_reboot_wait_state(
+    waiting = runner_android_client._next_power_resume_wait_state(
         case_id="auto_reboot",
         phase="Running",
         current_stage="loop 1/3 waiting 100s after reboot",
         matches_request=True,
-        waiting_for_dut_reboot_resume=True,
+        waiting_for_device_resume=True,
     )
     assert waiting is False
 
-    waiting = runner_android_client._next_auto_reboot_wait_state(
+    waiting = runner_android_client._next_power_resume_wait_state(
         case_id="auto_reboot",
         phase="Failed",
         current_stage="loop 1/3 rebooting dut",
         matches_request=True,
-        waiting_for_dut_reboot_resume=True,
+        waiting_for_device_resume=True,
+    )
+    assert waiting is False
+
+
+def test_power_wait_state_enters_and_exits_for_suspend() -> None:
+    waiting = runner_android_client._next_power_resume_wait_state(
+        case_id="auto_suspend",
+        phase="Running",
+        current_stage="loop 1/3 entering deep suspend",
+        matches_request=True,
+        waiting_for_device_resume=False,
+    )
+    assert waiting is True
+
+    waiting = runner_android_client._next_power_resume_wait_state(
+        case_id="auto_suspend",
+        phase="Running",
+        current_stage="loop 1/3 resumed from deep suspend",
+        matches_request=True,
+        waiting_for_device_resume=True,
     )
     assert waiting is False

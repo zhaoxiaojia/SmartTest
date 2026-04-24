@@ -1,6 +1,7 @@
 package com.smarttest.mobile.runner.device.state
 
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -72,10 +73,28 @@ class SystemDeviceStateProvider(
 
     override suspend fun readBluetoothState(): BluetoothState {
         val adapter = bluetoothManager?.adapter
+        val connected = linkedSetOf<String>()
+        val profileManager = bluetoothManager
+        val profileIds = listOf(
+            BluetoothProfile.A2DP,
+            BluetoothProfile.HEADSET,
+            BluetoothProfile.HEARING_AID,
+        )
+        profileIds.forEach { profile ->
+            val devices = runSystemAccess("bluetooth.connectedDevices.$profile") {
+                profileManager?.getConnectedDevices(profile)
+            }.orEmpty()
+            devices.forEach { device ->
+                val address = runSystemAccess("bluetooth.deviceAddress.$profile") { device.address }
+                if (!address.isNullOrBlank()) {
+                    connected += address.uppercase()
+                }
+            }
+        }
         return BluetoothState(
             enabled = runSystemAccess("bluetooth.enabled") { adapter?.isEnabled } == true,
             adapterName = runSystemAccess("bluetooth.adapterName") { adapter?.name },
-            connectedDevices = emptyList(),
+            connectedDevices = connected.toList(),
             discovering = runSystemAccess("bluetooth.isDiscovering") { adapter?.isDiscovering } == true,
         )
     }
@@ -203,6 +222,9 @@ class SystemDeviceStateProvider(
             block()
         } catch (error: SecurityException) {
             Log.w(tag, "system access denied for $label: ${error.message}")
+            null
+        } catch (error: IllegalArgumentException) {
+            Log.w(tag, "system access unsupported for $label: ${error.message}")
             null
         }
     }

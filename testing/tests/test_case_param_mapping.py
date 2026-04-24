@@ -56,6 +56,8 @@ def test_discovery_exports_required_params_and_empty_cases():
     assert reboot_case.required_params == [
         "auto_reboot:cycle_count",
         "auto_reboot:interval_sec",
+        "auto_reboot:ping_target",
+        "auto_reboot:bt_target",
     ]
 
     suspend_case = cases_by_nodeid["testing/tests/IPTV/system/test_auto_suspend.py::test_auto_suspend_via_android_client"]
@@ -63,6 +65,8 @@ def test_discovery_exports_required_params_and_empty_cases():
     assert suspend_case.required_params == [
         "auto_suspend:cycle_count",
         "auto_suspend:interval_sec",
+        "auto_suspend:ping_target",
+        "auto_suspend:bt_target",
     ]
 
     wifi_onoff_case = cases_by_nodeid["testing/tests/IPTV/wifi_bt/test_wifi_bt_cases.py::test_wifi_onoff_scan_via_android_client"]
@@ -84,5 +88,9 @@ def test_default_registry_includes_android_client_emmc_params():
     assert registry.get_param("emmc_rw:work_dir") is not None
     assert registry.get_param("auto_reboot:cycle_count") is not None
     assert registry.get_param("auto_reboot:interval_sec") is not None
+    assert registry.get_param("auto_reboot:ping_target") is not None
+    assert registry.get_param("auto_reboot:bt_target") is not None
     assert registry.get_param("auto_suspend:cycle_count") is not None
     assert registry.get_param("auto_suspend:interval_sec") is not None
+    assert registry.get_param("auto_suspend:ping_target") is not None
+    assert registry.get_param("auto_suspend:bt_target") is not None

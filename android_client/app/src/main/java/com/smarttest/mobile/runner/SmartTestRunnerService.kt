@@ -16,6 +16,8 @@ import androidx.core.content.ContextCompat
 import com.smarttest.mobile.R
 import com.smarttest.mobile.command.SmartTestCommand
 import com.smarttest.mobile.runner.cases.power.AutoRebootSessionStore
+import com.smarttest.mobile.runner.cases.power.AutoSuspendPowerController
+import com.smarttest.mobile.runner.cases.power.AutoSuspendSessionStore
 import com.smarttest.mobile.runner.device.SmartDeviceEnvironment
 import com.smarttest.mobile.runner.device.SmartDeviceEnvironmentFactory
 import kotlinx.coroutines.CancellationException
@@ -135,6 +137,8 @@ class SmartTestRunnerService : Service() {
     private fun handleStop(reason: String) {
         val stopReason = reason.ifBlank { "am start STOP" }
         AutoRebootSessionStore(applicationContext).clear()
+        AutoSuspendSessionStore(applicationContext).clear()
+        AutoSuspendPowerController.cancelResumeAlarm(applicationContext)
         val activeJob = runJob
         if (activeJob != null && activeJob.isActive) {
             SmartTestRunStore.markStopping(stopReason)

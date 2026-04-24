@@ -159,6 +159,8 @@ object SmartTestCatalog {
                     parameters = listOf(
                         TestParameterDefinition("cycle_count", "Loop Count", "For example: 20", "20"),
                         TestParameterDefinition("interval_sec", "Interval (s)", "For example: 100", "100"),
+                        TestParameterDefinition("ping_target", "Ping Target", "For example: 192.168.1.1", ""),
+                        TestParameterDefinition("bt_target", "Bluetooth Target", "Choose a paired Bluetooth device", ""),
                     ),
                 ),
                 TestCaseDefinition(
@@ -173,6 +175,8 @@ object SmartTestCatalog {
                     parameters = listOf(
                         TestParameterDefinition("cycle_count", "Loop Count", "For example: 20", "20"),
                         TestParameterDefinition("interval_sec", "Interval (s)", "For example: 100", "100"),
+                        TestParameterDefinition("ping_target", "Ping Target", "For example: 192.168.1.1", ""),
+                        TestParameterDefinition("bt_target", "Bluetooth Target", "Choose a paired Bluetooth device", ""),
                     ),
                 ),
                 TestCaseDefinition(

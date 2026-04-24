@@ -4,7 +4,6 @@ import java.util.UUID
 
 enum class CommandType {
     Reboot,
-    Suspend,
     Wakeup,
     WifiEnable,
     WifiDisable,

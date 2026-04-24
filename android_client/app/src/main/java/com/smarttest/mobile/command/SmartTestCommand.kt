@@ -3,7 +3,9 @@ package com.smarttest.mobile.command
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import android.util.Base64
 import com.smarttest.mobile.runner.TestRunRequest
+import org.json.JSONObject
 
 object SmartTestCommand {
     const val ACTION_RUN = "com.smarttest.mobile.action.RUN"
@@ -13,6 +15,7 @@ object SmartTestCommand {
     const val EXTRA_CASE_ID = "case_id"
     const val EXTRA_CASE_IDS = "case_ids"
     const val EXTRA_PARAMS = "params"
+    const val EXTRA_PARAMS_B64 = "params_b64"
     const val EXTRA_SOURCE = "source"
     const val EXTRA_TRIGGER = "trigger"
     const val EXTRA_REQUEST_ID = "request_id"
@@ -37,7 +40,7 @@ object SmartTestCommand {
 
         return TestRunRequest(
             caseIds = caseIds,
-            parameterOverrides = parseParameters(intent.getStringExtra(EXTRA_PARAMS).orEmpty()),
+            parameterOverrides = parseParameters(intent),
             source = intent.getStringExtra(EXTRA_SOURCE)?.trim().orEmpty().ifBlank { "adb" },
             trigger = intent.getStringExtra(EXTRA_TRIGGER)?.trim().orEmpty().ifBlank { "am start" },
             requestId = intent.getStringExtra(EXTRA_REQUEST_ID)?.trim().orEmpty().ifBlank { "manual" },
@@ -70,7 +73,12 @@ object SmartTestCommand {
         }
     }
 
-    private fun parseParameters(raw: String): Map<String, String> {
+    private fun parseParameters(intent: Intent): Map<String, String> {
+        val encoded = intent.getStringExtra(EXTRA_PARAMS_B64).orEmpty()
+        if (encoded.isNotBlank()) {
+            decodeBase64Parameters(encoded)?.let { return it }
+        }
+        val raw = intent.getStringExtra(EXTRA_PARAMS).orEmpty()
         if (raw.isBlank()) return emptyMap()
         return raw.split(";", "\n")
             .map(String::trim)
@@ -82,5 +90,25 @@ object SmartTestCommand {
             }
             .filter { (key, _) -> ":" in key }
             .toMap()
+    }
+
+    private fun decodeBase64Parameters(encoded: String): Map<String, String>? {
+        return runCatching {
+            val normalized = encoded.padEnd(((encoded.length + 3) / 4) * 4, '=')
+            val decoded = String(Base64.decode(normalized, Base64.URL_SAFE or Base64.NO_WRAP), Charsets.UTF_8)
+            val json = JSONObject(decoded)
+            buildMap {
+                val keys = json.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    val value = json.optString(key).trim()
+                    if (":" in key && value.isNotEmpty()) {
+                        put(key, value)
+                    }
+                }
+            }
+        }.onFailure {
+            Log.w("SmartTestCommand", "Invalid params_b64 payload", it)
+        }.getOrNull()
     }
 }

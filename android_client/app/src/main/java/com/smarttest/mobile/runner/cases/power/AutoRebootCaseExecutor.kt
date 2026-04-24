@@ -13,7 +13,12 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
 
     override suspend fun execute(context: TestCaseExecutionContext): TestCaseExecutionResult {
         val cycleCount = context.intParameter("cycle_count", 20).coerceAtLeast(1)
-        val intervalSec = context.longParameter("interval_sec", 100L).coerceAtLeast(1L)
+        val requestedIntervalSec = context.longParameter("interval_sec", 100L).coerceAtLeast(1L)
+        val intervalSec = requestedIntervalSec.coerceAtLeast(MIN_INTERVAL_SEC)
+        val recoveryConfig = PowerCycleRecoveryConfig(
+            pingTarget = context.parameter("ping_target", ""),
+            bluetoothTarget = context.parameter("bt_target", ""),
+        )
         val sessionStore = AutoRebootSessionStore(context.appContext)
         val requestSession = AutoRebootSession(
             active = true,
@@ -26,7 +31,8 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
             requestId = context.request.requestId,
         )
         context.log(
-            "request parameters: cycles=$cycleCount interval=${intervalSec}s " +
+            "request parameters: cycles=$cycleCount interval=${requestedIntervalSec}s " +
+                "effective_interval=${intervalSec}s " +
                 "trigger=${context.request.trigger} requestId=${context.request.requestId}",
         )
         val initialSession = reconcileSession(
@@ -49,10 +55,18 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
                 "resume after reboot for cycle $cycle/${session.totalCycles} requestId=${session.requestId}",
             )
             delay(session.intervalSec * 1000L)
-            PowerCycleSupport.captureRadioState(
+            val recovered = PowerCycleRecoveryChecks.verifyRecoveredState(
                 context = context,
                 stage = "cycle $cycle/${session.totalCycles} after reboot",
+                config = recoveryConfig,
             )
+            if (!recovered) {
+                sessionStore.clear()
+                return TestCaseExecutionResult(
+                    passed = false,
+                    summary = "AutoReboot failed recovery checks on cycle $cycle/${session.totalCycles}",
+                )
+            }
             session = session.copy(
                 completedCycles = cycle,
                 awaitingPostBootCheck = false,
@@ -167,5 +181,9 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
 
         context.log("resume saved auto reboot session requestId=${saved.requestId}")
         return saved
+    }
+
+    companion object {
+        private const val MIN_INTERVAL_SEC = 30L
     }
 }
