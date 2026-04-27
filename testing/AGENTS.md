@@ -7,6 +7,8 @@ Scope: everything under `testing/`.
 
 - `testing/` must not import UI modules from `ui/`.
 - UI/QML must not import `testing/` directly. Expose required operations via a thin Python bridge in `ui/example/bridge/`.
+- `testing/tests/` contains only discoverable business test cases.
+- Framework, runner, runtime, parameter, UI bridge, Jira, and AI module tests belong in `testing/self_tests/`.
 
 ## Pytest discovery for UI
 
@@ -15,6 +17,7 @@ Pytest discovery is performed in a subprocess (`--collect-only`) so collection s
 - Entry point: `testing/cases/discovery.py`
 - Collection metadata export: `testing/conftest.py`
 - Export is enabled only when env var `SMARTTEST_PYTEST_COLLECT_OUT` is set.
+- Default discovery scans `testing/tests/`, not `testing/self_tests/`.
 
 ### Case type markers
 

@@ -608,6 +608,12 @@ def ensure_test_apk_installed(
             recorded_hash=recorded_hash,
         )
 
+    if installed and privileged:
+        print("[android_client] existing priv-app install detected; skip user reinstall")
+        install_state[state_key] = _install_state_value(mode="privapp", apk_hash=current_hash)
+        _save_install_state(install_state)
+        return False
+
     if installed and not privileged and recorded_mode == "user" and recorded_hash == current_hash:
         print("[android_client] user app already installed with matching hash, skip install")
         return False

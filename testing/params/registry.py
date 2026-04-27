@@ -5,8 +5,8 @@ from functools import cached_property
 from typing import Iterable
 
 from .android_catalog import android_catalog_param
-from .bt_devices import known_bluetooth_targets
 from .binding import CaseParamBinding, ParamGroup
+from .options import static_param_options
 from .schema import ParamCategory, ParamField, ParamSchema, ParamScope, ParamValueType
 
 
@@ -76,6 +76,44 @@ class SchemaRegistry:
         return self.resolve_param_keys(param_keys=binding.param_keys, group_ids=binding.group_ids)
 
 
+def _android_catalog_field(
+    key: str,
+    value_type: ParamValueType,
+    category: ParamCategory,
+) -> ParamField:
+    catalog_param = android_catalog_param(key)
+    default = catalog_param.default_value
+    if value_type == ParamValueType.INT:
+        default = int(default)
+    return ParamField(
+        key=key,
+        label=catalog_param.label,
+        type=value_type,
+        category=category,
+        scope=ParamScope.CASE,
+        default=default,
+        description=catalog_param.hint,
+        enum_values=static_param_options(key),
+    )
+
+
+_DEFAULT_ANDROID_PARAM_SPECS = [
+    ("emmc_rw:loop_count", ParamValueType.INT, ParamCategory.EXECUTION),
+    ("emmc_rw:source_profile", ParamValueType.STRING, ParamCategory.EXECUTION),
+    ("emmc_rw:source_size_kb", ParamValueType.INT, ParamCategory.EXECUTION),
+    ("emmc_rw:min_free_kb", ParamValueType.INT, ParamCategory.EXECUTION),
+    ("emmc_rw:work_dir", ParamValueType.PATH, ParamCategory.EXECUTION),
+    ("auto_reboot:cycle_count", ParamValueType.INT, ParamCategory.EXECUTION),
+    ("auto_reboot:interval_sec", ParamValueType.INT, ParamCategory.EXECUTION),
+    ("auto_reboot:ping_target", ParamValueType.STRING, ParamCategory.NETWORK),
+    ("auto_reboot:bt_target", ParamValueType.ENUM, ParamCategory.NETWORK),
+    ("auto_suspend:cycle_count", ParamValueType.INT, ParamCategory.EXECUTION),
+    ("auto_suspend:interval_sec", ParamValueType.INT, ParamCategory.EXECUTION),
+    ("auto_suspend:ping_target", ParamValueType.STRING, ParamCategory.NETWORK),
+    ("auto_suspend:bt_target", ParamValueType.ENUM, ParamCategory.NETWORK),
+]
+
+
 def default_registry() -> SchemaRegistry:
     """
     Default schemas shipped with SmartTest.
@@ -102,125 +140,8 @@ def default_registry() -> SchemaRegistry:
             schema_id="case_type_default",
             title="Default",
             fields=[
-                ParamField(
-                    key="emmc_rw:loop_count",
-                    label=android_catalog_param("emmc_rw:loop_count").label,
-                    type=ParamValueType.INT,
-                    category=ParamCategory.EXECUTION,
-                    scope=ParamScope.CASE,
-                    default=int(android_catalog_param("emmc_rw:loop_count").default_value),
-                    description=android_catalog_param("emmc_rw:loop_count").hint,
-                ),
-                ParamField(
-                    key="emmc_rw:source_profile",
-                    label=android_catalog_param("emmc_rw:source_profile").label,
-                    type=ParamValueType.STRING,
-                    category=ParamCategory.EXECUTION,
-                    scope=ParamScope.CASE,
-                    default=android_catalog_param("emmc_rw:source_profile").default_value,
-                    description=android_catalog_param("emmc_rw:source_profile").hint,
-                ),
-                ParamField(
-                    key="emmc_rw:source_size_kb",
-                    label=android_catalog_param("emmc_rw:source_size_kb").label,
-                    type=ParamValueType.INT,
-                    category=ParamCategory.EXECUTION,
-                    scope=ParamScope.CASE,
-                    default=int(android_catalog_param("emmc_rw:source_size_kb").default_value),
-                    description=android_catalog_param("emmc_rw:source_size_kb").hint,
-                ),
-                ParamField(
-                    key="emmc_rw:min_free_kb",
-                    label=android_catalog_param("emmc_rw:min_free_kb").label,
-                    type=ParamValueType.INT,
-                    category=ParamCategory.EXECUTION,
-                    scope=ParamScope.CASE,
-                    default=int(android_catalog_param("emmc_rw:min_free_kb").default_value),
-                    description=android_catalog_param("emmc_rw:min_free_kb").hint,
-                ),
-                ParamField(
-                    key="emmc_rw:work_dir",
-                    label=android_catalog_param("emmc_rw:work_dir").label,
-                    type=ParamValueType.PATH,
-                    category=ParamCategory.EXECUTION,
-                    scope=ParamScope.CASE,
-                    default=android_catalog_param("emmc_rw:work_dir").default_value,
-                    description=android_catalog_param("emmc_rw:work_dir").hint,
-                ),
-                ParamField(
-                    key="auto_reboot:cycle_count",
-                    label=android_catalog_param("auto_reboot:cycle_count").label,
-                    type=ParamValueType.INT,
-                    category=ParamCategory.EXECUTION,
-                    scope=ParamScope.CASE,
-                    default=int(android_catalog_param("auto_reboot:cycle_count").default_value),
-                    description=android_catalog_param("auto_reboot:cycle_count").hint,
-                ),
-                ParamField(
-                    key="auto_reboot:interval_sec",
-                    label=android_catalog_param("auto_reboot:interval_sec").label,
-                    type=ParamValueType.INT,
-                    category=ParamCategory.EXECUTION,
-                    scope=ParamScope.CASE,
-                    default=int(android_catalog_param("auto_reboot:interval_sec").default_value),
-                    description=android_catalog_param("auto_reboot:interval_sec").hint,
-                ),
-                ParamField(
-                    key="auto_reboot:ping_target",
-                    label=android_catalog_param("auto_reboot:ping_target").label,
-                    type=ParamValueType.STRING,
-                    category=ParamCategory.NETWORK,
-                    scope=ParamScope.CASE,
-                    default=android_catalog_param("auto_reboot:ping_target").default_value,
-                    description=android_catalog_param("auto_reboot:ping_target").hint,
-                ),
-                ParamField(
-                    key="auto_reboot:bt_target",
-                    label=android_catalog_param("auto_reboot:bt_target").label,
-                    type=ParamValueType.ENUM,
-                    category=ParamCategory.NETWORK,
-                    scope=ParamScope.CASE,
-                    default=android_catalog_param("auto_reboot:bt_target").default_value,
-                    description=android_catalog_param("auto_reboot:bt_target").hint,
-                    enum_values=known_bluetooth_targets(),
-                ),
-                ParamField(
-                    key="auto_suspend:cycle_count",
-                    label=android_catalog_param("auto_suspend:cycle_count").label,
-                    type=ParamValueType.INT,
-                    category=ParamCategory.EXECUTION,
-                    scope=ParamScope.CASE,
-                    default=int(android_catalog_param("auto_suspend:cycle_count").default_value),
-                    description=android_catalog_param("auto_suspend:cycle_count").hint,
-                ),
-                ParamField(
-                    key="auto_suspend:interval_sec",
-                    label=android_catalog_param("auto_suspend:interval_sec").label,
-                    type=ParamValueType.INT,
-                    category=ParamCategory.EXECUTION,
-                    scope=ParamScope.CASE,
-                    default=int(android_catalog_param("auto_suspend:interval_sec").default_value),
-                    description=android_catalog_param("auto_suspend:interval_sec").hint,
-                ),
-                ParamField(
-                    key="auto_suspend:ping_target",
-                    label=android_catalog_param("auto_suspend:ping_target").label,
-                    type=ParamValueType.STRING,
-                    category=ParamCategory.NETWORK,
-                    scope=ParamScope.CASE,
-                    default=android_catalog_param("auto_suspend:ping_target").default_value,
-                    description=android_catalog_param("auto_suspend:ping_target").hint,
-                ),
-                ParamField(
-                    key="auto_suspend:bt_target",
-                    label=android_catalog_param("auto_suspend:bt_target").label,
-                    type=ParamValueType.ENUM,
-                    category=ParamCategory.NETWORK,
-                    scope=ParamScope.CASE,
-                    default=android_catalog_param("auto_suspend:bt_target").default_value,
-                    description=android_catalog_param("auto_suspend:bt_target").hint,
-                    enum_values=known_bluetooth_targets(),
-                ),
+                _android_catalog_field(key, value_type, category)
+                for key, value_type, category in _DEFAULT_ANDROID_PARAM_SPECS
             ],
         ),
     }

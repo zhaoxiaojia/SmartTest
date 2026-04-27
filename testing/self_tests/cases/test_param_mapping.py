@@ -7,7 +7,7 @@ from testing.cases.discovery import discover_pytest_cases
 from testing.params.registry import default_registry
 
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+ROOT_DIR = Path(__file__).resolve().parents[3]
 
 
 def test_default_registry_resolves_group_members():

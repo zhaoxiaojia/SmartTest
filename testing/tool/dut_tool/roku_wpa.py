@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from testing.tool.network_tool.wpa import WpaSupplicantManager
+from testing.tool.network_tool.roku_wpa import roku_wpa
 
-
-class roku_wpa(WpaSupplicantManager):
-    pass
-
-gi
+__all__ = ["roku_wpa"]

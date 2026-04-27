@@ -285,6 +285,31 @@ def _run_snapshot_command(
     )
 
 
+def _read_snapshot_json(
+    *,
+    adb_executable: str,
+    adb_serial: str | None = None,
+    shell_args: list[str],
+    failure_label: str,
+    require_stdout: bool = True,
+) -> dict[str, object]:
+    result = _run_snapshot_command(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        shell_args=shell_args,
+    )
+    stdout = str(result.stdout or "").strip()
+    stderr = str(result.stderr or "").strip()
+    if result.returncode != 0 or (require_stdout and not stdout):
+        raise RuntimeError(
+            f"{failure_label} snapshot read failed.\n"
+            f"stdout:\n{stdout}\n"
+            f"stderr:\n{stderr}\n"
+            f"returncode={result.returncode}"
+    )
+    return json.loads(_extract_json_payload(stdout))
+
+
 def _read_snapshot_via_run_as(
     *,
     adb_executable: str,
@@ -292,21 +317,12 @@ def _read_snapshot_via_run_as(
     package_name: str = PACKAGE_NAME,
     status_file: str = DEFAULT_STATUS_FILE,
 ) -> dict[str, object]:
-    result = _run_snapshot_command(
+    return _read_snapshot_json(
         adb_executable=adb_executable,
         adb_serial=adb_serial,
         shell_args=["run-as", package_name, "cat", status_file],
+        failure_label="run-as",
     )
-    stdout = str(result.stdout or "").strip()
-    stderr = str(result.stderr or "").strip()
-    if result.returncode != 0 or not stdout:
-        raise RuntimeError(
-            "run-as snapshot read failed.\n"
-            f"stdout:\n{stdout}\n"
-            f"stderr:\n{stderr}\n"
-            f"returncode={result.returncode}"
-    )
-    return json.loads(_extract_json_payload(stdout))
 
 
 def _read_snapshot_via_public_file(
@@ -315,21 +331,12 @@ def _read_snapshot_via_public_file(
     adb_serial: str | None = None,
     status_file: str = DEFAULT_PUBLIC_STATUS_FILE,
 ) -> dict[str, object]:
-    result = _run_snapshot_command(
+    return _read_snapshot_json(
         adb_executable=adb_executable,
         adb_serial=adb_serial,
         shell_args=["cat", status_file],
+        failure_label="public",
     )
-    stdout = str(result.stdout or "").strip()
-    stderr = str(result.stderr or "").strip()
-    if result.returncode != 0 or not stdout:
-        raise RuntimeError(
-            "public snapshot read failed.\n"
-            f"stdout:\n{stdout}\n"
-            f"stderr:\n{stderr}\n"
-            f"returncode={result.returncode}"
-        )
-    return json.loads(_extract_json_payload(stdout))
 
 
 def _read_snapshot_via_content_provider(
@@ -338,21 +345,13 @@ def _read_snapshot_via_content_provider(
     adb_serial: str | None = None,
     status_uri: str = DEFAULT_STATUS_URI,
 ) -> dict[str, object]:
-    result = _run_snapshot_command(
+    return _read_snapshot_json(
         adb_executable=adb_executable,
         adb_serial=adb_serial,
         shell_args=["content", "read", "--uri", status_uri],
+        failure_label="content",
+        require_stdout=False,
     )
-    stdout = str(result.stdout or "").strip()
-    stderr = str(result.stderr or "").strip()
-    if result.returncode != 0:
-        raise RuntimeError(
-            "content snapshot read failed.\n"
-            f"stdout:\n{stdout}\n"
-            f"stderr:\n{stderr}\n"
-            f"returncode={result.returncode}"
-        )
-    return json.loads(_extract_json_payload(stdout))
 
 
 def read_android_client_snapshot(

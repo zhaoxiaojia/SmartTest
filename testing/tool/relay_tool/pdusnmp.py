@@ -154,8 +154,8 @@ class power_ctrl(Relay):
             return
         ip, relay_port = target
         action = (direction or "power_off").strip().lower()
-        off_alias = {"power_off", "off", "鏂€?}
-        on_alias = {"power_on", "on", "閫氭柇"}
+        off_alias = {"power_off", "off"}
+        on_alias = {"power_on", "on"}
         if action not in off_alias | on_alias:
             logging.warning("Unknown direction %s; defaulting to power_off", direction)
             action = "power_off"

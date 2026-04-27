@@ -226,6 +226,31 @@ def test_ensure_test_apk_installed_user_case_does_not_attempt_privapp(monkeypatc
     assert install_calls == ["install"]
 
 
+def test_ensure_test_apk_installed_user_case_reuses_existing_privapp(monkeypatch) -> None:
+    monkeypatch.setattr(Path, "exists", lambda self: True)
+    monkeypatch.setattr(android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
+    monkeypatch.setattr(android_client, "_ensure_device_ready_before_install", lambda **kwargs: None)
+    monkeypatch.setattr(android_client, "_package_code_path", lambda **kwargs: "/system/priv-app/SmartTestMobile/SmartTestMobile.apk")
+    monkeypatch.setattr(android_client, "_apk_hash", lambda apk_path: "hash-user")
+    monkeypatch.setattr(
+        android_client,
+        "_install_state_key",
+        lambda adb_serial=None, apk_path=None, package_name=android_client.PACKAGE_NAME: "ABC123|com.smarttest.mobile|C:\\fake.apk",
+    )
+    monkeypatch.setattr(android_client, "_load_install_state", lambda: {})
+    saved: dict[str, str] = {}
+    monkeypatch.setattr(android_client, "_save_install_state", lambda payload: saved.update(payload))
+    monkeypatch.setattr(android_client, "is_test_apk_installed", lambda adb_serial=None: True)
+    install_calls: list[str] = []
+    monkeypatch.setattr(android_client, "install_test_apk", lambda apk_path=None, adb_serial=None: install_calls.append("install"))
+
+    installed = android_client.ensure_test_apk_installed(adb_serial="ABC123", require_privileged=False)
+
+    assert installed is False
+    assert install_calls == []
+    assert saved["ABC123|com.smarttest.mobile|C:\\fake.apk"] == "privapp:hash-user"
+
+
 def test_ensure_test_apk_installed_privileged_case_requires_adb_root(monkeypatch) -> None:
     monkeypatch.setattr(Path, "exists", lambda self: True)
     monkeypatch.setattr(android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
