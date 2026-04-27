@@ -3,13 +3,16 @@ from __future__ import annotations
 import json
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from PySide6.QtCore import QObject, Property, QStandardPaths, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
 from testing.params.adb_devices import list_adb_devices
+from testing.reporting import ReportStore, build_run_report
 from testing.runner.execution import TestRunSession, start_pytest_run
 from testing.state.store import load_state, save_state
 
@@ -35,6 +38,12 @@ class RunBridge(QObject):
         self._step_index: dict[str, int] = {}
         self._session: TestRunSession | None = None
         self._stop_requested = False
+        self._run_id = ""
+        self._run_started_at = ""
+        self._run_started_monotonic = 0.0
+        self._run_selected_nodeids: list[str] = []
+        self._run_adb_serial: str | None = None
+        self._report_store = ReportStore(self._default_reports_dir())
 
         self._logSignal.connect(self._append_log)
         self._eventSignal.connect(self._apply_event)
@@ -43,6 +52,13 @@ class RunBridge(QObject):
     def _default_state_path(self) -> Path:
         base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
         return Path(base) / "SmartTest" / "test_page_state.json"
+
+    def _default_reports_dir(self) -> Path:
+        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
+        return Path(base) / "SmartTest" / "reports"
+
+    def _now_iso(self) -> str:
+        return datetime.now().astimezone().isoformat(timespec="seconds")
 
     def _resolve_adb_serial(self, saved_dut: str) -> str | None:
         devices = list_adb_devices()
@@ -86,6 +102,13 @@ class RunBridge(QObject):
         self._stderr_log_path.write_text("", encoding="utf-8")
         self.logsChanged.emit()
         self.stepsChanged.emit()
+
+    def _begin_report_context(self, *, nodeids: list[str], adb_serial: str | None) -> None:
+        self._run_id = uuid4().hex
+        self._run_started_at = self._now_iso()
+        self._run_started_monotonic = time.monotonic()
+        self._run_selected_nodeids = list(nodeids)
+        self._run_adb_serial = adb_serial
 
     def _append_local_log(self, path: Path, text: str) -> None:
         with path.open("a", encoding="utf-8") as fh:
@@ -238,16 +261,33 @@ class RunBridge(QObject):
                 self._append_log(message)
 
     def _finish_run(self, returncode: int) -> None:
-        self._set_running(False)
-        if self._session is not None:
-            self._session.cleanup()
-            self._session = None
         if self._stop_requested:
             self._append_log("[run] stopped")
         elif returncode == 0:
             self._append_log("[run] completed successfully")
         else:
             self._append_log(f"[run] failed with exit code {returncode}")
+        duration_ms = int((time.monotonic() - self._run_started_monotonic) * 1000) if self._run_started_monotonic else 0
+        report = build_run_report(
+            run_id=self._run_id,
+            started_at=self._run_started_at or self._now_iso(),
+            finished_at=self._now_iso(),
+            duration_ms=duration_ms,
+            returncode=returncode,
+            stopped=self._stop_requested,
+            adb_serial=self._run_adb_serial,
+            selected_nodeids=self._run_selected_nodeids,
+            steps=self._steps,
+            logs=self._logs,
+        )
+        try:
+            self._report_store.save(report)
+        except OSError as exc:
+            self.errorOccurred.emit(self.tr("Failed to save run report. {detail}").format(detail=str(exc)))
+        if self._session is not None:
+            self._session.cleanup()
+            self._session = None
+        self._set_running(False)
 
     @Slot(result=bool)
     def hasLogs(self) -> bool:
@@ -279,6 +319,7 @@ class RunBridge(QObject):
             return
 
         self._reset_run_data()
+        self._begin_report_context(nodeids=nodeids, adb_serial=adb_serial)
         self._stop_requested = False
         try:
             session = self._start_run_session(nodeids, adb_serial, case_configs)

@@ -22,7 +22,9 @@ from example.component.Callback import Callback
 from example.imports import resource_rc as rc
 from example.helper import Async
 from example.bridge.AuthBridge import AuthBridge
+from example.bridge.AIBridge import AIBridge
 from example.bridge.JiraBridge import JiraBridge
+from example.bridge.ReportBridge import ReportBridge
 from example.bridge.RunBridge import RunBridge
 from example.bridge.TestPageBridge import TestPageBridge
 
@@ -86,8 +88,10 @@ def main():
     context.setContextProperty("TranslateHelper", TranslateHelper())
     auth_bridge = AuthBridge()
     context.setContextProperty("AuthBridge", auth_bridge)
+    context.setContextProperty("AIBridge", AIBridge())
     context.setContextProperty("TestPageBridge", TestPageBridge(Path(__file__).resolve().parents[2]))
     context.setContextProperty("RunBridge", RunBridge(Path(__file__).resolve().parents[2]))
+    context.setContextProperty("ReportBridge", ReportBridge())
     context.setContextProperty("JiraBridge", JiraBridge(auth_bridge))
     FluentUI.registerTypes(engine)
     qml_file = QUrl("qrc:/example/qml/App.qml")

@@ -5,6 +5,7 @@ import logging
 import os
 import base64
 import ctypes
+import hashlib
 from ctypes import wintypes
 from datetime import datetime
 from pathlib import Path
@@ -15,11 +16,12 @@ from PySide6.QtCore import QObject, Property, QStandardPaths, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
 try:
-    from ldap3 import ALL, NTLM, Connection, Server
+    from ldap3 import ALL, NTLM, SUBTREE, Connection, Server
     from ldap3.core.exceptions import LDAPException
 except ImportError:  # pragma: no cover - runtime dependency
     ALL = None
     NTLM = None
+    SUBTREE = None
     Connection = None
     Server = None
 
@@ -42,7 +44,9 @@ class AuthBridge(QObject):
         self._username = ""
         self._authenticated = False
         self._password = ""
+        self._avatar_url = ""
         self._load_auth_state()
+        self._avatar_url = self._avatar_url_for_username(self._username)
 
     def _auth_state_path(self) -> Path:
         base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
@@ -51,6 +55,10 @@ class AuthBridge(QObject):
     def _auth_secret_path(self) -> Path:
         base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
         return Path(base) / "SmartTest" / AUTH_SECRET_FILENAME
+
+    def _avatar_dir(self) -> Path:
+        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
+        return Path(base) / "SmartTest" / "avatars"
 
     def _normalize_username(self, username: str) -> str:
         clean_username = (username or "").strip()
@@ -64,6 +72,7 @@ class AuthBridge(QObject):
             self._username = ""
             self._authenticated = False
             self._password = ""
+            self._avatar_url = ""
             return
 
         try:
@@ -73,6 +82,7 @@ class AuthBridge(QObject):
             self._username = ""
             self._authenticated = False
             self._password = ""
+            self._avatar_url = ""
             return
 
         username = str(data.get("username", "") or "").strip()
@@ -81,6 +91,7 @@ class AuthBridge(QObject):
         self._username = username if authenticated and stored_password else ""
         self._authenticated = authenticated and bool(username) and bool(stored_password)
         self._password = stored_password if self._authenticated else ""
+        self._avatar_url = self._avatar_url_for_username(self._username)
 
     def _save_auth_state(self) -> None:
         path = self._auth_state_path()
@@ -139,6 +150,67 @@ class AuthBridge(QObject):
         except Exception as exc:  # noqa: BLE001
             logging.warning("Failed to clear auth secret file %s: %s", path, exc)
 
+    def _avatar_path_for_username(self, username: str) -> Path:
+        digest = hashlib.sha256(username.strip().lower().encode("utf-8")).hexdigest()[:24]
+        return self._avatar_dir() / f"{digest}.jpg"
+
+    def _avatar_url_for_username(self, username: str) -> str:
+        clean_username = (username or "").strip()
+        if not clean_username:
+            return ""
+        path = self._avatar_path_for_username(clean_username)
+        return path.as_uri() if path.exists() else ""
+
+    def _set_avatar_bytes(self, username: str, avatar_bytes: bytes) -> str:
+        if not username or not avatar_bytes:
+            return ""
+        path = self._avatar_path_for_username(username)
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(avatar_bytes)
+            return path.as_uri()
+        except Exception as exc:  # noqa: BLE001
+            logging.warning("Failed to cache LDAP avatar %s: %s", path, exc)
+            return ""
+
+    def _fetch_ldap_avatar(self, connection: Connection, username: str) -> bytes:
+        if SUBTREE is None:
+            return b""
+        try:
+            naming_contexts = list((connection.server.info.other or {}).get("defaultNamingContext") or [])
+            search_base = str(naming_contexts[0]) if naming_contexts else ""
+            if not search_base:
+                return b""
+            account_name = username.split("\\")[-1].split("@")[0].strip()
+            escaped_account = _escape_ldap_filter_value(account_name)
+            escaped_username = _escape_ldap_filter_value(username)
+            search_filter = (
+                f"(|(sAMAccountName={escaped_account})(userPrincipalName={escaped_username})(mail={escaped_username}))"
+            )
+            if not connection.search(
+                search_base=search_base,
+                search_filter=search_filter,
+                search_scope=SUBTREE,
+                attributes=["thumbnailPhoto", "jpegPhoto"],
+                size_limit=1,
+            ):
+                return b""
+            if not connection.entries:
+                return b""
+            entry = connection.entries[0]
+            for attribute_name in ("thumbnailPhoto", "jpegPhoto"):
+                if attribute_name not in entry:
+                    continue
+                value = entry[attribute_name].value
+                if isinstance(value, bytes):
+                    return value
+                if isinstance(value, list) and value and isinstance(value[0], bytes):
+                    return value[0]
+            return b""
+        except Exception as exc:  # noqa: BLE001
+            logging.info("LDAP avatar lookup failed for %s: %s", username, exc)
+            return b""
+
     def _set_auth_state(self, *, username: str, authenticated: bool, password: str = "") -> None:
         next_username = (username or "").strip() if authenticated else ""
         next_password = password if authenticated else ""
@@ -146,6 +218,7 @@ class AuthBridge(QObject):
         self._username = next_username
         self._password = next_password if authenticated else ""
         self._authenticated = authenticated and bool(next_username)
+        self._avatar_url = self._avatar_url_for_username(next_username) if self._authenticated else ""
         if self._authenticated:
             self._save_auth_state()
             if next_password:
@@ -194,7 +267,8 @@ class AuthBridge(QObject):
                 domain_user,
                 server_host,
             )
-            return {"success": True, "username": clean_username, "detail": ""}
+            avatar_bytes = self._fetch_ldap_avatar(connection, clean_username)
+            return {"success": True, "username": clean_username, "detail": "", "avatar_bytes": avatar_bytes}
         except LDAPException as exc:
             logging.exception(
                 "ldap_authenticate: LDAP exception (username=%s, server=%s): %s",
@@ -231,6 +305,9 @@ class AuthBridge(QObject):
 
     def _get_username(self) -> str:
         return self._username
+
+    def _get_avatar_url(self) -> str:
+        return self._avatar_url
 
     def currentPassword(self) -> str:
         return self._password
@@ -278,6 +355,12 @@ class AuthBridge(QObject):
 
         validated_username = str(auth_result.get("username", "") or "").strip()
         self._set_auth_state(username=validated_username, authenticated=True, password=clean_password)
+        avatar_bytes = auth_result.get("avatar_bytes", b"")
+        if isinstance(avatar_bytes, bytes) and avatar_bytes:
+            avatar_url = self._set_avatar_bytes(validated_username, avatar_bytes)
+            if avatar_url:
+                self._avatar_url = avatar_url
+                self.authChanged.emit()
         return {
             "success": True,
             "message": self.tr("Sign-in successful. Welcome, {username}").format(username=validated_username),
@@ -291,6 +374,7 @@ class AuthBridge(QObject):
 
     authenticated = Property(bool, _get_authenticated, notify=authChanged)
     username = Property(str, _get_username, notify=authChanged)
+    avatarUrl = Property(str, _get_avatar_url, notify=authChanged)
 
 
 class _DataBlob(ctypes.Structure):
@@ -357,3 +441,13 @@ def _bytes_from_blob(blob: _DataBlob) -> bytes:
     if not blob.pbData or blob.cbData == 0:
         return b""
     return ctypes.string_at(blob.pbData, blob.cbData)
+
+
+def _escape_ldap_filter_value(value: str) -> str:
+    return (
+        value.replace("\\", r"\5c")
+        .replace("*", r"\2a")
+        .replace("(", r"\28")
+        .replace(")", r"\29")
+        .replace("\x00", r"\00")
+    )

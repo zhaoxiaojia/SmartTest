@@ -99,6 +99,10 @@ FluObject{
         openItem(item)
     }
 
+    function openReport(){
+        openItem(item_report)
+    }
+
     FluPaneItem{
         id:item_home
         count: 9
@@ -141,6 +145,15 @@ FluObject{
         menuDelegate: paneItemMenu
         icon: FluentIcons.ReportDocument
         url: "qrc:/example/qml/page/T_Report.qml"
+        onTap: { navigationView.push(url) }
+    }
+
+    FluPaneItem{
+        id: item_ai
+        title: qsTr("AI")
+        menuDelegate: paneItemMenu
+        icon: FluentIcons.Robot
+        url: "qrc:/example/qml/page/T_AI.qml"
         onTap: { navigationView.push(url) }
     }
 

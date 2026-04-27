@@ -2,6 +2,49 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="en_US">
 <context>
+    <name>AIBridge</name>
+    <message>
+        <location filename="bridge/AIBridge.py" line="32"/>
+        <source>Ready</source>
+        <translation>Ready</translation>
+    </message>
+    <message>
+        <location filename="bridge/AIBridge.py" line="33"/>
+        <source>Thinking...</source>
+        <translation>Thinking...</translation>
+    </message>
+    <message>
+        <location filename="bridge/AIBridge.py" line="34"/>
+        <source>AI request failed: {message}</source>
+        <translation>AI request failed: {message}</translation>
+    </message>
+    <message>
+        <location filename="bridge/AIBridge.py" line="35"/>
+        <source>New chat</source>
+        <translation>New chat</translation>
+    </message>
+    <message>
+        <location filename="bridge/AIBridge.py" line="36"/>
+        <source>Attachment is only available for text-like files.</source>
+        <translation>Attachment is only available for text-like files.</translation>
+    </message>
+    <message>
+        <location filename="bridge/AIBridge.py" line="37"/>
+        <source>Attachment is too large. Keep files under 1 MB for this preview.</source>
+        <translation>Attachment is too large. Keep files under 1 MB for this preview.</translation>
+    </message>
+    <message>
+        <location filename="bridge/AIBridge.py" line="38"/>
+        <source>Attachment could not be read: {message}</source>
+        <translation>Attachment could not be read: {message}</translation>
+    </message>
+    <message>
+        <location filename="bridge/AIBridge.py" line="39"/>
+        <source>No response content was returned.</source>
+        <translation>No response content was returned.</translation>
+    </message>
+</context>
+<context>
     <name>App</name>
     <message>
         <location filename="imports/example/qml/App.qml" line="60"/>
@@ -52,27 +95,27 @@
 <context>
     <name>AuthBridge</name>
     <message>
-        <location filename="bridge/AuthBridge.py" line="253"/>
+        <location filename="bridge/AuthBridge.py" line="330"/>
         <source>Account or password cannot be empty.</source>
         <translation>Account or password cannot be empty.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="260"/>
+        <location filename="bridge/AuthBridge.py" line="337"/>
         <source>ldap3 is not installed in the current Python environment.</source>
         <translation>ldap3 is not installed in the current Python environment.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="271"/>
+        <location filename="bridge/AuthBridge.py" line="348"/>
         <source>LDAP sign-in failed. {detail}</source>
         <translation>LDAP sign-in failed. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="274"/>
+        <location filename="bridge/AuthBridge.py" line="351"/>
         <source>LDAP sign-in failed. Please check your account or password.</source>
         <translation>LDAP sign-in failed. Please check your account or password.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="283"/>
+        <location filename="bridge/AuthBridge.py" line="366"/>
         <source>Sign-in successful. Welcome, {username}</source>
         <translation>Sign-in successful. Welcome, {username}</translation>
     </message>
@@ -139,7 +182,7 @@
     <message>
         <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="93"/>
         <source>Cancel</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cancel</translation>
     </message>
     <message>
         <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="101"/>
@@ -207,412 +250,417 @@
 <context>
     <name>ItemsOriginal</name>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="87"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="109"/>
         <source>Home</source>
         <translation>Home</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="104"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="126"/>
         <source>Test</source>
         <translation>Test</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="113"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="135"/>
         <source>Run</source>
         <translation>Run</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="122"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="144"/>
         <source>Report</source>
         <translation>Report</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="131"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="153"/>
+        <source>AI</source>
+        <translation>AI</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="162"/>
         <source>Debug</source>
         <translation>Debug</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="140"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="171"/>
         <source>Jira</source>
         <translation>Jira</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="148"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="179"/>
         <source>PaneItemExpander Disabled</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="155"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="186"/>
         <source>Basic Input</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="163"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="194"/>
         <source>Buttons</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="165"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="196"/>
         <source>A control that responds to user input and raisesa Click event.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="174"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="205"/>
         <source>Text</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="188"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="219"/>
         <source>Image</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="194"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="225"/>
         <source>Slider</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="196"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="227"/>
         <source>A control that lets the user select from a rangeof values by moving a Thumb control along atrack.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="201"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="232"/>
         <source>CheckBox</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="203"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="234"/>
         <source>A control that a user can select or clear.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="208"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="239"/>
         <source>RadioButton</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="214"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="245"/>
         <source>ToggleSwitch</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="220"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="251"/>
         <source>GroupBox</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="226"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="257"/>
         <source>PaneItem Disabled</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="233"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="264"/>
         <source>Form</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="236"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="267"/>
         <source>TextBox</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="242"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="273"/>
         <source>TimePicker</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="248"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="279"/>
         <source>DatePicker</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="254"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="285"/>
         <source>CalendarPicker</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="260"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="291"/>
         <source>ColorPicker</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="266"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="297"/>
         <source>ShortcutPicker</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="274"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="305"/>
         <source>Surface</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="277"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="308"/>
         <source>InfoBar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="279"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="310"/>
         <source>An inline message to display app-wide statuschange information.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="284"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="315"/>
         <source>Progress</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="290"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="321"/>
         <source>RatingControl</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="296"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="327"/>
         <source>Badge</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="302"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="333"/>
         <source>Rectangle</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="308"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="339"/>
         <source>Clip</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="314"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="345"/>
         <source>Carousel</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="320"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="351"/>
         <source>Expander</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="326"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="357"/>
         <source>Watermark</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="334"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="365"/>
         <source>Layout</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="337"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="368"/>
         <source>StaggeredLayout</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="343"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="374"/>
         <source>SplitLayout</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="349"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="380"/>
         <source>StatusLayout</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="357"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="388"/>
         <source>Popus</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="360"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="391"/>
         <source>Dialog</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="367"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="398"/>
         <source>ComboBox</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="381"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="412"/>
         <source>Tooltip</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="387"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="418"/>
         <source>Menu</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="393"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="424"/>
         <source>Sheet</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="401"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="432"/>
         <source>Navigation</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="404"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="435"/>
         <source>Pivot</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="406"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="437"/>
         <source>Presents information from different sources in a tabbed view.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="411"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="442"/>
         <source>BreadcrumbBar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="417"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="448"/>
         <source>TabView</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="419"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="450"/>
         <source>A control that displays a collection of tabs thatcan be used to display several documents.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="424"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="455"/>
         <source>TreeView</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="430"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="461"/>
         <source>TableView</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="432"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="463"/>
         <source>The TableView control provides a flexible way to display a collection of data in rows and columns</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="437"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="468"/>
         <source>Pagination</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="443"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="474"/>
         <source>MultiWindow</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="449"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="480"/>
         <source>FlipView</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="451"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="482"/>
         <source>Presents a collection of items that the user canflip through, one item at a time.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="458"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="489"/>
         <source>Theming</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="461"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="492"/>
         <source>Acrylic</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="467"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="498"/>
         <source>Theme</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="473"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="504"/>
         <source>Typography</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="479"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="510"/>
         <source>Icons</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="487"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="518"/>
         <source>Chart</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="490"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="521"/>
         <source>Bar Chart</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="496"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="527"/>
         <source>Line Chart</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="502"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="533"/>
         <source>Pie Chart</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="508"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="539"/>
         <source>Polar Area Chart</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="514"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="545"/>
         <source>Bubble Chart</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="520"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="551"/>
         <source>Scatter Chart</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="526"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="557"/>
         <source>Radar Chart</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="539"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="570"/>
         <source>Other</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="542"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="573"/>
         <source>OpenGL</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="548"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="579"/>
         <source>QRCode</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="554"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="585"/>
         <source>Tour</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="560"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="591"/>
         <source>Timeline</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="566"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="597"/>
         <source>Captcha</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="573"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="604"/>
         <source>Remote Loader</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="587"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="618"/>
         <source>Hot Loader</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1024,114 +1072,114 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="65"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="66"/>
         <source>About</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="134"/>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="167"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="149"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="182"/>
         <source>Quit</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="135"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="150"/>
         <source>Are you sure you want to exit the program?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="136"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="151"/>
         <source>Minimize</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="144"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="159"/>
         <source>Remember my choice</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="168"/>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="440"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="183"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="455"/>
         <source>Cancel</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cancel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="183"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="198"/>
         <source>Open in Separate Window</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="283"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="298"/>
         <source>Click Time</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="293"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="308"/>
         <source>Search</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="342"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="357"/>
         <source>Friendly Reminder</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="342"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="357"/>
         <source>SmartTest is hidden from the tray, click on the tray to activate the window again</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="420"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="435"/>
         <source>Finish</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="421"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="436"/>
         <source>Next</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="422"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="437"/>
         <source>Previous</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="426"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="441"/>
         <source>Dark Mode</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="426"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="441"/>
         <source>Here you can switch to night mode.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="428"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="443"/>
         <source>Hide Easter eggs</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="428"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="443"/>
         <source>Try a few more clicks!!</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="437"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="452"/>
         <source>Upgrade Tips</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="438"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="453"/>
         <source>SmartTest update </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="438"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="453"/>
         <source> -- Current version </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="438"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="453"/>
         <source> 
 
 Updated content: 
@@ -1139,17 +1187,17 @@ Updated content:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="441"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="456"/>
         <source>OK</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="470"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="485"/>
         <source>The current version is already the latest</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="477"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="492"/>
         <source>Update service is not configured</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1157,12 +1205,17 @@ Updated content:
 <context>
     <name>RunBridge</name>
     <message>
-        <location filename="bridge/RunBridge.py" line="229"/>
+        <location filename="bridge/RunBridge.py" line="286"/>
+        <source>Failed to save run report. {detail}</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="bridge/RunBridge.py" line="318"/>
         <source>No selected test cases to run.</source>
         <translation>No selected test cases to run.</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="237"/>
+        <location filename="bridge/RunBridge.py" line="328"/>
         <source>Failed to start pytest run. {detail}</source>
         <translation>Failed to start pytest run. {detail}</translation>
     </message>
@@ -1213,7 +1266,7 @@ Updated content:
     <message>
         <location filename="imports/example/qml/window/StandardWindow.qml" line="21"/>
         <source>Save</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Save</translation>
     </message>
     <message>
         <location filename="imports/example/qml/window/StandardWindow.qml" line="22"/>
@@ -1238,7 +1291,7 @@ Updated content:
     <message>
         <location filename="imports/example/qml/window/StandardWindow.qml" line="29"/>
         <source>Copy</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Copy</translation>
     </message>
     <message>
         <location filename="imports/example/qml/window/StandardWindow.qml" line="30"/>
@@ -1259,6 +1312,428 @@ Updated content:
         <location filename="imports/example/qml/window/StandardWindow.qml" line="40"/>
         <source>I&apos;m a Standard mode window, and every time I create a new window</source>
         <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>T_AI</name>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="9"/>
+        <source>AI Assistant</source>
+        <translation>AI Assistant</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="286"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1607"/>
+        <source>Attach File</source>
+        <translation>Attach File</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="288"/>
+        <source>Text files</source>
+        <translation>Text files</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="289"/>
+        <source>All files</source>
+        <translation>All files</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="300"/>
+        <source>Start group chat</source>
+        <translation>Start group chat</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="305"/>
+        <source>View files in chat</source>
+        <translation>View files in chat</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="310"/>
+        <source>Move to project</source>
+        <translation>Move to project</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="324"/>
+        <source>Pin chat</source>
+        <translation>Pin chat</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="329"/>
+        <source>Archive</source>
+        <translation>Archive</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="336"/>
+        <source>Rename</source>
+        <translation>Rename</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="367"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="446"/>
+        <source>Rename project</source>
+        <translation>Rename project</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="374"/>
+        <source>Delete project</source>
+        <translation>Delete project</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="383"/>
+        <source>Rename chat</source>
+        <translation>Rename chat</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="384"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="428"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="447"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="491"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="581"/>
+        <source>Cancel</source>
+        <translation>Cancel</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="385"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="448"/>
+        <source>Save</source>
+        <translation>Save</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="426"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="436"/>
+        <source>Delete chat?</source>
+        <translation>Delete chat?</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="427"/>
+        <source>This chat will be removed from SmartTest chat history.</source>
+        <translation>This chat will be removed from SmartTest chat history.</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="437"/>
+        <source>Delete &quot;%1&quot; from SmartTest chat history?</source>
+        <translation>Delete &quot;%1&quot; from SmartTest chat history?</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="489"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="503"/>
+        <source>Delete project?</source>
+        <translation>Delete project?</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="490"/>
+        <source>Project chats will remain in chat history.</source>
+        <translation>Project chats will remain in chat history.</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="504"/>
+        <source>Delete &quot;%1&quot;? Project chats will remain in chat history.</source>
+        <translation>Delete &quot;%1&quot;? Project chats will remain in chat history.</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="514"/>
+        <source>Share chat</source>
+        <translation>Share chat</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="515"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="695"/>
+        <source>Close</source>
+        <translation>Close</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="516"/>
+        <source>Copy Link</source>
+        <translation>Copy Link</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="516"/>
+        <source>Create Link</source>
+        <translation>Create Link</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="532"/>
+        <source>A local HTML snapshot will be created. Anyone who can access the copied file link can view this chat snapshot.</source>
+        <translation>A local HTML snapshot will be created. Anyone who can access the copied file link can view this chat snapshot.</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="548"/>
+        <source>Create a link to copy it</source>
+        <translation>Create a link to copy it</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="553"/>
+        <source>Delete shared link</source>
+        <translation>Delete shared link</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="580"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="582"/>
+        <source>Create project</source>
+        <translation>Create project</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="597"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="605"/>
+        <source>Project name</source>
+        <translation>Project name</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1545"/>
+        <source>This project collects chats, shared context, and uploaded files.</source>
+        <translation>This project collects chats, shared context, and uploaded files.</translation>
+    </message>
+    <message>
+        <source>Projects can collect chats and custom context for continued work.</source>
+        <translation type="vanished">Projects can collect chats and custom context for continued work.</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="686"/>
+        <source>Search chats...</source>
+        <translation>Search chats...</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="760"/>
+        <source>Today</source>
+        <translation>Today</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="855"/>
+        <source>Collapse Sidebar</source>
+        <translation>Collapse Sidebar</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="880"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="915"/>
+        <source>Search Chats</source>
+        <translation>Search Chats</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1410"/>
+        <source>New chat in %1</source>
+        <translation>New chat in %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1446"/>
+        <source>Sources</source>
+        <translation>Sources</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1462"/>
+        <source>No chats in this project yet.</source>
+        <translation>No chats in this project yet.</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1462"/>
+        <source>Chats in this project</source>
+        <translation>Chats in this project</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1496"/>
+        <source>No preview</source>
+        <translation>No preview</translation>
+    </message>
+    <message>
+        <source>%1 chats are available here.</source>
+        <translation type="vanished">%1 chats are available here.</translation>
+    </message>
+    <message>
+        <source>Hide chat list</source>
+        <translation type="vanished">Hide chat list</translation>
+    </message>
+    <message>
+        <source>Manage chats</source>
+        <translation type="vanished">Manage chats</translation>
+    </message>
+    <message>
+        <source>Select chats to include in this project</source>
+        <translation type="vanished">Select chats to include in this project</translation>
+    </message>
+    <message>
+        <source> messages</source>
+        <translation type="vanished"> messages</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1538"/>
+        <source>Ask this project</source>
+        <translation>Ask this project</translation>
+    </message>
+    <message>
+        <source>%1 chats will appear here.</source>
+        <translation type="vanished">%1 chats will appear here.</translation>
+    </message>
+    <message>
+        <source>Codex</source>
+        <translation type="vanished">Codex</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="887"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="985"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1111"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1222"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1342"/>
+        <source>More</source>
+        <translation>More</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="935"/>
+        <source>Projects</source>
+        <translation>Projects</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="103"/>
+        <source>New Project</source>
+        <translation>New Project</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="106"/>
+        <source>Test Notes</source>
+        <translation>Test Notes</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="633"/>
+        <source>Projects are collections of chats. They can share context and uploaded files for continued work.</source>
+        <translation>Projects are collections of chats. They can share context and uploaded files for continued work.</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1048"/>
+        <source>Recent</source>
+        <translation>Recent</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="65"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="68"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="77"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="786"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1096"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1116"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1488"/>
+        <source>Untitled Chat</source>
+        <translation>Untitled Chat</translation>
+    </message>
+    <message>
+        <source>Me</source>
+        <translation type="vanished">Me</translation>
+    </message>
+    <message>
+        <source>SmartTest</source>
+        <translation type="vanished">SmartTest</translation>
+    </message>
+    <message>
+        <source>Pro</source>
+        <translation type="vanished">Pro</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1190"/>
+        <source>DeepSeek Chat</source>
+        <translation>DeepSeek Chat</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1197"/>
+        <source>Preview</source>
+        <translation>Preview</translation>
+    </message>
+    <message>
+        <source>Memory Off</source>
+        <translation type="vanished">Memory Off</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="342"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="362"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1213"/>
+        <source>Share</source>
+        <translation>Share</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1320"/>
+        <source>Copy</source>
+        <translation>Copy</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1331"/>
+        <source>Retry</source>
+        <translation>Retry</translation>
+    </message>
+    <message>
+        <source>Developer Mode</source>
+        <translation type="vanished">Developer Mode</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1581"/>
+        <source>Ask anything</source>
+        <translation>Ask anything</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1616"/>
+        <source>Quick</source>
+        <translation>Quick</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1621"/>
+        <source>Notion</source>
+        <translation>Notion</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1642"/>
+        <source>Voice</source>
+        <translation>Voice</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1672"/>
+        <source>SmartTest AI can make mistakes. Verify important information.</source>
+        <translation>SmartTest AI can make mistakes. Verify important information.</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1439"/>
+        <source>Chats</source>
+        <translation>Chats</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="741"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="870"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="903"/>
+        <source>New Chat</source>
+        <translation>New Chat</translation>
+    </message>
+    <message>
+        <source>%1 messages</source>
+        <translation type="vanished">%1 messages</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="350"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="429"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="492"/>
+        <source>Delete</source>
+        <translation>Delete</translation>
+    </message>
+    <message>
+        <source>SmartTest AI</source>
+        <translation type="vanished">SmartTest AI</translation>
+    </message>
+    <message>
+        <source>Attach</source>
+        <translation type="vanished">Attach</translation>
+    </message>
+    <message>
+        <source>You</source>
+        <translation type="vanished">You</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_AI.qml" line="1299"/>
+        <source>Thinking...</source>
+        <translation>Thinking...</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation type="vanished">Remove</translation>
+    </message>
+    <message>
+        <source>Ask about logs, Jira, test failures, adb, pytest, or SmartTest...</source>
+        <translation type="vanished">Ask about logs, Jira, test failures, adb, pytest, or SmartTest...</translation>
+    </message>
+    <message>
+        <source>Send</source>
+        <translation type="vanished">Send</translation>
     </message>
 </context>
 <context>
@@ -1658,7 +2133,7 @@ Updated content:
         <location filename="imports/example/qml/page/T_Dialog.qml" line="49"/>
         <location filename="imports/example/qml/page/T_Dialog.qml" line="102"/>
         <source>Cancel</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cancel</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Dialog.qml" line="51"/>
@@ -2397,7 +2872,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_Menu.qml" line="17"/>
         <location filename="imports/example/qml/page/T_Menu.qml" line="123"/>
         <source>Save</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Save</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Menu.qml" line="20"/>
@@ -2464,7 +2939,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
     <message>
         <location filename="imports/example/qml/page/T_Menu.qml" line="139"/>
         <source>Copy</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Copy</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Menu.qml" line="140"/>
@@ -2704,14 +3179,82 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation>Report</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="18"/>
-        <source>Reports</source>
-        <translation>Reports</translation>
+        <location filename="imports/example/qml/page/T_Report.qml" line="123"/>
+        <source>Runs</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="22"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="133"/>
+        <source>Refresh</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="141"/>
+        <source>No reports yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="175"/>
+        <source>Unknown time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="190"/>
+        <source>Total %1  Passed %2  Failed %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="198"/>
+        <source>No DUT</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="226"/>
+        <source>Run a test to generate the first report.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="261"/>
+        <source>Total</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="262"/>
+        <source>Passed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="263"/>
+        <source>Failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="264"/>
+        <source>Skipped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="265"/>
+        <source>Duration</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="314"/>
+        <source>Cases</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="382"/>
+        <source>Logs</source>
+        <translation type="unfinished">Logs</translation>
+    </message>
+    <message>
+        <source>Reports</source>
+        <translation type="vanished">Reports</translation>
+    </message>
+    <message>
         <source>Browse historical runs and export reports.</source>
-        <translation>Browse historical runs and export reports.</translation>
+        <translation type="vanished">Browse historical runs and export reports.</translation>
     </message>
 </context>
 <context>
@@ -2726,22 +3269,27 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">Run Tests</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="59"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="157"/>
         <source>Steps</source>
         <translation>Steps</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="123"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="257"/>
         <source>Logs</source>
         <translation>Logs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="159"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="323"/>
+        <source>Follow Latest</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="350"/>
         <source>Start</source>
         <translation>Start</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="159"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="350"/>
         <source>Stop</source>
         <translation>Stop</translation>
     </message>
@@ -2798,7 +3346,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
     <message>
         <location filename="imports/example/qml/page/T_Settings.qml" line="81"/>
         <source>Cancel</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cancel</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Settings.qml" line="82"/>
@@ -2964,7 +3512,7 @@ Some contents...</source>
     <message>
         <location filename="imports/example/qml/page/T_TableView.qml" line="74"/>
         <source>Cancel</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cancel</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_TableView.qml" line="92"/>
@@ -2985,7 +3533,7 @@ Some contents...</source>
     <message>
         <location filename="imports/example/qml/page/T_TableView.qml" line="211"/>
         <source>Delete</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Delete</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_TableView.qml" line="218"/>
@@ -3066,80 +3614,90 @@ Some contents...</source>
 <context>
     <name>T_TestConfig</name>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="8"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="10"/>
         <source>Test</source>
         <oldsource>TestConfig</oldsource>
         <translation>Test</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="28"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="30"/>
         <source>Global</source>
         <translation>Global</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="31"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="33"/>
         <source>Shared by Case Type</source>
         <translation>Shared by Case Type</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="33"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="35"/>
         <source>Per Case</source>
         <translation>Per Case</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="172"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="173"/>
         <source>Test Cases</source>
         <translation>Test Cases</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="177"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="178"/>
         <source>Filter by file...</source>
         <translation>Filter by file...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="226"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="227"/>
         <source>Selected (%1)</source>
         <translation>Selected (%1)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="346"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="347"/>
         <source>Case Parameters (%1)</source>
         <translation>Case Parameters (%1)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="362"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="363"/>
         <source>Select one or more test files to inspect the required parameters for each case.</source>
         <translation>Select one or more test files to inspect the required parameters for each case.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="403"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="404"/>
         <source>No configurable parameters are required for this case.</source>
         <translation>No configurable parameters are required for this case.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="479"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="567"/>
+        <source>No paired Bluetooth devices found on the current DUT.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="576"/>
         <source>Enabled</source>
         <translation>Enabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="479"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="576"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="533"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="628"/>
         <source>DUT</source>
         <translation>DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="592"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="698"/>
         <source>Stop</source>
         <translation type="unfinished">Stop</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="592"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="698"/>
         <source>Start</source>
         <translation type="unfinished">Start</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="704"/>
+        <source>Run</source>
+        <translation type="unfinished">Run</translation>
     </message>
     <message>
         <source>Global (DUT / Environment)</source>
@@ -3278,7 +3836,7 @@ Some contents...</source>
         <location filename="imports/example/qml/page/T_TimePicker.qml" line="34"/>
         <location filename="imports/example/qml/page/T_TimePicker.qml" line="74"/>
         <source>Cancel</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cancel</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_TimePicker.qml" line="35"/>
@@ -3344,7 +3902,7 @@ Some contents...</source>
         <location filename="imports/example/qml/page/T_Tooltip.qml" line="34"/>
         <location filename="imports/example/qml/page/T_Tooltip.qml" line="72"/>
         <source>Delete</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Delete</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Tooltip.qml" line="36"/>
@@ -3384,7 +3942,7 @@ Some contents...</source>
         <location filename="imports/example/qml/page/T_Tour.qml" line="52"/>
         <location filename="imports/example/qml/page/T_Tour.qml" line="54"/>
         <source>Save</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Save</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Tour.qml" line="16"/>
@@ -3415,7 +3973,7 @@ Some contents...</source>
     <message>
         <location filename="imports/example/qml/page/T_Tour.qml" line="61"/>
         <source>More</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">More</translation>
     </message>
 </context>
 <context>
@@ -3465,7 +4023,7 @@ Some contents...</source>
 <context>
     <name>TestPageBridge</name>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="58"/>
+        <location filename="bridge/TestPageBridge.py" line="73"/>
         <source>DUT</source>
         <translation>DUT</translation>
     </message>
