@@ -8,6 +8,8 @@ This file defines how Codex should work in this repository.
 2. Preserve known-good behavior: if the user says "this used to work", treat it as a regression and fix root cause.
 3. Keep architecture layered: UI (FluentUI/QML) + test runner (pytest) + reserved integrations (debug/Jira).
 4. Make changes intentionally: discuss large modules and design first, then implement.
+5. Design and verify toward the installed/packaged runtime first. `python main.py` debug runs are useful for development, but final behavior must match the normal installed app.
+6. After each code or resource change, rebuild the packaged app/installer before handoff when packaging is feasible in the current environment.
 
 ## 1. Frontend Rules (FluentUI First)
 
@@ -36,9 +38,13 @@ This file defines how Codex should work in this repository.
 ### Source vs Packaged App
 
 - Distinguish clearly between the source-run app and packaged binaries.
+- The product target is the installed/packaged app ("run"), not only the source/debug path ("debug run").
+- The product target is the installed/packaged app ("运行"), not only the source/debug path ("调试运行"). Development decisions must account for packaged runtime behavior such as `sys.frozen`, bundled resources, subprocess behavior, and stale installed artifacts.
 - Source validation must use repo root `main.py`, which ensures the in-repo `ui/` packages are imported first.
 - Do not assume `SmartTest.exe` reflects current source edits. A previously built exe may contain stale QML/resources.
 - Before telling the user to test with `SmartTest.exe`, confirm whether a packaging/build step is also required and say so explicitly.
+- If source-run and packaged-run behavior differ, treat packaged-run as the release target and debug the divergence instead of accepting source-run success as sufficient.
+- After changes, rebuild the packaged artifact before handoff whenever possible. If packaging cannot be completed, state the blocker and do not imply that the installed app includes the changes.
 - In handoff notes for UI work, state which entrypoint was verified:
   - source: `.\.venv\Scripts\python.exe main.py`
   - packaged: `SmartTest.exe` or other built artifact

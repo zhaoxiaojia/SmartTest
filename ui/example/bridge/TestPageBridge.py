@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 import sys
+from threading import Thread
+import time
 from typing import Any
 
 from PySide6.QtCore import QObject, Signal, Slot, QStandardPaths
 from PySide6.QtGui import QGuiApplication
 
+from testing.cases.catalog import is_packaged_runtime, load_packaged_test_catalog
 from testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
 from testing.params.adb_devices import list_adb_devices
 from testing.params.registry import SchemaRegistry, default_registry
 from testing.params.schema import ParamField, ParamSchema, ParamScope, defaults_for_schema
+from testing.state.local_store import load_pref, save_pref
 from testing.state.models import SelectedCase, TestPageState
 from testing.state.store import load_state, save_state
 
@@ -19,6 +24,9 @@ class TestPageBridge(QObject):
     casesChanged = Signal()
     stateChanged = Signal()
     errorOccurred = Signal(str)
+    _discoveryResult = Signal("QVariantList", int)
+    _discoveryError = Signal(str, int)
+    _adbRefreshResult = Signal("QVariantList", int)
 
     def __init__(self, root_dir: Path):
         super().__init__(QGuiApplication.instance())
@@ -28,9 +36,30 @@ class TestPageBridge(QObject):
         self._cases_by_nodeid: dict[str, dict[str, Any]] = {}
         self._cases_by_file: dict[str, list[dict[str, Any]]] = {}
         self._state_path = self._default_state_path()
+        self._trace_log_path = self._state_path.parent / "test_page_trace.log"
+        self._frontend_pref_path = self._state_path.parent / "frontend_prefs.json"
         self._state = load_state(self._state_path)
-        self._adb_devices: list[str] = []
+        self._adb_devices = self._load_cached_adb_devices()
+        self._adb_refresh_running = False
+        self._adb_refresh_started = False
+        self._discovery_running = False
+        self._discovery_loaded = False
+        self._discoveryResult.connect(self._apply_discovery_result)
+        self._discoveryError.connect(self._apply_discovery_error)
+        self._adbRefreshResult.connect(self._apply_adb_refresh_result)
         self._ensure_state_defaults()
+        self._sync_dut_selection()
+
+    def _trace(self, stage: str, **values: Any) -> None:
+        details = " ".join(f"{key}={values[key]}" for key in sorted(values))
+        line = f"{_trace_timestamp()} [TEST_UI] {stage} {details}".rstrip()
+        print(line)
+        try:
+            self._trace_log_path.parent.mkdir(parents=True, exist_ok=True)
+            with self._trace_log_path.open("a", encoding="utf-8") as fh:
+                fh.write(line + "\n")
+        except Exception:
+            pass
 
     def _default_state_path(self) -> Path:
         base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
@@ -51,6 +80,54 @@ class TestPageBridge(QObject):
 
     def _refresh_adb_devices(self) -> None:
         self._adb_devices = list_adb_devices()
+
+    def _load_cached_adb_devices(self) -> list[str]:
+        cached = load_pref(self._frontend_pref_path, "test.dut.devices", [])
+        if not isinstance(cached, list):
+            return []
+        devices: list[str] = []
+        for value in cached:
+            serial = str(value or "").strip()
+            if serial and serial not in devices:
+                devices.append(serial)
+        return devices
+
+    def _save_cached_adb_devices(self, devices: list[str]) -> None:
+        normalized: list[str] = []
+        for value in devices:
+            serial = str(value or "").strip()
+            if serial and serial not in normalized:
+                normalized.append(serial)
+        save_pref(self._frontend_pref_path, "test.dut.devices", normalized)
+
+    def _schedule_adb_refresh(self, reason: str) -> None:
+        if self._adb_refresh_running:
+            self._trace("adb_refresh_skip_running", reason=reason)
+            return
+        self._adb_refresh_running = True
+        self._trace("adb_refresh_start", reason=reason)
+        Thread(target=self._refresh_adb_devices_worker, daemon=True).start()
+
+    def _refresh_adb_devices_worker(self) -> None:
+        started_at = time.monotonic()
+        devices = list_adb_devices()
+        self._adbRefreshResult.emit(devices, int((time.monotonic() - started_at) * 1000))
+
+    @Slot("QVariantList", int)
+    def _apply_adb_refresh_result(self, devices: list[Any], elapsed_ms: int) -> None:
+        self._adb_refresh_running = False
+        normalized: list[str] = []
+        for value in devices:
+            serial = str(value or "").strip()
+            if serial and serial not in normalized:
+                normalized.append(serial)
+        self._adb_devices = normalized
+        self._save_cached_adb_devices(self._adb_devices)
+        changed = self._sync_dut_selection()
+        if changed:
+            save_state(self._state_path, self._state)
+        self._trace("adb_refresh_done", devices=len(self._adb_devices), elapsed_ms=elapsed_ms)
+        self.stateChanged.emit()
 
     def _sync_dut_selection(self) -> bool:
         current = str(self._state.global_context.get("dut", "") or "").strip()
@@ -292,16 +369,76 @@ class TestPageBridge(QObject):
 
     @Slot()
     def discoverCases(self) -> None:
+        started_at = time.monotonic()
+        self._trace(
+            "discover_start",
+            packaged=is_packaged_runtime(),
+            root_dir=str(self._root_dir),
+            executable=sys.executable,
+        )
+        if self._discovery_loaded and self._cases:
+            self._trace(
+                "discover_cached",
+                cases=len(self._cases),
+                elapsed_ms=int((time.monotonic() - started_at) * 1000),
+            )
+            self.casesChanged.emit()
+            return
+        if self._discovery_running:
+            self._trace(
+                "discover_skip_running",
+                elapsed_ms=int((time.monotonic() - started_at) * 1000),
+            )
+            return
+        self._discovery_running = True
+        if not self._adb_refresh_started:
+            self._adb_refresh_started = True
+            self._schedule_adb_refresh("page_init_async")
+        Thread(target=self._discover_cases_worker, args=(started_at,), daemon=True).start()
+
+    def _discover_cases_worker(self, started_at: float) -> None:
+        if is_packaged_runtime():
+            load_started = time.monotonic()
+            cases = load_packaged_test_catalog()
+            self._trace(
+                "catalog_loaded",
+                cases=len(cases),
+                elapsed_ms=int((time.monotonic() - load_started) * 1000),
+            )
+            if not cases:
+                self._discoveryError.emit("Packaged test catalog is missing or empty.", int((time.monotonic() - started_at) * 1000))
+                return
+            rows = [
+                {
+                    "nodeid": str(c.get("nodeid", "")),
+                    "file": str(c.get("file", "")),
+                    "name": str(c.get("name", "")),
+                    "markers": [str(m) for m in list(c.get("markers") or [])],
+                    "case_type": str(c.get("case_type", "default")),
+                    "required_params": [str(p) for p in list(c.get("required_params") or [])],
+                    "required_param_groups": [str(g) for g in list(c.get("required_param_groups") or [])],
+                    "android_case_id": str(c.get("android_case_id", "")),
+                }
+                for c in cases
+            ]
+            self._discoveryResult.emit(rows, int((time.monotonic() - started_at) * 1000))
+            return
         try:
+            collect_started = time.monotonic()
             cases = discover_pytest_cases(root_dir=self._root_dir, python_executable=sys.executable)
+            self._trace(
+                "pytest_collect_done",
+                cases=len(cases),
+                elapsed_ms=int((time.monotonic() - collect_started) * 1000),
+            )
         except PytestDiscoveryError as e:
-            self.errorOccurred.emit(str(e))
+            self._discoveryError.emit(str(e), int((time.monotonic() - started_at) * 1000))
             return
         except Exception as e:  # noqa: BLE001
-            self.errorOccurred.emit(f"Pytest discovery failed: {e}")
+            self._discoveryError.emit(f"Pytest discovery failed: {e}", int((time.monotonic() - started_at) * 1000))
             return
 
-        self._cases = [
+        rows = [
             {
                 "nodeid": c.nodeid,
                 "file": c.file,
@@ -313,12 +450,30 @@ class TestPageBridge(QObject):
             }
             for c in cases
         ]
+        self._discoveryResult.emit(rows, int((time.monotonic() - started_at) * 1000))
+
+    @Slot("QVariantList", int)
+    def _apply_discovery_result(self, rows: list[dict[str, Any]], elapsed_ms: int) -> None:
+        self._cases = [dict(row) for row in rows]
         self._rebuild_case_indexes()
         changed = self._sync_selected_file_order()
         changed = self._reorder_selected_cases_by_file_order() or changed
         if changed:
             save_state(self._state_path, self._state)
+        self._discovery_running = False
+        self._discovery_loaded = True
         self.casesChanged.emit()
+        self._trace(
+            "discover_done",
+            cases=len(self._cases),
+            elapsed_ms=elapsed_ms,
+        )
+
+    @Slot(str, int)
+    def _apply_discovery_error(self, message: str, elapsed_ms: int) -> None:
+        self._discovery_running = False
+        self._trace("discover_error", elapsed_ms=elapsed_ms, error=message)
+        self.errorOccurred.emit(message)
 
     @Slot(result="QVariantList")
     def cases(self):
@@ -504,19 +659,11 @@ class TestPageBridge(QObject):
 
     @Slot(result="QVariantMap")
     def globalSchema(self):
-        self._refresh_adb_devices()
-        changed = self._sync_dut_selection()
-        if changed:
-            save_state(self._state_path, self._state)
         return self._schema_to_jsonable(self._registry.global_context)
 
     @Slot()
     def refreshGlobalSchema(self) -> None:
-        self._refresh_adb_devices()
-        changed = self._sync_dut_selection()
-        if changed:
-            save_state(self._state_path, self._state)
-        self.stateChanged.emit()
+        self._schedule_adb_refresh("user_refresh")
 
     @Slot(result="QVariantMap")
     def globalContext(self):
@@ -628,3 +775,7 @@ class TestPageBridge(QObject):
     def _save_and_emit(self) -> None:
         save_state(self._state_path, self._state)
         self.stateChanged.emit()
+
+
+def _trace_timestamp() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]

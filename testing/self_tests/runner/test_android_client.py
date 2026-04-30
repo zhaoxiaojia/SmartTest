@@ -22,7 +22,7 @@ def test_android_client_installed_returns_true_for_pm_path(monkeypatch) -> None:
     monkeypatch.setattr(runner_android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
     monkeypatch.setattr("testing.params.adb_devices.list_adb_devices", lambda: ["ABC123", "XYZ789"])
 
-    def fake_run(cmd, capture_output, text, check):  # noqa: ANN001
+    def fake_run(cmd, capture_output, text, check, **kwargs):  # noqa: ANN001
         return subprocess.CompletedProcess(cmd, 0, stdout="package:/data/app/com.smarttest.mobile/base.apk\n", stderr="")
 
     monkeypatch.setattr(runner_android_client.subprocess, "run", fake_run)
@@ -87,7 +87,7 @@ def test_trigger_android_client_case_runs_install_guard(monkeypatch) -> None:
         ) or subprocess.CompletedProcess(["adb"], 0, stdout="", stderr=""),
     )
 
-    def fake_run(cmd, capture_output, text, check):  # noqa: ANN001
+    def fake_run(cmd, capture_output, text, check, **kwargs):  # noqa: ANN001
         return subprocess.CompletedProcess(cmd, 0, stdout="Starting: Intent { ... }\n", stderr="")
 
     monkeypatch.setattr(runner_android_client.subprocess, "run", fake_run)
@@ -402,7 +402,7 @@ def test_extract_json_payload_accepts_raw_content_output() -> None:
 
 def test_read_android_client_snapshot_parses_content_read_output(monkeypatch) -> None:
     monkeypatch.setattr("testing.params.adb_devices.list_adb_devices", lambda: ["ABC123"])
-    monkeypatch.setattr(runner_android_client.subprocess, "run", lambda cmd, capture_output, text, check, encoding=None, errors=None: subprocess.CompletedProcess(
+    monkeypatch.setattr(runner_android_client.subprocess, "run", lambda cmd, capture_output, text, check, encoding=None, errors=None, creationflags=0: subprocess.CompletedProcess(
         cmd,
         0,
         stdout="{\"phase\":\"Running\",\"logLines\":[\"a\",\"b\"]}",
@@ -432,7 +432,7 @@ def test_power_wait_state_enters_and_exits_for_reboot() -> None:
         matches_request=True,
         waiting_for_device_resume=True,
     )
-    assert waiting is False
+    assert waiting is True
 
     waiting = runner_android_client._next_power_resume_wait_state(
         case_id="auto_reboot",
@@ -461,4 +461,15 @@ def test_power_wait_state_enters_and_exits_for_suspend() -> None:
         matches_request=True,
         waiting_for_device_resume=True,
     )
-    assert waiting is False
+    assert waiting is True
+
+
+def test_snapshot_read_failure_key_collapses_repeated_adb_disconnects() -> None:
+    error = (
+        "content snapshot read failed.\n"
+        "stdout:\n\n"
+        "stderr:\nerror: no devices/emulators found\n"
+        "returncode=1"
+    )
+
+    assert runner_android_client._snapshot_read_failure_key(error) == "no devices/emulators found"

@@ -7,13 +7,35 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
+import sys
 
 from testing.params.adb_devices import resolve_adb_serial_for_command
 
 
 PACKAGE_NAME = "com.smarttest.mobile"
-DEFAULT_APK_PATH = Path(__file__).resolve().parent / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk"
-DEFAULT_PLATFORM_SIGNED_APK_PATH = Path(__file__).resolve().parent / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug-platform.apk"
+APK_RELATIVE_PATH = Path("android_client", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
+PLATFORM_SIGNED_APK_RELATIVE_PATH = Path(
+    "android_client",
+    "app",
+    "build",
+    "outputs",
+    "apk",
+    "debug",
+    "app-debug-platform.apk",
+)
+
+
+def _resource_path(relative_path: Path) -> Path:
+    packaged_root = getattr(sys, "_MEIPASS", None)
+    if packaged_root:
+        packaged_path = Path(packaged_root) / relative_path
+        if packaged_path.exists():
+            return packaged_path
+    return Path(__file__).resolve().parent.parent / relative_path
+
+
+DEFAULT_APK_PATH = _resource_path(APK_RELATIVE_PATH)
+DEFAULT_PLATFORM_SIGNED_APK_PATH = _resource_path(PLATFORM_SIGNED_APK_RELATIVE_PATH)
 INSTALL_STATE_PATH = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "SmartTest" / "android_client_install_state.json"
 DEFAULT_PRIVAPP_DIR = "/system/priv-app/SmartTestMobile"
 DEFAULT_PRIVAPP_APK = f"{DEFAULT_PRIVAPP_DIR}/SmartTestMobile.apk"
@@ -26,6 +48,12 @@ PLATFORM_CERT_PK8 = SIGNAPK_DIR / "build" / "target" / "product" / "security" / 
 DEFAULT_ADB_WAIT_TIMEOUT_SEC = 180.0
 PRIVILEGED_CASE_IDS = frozenset({"auto_reboot", "auto_suspend"})
 PRIVILEGED_PARTITIONS = ("/system", "/product", "/system_ext")
+
+
+def _subprocess_creationflags() -> int:
+    if os.name != "nt":
+        return 0
+    return getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 def _adb_base_cmd(*, adb_executable: str, adb_serial: str | None = None) -> list[str]:
@@ -77,24 +105,29 @@ def sign_privileged_apk(
 ) -> Path:
     source_apk = Path(input_apk_path or DEFAULT_APK_PATH).resolve()
     target_apk = Path(output_apk_path or DEFAULT_PLATFORM_SIGNED_APK_PATH).resolve()
-    if not source_apk.exists():
-        raise RuntimeError(f"android_client APK was not found for signing: {source_apk}")
-    if not _platform_signing_available():
-        raise RuntimeError(
-            "android_client platform signing files are missing.\n"
-            f"jar={SIGNAPK_JAR}\n"
-            f"pem={PLATFORM_CERT_PEM}\n"
-            f"pk8={PLATFORM_CERT_PK8}"
-        )
 
     needs_resign = True
     if target_apk.exists():
         try:
             needs_resign = target_apk.stat().st_mtime < source_apk.stat().st_mtime
         except FileNotFoundError:
-            needs_resign = True
+            needs_resign = False
         if not needs_resign:
             return target_apk
+        if not _platform_signing_available():
+            print("[android_client] use existing platform-signed APK; signing files are unavailable")
+            return target_apk
+
+    if not source_apk.exists():
+        raise RuntimeError(f"android_client APK was not found for signing: {source_apk}")
+    if not _platform_signing_available():
+        raise RuntimeError(
+            "android_client platform signing files are missing and no pre-signed APK is available.\n"
+            f"target={target_apk}\n"
+            f"jar={SIGNAPK_JAR}\n"
+            f"pem={PLATFORM_CERT_PEM}\n"
+            f"pk8={PLATFORM_CERT_PK8}"
+        )
 
     target_apk.parent.mkdir(parents=True, exist_ok=True)
     if target_apk.exists():
@@ -122,6 +155,7 @@ def sign_privileged_apk(
             capture_output=True,
             text=True,
             check=False,
+            creationflags=_subprocess_creationflags(),
         )
         print(f"[android_client] platform sign stdout: {result.stdout.strip()}")
         print(f"[android_client] platform sign stderr: {result.stderr.strip()}")
@@ -152,6 +186,7 @@ def sign_privileged_apk(
             capture_output=True,
             text=True,
             check=False,
+            creationflags=_subprocess_creationflags(),
         )
         print(f"[android_client] fallback sign stdout: {fallback_result.stdout.strip()}")
         print(f"[android_client] fallback sign stderr: {fallback_result.stderr.strip()}")
@@ -218,6 +253,7 @@ def _run_adb(
         capture_output=True,
         text=True,
         check=False,
+        creationflags=_subprocess_creationflags(),
     )
 
 
@@ -294,6 +330,7 @@ def _wait_for_device_ready(
         text=True,
         check=False,
         timeout=timeout_sec,
+        creationflags=_subprocess_creationflags(),
     )
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
@@ -522,6 +559,7 @@ def is_test_apk_installed(*, adb_serial: str | None = None, package_name: str = 
         capture_output=True,
         text=True,
         check=False,
+        creationflags=_subprocess_creationflags(),
     )
     print(f"[android_client] probe stdout: {result.stdout.strip()}")
     print(f"[android_client] probe stderr: {result.stderr.strip()}")
@@ -548,6 +586,7 @@ def install_test_apk(*, apk_path: str | Path | None = None, adb_serial: str | No
         capture_output=True,
         text=True,
         check=False,
+        creationflags=_subprocess_creationflags(),
     )
     print(f"[android_client] install stdout: {result.stdout.strip()}")
     print(f"[android_client] install stderr: {result.stderr.strip()}")

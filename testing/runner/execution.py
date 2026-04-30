@@ -7,11 +7,20 @@ import tempfile
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
+
+from testing.cases.catalog import is_packaged_runtime
+
+
+def _subprocess_creationflags() -> int:
+    if os.name != "nt":
+        return 0
+    return getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 @dataclass
 class TestRunSession:
-    process: subprocess.Popen[str]
+    process: Any
     event_file: Path
     tempdir: tempfile.TemporaryDirectory[str]
     adb_serial: str | None = None
@@ -38,7 +47,7 @@ class TestRunSession:
         self.process.terminate()
         try:
             self.process.wait(timeout=5.0)
-        except subprocess.TimeoutExpired:
+        except (subprocess.TimeoutExpired, TimeoutError):
             self.process.kill()
 
 
@@ -49,6 +58,11 @@ def start_pytest_run(
     adb_serial: str | None = None,
     case_configs: dict[str, dict[str, object]] | None = None,
 ) -> TestRunSession:
+    if is_packaged_runtime():
+        from testing.runner.packaged import start_packaged_run
+
+        return start_packaged_run(nodeids=nodeids, adb_serial=adb_serial, case_configs=case_configs)
+
     root_dir = root_dir.resolve()
     tempdir = tempfile.TemporaryDirectory(prefix="smarttest_pytest_run_")
     event_file = Path(tempdir.name) / "events.jsonl"
@@ -76,6 +90,7 @@ def start_pytest_run(
         stderr=subprocess.STDOUT,
         text=True,
         bufsize=1,
+        creationflags=_subprocess_creationflags(),
     )
     return TestRunSession(
         process=process,

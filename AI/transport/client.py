@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 import json
 import ssl
 import time
@@ -131,4 +132,8 @@ def _json_loads(text: str) -> dict[str, Any]:
 
 def _trace_ai_request(stage: str, **values: Any) -> None:
     details = " ".join(f"{key}={values[key]}" for key in sorted(values))
-    print(f"[AI_HTTP] {stage} {details}".rstrip())
+    print(f"{_trace_timestamp()} [AI_HTTP] {stage} {details}".rstrip())
+
+
+def _trace_timestamp() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]

@@ -1,5 +1,5 @@
-from jira.auth.basic import JiraBasicAuth
-from jira.transport.client import JiraClient, JiraClientConfig
+﻿from jira_tool.auth.basic import JiraBasicAuth
+from jira_tool.transport.client import JiraClient, JiraClientConfig
 
 
 def _client() -> JiraClient:

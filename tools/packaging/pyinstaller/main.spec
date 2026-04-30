@@ -19,12 +19,74 @@ def _find_repo_root(start_dir: str) -> str:
 repo_root = os.environ.get("SMARTTEST_REPO_ROOT") or _find_repo_root(os.getcwd())
 mainPath = os.path.join(repo_root, "main.py")
 ui_root = os.path.join(repo_root, "ui")
+android_catalog = os.path.join(
+    repo_root,
+    "android_client",
+    "app",
+    "src",
+    "main",
+    "java",
+    "com",
+    "smarttest",
+    "mobile",
+    "runner",
+    "SmartTestCatalog.kt",
+)
+test_catalog = os.path.join(repo_root, "build", "generated", "testing", "cases", "test_catalog.json")
+android_apk = os.path.join(repo_root, "android_client", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
+android_platform_apk = os.path.join(
+    repo_root,
+    "android_client",
+    "app",
+    "build",
+    "outputs",
+    "apk",
+    "debug",
+    "app-debug-platform.apk",
+)
+android_privapp_permissions = os.path.join(
+    repo_root,
+    "android_client",
+    "system_app",
+    "privapp-permissions-com.smarttest.mobile.xml",
+)
 
 a = Analysis(
     [mainPath],
     pathex=[repo_root, ui_root],
     binaries=[],
-    datas=[],
+    datas=[
+        (
+            android_catalog,
+            os.path.join(
+                "android_client",
+                "app",
+                "src",
+                "main",
+                "java",
+                "com",
+                "smarttest",
+                "mobile",
+                "runner",
+            ),
+        ),
+        (
+            test_catalog,
+            os.path.join("testing", "cases"),
+        ),
+        (
+            android_apk,
+            os.path.join("android_client", "app", "build", "outputs", "apk", "debug"),
+        ),
+        (
+            android_platform_apk,
+            os.path.join("android_client", "app", "build", "outputs", "apk", "debug"),
+        ),
+        (
+            android_privapp_permissions,
+            os.path.join("android_client", "system_app"),
+        ),
+    ],
     hiddenimports=[
         # Ensure UI packages are discoverable even if imports are indirect.
         "example.main",

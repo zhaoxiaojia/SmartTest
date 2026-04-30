@@ -3,21 +3,30 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+import sys
 
 
-CATALOG_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "android_client"
-    / "app"
-    / "src"
-    / "main"
-    / "java"
-    / "com"
-    / "smarttest"
-    / "mobile"
-    / "runner"
-    / "SmartTestCatalog.kt"
+CATALOG_RELATIVE_PATH = Path(
+    "android_client",
+    "app",
+    "src",
+    "main",
+    "java",
+    "com",
+    "smarttest",
+    "mobile",
+    "runner",
+    "SmartTestCatalog.kt",
 )
+
+
+def _catalog_path() -> Path:
+    packaged_root = getattr(sys, "_MEIPASS", None)
+    if packaged_root:
+        packaged_path = Path(packaged_root) / CATALOG_RELATIVE_PATH
+        if packaged_path.exists():
+            return packaged_path
+    return Path(__file__).resolve().parents[2] / CATALOG_RELATIVE_PATH
 
 
 @dataclass(frozen=True)
@@ -79,7 +88,7 @@ def _extract_parameter_blocks(case_block: str) -> list[str]:
 
 @lru_cache(maxsize=1)
 def load_android_catalog_params() -> dict[str, AndroidCatalogParam]:
-    text = CATALOG_PATH.read_text(encoding="utf-8")
+    text = _catalog_path().read_text(encoding="utf-8")
     params: dict[str, AndroidCatalogParam] = {}
     search_from = 0
     while True:

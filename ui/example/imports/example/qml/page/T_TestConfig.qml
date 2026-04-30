@@ -119,9 +119,14 @@ FluPage {
     }
 
     function refreshViewModels(){
+        console.debug("[TEST_QML] refreshViewModels start " + Date.now())
         caseTreeDataSource = decorateTreeNodes(TestPageBridge.caseTree((txt_filter.text || "").toString(), expandedKeys()))
         selectedModel = TestPageBridge.selectedFileRows()
         selectedCaseParamsModel = TestPageBridge.selectedCaseParamRows()
+        console.debug("[TEST_QML] refreshViewModels done " + Date.now()
+                      + " tree=" + caseTreeDataSource.length
+                      + " selected=" + selectedModel.length
+                      + " params=" + selectedCaseParamsModel.length)
     }
 
     Connections{
@@ -146,8 +151,11 @@ FluPage {
     }
 
     Component.onCompleted: {
+        console.debug("[TEST_QML] completed start " + Date.now())
         TestPageBridge.discoverCases()
+        console.debug("[TEST_QML] discoverCases returned " + Date.now())
         refreshViewModels()
+        console.debug("[TEST_QML] completed done " + Date.now())
     }
 
     FluSplitLayout{

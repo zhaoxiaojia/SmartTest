@@ -33,6 +33,18 @@ Scope: everything under `ui/`.
 - This applies to toggles, combo selections, filter inputs, multi-select state, and similar preference-like controls.
 - Do not implement page-specific ad hoc persistence when a generic `SettingsHelper` getter/setter can be reused.
 
+## UI Data Source Caching (for selectable lists)
+
+- For user-selectable data-source lists shown in UI (for example device lists, source lists, selectable scopes), the default flow must be:
+  1. load local cached value first
+  2. render UI immediately from cache
+  3. refresh real data asynchronously after page load or explicit user action
+  4. write refreshed result back to local cache
+- Do not block first paint or page switching on external commands/network calls.
+- External data refresh must be user-triggered or post-load async; never run synchronously in hot UI read paths.
+- For bridge-owned UI preferences, use the shared local JSON preference store (`testing/state/local_store.py`) instead of adding one-off per-feature persistence helpers.
+- Keep tool capability modules (for example `testing/params/adb_devices.py`) free of UI cache persistence responsibilities.
+
 ## Layering
 
 - Keep UI logic in QML/FluentUI and thin Python bridges (signals/slots).

@@ -32,6 +32,12 @@ DEFAULT_NO_POLL_CASE_IDS: set[str] = set()
 DEFAULT_SLOW_POLL_CASE_IDS = {"auto_suspend", "auto_reboot"}
 
 
+def _subprocess_creationflags() -> int:
+    if os.name != "nt":
+        return 0
+    return getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
 def build_case_params(case_id: str, **params: object) -> dict[str, str]:
     resolved: dict[str, str] = {}
     for param_id, value in params.items():
@@ -68,9 +74,19 @@ def _next_power_resume_wait_state(
         return waiting_for_device_resume
     if stage_token in current_stage:
         return True
-    if waiting_for_device_resume and stage_token not in current_stage:
-        return False
     return waiting_for_device_resume
+
+
+def _snapshot_read_failure_key(error_text: str) -> str:
+    text = str(error_text or "")
+    if "no devices/emulators found" in text:
+        return "no devices/emulators found"
+    if "Unable to locate JSON payload" in text:
+        return "empty status payload"
+    if "run-as: package not an application" in text:
+        return "run-as unavailable"
+    first_line = text.strip().splitlines()[0] if text.strip() else "<empty>"
+    return first_line[:160]
 
 
 def _force_stop_android_client(
@@ -87,6 +103,7 @@ def _force_stop_android_client(
         capture_output=True,
         text=True,
         check=False,
+        creationflags=_subprocess_creationflags(),
     )
     print(f"[testing.runner.android_client] force-stop stdout: {result.stdout.strip()}")
     print(f"[testing.runner.android_client] force-stop stderr: {result.stderr.strip()}")
@@ -108,6 +125,7 @@ def _launch_android_client_main(
         capture_output=True,
         text=True,
         check=False,
+        creationflags=_subprocess_creationflags(),
     )
     print(f"[testing.runner.android_client] launch-main stdout: {result.stdout.strip()}")
     print(f"[testing.runner.android_client] launch-main stderr: {result.stderr.strip()}")
@@ -126,6 +144,7 @@ def _adb_get_state(
         capture_output=True,
         text=True,
         check=False,
+        creationflags=_subprocess_creationflags(),
     )
     if result.returncode != 0:
         stderr = str(result.stderr or "").strip().lower()
@@ -147,6 +166,7 @@ def _adb_is_boot_completed(
         capture_output=True,
         text=True,
         check=False,
+        creationflags=_subprocess_creationflags(),
     )
     if result.returncode != 0:
         return None
@@ -200,6 +220,7 @@ def _start_android_client_run(
         capture_output=True,
         text=True,
         check=False,
+        creationflags=_subprocess_creationflags(),
     )
     print(f"{log_prefix} trigger stdout: {result.stdout.strip()}")
     print(f"{log_prefix} trigger stderr: {result.stderr.strip()}")
@@ -236,6 +257,7 @@ def stop_android_client_run(
         capture_output=True,
         text=True,
         check=False,
+        creationflags=_subprocess_creationflags(),
     )
     return result
 
@@ -252,6 +274,7 @@ def android_client_installed(*, adb_serial: str | None = None, package_name: str
         capture_output=True,
         text=True,
         check=False,
+        creationflags=_subprocess_creationflags(),
     )
     if result.returncode != 0:
         return False
@@ -282,6 +305,7 @@ def _run_snapshot_command(
         encoding="utf-8",
         errors="replace",
         check=False,
+        creationflags=_subprocess_creationflags(),
     )
 
 
@@ -525,6 +549,7 @@ def wait_for_android_client_case_completion(
     last_device_state = ""
     last_boot_completed: bool | None = None
     last_snapshot_channel_ready = False
+    last_snapshot_failure_key = ""
 
     while time.monotonic() < deadline:
         if (
@@ -545,7 +570,10 @@ def wait_for_android_client_case_completion(
         if waiting_for_device_resume:
             device_state = _adb_get_state(adb_executable=adb_executable, adb_serial=adb_serial)
             if device_state != last_device_state:
-                print(f"[android_client.power] device_state={device_state}")
+                if device_state == "device":
+                    print("[android_client.power] dut alive")
+                else:
+                    print(f"[android_client.power] dut lost state={device_state or '<empty>'}")
                 last_device_state = device_state
             boot_completed = None
             if device_state == "device":
@@ -561,21 +589,28 @@ def wait_for_android_client_case_completion(
             snapshot = read_android_client_snapshot(
                 adb_executable=adb_executable,
                 adb_serial=adb_serial,
-                verbose=not waiting_for_device_resume,
+                verbose=False,
             )
             last_snapshot = snapshot
             consecutive_failures = 0
+            last_snapshot_failure_key = ""
             if waiting_for_device_resume and not last_snapshot_channel_ready:
                 print("[android_client.power] snapshot channel ready after DUT resume")
                 last_snapshot_channel_ready = True
         except Exception as exc:  # noqa: BLE001
             last_error = str(exc)
             consecutive_failures += 1
+            failure_key = _snapshot_read_failure_key(last_error)
             if waiting_for_device_resume:
+                if failure_key != last_snapshot_failure_key:
+                    print(f"[android_client.power] status channel waiting: {failure_key}")
+                    last_snapshot_failure_key = failure_key
                 last_snapshot_channel_ready = False
                 time.sleep(poll_interval_sec)
                 continue
-            print(f"[android_client.status] snapshot read failed: {last_error}")
+            if failure_key != last_snapshot_failure_key:
+                print(f"[android_client.status] snapshot read failed: {failure_key}")
+                last_snapshot_failure_key = failure_key
             if started and consecutive_failures >= DEFAULT_MAX_CONSECUTIVE_STATUS_FAILURES:
                 raise RuntimeError(
                     "Lost android_client status channel after DUT run started.\n"

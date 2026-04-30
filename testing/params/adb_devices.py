@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 
 
@@ -31,6 +32,18 @@ def parse_adb_devices_output(output: str) -> list[str]:
     return devices
 
 
+def _hidden_process_kwargs() -> dict:
+    if os.name != "nt":
+        return {}
+    startup_info = subprocess.STARTUPINFO()
+    startup_info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startup_info.wShowWindow = 0
+    return {
+        "startupinfo": startup_info,
+        "creationflags": subprocess.CREATE_NO_WINDOW,
+    }
+
+
 def list_adb_devices() -> list[str]:
     try:
         result = subprocess.run(
@@ -40,6 +53,7 @@ def list_adb_devices() -> list[str]:
             stdin=subprocess.DEVNULL,
             text=False,
             check=False,
+            **_hidden_process_kwargs(),
         )
     except FileNotFoundError:
         return []

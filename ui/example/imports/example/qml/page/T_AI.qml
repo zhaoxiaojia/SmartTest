@@ -12,6 +12,7 @@ FluPage {
     property var projectRows: []
     property var messageRows: []
     property var attachmentRows: []
+    property var mcpSourceRows: []
     property string selectedSessionId: ""
     property string selectedSessionTitle: ""
     property string selectedProjectId: ""
@@ -35,6 +36,7 @@ FluPage {
         projectRows = AIBridge.projects()
         messageRows = AIBridge.messages()
         attachmentRows = AIBridge.attachments()
+        mcpSourceRows = AIBridge.mcpSources()
         if(selectedProjectId.length === 0){
             selectedSessionId = AIBridge.currentSessionId()
         }
@@ -140,6 +142,20 @@ FluPage {
         }
         var date = new Date(value * 1000)
         return Qt.locale().toString(date, "MMM d")
+    }
+
+    function enabledMcpSources(){
+        return mcpSourceRows.filter(function(row){ return row.enabled })
+    }
+
+    function openSourcePopup(){
+        var composerPoint = composer.mapToItem(page, 0, 0)
+        var anchorX = composerPoint.x + 190
+        var anchorY = composerPoint.y - source_popup.height - 12
+        source_popup.x = Math.max(sidebar.width + 12, Math.min(page.width - source_popup.width - 12, anchorX))
+        source_popup.y = Math.max(12, anchorY)
+        console.debug("[AI_UI] source_popup_open x=" + source_popup.x + " y=" + source_popup.y + " w=" + source_popup.width + " h=" + source_popup.height + " pageW=" + page.width + " pageH=" + page.height)
+        source_popup.open()
     }
 
     function accountName(){
@@ -289,6 +305,133 @@ FluPage {
             qsTr("All files") + " (*)"
         ]
         onAccepted: AIBridge.addAttachmentFromUrl(currentFile)
+    }
+
+    FluMenu{
+        id: composer_add_menu
+
+        FluMenuItem{
+            text: qsTr("Attach File")
+            iconSource: FluentIcons.Attach
+            onTriggered: file_dialog.open()
+        }
+
+        FluMenuItem{
+            text: qsTr("Add Source")
+            iconSource: FluentIcons.ConnectApp
+            onTriggered: openSourcePopup()
+        }
+    }
+
+    Popup{
+        id: source_popup
+        width: 320
+        height: Math.min(360, page.height - 160)
+        x: sidebar.width + 12
+        y: 12
+        modal: false
+        dim: false
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle{
+            radius: 12
+            color: pageBg
+            border.width: 1
+            border.color: "#d8d8d8"
+        }
+
+        contentItem: ColumnLayout{
+            spacing: 8
+
+            FluText{
+                Layout.fillWidth: true
+                text: qsTr("Sources")
+                color: primaryText
+                font: FluTextStyle.BodyStrong
+            }
+
+            FluText{
+                Layout.fillWidth: true
+                text: qsTr("Choose MCP sources for this chat.")
+                color: secondaryText
+                font: FluTextStyle.Caption
+                wrapMode: Text.WordWrap
+            }
+
+            ListView{
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                model: mcpSourceRows
+                spacing: 4
+                ScrollBar.vertical: FluScrollBar{}
+
+                delegate: Rectangle{
+                    width: ListView.view.width
+                    height: 44
+                    radius: 8
+                    color: "transparent"
+
+                    RowLayout{
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        spacing: 10
+
+                        Image{
+                            visible: modelData.id === "jira"
+                            Layout.preferredWidth: 18
+                            Layout.preferredHeight: 18
+                            source: "qrc:/example/res/svg/jira-logo-icon.svg"
+                            fillMode: Image.PreserveAspectFit
+                        }
+
+                        FluIcon{
+                            visible: modelData.id !== "jira"
+                            Layout.preferredWidth: 18
+                            iconSource: FluentIcons.ConnectApp
+                            iconSize: 16
+                            iconColor: primaryText
+                        }
+
+                        ColumnLayout{
+                            Layout.fillWidth: true
+                            spacing: 1
+
+                            FluText{
+                                Layout.fillWidth: true
+                                text: modelData.name
+                                color: primaryText
+                                elide: Text.ElideRight
+                            }
+
+                            FluText{
+                                Layout.fillWidth: true
+                                text: modelData.description
+                                color: secondaryText
+                                font: FluTextStyle.Caption
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        SourceSwitch{
+                            checked: modelData.enabled
+                            onClicked: AIBridge.setMcpSourceEnabled(modelData.id, !modelData.enabled)
+                        }
+                    }
+
+                    MouseArea{
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        acceptedButtons: Qt.NoButton
+                        onEntered: parent.color = hoverBg
+                        onExited: parent.color = "transparent"
+                    }
+                }
+            }
+        }
+        padding: 12
     }
 
     FluMenu{
@@ -1604,21 +1747,11 @@ FluPage {
                         Layout.preferredHeight: 30
                         iconSource: FluentIcons.Add
                         iconSize: 15
-                        text: qsTr("Attach File")
+                        text: qsTr("More")
                         normalColor: "transparent"
                         hoverColor: hoverBg
                         disabled: AIBridge.loading
-                        onClicked: file_dialog.open()
-                    }
-
-                    ToolChip{
-                        iconSource: FluentIcons.Flashlight
-                        text: qsTr("Quick")
-                    }
-
-                    ToolChip{
-                        iconSource: FluentIcons.Page
-                        text: qsTr("Notion")
+                        onClicked: composer_add_menu.popup()
                     }
 
                     Repeater{
@@ -1629,6 +1762,18 @@ FluPage {
                             text: modelData.name
                             removable: true
                             onRemoveClicked: AIBridge.removeAttachment(modelData.id)
+                        }
+                    }
+
+                    Repeater{
+                        model: enabledMcpSources()
+
+                        ToolChip{
+                            iconSource: FluentIcons.ConnectApp
+                            imageSource: modelData.id === "jira" ? "qrc:/example/res/svg/jira-logo-icon.svg" : ""
+                            text: modelData.name
+                            removable: true
+                            onRemoveClicked: AIBridge.setMcpSourceEnabled(modelData.id, false)
                         }
                     }
 
@@ -1753,6 +1898,7 @@ FluPage {
         id: tool_chip
         signal removeClicked()
         property int iconSource: 0
+        property string imageSource: ""
         property string text: ""
         property bool removable: false
         Layout.preferredWidth: Math.min(150, chip_row.implicitWidth + 16)
@@ -1766,7 +1912,16 @@ FluPage {
             anchors.centerIn: parent
             spacing: 5
 
+            Image{
+                visible: tool_chip.imageSource.length > 0
+                Layout.preferredWidth: 15
+                Layout.preferredHeight: 15
+                source: tool_chip.imageSource
+                fillMode: Image.PreserveAspectFit
+            }
+
             FluIcon{
+                visible: tool_chip.imageSource.length === 0
                 iconSource: tool_chip.iconSource
                 iconSize: 15
                 iconColor: "#0f62fe"
@@ -1792,6 +1947,37 @@ FluPage {
             anchors.fill: parent
             enabled: tool_chip.removable
             onClicked: tool_chip.removeClicked()
+        }
+    }
+
+    component SourceSwitch: Rectangle{
+        id: source_switch
+        signal clicked()
+        property bool checked: false
+        Layout.preferredWidth: 38
+        Layout.preferredHeight: 22
+        radius: 11
+        color: checked ? "#111111" : "#eeeeee"
+        border.width: 1
+        border.color: checked ? "#111111" : "#d0d0d0"
+
+        Rectangle{
+            width: 16
+            height: 16
+            radius: 8
+            color: checked ? "#ffffff" : "#9a9a9a"
+            anchors.verticalCenter: parent.verticalCenter
+            x: checked ? parent.width - width - 3 : 3
+
+            Behavior on x{
+                NumberAnimation{ duration: 120 }
+            }
+        }
+
+        MouseArea{
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: source_switch.clicked()
         }
     }
 

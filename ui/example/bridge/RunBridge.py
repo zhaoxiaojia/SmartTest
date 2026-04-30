@@ -60,11 +60,14 @@ class RunBridge(QObject):
     def _now_iso(self) -> str:
         return datetime.now().astimezone().isoformat(timespec="seconds")
 
+    def _trace_timestamp(self) -> str:
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
     def _resolve_adb_serial(self, saved_dut: str) -> str | None:
         devices = list_adb_devices()
         normalized_saved = str(saved_dut or "").strip()
-        print(f"[RunBridge] discovered adb devices: {devices}")
-        print(f"[RunBridge] saved dut: {normalized_saved or '<empty>'}")
+        print(f"{self._trace_timestamp()} [RunBridge] discovered adb devices: {devices}")
+        print(f"{self._trace_timestamp()} [RunBridge] saved dut: {normalized_saved or '<empty>'}")
         raw_saved = str(saved_dut or "").strip()
         if raw_saved and raw_saved in devices:
             return raw_saved

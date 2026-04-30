@@ -1,7 +1,7 @@
-from pathlib import Path
+﻿from pathlib import Path
 
-from jira.cache.search_cache import JiraSearchCache
-from jira.core.models import IssueRecord
+from jira_tool.cache.search_cache import JiraSearchCache
+from jira_tool.core.models import IssueRecord
 
 
 def test_cache_round_trip(tmp_path: Path) -> None:

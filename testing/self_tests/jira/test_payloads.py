@@ -1,4 +1,4 @@
-from jira.services.payloads import (
+﻿from jira_tool.services.payloads import (
     build_analysis_result,
     build_browse_result,
     build_detail_result,

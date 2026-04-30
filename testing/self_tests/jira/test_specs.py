@@ -1,4 +1,4 @@
-from jira.services.specs import browse_specs, detail_specs
+﻿from jira_tool.services.specs import browse_specs, detail_specs
 
 
 def test_browse_specs_stay_lightweight() -> None:

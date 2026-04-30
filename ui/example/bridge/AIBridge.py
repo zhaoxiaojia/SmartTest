@@ -39,6 +39,15 @@ _AI_BRIDGE_TRANSLATION_MARKERS = (
     QT_TRANSLATE_NOOP("AIBridge", "No response content was returned."),
 )
 
+_MCP_SOURCE_ROWS = [
+    {"id": "jira", "name": "Jira", "description": "Jira MCP"},
+    {"id": "confluence", "name": "Confluence", "description": "Confluence MCP"},
+    {"id": "soc_spec_search", "name": "SoC Spec Search", "description": "SoC specification search MCP"},
+    {"id": "opengrok", "name": "OpenGrok", "description": "OpenGrok source search MCP"},
+    {"id": "gerrit_scgit", "name": "Gerrit SCGit", "description": "Gerrit code review MCP"},
+    {"id": "jenkins", "name": "Jenkins", "description": "Jenkins CI MCP"},
+]
+
 
 class AIBridge(QObject):
     stateChanged = Signal()
@@ -58,6 +67,7 @@ class AIBridge(QObject):
         self._current_session_id = self._store.first_session_id()
         self._loading = False
         self._status_state: dict[str, Any] = self._translated_state("Ready")
+        self._enabled_mcp_sources: set[str] = set()
         self._worker_seq = 0
         self._state_lock = Lock()
         self._replyReady.connect(self._on_reply_ready)
@@ -103,6 +113,30 @@ class AIBridge(QObject):
     @Slot(result="QVariantList")
     def attachments(self):
         return self._store.attachments(self._current_session_id)
+
+    @Slot(result="QVariantList")
+    def mcpSources(self):
+        return [
+            {
+                "id": row["id"],
+                "name": row["name"],
+                "description": row["description"],
+                "enabled": row["id"] in self._enabled_mcp_sources,
+            }
+            for row in _MCP_SOURCE_ROWS
+        ]
+
+    @Slot(str, bool)
+    def setMcpSourceEnabled(self, source_id: str, enabled: bool) -> None:
+        clean_source_id = str(source_id or "").strip()
+        valid_ids = {row["id"] for row in _MCP_SOURCE_ROWS}
+        if clean_source_id not in valid_ids:
+            return
+        if enabled:
+            self._enabled_mcp_sources.add(clean_source_id)
+        else:
+            self._enabled_mcp_sources.discard(clean_source_id)
+        self.stateChanged.emit()
 
     @Slot(result=str)
     def currentSessionId(self) -> str:

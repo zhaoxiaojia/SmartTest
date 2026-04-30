@@ -1,6 +1,6 @@
-from jira.cache.issue_store import JiraIssueStore
-from jira.core.models import IssueRecord
-from jira.services.sync_service import JiraSyncService, build_incremental_jql
+﻿from jira_tool.cache.issue_store import JiraIssueStore
+from jira_tool.core.models import IssueRecord
+from jira_tool.services.sync_service import JiraSyncService, build_incremental_jql
 
 
 class FakeIssueService:

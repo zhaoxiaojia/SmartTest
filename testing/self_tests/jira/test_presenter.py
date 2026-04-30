@@ -1,5 +1,5 @@
-from jira.core.models import IssueRecord
-from jira.services.presenter import extract_actions, record_to_issue_row
+﻿from jira_tool.core.models import IssueRecord
+from jira_tool.services.presenter import extract_actions, record_to_issue_row
 
 
 def test_record_to_issue_row_normalizes_nested_text_and_comments() -> None:

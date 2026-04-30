@@ -1,11 +1,11 @@
-from jira.core.models import JiraFieldMetadata
-from jira.fields.registry import (
+﻿from jira_tool.core.models import JiraFieldMetadata
+from jira_tool.fields.registry import (
     FieldRegistry,
     build_default_registry,
     infer_field_spec_from_metadata,
     registry_from_metadata,
 )
-from jira.fields.specs import FieldSpec
+from jira_tool.fields.specs import FieldSpec
 
 
 def test_registry_builds_lightweight_plan_by_default() -> None:

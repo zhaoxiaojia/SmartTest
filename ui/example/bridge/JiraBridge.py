@@ -1,17 +1,20 @@
 ﻿from __future__ import annotations
 
 import logging
+import json
 import os
 from pathlib import Path
 from threading import Lock, Thread
 import time
+import uuid
+from datetime import datetime
 from typing import Any, Callable
 from urllib.parse import quote
 
 from PySide6.QtCore import QObject, Property, QT_TRANSLATE_NOOP, QStandardPaths, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from jira import (
+from jira_tool import (
     JiraWorkspaceService,
     create_jira_workspace_service,
     parse_csv_ids,
@@ -22,6 +25,9 @@ from example.helper.TranslateHelper import TranslateHelper
 
 JIRA_BASE_URL = os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")
 _MAX_DISPLAY_ISSUES = 50
+
+def _trace_timestamp() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
 _PROJECT_OPTION_IDS = (
     "all_supported_projects",
@@ -150,6 +156,10 @@ _JIRA_BRIDGE_TRANSLATION_MARKERS = (
     QT_TRANSLATE_NOOP("JiraBridge", "Click to apply this filter to the current JQL box."),
     QT_TRANSLATE_NOOP("JiraBridge", "Comments"),
     QT_TRANSLATE_NOOP("JiraBridge", "No Jira issues matched the current scope."),
+    QT_TRANSLATE_NOOP("JiraBridge", "Jira AI Conversation"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Analyzing request: preparing search scope..."),
+    QT_TRANSLATE_NOOP("JiraBridge", "Analyzing request: retrieving Jira issues..."),
+    QT_TRANSLATE_NOOP("JiraBridge", "Analyzing request: generating response..."),
     QT_TRANSLATE_NOOP(
         "JiraBridge",
         "{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}",
@@ -165,6 +175,7 @@ class JiraBridge(QObject):
     _applyError = Signal(object)
     _applyDetailResult = Signal(object)
     _applyFiltersResult = Signal(object)
+    _applyProgress = Signal(object)
 
     def __init__(self, auth_bridge: AuthBridge):
         super().__init__(QGuiApplication.instance())
@@ -178,6 +189,8 @@ class JiraBridge(QObject):
         self._saved_filters: list[dict[str, str]] = []
         self._filters_loading = False
         self._conversation = [self._workspace_ready_row()]
+        self._conversation_history = self._load_conversation_history()
+        self._current_conversation_id = uuid.uuid4().hex
         self._selected_issue_index = 0
         self._displayed_total = 0
         self._worker_seq = 0
@@ -195,10 +208,11 @@ class JiraBridge(QObject):
         self._applyError.connect(self._on_worker_error)
         self._applyDetailResult.connect(self._on_detail_result)
         self._applyFiltersResult.connect(self._on_filters_result)
+        self._applyProgress.connect(self._on_progress_update)
 
     def _trace(self, stage: str, **values: Any) -> None:
         details = " ".join(f"{key}={values[key]}" for key in sorted(values))
-        print(f"[JIRA_UI] {stage} {details}".rstrip())
+        print(f"{_trace_timestamp()} [JIRA_UI] {stage} {details}".rstrip())
 
     def _t(self, text: str) -> str:
         return self.tr(text)
@@ -258,6 +272,58 @@ class JiraBridge(QObject):
             message_template="Session cleared. Ask a new Jira question when ready.",
             timestamp_template="Reset",
         )
+
+    def _history_path(self) -> Path:
+        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
+        return Path(base) / "SmartTest" / "Jira" / "ai_conversation_history.json"
+
+    def _load_conversation_history(self) -> list[dict[str, Any]]:
+        path = self._history_path()
+        if not path.exists():
+            return []
+        with path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        rows = payload.get("conversations") if isinstance(payload, dict) else None
+        return rows if isinstance(rows, list) else []
+
+    def _save_conversation_history(self) -> None:
+        path = self._history_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as handle:
+            json.dump({"conversations": self._conversation_history[:50]}, handle, ensure_ascii=False, indent=2)
+
+    def _current_history_title(self) -> str:
+        for row in self._conversation:
+            if row.get("role") == "user":
+                message = str(row.get("message", "") or "").strip()
+                if message:
+                    return message[:60]
+        return self._t("Jira AI Conversation")
+
+    def _current_history_preview(self) -> str:
+        for row in reversed(self._conversation):
+            message = str(row.get("message", "") or "").strip()
+            if message:
+                return " ".join(message.split())[:100]
+        return ""
+
+    def _persist_current_conversation(self) -> None:
+        messages = [dict(row) for row in self._conversation if str(row.get("message", "") or "").strip()]
+        if not messages:
+            return
+        now = int(time.time())
+        entry = {
+            "id": self._current_conversation_id,
+            "title": self._current_history_title(),
+            "preview": self._current_history_preview(),
+            "updated_at": now,
+            "messages": messages,
+        }
+        self._conversation_history = [
+            item for item in self._conversation_history if item.get("id") != self._current_conversation_id
+        ]
+        self._conversation_history.insert(0, entry)
+        self._save_conversation_history()
 
     def _error_row(self) -> dict[str, Any]:
         return self._system_row(
@@ -458,6 +524,27 @@ class JiraBridge(QObject):
         self._loading = value
         self.loadingChanged.emit()
 
+    def _set_progress_message(self, message: str) -> None:
+        clean = str(message or "").strip()
+        if not clean:
+            return
+        if self._conversation and self._conversation[-1].get("is_progress") is True:
+            self._conversation[-1]["message"] = clean
+            self._conversation[-1]["timestamp"] = self._t("Just now")
+            return
+        self._conversation.append(
+            {
+                "role": "assistant",
+                "author": "SmartTest AI",
+                "message": clean,
+                "timestamp": self._t("Just now"),
+                "is_progress": True,
+            }
+        )
+
+    def _clear_progress_message(self) -> None:
+        self._conversation = [row for row in self._conversation if row.get("is_progress") is not True]
+
     def _set_connection(
         self,
         *,
@@ -657,6 +744,7 @@ class JiraBridge(QObject):
     ) -> None:
         started_at = time.monotonic()
         try:
+            self._applyProgress.emit({"worker_id": worker_id, "message": self._t("Analyzing request: preparing search scope...")})
             self._trace(
                 "analyze_start",
                 worker_id=worker_id,
@@ -665,6 +753,7 @@ class JiraBridge(QObject):
                 timeframe=timeframe_label,
                 full_dataset=self._ensure_workspace_service().requires_full_dataset(prompt),
             )
+            self._applyProgress.emit({"worker_id": worker_id, "message": self._t("Analyzing request: retrieving Jira issues...")})
             result = self._ensure_workspace_service().analyze(
                 worker_id=worker_id,
                 raw_jql_text=raw_jql_text,
@@ -689,6 +778,7 @@ class JiraBridge(QObject):
                 raw_state=self._raw_state,
                 assistant_timestamp=self._t("Just now"),
             )
+            self._applyProgress.emit({"worker_id": worker_id, "message": self._t("Analyzing request: generating response...")})
             self._trace(
                 "analyze_done",
                 worker_id=worker_id,
@@ -698,6 +788,12 @@ class JiraBridge(QObject):
             )
             self._applyResult.emit(result)
         except Exception as exc:  # noqa: BLE001
+            self._trace(
+                "analyze_error",
+                worker_id=worker_id,
+                elapsed_ms=int((time.monotonic() - started_at) * 1000),
+                error=str(exc),
+            )
             logging.exception("JiraBridge query failed")
             self._applyError.emit({"worker_id": worker_id, "message": f"{exc}"})
 
@@ -814,6 +910,35 @@ class JiraBridge(QObject):
             include_user_message=True,
         )
 
+    @Slot(str)
+    def copyText(self, text: str) -> None:
+        QGuiApplication.clipboard().setText(str(text or ""))
+
+    @Slot(str)
+    def retryPrompt(self, prompt: str) -> None:
+        clean_prompt = str(prompt or "").strip()
+        if clean_prompt == "" or self._loading:
+            return
+        scope = dict(self._active_scope or {})
+        self._start_analysis_worker(
+            prompt=clean_prompt,
+            raw_jql_text=str(scope.get("raw_jql_text", "")),
+            project_ids_csv=str(scope.get("project_ids_csv", "all_supported_projects")),
+            board_label=str(scope.get("board_label", "open_work")),
+            timeframe_label=str(scope.get("timeframe_label", "last_30_days")),
+            status_ids_csv=str(scope.get("status_ids_csv", "")),
+            priority_ids_csv=str(scope.get("priority_ids_csv", "")),
+            issue_type_ids_csv=str(scope.get("issue_type_ids_csv", "bug")),
+            keyword_text=str(scope.get("keyword_text", "")),
+            assignee_text=str(scope.get("assignee_text", "")),
+            reporter_text=str(scope.get("reporter_text", "")),
+            labels_text=str(scope.get("labels_text", "")),
+            include_comments=bool(scope.get("include_comments", False)),
+            include_links=bool(scope.get("include_links", False)),
+            only_mine=bool(scope.get("only_mine", False)),
+            include_user_message=False,
+        )
+
     def _start_browse_worker(
         self,
         *,
@@ -888,6 +1013,8 @@ class JiraBridge(QObject):
         self._worker_seq += 1
         worker_id = self._worker_seq
         self._set_loading(True)
+        self._set_progress_message(self._t("Searching Jira issues from your request..."))
+        self.stateChanged.emit()
         self._set_connection(
             connected=self._connected,
             status_state=self._translated_state("Analyzing Jira request..."),
@@ -966,8 +1093,19 @@ class JiraBridge(QObject):
 
     @Slot()
     def clearConversation(self) -> None:
+        self._persist_current_conversation()
+        self._current_conversation_id = uuid.uuid4().hex
         self._conversation = [self._clear_session_row()]
         self.stateChanged.emit()
+
+    @Slot(str)
+    def restoreConversation(self, conversation_id: str) -> None:
+        for entry in self._conversation_history:
+            if entry.get("id") == conversation_id:
+                self._current_conversation_id = str(entry.get("id", "") or uuid.uuid4().hex)
+                self._conversation = [dict(row) for row in list(entry.get("messages") or [])]
+                self.stateChanged.emit()
+                return
 
     def _handle_auth_changed(self) -> None:
         if self._auth_bridge.isAuthenticated() and self._auth_bridge.hasCredential():
@@ -1012,6 +1150,7 @@ class JiraBridge(QObject):
         self._can_load_more = bool(payload.get("can_load_more", False))
         self._active_scope = dict(payload.get("scope") or {})
         assistant_message = str(payload.get("assistant_message", "") or "").strip()
+        self._clear_progress_message()
         if assistant_message:
             self._conversation.append(
                 {
@@ -1021,6 +1160,7 @@ class JiraBridge(QObject):
                     "timestamp": str(payload.get("assistant_timestamp", self._t("Just now"))),
                 }
             )
+        self._persist_current_conversation()
         status_state = payload.get("status_state")
         self._set_connection(
             connected=bool(payload.get("connected", False)),
@@ -1028,6 +1168,17 @@ class JiraBridge(QObject):
             status_text=str(payload.get("status_text", "Ready")),
         )
         self._set_loading(False)
+        self.stateChanged.emit()
+
+    @Slot(object)
+    def _on_progress_update(self, payload: dict[str, Any]) -> None:
+        worker_id = int((payload or {}).get("worker_id", 0))
+        if worker_id != self._worker_seq:
+            return
+        message = str((payload or {}).get("message", "") or "").strip()
+        if not message:
+            return
+        self._set_progress_message(message)
         self.stateChanged.emit()
 
     @Slot(object)
@@ -1071,6 +1222,7 @@ class JiraBridge(QObject):
         )
         self._analysis_actions = []
         self._conversation.append(self._error_row())
+        self._clear_progress_message()
         self._set_loading(False)
         self.stateChanged.emit()
 
@@ -1105,6 +1257,22 @@ class JiraBridge(QObject):
     @Slot(result="QVariantList")
     def conversationRows(self):
         return [self._render_conversation_row(row) for row in self._conversation]
+
+    @Slot(result="QVariantList")
+    def conversationHistoryRows(self):
+        rows = []
+        for entry in self._conversation_history:
+            updated_at = int(entry.get("updated_at", 0) or 0)
+            rows.append(
+                {
+                    "id": str(entry.get("id", "")),
+                    "title": str(entry.get("title", "") or self._t("Jira AI Conversation")),
+                    "preview": str(entry.get("preview", "")),
+                    "updatedAt": time.strftime("%Y-%m-%d %H:%M", time.localtime(updated_at)) if updated_at else "",
+                    "messageCount": len(list(entry.get("messages") or [])),
+                }
+            )
+        return rows
 
     @Slot(result="QVariantList")
     def issueRows(self):

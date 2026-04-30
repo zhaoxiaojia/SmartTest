@@ -1,7 +1,7 @@
-from jira.cache.issue_store import JiraIssueStore
-from jira.core.models import IssueRecord, IssueStoreQuery
-from jira.fields.specs import FieldSpec
-from jira.services.issue_service import JiraIssueService
+﻿from jira_tool.cache.issue_store import JiraIssueStore
+from jira_tool.core.models import IssueRecord, IssueStoreQuery
+from jira_tool.fields.specs import FieldSpec
+from jira_tool.services.issue_service import JiraIssueService
 
 
 class FakeClient:
@@ -62,6 +62,15 @@ def test_search_records_projects_issue_fields() -> None:
     assert records[0].fields == {"summary": "First", "status": "Open"}
     assert records[1].fields == {"summary": "Second", "status": "Done"}
     assert client.search_calls[0]["fields"] == ["key", "status", "summary"]
+
+
+def test_search_records_forwards_max_total_results() -> None:
+    client = FakeClient()
+    service = JiraIssueService(client)
+
+    service.search_records("project = ST", specs=["summary"], max_total_results=1000)
+
+    assert client.search_calls[0]["max_total_results"] == 1000
 
 
 def test_hydrate_issue_fetches_heavy_fields_when_requested() -> None:

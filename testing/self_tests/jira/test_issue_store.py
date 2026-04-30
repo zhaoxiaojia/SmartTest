@@ -1,7 +1,7 @@
-from pathlib import Path
+﻿from pathlib import Path
 
-from jira.cache.issue_store import JiraIssueStore
-from jira.core.models import IssueRecord, IssueStoreQuery
+from jira_tool.cache.issue_store import JiraIssueStore
+from jira_tool.core.models import IssueRecord, IssueStoreQuery
 
 
 def test_issue_store_round_trip(tmp_path: Path) -> None:

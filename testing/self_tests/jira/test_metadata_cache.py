@@ -1,8 +1,8 @@
-from pathlib import Path
+﻿from pathlib import Path
 
-from jira.cache.metadata_cache import JiraFieldMetadataCache
-from jira.core.models import JiraFieldMetadata
-from jira.fields.registry import FieldRegistry
+from jira_tool.cache.metadata_cache import JiraFieldMetadataCache
+from jira_tool.core.models import JiraFieldMetadata
+from jira_tool.fields.registry import FieldRegistry
 
 
 class FakeClient:

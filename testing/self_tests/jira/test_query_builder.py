@@ -1,4 +1,4 @@
-from jira.services.query_builder import build_base_jql, parse_csv_ids, parse_csv_terms
+﻿from jira_tool.services.query_builder import build_base_jql, parse_csv_ids, parse_csv_terms
 
 
 def test_parse_csv_ids_deduplicates_and_strips() -> None:

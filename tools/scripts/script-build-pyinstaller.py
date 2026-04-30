@@ -17,6 +17,7 @@ if __name__ == "__main__":
     # Keep build deterministic and local: refresh i18n and QRC outputs, then package.
     subprocess.run([env.python(), os.path.join(scripts_dir, 'script-update-translations.py')], check=True)
     subprocess.run([env.python(), os.path.join(scripts_dir, 'script-update-resource.py')], check=True)
+    subprocess.run([env.python(), os.path.join(scripts_dir, 'script-build-test-catalog.py')], check=True)
 
     build_env = env.environment()
     build_env["SMARTTEST_REPO_ROOT"] = os.path.abspath(".")

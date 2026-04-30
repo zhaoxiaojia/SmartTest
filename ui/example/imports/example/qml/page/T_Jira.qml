@@ -5,6 +5,7 @@ import FluentUI 1.0
 import "../global"
 
 FluPage {
+    id: page
     title: qsTr("Jira")
 
     property var promptSuggestions: [
@@ -18,6 +19,15 @@ FluPage {
         {name: qsTr("Ready-for-test triage"), detail: qsTr("Focus on next regression")}
     ]
     property var conversationRows: []
+    property var conversationHistoryRows: []
+    property var jiraMcpSourceRows: [
+        {id: "jira", name: "Jira", description: "Jira MCP", enabled: true},
+        {id: "confluence", name: "Confluence", description: "Confluence MCP", enabled: false},
+        {id: "soc_spec_search", name: "SoC Spec Search", description: "SoC specification search MCP", enabled: false},
+        {id: "opengrok", name: "OpenGrok", description: "OpenGrok source search MCP", enabled: false},
+        {id: "gerrit_scgit", name: "Gerrit SCGit", description: "Gerrit code review MCP", enabled: false},
+        {id: "jenkins", name: "Jenkins", description: "Jenkins CI MCP", enabled: false}
+    ]
     property var issueRows: []
     property var quickStats: []
     property var analysisActions: []
@@ -39,6 +49,13 @@ FluPage {
     property var selectedReporters: []
     property var selectedLabels: []
     property bool filterStateReady: false
+    property color jiraChatPrimaryText: "#111111"
+    property color jiraChatSecondaryText: "#6b7280"
+    property color jiraChatHoverBg: "#ececec"
+    property color jiraChatBorderColor: "#ececec"
+    property color jiraChatAccentColor: "#ff5a1f"
+    property int jiraChatFontSize: 16
+    property real jiraChatLineHeight: 1.45
 
     function issueStatusColor(status){
         if(status === "Done" || status === "Closed"){
@@ -58,6 +75,7 @@ FluPage {
 
     function syncBridgeState(){
         conversationRows = JiraBridge.conversationRows()
+        conversationHistoryRows = JiraBridge.conversationHistoryRows()
         issueRows = JiraBridge.issueRows()
         quickStats = JiraBridge.quickStats()
         selectedIssue = JiraBridge.selectedIssue()
@@ -74,6 +92,150 @@ FluPage {
     function usePrompt(text){
         input_prompt.text = text
         input_prompt.forceActiveFocus()
+    }
+
+    function enabledJiraMcpSources(){
+        return jiraMcpSourceRows.filter(function(row){ return row.enabled })
+    }
+
+    function setJiraMcpSourceEnabled(sourceId, enabled){
+        var rows = jiraMcpSourceRows.slice()
+        for(var i = 0; i < rows.length; i++){
+            if(rows[i].id === sourceId){
+                rows[i] = {
+                    id: rows[i].id,
+                    name: rows[i].name,
+                    description: rows[i].description,
+                    enabled: enabled
+                }
+                break
+            }
+        }
+        jiraMcpSourceRows = rows
+    }
+
+    function openJiraSourcePopup(){
+        var composerPoint = conversation_composer.mapToItem(page, 0, 0)
+        var anchorX = composerPoint.x + 180
+        var anchorY = composerPoint.y - jira_source_popup.height - 12
+        if(jira_source_chip && jira_source_chip.visible){
+            var chipPoint = jira_source_chip.mapToItem(page, 0, 0)
+            anchorX = chipPoint.x
+            anchorY = chipPoint.y - jira_source_popup.height - 10
+            console.debug("[JIRA_UI] source_anchor chipX=" + chipPoint.x + " chipY=" + chipPoint.y + " chipW=" + jira_source_chip.width + " chipH=" + jira_source_chip.height)
+        }else{
+            console.debug("[JIRA_UI] source_anchor fallback composerX=" + composerPoint.x + " composerY=" + composerPoint.y)
+        }
+        jira_source_popup.x = Math.max(12, Math.min(page.width - jira_source_popup.width - 12, anchorX))
+        jira_source_popup.y = Math.max(12, anchorY)
+        console.debug("[JIRA_UI] source_popup posX=" + jira_source_popup.x + " posY=" + jira_source_popup.y + " width=" + jira_source_popup.width + " height=" + jira_source_popup.height + " pageW=" + page.width + " pageH=" + page.height)
+        jira_source_popup.open()
+    }
+
+    function escapeHtml(text){
+        return (text || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;")
+    }
+
+    function inlineMarkdown(text){
+        var html = escapeHtml(text)
+        html = html.replace(/`([^`]+)`/g, "<code style='font-family: Consolas, monospace; background-color: #f4f4f4; padding: 2px 5px; border-radius: 4px;'>$1</code>")
+        html = html.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+        html = html.replace(/__([^_]+)__/g, "<b>$1</b>")
+        html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, "<a href='$2'>$1</a>")
+        return html
+    }
+
+    function paragraphHtml(lines){
+        return "<p style='margin: 0 0 12px 0;'>" + inlineMarkdown(lines.join(" ")) + "</p>"
+    }
+
+    function renderMarkdown(text){
+        var lines = (text || "").replace(/\r\n/g, "\n").split("\n")
+        var html = "<div style='font-size: " + jiraChatFontSize + "px; line-height: " + jiraChatLineHeight + "; color: #111111;'>"
+        var paragraph = []
+        var inCode = false
+        var codeLines = []
+        var inList = false
+
+        function flushParagraph(){
+            if(paragraph.length > 0){
+                html += paragraphHtml(paragraph)
+                paragraph = []
+            }
+        }
+
+        function closeList(){
+            if(inList){
+                html += "</ul>"
+                inList = false
+            }
+        }
+
+        for(var i = 0; i < lines.length; i++){
+            var rawLine = lines[i]
+            var line = rawLine.trim()
+            if(line.indexOf("```") === 0){
+                flushParagraph()
+                closeList()
+                if(inCode){
+                    html += "<pre style='margin: 8px 0 14px 0; padding: 12px 14px; background-color: #f6f6f6; border-radius: 8px; white-space: pre-wrap;'><code style='font-family: Consolas, monospace; font-size: 14px;'>" + escapeHtml(codeLines.join("\n")) + "</code></pre>"
+                    codeLines = []
+                }
+                inCode = !inCode
+                continue
+            }
+            if(inCode){
+                codeLines.push(rawLine)
+                continue
+            }
+            if(line.length === 0){
+                flushParagraph()
+                closeList()
+                continue
+            }
+            var heading = line.match(/^(#{1,6})\s+(.+)$/)
+            if(heading){
+                flushParagraph()
+                closeList()
+                var headingSizes = [0, 22, 20, 18, 16, 16, 16]
+                var size = headingSizes[heading[1].length]
+                html += "<h" + heading[1].length + " style='font-size: " + size + "px; line-height: 1.35; margin: 18px 0 9px 0; font-weight: 700;'>" + inlineMarkdown(heading[2]) + "</h" + heading[1].length + ">"
+                continue
+            }
+            var bullet = line.match(/^[-*+]\s+(.+)$/)
+            var ordered = line.match(/^\d+\.\s+(.+)$/)
+            if(bullet || ordered){
+                flushParagraph()
+                if(!inList){
+                    html += "<ul style='margin: 0 0 12px 22px;'>"
+                    inList = true
+                }
+                html += "<li style='margin: 3px 0;'>" + inlineMarkdown((bullet || ordered)[1]) + "</li>"
+                continue
+            }
+            var quote = line.match(/^>\s+(.+)$/)
+            if(quote){
+                flushParagraph()
+                closeList()
+                html += "<blockquote style='margin: 8px 0 14px 0; padding-left: 13px; border-left: 3px solid #d7d7d7; color: #4b5563;'>" + inlineMarkdown(quote[1]) + "</blockquote>"
+                continue
+            }
+            closeList()
+            paragraph.push(rawLine)
+        }
+
+        if(inCode){
+            html += "<pre style='margin: 8px 0 14px 0; padding: 12px 14px; background-color: #f6f6f6; border-radius: 8px; white-space: pre-wrap;'><code style='font-family: Consolas, monospace; font-size: 14px;'>" + escapeHtml(codeLines.join("\n")) + "</code></pre>"
+        }
+        flushParagraph()
+        closeList()
+        html += "</div>"
+        return html
     }
 
     function applySavedFilter(filterRow){
@@ -342,6 +504,7 @@ FluPage {
         target: JiraBridge
         function onStateChanged(){ syncBridgeState() }
         function onConnectionChanged(){ syncBridgeState() }
+        function onLoadingChanged(){ syncBridgeState() }
     }
 
     Connections{
@@ -349,6 +512,265 @@ FluPage {
         function onCurrentChanged(){
             refreshOptionModels(false)
             syncBridgeState()
+        }
+    }
+
+    FluMenu{
+        id: conversation_more_menu
+
+        FluMenuItem{
+            text: qsTr("Clear Session")
+            iconSource: FluentIcons.Delete
+            onTriggered: JiraBridge.clearConversation()
+        }
+    }
+
+    FluMenu{
+        id: jira_composer_add_menu
+
+        FluMenuItem{
+            text: qsTr("Use Selected Issue")
+            iconSource: FluentIcons.Page
+            onTriggered: {
+                if(selectedIssue.keyId){
+                    usePrompt(qsTr("Analyze %1 and tell me the risk for testing.").arg(selectedIssue.keyId))
+                }
+            }
+        }
+
+        FluMenuItem{
+            text: qsTr("Add Source")
+            iconSource: FluentIcons.ConnectApp
+            onTriggered: openJiraSourcePopup()
+        }
+    }
+
+    Popup{
+        id: jira_source_popup
+        width: 320
+        height: Math.min(360, page.height - 160)
+        x: 12
+        y: 12
+        modal: false
+        dim: false
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle{
+            radius: 12
+            color: FluTheme.windowBackgroundColor
+            border.width: 1
+            border.color: FluTheme.dividerColor
+        }
+
+        contentItem: ColumnLayout{
+            spacing: 8
+
+            FluText{
+                Layout.fillWidth: true
+                text: qsTr("Sources")
+                font: FluTextStyle.BodyStrong
+            }
+
+            FluText{
+                Layout.fillWidth: true
+                text: qsTr("Jira MCP is enabled by default for Jira AI.")
+                color: FluTheme.fontSecondaryColor
+                font: FluTextStyle.Caption
+                wrapMode: Text.WordWrap
+            }
+
+            ListView{
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                model: jiraMcpSourceRows
+                spacing: 4
+                ScrollBar.vertical: FluScrollBar{}
+
+                delegate: Rectangle{
+                    width: ListView.view.width
+                    height: 44
+                    radius: 8
+                    color: "transparent"
+
+                    RowLayout{
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        spacing: 10
+
+                        Image{
+                            visible: modelData.id === "jira"
+                            Layout.preferredWidth: 18
+                            Layout.preferredHeight: 18
+                            source: "qrc:/example/res/svg/jira-logo-icon.svg"
+                            fillMode: Image.PreserveAspectFit
+                        }
+
+                        FluIcon{
+                            visible: modelData.id !== "jira"
+                            Layout.preferredWidth: 18
+                            iconSource: FluentIcons.ConnectApp
+                            iconSize: 16
+                            iconColor: jiraChatPrimaryText
+                        }
+
+                        ColumnLayout{
+                            Layout.fillWidth: true
+                            spacing: 1
+
+                            FluText{
+                                Layout.fillWidth: true
+                                text: modelData.name
+                                color: jiraChatPrimaryText
+                                elide: Text.ElideRight
+                            }
+
+                            FluText{
+                                Layout.fillWidth: true
+                                text: modelData.description
+                                color: jiraChatSecondaryText
+                                font: FluTextStyle.Caption
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        JiraSourceSwitch{
+                            checked: modelData.enabled
+                            onClicked: setJiraMcpSourceEnabled(modelData.id, !modelData.enabled)
+                        }
+                    }
+                }
+            }
+        }
+        padding: 12
+    }
+
+    FluPopup{
+        id: conversation_history_popup
+        width: Math.min(640, page.width - 80)
+        height: Math.min(560, page.height - 80)
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        Rectangle{
+            anchors.fill: parent
+            radius: 8
+            color: FluTheme.windowBackgroundColor
+            border.width: 1
+            border.color: FluTheme.dividerColor
+
+            ColumnLayout{
+                anchors.fill: parent
+                spacing: 0
+
+                RowLayout{
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 58
+                    Layout.leftMargin: 18
+                    Layout.rightMargin: 12
+                    spacing: 8
+
+                    FluText{
+                        Layout.fillWidth: true
+                        text: qsTr("Conversation History")
+                        font: FluTextStyle.Subtitle
+                    }
+
+                    FluIconButton{
+                        Layout.preferredWidth: 32
+                        Layout.preferredHeight: 32
+                        iconSource: FluentIcons.Cancel
+                        iconSize: 13
+                        text: qsTr("Close")
+                        normalColor: "transparent"
+                        hoverColor: FluTheme.itemHoverColor
+                        onClicked: conversation_history_popup.close()
+                    }
+                }
+
+                Rectangle{
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 1
+                    color: FluTheme.dividerColor
+                }
+
+                ListView{
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.margins: 10
+                    clip: true
+                    spacing: 6
+                    model: conversationHistoryRows
+                    ScrollBar.vertical: FluScrollBar{}
+
+                    delegate: Rectangle{
+                        width: ListView.view.width
+                        height: 76
+                        radius: 8
+                        color: "transparent"
+
+                        ColumnLayout{
+                            anchors.fill: parent
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 12
+                            anchors.topMargin: 8
+                            anchors.bottomMargin: 8
+                            spacing: 3
+
+                            RowLayout{
+                                Layout.fillWidth: true
+
+                                FluText{
+                                    Layout.fillWidth: true
+                                    text: modelData.title
+                                    font: FluTextStyle.BodyStrong
+                                    elide: Text.ElideRight
+                                }
+
+                                FluText{
+                                    text: modelData.updatedAt
+                                    color: FluTheme.fontSecondaryColor
+                                    font: FluTextStyle.Caption
+                                }
+                            }
+
+                            FluText{
+                                Layout.fillWidth: true
+                                text: modelData.preview
+                                color: FluTheme.fontSecondaryColor
+                                elide: Text.ElideRight
+                                font: FluTextStyle.Caption
+                            }
+
+                            FluText{
+                                text: qsTr("%1 messages").arg(modelData.messageCount)
+                                color: FluTheme.fontSecondaryColor
+                                font: FluTextStyle.Caption
+                            }
+                        }
+
+                        MouseArea{
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onEntered: parent.color = FluTheme.itemHoverColor
+                            onExited: parent.color = "transparent"
+                            onClicked: {
+                                JiraBridge.restoreConversation(modelData.id)
+                                conversation_history_popup.close()
+                            }
+                        }
+                    }
+
+                    FluText{
+                        anchors.centerIn: parent
+                        visible: conversationHistoryRows.length === 0
+                        text: qsTr("No conversation history yet.")
+                        color: FluTheme.fontSecondaryColor
+                    }
+                }
+            }
         }
     }
 
@@ -1077,111 +1499,297 @@ FluPage {
                 SplitView.fillWidth: true
                 SplitView.minimumWidth: 420
                 SplitView.fillHeight: true
-                padding: 10
+                padding: 0
 
-                ColumnLayout{
+                Rectangle{
                     anchors.fill: parent
-                    spacing: 10
+                    color: "#ffffff"
+                    radius: 6
+                    border.width: 1
+                    border.color: jiraChatBorderColor
 
-                    RowLayout{
-                        Layout.fillWidth: true
+                    Rectangle{
+                        id: conversation_top_bar
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        height: 52
+                        color: "#ffffff"
 
-                        ColumnLayout{
-                            Layout.fillWidth: true
-                            spacing: 2
+                        Rectangle{
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: 1
+                            color: jiraChatBorderColor
+                        }
+
+                        RowLayout{
+                            anchors.fill: parent
+                            anchors.leftMargin: 20
+                            anchors.rightMargin: 14
+                            spacing: 8
+
+                            Image{
+                                Layout.preferredWidth: 22
+                                Layout.preferredHeight: 22
+                                source: "qrc:/example/res/svg/deepseek-logo-icon.svg"
+                                fillMode: Image.PreserveAspectFit
+                            }
 
                             FluText{
-                                text: qsTr("AI Conversation")
+                                text: qsTr("Jira AI Chat")
+                                color: jiraChatPrimaryText
                                 font: FluTextStyle.Subtitle
                             }
 
                             FluText{
-                                Layout.fillWidth: true
-                                text: qsTr("Use plain language. Jira search and AI analysis are both driven from this workspace.")
-                                color: FluTheme.fontSecondaryColor
-                                wrapMode: Text.WordWrap
+                                text: qsTr("Preview")
+                                color: jiraChatSecondaryText
+                                font: FluTextStyle.Body
                             }
-                        }
 
-                        FluButton{
-                            text: qsTr("Clear Session")
-                            onClicked: JiraBridge.clearConversation()
+                            FluIcon{
+                                iconSource: FluentIcons.ChevronDown
+                                iconSize: 12
+                                iconColor: jiraChatSecondaryText
+                            }
+
+                            Item{ Layout.fillWidth: true }
+
+                            ConversationTopAction{
+                                iconSource: FluentIcons.History
+                                text: qsTr("History")
+                                onClicked: {
+                                    conversationHistoryRows = JiraBridge.conversationHistoryRows()
+                                    conversation_history_popup.open()
+                                }
+                            }
+
+                            FluIconButton{
+                                Layout.preferredWidth: 34
+                                Layout.preferredHeight: 34
+                                iconSource: FluentIcons.More
+                                iconSize: 14
+                                text: qsTr("More")
+                                normalColor: "transparent"
+                                hoverColor: jiraChatHoverBg
+                                onClicked: conversation_more_menu.popup()
+                            }
                         }
                     }
 
                     ListView{
                         id: list_conversation
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: conversation_top_bar.bottom
+                        anchors.bottom: conversation_composer.top
+                        anchors.bottomMargin: 10
                         clip: true
-                        spacing: 10
+                        spacing: 24
                         model: conversationRows
                         boundsBehavior: Flickable.StopAtBounds
                         ScrollBar.vertical: FluScrollBar{}
 
+                        footer: Item{
+                            width: list_conversation.width
+                            height: JiraBridge.loading ? thinking_row.implicitHeight + 28 : 0
+                            visible: JiraBridge.loading
+
+                            Row{
+                                id: thinking_row
+                                width: Math.min(1000, parent.width - 48)
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                spacing: 8
+
+                                FluText{
+                                    text: qsTr("Thinking...")
+                                    color: jiraChatSecondaryText
+                                    font.family: FluTextStyle.family
+                                    font.pixelSize: jiraChatFontSize
+                                    lineHeight: jiraChatLineHeight
+                                    lineHeightMode: Text.ProportionalHeight
+                                }
+
+                                FluProgressRing{
+                                    width: 16
+                                    height: 16
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+                        }
+
                         delegate: Item{
                             width: list_conversation.width
-                            height: bubble.implicitHeight + 4
+                            height: message_row.implicitHeight
 
-                            Rectangle{
-                                id: bubble
-                                width: Math.min(list_conversation.width * 0.78, 560)
-                                implicitHeight: bubble_content.implicitHeight + 20
-                                radius: 8
-                                color: modelData.role === "user" ? FluTheme.primaryColor : FluTheme.frameColor
-                                anchors.right: modelData.role === "user" ? parent.right : undefined
-                                anchors.left: modelData.role === "assistant" ? parent.left : undefined
+                            Item{
+                                id: message_row
+                                width: Math.min(1000, parent.width - 48)
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                implicitHeight: Math.max(user_bubble.implicitHeight, assistant_column.implicitHeight) + 4
+                                readonly property bool isUser: modelData.role === "user"
 
-                                ColumnLayout{
-                                    id: bubble_content
-                                    anchors.fill: parent
-                                    anchors.margins: 10
-                                    spacing: 6
+                                Rectangle{
+                                    id: user_bubble
+                                    visible: message_row.isUser
+                                    width: Math.min(470, parent.width * 0.58)
+                                    implicitHeight: user_text.implicitHeight + user_actions.implicitHeight + 28
+                                    radius: 18
+                                    color: "#f1f1f1"
+                                    anchors.right: parent.right
 
-                                    FluText{
-                                        text: modelData.author + "  " + modelData.timestamp
-                                        font: FluTextStyle.Caption
-                                        color: modelData.role === "user" ? FluColors.White : FluTheme.fontSecondaryColor
+                                    Column{
+                                        anchors.left: parent.left
+                                        anchors.right: parent.right
+                                        anchors.top: parent.top
+                                        anchors.margins: 12
+                                        spacing: 6
+
+                                        FluText{
+                                            id: user_text
+                                            width: parent.width
+                                            text: modelData.message
+                                            color: jiraChatPrimaryText
+                                            font.family: FluTextStyle.family
+                                            font.pixelSize: jiraChatFontSize
+                                            wrapMode: Text.WordWrap
+                                            lineHeight: jiraChatLineHeight
+                                            lineHeightMode: Text.ProportionalHeight
+                                        }
+
+                                        Row{
+                                            id: user_actions
+                                            spacing: 8
+
+                                            FluIconButton{
+                                                width: 26
+                                                height: 26
+                                                iconSource: FluentIcons.Copy
+                                                iconSize: 12
+                                                text: qsTr("Copy")
+                                                onClicked: JiraBridge.copyText(modelData.message)
+                                            }
+
+                                            FluIconButton{
+                                                width: 26
+                                                height: 26
+                                                iconSource: FluentIcons.RepeatAll
+                                                iconSize: 12
+                                                text: qsTr("Resend")
+                                                disabled: JiraBridge.loading
+                                                onClicked: JiraBridge.retryPrompt(modelData.message)
+                                            }
+                                        }
                                     }
+                                }
 
-                                    FluText{
-                                        Layout.fillWidth: true
-                                        text: modelData.message
+                                Column{
+                                    id: assistant_column
+                                    visible: !message_row.isUser
+                                    width: Math.min(760, parent.width * 0.82)
+                                    anchors.left: parent.left
+                                    spacing: 11
+
+                                    Text{
+                                        width: parent.width
+                                        text: renderMarkdown(modelData.message)
+                                        textFormat: Text.RichText
                                         wrapMode: Text.WordWrap
-                                        color: modelData.role === "user" ? FluColors.White : FluTheme.fontPrimaryColor
+                                        color: jiraChatPrimaryText
+                                        linkColor: "#0f62fe"
+                                        font.family: FluTextStyle.family
+                                        font.pixelSize: jiraChatFontSize
+                                        lineHeight: jiraChatLineHeight
+                                        lineHeightMode: Text.ProportionalHeight
+                                        renderType: FluTheme.nativeText ? Text.NativeRendering : Text.QtRendering
+                                        onLinkActivated: (link)=> Qt.openUrlExternally(link)
                                     }
                                 }
                             }
                         }
                     }
 
-                    FluFrame{
-                        Layout.fillWidth: true
-                        padding: 10
+                    Column{
+                        id: conversation_composer
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 8
+                        spacing: 4
 
-                        ColumnLayout{
-                            anchors.fill: parent
-                            spacing: 8
+                        Rectangle{
+                            width: Math.max(320, parent.width - 48)
+                            height: 106
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            radius: 22
+                            color: "#ffffff"
+                            border.width: 2
+                            border.color: jiraChatAccentColor
 
                             FluMultilineTextBox{
                                 id: input_prompt
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 110
-                                placeholderText: qsTr("Ask Jira in natural language. Example: summarize blocked issues related to WPA this sprint.")
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.bottom: conversation_composer_tools.top
+                                anchors.leftMargin: 18
+                                anchors.rightMargin: 18
+                                anchors.topMargin: 12
+                                anchors.bottomMargin: 2
+                                placeholderText: qsTr("Ask anything")
+                                disabled: JiraBridge.loading
                                 isCtrlEnterForNewline: true
+                                background: Item{}
+                                color: jiraChatPrimaryText
+                                placeholderNormalColor: "#8a8a8a"
+                                placeholderFocusColor: "#8a8a8a"
                                 onCommit: submitPrompt()
                             }
 
                             RowLayout{
-                                Layout.fillWidth: true
+                                id: conversation_composer_tools
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                anchors.leftMargin: 14
+                                anchors.rightMargin: 14
+                                anchors.bottomMargin: 10
+                                height: 30
                                 spacing: 8
 
-                                FluButton{
-                                    text: qsTr("Use Selected Issue")
-                                    onClicked: {
-                                        if(selectedIssue.keyId){
-                                            usePrompt(qsTr("Analyze %1 and tell me the risk for testing.").arg(selectedIssue.keyId))
-                                        }
+                                FluIconButton{
+                                    Layout.preferredWidth: 30
+                                    Layout.preferredHeight: 30
+                                    iconSource: FluentIcons.Add
+                                    iconSize: 15
+                                    text: qsTr("More")
+                                    normalColor: "transparent"
+                                    hoverColor: jiraChatHoverBg
+                                    onClicked: jira_composer_add_menu.popup()
+                                }
+
+                                JiraToolChip{
+                                    iconSource: FluentIcons.Flashlight
+                                    text: qsTr("Quick")
+                                }
+
+                                JiraToolChip{
+                                    id: jira_source_chip
+                                    iconSource: FluentIcons.ConnectApp
+                                    text: qsTr("Sources")
+                                    clickable: true
+                                    onClicked: openJiraSourcePopup()
+                                }
+
+                                Repeater{
+                                    model: enabledJiraMcpSources()
+
+                                    JiraToolChip{
+                                        iconSource: FluentIcons.ConnectApp
+                                        imageSource: modelData.id === "jira" ? "qrc:/example/res/svg/jira-logo-icon.svg" : ""
+                                        text: modelData.name
                                     }
                                 }
 
@@ -1189,12 +1797,44 @@ FluPage {
                                     Layout.fillWidth: true
                                 }
 
-                                FluFilledButton{
-                                    text: JiraBridge.loading ? qsTr("Running...") : qsTr("Send")
-                                    disabled: JiraBridge.loading
-                                    onClicked: submitPrompt()
+                                FluIconButton{
+                                    Layout.preferredWidth: 30
+                                    Layout.preferredHeight: 30
+                                    iconSource: FluentIcons.Microphone
+                                    iconSize: 15
+                                    text: qsTr("Voice")
+                                    normalColor: "transparent"
+                                    hoverColor: jiraChatHoverBg
+                                }
+
+                                Rectangle{
+                                    Layout.preferredWidth: 34
+                                    Layout.preferredHeight: 34
+                                    radius: 17
+                                    color: JiraBridge.loading || (input_prompt.text || "").trim().length === 0 ? "#c9c9c9" : "#000000"
+
+                                    FluIcon{
+                                        anchors.centerIn: parent
+                                        iconSource: FluentIcons.Send
+                                        iconSize: 15
+                                        iconColor: "#ffffff"
+                                    }
+
+                                    MouseArea{
+                                        anchors.fill: parent
+                                        enabled: !JiraBridge.loading && (input_prompt.text || "").trim().length > 0
+                                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                        onClicked: submitPrompt()
+                                    }
                                 }
                             }
+                        }
+
+                        FluText{
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: qsTr("SmartTest AI can make mistakes. Verify important information.")
+                            color: jiraChatSecondaryText
+                            font: FluTextStyle.Caption
                         }
                     }
                 }
@@ -1664,6 +2304,120 @@ FluPage {
                     }
                 }
             }
+        }
+    }
+
+    component ConversationTopAction: Item{
+        id: top_action
+        signal clicked()
+        property int iconSource: 0
+        property string text: ""
+        implicitWidth: action_row.implicitWidth
+        implicitHeight: 34
+
+        RowLayout{
+            id: action_row
+            anchors.centerIn: parent
+            spacing: 5
+
+            FluIcon{
+                iconSource: top_action.iconSource
+                iconSize: 14
+                iconColor: jiraChatPrimaryText
+            }
+
+            FluText{
+                text: top_action.text
+                color: jiraChatPrimaryText
+                font: FluTextStyle.Body
+            }
+        }
+
+        MouseArea{
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: top_action.clicked()
+        }
+    }
+
+    component JiraToolChip: Rectangle{
+        id: tool_chip
+        signal clicked()
+        property int iconSource: 0
+        property string imageSource: ""
+        property string text: ""
+        property bool clickable: false
+        Layout.preferredWidth: Math.min(150, chip_row.implicitWidth + 16)
+        Layout.preferredHeight: 28
+        radius: 14
+        color: "#ffffff"
+        border.width: 0
+
+        RowLayout{
+            id: chip_row
+            anchors.centerIn: parent
+            spacing: 5
+
+            Image{
+                visible: tool_chip.imageSource.length > 0
+                Layout.preferredWidth: 15
+                Layout.preferredHeight: 15
+                source: tool_chip.imageSource
+                fillMode: Image.PreserveAspectFit
+            }
+
+            FluIcon{
+                visible: tool_chip.imageSource.length === 0
+                iconSource: tool_chip.iconSource
+                iconSize: 15
+                iconColor: "#0f62fe"
+            }
+
+            FluText{
+                Layout.maximumWidth: 96
+                text: tool_chip.text
+                color: "#0f62fe"
+                elide: Text.ElideRight
+                font: FluTextStyle.Body
+            }
+        }
+
+        MouseArea{
+            anchors.fill: parent
+            enabled: tool_chip.clickable
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: tool_chip.clicked()
+        }
+    }
+
+    component JiraSourceSwitch: Rectangle{
+        id: source_switch
+        signal clicked()
+        property bool checked: false
+        Layout.preferredWidth: 38
+        Layout.preferredHeight: 22
+        radius: 11
+        color: checked ? "#111111" : "#eeeeee"
+        border.width: 1
+        border.color: checked ? "#111111" : "#d0d0d0"
+
+        Rectangle{
+            width: 16
+            height: 16
+            radius: 8
+            color: checked ? "#ffffff" : "#8a8a8a"
+            anchors.verticalCenter: parent.verticalCenter
+            x: checked ? parent.width - width - 3 : 3
+
+            Behavior on x{
+                NumberAnimation{ duration: 120 }
+            }
+        }
+
+        MouseArea{
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: source_switch.clicked()
         }
     }
 }

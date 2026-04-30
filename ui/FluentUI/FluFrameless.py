@@ -21,6 +21,16 @@ if Tools.isWin():
         return c_uint16(dword & 0xffff).value
 
 
+    # noinspection PyPep8Naming
+    def GET_X_LPARAM(lparam):
+        return c_short(lparam & 0xffff).value
+
+
+    # noinspection PyPep8Naming
+    def GET_Y_LPARAM(lparam):
+        return c_short((lparam >> 16) & 0xffff).value
+
+
     class MARGINS(Structure):
         _fields_ = [
             ("cxLeftWidth", c_int),
@@ -291,7 +301,7 @@ class FluFrameless(QQuickItem, QAbstractNativeEventFilter):
                     return True, 9
                 self._setMaximizeHovered(False)
                 self._setMaximizePressed(False)
-            nativeGlobalPos = POINT(LOWORD(lParam), HIWORD(lParam))
+            nativeGlobalPos = POINT(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam))
             nativeLocalPos = POINT(nativeGlobalPos.x, nativeGlobalPos.y)
             ScreenToClient(hwnd, byref(nativeLocalPos))
             clientRect = RECTL(0, 0, 0, 0)

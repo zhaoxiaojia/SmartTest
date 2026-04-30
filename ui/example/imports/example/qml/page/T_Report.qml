@@ -383,16 +383,26 @@ FluPage {
                                 font: FluTextStyle.Subtitle
                             }
 
-                            TextEdit{
+                            Flickable{
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
-                                readOnly: true
-                                selectByMouse: true
-                                wrapMode: Text.WrapAnywhere
-                                text: selectedReport.log_text || ""
-                                color: FluTheme.fontPrimaryColor
-                                font: FluTextStyle.Caption
-                                renderType: FluTheme.nativeText ? Text.NativeRendering : Text.QtRendering
+                                clip: true
+                                contentWidth: width
+                                contentHeight: reportLogText.paintedHeight
+                                boundsBehavior: Flickable.StopAtBounds
+                                ScrollBar.vertical: FluScrollBar{}
+
+                                TextEdit{
+                                    id: reportLogText
+                                    width: parent.width
+                                    readOnly: true
+                                    selectByMouse: true
+                                    wrapMode: Text.WrapAnywhere
+                                    text: selectedReport.log_text || ""
+                                    color: FluTheme.fontPrimaryColor
+                                    font: FluTextStyle.Caption
+                                    renderType: FluTheme.nativeText ? Text.NativeRendering : Text.QtRendering
+                                }
                             }
                         }
                     }

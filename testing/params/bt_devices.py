@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import subprocess
 
-from .adb_devices import _decode_adb_output, resolve_adb_serial_for_command
+from .adb_devices import _decode_adb_output, _hidden_process_kwargs, resolve_adb_serial_for_command
 
 
 _MAC_PATTERN = r"([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})"
@@ -97,6 +97,7 @@ def list_paired_bluetooth_devices(selected_serial: str | None = None) -> list[st
             stdin=subprocess.DEVNULL,
             text=False,
             check=False,
+            **_hidden_process_kwargs(),
         )
     except FileNotFoundError:
         return []

@@ -1,5 +1,5 @@
-from jira.fields.extractors import extract_path, parse_path, project_fields
-from jira.fields.specs import FieldSpec
+﻿from jira_tool.fields.extractors import extract_path, parse_path, project_fields
+from jira_tool.fields.specs import FieldSpec
 
 
 ISSUE_SAMPLE = {
