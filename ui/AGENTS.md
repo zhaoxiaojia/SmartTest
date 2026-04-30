@@ -13,17 +13,25 @@ Scope: everything under `ui/`.
 
 ## Localization Is Mandatory
 
-- Every newly added or modified UI text must ship with both `en_US` and `zh_CN` translations in the same change.
-- This applies to all user-visible text, including:
+- Localization ownership is determined by the source of the text, not by the control that displays it.
+- Any text owned by the frontend must ship with both `en_US` and `zh_CN` translations in the same change.
+- Frontend-owned text includes:
   - QML `qsTr(...)` strings
   - Python bridge/controller text produced with `tr(...)` / `QCoreApplication.translate(...)`
-  - placeholder text, button labels, tooltips, empty states, error text, status text, and summary text
+  - placeholder text, button labels, tooltips, empty states, error text, status text, summary text, navigation labels, section titles, enum display names, and frontend mock/placeholder data
+- Dynamic content from outside the frontend must remain raw and must not be translated by the frontend. This includes Jira issue text, Confluence page titles/content, MCP/company information payloads, Bing wallpaper title/copyright, pytest/adb/runner logs, user input, file paths, device serials, package names, case ids, and version strings.
+- Bridge payloads that mix frontend-owned text with external data must be structured:
+  - use translated payloads for frontend-owned templates: `{"kind": "translated", "template": "...", "values": {...}}`
+  - use raw payloads for external/system-returned text: `{"kind": "raw", "text": "..."}`
+  - render translated payloads through `ui/example/helper/UiText.py`; do not reimplement ad hoc translated/raw renderers in each bridge.
+- Do not concatenate full display sentences from smaller translated fragments. Use a single translatable template with placeholders, such as `qsTr("%1 waiting for test").arg(count)` or a bridge translated template with `values`.
 - Do not leave new or changed UI text as `unfinished` in the translation sources for either language.
 - Do not hand off UI work until the translation sources are updated, `.qm` files are regenerated, the generated `.qm` files are copied into the QRC-backed `ui/example/imports/example/i18n/` folder, and the QRC resource has been rebuilt when applicable.
 - Do not land hard-coded display strings that bypass the translation system.
 - If a translation changes, verify the runtime translation path, not just the `.ts` file. The effective chain is: source text -> `.ts` -> `.qm` -> QRC -> `QTranslator`.
 - Do not mask translation corruption in QML. Find the broken step in the translation resource pipeline and fix that step.
 - Treat placeholder-like translations such as `?`, `??`, `???`, or mojibake text as translation failures.
+- For SmartTest-owned UI files, `testing/self_tests/ui/test_owned_ui_translations.py` dynamically audits active `.ts` messages by source location. If a new SmartTest-owned QML/bridge file is added, add that file to `OWNED_UI_SOURCE_FILES` in the test and include bridge Python files in `tools/scripts/script-update-translations.py` when they contain translatable text.
 
 ## UI State Persistence Is Mandatory
 

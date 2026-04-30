@@ -604,7 +604,7 @@ FluPage {
                             visible: modelData.id === "jira"
                             Layout.preferredWidth: 18
                             Layout.preferredHeight: 18
-                            source: "qrc:/example/res/svg/jira-logo-icon.svg"
+                            source: "qrc:/example/res/svg/jira-software-icon.svg"
                             fillMode: Image.PreserveAspectFit
                         }
 
@@ -1788,7 +1788,7 @@ FluPage {
 
                                     JiraToolChip{
                                         iconSource: FluentIcons.ConnectApp
-                                        imageSource: modelData.id === "jira" ? "qrc:/example/res/svg/jira-logo-icon.svg" : ""
+                                        imageSource: modelData.id === "jira" ? "qrc:/example/res/svg/jira-software-icon.svg" : ""
                                         text: modelData.name
                                     }
                                 }

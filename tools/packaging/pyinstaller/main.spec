@@ -176,7 +176,8 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=os.path.join(repo_root, "tools", "packaging", "assets", "SmartTest.ico")
+    icon=os.path.join(repo_root, "tools", "packaging", "assets", "SmartTest.ico"),
+    contents_directory=".",
 )
 
 coll = COLLECT(

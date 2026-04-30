@@ -37,6 +37,7 @@ if __name__ == "__main__":
             os.path.join(example_project_dir, "helper", "InitializrHelper.py"),
             os.path.join(example_project_dir, "bridge", "AuthBridge.py"),
             os.path.join(example_project_dir, "bridge", "AIBridge.py"),
+            os.path.join(example_project_dir, "bridge", "HomeBridge.py"),
             os.path.join(example_project_dir, "bridge", "JiraBridge.py"),
             os.path.join(example_project_dir, "bridge", "RunBridge.py"),
             os.path.join(example_project_dir, "bridge", "TestPageBridge.py"),

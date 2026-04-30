@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -30,8 +31,11 @@ class RunBridge(QObject):
     def __init__(self, root_dir: Path):
         super().__init__(QGuiApplication.instance())
         self._root_dir = root_dir.resolve()
-        self._stdout_log_path = self._root_dir / "tmp_main_stdout.log"
-        self._stderr_log_path = self._root_dir / "tmp_main_stderr.log"
+        run_logs_dir = self._default_run_logs_dir()
+        self._stdout_log_path = run_logs_dir / "tmp_main_stdout.log"
+        self._stderr_log_path = run_logs_dir / "tmp_main_stderr.log"
+        self._stdout_mirror_log_path = self._root_dir / "tmp_main_stdout.log"
+        self._stderr_mirror_log_path = self._root_dir / "tmp_main_stderr.log"
         self._running = False
         self._logs: list[dict[str, Any]] = []
         self._steps: list[dict[str, Any]] = []
@@ -56,6 +60,10 @@ class RunBridge(QObject):
     def _default_reports_dir(self) -> Path:
         base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
         return Path(base) / "SmartTest" / "reports"
+
+    def _default_run_logs_dir(self) -> Path:
+        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
+        return Path(base) / "SmartTest" / "run_logs"
 
     def _now_iso(self) -> str:
         return datetime.now().astimezone().isoformat(timespec="seconds")
@@ -101,8 +109,10 @@ class RunBridge(QObject):
         self._logs = []
         self._steps = []
         self._step_index = {}
-        self._stdout_log_path.write_text("", encoding="utf-8")
-        self._stderr_log_path.write_text("", encoding="utf-8")
+        self._write_local_log(self._stdout_log_path, "", mode="w")
+        self._write_local_log(self._stderr_log_path, "", mode="w")
+        self._write_local_log(self._stdout_mirror_log_path, "", mode="w", required=False)
+        self._write_local_log(self._stderr_mirror_log_path, "", mode="w", required=False)
         self.logsChanged.emit()
         self.stepsChanged.emit()
 
@@ -113,10 +123,44 @@ class RunBridge(QObject):
         self._run_selected_nodeids = list(nodeids)
         self._run_adb_serial = adb_serial
 
+    def _write_local_log(self, path: Path, text: str, *, mode: str = "a", required: bool = True) -> bool:
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open(mode, encoding="utf-8") as fh:
+                fh.write(text)
+                if mode != "w" or text:
+                    fh.write("\n")
+            return True
+        except OSError as exc:
+            if required:
+                print(f"{self._trace_timestamp()} [RunBridge] failed to write log {path}: {exc}")
+            return False
+
     def _append_local_log(self, path: Path, text: str) -> None:
-        with path.open("a", encoding="utf-8") as fh:
-            fh.write(text)
-            fh.write("\n")
+        if not self._write_local_log(path, text):
+            return
+        mirror = None
+        if path == self._stdout_log_path:
+            mirror = self._stdout_mirror_log_path
+        elif path == self._stderr_log_path:
+            mirror = self._stderr_mirror_log_path
+        if mirror is not None:
+            self._write_local_log(mirror, text, required=False)
+
+    def _append_traceback_log(self, exc: BaseException) -> None:
+        for line in traceback.format_exception(type(exc), exc, exc.__traceback__):
+            for entry in line.rstrip().splitlines():
+                self._append_local_log(self._stderr_log_path, entry)
+
+    def _append_start_diagnostics(self, *, nodeids: list[str], adb_serial: str | None) -> None:
+        diagnostics = [
+            f"[run] diagnostics log: {self._stdout_log_path}",
+            f"[run] root_dir: {self._root_dir}",
+            f"[run] selected cases: {len(nodeids)}",
+            f"[run] adb_serial: {adb_serial or '<auto>'}",
+        ]
+        for line in diagnostics:
+            self._append_log(line)
 
     def _start_run_session(
         self,
@@ -316,24 +360,26 @@ class RunBridge(QObject):
     def startRun(self) -> None:
         if self._running:
             return
-        nodeids, adb_serial, case_configs = self._selected_run_targets()
-        if not nodeids:
-            self.errorOccurred.emit(self.tr("No selected test cases to run."))
-            return
-
-        self._reset_run_data()
-        self._begin_report_context(nodeids=nodeids, adb_serial=adb_serial)
-        self._stop_requested = False
         try:
+            nodeids, adb_serial, case_configs = self._selected_run_targets()
+            if not nodeids:
+                self.errorOccurred.emit(self.tr("No selected test cases to run."))
+                return
+
+            self._reset_run_data()
+            self._begin_report_context(nodeids=nodeids, adb_serial=adb_serial)
+            self._stop_requested = False
+            self._append_start_diagnostics(nodeids=nodeids, adb_serial=adb_serial)
             session = self._start_run_session(nodeids, adb_serial, case_configs)
         except Exception as exc:  # noqa: BLE001
             self._append_local_log(self._stderr_log_path, str(exc))
+            self._append_traceback_log(exc)
             self.errorOccurred.emit(self.tr("Failed to start pytest run. {detail}").format(detail=str(exc)))
             return
 
         self._session = session
         self._set_running(True)
-        self._append_log(f"[run] selected cases: {len(nodeids)}")
+        self._append_log("[run] runner session started")
 
         threading.Thread(target=self._pump_stdout, args=(session,), daemon=True).start()
         threading.Thread(target=self._pump_events, args=(session,), daemon=True).start()

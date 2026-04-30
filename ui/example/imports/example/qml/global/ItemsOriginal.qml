@@ -152,7 +152,13 @@ FluObject{
         id: item_ai
         title: qsTr("AI")
         menuDelegate: paneItemMenu
-        icon: FluentIcons.Robot
+        iconDelegate: Image{
+            width: 18
+            height: 18
+            sourceSize: Qt.size(36, 36)
+            fillMode: Image.PreserveAspectFit
+            source: "qrc:/example/res/svg/deepseek-logo-icon.svg"
+        }
         url: "qrc:/example/qml/page/T_AI.qml"
         onTap: { navigationView.push(url) }
     }
@@ -170,7 +176,13 @@ FluObject{
         id: item_jira
         title: qsTr("Jira")
         menuDelegate: paneItemMenu
-        icon: FluentIcons.Link
+        iconDelegate: Image{
+            width: 18
+            height: 18
+            sourceSize: Qt.size(36, 36)
+            fillMode: Image.PreserveAspectFit
+            source: "qrc:/example/res/svg/jira-software-icon.svg"
+        }
         url: "qrc:/example/qml/page/T_Jira.qml"
         onTap: { navigateWithAuth(item_jira) }
     }

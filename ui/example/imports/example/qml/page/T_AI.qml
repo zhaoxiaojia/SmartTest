@@ -383,7 +383,7 @@ FluPage {
                             visible: modelData.id === "jira"
                             Layout.preferredWidth: 18
                             Layout.preferredHeight: 18
-                            source: "qrc:/example/res/svg/jira-logo-icon.svg"
+                            source: "qrc:/example/res/svg/jira-software-icon.svg"
                             fillMode: Image.PreserveAspectFit
                         }
 
@@ -1770,7 +1770,7 @@ FluPage {
 
                         ToolChip{
                             iconSource: FluentIcons.ConnectApp
-                            imageSource: modelData.id === "jira" ? "qrc:/example/res/svg/jira-logo-icon.svg" : ""
+                            imageSource: modelData.id === "jira" ? "qrc:/example/res/svg/jira-software-icon.svg" : ""
                             text: modelData.name
                             removable: true
                             onRemoveClicked: AIBridge.setMcpSourceEnabled(modelData.id, false)

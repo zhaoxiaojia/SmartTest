@@ -22,6 +22,7 @@ from jira_tool import (
 )
 from example.bridge.AuthBridge import AuthBridge
 from example.helper.TranslateHelper import TranslateHelper
+from example.helper.UiText import raw_text, render_template, render_text, translated_text
 
 JIRA_BASE_URL = os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")
 _MAX_DISPLAY_ISSUES = 50
@@ -218,19 +219,14 @@ class JiraBridge(QObject):
         return self.tr(text)
 
     def _translated_state(self, template: str, **values: Any) -> dict[str, Any]:
-        return {"kind": "translated", "template": template, "values": dict(values)}
+        return translated_text(template, **values)
 
     @staticmethod
     def _raw_state(text: str) -> dict[str, Any]:
-        return {"kind": "raw", "text": text}
+        return raw_text(text)
 
     def _render_state_text(self, state: dict[str, Any]) -> str:
-        if not state:
-            return ""
-        if state.get("kind") == "translated":
-            template = str(state.get("template", "") or "")
-            return self._t(template).format(**dict(state.get("values") or {}))
-        return str(state.get("text", "") or "")
+        return render_text(self, state)
 
     def _system_row(
         self,
@@ -252,12 +248,16 @@ class JiraBridge(QObject):
     def _render_conversation_row(self, row: dict[str, Any]) -> dict[str, Any]:
         rendered = dict(row)
         if "message_template" in row:
-            rendered["message"] = self._t(str(row.get("message_template", "") or "")).format(
-                **dict(row.get("message_values") or {})
+            rendered["message"] = render_template(
+                self,
+                str(row.get("message_template", "") or ""),
+                row.get("message_values"),
             )
         if "timestamp_template" in row:
-            rendered["timestamp"] = self._t(str(row.get("timestamp_template", "") or "")).format(
-                **dict(row.get("timestamp_values") or {})
+            rendered["timestamp"] = render_template(
+                self,
+                str(row.get("timestamp_template", "") or ""),
+                row.get("timestamp_values"),
             )
         return rendered
 

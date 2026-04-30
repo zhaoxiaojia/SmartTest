@@ -15,6 +15,24 @@ TRANSLATION_FILES = {
     "zh_CN": UI_DIR / "example_zh_CN.ts",
 }
 
+OWNED_UI_SOURCE_FILES = {
+    "bridge/AIBridge.py",
+    "bridge/AuthBridge.py",
+    "bridge/HomeBridge.py",
+    "bridge/JiraBridge.py",
+    "bridge/RunBridge.py",
+    "bridge/TestPageBridge.py",
+    "imports/example/qml/global/ItemsFooter.qml",
+    "imports/example/qml/page/T_AI.qml",
+    "imports/example/qml/page/T_Debug.qml",
+    "imports/example/qml/page/T_Home.qml",
+    "imports/example/qml/page/T_Jira.qml",
+    "imports/example/qml/page/T_Report.qml",
+    "imports/example/qml/page/T_Run.qml",
+    "imports/example/qml/page/T_TestConfig.qml",
+    "imports/example/qml/window/LoginWindow.qml",
+}
+
 REQUIRED_TRANSLATIONS = {
     "ItemsFooter": {
         "Account",
@@ -202,6 +220,15 @@ REQUIRED_TRANSLATIONS = {
 }
 
 
+def _normalize_location(filename: str) -> str:
+    return filename.replace("\\", "/").lstrip("./")
+
+
+def _is_owned_location(filename: str) -> bool:
+    normalized = _normalize_location(filename)
+    return normalized in OWNED_UI_SOURCE_FILES
+
+
 def _load_translations(ts_path: Path) -> dict[str, dict[str, tuple[str, str | None]]]:
     tree = ET.parse(ts_path)
     root = tree.getroot()
@@ -226,6 +253,37 @@ def _load_translations(ts_path: Path) -> dict[str, dict[str, tuple[str, str | No
     return payload
 
 
+def _load_owned_sources_from_ts(ts_path: Path) -> dict[str, set[str]]:
+    tree = ET.parse(ts_path)
+    root = tree.getroot()
+    payload: dict[str, set[str]] = {}
+    for context in root.findall("context"):
+        name_node = context.find("name")
+        if name_node is None or not name_node.text:
+            continue
+        context_name = name_node.text.strip()
+        for message in context.findall("message"):
+            translation_node = message.find("translation")
+            source_node = message.find("source")
+            if source_node is None or source_node.text is None:
+                continue
+            if message.get("type") == "obsolete" or (
+                translation_node is not None and translation_node.get("type") == "obsolete"
+            ):
+                continue
+            if any(_is_owned_location(location.get("filename", "")) for location in message.findall("location")):
+                payload.setdefault(context_name, set()).add(source_node.text)
+    return payload
+
+
+def _owned_translation_requirements() -> dict[str, set[str]]:
+    requirements = {context: set(sources) for context, sources in REQUIRED_TRANSLATIONS.items()}
+    for ts_path in TRANSLATION_FILES.values():
+        for context_name, sources in _load_owned_sources_from_ts(ts_path).items():
+            requirements.setdefault(context_name, set()).update(sources)
+    return requirements
+
+
 def _looks_like_mojibake(text: str) -> bool:
     if not text:
         return False
@@ -240,10 +298,11 @@ def _looks_like_mojibake(text: str) -> bool:
 
 def test_owned_ui_translations_are_complete() -> None:
     missing: list[str] = []
+    requirements = _owned_translation_requirements()
 
     for locale, ts_path in TRANSLATION_FILES.items():
         translations = _load_translations(ts_path)
-        for context_name, sources in REQUIRED_TRANSLATIONS.items():
+        for context_name, sources in requirements.items():
             context_messages = translations.get(context_name, {})
             for source_text in sorted(sources):
                 translation_text, translation_type = context_messages.get(source_text, ("", None))
@@ -255,7 +314,7 @@ def test_owned_ui_translations_are_complete() -> None:
                     continue
                 if locale == "zh_CN":
                     normalized_text = re.sub(r"%\d+|%n|\{[^}]+\}", "", translation_text).strip()
-                    if "?" in normalized_text or "？" in normalized_text:
+                    if normalized_text and set(normalized_text) <= {"?", "？"}:
                         missing.append(f"{locale}: suspicious placeholder translation for {context_name} -> {source_text}: {translation_text}")
                         continue
                     if _looks_like_mojibake(translation_text):

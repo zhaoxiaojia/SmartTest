@@ -12,6 +12,7 @@ from PySide6.QtGui import QGuiApplication
 
 from AI.core.models import AIChatMessage
 from AI.services import AIChatSessionStore, AIChatService, create_default_ai_chat_service
+from example.helper.UiText import render_text, translated_text
 
 _MAX_ATTACHMENT_BYTES = 1024 * 1024
 _SUPPORTED_SUFFIXES = {
@@ -77,12 +78,10 @@ class AIBridge(QObject):
         return self.tr(text)
 
     def _translated_state(self, template: str, **values: Any) -> dict[str, Any]:
-        return {"kind": "translated", "template": template, "values": dict(values)}
+        return translated_text(template, **values)
 
     def _render_state_text(self, state: dict[str, Any]) -> str:
-        if state.get("kind") == "translated":
-            return self._t(str(state.get("template", ""))).format(**dict(state.get("values") or {}))
-        return str(state.get("text", "") or "")
+        return render_text(self, state)
 
     def _store_path(self) -> Path:
         base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)

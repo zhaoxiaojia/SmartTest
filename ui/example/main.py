@@ -23,6 +23,7 @@ from example.imports import resource_rc as rc
 from example.helper import Async
 from example.bridge.AuthBridge import AuthBridge
 from example.bridge.AIBridge import AIBridge
+from example.bridge.HomeBridge import HomeBridge
 from example.bridge.JiraBridge import JiraBridge
 from example.bridge.ReportBridge import ReportBridge
 from example.bridge.RunBridge import RunBridge
@@ -88,6 +89,7 @@ def main():
     context.setContextProperty("TranslateHelper", TranslateHelper())
     auth_bridge = AuthBridge()
     context.setContextProperty("AuthBridge", auth_bridge)
+    context.setContextProperty("HomeBridge", HomeBridge())
     context.setContextProperty("AIBridge", AIBridge())
     context.setContextProperty("TestPageBridge", TestPageBridge(Path(__file__).resolve().parents[2]))
     context.setContextProperty("RunBridge", RunBridge(Path(__file__).resolve().parents[2]))
