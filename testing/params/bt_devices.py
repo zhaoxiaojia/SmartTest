@@ -7,6 +7,7 @@ from .adb_devices import _decode_adb_output, _hidden_process_kwargs, resolve_adb
 
 
 _MAC_PATTERN = r"([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})"
+NO_BLUETOOTH_TARGET = "None"
 KNOWN_BLUETOOTH_TARGETS = [
     "小米小钢炮蓝牙音箱 [74:A3:4A:13:3E:DA]",
     "HUAWEI Sound Joy-09524 [78:04:E3:54:3E:91]",
@@ -18,7 +19,7 @@ KNOWN_BLUETOOTH_TARGETS = [
 
 
 def known_bluetooth_targets() -> list[str]:
-    return list(KNOWN_BLUETOOTH_TARGETS)
+    return [NO_BLUETOOTH_TARGET, *KNOWN_BLUETOOTH_TARGETS]
 
 
 def parse_paired_bluetooth_devices_output(output: str) -> list[str]:

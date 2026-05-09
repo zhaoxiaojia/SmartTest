@@ -311,6 +311,23 @@ def _package_code_path(
     return stdout.split("package:", 1)[-1].strip()
 
 
+def _device_file_hash(
+    *,
+    adb_executable: str,
+    adb_serial: str | None = None,
+    path: str,
+) -> str:
+    result = _run_adb(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        args=["shell", "sha256sum", path],
+    )
+    stdout = str(result.stdout or "").strip()
+    if result.returncode != 0 or not stdout:
+        return ""
+    return stdout.split(maxsplit=1)[0].strip()
+
+
 def _is_privileged_code_path(code_path: str) -> bool:
     normalized = str(code_path or "").strip()
     return normalized.startswith("/system/priv-app/") or normalized.startswith("/system/app/")
@@ -612,6 +629,11 @@ def ensure_test_apk_installed(
         raise RuntimeError("adb is not available in PATH.")
     _ensure_device_ready_before_install(adb_executable=adb_executable, adb_serial=adb_serial)
 
+    installed = is_test_apk_installed(adb_serial=adb_serial)
+    if installed:
+        print("[android_client] android_client package already exists on DUT, skip install")
+        return False
+
     resolved_apk_path = Path(apk_path or DEFAULT_APK_PATH).resolve()
     if require_privileged:
         resolved_apk_path = sign_privileged_apk(input_apk_path=resolved_apk_path)
@@ -622,15 +644,7 @@ def ensure_test_apk_installed(
     current_hash = _apk_hash(resolved_apk_path)
     state_key = _install_state_key(adb_serial=adb_serial, apk_path=resolved_apk_path)
     install_state = _load_install_state()
-    recorded_mode, recorded_hash = _parse_install_state_value(install_state.get(state_key, ""))
-    installed = is_test_apk_installed(adb_serial=adb_serial)
-    code_path = _package_code_path(adb_executable=adb_executable, adb_serial=adb_serial) if installed else ""
-    privileged = _is_privileged_code_path(code_path)
     print(f"[android_client] current apk hash: {current_hash}")
-    print(f"[android_client] current code path: {code_path or '<missing>'}")
-    print(f"[android_client] privileged install: {privileged}")
-    print(f"[android_client] recorded mode: {recorded_mode or '<none>'}")
-    print(f"[android_client] recorded apk hash: {recorded_hash or '<none>'}")
     print(f"[android_client] installed on device: {installed}")
 
     if require_privileged:
@@ -642,27 +656,12 @@ def ensure_test_apk_installed(
             state_key=state_key,
             install_state=install_state,
             installed=installed,
-            code_path=code_path,
-            recorded_mode=recorded_mode,
-            recorded_hash=recorded_hash,
+            code_path="",
+            recorded_mode="",
+            recorded_hash="",
         )
 
-    if installed and privileged:
-        print("[android_client] existing priv-app install detected; skip user reinstall")
-        install_state[state_key] = _install_state_value(mode="privapp", apk_hash=current_hash)
-        _save_install_state(install_state)
-        return False
-
-    if installed and not privileged and recorded_mode == "user" and recorded_hash == current_hash:
-        print("[android_client] user app already installed with matching hash, skip install")
-        return False
-
-    if installed and recorded_hash != current_hash:
-        print("[android_client] installed APK hash changed, reinstall required")
-    elif not installed:
-        print("[android_client] test APK not installed, start install")
-    else:
-        print("[android_client] install state missing, reinstall to align DUT with current APK")
+    print("[android_client] test APK not installed, start install")
     install_test_apk(apk_path=resolved_apk_path, adb_serial=adb_serial)
     if not is_test_apk_installed(adb_serial=adb_serial):
         raise RuntimeError("android_client test APK install completed but package is still missing on DUT.")

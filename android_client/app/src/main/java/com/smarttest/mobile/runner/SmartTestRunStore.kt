@@ -21,11 +21,15 @@ object SmartTestRunStore {
         persistSnapshot(mutableState.value)
     }
 
-    fun startRun(request: TestRunRequest, cases: List<RunningCase>) {
+    fun startRun(request: TestRunRequest, cases: List<RunningCase>, plannedSteps: List<RunnerStepPlan>) {
         mutableState.value = RunnerSnapshot(
             phase = RunPhase.Running,
             activeRequest = request,
             runningCases = cases,
+            plannedSteps = plannedSteps,
+            stepStates = plannedSteps.associate { step ->
+                step.id to RunnerStepState(id = step.id, status = "planned")
+            },
             logLines = listOf(
                 timestamped(
                     "Received command from ${request.source}, trigger=${request.trigger}, requestId=${request.requestId}",
@@ -37,6 +41,7 @@ object SmartTestRunStore {
             currentLoop = null,
             totalLoops = null,
             currentStage = "",
+            currentStepId = "",
         )
         persistSnapshot(mutableState.value)
     }
@@ -52,12 +57,43 @@ object SmartTestRunStore {
         currentLoop: Int?,
         totalLoops: Int?,
         stage: String,
+        stepId: String? = null,
+        actual: String = "",
     ) {
         mutableState.update { snapshot ->
+            val updatedStates = if (stepId.isNullOrBlank()) {
+                snapshot.stepStates
+            } else {
+                snapshot.stepStates.mapValues { (_, state) ->
+                    if (state.status == "running" && state.id != stepId) {
+                        state.copy(status = "passed")
+                    } else {
+                        state
+                    }
+                } + (stepId to RunnerStepState(id = stepId, status = "running", actual = actual))
+            }
             snapshot.copy(
                 currentLoop = currentLoop,
                 totalLoops = totalLoops,
                 currentStage = stage,
+                currentStepId = stepId ?: snapshot.currentStepId,
+                stepStates = updatedStates,
+            )
+        }
+        persistSnapshot(mutableState.value)
+    }
+
+    fun finishStep(stepId: String, passed: Boolean, actual: String = "", error: String = "") {
+        mutableState.update { snapshot ->
+            snapshot.copy(
+                stepStates = snapshot.stepStates + (
+                    stepId to RunnerStepState(
+                        id = stepId,
+                        status = if (passed) "passed" else "failed",
+                        actual = actual,
+                        error = error,
+                    )
+                    ),
             )
         }
         persistSnapshot(mutableState.value)
@@ -91,6 +127,13 @@ object SmartTestRunStore {
         mutableState.update { snapshot ->
             val total = snapshot.runningCases.size
             val success = (total - failedCount).coerceAtLeast(0)
+            val finalStepStates = snapshot.stepStates.mapValues { (_, state) ->
+                if (state.status == "running") {
+                    state.copy(status = if (failedCount > 0) "failed" else "passed", error = if (failedCount > 0) statusText else state.error)
+                } else {
+                    state
+                }
+            }
             snapshot.copy(
                 phase = if (failedCount > 0) RunPhase.Failed else RunPhase.Completed,
                 report = RunReport(
@@ -103,6 +146,8 @@ object SmartTestRunStore {
                 ),
                 logLines = snapshot.logLines + timestamped(statusText),
                 currentStage = if (failedCount > 0) "failed" else "completed",
+                currentStepId = "",
+                stepStates = finalStepStates,
             )
         }
         persistSnapshot(mutableState.value)
@@ -115,11 +160,14 @@ object SmartTestRunStore {
                 activeRequest = null,
                 runningCases = emptyList(),
                 report = null,
+                plannedSteps = emptyList(),
+                stepStates = emptyMap(),
                 logLines = snapshot.logLines + timestamped(statusText),
                 lastCommandSummary = statusText,
                 currentLoop = null,
                 totalLoops = null,
                 currentStage = "idle",
+                currentStepId = "",
             )
         }
         persistSnapshot(mutableState.value)

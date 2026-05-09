@@ -12,11 +12,14 @@ object RunnerSnapshotJson {
         root.put("logCount", snapshot.logLines.size)
         root.put("logLines", JSONArray(snapshot.logLines))
         root.put("runningCases", JSONArray(snapshot.runningCases.map(::runningCaseJson)))
+        root.put("plannedSteps", JSONArray(snapshot.plannedSteps.map(::plannedStepJson)))
+        root.put("stepStates", JSONArray(snapshot.stepStates.values.map(::stepStateJson)))
         root.put("activeRequest", snapshot.activeRequest?.let(::requestJson) ?: JSONObject.NULL)
         root.put("report", snapshot.report?.let(::reportJson) ?: JSONObject.NULL)
         root.put("currentLoop", snapshot.currentLoop ?: JSONObject.NULL)
         root.put("totalLoops", snapshot.totalLoops ?: JSONObject.NULL)
         root.put("currentStage", snapshot.currentStage)
+        root.put("currentStepId", snapshot.currentStepId)
         return root.toString()
     }
 
@@ -46,6 +49,36 @@ object RunnerSnapshotJson {
                     },
                 ),
             )
+        }
+    }
+
+    private fun plannedStepJson(step: RunnerStepPlan): JSONObject {
+        return JSONObject().apply {
+            put("id", step.id)
+            put("title", step.title)
+            put("kind", step.kind)
+            put("definitionId", step.definitionId)
+            put(
+                "parameters",
+                JSONArray(
+                    step.parameters.map { (key, value) ->
+                        JSONObject().apply {
+                            put("key", key)
+                            put("value", value)
+                        }
+                    },
+                ),
+            )
+            put("expected", step.expected)
+        }
+    }
+
+    private fun stepStateJson(state: RunnerStepState): JSONObject {
+        return JSONObject().apply {
+            put("id", state.id)
+            put("status", state.status)
+            put("actual", state.actual)
+            put("error", state.error)
         }
     }
 

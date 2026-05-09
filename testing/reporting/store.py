@@ -9,6 +9,14 @@ from uuid import uuid4
 
 
 REPORT_SCHEMA_VERSION = 1
+_NOISY_REPORT_LOG_PREFIXES = (
+    "[step-debug.",
+    "[android_client.status]",
+    "[android_client.power] waiting_for_resume=",
+    "[android_client.power] snapshot channel ready",
+    "[android_client.power] host quiet mode:",
+    "[testing.runner.android_client] baseline phase=",
+)
 
 
 def _now_iso() -> str:
@@ -17,6 +25,24 @@ def _now_iso() -> str:
 
 def _safe_text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _is_noisy_report_log(line: str) -> bool:
+    return any(line.startswith(prefix) for prefix in _NOISY_REPORT_LOG_PREFIXES)
+
+
+def filter_report_logs(logs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    filtered: list[dict[str, Any]] = []
+    for row in logs:
+        if not isinstance(row, dict):
+            continue
+        line = _safe_text(row.get("line"))
+        if not line or _is_noisy_report_log(line):
+            continue
+        normalized = dict(row)
+        normalized["line"] = line
+        filtered.append(normalized)
+    return filtered
 
 
 def _status_counts(steps: list[dict[str, Any]]) -> dict[str, int]:
@@ -56,7 +82,7 @@ def build_run_report(
     report_id = _safe_text(run_id) or uuid4().hex
     finished = _safe_text(finished_at) or _now_iso()
     normalized_steps = [dict(row) for row in steps]
-    normalized_logs = [dict(row) for row in logs]
+    normalized_logs = filter_report_logs(logs)
     counts = _status_counts(normalized_steps)
     status = _overall_status(returncode=returncode, stopped=stopped, counts=counts)
     title = f"{finished.replace('T', ' ')[:19]}  {status}"
@@ -111,7 +137,10 @@ class ReportStore:
         normalized = _safe_text(run_id)
         if not normalized:
             return None
-        return self.load_by_path(self._reports_dir / f"{normalized}.json")
+        return self.load_by_path(self.path_for(normalized))
+
+    def path_for(self, run_id: str) -> Path:
+        return self._reports_dir / f"{_safe_text(run_id)}.json"
 
     def load_by_path(self, path: Path) -> dict[str, Any] | None:
         if not path.exists():

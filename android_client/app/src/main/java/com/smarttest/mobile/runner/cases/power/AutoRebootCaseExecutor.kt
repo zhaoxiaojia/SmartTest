@@ -26,6 +26,9 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
             intervalSec = intervalSec,
             completedCycles = 0,
             awaitingPostBootCheck = false,
+            pingTarget = recoveryConfig.pingTarget,
+            bluetoothTarget = recoveryConfig.bluetoothTarget,
+            resumeDispatchToken = "",
             source = context.request.source,
             trigger = context.request.trigger,
             requestId = context.request.requestId,
@@ -35,31 +38,52 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
                 "effective_interval=${intervalSec}s " +
                 "trigger=${context.request.trigger} requestId=${context.request.requestId}",
         )
+        SmartTestRunStore.updateProgress(
+            currentLoop = null,
+            totalLoops = cycleCount,
+            stage = "prepare auto reboot request",
+            stepId = stepId("prepare"),
+        )
         val initialSession = reconcileSession(
             context = context,
             sessionStore = sessionStore,
             requestSession = requestSession,
         )
+        SmartTestRunStore.finishStep(stepId("prepare"), passed = true)
 
         var session = initialSession
 
         if (session.awaitingPostBootCheck) {
             val cycle = session.completedCycles + 1
+            SmartTestRunStore.finishStep(stepId("cycle.$cycle.reboot"), passed = true, actual = "DUT rebooted and SmartTest resumed.")
+            SmartTestRunStore.updateProgress(
+                currentLoop = cycle,
+                totalLoops = session.totalCycles,
+                stage = "loop $cycle/${session.totalCycles} resumed after reboot",
+                stepId = stepId("cycle.$cycle.wait_resume"),
+            )
             launchSmartTestUiAndWait(context, cycle, session.totalCycles)
+            SmartTestRunStore.finishStep(stepId("cycle.$cycle.wait_resume"), passed = true)
             SmartTestRunStore.updateProgress(
                 currentLoop = cycle,
                 totalLoops = session.totalCycles,
                 stage = "loop $cycle/${session.totalCycles} waiting ${session.intervalSec}s after reboot",
+                stepId = stepId("cycle.$cycle.wait_interval"),
             )
             context.log(
                 "resume after reboot for cycle $cycle/${session.totalCycles} requestId=${session.requestId}; " +
                     "start interval countdown=${session.intervalSec}s after SmartTest UI ready",
             )
             delay(session.intervalSec * 1000L)
+            SmartTestRunStore.finishStep(stepId("cycle.$cycle.wait_interval"), passed = true)
             val recovered = PowerCycleRecoveryChecks.verifyRecoveredState(
                 context = context,
                 stage = "cycle $cycle/${session.totalCycles} after reboot",
-                config = recoveryConfig,
+                config = PowerCycleRecoveryConfig(
+                    pingTarget = session.pingTarget,
+                    bluetoothTarget = session.bluetoothTarget,
+                ),
+                stepIdPrefix = stepId("cycle.$cycle"),
             )
             if (!recovered) {
                 sessionStore.clear()
@@ -87,6 +111,7 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
             currentLoop = nextCycle,
             totalLoops = session.totalCycles,
             stage = "loop $nextCycle/${session.totalCycles} rebooting dut",
+            stepId = stepId("cycle.$nextCycle.reboot"),
         )
         context.log(
             "request dut self reboot cycle $nextCycle/${session.totalCycles} requestId=${session.requestId}",
@@ -94,6 +119,7 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
         sessionStore.save(
             session.copy(
                 awaitingPostBootCheck = true,
+                resumeDispatchToken = "",
             ),
         )
         val rebootRecord = context.execDeviceCommand(
@@ -110,6 +136,12 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
         )
         if (!rebootRecord.result.success) {
             sessionStore.clear()
+            SmartTestRunStore.finishStep(
+                stepId("cycle.$nextCycle.reboot"),
+                passed = false,
+                actual = "exit=${rebootRecord.result.exitCode}",
+                error = rebootRecord.result.stderr.ifBlank { rebootRecord.result.stdout },
+            )
             context.log(
                 "reboot command failed on cycle $nextCycle: exit=${rebootRecord.result.exitCode}, " +
                     "stdout=${rebootRecord.result.stdout}, stderr=${rebootRecord.result.stderr}",
@@ -123,9 +155,15 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
             currentLoop = nextCycle,
             totalLoops = session.totalCycles,
             stage = "loop $nextCycle/${session.totalCycles} waiting for dut reboot",
+            stepId = stepId("cycle.$nextCycle.wait_resume"),
         )
         delay(5_000L)
         sessionStore.clear()
+        SmartTestRunStore.finishStep(
+            stepId("cycle.$nextCycle.wait_resume"),
+            passed = false,
+            error = "DUT stayed alive for 5s after reboot command.",
+        )
         context.log(
             "reboot command returned but DUT stayed alive for 5s on cycle $nextCycle; " +
                 "treat as reboot failure",
@@ -165,6 +203,8 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
             !saved.matchesRequest(
                 totalCycles = requestSession.totalCycles,
                 intervalSec = requestSession.intervalSec,
+                pingTarget = requestSession.pingTarget,
+                bluetoothTarget = requestSession.bluetoothTarget,
                 source = requestSession.source,
                 trigger = requestSession.trigger,
                 requestId = requestSession.requestId,
@@ -188,6 +228,8 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
         private const val MIN_INTERVAL_SEC = 30L
         private const val UI_READY_SETTLE_MS = 3_000L
     }
+
+    private fun stepId(suffix: String): String = "$caseId.$suffix"
 
     private suspend fun launchSmartTestUiAndWait(
         context: TestCaseExecutionContext,

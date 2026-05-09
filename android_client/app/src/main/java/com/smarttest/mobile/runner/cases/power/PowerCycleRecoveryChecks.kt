@@ -1,6 +1,7 @@
 package com.smarttest.mobile.runner.cases.power
 
 import com.smarttest.mobile.runner.cases.TestCaseExecutionContext
+import com.smarttest.mobile.runner.SmartTestRunStore
 import kotlinx.coroutines.delay
 
 data class PowerCycleRecoveryConfig(
@@ -10,48 +11,102 @@ data class PowerCycleRecoveryConfig(
 
 object PowerCycleRecoveryChecks {
     private const val PING_ATTEMPTS = 3
-    private const val BLUETOOTH_ATTEMPTS = 3
+    private const val BLUETOOTH_TIMEOUT_MS = 60_000L
     private const val RETRY_DELAY_MS = 2_000L
     private const val CONNECTED_BT_MAC_COMMAND =
         "dumpsys bluetooth_manager | grep -B1 \"Connected: true\" | grep \"Peer:\" | awk '{print \$2}'"
+
+    private data class BluetoothCheckResult(
+        val connected: Boolean,
+        val observedDevices: List<String>,
+    )
 
     suspend fun verifyRecoveredState(
         context: TestCaseExecutionContext,
         stage: String,
         config: PowerCycleRecoveryConfig,
+        stepIdPrefix: String? = null,
     ): Boolean {
+        val captureStepId = stepIdPrefix?.let { "$it.capture_radio_state" }
+        if (captureStepId != null) {
+            SmartTestRunStore.updateProgress(null, null, "$stage capture radio state", captureStepId)
+        }
         val snapshot = PowerCycleSupport.captureRadioState(context = context, stage = stage)
+        if (captureStepId != null) {
+            SmartTestRunStore.finishStep(
+                captureStepId,
+                passed = true,
+                actual = "wifiIp=${snapshot.wifi.ipAddress ?: "-"} bluetooth=${snapshot.bluetooth.adapterName ?: "-"}",
+            )
+        }
         var passed = true
 
         val pingTarget = config.pingTarget.trim()
         if (pingTarget.isNotEmpty()) {
+            val pingStepId = stepIdPrefix?.let { "$it.ping" }
+            if (pingStepId != null) {
+                SmartTestRunStore.updateProgress(null, null, "$stage ping $pingTarget", pingStepId)
+            }
             val pingOk = verifyPingTarget(context, pingTarget)
             if (pingOk) {
                 context.log("$stage ping target reachable: $pingTarget")
+                if (pingStepId != null) {
+                    SmartTestRunStore.finishStep(pingStepId, passed = true, actual = "$pingTarget reachable")
+                }
             } else {
                 context.log(
                     "$stage ping target unreachable after $PING_ATTEMPTS attempt(s): $pingTarget " +
                         "wifiIp=${snapshot.wifi.ipAddress ?: "-"} ssid=${snapshot.wifi.connectedSsid ?: "-"}",
                 )
+                if (pingStepId != null) {
+                    SmartTestRunStore.finishStep(
+                        pingStepId,
+                        passed = false,
+                        actual = "wifiIp=${snapshot.wifi.ipAddress ?: "-"} ssid=${snapshot.wifi.connectedSsid ?: "-"}",
+                        error = "Ping target unreachable after $PING_ATTEMPTS attempt(s): $pingTarget",
+                    )
+                }
                 passed = false
             }
         }
 
         val bluetoothTarget = config.bluetoothTarget.trim()
         if (bluetoothTarget.isNotEmpty()) {
+            val bluetoothStepId = stepIdPrefix?.let { "$it.bluetooth" }
+            if (bluetoothStepId != null) {
+                SmartTestRunStore.updateProgress(null, null, "$stage verify Bluetooth target", bluetoothStepId)
+            }
             val targetMac = parseBluetoothTargetMac(bluetoothTarget)
             if (targetMac == null) {
                 context.log("$stage invalid bluetooth target format: $bluetoothTarget")
+                if (bluetoothStepId != null) {
+                    SmartTestRunStore.finishStep(
+                        bluetoothStepId,
+                        passed = false,
+                        error = "Invalid bluetooth target format: $bluetoothTarget",
+                    )
+                }
                 passed = false
             } else {
-                val btOk = verifyBluetoothTarget(context, targetMac)
-                if (btOk) {
+                val result = verifyBluetoothTarget(context, targetMac)
+                if (result.connected) {
                     context.log("$stage bluetooth target connected: $bluetoothTarget")
+                    if (bluetoothStepId != null) {
+                        SmartTestRunStore.finishStep(bluetoothStepId, passed = true, actual = "$targetMac connected")
+                    }
                 } else {
                     context.log(
-                        "$stage bluetooth target not connected after $BLUETOOTH_ATTEMPTS attempt(s): " +
-                            "$bluetoothTarget connected=${snapshot.bluetooth.connectedDevices.joinToString(",").ifBlank { "-" }}",
+                        "$stage bluetooth target not connected within ${BLUETOOTH_TIMEOUT_MS / 1000}s: " +
+                            "$bluetoothTarget connected=${result.observedDevices.joinToString(",").ifBlank { "-" }}",
                     )
+                    if (bluetoothStepId != null) {
+                        SmartTestRunStore.finishStep(
+                            bluetoothStepId,
+                            passed = false,
+                            actual = "connected=${result.observedDevices.joinToString(",").ifBlank { "-" }}",
+                            error = "Bluetooth target not connected within ${BLUETOOTH_TIMEOUT_MS / 1000}s: $bluetoothTarget",
+                        )
+                    }
                     passed = false
                 }
             }
@@ -64,10 +119,14 @@ object PowerCycleRecoveryChecks {
         context: TestCaseExecutionContext,
         pingTarget: String,
     ): Boolean {
+        if (!isValidPingTarget(pingTarget)) {
+            context.log("invalid recovery ping target format: $pingTarget")
+            return false
+        }
         repeat(PING_ATTEMPTS) { attempt ->
             val record = context.execShell(
                 label = "recovery_ping_${attempt + 1}",
-                command = "ping -c 1 -W 2 $pingTarget",
+                command = "ping -c 1 -W 2 ${shellQuote(pingTarget)}",
                 requireRoot = false,
             )
             if (record.result.success) {
@@ -84,42 +143,74 @@ object PowerCycleRecoveryChecks {
         return false
     }
 
+    private fun isValidPingTarget(target: String): Boolean {
+        return Regex("[A-Za-z0-9][A-Za-z0-9.:-]*").matches(target)
+    }
+
+    private fun shellQuote(value: String): String {
+        return "'${value.replace("'", "'\\''")}'"
+    }
+
     private suspend fun verifyBluetoothTarget(
         context: TestCaseExecutionContext,
         targetMac: String,
-    ): Boolean {
-        repeat(BLUETOOTH_ATTEMPTS) { attempt ->
+    ): BluetoothCheckResult {
+        val deadlineMs = System.currentTimeMillis() + BLUETOOTH_TIMEOUT_MS
+        var attempt = 1
+        var lastObserved = emptyList<String>()
+        while (System.currentTimeMillis() <= deadlineMs) {
             val snapshot = context.environment.stateProvider.readBluetoothState()
-            if (snapshot.connectedDevices.any { it.equals(targetMac, ignoreCase = true) }) {
-                return true
+            val profileConnected = snapshot.connectedDevices
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .map(String::uppercase)
+            if (profileConnected.any { bluetoothAddressMatches(targetMac, it) }) {
+                return BluetoothCheckResult(connected = true, observedDevices = profileConnected)
             }
             val record = context.execShell(
-                label = "recovery_bluetooth_${attempt + 1}",
+                label = "recovery_bluetooth_$attempt",
                 command = CONNECTED_BT_MAC_COMMAND,
                 requireRoot = false,
             )
-            val connected = record.result.stdout.lineSequence()
+            val shellConnected = record.result.stdout.lineSequence()
                 .map(String::trim)
                 .filter(String::isNotEmpty)
                 .map(String::uppercase)
                 .toList()
-            if (connected.any { it == targetMac }) {
-                return true
+            val connected = (profileConnected + shellConnected).distinct()
+            lastObserved = connected
+            if (connected.any { bluetoothAddressMatches(targetMac, it) }) {
+                return BluetoothCheckResult(connected = true, observedDevices = connected)
             }
             context.log(
-                "recovery bluetooth attempt ${attempt + 1}/$BLUETOOTH_ATTEMPTS failed: " +
+                "recovery bluetooth attempt $attempt failed: " +
                     "target=$targetMac connected=${connected.joinToString(",").ifBlank { "-" }} " +
                     "stderr=${record.result.stderr.ifBlank { "<empty>" }}",
             )
-            if (attempt + 1 < BLUETOOTH_ATTEMPTS) {
-                delay(RETRY_DELAY_MS)
+            val remainingMs = deadlineMs - System.currentTimeMillis()
+            if (remainingMs > 0) {
+                delay(minOf(RETRY_DELAY_MS, remainingMs))
             }
+            attempt += 1
         }
-        return false
+        return BluetoothCheckResult(connected = false, observedDevices = lastObserved)
     }
 
     private fun parseBluetoothTargetMac(target: String): String? {
         val match = Regex("([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})").find(target)
         return match?.value?.uppercase()
+    }
+
+    private fun bluetoothAddressMatches(targetMac: String, observedMac: String): Boolean {
+        if (observedMac.equals(targetMac, ignoreCase = true)) {
+            return true
+        }
+        val targetParts = targetMac.uppercase().split(":")
+        val observedParts = observedMac.uppercase().split(":")
+        if (targetParts.size != 6 || observedParts.size != 6) {
+            return false
+        }
+        val maskedPrefix = observedParts.take(4).all { it == "XX" }
+        return maskedPrefix && observedParts.takeLast(2) == targetParts.takeLast(2)
     }
 }

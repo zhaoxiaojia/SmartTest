@@ -21,19 +21,23 @@ def test_step_context_writes_step_and_log_events(tmp_path, monkeypatch) -> None:
 
     events = [json.loads(line) for line in event_file.read_text(encoding="utf-8").splitlines()]
     assert [event["type"] for event in events] == [
+        "step_planned",
         "step_started",
         "log",
+        "step_evidence",
+        "step_planned",
         "step_started",
         "log",
+        "step_evidence",
         "step_finished",
         "step_finished",
     ]
     assert events[0]["title"] == "Outer step"
     assert events[0]["definition_id"] == "example.outer"
     assert events[0]["meta"]["definition_id"] == "example.outer"
-    assert events[2]["title"] == "Loop body (2/5)"
-    assert events[2]["definition_id"] == "example.loop"
-    assert events[3]["message"] == "world"
+    assert events[4]["title"] == "Loop body (2/5)"
+    assert events[4]["definition_id"] == "example.loop"
+    assert events[6]["message"] == "world"
 
 
 def test_step_definition_id_rejects_unstable_format(tmp_path, monkeypatch) -> None:

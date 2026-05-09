@@ -1228,17 +1228,18 @@ Updated content:
 <context>
     <name>RunBridge</name>
     <message>
-        <location filename="bridge/RunBridge.py" line="333"/>
+        <location filename="bridge/RunBridge.py" line="807"/>
         <source>Failed to save run report. {detail}</source>
         <translation>Failed to save run report. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="366"/>
+        <location filename="bridge/RunBridge.py" line="840"/>
         <source>No selected test cases to run.</source>
         <translation>No selected test cases to run.</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="377"/>
+        <location filename="bridge/RunBridge.py" line="318"/>
+        <location filename="bridge/RunBridge.py" line="851"/>
         <source>Failed to start pytest run. {detail}</source>
         <translation>Failed to start pytest run. {detail}</translation>
     </message>
@@ -3509,74 +3510,81 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation>Report</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="123"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="179"/>
         <source>Runs</source>
         <translation>Runs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="133"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="189"/>
         <source>Refresh</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="141"/>
         <source>No reports yet.</source>
-        <translation>No reports yet.</translation>
+        <translation type="vanished">No reports yet.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="175"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="222"/>
         <source>Unknown time</source>
         <translation>Unknown time</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="190"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="237"/>
         <source>Total %1  Passed %2  Failed %3</source>
         <translation>Total %1  Passed %2  Failed %3</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="198"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="245"/>
         <source>No DUT</source>
         <translation>No DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="226"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="276"/>
         <source>Run a test to generate the first report.</source>
         <translation>Run a test to generate the first report.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="261"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="311"/>
         <source>Total</source>
         <translation>Total</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="262"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="312"/>
         <source>Passed</source>
         <translation>Passed</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="263"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="313"/>
         <source>Failed</source>
         <translation>Failed</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="264"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="314"/>
         <source>Skipped</source>
         <translation>Skipped</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="265"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="315"/>
         <source>Duration</source>
         <translation>Duration</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="314"/>
-        <source>Cases</source>
-        <translation>Cases</translation>
+        <location filename="imports/example/qml/page/T_Report.qml" line="360"/>
+        <source>Steps</source>
+        <translation>Steps</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="382"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="455"/>
+        <source>Step Detail</source>
+        <translation>Step Detail</translation>
+    </message>
+    <message>
+        <source>Cases</source>
+        <translation type="vanished">Cases</translation>
+    </message>
+    <message>
         <source>Logs</source>
-        <translation>Logs</translation>
+        <translation type="vanished">Logs</translation>
     </message>
     <message>
         <source>Reports</source>
@@ -3599,27 +3607,27 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">Run Tests</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="157"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="160"/>
         <source>Steps</source>
         <translation>Steps</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="257"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="260"/>
         <source>Logs</source>
         <translation>Logs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="323"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="326"/>
         <source>Follow Latest</source>
         <translation>Follow Latest</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="350"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="353"/>
         <source>Start</source>
         <translation>Start</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="350"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="353"/>
         <source>Stop</source>
         <translation>Stop</translation>
     </message>
@@ -3997,37 +4005,37 @@ Some contents...</translation>
         <translation>No configurable parameters are required for this case.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="575"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="582"/>
         <source>No paired Bluetooth devices found on the current DUT.</source>
         <translation>No paired Bluetooth devices found on the current DUT.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="584"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="591"/>
         <source>Enabled</source>
         <translation>Enabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="584"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="591"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="636"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="643"/>
         <source>DUT</source>
         <translation>DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="706"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="713"/>
         <source>Stop</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="706"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="713"/>
         <source>Start</source>
         <translation>Start</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="712"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="719"/>
         <source>Run</source>
         <translation>Run</translation>
     </message>

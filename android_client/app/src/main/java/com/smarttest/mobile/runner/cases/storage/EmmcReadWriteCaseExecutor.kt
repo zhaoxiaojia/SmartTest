@@ -1,6 +1,7 @@
 package com.smarttest.mobile.runner.cases.storage
 
 import android.os.StatFs
+import com.smarttest.mobile.runner.SmartTestRunStore
 import com.smarttest.mobile.runner.cases.TestCaseExecutionContext
 import com.smarttest.mobile.runner.cases.TestCaseExecutionResult
 import com.smarttest.mobile.runner.cases.TestCaseExecutor
@@ -72,23 +73,45 @@ class EmmcReadWriteCaseExecutor : TestCaseExecutor {
                 val outFile = File(workDir, "source_${copyCount}.bin")
                 context.log("copy ${copyCount + 1}/$loopCount: free=${freeSizeKb}KB target=${outFile.name}")
 
+                val stepPrefix = "$caseId.cycle.$cycle"
+                SmartTestRunStore.updateProgress(
+                    currentLoop = cycle,
+                    totalLoops = loopCount,
+                    stage = "cycle $cycle/$loopCount copy file",
+                    stepId = "$stepPrefix.copy_file",
+                )
                 val copyOk = runIo("copy_file", context) {
                     copyFile(sourceFile, outFile)
                 }
+                SmartTestRunStore.finishStep("$stepPrefix.copy_file", passed = copyOk)
                 if (!copyOk) {
                     copyErrors += 1
                 }
 
+                SmartTestRunStore.updateProgress(
+                    currentLoop = cycle,
+                    totalLoops = loopCount,
+                    stage = "cycle $cycle/$loopCount read back file",
+                    stepId = "$stepPrefix.read_file",
+                )
                 val readOk = runIo("read_file", context) {
                     consumeFile(outFile)
                 }
+                SmartTestRunStore.finishStep("$stepPrefix.read_file", passed = readOk)
                 if (!readOk) {
                     readErrors += 1
                 }
 
+                SmartTestRunStore.updateProgress(
+                    currentLoop = cycle,
+                    totalLoops = loopCount,
+                    stage = "cycle $cycle/$loopCount compare file",
+                    stepId = "$stepPrefix.cmp_file",
+                )
                 val checkOk = runIo("cmp_file", context) {
                     compareFiles(sourceFile, outFile)
                 }
+                SmartTestRunStore.finishStep("$stepPrefix.cmp_file", passed = checkOk)
                 if (!checkOk) {
                     checkErrors += 1
                 }

@@ -40,6 +40,8 @@ class AutoSuspendResumeReceiver : BroadcastReceiver() {
         val params = JSONObject().apply {
             put("auto_suspend:cycle_count", session.totalCycles.toString())
             put("auto_suspend:interval_sec", session.intervalSec.toString())
+            put("auto_suspend:ping_target", session.pingTarget)
+            put("auto_suspend:bt_target", session.bluetoothTarget)
         }
         val encodedParams = Base64.encodeToString(
             params.toString().toByteArray(Charsets.UTF_8),
@@ -60,7 +62,8 @@ class AutoSuspendResumeReceiver : BroadcastReceiver() {
         AutoSuspendDebugLogger.append(
             appContext,
             "resume receiver dispatched CommandActivity requestId=${session.requestId} " +
-                "params={auto_suspend:cycle_count=${session.totalCycles},auto_suspend:interval_sec=${session.intervalSec}}",
+                "params={auto_suspend:cycle_count=${session.totalCycles},auto_suspend:interval_sec=${session.intervalSec}," +
+                    "auto_suspend:ping_target=${session.pingTarget},auto_suspend:bt_target=${session.bluetoothTarget}}",
         )
     }
 

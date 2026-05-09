@@ -30,6 +30,32 @@ def test_build_run_report_counts_case_rows_only() -> None:
     }
 
 
+def test_build_run_report_filters_noisy_debug_logs() -> None:
+    report = build_run_report(
+        run_id="run-logs",
+        started_at="2026-04-27T01:00:00+00:00",
+        finished_at="2026-04-27T01:00:03+00:00",
+        duration_ms=3000,
+        returncode=1,
+        stopped=False,
+        adb_serial="ABC123",
+        selected_nodeids=["testing/tests/test_sample.py::test_a"],
+        steps=[{"kind": "case", "status": "failed", "case_nodeid": "a"}],
+        logs=[
+            {"line": "[step-debug.ui] event received type=step_started"},
+            {"line": "[android_client.status] phase=Running started=True"},
+            {"line": "[testing.runner.android_client] baseline phase=Idle"},
+            {"line": "[android_client.log] Auto Reboot start"},
+            {"line": "[step-error] bluetooth target not connected"},
+        ],
+    )
+
+    assert [row["line"] for row in report["logs"]] == [
+        "[android_client.log] Auto Reboot start",
+        "[step-error] bluetooth target not connected",
+    ]
+
+
 def test_report_store_lists_newest_finished_report_first(tmp_path) -> None:
     store = ReportStore(tmp_path)
     older = build_run_report(

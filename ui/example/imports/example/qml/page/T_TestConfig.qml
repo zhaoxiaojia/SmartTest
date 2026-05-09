@@ -553,6 +553,9 @@ FluPage {
                                                     currentIndex: {
                                                         var currentValue = caseParamTextValue(caseNodeId, fieldData.key)
                                                         var options = fieldData.enum_values || []
+                                                        if(currentValue === ""){
+                                                            return options.indexOf("None")
+                                                        }
                                                         return options.indexOf(currentValue)
                                                     }
                                                     onDownChanged: {
@@ -562,7 +565,11 @@ FluPage {
                                                     }
                                                     onActivated: {
                                                         if(currentIndex >= 0){
-                                                            TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, currentText)
+                                                            var nextValue = currentText
+                                                            if(currentText === "None"){
+                                                                nextValue = ""
+                                                            }
+                                                            TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, nextValue)
                                                         }
                                                     }
                                                 }

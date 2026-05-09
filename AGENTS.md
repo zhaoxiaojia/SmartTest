@@ -9,7 +9,7 @@ This file defines how Codex should work in this repository.
 3. Keep architecture layered: UI (FluentUI/QML) + test runner (pytest) + reserved integrations (debug/Jira).
 4. Make changes intentionally: discuss large modules and design first, then implement.
 5. Design and verify toward the installed/packaged runtime first. `python main.py` debug runs are useful for development, but final behavior must match the normal installed app.
-6. After each code or resource change, rebuild the packaged app/installer before handoff when packaging is feasible in the current environment.
+6. During development/debugging, do not rebuild the packaged app/installer after every change. Rebuild packaged artifacts only when the user explicitly asks, when preparing a release handoff, or when the change specifically targets packaged-runtime behavior.
 
 ## 1. Frontend Rules (FluentUI First)
 
@@ -44,7 +44,7 @@ This file defines how Codex should work in this repository.
 - Do not assume `SmartTest.exe` reflects current source edits. A previously built exe may contain stale QML/resources.
 - Before telling the user to test with `SmartTest.exe`, confirm whether a packaging/build step is also required and say so explicitly.
 - If source-run and packaged-run behavior differ, treat packaged-run as the release target and debug the divergence instead of accepting source-run success as sufficient.
-- After changes, rebuild the packaged artifact before handoff whenever possible. If packaging cannot be completed, state the blocker and do not imply that the installed app includes the changes.
+- During iterative development/debugging, do not rebuild packaged artifacts automatically. If packaging is required for release validation or the user explicitly asks for `SmartTest.exe` / installer testing, rebuild the packaged artifact before handoff whenever possible. If packaging cannot be completed, state the blocker and do not imply that the installed app includes the changes.
 - In handoff notes for UI work, state which entrypoint was verified:
   - source: `.\.venv\Scripts\python.exe main.py`
   - packaged: `SmartTest.exe` or other built artifact
@@ -70,6 +70,9 @@ Guidelines:
 - If ownership is ambiguous, stop and ask the user before writing code.
 - UI work must stay in the UI layer (FluentUI/QML usage). Test execution logic must stay in the pytest layer.
 - Keep layers strictly decoupled to keep issues easy to localize and fix.
+- Except for test case development under `testing/tests`, all changes must be rule/mechanism-level by default.
+- Do not add code that only affects one specific case, scenario, parameter value, or condition unless the user explicitly asks for that special business handling.
+- Static special-case code is not allowed by default. Requirements should be implemented through reusable rules, data contracts, state transitions, or shared mechanisms.
 
 ## 2.2 Architecture Optimization Principles
 
@@ -138,6 +141,18 @@ If the root cause is unclear:
 
 - Ask clarifying questions before changing code.
 - Provide a short hypothesis list and a minimal plan to validate it.
+
+### Debugging Evidence and Fix Order
+
+- Every bug investigation must be backed by explicit logs or prints from the relevant flow. Do not guess across UI -> runner -> DUT boundaries without evidence.
+- If existing logs do not show the flow handoff clearly, add minimal temporary prints at the flow transition points before changing behavior.
+- Debug prints should expose the business identity being handed off, such as selected nodeid, Android case id, request id, step id, definition id, status, and parameter set.
+- Use the prints to identify the exact mismatch or failing transition first. After the print exposes the issue, fix by adjusting the existing logic before adding new code.
+- When adding temporary prints for diagnosis, keep them until the user explicitly confirms the behavior meets the requirement, then remove or comment them.
+- Prefer modifying the current condition, state transition, ordering, or data mapping. Add new helpers, state, or branches only when the current structure cannot express the required mechanism.
+- Do not add case-specific targeted fixes for a single test such as eMMC or reboot. Fix the shared mechanism that produced the problem.
+- Remove temporary debug prints after they have served their purpose. Keep only minimal, stable business diagnostics that are useful for future flow comparison.
+- For the steps mechanism, preserve a clear distinction between preconditions, test steps, and checks. Runtime updates must move through the displayed list from top to bottom; if a planned item is never reachable, either do not show it or mark it explicitly instead of silently deleting useful failure context.
 
 ## 4. Minimal-Defense Coding Style
 

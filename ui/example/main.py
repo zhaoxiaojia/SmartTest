@@ -34,6 +34,13 @@ _major = 1
 _minor = 0
 
 
+def _runtime_root() -> Path:
+    packaged_root = getattr(sys, "_MEIPASS", None)
+    if packaged_root:
+        return Path(packaged_root)
+    return Path(__file__).resolve().parents[2]
+
+
 # noinspection PyTypeChecker
 def main():
     os.environ["QT_QUICK_CONTROLS_STYLE"] = "Basic"
@@ -91,8 +98,9 @@ def main():
     context.setContextProperty("AuthBridge", auth_bridge)
     context.setContextProperty("HomeBridge", HomeBridge())
     context.setContextProperty("AIBridge", AIBridge())
-    context.setContextProperty("TestPageBridge", TestPageBridge(Path(__file__).resolve().parents[2]))
-    context.setContextProperty("RunBridge", RunBridge(Path(__file__).resolve().parents[2]))
+    runtime_root = _runtime_root()
+    context.setContextProperty("TestPageBridge", TestPageBridge(runtime_root))
+    context.setContextProperty("RunBridge", RunBridge(runtime_root))
     context.setContextProperty("ReportBridge", ReportBridge())
     context.setContextProperty("JiraBridge", JiraBridge(auth_bridge))
     FluentUI.registerTypes(engine)

@@ -58,12 +58,8 @@ def start_pytest_run(
     adb_serial: str | None = None,
     case_configs: dict[str, dict[str, object]] | None = None,
 ) -> TestRunSession:
-    if is_packaged_runtime():
-        from testing.runner.packaged import start_packaged_run
-
-        return start_packaged_run(nodeids=nodeids, adb_serial=adb_serial, case_configs=case_configs)
-
-    root_dir = root_dir.resolve()
+    packaged = is_packaged_runtime()
+    root_dir = Path(getattr(sys, "_MEIPASS", root_dir)).resolve() if packaged else root_dir.resolve()
     tempdir = tempfile.TemporaryDirectory(prefix="smarttest_pytest_run_")
     event_file = Path(tempdir.name) / "events.jsonl"
     env = os.environ.copy()
@@ -73,15 +69,31 @@ def start_pytest_run(
     env["SMARTTEST_CASE_CONFIGS_JSON"] = json.dumps(case_configs or {}, ensure_ascii=False)
     if adb_serial:
         env["SMARTTEST_ADB_SERIAL"] = str(adb_serial)
-    cmd = [
-        sys.executable,
-        "-m",
-        "pytest",
-        "-s",
-        "-q",
-        "--disable-warnings",
-        *nodeids,
-    ]
+    if packaged:
+        cmd = [sys.executable, "--smarttest-pytest-run", *nodeids]
+    else:
+        cmd = [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-s",
+            "-q",
+            "--disable-warnings",
+            *nodeids,
+        ]
+    print(
+        "[run.execution] "
+        + json.dumps(
+            {
+                "packaged": packaged,
+                "root_dir": str(root_dir),
+                "cmd": cmd,
+                "event_file": str(event_file),
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    )
     process = subprocess.Popen(
         cmd,
         cwd=str(root_dir),

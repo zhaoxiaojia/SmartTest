@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import subprocess
 
@@ -7,6 +8,7 @@ import pytest
 
 import android_client
 from testing.runner import android_client as runner_android_client
+from testing.runtime.events import reset_current_case_nodeid, set_current_case_nodeid
 
 
 def test_install_test_apk_rejects_missing_apk(monkeypatch, tmp_path: Path) -> None:
@@ -75,7 +77,7 @@ def test_trigger_android_client_case_runs_install_guard(monkeypatch) -> None:
     monkeypatch.setattr(
         runner_android_client,
         "wait_for_android_client_case_completion",
-        lambda *, adb_executable, case_id, request_id, trigger, adb_serial=None, poll_interval_sec=1.0, timeout_sec=3600.0, baseline_signature=None, baseline_log_count=0, component=runner_android_client.DEFAULT_COMPONENT, source="pytest", params=None: wait_calls.append(
+        lambda *, adb_executable, case_id, request_id, trigger, adb_serial=None, poll_interval_sec=1.0, timeout_sec=3600.0, baseline_signature=None, baseline_log_count=0, component=runner_android_client.DEFAULT_COMPONENT, source="pytest", params=None, stage_tracker=None: wait_calls.append(
             (adb_executable, case_id, adb_serial or "<default>")
         ) or {"phase": "Completed", "report": {"statusText": "ok", "totalCount": 1, "successCount": 1, "failedCount": 0}},
     )
@@ -124,7 +126,7 @@ def test_trigger_android_client_case_rejects_when_install_still_missing(monkeypa
     assert "still not installed" in str(exc.value)
 
 
-def test_ensure_test_apk_installed_reinstalls_when_hash_changes(monkeypatch) -> None:
+def test_ensure_test_apk_installed_skips_when_hash_changes_but_package_exists(monkeypatch) -> None:
     monkeypatch.setattr(Path, "exists", lambda self: True)
     monkeypatch.setattr(android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
     monkeypatch.setattr(android_client, "_ensure_device_ready_before_install", lambda **kwargs: None)
@@ -145,12 +147,12 @@ def test_ensure_test_apk_installed_reinstalls_when_hash_changes(monkeypatch) -> 
 
     installed = android_client.ensure_test_apk_installed(adb_serial="ABC123")
 
-    assert installed is True
-    assert calls == ["install"]
-    assert saved["ABC123|com.smarttest.mobile|C:\\fake.apk"] == "user:hash-new"
+    assert installed is False
+    assert calls == []
+    assert saved == {}
 
 
-def test_ensure_test_apk_installed_prefers_privapp_when_adb_root_available(monkeypatch) -> None:
+def test_ensure_test_apk_installed_privileged_case_skips_when_package_exists(monkeypatch) -> None:
     monkeypatch.setattr(Path, "exists", lambda self: True)
     monkeypatch.setattr(android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
     monkeypatch.setattr(android_client, "_ensure_device_ready_before_install", lambda **kwargs: None)
@@ -175,9 +177,9 @@ def test_ensure_test_apk_installed_prefers_privapp_when_adb_root_available(monke
 
     installed = android_client.ensure_test_apk_installed(adb_serial="ABC123", require_privileged=True)
 
-    assert installed is True
-    assert calls == ["provision"]
-    assert saved["ABC123|com.smarttest.mobile|C:\\fake.apk"] == "privapp:hash-root"
+    assert installed is False
+    assert calls == []
+    assert saved == {}
 
 
 def test_detect_adb_root_mode_accepts_empty_adb_root_output(monkeypatch) -> None:
@@ -237,10 +239,12 @@ def test_ensure_test_apk_installed_user_case_reuses_existing_privapp(monkeypatch
         "_install_state_key",
         lambda adb_serial=None, apk_path=None, package_name=android_client.PACKAGE_NAME: "ABC123|com.smarttest.mobile|C:\\fake.apk",
     )
-    monkeypatch.setattr(android_client, "_load_install_state", lambda: {})
+    monkeypatch.setattr(android_client, "_load_install_state", lambda: {"ABC123|com.smarttest.mobile|C:\\fake.apk": "privapp:hash-user"})
     saved: dict[str, str] = {}
     monkeypatch.setattr(android_client, "_save_install_state", lambda payload: saved.update(payload))
     monkeypatch.setattr(android_client, "is_test_apk_installed", lambda adb_serial=None: True)
+    monkeypatch.setattr(android_client, "sign_privileged_apk", lambda input_apk_path=None: Path("C:/fake.apk"))
+    monkeypatch.setattr(android_client, "_device_file_hash", lambda **kwargs: "hash-user")
     install_calls: list[str] = []
     monkeypatch.setattr(android_client, "install_test_apk", lambda apk_path=None, adb_serial=None: install_calls.append("install"))
 
@@ -248,10 +252,68 @@ def test_ensure_test_apk_installed_user_case_reuses_existing_privapp(monkeypatch
 
     assert installed is False
     assert install_calls == []
-    assert saved["ABC123|com.smarttest.mobile|C:\\fake.apk"] == "privapp:hash-user"
+    assert saved == {}
 
 
-def test_ensure_test_apk_installed_privileged_case_requires_adb_root(monkeypatch) -> None:
+def test_ensure_test_apk_installed_user_case_reuses_stale_privapp_without_update(monkeypatch) -> None:
+    monkeypatch.setattr(Path, "exists", lambda self: True)
+    monkeypatch.setattr(android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
+    monkeypatch.setattr(android_client, "_ensure_device_ready_before_install", lambda **kwargs: None)
+    monkeypatch.setattr(android_client, "_package_code_path", lambda **kwargs: "/system/priv-app/SmartTestMobile/SmartTestMobile.apk")
+    monkeypatch.setattr(android_client, "_apk_hash", lambda apk_path: "hash-new")
+    monkeypatch.setattr(
+        android_client,
+        "_install_state_key",
+        lambda adb_serial=None, apk_path=None, package_name=android_client.PACKAGE_NAME: "ABC123|com.smarttest.mobile|C:\\fake.apk",
+    )
+    monkeypatch.setattr(android_client, "_load_install_state", lambda: {"ABC123|com.smarttest.mobile|C:\\fake.apk": "privapp:hash-old"})
+    saved: dict[str, str] = {}
+    monkeypatch.setattr(android_client, "_save_install_state", lambda payload: saved.update(payload))
+    monkeypatch.setattr(android_client, "is_test_apk_installed", lambda adb_serial=None: True)
+    monkeypatch.setattr(android_client, "sign_privileged_apk", lambda input_apk_path=None: Path("C:/fake.apk"))
+    monkeypatch.setattr(android_client, "_device_file_hash", lambda **kwargs: "hash-old")
+    calls: list[str] = []
+    monkeypatch.setattr(
+        android_client,
+        "_install_privileged_test_apk",
+        lambda *, adb_executable, apk_path, adb_serial=None, package_name=android_client.PACKAGE_NAME: calls.append("provision"),
+    )
+    install_calls: list[Path] = []
+    monkeypatch.setattr(android_client, "install_test_apk", lambda apk_path=None, adb_serial=None: install_calls.append(Path(apk_path)))
+
+    installed = android_client.ensure_test_apk_installed(adb_serial="ABC123", require_privileged=False)
+
+    assert installed is False
+    assert calls == []
+    assert install_calls == []
+    assert saved == {}
+
+
+def test_ensure_test_apk_installed_user_case_does_not_repair_privapp_record_when_package_exists(monkeypatch) -> None:
+    monkeypatch.setattr(Path, "exists", lambda self: True)
+    monkeypatch.setattr(android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
+    monkeypatch.setattr(android_client, "_ensure_device_ready_before_install", lambda **kwargs: None)
+    monkeypatch.setattr(android_client, "_package_code_path", lambda **kwargs: "/system/priv-app/SmartTestMobile/SmartTestMobile.apk")
+    monkeypatch.setattr(android_client, "_apk_hash", lambda apk_path: "hash-new")
+    monkeypatch.setattr(
+        android_client,
+        "_install_state_key",
+        lambda adb_serial=None, apk_path=None, package_name=android_client.PACKAGE_NAME: "ABC123|com.smarttest.mobile|C:\\fake.apk",
+    )
+    monkeypatch.setattr(android_client, "_load_install_state", lambda: {"ABC123|com.smarttest.mobile|C:\\fake.apk": "privapp:hash-old"})
+    saved: dict[str, str] = {}
+    monkeypatch.setattr(android_client, "_save_install_state", lambda payload: saved.update(payload))
+    monkeypatch.setattr(android_client, "is_test_apk_installed", lambda adb_serial=None: True)
+    monkeypatch.setattr(android_client, "sign_privileged_apk", lambda input_apk_path=None: Path("C:/fake.apk"))
+    monkeypatch.setattr(android_client, "_device_file_hash", lambda **kwargs: "hash-new")
+
+    installed = android_client.ensure_test_apk_installed(adb_serial="ABC123", require_privileged=False)
+
+    assert installed is False
+    assert saved == {}
+
+
+def test_ensure_test_apk_installed_privileged_case_does_not_require_adb_root_when_package_exists(monkeypatch) -> None:
     monkeypatch.setattr(Path, "exists", lambda self: True)
     monkeypatch.setattr(android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
     monkeypatch.setattr(android_client, "_apk_hash", lambda apk_path: "hash-root")
@@ -266,10 +328,9 @@ def test_ensure_test_apk_installed_privileged_case_requires_adb_root(monkeypatch
     monkeypatch.setattr(android_client, "_detect_adb_root_mode", lambda **kwargs: False)
     monkeypatch.setattr(android_client, "_ensure_device_ready_before_install", lambda **kwargs: None)
 
-    with pytest.raises(RuntimeError) as exc:
-        android_client.ensure_test_apk_installed(adb_serial="ABC123", require_privileged=True)
+    installed = android_client.ensure_test_apk_installed(adb_serial="ABC123", require_privileged=True)
 
-    assert "adb root" in str(exc.value)
+    assert installed is False
 
 
 def test_ensure_test_apk_installed_reports_device_not_ready_before_provision(monkeypatch) -> None:
@@ -415,49 +476,44 @@ def test_read_android_client_snapshot_parses_content_read_output(monkeypatch) ->
     assert snapshot["logLines"] == ["a", "b"]
 
 
-def test_power_wait_state_enters_and_exits_for_reboot() -> None:
-    waiting = runner_android_client._next_power_resume_wait_state(
-        case_id="auto_reboot",
+def test_dut_unavailable_wait_state_enters_and_exits_for_reboot_stage() -> None:
+    waiting = runner_android_client._next_dut_unavailable_wait_state(
         phase="Running",
-        current_stage="loop 1/3 rebooting dut",
+        current_stage="rebooting dut",
         matches_request=True,
         waiting_for_device_resume=False,
     )
     assert waiting is True
 
-    waiting = runner_android_client._next_power_resume_wait_state(
-        case_id="auto_reboot",
+    waiting = runner_android_client._next_dut_unavailable_wait_state(
         phase="Running",
-        current_stage="loop 1/3 waiting 100s after reboot",
+        current_stage="waiting after reboot",
         matches_request=True,
         waiting_for_device_resume=True,
     )
     assert waiting is True
 
-    waiting = runner_android_client._next_power_resume_wait_state(
-        case_id="auto_reboot",
+    waiting = runner_android_client._next_dut_unavailable_wait_state(
         phase="Failed",
-        current_stage="loop 1/3 rebooting dut",
+        current_stage="rebooting dut",
         matches_request=True,
         waiting_for_device_resume=True,
     )
     assert waiting is False
 
 
-def test_power_wait_state_enters_and_exits_for_suspend() -> None:
-    waiting = runner_android_client._next_power_resume_wait_state(
-        case_id="auto_suspend",
+def test_dut_unavailable_wait_state_enters_and_exits_for_suspend_stage() -> None:
+    waiting = runner_android_client._next_dut_unavailable_wait_state(
         phase="Running",
-        current_stage="loop 1/3 entering deep suspend",
+        current_stage="entering deep suspend",
         matches_request=True,
         waiting_for_device_resume=False,
     )
     assert waiting is True
 
-    waiting = runner_android_client._next_power_resume_wait_state(
-        case_id="auto_suspend",
+    waiting = runner_android_client._next_dut_unavailable_wait_state(
         phase="Running",
-        current_stage="loop 1/3 resumed from deep suspend",
+        current_stage="resumed from deep suspend",
         matches_request=True,
         waiting_for_device_resume=True,
     )
@@ -473,3 +529,105 @@ def test_snapshot_read_failure_key_collapses_repeated_adb_disconnects() -> None:
     )
 
     assert runner_android_client._snapshot_read_failure_key(error) == "no devices/emulators found"
+
+
+def test_android_client_stage_tracker_emits_generic_step_updates(tmp_path: Path, monkeypatch) -> None:
+    event_file = tmp_path / "events.jsonl"
+    monkeypatch.setenv("SMARTTEST_STEP_EVENTS_OUT", str(event_file))
+
+    token = set_current_case_nodeid("testing/tests/example.py::test_external_case")
+    try:
+        tracker = runner_android_client._AndroidClientStageTracker(
+            case_id="external_case",
+            request_id="request-1",
+            params={"external_case:target": "192.168.1.1"},
+        )
+        tracker.observe_snapshot(
+            {
+                "phase": "Running",
+                "currentStage": "prepare target",
+                "activeRequest": {"requestId": "request-1"},
+            }
+        )
+        tracker.observe_snapshot(
+            {
+                "phase": "Running",
+                "currentStage": "verify target",
+                "activeRequest": {"requestId": "request-1"},
+            }
+        )
+        tracker.finish("failed", error="target unreachable", actual="ping failed")
+    finally:
+        reset_current_case_nodeid(token)
+
+    events = [json.loads(line) for line in event_file.read_text(encoding="utf-8").splitlines()]
+    stage_events = [
+        event
+        for event in events
+        if event.get("definition_id") == "android_client.stage" or event.get("type") == "step_finished"
+    ]
+    assert any(event.get("title") == "prepare target" for event in stage_events)
+    assert any(event.get("title") == "verify target" for event in stage_events)
+    assert events[-2]["status"] == "failed"
+    assert events[-2]["error"] == "target unreachable"
+    assert events[-1]["status"] == "failed"
+
+
+def test_android_client_stage_tracker_plans_all_steps_before_status_updates(tmp_path: Path, monkeypatch) -> None:
+    event_file = tmp_path / "events.jsonl"
+    monkeypatch.setenv("SMARTTEST_STEP_EVENTS_OUT", str(event_file))
+
+    token = set_current_case_nodeid("testing/tests/example.py::test_external_case")
+    try:
+        tracker = runner_android_client._AndroidClientStageTracker(
+            case_id="external_case",
+            request_id="request-2",
+            params={},
+        )
+        tracker.observe_snapshot(
+            {
+                "phase": "Running",
+                "currentStage": "prepare target",
+                "plannedSteps": [
+                    {"id": "prepare", "title": "Prepare target", "kind": "setup", "definitionId": "case.prepare"},
+                    {"id": "verify", "title": "Verify target", "kind": "check", "definitionId": "case.verify"},
+                ],
+                "stepStates": [
+                    {"id": "prepare", "status": "running"},
+                    {"id": "verify", "status": "planned"},
+                ],
+            }
+        )
+        tracker.observe_snapshot(
+            {
+                "phase": "Running",
+                "currentStage": "verify target",
+                "plannedSteps": [
+                    {"id": "prepare", "title": "Prepare target", "kind": "setup", "definitionId": "case.prepare"},
+                    {"id": "verify", "title": "Verify target", "kind": "check", "definitionId": "case.verify"},
+                ],
+                "stepStates": [
+                    {"id": "prepare", "status": "passed"},
+                    {"id": "verify", "status": "running"},
+                ],
+            }
+        )
+    finally:
+        reset_current_case_nodeid(token)
+
+    events = [json.loads(line) for line in event_file.read_text(encoding="utf-8").splitlines()]
+    planned_titles = [event.get("title") for event in events if event["type"] == "step_planned"]
+    started_titles = [event.get("title") for event in events if event["type"] == "step_started"]
+
+    assert "Prepare target" in planned_titles
+    assert "Verify target" in planned_titles
+    verify_planned_index = next(
+        index for index, event in enumerate(events)
+        if event["type"] == "step_planned" and event.get("title") == "Verify target"
+    )
+    prepare_started_index = next(
+        index for index, event in enumerate(events)
+        if event["type"] == "step_started" and event.get("title") == "Prepare target"
+    )
+    assert verify_planned_index < prepare_started_index
+    assert any(event["type"] == "step_finished" and event["status"] == "passed" for event in events)

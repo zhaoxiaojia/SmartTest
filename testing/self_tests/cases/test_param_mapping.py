@@ -105,6 +105,7 @@ def test_default_registry_uses_fixed_bluetooth_target_list():
     assert reboot_param is not None
     assert suspend_param is not None
     assert reboot_param.enum_values == [
+        "None",
         "小米小钢炮蓝牙音箱 [74:A3:4A:13:3E:DA]",
         "HUAWEI Sound Joy-09524 [78:04:E3:54:3E:91]",
         "EDIFIER M380 [F4:4E:FD:44:A5:89]",

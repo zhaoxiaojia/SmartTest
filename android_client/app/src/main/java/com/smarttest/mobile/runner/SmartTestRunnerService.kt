@@ -89,7 +89,11 @@ class SmartTestRunnerService : Service() {
         }
 
         runJob?.cancel()
-        SmartTestRunStore.startRun(request, cases)
+        val plannedSteps = cases.flatMap { runningCase ->
+            val executor = com.smarttest.mobile.runner.cases.TestCaseRegistry.find(runningCase.id)
+            executor?.plan(request, runningCase).orEmpty()
+        }
+        SmartTestRunStore.startRun(request, cases, plannedSteps)
         val environment = createEnvironment()
         ServiceCompat.startForeground(
             this,

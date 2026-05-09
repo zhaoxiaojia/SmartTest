@@ -9,6 +9,8 @@ data class AutoSuspendSession(
     val awaitingResume: Boolean,
     val sleepRequestElapsedRealtimeMs: Long,
     val sleepRequestUptimeMs: Long,
+    val pingTarget: String,
+    val bluetoothTarget: String,
     val source: String,
     val trigger: String,
     val requestId: String,
@@ -16,12 +18,16 @@ data class AutoSuspendSession(
     fun matchesRequest(
         totalCycles: Int,
         intervalSec: Long,
+        pingTarget: String,
+        bluetoothTarget: String,
         source: String,
         trigger: String,
         requestId: String,
     ): Boolean {
         return this.totalCycles == totalCycles &&
             this.intervalSec == intervalSec &&
+            this.pingTarget == pingTarget &&
+            this.bluetoothTarget == bluetoothTarget &&
             this.source == source &&
             this.trigger == trigger &&
             this.requestId == requestId
@@ -55,6 +61,8 @@ class AutoSuspendSessionStore(context: Context) {
             awaitingResume = preferences.getBoolean(KEY_AWAITING_RESUME, false),
             sleepRequestElapsedRealtimeMs = preferences.getLong(KEY_SLEEP_REQUEST_ELAPSED_REALTIME_MS, 0L),
             sleepRequestUptimeMs = preferences.getLong(KEY_SLEEP_REQUEST_UPTIME_MS, 0L),
+            pingTarget = preferences.getString(KEY_PING_TARGET, "") ?: "",
+            bluetoothTarget = preferences.getString(KEY_BLUETOOTH_TARGET, "") ?: "",
             source = preferences.getString(KEY_SOURCE, "alarm") ?: "alarm",
             trigger = preferences.getString(KEY_TRIGGER, "auto_suspend_alarm") ?: "auto_suspend_alarm",
             requestId = preferences.getString(KEY_REQUEST_ID, "manual") ?: "manual",
@@ -69,6 +77,8 @@ class AutoSuspendSessionStore(context: Context) {
             .putBoolean(KEY_AWAITING_RESUME, session.awaitingResume)
             .putLong(KEY_SLEEP_REQUEST_ELAPSED_REALTIME_MS, session.sleepRequestElapsedRealtimeMs)
             .putLong(KEY_SLEEP_REQUEST_UPTIME_MS, session.sleepRequestUptimeMs)
+            .putString(KEY_PING_TARGET, session.pingTarget)
+            .putString(KEY_BLUETOOTH_TARGET, session.bluetoothTarget)
             .putString(KEY_SOURCE, session.source)
             .putString(KEY_TRIGGER, session.trigger)
             .putString(KEY_REQUEST_ID, session.requestId)
@@ -87,6 +97,8 @@ class AutoSuspendSessionStore(context: Context) {
         private const val KEY_AWAITING_RESUME = "awaiting_resume"
         private const val KEY_SLEEP_REQUEST_ELAPSED_REALTIME_MS = "sleep_request_elapsed_realtime_ms"
         private const val KEY_SLEEP_REQUEST_UPTIME_MS = "sleep_request_uptime_ms"
+        private const val KEY_PING_TARGET = "ping_target"
+        private const val KEY_BLUETOOTH_TARGET = "bluetooth_target"
         private const val KEY_SOURCE = "source"
         private const val KEY_TRIGGER = "trigger"
         private const val KEY_REQUEST_ID = "request_id"

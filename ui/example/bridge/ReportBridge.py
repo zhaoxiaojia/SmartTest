@@ -4,10 +4,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QObject, QStandardPaths, Signal, Slot
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtCore import QObject, QStandardPaths, QUrl, Signal, Slot
+from PySide6.QtGui import QDesktopServices, QGuiApplication
 
-from testing.reporting import ReportStore
+from testing.reporting import ReportStore, filter_report_logs
 
 
 class ReportBridge(QObject):
@@ -78,7 +78,7 @@ class ReportBridge(QObject):
         counts = self._counts(report)
         steps = [dict(row) for row in report.get("steps", []) if isinstance(row, dict)]
         cases = [row for row in steps if row.get("kind") == "case"]
-        logs = [dict(row) for row in report.get("logs", []) if isinstance(row, dict)]
+        logs = filter_report_logs([row for row in report.get("logs", []) if isinstance(row, dict)])
         return {
             **self._summary_row(report),
             "returncode": int(report.get("returncode", 0) or 0),
@@ -106,3 +106,11 @@ class ReportBridge(QObject):
         if not report:
             return {}
         return self._detail_payload(report)
+
+    @Slot(str, result=bool)
+    def openReportFolder(self, run_id: str) -> bool:
+        path = self._store.path_for(run_id)
+        if not path.exists():
+            self.errorOccurred.emit(f"Report file not found: {path}")
+            return False
+        return QDesktopServices.openUrl(QUrl.fromLocalFile(str(path.parent)))

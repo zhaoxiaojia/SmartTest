@@ -10,6 +10,7 @@ FluPage {
     property var reportRowsModel: []
     property var selectedReport: ({})
     property string selectedRunId: ""
+    property int selectedStepIndex: -1
 
     function refreshReports(){
         ReportBridge.refresh()
@@ -17,21 +18,17 @@ FluPage {
         if(reportRowsModel.length === 0){
             selectedRunId = ""
             selectedReport = ({})
+            selectedStepIndex = -1
             return
         }
-        var keepIndex = -1
+        var keepIndex = 0
         for(var i = 0; i < reportRowsModel.length; i++){
             if(reportRowsModel[i].run_id === selectedRunId){
                 keepIndex = i
                 break
             }
         }
-        if(keepIndex < 0){
-            keepIndex = 0
-        }
-        selectedRunId = reportRowsModel[keepIndex].run_id
-        selectedReport = ReportBridge.reportDetail(selectedRunId)
-        reportList.currentIndex = keepIndex
+        selectReport(keepIndex)
     }
 
     function selectReport(index){
@@ -41,6 +38,28 @@ FluPage {
         selectedRunId = reportRowsModel[index].run_id
         selectedReport = ReportBridge.reportDetail(selectedRunId)
         reportList.currentIndex = index
+        selectedStepIndex = firstFailedStepIndex()
+        if(selectedStepIndex < 0 && (selectedReport.steps || []).length > 0){
+            selectedStepIndex = 0
+        }
+    }
+
+    function firstFailedStepIndex(){
+        var rows = selectedReport.steps || []
+        for(var i = 0; i < rows.length; i++){
+            if(rows[i].status === "failed"){
+                return i
+            }
+        }
+        return -1
+    }
+
+    function selectedStep(){
+        var rows = selectedReport.steps || []
+        if(selectedStepIndex < 0 || selectedStepIndex >= rows.length){
+            return ({})
+        }
+        return rows[selectedStepIndex]
     }
 
     function statusColor(status){
@@ -50,11 +69,14 @@ FluPage {
         if(status === "failed"){
             return "#C42B1C"
         }
-        if(status === "stopped"){
-            return "#8A6A00"
-        }
         if(status === "running"){
             return FluTheme.primaryColor
+        }
+        if(status === "planned"){
+            return "#8764B8"
+        }
+        if(status === "stopped"){
+            return "#8A6A00"
         }
         return FluTheme.fontSecondaryColor
     }
@@ -69,7 +91,18 @@ FluPage {
         if(status === "passed"){
             return Qt.rgba(15/255, 123/255, 15/255, 0.06)
         }
+        if(status === "running"){
+            return FluTools.withOpacity(FluTheme.primaryColor, FluTheme.dark ? 0.14 : 0.08)
+        }
         return "transparent"
+    }
+
+    function kindLabel(kind){
+        if(kind === "case") return "case"
+        if(kind === "setup") return "setup"
+        if(kind === "teardown") return "teardown"
+        if(kind === "check") return "check"
+        return "step"
     }
 
     function metricValue(key){
@@ -78,6 +111,29 @@ FluPage {
         }
         var value = selectedReport[key]
         return value === undefined || value === null || value === "" ? "-" : String(value)
+    }
+
+    function objectText(value){
+        if(value === undefined || value === null || value === ""){
+            return "-"
+        }
+        if(typeof value === "string"){
+            return value
+        }
+        return JSON.stringify(value, null, 2)
+    }
+
+    function stepEvidenceText(step){
+        var evidence = step.evidence || []
+        if(evidence.length === 0){
+            return "-"
+        }
+        var parts = []
+        for(var i = 0; i < evidence.length; i++){
+            var item = evidence[i]
+            parts.push("[" + (item.type || "evidence") + "] " + (item.title || "Evidence") + "\n" + objectText(item.content))
+        }
+        return parts.join("\n\n")
     }
 
     Connections{
@@ -135,15 +191,6 @@ FluPage {
                     }
                 }
 
-                FluText{
-                    Layout.fillWidth: true
-                    visible: reportRowsModel.length === 0
-                    text: qsTr("No reports yet.")
-                    font: FluTextStyle.Body
-                    color: FluTheme.fontSecondaryColor
-                    wrapMode: Text.WordWrap
-                }
-
                 ListView{
                     id: reportList
                     Layout.fillWidth: true
@@ -172,7 +219,7 @@ FluPage {
                                 spacing: 8
 
                                 FluText{
-                                    text: modelData.finished_at ? modelData.finished_at.replace("T", " ").substring(0, 19) : qsTr("Unknown time")
+                                    text: modelData.finished_at || qsTr("Unknown time")
                                     Layout.fillWidth: true
                                     font: FluTextStyle.Body
                                     elide: Text.ElideRight
@@ -204,7 +251,10 @@ FluPage {
 
                         MouseArea{
                             anchors.fill: parent
-                            onClicked: selectReport(index)
+                            onClicked: {
+                                selectReport(index)
+                                ReportBridge.openReportFolder(modelData.run_id || "")
+                            }
                         }
                     }
                 }
@@ -213,7 +263,7 @@ FluPage {
 
         Item{
             SplitView.fillWidth: true
-            SplitView.minimumWidth: 520
+            SplitView.minimumWidth: 680
             SplitView.fillHeight: true
 
             ColumnLayout{
@@ -239,7 +289,7 @@ FluPage {
                         spacing: 10
 
                         FluText{
-                            text: metricValue("finished_at").replace("T", " ").substring(0, 19)
+                            text: metricValue("finished_at")
                             font: FluTextStyle.Subtitle
                             Layout.fillWidth: true
                             elide: Text.ElideRight
@@ -267,26 +317,22 @@ FluPage {
 
                             delegate: Item{
                                 Layout.fillWidth: true
-                                implicitHeight: 52
+                                implicitHeight: 48
 
                                 ColumnLayout{
                                     anchors.fill: parent
-                                    anchors.leftMargin: 4
-                                    anchors.rightMargin: 4
                                     spacing: 4
 
                                     FluText{
                                         text: modelData.label
                                         font: FluTextStyle.Caption
                                         color: FluTheme.fontSecondaryColor
-                                        elide: Text.ElideRight
                                     }
 
                                     FluText{
                                         text: modelData.value
                                         font: FluTextStyle.BodyStrong
                                         color: modelData.color
-                                        elide: Text.ElideRight
                                     }
                                 }
                             }
@@ -298,12 +344,12 @@ FluPage {
                     visible: selectedRunId !== ""
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    orientation: Qt.Vertical
+                    orientation: Qt.Horizontal
 
                     FluFrame{
-                        SplitView.fillWidth: true
-                        SplitView.preferredHeight: 260
-                        SplitView.minimumHeight: 180
+                        SplitView.preferredWidth: 520
+                        SplitView.minimumWidth: 360
+                        SplitView.fillHeight: true
                         padding: 10
 
                         ColumnLayout{
@@ -311,40 +357,62 @@ FluPage {
                             spacing: 8
 
                             FluText{
-                                text: qsTr("Cases")
+                                text: qsTr("Steps")
                                 font: FluTextStyle.Subtitle
                             }
 
                             ListView{
+                                id: stepList
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 clip: true
-                                model: selectedReport.cases || []
+                                model: selectedReport.steps || []
+                                currentIndex: selectedStepIndex
                                 boundsBehavior: Flickable.StopAtBounds
                                 ScrollBar.vertical: FluScrollBar{}
+                                onCurrentIndexChanged: selectedStepIndex = currentIndex
 
                                 delegate: Rectangle{
                                     width: ListView.view.width
-                                    height: caseRow.implicitHeight + 12
+                                    height: stepRow.implicitHeight + 12
                                     radius: 6
-                                    color: rowBackgroundColor(modelData.status || "", false)
+                                    color: rowBackgroundColor(modelData.status || "", ListView.isCurrentItem)
+                                    border.width: ListView.isCurrentItem ? 1 : 0
+                                    border.color: ListView.isCurrentItem ? FluTheme.primaryColor : "transparent"
 
                                     ColumnLayout{
-                                        id: caseRow
+                                        id: stepRow
                                         anchors.fill: parent
-                                        anchors.leftMargin: 8
+                                        anchors.leftMargin: 8 + (Math.max(0, modelData.depth || 0) * 16)
                                         anchors.rightMargin: 8
                                         anchors.topMargin: 6
                                         anchors.bottomMargin: 6
-                                        spacing: 4
+                                        spacing: 5
 
                                         RowLayout{
                                             Layout.fillWidth: true
                                             spacing: 8
 
+                                            Rectangle{
+                                                implicitWidth: kindText.implicitWidth + 12
+                                                implicitHeight: kindText.implicitHeight + 4
+                                                radius: height / 2
+                                                color: FluTools.withOpacity(statusColor(modelData.status || ""), 0.12)
+
+                                                FluText{
+                                                    id: kindText
+                                                    anchors.centerIn: parent
+                                                    text: kindLabel(modelData.kind || "")
+                                                    font: FluTextStyle.Caption
+                                                    color: statusColor(modelData.status || "")
+                                                }
+                                            }
+
                                             FluText{
-                                                text: modelData.title || modelData.case_nodeid || ""
+                                                text: modelData.title || ""
                                                 Layout.fillWidth: true
+                                                wrapMode: Text.Wrap
+                                                maximumLineCount: 2
                                                 elide: Text.ElideRight
                                             }
 
@@ -357,11 +425,16 @@ FluPage {
 
                                         FluText{
                                             Layout.fillWidth: true
-                                            text: modelData.case_nodeid || ""
+                                            text: modelData.definition_id || modelData.case_nodeid || ""
                                             font: FluTextStyle.Caption
                                             color: FluTheme.fontSecondaryColor
                                             elide: Text.ElideMiddle
                                         }
+                                    }
+
+                                    MouseArea{
+                                        anchors.fill: parent
+                                        onClicked: stepList.currentIndex = index
                                     }
                                 }
                             }
@@ -370,8 +443,8 @@ FluPage {
 
                     FluFrame{
                         SplitView.fillWidth: true
+                        SplitView.minimumWidth: 360
                         SplitView.fillHeight: true
-                        SplitView.minimumHeight: 180
                         padding: 10
 
                         ColumnLayout{
@@ -379,7 +452,7 @@ FluPage {
                             spacing: 8
 
                             FluText{
-                                text: qsTr("Logs")
+                                text: qsTr("Step Detail")
                                 font: FluTextStyle.Subtitle
                             }
 
@@ -388,17 +461,32 @@ FluPage {
                                 Layout.fillHeight: true
                                 clip: true
                                 contentWidth: width
-                                contentHeight: reportLogText.paintedHeight
+                                contentHeight: detailText.paintedHeight
                                 boundsBehavior: Flickable.StopAtBounds
                                 ScrollBar.vertical: FluScrollBar{}
 
                                 TextEdit{
-                                    id: reportLogText
+                                    id: detailText
                                     width: parent.width
                                     readOnly: true
                                     selectByMouse: true
                                     wrapMode: Text.WrapAnywhere
-                                    text: selectedReport.log_text || ""
+                                    text: {
+                                        var step = selectedStep()
+                                        if(!step || !step.id){
+                                            return selectedReport.log_text || ""
+                                        }
+                                        return "Status: " + (step.status || "-")
+                                                + "\nKind: " + (step.kind || "-")
+                                                + "\nDefinition: " + (step.definition_id || "-")
+                                                + "\nDuration: " + String(step.duration_ms || 0) + " ms"
+                                                + "\n\nParameters:\n" + objectText(step.params)
+                                                + "\n\nExpected:\n" + objectText(step.expected)
+                                                + "\n\nActual:\n" + objectText(step.actual)
+                                                + "\n\nError:\n" + objectText(step.error)
+                                                + "\n\nEvidence:\n" + stepEvidenceText(step)
+                                                + "\n\nRun Logs:\n" + (selectedReport.log_text || "")
+                                    }
                                     color: FluTheme.fontPrimaryColor
                                     font: FluTextStyle.Caption
                                     renderType: FluTheme.nativeText ? Text.NativeRendering : Text.QtRendering

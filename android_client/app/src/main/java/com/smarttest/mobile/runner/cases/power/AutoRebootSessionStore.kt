@@ -8,6 +8,9 @@ data class AutoRebootSession(
     val intervalSec: Long,
     val completedCycles: Int,
     val awaitingPostBootCheck: Boolean,
+    val pingTarget: String,
+    val bluetoothTarget: String,
+    val resumeDispatchToken: String,
     val source: String,
     val trigger: String,
     val requestId: String,
@@ -15,12 +18,16 @@ data class AutoRebootSession(
     fun matchesRequest(
         totalCycles: Int,
         intervalSec: Long,
+        pingTarget: String,
+        bluetoothTarget: String,
         source: String,
         trigger: String,
         requestId: String,
     ): Boolean {
         return this.totalCycles == totalCycles &&
             this.intervalSec == intervalSec &&
+            this.pingTarget == pingTarget &&
+            this.bluetoothTarget == bluetoothTarget &&
             this.source == source &&
             this.trigger == trigger &&
             this.requestId == requestId
@@ -50,6 +57,9 @@ class AutoRebootSessionStore(context: Context) {
             intervalSec = preferences.getLong(KEY_INTERVAL_SEC, 0L),
             completedCycles = preferences.getInt(KEY_COMPLETED_CYCLES, 0),
             awaitingPostBootCheck = preferences.getBoolean(KEY_AWAITING_POST_BOOT, false),
+            pingTarget = preferences.getString(KEY_PING_TARGET, "") ?: "",
+            bluetoothTarget = preferences.getString(KEY_BLUETOOTH_TARGET, "") ?: "",
+            resumeDispatchToken = preferences.getString(KEY_RESUME_DISPATCH_TOKEN, "") ?: "",
             source = preferences.getString(KEY_SOURCE, "boot") ?: "boot",
             trigger = preferences.getString(KEY_TRIGGER, "boot_completed") ?: "boot_completed",
             requestId = preferences.getString(KEY_REQUEST_ID, "manual") ?: "manual",
@@ -63,6 +73,9 @@ class AutoRebootSessionStore(context: Context) {
             .putLong(KEY_INTERVAL_SEC, session.intervalSec)
             .putInt(KEY_COMPLETED_CYCLES, session.completedCycles)
             .putBoolean(KEY_AWAITING_POST_BOOT, session.awaitingPostBootCheck)
+            .putString(KEY_PING_TARGET, session.pingTarget)
+            .putString(KEY_BLUETOOTH_TARGET, session.bluetoothTarget)
+            .putString(KEY_RESUME_DISPATCH_TOKEN, session.resumeDispatchToken)
             .putString(KEY_SOURCE, session.source)
             .putString(KEY_TRIGGER, session.trigger)
             .putString(KEY_REQUEST_ID, session.requestId)
@@ -80,6 +93,9 @@ class AutoRebootSessionStore(context: Context) {
         private const val KEY_INTERVAL_SEC = "interval_sec"
         private const val KEY_COMPLETED_CYCLES = "completed_cycles"
         private const val KEY_AWAITING_POST_BOOT = "awaiting_post_boot"
+        private const val KEY_PING_TARGET = "ping_target"
+        private const val KEY_BLUETOOTH_TARGET = "bluetooth_target"
+        private const val KEY_RESUME_DISPATCH_TOKEN = "resume_dispatch_token"
         private const val KEY_SOURCE = "source"
         private const val KEY_TRIGGER = "trigger"
         private const val KEY_REQUEST_ID = "request_id"

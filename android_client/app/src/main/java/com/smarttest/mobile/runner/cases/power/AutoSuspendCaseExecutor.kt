@@ -27,6 +27,8 @@ class AutoSuspendCaseExecutor : TestCaseExecutor {
             awaitingResume = false,
             sleepRequestElapsedRealtimeMs = 0L,
             sleepRequestUptimeMs = 0L,
+            pingTarget = recoveryConfig.pingTarget,
+            bluetoothTarget = recoveryConfig.bluetoothTarget,
             source = context.request.source,
             trigger = context.request.trigger,
             requestId = context.request.requestId,
@@ -107,7 +109,10 @@ class AutoSuspendCaseExecutor : TestCaseExecutor {
             val recovered = PowerCycleRecoveryChecks.verifyRecoveredState(
                 context = context,
                 stage = "cycle $cycle/${session.totalCycles} after deep suspend",
-                config = recoveryConfig,
+                config = PowerCycleRecoveryConfig(
+                    pingTarget = session.pingTarget,
+                    bluetoothTarget = session.bluetoothTarget,
+                ),
             )
             if (!recovered) {
                 sessionStore.clear()
@@ -250,6 +255,8 @@ class AutoSuspendCaseExecutor : TestCaseExecutor {
             !saved.matchesRequest(
                 totalCycles = requestSession.totalCycles,
                 intervalSec = requestSession.intervalSec,
+                pingTarget = requestSession.pingTarget,
+                bluetoothTarget = requestSession.bluetoothTarget,
                 source = requestSession.source,
                 trigger = requestSession.trigger,
                 requestId = requestSession.requestId,

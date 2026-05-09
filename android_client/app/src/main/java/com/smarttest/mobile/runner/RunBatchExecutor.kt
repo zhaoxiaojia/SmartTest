@@ -30,6 +30,13 @@ object RunBatchExecutor {
             }
 
             logger("[${runningCase.category}] ${runningCase.title} start")
+            val defaultStepId = "${runningCase.id}.execute"
+            SmartTestRunStore.updateProgress(
+                currentLoop = null,
+                totalLoops = null,
+                stage = "${runningCase.title} running",
+                stepId = defaultStepId,
+            )
             if (runningCase.parameters.isNotEmpty()) {
                 logger(
                     "params: ${runningCase.parameters.joinToString(" / ") { "${it.first}=${it.second}" }}",
@@ -47,6 +54,7 @@ object RunBatchExecutor {
             )
 
             logger(result.summary)
+            SmartTestRunStore.finishStep(defaultStepId, passed = result.passed, actual = result.summary)
             if (result.pendingResume) {
                 return RunBatchExecutionResult(failedCount = failedCount, pendingResume = true)
             }

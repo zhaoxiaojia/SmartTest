@@ -1,5 +1,6 @@
 import os
 import sys
+from PyInstaller.utils.hooks import collect_submodules
 
 APP_NAME = "SmartTest"
 
@@ -19,20 +20,9 @@ def _find_repo_root(start_dir: str) -> str:
 repo_root = os.environ.get("SMARTTEST_REPO_ROOT") or _find_repo_root(os.getcwd())
 mainPath = os.path.join(repo_root, "main.py")
 ui_root = os.path.join(repo_root, "ui")
-android_catalog = os.path.join(
-    repo_root,
-    "android_client",
-    "app",
-    "src",
-    "main",
-    "java",
-    "com",
-    "smarttest",
-    "mobile",
-    "runner",
-    "SmartTestCatalog.kt",
-)
 test_catalog = os.path.join(repo_root, "build", "generated", "testing", "cases", "test_catalog.json")
+testing_root = os.path.join(repo_root, "testing")
+build_manifest = os.path.join(repo_root, "build", "generated", "build_manifest.json")
 android_apk = os.path.join(repo_root, "android_client", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
 android_platform_apk = os.path.join(
     repo_root,
@@ -57,22 +47,16 @@ a = Analysis(
     binaries=[],
     datas=[
         (
-            android_catalog,
-            os.path.join(
-                "android_client",
-                "app",
-                "src",
-                "main",
-                "java",
-                "com",
-                "smarttest",
-                "mobile",
-                "runner",
-            ),
+            testing_root,
+            "testing",
         ),
         (
             test_catalog,
             os.path.join("testing", "cases"),
+        ),
+        (
+            build_manifest,
+            os.path.join("build", "generated"),
         ),
         (
             android_apk,
@@ -91,6 +75,7 @@ a = Analysis(
         # Ensure UI packages are discoverable even if imports are indirect.
         "example.main",
         "FluentUI.FluentUI",
+        *collect_submodules("pytest"),
     ],
     hookspath=[],
     hooksconfig={},

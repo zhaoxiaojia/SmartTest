@@ -66,11 +66,8 @@ FluPage {
     }
 
     function kindLabel(kind){
-        if(kind === "action"){
-            return "action"
-        }
-        if(kind === "loop"){
-            return "loop"
+        if(kind === "case"){
+            return "case"
         }
         if(kind === "setup"){
             return "setup"
@@ -78,7 +75,10 @@ FluPage {
         if(kind === "teardown"){
             return "teardown"
         }
-        return "case"
+        if(kind === "check"){
+            return "check"
+        }
+        return "step"
     }
 
     function statusColor(status){
@@ -109,6 +109,9 @@ FluPage {
         }
         if(status === "passed"){
             return Qt.rgba(15/255, 123/255, 15/255, 0.08)
+        }
+        if(status === "planned"){
+            return FluTools.withOpacity(FluTheme.fontSecondaryColor, FluTheme.dark ? 0.10 : 0.06)
         }
         return "transparent"
     }

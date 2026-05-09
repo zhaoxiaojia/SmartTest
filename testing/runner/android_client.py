@@ -11,6 +11,7 @@ from typing import Mapping
 
 from android_client import PACKAGE_NAME, PRIVILEGED_CASE_IDS, ensure_test_apk_installed
 from testing.params.adb_devices import resolve_adb_serial_for_command
+from testing.runtime.events import current_case_nodeid, current_step, emit_event
 
 
 DEFAULT_COMPONENT = "com.smarttest.mobile/com.smarttest.mobile.command.CommandActivity"
@@ -21,15 +22,324 @@ DEFAULT_EXTRA_PARAMS_B64 = "params_b64"
 DEFAULT_STATUS_URI = "content://com.smarttest.mobile.status/snapshot"
 DEFAULT_STATUS_FILE = "files/runner_snapshot.json"
 DEFAULT_PUBLIC_STATUS_FILE = "/sdcard/Android/data/com.smarttest.mobile/files/runner_snapshot.json"
-DEFAULT_AUTO_SUSPEND_DEBUG_FILE = "/sdcard/Android/data/com.smarttest.mobile/files/auto_suspend_debug.log"
 DEFAULT_POLL_INTERVAL_SEC = 1.0
 DEFAULT_TIMEOUT_SEC = 3600.0
 DEFAULT_MAX_CONSECUTIVE_STATUS_FAILURES = 5
-AUTO_REBOOT_DUT_STAGE_TOKEN = "rebooting dut"
-AUTO_SUSPEND_DUT_STAGE_TOKEN = "entering deep suspend"
-AUTO_SUSPEND_HOST_QUIET_SEC = 25.0
+DEFAULT_DUT_UNAVAILABLE_STAGE_TOKENS = {"rebooting dut", "entering deep suspend"}
+DEFAULT_HOST_QUIET_STAGE_TOKENS = {"entering deep suspend"}
+DEFAULT_HOST_QUIET_SEC = 25.0
 DEFAULT_NO_POLL_CASE_IDS: set[str] = set()
-DEFAULT_SLOW_POLL_CASE_IDS = {"auto_suspend", "auto_reboot"}
+DEFAULT_SLOW_POLL_CASE_IDS: set[str] = set()
+
+
+def _event_time() -> float:
+    return time.time()
+
+
+def _emit_runtime_step_planned(
+    *,
+    step_id: str,
+    title: str,
+    kind: str,
+    definition_id: str,
+    params: Mapping[str, object] | None = None,
+    expected: object = "",
+    parent_id: str | None = None,
+) -> bool:
+    case_nodeid = current_case_nodeid()
+    if not case_nodeid:
+        return False
+    parent = current_step()
+    emit_event(
+        "step_planned",
+        step_id=step_id,
+        case_nodeid=case_nodeid,
+        parent_id=parent_id if parent_id is not None else (parent["id"] if parent else None),
+        title=title,
+        phase="call",
+        kind=kind,
+        definition_id=definition_id,
+        meta={"definition_id": definition_id},
+        params=dict(params or {}),
+        expected=expected,
+    )
+    return True
+
+
+def _emit_runtime_step_started(
+    *,
+    step_id: str,
+    title: str,
+    kind: str,
+    definition_id: str,
+    params: Mapping[str, object] | None = None,
+    expected: object = "",
+    parent_id: str | None = None,
+) -> bool:
+    case_nodeid = current_case_nodeid()
+    if not case_nodeid:
+        return False
+    parent = current_step()
+    emit_event(
+        "step_started",
+        step_id=step_id,
+        case_nodeid=case_nodeid,
+        parent_id=parent_id if parent_id is not None else (parent["id"] if parent else None),
+        title=title,
+        phase="call",
+        kind=kind,
+        definition_id=definition_id,
+        meta={"definition_id": definition_id},
+        params=dict(params or {}),
+        expected=expected,
+    )
+    return True
+
+
+def _emit_runtime_step_finished(
+    *,
+    step_id: str,
+    status: str,
+    error: str = "",
+    actual: object = "",
+) -> bool:
+    case_nodeid = current_case_nodeid()
+    if not case_nodeid:
+        return False
+    emit_event(
+        "step_finished",
+        step_id=step_id,
+        case_nodeid=case_nodeid,
+        status=status,
+        error=error,
+        actual=actual,
+    )
+    return True
+
+
+def _emit_runtime_step_evidence(
+    *,
+    step_id: str,
+    title: str,
+    content: object,
+    evidence_type: str = "log",
+    level: str = "info",
+) -> bool:
+    case_nodeid = current_case_nodeid()
+    if not case_nodeid:
+        return False
+    emit_event(
+        "step_evidence",
+        case_nodeid=case_nodeid,
+        step_id=step_id,
+        title=title,
+        evidence_type=evidence_type,
+        level=level,
+        content=content,
+        meta={},
+    )
+    return True
+
+
+def _json_pair_list_to_dict(raw_items: object) -> dict[str, object]:
+    if not isinstance(raw_items, list):
+        return {}
+    result: dict[str, object] = {}
+    for item in raw_items:
+        if isinstance(item, dict):
+            key = str(item.get("key", "") or "")
+            if key:
+                result[key] = item.get("value", "")
+    return result
+
+
+class _RuntimeStep:
+    def __init__(
+        self,
+        *,
+        title: str,
+        kind: str,
+        definition_id: str,
+        step_id: str | None = None,
+        params: Mapping[str, object] | None = None,
+        expected: object = "",
+        parent_id: str | None = None,
+    ) -> None:
+        self.step_id = step_id or f"step:{uuid.uuid4().hex}"
+        self._title = title
+        self._kind = kind
+        self._definition_id = definition_id
+        self._params = dict(params or {})
+        self._expected = expected
+        self._parent_id = parent_id
+        self._started = False
+        self._finished = False
+        self.enabled = _emit_runtime_step_planned(
+            step_id=self.step_id,
+            title=self._title,
+            kind=self._kind,
+            definition_id=self._definition_id,
+            params=self._params,
+            expected=self._expected,
+            parent_id=self._parent_id,
+        )
+
+    def start(self) -> None:
+        if not self.enabled or self._started:
+            return
+        self._started = True
+        _emit_runtime_step_started(
+            step_id=self.step_id,
+            title=self._title,
+            kind=self._kind,
+            definition_id=self._definition_id,
+            params=self._params,
+            expected=self._expected,
+            parent_id=self._parent_id,
+        )
+
+    def evidence(self, title: str, content: object, *, evidence_type: str = "log", level: str = "info") -> None:
+        if not self.enabled:
+            return
+        _emit_runtime_step_evidence(
+            step_id=self.step_id,
+            title=title,
+            content=content,
+            evidence_type=evidence_type,
+            level=level,
+        )
+
+    def finish(self, status: str, *, error: str = "", actual: object = "") -> None:
+        if not self.enabled or self._finished:
+            return
+        if not self._started:
+            self.start()
+        self._finished = True
+        _emit_runtime_step_finished(
+            step_id=self.step_id,
+            status=status,
+            error=error,
+            actual=actual,
+        )
+
+    @property
+    def started(self) -> bool:
+        return self._started
+
+
+class _AndroidClientStageTracker:
+    def __init__(
+        self,
+        *,
+        case_id: str,
+        request_id: str,
+        params: Mapping[str, str] | None,
+    ) -> None:
+        self._case_id = case_id
+        self._request_id = request_id
+        self._parent = _RuntimeStep(
+            title=f"Run android_client case: {case_id}",
+            kind="action",
+            definition_id="android_client.run_case",
+            params={"case_id": case_id, "request_id": request_id, **dict(params or {})},
+            expected="android_client reports Completed with zero failed cases.",
+        )
+        self._parent.start()
+        self._current_stage: _RuntimeStep | None = None
+        self._current_stage_key = ""
+        self._planned_steps: dict[str, _RuntimeStep] = {}
+        self._terminal = False
+
+    def evidence(self, title: str, content: object, *, evidence_type: str = "log", level: str = "info") -> None:
+        self._parent.evidence(title, content, evidence_type=evidence_type, level=level)
+
+    def observe_snapshot(self, snapshot: Mapping[str, object]) -> None:
+        if not self._parent.enabled:
+            return
+        self._sync_planned_steps(snapshot)
+        self._sync_step_states(snapshot)
+        if self._planned_steps:
+            return
+        stage = str(snapshot.get("currentStage", "") or "").strip()
+        phase = str(snapshot.get("phase", "") or "").strip()
+        if not stage:
+            stage = phase or "waiting for android_client status"
+        stage_key = f"{phase}:{stage}"
+        if stage_key == self._current_stage_key:
+            return
+        if self._current_stage is not None:
+            self._current_stage.finish("passed")
+        self._current_stage_key = stage_key
+        self._current_stage = _RuntimeStep(
+            title=stage,
+            kind="external",
+            definition_id="android_client.stage",
+            params={"phase": phase, "case_id": self._case_id, "request_id": self._request_id},
+            expected="android_client advances to the next stage or terminal status.",
+            parent_id=self._parent.step_id,
+        )
+        self._current_stage.start()
+
+    def _sync_planned_steps(self, snapshot: Mapping[str, object]) -> None:
+        planned_steps = snapshot.get("plannedSteps", [])
+        if not isinstance(planned_steps, list):
+            return
+        for item in planned_steps:
+            if not isinstance(item, dict):
+                continue
+            raw_id = str(item.get("id", "") or "").strip()
+            if not raw_id or raw_id in self._planned_steps:
+                continue
+            parameters = _json_pair_list_to_dict(item.get("parameters", []))
+            step = _RuntimeStep(
+                step_id=f"{self._request_id}:{raw_id}",
+                title=str(item.get("title", "") or raw_id),
+                kind=str(item.get("kind", "") or "action"),
+                definition_id=str(item.get("definitionId", "") or raw_id),
+                params=parameters,
+                expected=str(item.get("expected", "") or ""),
+                parent_id=self._parent.step_id,
+            )
+            self._planned_steps[raw_id] = step
+
+    def _sync_step_states(self, snapshot: Mapping[str, object]) -> None:
+        states = snapshot.get("stepStates", [])
+        if not isinstance(states, list):
+            return
+        for item in states:
+            if not isinstance(item, dict):
+                continue
+            raw_id = str(item.get("id", "") or "").strip()
+            step = self._planned_steps.get(raw_id)
+            if step is None:
+                continue
+            status = str(item.get("status", "") or "").strip()
+            if status == "running":
+                step.start()
+            elif status in {"passed", "failed", "skipped", "stopped"}:
+                step.finish(
+                    status,
+                    actual=item.get("actual", ""),
+                    error=str(item.get("error", "") or ""),
+                )
+
+    def status_waiting(self, reason: str) -> None:
+        if self._current_stage is not None:
+            self._current_stage.evidence("Status channel waiting", reason, evidence_type="status", level="warning")
+        else:
+            self._parent.evidence("Status channel waiting", reason, evidence_type="status", level="warning")
+
+    def finish(self, status: str, *, error: str = "", actual: object = "") -> None:
+        if self._terminal:
+            return
+        self._terminal = True
+        if self._planned_steps:
+            for step in self._planned_steps.values():
+                if step.started:
+                    step.finish("stopped" if status == "failed" else status)
+        elif self._current_stage is not None:
+            self._current_stage.finish(status, error=error if status == "failed" else "", actual=actual)
+        self._parent.finish(status, error=error, actual=actual)
 
 
 def _subprocess_creationflags() -> int:
@@ -53,26 +363,35 @@ def _adb_base_cmd(*, adb_executable: str, adb_serial: str | None = None) -> list
     return cmd
 
 
-def _next_power_resume_wait_state(
+def _env_token_set(name: str, default: set[str]) -> set[str]:
+    raw = str(os.environ.get(name, "") or "").strip()
+    if not raw:
+        return set(default)
+    return {token.strip().lower() for token in raw.split(",") if token.strip()}
+
+
+def _stage_contains_token(stage: str, tokens: set[str]) -> bool:
+    normalized_stage = str(stage or "").lower()
+    return any(token and token in normalized_stage for token in tokens)
+
+
+def _next_dut_unavailable_wait_state(
     *,
-    case_id: str,
     phase: str,
     current_stage: str,
     matches_request: bool,
     waiting_for_device_resume: bool,
 ) -> bool:
-    stage_token = ""
-    if case_id == "auto_reboot":
-        stage_token = AUTO_REBOOT_DUT_STAGE_TOKEN
-    elif case_id == "auto_suspend":
-        stage_token = AUTO_SUSPEND_DUT_STAGE_TOKEN
-    if not stage_token or not matches_request:
+    if not matches_request:
         return waiting_for_device_resume
     if phase in {"Completed", "Failed"}:
         return False
     if phase != "Running":
         return waiting_for_device_resume
-    if stage_token in current_stage:
+    if _stage_contains_token(
+        current_stage,
+        _env_token_set("SMARTTEST_ANDROID_DUT_UNAVAILABLE_STAGE_TOKENS", DEFAULT_DUT_UNAVAILABLE_STAGE_TOKENS),
+    ):
         return True
     return waiting_for_device_resume
 
@@ -466,36 +785,11 @@ def _adb_shell_capture_text(
     return result.returncode, str(result.stdout or "").strip(), str(result.stderr or "").strip()
 
 
-def _collect_auto_suspend_failure_debug(
+def _collect_device_failure_debug(
     *,
     adb_executable: str,
     adb_serial: str | None,
-    request_id: str,
 ) -> None:
-    print(
-        "[android_client.power] collecting auto_suspend debug artifacts "
-        f"request_id={request_id or '<empty>'}"
-    )
-
-    return_code, stdout, stderr = _adb_shell_capture_text(
-        adb_executable=adb_executable,
-        adb_serial=adb_serial,
-        shell_args=["cat", DEFAULT_AUTO_SUSPEND_DEBUG_FILE],
-    )
-    if return_code == 0 and stdout:
-        lines = stdout.splitlines()
-        request_matches = [line for line in lines if request_id and request_id in line]
-        selected = request_matches[-120:] if request_matches else lines[-120:]
-        print("[android_client.power] auto_suspend_debug tail begin")
-        for line in selected:
-            print(f"[android_client.power.log] {line}")
-        print("[android_client.power] auto_suspend_debug tail end")
-    else:
-        print(
-            "[android_client.power] auto_suspend_debug unavailable "
-            f"returncode={return_code} stdout={stdout or '<empty>'} stderr={stderr or '<empty>'}"
-        )
-
     for prop in ("sys.boot_completed", "sys.powerctl"):
         code, prop_stdout, prop_stderr = _adb_shell_capture_text(
             adb_executable=adb_executable,
@@ -534,6 +828,7 @@ def wait_for_android_client_case_completion(
     component: str = DEFAULT_COMPONENT,
     source: str = "pytest",
     params: Mapping[str, str] | None = None,
+    stage_tracker: _AndroidClientStageTracker | None = None,
 ) -> dict[str, object]:
     started = False
     fresh_run_observed = False
@@ -544,8 +839,8 @@ def wait_for_android_client_case_completion(
     consecutive_failures = 0
     last_status_line = ""
     waiting_for_device_resume = False
-    suspend_quiet_until = 0.0
-    suspend_quiet_logged = False
+    host_quiet_until = 0.0
+    host_quiet_logged = False
     last_device_state = ""
     last_boot_completed: bool | None = None
     last_snapshot_channel_ready = False
@@ -554,16 +849,15 @@ def wait_for_android_client_case_completion(
     while time.monotonic() < deadline:
         if (
             waiting_for_device_resume
-            and case_id == "auto_suspend"
-            and time.monotonic() < suspend_quiet_until
+            and time.monotonic() < host_quiet_until
         ):
-            if not suspend_quiet_logged:
-                remaining = max(0.0, suspend_quiet_until - time.monotonic())
+            if not host_quiet_logged:
+                remaining = max(0.0, host_quiet_until - time.monotonic())
                 print(
                     "[android_client.power] "
-                    f"host quiet mode for auto_suspend: hold adb polling for {remaining:.1f}s"
+                    f"host quiet mode: hold adb polling for {remaining:.1f}s"
                 )
-                suspend_quiet_logged = True
+                host_quiet_logged = True
             time.sleep(poll_interval_sec)
             continue
 
@@ -604,12 +898,16 @@ def wait_for_android_client_case_completion(
             if waiting_for_device_resume:
                 if failure_key != last_snapshot_failure_key:
                     print(f"[android_client.power] status channel waiting: {failure_key}")
+                    if stage_tracker is not None:
+                        stage_tracker.status_waiting(failure_key)
                     last_snapshot_failure_key = failure_key
                 last_snapshot_channel_ready = False
                 time.sleep(poll_interval_sec)
                 continue
             if failure_key != last_snapshot_failure_key:
                 print(f"[android_client.status] snapshot read failed: {failure_key}")
+                if stage_tracker is not None:
+                    stage_tracker.status_waiting(failure_key)
                 last_snapshot_failure_key = failure_key
             if started and consecutive_failures >= DEFAULT_MAX_CONSECUTIVE_STATUS_FAILURES:
                 raise RuntimeError(
@@ -643,11 +941,12 @@ def wait_for_android_client_case_completion(
         snapshot_changed = signature != (baseline_signature or "")
         active_request_id = _snapshot_request_id(snapshot)
         matches_request = _snapshot_matches_request(snapshot, request_id=request_id)
-
         if matches_request:
             started = True
         if snapshot_changed and matches_request:
             fresh_run_observed = True
+        if matches_request and stage_tracker is not None:
+            stage_tracker.observe_snapshot(snapshot)
 
         status_line = (
             "[android_client.status] "
@@ -664,8 +963,7 @@ def wait_for_android_client_case_completion(
             print(status_line)
             last_status_line = status_line
 
-        next_waiting_for_device_resume = _next_power_resume_wait_state(
-            case_id=case_id,
+        next_waiting_for_device_resume = _next_dut_unavailable_wait_state(
             phase=phase,
             current_stage=current_stage,
             matches_request=matches_request,
@@ -679,33 +977,48 @@ def wait_for_android_client_case_completion(
             )
             if next_waiting_for_device_resume:
                 last_snapshot_channel_ready = False
-                if case_id == "auto_suspend":
-                    suspend_quiet_until = time.monotonic() + AUTO_SUSPEND_HOST_QUIET_SEC
-                    suspend_quiet_logged = False
+                if _stage_contains_token(
+                    current_stage,
+                    _env_token_set("SMARTTEST_ANDROID_HOST_QUIET_STAGE_TOKENS", DEFAULT_HOST_QUIET_STAGE_TOKENS),
+                ):
+                    host_quiet_until = time.monotonic() + float(
+                        os.environ.get("SMARTTEST_ANDROID_HOST_QUIET_SEC", DEFAULT_HOST_QUIET_SEC),
+                    )
+                    host_quiet_logged = False
             else:
-                suspend_quiet_until = 0.0
-                suspend_quiet_logged = False
+                host_quiet_until = 0.0
+                host_quiet_logged = False
         waiting_for_device_resume = next_waiting_for_device_resume
 
         if phase == "Completed" and fresh_run_observed:
+            if stage_tracker is not None:
+                stage_tracker.finish("passed", actual=status_line)
             return snapshot
 
         if phase == "Failed" and fresh_run_observed:
-            if case_id == "auto_suspend":
-                _collect_auto_suspend_failure_debug(
-                    adb_executable=adb_executable,
-                    adb_serial=adb_serial,
-                    request_id=request_id,
-                )
+            _collect_device_failure_debug(
+                adb_executable=adb_executable,
+                adb_serial=adb_serial,
+            )
             report = snapshot.get("report", {})
             status_text = ""
             if isinstance(report, dict):
                 status_text = str(report.get("statusText", "") or "")
-            raise RuntimeError(
+            recent_logs = snapshot.get("logLines", [])
+            recent_log_text = ""
+            if isinstance(recent_logs, list):
+                recent_log_text = "\n".join(str(item) for item in recent_logs[-12:])
+            error_text = (
                 "android_client case failed on DUT.\n"
                 f"case_id={case_id}\n"
                 f"trigger={trigger}\n"
-                f"status={status_text or phase}"
+                f"status={status_text or phase}\n"
+                f"recent_logs:\n{recent_log_text}"
+            )
+            if stage_tracker is not None:
+                stage_tracker.finish("failed", error=error_text, actual=status_text or phase)
+            raise RuntimeError(
+                error_text
             )
         if phase in {"Completed", "Failed"} and matches_request and not fresh_run_observed:
             print(
@@ -733,13 +1046,16 @@ def wait_for_android_client_case_completion(
 
         time.sleep(poll_interval_sec)
 
-    raise RuntimeError(
+    error_text = (
         "Timed out while waiting for android_client case completion.\n"
         f"case_id={case_id}\n"
         f"trigger={trigger}\n"
         f"last_snapshot={last_snapshot}\n"
         f"last_error={last_error}"
     )
+    if stage_tracker is not None:
+        stage_tracker.finish("failed", error=error_text)
+    raise RuntimeError(error_text)
 
 
 def trigger_android_client_case(
@@ -764,6 +1080,9 @@ def trigger_android_client_case(
     print(f"[testing.runner.android_client] params={dict(params or {})}")
     request_id = f"{case_id}-{uuid.uuid4().hex[:12]}"
     print(f"[testing.runner.android_client] request_id={request_id}")
+    stage_tracker = _AndroidClientStageTracker(case_id=case_id, request_id=request_id, params=params)
+    if params:
+        stage_tracker.evidence("Request parameters", dict(params), evidence_type="params")
     require_privileged = case_id in PRIVILEGED_CASE_IDS
     print(f"[testing.runner.android_client] require_privileged={require_privileged}")
     if require_privileged and android_client_installed(adb_serial=serial):
@@ -833,7 +1152,7 @@ def trigger_android_client_case(
     )
     combined_output = "\n".join(part for part in (result.stdout, result.stderr) if part).strip()
     if result.returncode != 0 or "Error:" in combined_output or "Exception occurred" in combined_output:
-        raise RuntimeError(
+        error_text = (
             "Failed to trigger android_client case.\n"
             f"component={component}\n"
             f"case_id={case_id}\n"
@@ -841,11 +1160,18 @@ def trigger_android_client_case(
             f"stdout:\n{result.stdout}\n"
             f"stderr:\n{result.stderr}"
         )
+        stage_tracker.finish("failed", error=error_text)
+        raise RuntimeError(error_text)
+    if result.stdout:
+        stage_tracker.evidence("Trigger stdout", result.stdout.strip(), evidence_type="stdout")
+    if result.stderr:
+        stage_tracker.evidence("Trigger stderr", result.stderr.strip(), evidence_type="stderr", level="warning")
     if case_id in _no_poll_case_ids():
         print(
             "[testing.runner.android_client] no-poll mode enabled; "
             f"skip host status polling for case_id={case_id} request_id={request_id}"
         )
+        stage_tracker.finish("passed", actual="Triggered without host status polling.")
         return result
     wait_poll_interval_sec = DEFAULT_POLL_INTERVAL_SEC
     if case_id in _slow_poll_case_ids():
@@ -856,20 +1182,25 @@ def trigger_android_client_case(
             "[testing.runner.android_client] slow-poll mode enabled; "
             f"poll_interval={wait_poll_interval_sec}s for case_id={case_id}"
         )
-    snapshot = wait_for_android_client_case_completion(
-        adb_executable=adb_executable,
-        case_id=case_id,
-        request_id=request_id,
-        trigger=trigger,
-        adb_serial=serial,
-        poll_interval_sec=wait_poll_interval_sec,
-        timeout_sec=float(os.environ.get("SMARTTEST_ANDROID_CASE_TIMEOUT_SEC", DEFAULT_TIMEOUT_SEC)),
-        baseline_signature=baseline_signature,
-        baseline_log_count=baseline_log_count,
-        component=component,
-        source=source,
-        params=params,
-    )
+    try:
+        snapshot = wait_for_android_client_case_completion(
+            adb_executable=adb_executable,
+            case_id=case_id,
+            request_id=request_id,
+            trigger=trigger,
+            adb_serial=serial,
+            poll_interval_sec=wait_poll_interval_sec,
+            timeout_sec=float(os.environ.get("SMARTTEST_ANDROID_CASE_TIMEOUT_SEC", DEFAULT_TIMEOUT_SEC)),
+            baseline_signature=baseline_signature,
+            baseline_log_count=baseline_log_count,
+            component=component,
+            source=source,
+            params=params,
+            stage_tracker=stage_tracker,
+        )
+    except Exception as exc:
+        stage_tracker.finish("failed", error=str(exc))
+        raise
     report = snapshot.get("report", {})
     if isinstance(report, dict):
         print(

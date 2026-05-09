@@ -2,11 +2,24 @@ from __future__ import annotations
 
 import pytest
 
-from testing.runner.android_client import build_case_params, trigger_android_client_case
-from testing.runtime import action_step, case_step, request_case_param, step_log
+from testing.actions import android_client_case_plan, run_android_client_case
+from testing.runner.android_client import build_case_params
+from testing.runtime import request_case_param
 
 
 pytestmark = pytest.mark.case_type("system")
+
+
+SMARTTEST_CASE_PLAN = android_client_case_plan(
+    "emmc_rw",
+    [
+        "storage.emmc.copy_file",
+        "storage.emmc.read_file",
+        "storage.emmc.cmp_file",
+    ],
+    prepare_definition_id="storage.emmc.prepare_request",
+    trigger_definition_id="storage.emmc.trigger_execution",
+)
 
 
 @pytest.mark.requires_params(
@@ -26,31 +39,10 @@ def test_emmc_rw_via_android_client(request):
         work_dir=request_case_param(request, "emmc_rw:work_dir", "/data/local/tmp/smarttest/emmc_rw"),
     )
 
-    with case_step(
-        "Prepare eMMC read/write request",
-        definition_id="storage.emmc.prepare_request",
-        meta={"case_id": "emmc_rw"},
-    ):
-        summary = ", ".join(f"{key.split(':', 1)[-1]}={value}" for key, value in params.items())
-        step_log(summary)
-
-    with case_step(
-        "Trigger eMMC read/write execution",
-        definition_id="storage.emmc.trigger_execution",
-        meta={"case_id": "emmc_rw"},
-    ):
-        with action_step(
-            "Trigger android_client case: emmc_rw",
-            definition_id="android_client.trigger_case",
-        ):
-            result = trigger_android_client_case(
-                case_id="emmc_rw",
-                params=params,
-                trigger=request.node.nodeid,
-            )
-            stdout = (result.stdout or "").strip()
-            stderr = (result.stderr or "").strip()
-            if stdout:
-                step_log(stdout)
-            if stderr:
-                step_log(stderr, level="warning")
+    run_android_client_case(
+        case_id="emmc_rw",
+        params=params,
+        trigger=request.node.nodeid,
+        prepare_definition_id="storage.emmc.prepare_request",
+        trigger_definition_id="storage.emmc.trigger_execution",
+    )

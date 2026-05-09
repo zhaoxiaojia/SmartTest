@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Iterable
+from typing import Any, Iterable
 
-from .android_catalog import android_catalog_param
 from .binding import CaseParamBinding, ParamGroup
 from .options import static_param_options
 from .schema import ParamCategory, ParamField, ParamSchema, ParamScope, ParamValueType
@@ -76,41 +75,40 @@ class SchemaRegistry:
         return self.resolve_param_keys(param_keys=binding.param_keys, group_ids=binding.group_ids)
 
 
-def _android_catalog_field(
+def _case_param_field(
     key: str,
+    label: str,
     value_type: ParamValueType,
     category: ParamCategory,
+    default: Any = "",
+    description: str = "",
 ) -> ParamField:
-    catalog_param = android_catalog_param(key)
-    default = catalog_param.default_value
-    if value_type == ParamValueType.INT:
-        default = int(default)
     return ParamField(
         key=key,
-        label=catalog_param.label,
+        label=label,
         type=value_type,
         category=category,
         scope=ParamScope.CASE,
         default=default,
-        description=catalog_param.hint,
+        description=description,
         enum_values=static_param_options(key),
     )
 
 
 _DEFAULT_ANDROID_PARAM_SPECS = [
-    ("emmc_rw:loop_count", ParamValueType.INT, ParamCategory.EXECUTION),
-    ("emmc_rw:source_profile", ParamValueType.STRING, ParamCategory.EXECUTION),
-    ("emmc_rw:source_size_kb", ParamValueType.INT, ParamCategory.EXECUTION),
-    ("emmc_rw:min_free_kb", ParamValueType.INT, ParamCategory.EXECUTION),
-    ("emmc_rw:work_dir", ParamValueType.PATH, ParamCategory.EXECUTION),
-    ("auto_reboot:cycle_count", ParamValueType.INT, ParamCategory.EXECUTION),
-    ("auto_reboot:interval_sec", ParamValueType.INT, ParamCategory.EXECUTION),
-    ("auto_reboot:ping_target", ParamValueType.STRING, ParamCategory.NETWORK),
-    ("auto_reboot:bt_target", ParamValueType.ENUM, ParamCategory.NETWORK),
-    ("auto_suspend:cycle_count", ParamValueType.INT, ParamCategory.EXECUTION),
-    ("auto_suspend:interval_sec", ParamValueType.INT, ParamCategory.EXECUTION),
-    ("auto_suspend:ping_target", ParamValueType.STRING, ParamCategory.NETWORK),
-    ("auto_suspend:bt_target", ParamValueType.ENUM, ParamCategory.NETWORK),
+    ("emmc_rw:loop_count", "Loop Count", ParamValueType.INT, ParamCategory.EXECUTION, 180, ""),
+    ("emmc_rw:source_profile", "Source Profile", ParamValueType.STRING, ParamCategory.EXECUTION, "random1", ""),
+    ("emmc_rw:source_size_kb", "Source Size (KB)", ParamValueType.INT, ParamCategory.EXECUTION, 51200, ""),
+    ("emmc_rw:min_free_kb", "Minimum Free Space (KB)", ParamValueType.INT, ParamCategory.EXECUTION, 307200, ""),
+    ("emmc_rw:work_dir", "Working Directory", ParamValueType.PATH, ParamCategory.EXECUTION, "/data/local/tmp/smarttest/emmc_rw", ""),
+    ("auto_reboot:cycle_count", "Cycle Count", ParamValueType.INT, ParamCategory.EXECUTION, 20, ""),
+    ("auto_reboot:interval_sec", "Interval Seconds", ParamValueType.INT, ParamCategory.EXECUTION, 100, ""),
+    ("auto_reboot:ping_target", "Ping Target", ParamValueType.STRING, ParamCategory.NETWORK, "", ""),
+    ("auto_reboot:bt_target", "Bluetooth Target", ParamValueType.ENUM, ParamCategory.NETWORK, "", ""),
+    ("auto_suspend:cycle_count", "Cycle Count", ParamValueType.INT, ParamCategory.EXECUTION, 20, ""),
+    ("auto_suspend:interval_sec", "Interval Seconds", ParamValueType.INT, ParamCategory.EXECUTION, 100, ""),
+    ("auto_suspend:ping_target", "Ping Target", ParamValueType.STRING, ParamCategory.NETWORK, "", ""),
+    ("auto_suspend:bt_target", "Bluetooth Target", ParamValueType.ENUM, ParamCategory.NETWORK, "", ""),
 ]
 
 
@@ -140,8 +138,8 @@ def default_registry() -> SchemaRegistry:
             schema_id="case_type_default",
             title="Default",
             fields=[
-                _android_catalog_field(key, value_type, category)
-                for key, value_type, category in _DEFAULT_ANDROID_PARAM_SPECS
+                _case_param_field(key, label, value_type, category, default, description)
+                for key, label, value_type, category, default, description in _DEFAULT_ANDROID_PARAM_SPECS
             ],
         ),
     }
