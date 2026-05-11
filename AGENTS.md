@@ -145,6 +145,8 @@ If the root cause is unclear:
 ### Debugging Evidence and Fix Order
 
 - Every bug investigation must be backed by explicit logs or prints from the relevant flow. Do not guess across UI -> runner -> DUT boundaries without evidence.
+- When the user asks to analyze prints/logs first, only inspect and compare the available output before proposing code changes. Do not modify business code until the user explicitly approves a fix; updating repository instruction files such as `AGENTS.md` is allowed only when requested.
+- For all bug investigations, do not modify behavior until the available prints/logs can point to a concrete root cause. If the current logs are insufficient, add more targeted flow-boundary prints that show code execution, state transitions, and data handoff across UI, runner, pytest, DUT, and reporting layers.
 - If existing logs do not show the flow handoff clearly, add minimal temporary prints at the flow transition points before changing behavior.
 - Debug prints should expose the business identity being handed off, such as selected nodeid, Android case id, request id, step id, definition id, status, and parameter set.
 - Use the prints to identify the exact mismatch or failing transition first. After the print exposes the issue, fix by adjusting the existing logic before adding new code.

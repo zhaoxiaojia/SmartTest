@@ -1,6 +1,5 @@
 import os
 import sys
-from PyInstaller.utils.hooks import collect_submodules
 
 APP_NAME = "SmartTest"
 
@@ -40,6 +39,7 @@ android_privapp_permissions = os.path.join(
     "system_app",
     "privapp-permissions-com.smarttest.mobile.xml",
 )
+android_client_init = os.path.join(repo_root, "android_client", "__init__.py")
 
 a = Analysis(
     [mainPath],
@@ -63,6 +63,10 @@ a = Analysis(
             os.path.join("android_client", "app", "build", "outputs", "apk", "debug"),
         ),
         (
+            android_client_init,
+            "android_client",
+        ),
+        (
             android_platform_apk,
             os.path.join("android_client", "app", "build", "outputs", "apk", "debug"),
         ),
@@ -75,7 +79,6 @@ a = Analysis(
         # Ensure UI packages are discoverable even if imports are indirect.
         "example.main",
         "FluentUI.FluentUI",
-        *collect_submodules("pytest"),
     ],
     hookspath=[],
     hooksconfig={},

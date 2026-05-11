@@ -249,9 +249,16 @@ class RunBridge(QObject):
 
     def _pump_stdout(self, session: TestRunSession) -> None:
         if session.process.stdout is None:
+            self._logSignal.emit("[run.trace] stdout pump skipped: no stdout pipe")
             return
+        self._logSignal.emit(
+            f"[run.trace] stdout pump start pid={getattr(session.process, 'pid', '<unknown>')}"
+        )
         for line in session.process.stdout:
             self._logSignal.emit(line.rstrip())
+        self._logSignal.emit(
+            f"[run.trace] stdout pump ended poll={session.process.poll()}"
+        )
 
     def _pump_events(self, session: TestRunSession) -> None:
         event_path = session.event_file
@@ -292,7 +299,11 @@ class RunBridge(QObject):
             time.sleep(0.1)
 
     def _wait_for_completion(self, session: TestRunSession) -> None:
+        self._logSignal.emit(
+            f"[run.trace] wait_for_completion start pid={getattr(session.process, 'pid', '<unknown>')}"
+        )
         returncode = session.process.wait()
+        self._logSignal.emit(f"[run.trace] process.wait returned {returncode}")
         time.sleep(0.2)
         self._finishSignal.emit(returncode)
 
@@ -308,7 +319,9 @@ class RunBridge(QObject):
             self._run_adb_serial = adb_serial
             session = self._start_run_session(nodeids, adb_serial, case_configs)
             self._session = session
-            self._logSignal.emit("[run] runner session started")
+            self._logSignal.emit(
+                f"[run] runner session started pid={getattr(session.process, 'pid', '<unknown>')}"
+            )
             threading.Thread(target=self._pump_stdout, args=(session,), daemon=True).start()
             threading.Thread(target=self._pump_events, args=(session,), daemon=True).start()
             threading.Thread(target=self._wait_for_completion, args=(session,), daemon=True).start()
@@ -782,6 +795,9 @@ class RunBridge(QObject):
                 self._append_log(message)
 
     def _finish_run(self, returncode: int) -> None:
+        self._append_log(
+            f"[run.trace] finish_run enter returncode={returncode} stop_requested={self._stop_requested}"
+        )
         if self._stop_requested:
             self._append_log("[run] stopped")
         elif returncode == 0:
@@ -867,7 +883,14 @@ class RunBridge(QObject):
     @Slot()
     def stopRun(self) -> None:
         if not self._running or self._session is None:
+            self._append_log(
+                f"[run.trace] stopRun ignored running={self._running} session={self._session is not None}"
+            )
             return
+        self._append_log(
+            f"[run.trace] stopRun requested pid={getattr(self._session.process, 'pid', '<unknown>')} "
+            f"poll={self._session.process.poll()}"
+        )
         self._stop_requested = True
         self._session.stop("UI stop button")
 

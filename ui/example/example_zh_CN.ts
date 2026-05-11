@@ -1277,18 +1277,18 @@ Updated content:
 <context>
     <name>RunBridge</name>
     <message>
-        <location filename="bridge/RunBridge.py" line="807"/>
+        <location filename="bridge/RunBridge.py" line="823"/>
         <source>Failed to save run report. {detail}</source>
         <translation>保存运行报告失败。{detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="840"/>
+        <location filename="bridge/RunBridge.py" line="856"/>
         <source>No selected test cases to run.</source>
         <translation>没有可运行的已选测试用例。</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="318"/>
-        <location filename="bridge/RunBridge.py" line="851"/>
+        <location filename="bridge/RunBridge.py" line="331"/>
+        <location filename="bridge/RunBridge.py" line="867"/>
         <source>Failed to start pytest run. {detail}</source>
         <translation>启动 pytest 运行失败。{detail}</translation>
     </message>

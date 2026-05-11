@@ -18,6 +18,16 @@ def _subprocess_creationflags() -> int:
     return getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
+def _bundled_python_executable(root_dir: Path) -> Path:
+    executable = root_dir / "python" / ("python.exe" if os.name == "nt" else "python")
+    if not executable.exists():
+        raise FileNotFoundError(
+            "Bundled Python runtime was not found for packaged pytest execution.\n"
+            f"expected={executable}"
+        )
+    return executable
+
+
 @dataclass
 class TestRunSession:
     process: Any
@@ -69,24 +79,27 @@ def start_pytest_run(
     env["SMARTTEST_CASE_CONFIGS_JSON"] = json.dumps(case_configs or {}, ensure_ascii=False)
     if adb_serial:
         env["SMARTTEST_ADB_SERIAL"] = str(adb_serial)
+    python_executable = Path(sys.executable)
     if packaged:
-        cmd = [sys.executable, "--smarttest-pytest-run", *nodeids]
-    else:
-        cmd = [
-            sys.executable,
-            "-m",
-            "pytest",
-            "-s",
-            "-q",
-            "--disable-warnings",
-            *nodeids,
-        ]
+        python_executable = _bundled_python_executable(root_dir)
+    cmd = [
+        str(python_executable),
+        "-m",
+        "pytest",
+        "-p",
+        "no:cacheprovider",
+        "-s",
+        "-q",
+        "--disable-warnings",
+        *nodeids,
+    ]
     print(
         "[run.execution] "
         + json.dumps(
             {
                 "packaged": packaged,
                 "root_dir": str(root_dir),
+                "python": str(python_executable),
                 "cmd": cmd,
                 "event_file": str(event_file),
             },
@@ -94,6 +107,7 @@ def start_pytest_run(
             sort_keys=True,
         )
     )
+    print(f"[run.execution] popen start packaged={packaged} cwd={root_dir}")
     process = subprocess.Popen(
         cmd,
         cwd=str(root_dir),
@@ -104,6 +118,7 @@ def start_pytest_run(
         bufsize=1,
         creationflags=_subprocess_creationflags(),
     )
+    print(f"[run.execution] popen started pid={getattr(process, 'pid', '<unknown>')}")
     return TestRunSession(
         process=process,
         event_file=event_file,

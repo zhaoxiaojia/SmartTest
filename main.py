@@ -11,21 +11,6 @@ def _runtime_root():
     return Path(__file__).resolve().parent
 
 
-def _run_internal_pytest(argv: list[str]) -> int:
-    import os
-    import sys
-
-    root = _runtime_root()
-    sys.path.insert(0, str(root))
-    os.chdir(root)
-    print(f"[internal-pytest-runner] root_dir={root}")
-    print(f"[internal-pytest-runner] nodeids={argv}")
-
-    import pytest
-
-    return int(pytest.main(["-s", "-q", "--disable-warnings", *argv]))
-
-
 def main() -> int:
     """
     Single entrypoint for SmartTest.
@@ -34,9 +19,6 @@ def main() -> int:
     """
     import sys
     from pathlib import Path
-
-    if len(sys.argv) > 1 and sys.argv[1] == "--smarttest-pytest-run":
-        return _run_internal_pytest(sys.argv[2:])
 
     root = _runtime_root()
     ui_root = root / "ui"

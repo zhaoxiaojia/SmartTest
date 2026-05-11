@@ -1228,18 +1228,18 @@ Updated content:
 <context>
     <name>RunBridge</name>
     <message>
-        <location filename="bridge/RunBridge.py" line="807"/>
+        <location filename="bridge/RunBridge.py" line="823"/>
         <source>Failed to save run report. {detail}</source>
         <translation>Failed to save run report. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="840"/>
+        <location filename="bridge/RunBridge.py" line="856"/>
         <source>No selected test cases to run.</source>
         <translation>No selected test cases to run.</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="318"/>
-        <location filename="bridge/RunBridge.py" line="851"/>
+        <location filename="bridge/RunBridge.py" line="331"/>
+        <location filename="bridge/RunBridge.py" line="867"/>
         <source>Failed to start pytest run. {detail}</source>
         <translation>Failed to start pytest run. {detail}</translation>
     </message>
