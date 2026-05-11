@@ -7,6 +7,7 @@ import "../global"
 FluPage {
     id: page
     title: qsTr("Jira")
+    launchMode: FluPageType.SingleInstance
 
     property var promptSuggestions: [
         qsTr("Show the issues assigned to me this week and point out blockers."),

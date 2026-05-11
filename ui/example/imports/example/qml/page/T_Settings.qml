@@ -9,6 +9,7 @@ import "../global"
 FluScrollablePage{
 
     title: qsTr("Settings")
+    launchMode: FluPageType.SingleInstance
 
     FluEvent{
         name: "checkUpdateFinish"

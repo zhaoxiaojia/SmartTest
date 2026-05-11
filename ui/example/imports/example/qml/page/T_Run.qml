@@ -6,6 +6,7 @@ import "../global"
 
 FluPage {
     title: qsTr("Run")
+    launchMode: FluPageType.SingleInstance
     property int footerHeight: 30
     property int runVersion: 0
     property var stepRowsModel: []

@@ -6,6 +6,7 @@ import "../global"
 
 FluPage {
     title: qsTr("Report")
+    launchMode: FluPageType.SingleInstance
 
     property var reportRowsModel: []
     property var selectedReport: ({})

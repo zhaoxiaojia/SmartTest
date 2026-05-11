@@ -12,6 +12,8 @@ if __name__ == "__main__":
     subprocess.run([env.pip(), "install", "aiohttp==3.11.8"])
     subprocess.run([env.pip(), "install", "qrcode==7.4.2"])
     subprocess.run([env.pip(), "install", "pillow==10.4.0"])
+    subprocess.run([env.pip(), "install", "numpy==2.1.3"])
+    subprocess.run([env.pip(), "install", "opencv-python==4.10.0.84"])
     subprocess.run([env.pip(), "install", "keyboard==0.13.5"])
     subprocess.run([env.pip(), "install", "PyOpenGL==3.1.7"])
     subprocess.run([env.pip(), "install", "py7zr==0.22.0"])

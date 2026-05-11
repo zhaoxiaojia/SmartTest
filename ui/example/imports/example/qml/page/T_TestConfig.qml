@@ -8,6 +8,7 @@ import "../global"
 FluPage {
     id: page_root
     title: qsTr("Test")
+    launchMode: FluPageType.SingleInstance
     property int footerHeight: 30
 
     property int stateVersion: 0

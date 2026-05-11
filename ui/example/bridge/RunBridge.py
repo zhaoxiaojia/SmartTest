@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import re
 import threading
 import time
@@ -229,10 +228,6 @@ class RunBridge(QObject):
                     )
         finally:
             self._building_initial_plan = False
-        print(
-            "[steps.plan.initial] "
-            + json.dumps(self._step_snapshot_for_compare(), ensure_ascii=False, sort_keys=True)
-        )
 
     def _start_run_session(
         self,
@@ -398,43 +393,9 @@ class RunBridge(QObject):
         if key in self._initial_step_keys or key in self._runtime_added_step_keys:
             return
         self._runtime_added_step_keys.add(key)
-        print(
-            "[steps.plan.runtime_added] "
-            + json.dumps(
-                {
-                    "added": {
-                        "case_nodeid": key[0],
-                        "stable_id": key[1],
-                        "id": str(row.get("id", "") or ""),
-                        "kind": str(row.get("kind", "") or ""),
-                        "definition_id": str(row.get("definition_id", "") or ""),
-                        "title": str(row.get("title", "") or ""),
-                        "status": str(row.get("status", "") or ""),
-                    },
-                    "initial": self._step_snapshot_for_compare(),
-                },
-                ensure_ascii=False,
-                sort_keys=True,
-            )
-        )
 
     def _log_unmatched_runtime_step(self, *, event_type: str, payload: dict[str, Any]) -> None:
-        print(
-            "[steps.plan.unmatched_runtime] "
-            + json.dumps(
-                {
-                    "event_type": event_type,
-                    "case_nodeid": str(payload.get("case_nodeid", "") or ""),
-                    "step_id": str(payload.get("step_id", "") or payload.get("id", "") or ""),
-                    "title": str(payload.get("title", "") or ""),
-                    "kind": str(payload.get("kind", "") or ""),
-                    "definition_id": str(payload.get("definition_id", "") or ""),
-                    "known": self._step_snapshot_for_compare(),
-                },
-                ensure_ascii=False,
-                sort_keys=True,
-            )
-        )
+        return
 
     def _step_aliases(self, payload: dict[str, Any]) -> list[str]:
         aliases: list[str] = []
@@ -479,29 +440,6 @@ class RunBridge(QObject):
     def _remove_step_rows(self, row_ids: set[str], *, reason: str) -> None:
         if not row_ids:
             return
-        removed = [
-            {
-                "id": str(row.get("id", "") or ""),
-                "case_nodeid": str(row.get("case_nodeid", "") or ""),
-                "definition_id": str(row.get("definition_id", "") or ""),
-                "title": str(row.get("title", "") or ""),
-                "status": str(row.get("status", "") or ""),
-            }
-            for row in self._steps
-            if str(row.get("id", "") or "") in row_ids
-        ]
-        print(
-            "[steps.rows.remove] "
-            + json.dumps(
-                {
-                    "reason": reason,
-                    "count": len(removed),
-                    "rows": removed,
-                },
-                ensure_ascii=False,
-                sort_keys=True,
-            )
-        )
         self._steps = [row for row in self._steps if str(row.get("id", "") or "") not in row_ids]
         self._hidden_step_ids.difference_update(row_ids)
         for row_id in row_ids:
@@ -603,21 +541,6 @@ class RunBridge(QObject):
                 reset_count += 1
         if updated_count == 0 and reset_count == 0:
             return False
-        print(
-            "[steps.loop.progress] "
-            + json.dumps(
-                {
-                    "case_nodeid": case_nodeid,
-                    "source_step_id": source_id,
-                    "group": f"{group_prefix}.{marker}",
-                    "progress": progress,
-                    "reset_count": reset_count,
-                    "updated_count": updated_count,
-                },
-                ensure_ascii=False,
-                sort_keys=True,
-            )
-        )
         return True
 
     def _is_framework_step(self, payload: dict[str, Any]) -> bool:
@@ -679,23 +602,6 @@ class RunBridge(QObject):
             if status == "planned":
                 existing = self._steps[index]
                 self._register_step_aliases(step_id, payload)
-                print(
-                    "[steps.plan.planned_existing] "
-                    + json.dumps(
-                        {
-                            "case_nodeid": case_nodeid,
-                            "row_id": step_id,
-                            "incoming_step_id": original_step_id,
-                            "definition_id": str(payload.get("definition_id", "") or ""),
-                            "existing_title": str(existing.get("title", "") or ""),
-                            "incoming_title": str(payload.get("title", "") or ""),
-                            "existing_status": str(existing.get("status", "") or ""),
-                            "decision": "preserve_existing_row",
-                        },
-                        ensure_ascii=False,
-                        sort_keys=True,
-                    )
-                )
                 return step_id
             existing = self._steps[index]
             evidence = list(existing.get("evidence", []) or [])
@@ -887,9 +793,11 @@ class RunBridge(QObject):
                 f"[run.trace] stopRun ignored running={self._running} session={self._session is not None}"
             )
             return
+        process = getattr(self._session, "process", None)
+        poll_value = process.poll() if process is not None else "<unknown>"
         self._append_log(
-            f"[run.trace] stopRun requested pid={getattr(self._session.process, 'pid', '<unknown>')} "
-            f"poll={self._session.process.poll()}"
+            f"[run.trace] stopRun requested pid={getattr(process, 'pid', '<unknown>')} "
+            f"poll={poll_value}"
         )
         self._stop_requested = True
         self._session.stop("UI stop button")

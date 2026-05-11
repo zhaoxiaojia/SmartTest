@@ -7,6 +7,7 @@ import FluentUI 1.0
 FluPage {
     id: page
     title: qsTr("AI Assistant")
+    launchMode: FluPageType.SingleInstance
 
     property var sessionRows: []
     property var projectRows: []

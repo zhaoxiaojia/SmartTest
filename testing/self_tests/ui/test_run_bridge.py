@@ -211,7 +211,7 @@ def test_run_bridge_start_expands_android_step_templates(monkeypatch, tmp_path) 
     assert not any(row["kind"] == "check" and row["title"] == "Read back each file" for row in rows)
 
 
-def test_run_bridge_emmc_runtime_steps_match_initial_plan_without_additions(tmp_path, capsys) -> None:
+def test_run_bridge_emmc_runtime_steps_match_initial_plan_without_additions(tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
@@ -226,7 +226,6 @@ def test_run_bridge_emmc_runtime_steps_match_initial_plan_without_additions(tmp_
         nodeids=[nodeid],
         case_configs={nodeid: {"emmc_rw:loop_count": 1.0}},
     )
-    capsys.readouterr()
 
     bridge._apply_event(
         {
@@ -266,16 +265,14 @@ def test_run_bridge_emmc_runtime_steps_match_initial_plan_without_additions(tmp_
             "definition_id": "android_client.run_case",
         }
     )
-    captured = capsys.readouterr()
     rows = bridge.stepRows()
 
-    assert "[steps.plan.runtime_added]" not in captured.out
     assert sum(1 for row in rows if row["definition_id"] == "storage.emmc.prepare_request") == 1
     assert sum(1 for row in rows if row["definition_id"] == "storage.emmc.trigger_execution") == 1
     assert sum(1 for row in rows if row["definition_id"] == "emmc_rw.execute") == 0
 
 
-def test_run_bridge_execute_summary_step_is_hidden(tmp_path, capsys) -> None:
+def test_run_bridge_execute_summary_step_is_hidden(tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
@@ -290,8 +287,6 @@ def test_run_bridge_execute_summary_step_is_hidden(tmp_path, capsys) -> None:
         nodeids=[nodeid],
         case_configs={nodeid: {"emmc_rw:loop_count": 1.0}},
     )
-    capsys.readouterr()
-
     bridge._apply_event(
         {
             "type": "step_started",
@@ -369,7 +364,7 @@ def test_run_bridge_runtime_steps_update_initial_plan_without_duplicates(tmp_pat
     assert not any(row["title"] == "Run android_client case: auto_reboot" for row in rows)
 
 
-def test_run_bridge_planned_event_does_not_overwrite_existing_plan_row(tmp_path, capsys) -> None:
+def test_run_bridge_planned_event_does_not_overwrite_existing_plan_row(tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
@@ -392,7 +387,6 @@ def test_run_bridge_planned_event_does_not_overwrite_existing_plan_row(tmp_path,
         },
         status="planned",
     )
-    capsys.readouterr()
 
     bridge._apply_event(
         {
@@ -407,15 +401,13 @@ def test_run_bridge_planned_event_does_not_overwrite_existing_plan_row(tmp_path,
     )
 
     rows = bridge.stepRows()
-    captured = capsys.readouterr()
 
-    assert any("[steps.plan.planned_existing]" in line for line in captured.out.splitlines())
     assert sum(1 for row in rows if row["definition_id"] == "example.operation") == 1
     assert any(row["definition_id"] == "example.operation" and row["title"] == "Planned operation" for row in rows)
     assert not any(row["title"] == "Runtime planned detail" for row in rows)
 
 
-def test_run_bridge_runtime_step_outside_initial_plan_does_not_add_row(tmp_path, capsys) -> None:
+def test_run_bridge_runtime_step_outside_initial_plan_does_not_add_row(tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
@@ -439,7 +431,6 @@ def test_run_bridge_runtime_step_outside_initial_plan_does_not_add_row(tmp_path,
         status="planned",
     )
     initial_count = len(bridge.stepRows())
-    capsys.readouterr()
 
     bridge._apply_event(
         {
@@ -454,14 +445,12 @@ def test_run_bridge_runtime_step_outside_initial_plan_does_not_add_row(tmp_path,
     )
 
     rows = bridge.stepRows()
-    captured = capsys.readouterr()
 
     assert len(rows) == initial_count
-    assert "[steps.plan.unmatched_runtime]" in captured.out
     assert not any(row["definition_id"] == "example.late" for row in rows)
 
 
-def test_run_bridge_loop_progress_updates_the_whole_group(tmp_path, capsys) -> None:
+def test_run_bridge_loop_progress_updates_the_whole_group(tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
@@ -488,7 +477,6 @@ def test_run_bridge_loop_progress_updates_the_whole_group(tmp_path, capsys) -> N
     for row in bridge._steps:
         if str(row.get("id", "")).startswith("plan:workflow.loop."):
             row["status"] = "passed"
-    capsys.readouterr()
 
     bridge._apply_event(
         {
@@ -503,10 +491,7 @@ def test_run_bridge_loop_progress_updates_the_whole_group(tmp_path, capsys) -> N
     )
 
     rows = bridge.stepRows()
-    captured = capsys.readouterr()
 
-    assert "[steps.loop.progress]" in captured.out
-    assert '"reset_count": 2' in captured.out
     assert any(row["definition_id"] == "workflow.prepare" and row["title"] == "Loop 2/4: prepare" for row in rows)
     assert any(row["definition_id"] == "workflow.execute" and row["title"] == "Loop 2/4: execute" for row in rows)
     assert any(row["definition_id"] == "workflow.verify" and row["title"] == "Loop 2/4: verify" for row in rows)

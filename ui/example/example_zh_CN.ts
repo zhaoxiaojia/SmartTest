@@ -157,6 +157,19 @@
     </message>
 </context>
 <context>
+    <name>DebugBridge</name>
+    <message>
+        <location filename="bridge/DebugBridge.py" line="30"/>
+        <source>Select a video file first.</source>
+        <translation>请先选择视频文件。</translation>
+    </message>
+    <message>
+        <location filename="bridge/DebugBridge.py" line="39"/>
+        <source>KPI video analysis is already running.</source>
+        <translation>KPI 视频分析正在运行。</translation>
+    </message>
+</context>
+<context>
     <name>FluentInitializrWindow</name>
     <message>
         <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="11"/>
@@ -2243,19 +2256,199 @@ Updated content:
 <context>
     <name>T_Debug</name>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="8"/>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="9"/>
         <source>Debug</source>
         <translation>调试</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="18"/>
-        <source>Debug Tools</source>
-        <translation>调试工具</translation>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="60"/>
+        <source>Select video</source>
+        <translation>选择视频</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="22"/>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="61"/>
+        <source>Video files (*.mp4 *.mov *.mkv *.avi *.webm)</source>
+        <translation>视频文件 (*.mp4 *.mov *.mkv *.avi *.webm)</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="61"/>
+        <source>All files (*)</source>
+        <translation>所有文件 (*)</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="77"/>
+        <source>KPI Video Frame Counter</source>
+        <translation>KPI 视频数帧工具</translation>
+    </message>
+    <message>
+        <source>Video path, for example a.mp4</source>
+        <translation type="vanished">视频路径，例如 a.mp4</translation>
+    </message>
+    <message>
+        <source>A</source>
+        <translation type="vanished">A</translation>
+    </message>
+    <message>
+        <source>B</source>
+        <translation type="vanished">B</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="88"/>
+        <source>Select a recorded video</source>
+        <translation>选择录制视频</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="92"/>
+        <source>Browse</source>
+        <translation>浏览</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="98"/>
+        <source>Analyzing</source>
+        <translation>分析中</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="98"/>
+        <source>Analyze</source>
+        <translation>分析</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="107"/>
+        <source>Reading frames and detecting visual state transitions...</source>
+        <translation>正在读取帧并检测视觉状态切换...</translation>
+    </message>
+    <message>
+        <source>The tool estimates start/end frames from visual state changes. Review the candidates before using the result.</source>
+        <translation type="vanished">工具会根据视觉状态变化估算起止帧。使用结果前请先检查候选项。</translation>
+    </message>
+    <message>
+        <source>Estimated Result</source>
+        <translation type="vanished">估算结果</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="108"/>
+        <source>The tool detects repeated red-light actions and playback start frames for review.</source>
+        <translation>工具检测重复红灯动作和起播开始帧，供人工复核。</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="127"/>
+        <source>Detected Summary</source>
+        <translation>检测汇总</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="139"/>
+        <source>Start Frame</source>
+        <translation>起始帧</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="140"/>
+        <source>End Frame</source>
+        <translation>结束帧</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="141"/>
+        <source>Elapsed Frames</source>
+        <translation>耗帧</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="142"/>
+        <source>Elapsed</source>
+        <translation>耗时</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="143"/>
+        <source>Actions</source>
+        <translation>动作次数</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="144"/>
+        <source>FPS</source>
+        <translation>FPS</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="145"/>
+        <source>Frames</source>
+        <translation>总帧数</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="182"/>
+        <source>Repeated Action Detections</source>
+        <translation>重复动作检测</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="236"/>
+        <source>time %1s -&gt; %2s | red light score %3  playback score %4</source>
+        <translation>时间 %1s -&gt; %2s | 红灯分数 %3  起播分数 %4</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation type="vanished">尺寸</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="146"/>
+        <source>Duration</source>
+        <translation>时长</translation>
+    </message>
+    <message>
+        <source>Candidates</source>
+        <translation type="vanished">候选项</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="218"/>
+        <source>start %1  end %2  delta %3 frames  %4 ms</source>
+        <translation>起始 %1  结束 %2  耗帧 %3  %4 ms</translation>
+    </message>
+    <message>
+        <source>time %1s -&gt; %2s | %3</source>
+        <translation type="vanished">时间 %1s -&gt; %2s | %3</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="248"/>
+        <source>red light at %1,%2 area %3 | transition frame %4 | luminance %5-&gt;%6</source>
+        <oldsource>start score %1  end score %2  luminance %3-&gt;%4 / %5-&gt;%6</oldsource>
+        <translation>红灯位置 %1,%2 面积 %3 | 状态变化帧 %4 | 亮度 %5-&gt;%6</translation>
+    </message>
+    <message>
+        <source>Top Candidate Evidence</source>
+        <translation type="vanished">首选候选证据</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="269"/>
+        <source>Start frame %1</source>
+        <translation>起始帧 %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="288"/>
+        <source>End frame %1</source>
+        <translation>结束帧 %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="320"/>
+        <source>Detected State Changes</source>
+        <translation>检测到的状态切换</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="339"/>
+        <source>frame %1</source>
+        <translation>帧 %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="352"/>
+        <source>score %1</source>
+        <translation>分数 %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="359"/>
+        <source>luma %1 -&gt; %2  sat %3 -&gt; %4</source>
+        <translation>亮度 %1 -&gt; %2  饱和度 %3 -&gt; %4</translation>
+    </message>
+    <message>
+        <source>Debug Tools</source>
+        <translation type="vanished">调试工具</translation>
+    </message>
+    <message>
         <source>Diagnostics, logs, and utilities go here.</source>
-        <translation>诊断信息、日志和调试工具会显示在这里。</translation>
+        <translation type="vanished">诊断信息、日志和调试工具会显示在这里。</translation>
     </message>
 </context>
 <context>

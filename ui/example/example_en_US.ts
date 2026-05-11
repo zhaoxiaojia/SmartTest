@@ -157,6 +157,19 @@
     </message>
 </context>
 <context>
+    <name>DebugBridge</name>
+    <message>
+        <location filename="bridge/DebugBridge.py" line="30"/>
+        <source>Select a video file first.</source>
+        <translation>Select a video file first.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DebugBridge.py" line="39"/>
+        <source>KPI video analysis is already running.</source>
+        <translation>KPI video analysis is already running.</translation>
+    </message>
+</context>
+<context>
     <name>FluentInitializrWindow</name>
     <message>
         <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="11"/>
@@ -2123,19 +2136,199 @@ Updated content:
 <context>
     <name>T_Debug</name>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="8"/>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="9"/>
         <source>Debug</source>
         <translation>Debug</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="18"/>
-        <source>Debug Tools</source>
-        <translation>Debug Tools</translation>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="60"/>
+        <source>Select video</source>
+        <translation>Select video</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="22"/>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="61"/>
+        <source>Video files (*.mp4 *.mov *.mkv *.avi *.webm)</source>
+        <translation>Video files (*.mp4 *.mov *.mkv *.avi *.webm)</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="61"/>
+        <source>All files (*)</source>
+        <translation>All files (*)</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="77"/>
+        <source>KPI Video Frame Counter</source>
+        <translation>KPI Video Frame Counter</translation>
+    </message>
+    <message>
+        <source>Video path, for example a.mp4</source>
+        <translation type="vanished">Video path, for example a.mp4</translation>
+    </message>
+    <message>
+        <source>A</source>
+        <translation type="vanished">A</translation>
+    </message>
+    <message>
+        <source>B</source>
+        <translation type="vanished">B</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="88"/>
+        <source>Select a recorded video</source>
+        <translation>Select a recorded video</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="92"/>
+        <source>Browse</source>
+        <translation>Browse</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="98"/>
+        <source>Analyzing</source>
+        <translation>Analyzing</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="98"/>
+        <source>Analyze</source>
+        <translation>Analyze</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="107"/>
+        <source>Reading frames and detecting visual state transitions...</source>
+        <translation>Reading frames and detecting visual state transitions...</translation>
+    </message>
+    <message>
+        <source>The tool estimates start/end frames from visual state changes. Review the candidates before using the result.</source>
+        <translation type="vanished">The tool estimates start/end frames from visual state changes. Review the candidates before using the result.</translation>
+    </message>
+    <message>
+        <source>Estimated Result</source>
+        <translation type="vanished">Estimated Result</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="108"/>
+        <source>The tool detects repeated red-light actions and playback start frames for review.</source>
+        <translation>The tool detects repeated red-light actions and playback start frames for review.</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="127"/>
+        <source>Detected Summary</source>
+        <translation>Detected Summary</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="139"/>
+        <source>Start Frame</source>
+        <translation>Start Frame</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="140"/>
+        <source>End Frame</source>
+        <translation>End Frame</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="141"/>
+        <source>Elapsed Frames</source>
+        <translation>Elapsed Frames</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="142"/>
+        <source>Elapsed</source>
+        <translation>Elapsed</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="143"/>
+        <source>Actions</source>
+        <translation>Actions</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="144"/>
+        <source>FPS</source>
+        <translation>FPS</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="145"/>
+        <source>Frames</source>
+        <translation>Frames</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="182"/>
+        <source>Repeated Action Detections</source>
+        <translation>Repeated Action Detections</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="236"/>
+        <source>time %1s -&gt; %2s | red light score %3  playback score %4</source>
+        <translation>time %1s -&gt; %2s | red light score %3  playback score %4</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation type="vanished">Size</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="146"/>
+        <source>Duration</source>
+        <translation>Duration</translation>
+    </message>
+    <message>
+        <source>Candidates</source>
+        <translation type="vanished">Candidates</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="218"/>
+        <source>start %1  end %2  delta %3 frames  %4 ms</source>
+        <translation>start %1  end %2  delta %3 frames  %4 ms</translation>
+    </message>
+    <message>
+        <source>time %1s -&gt; %2s | %3</source>
+        <translation type="vanished">time %1s -&gt; %2s | %3</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="248"/>
+        <source>red light at %1,%2 area %3 | transition frame %4 | luminance %5-&gt;%6</source>
+        <oldsource>start score %1  end score %2  luminance %3-&gt;%4 / %5-&gt;%6</oldsource>
+        <translation>red light at %1,%2 area %3 | transition frame %4 | luminance %5-&gt;%6</translation>
+    </message>
+    <message>
+        <source>Top Candidate Evidence</source>
+        <translation type="vanished">Top Candidate Evidence</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="269"/>
+        <source>Start frame %1</source>
+        <translation>Start frame %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="288"/>
+        <source>End frame %1</source>
+        <translation>End frame %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="320"/>
+        <source>Detected State Changes</source>
+        <translation>Detected State Changes</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="339"/>
+        <source>frame %1</source>
+        <translation>frame %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="352"/>
+        <source>score %1</source>
+        <translation>score %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Debug.qml" line="359"/>
+        <source>luma %1 -&gt; %2  sat %3 -&gt; %4</source>
+        <translation>luma %1 -&gt; %2  sat %3 -&gt; %4</translation>
+    </message>
+    <message>
+        <source>Debug Tools</source>
+        <translation type="vanished">Debug Tools</translation>
+    </message>
+    <message>
         <source>Diagnostics, logs, and utilities go here.</source>
-        <translation>Diagnostics, logs, and utilities go here.</translation>
+        <translation type="vanished">Diagnostics, logs, and utilities go here.</translation>
     </message>
 </context>
 <context>
