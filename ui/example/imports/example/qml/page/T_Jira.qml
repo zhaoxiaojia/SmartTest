@@ -123,13 +123,9 @@ FluPage {
             var chipPoint = jira_source_chip.mapToItem(page, 0, 0)
             anchorX = chipPoint.x
             anchorY = chipPoint.y - jira_source_popup.height - 10
-            console.debug("[JIRA_UI] source_anchor chipX=" + chipPoint.x + " chipY=" + chipPoint.y + " chipW=" + jira_source_chip.width + " chipH=" + jira_source_chip.height)
-        }else{
-            console.debug("[JIRA_UI] source_anchor fallback composerX=" + composerPoint.x + " composerY=" + composerPoint.y)
         }
         jira_source_popup.x = Math.max(12, Math.min(page.width - jira_source_popup.width - 12, anchorX))
         jira_source_popup.y = Math.max(12, anchorY)
-        console.debug("[JIRA_UI] source_popup posX=" + jira_source_popup.x + " posY=" + jira_source_popup.y + " width=" + jira_source_popup.width + " height=" + jira_source_popup.height + " pageW=" + page.width + " pageH=" + page.height)
         jira_source_popup.open()
     }
 

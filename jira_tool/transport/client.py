@@ -314,7 +314,6 @@ def json_loads(text: str) -> Any:
 
 def _trace_request(stage: str, **values: Any) -> None:
     details = " ".join(f"{key}={values[key]}" for key in sorted(values))
-    print(f"{_trace_timestamp()} [JIRA_HTTP] {stage} {details}".rstrip())
 
 
 def _trace_timestamp() -> str:

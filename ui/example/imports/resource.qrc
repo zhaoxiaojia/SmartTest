@@ -8,6 +8,7 @@
         <file>example/qml/chart/T_RadarChart.qml</file>
         <file>example/qml/chart/T_ScatterChart.qml</file>
         <file>example/qml/component/CodeExpander.qml</file>
+        <file>example/qml/component/ImagePreviewDialog.qml</file>
         <file>example/qml/global/ItemsFooter.qml</file>
         <file>example/qml/global/ItemsOriginal.qml</file>
         <file>example/qml/global/qmldir</file>

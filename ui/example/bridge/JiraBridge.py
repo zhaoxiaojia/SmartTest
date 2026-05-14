@@ -7,7 +7,6 @@ from pathlib import Path
 from threading import Lock, Thread
 import time
 import uuid
-from datetime import datetime
 from typing import Any, Callable
 from urllib.parse import quote
 
@@ -26,9 +25,6 @@ from example.helper.UiText import raw_text, render_template, render_text, transl
 
 JIRA_BASE_URL = os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")
 _MAX_DISPLAY_ISSUES = 50
-
-def _trace_timestamp() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
 _PROJECT_OPTION_IDS = (
     "all_supported_projects",
@@ -212,8 +208,7 @@ class JiraBridge(QObject):
         self._applyProgress.connect(self._on_progress_update)
 
     def _trace(self, stage: str, **values: Any) -> None:
-        details = " ".join(f"{key}={values[key]}" for key in sorted(values))
-        print(f"{_trace_timestamp()} [JIRA_UI] {stage} {details}".rstrip())
+        return
 
     def _t(self, text: str) -> str:
         return self.tr(text)
