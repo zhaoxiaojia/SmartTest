@@ -29,17 +29,24 @@ def test_default_registry_rejects_unknown_group():
         raise AssertionError("Expected resolve_param_keys() to reject an unknown group.")
 
 
-def test_discovery_exports_required_params_and_empty_cases():
+def test_discovery_exports_only_implemented_android_entries():
     cases = discover_pytest_cases(
         root_dir=ROOT_DIR,
         test_paths=[
             ROOT_DIR / "testing" / "tests" / "android" / "common" / "system",
-            ROOT_DIR / "testing" / "tests" / "android" / "common" / "wifi_bt" / "test_wifi_bt_cases.py",
+            ROOT_DIR / "testing" / "tests" / "android" / "common" / "wifi_bt",
         ],
         python_executable=sys.executable,
     )
 
     cases_by_nodeid = {case.nodeid: case for case in cases}
+    assert sorted(cases_by_nodeid) == [
+        "testing/tests/android/common/system/test_auto_reboot.py::test_auto_reboot_via_android_client",
+        "testing/tests/android/common/system/test_auto_suspend.py::test_auto_suspend_via_android_client",
+        "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client",
+        "testing/tests/android/common/wifi_bt/test_bt_onoff.py::test_bt_onoff_scan_via_android_client",
+        "testing/tests/android/common/wifi_bt/test_wifi_onoff.py::test_wifi_onoff_scan_via_android_client",
+    ]
 
     emmc_case = cases_by_nodeid["testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client"]
     assert emmc_case.required_param_groups == []
@@ -69,13 +76,19 @@ def test_discovery_exports_required_params_and_empty_cases():
         "auto_suspend:bt_target",
     ]
 
-    wifi_onoff_case = cases_by_nodeid["testing/tests/android/common/wifi_bt/test_wifi_bt_cases.py::test_wifi_onoff_scan_via_android_client"]
+    wifi_onoff_case = cases_by_nodeid["testing/tests/android/common/wifi_bt/test_wifi_onoff.py::test_wifi_onoff_scan_via_android_client"]
     assert wifi_onoff_case.required_param_groups == []
-    assert wifi_onoff_case.required_params == []
+    assert wifi_onoff_case.required_params == [
+        "wifi_onoff_scan:cycle_count",
+        "wifi_onoff_scan:ping_target",
+    ]
 
-    paramless_case = cases_by_nodeid["testing/tests/android/common/system/test_ddr_stress.py::test_ddr_stress_via_android_client"]
-    assert paramless_case.required_param_groups == []
-    assert paramless_case.required_params == []
+    bt_onoff_case = cases_by_nodeid["testing/tests/android/common/wifi_bt/test_bt_onoff.py::test_bt_onoff_scan_via_android_client"]
+    assert bt_onoff_case.required_param_groups == []
+    assert bt_onoff_case.required_params == [
+        "bt_onoff_scan:cycle_count",
+        "bt_onoff_scan:bt_target",
+    ]
 
 
 def test_default_registry_includes_android_client_emmc_params():
@@ -94,6 +107,10 @@ def test_default_registry_includes_android_client_emmc_params():
     assert registry.get_param("auto_suspend:interval_sec") is not None
     assert registry.get_param("auto_suspend:ping_target") is not None
     assert registry.get_param("auto_suspend:bt_target") is not None
+    assert registry.get_param("wifi_onoff_scan:cycle_count") is not None
+    assert registry.get_param("wifi_onoff_scan:ping_target") is not None
+    assert registry.get_param("bt_onoff_scan:cycle_count") is not None
+    assert registry.get_param("bt_onoff_scan:bt_target") is not None
 
 
 def test_default_registry_uses_fixed_bluetooth_target_list():
@@ -101,9 +118,11 @@ def test_default_registry_uses_fixed_bluetooth_target_list():
 
     reboot_param = registry.get_param("auto_reboot:bt_target")
     suspend_param = registry.get_param("auto_suspend:bt_target")
+    bt_onoff_param = registry.get_param("bt_onoff_scan:bt_target")
 
     assert reboot_param is not None
     assert suspend_param is not None
+    assert bt_onoff_param is not None
     assert reboot_param.enum_values == [
         "None",
         "小米小钢炮蓝牙音箱 [74:A3:4A:13:3E:DA]",
@@ -114,3 +133,4 @@ def test_default_registry_uses_fixed_bluetooth_target_list():
         "JBL Charge 3 [04:21:44:AB:D6:63]",
     ]
     assert suspend_param.enum_values == reboot_param.enum_values
+    assert bt_onoff_param.enum_values == reboot_param.enum_values

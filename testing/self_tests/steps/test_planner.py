@@ -125,3 +125,45 @@ def test_declared_plan_lets_check_definition_disable_none_option() -> None:
     assert "network.ping" not in definition_ids
     assert "bluetooth.verify_target" not in definition_ids
     assert "power.capture_radio_state" in definition_ids
+
+
+def test_wifi_bt_file_selects_declared_plan_by_android_case_id() -> None:
+    plan = build_step_plan(
+        root_dir=Path.cwd(),
+        nodeid="testing/tests/android/common/wifi_bt/test_wifi_onoff.py::test_wifi_onoff_scan_via_android_client",
+        case_config={
+            "wifi_onoff_scan:cycle_count": 2,
+            "wifi_onoff_scan:ping_target": "192.168.0.1",
+        },
+        prefer_catalog=False,
+    )
+
+    assert [step["definition_id"] for step in plan] == [
+        "smarttest.runner.prepare",
+        "radio.wifi.disable",
+        "radio.wifi.enable",
+        "power.capture_radio_state",
+        "network.required_ping",
+    ]
+    assert any(step["title"] == "Cycle: ping 192.168.0.1" for step in plan)
+
+
+def test_bt_onoff_declared_plan_keeps_required_target_check() -> None:
+    plan = build_step_plan(
+        root_dir=Path.cwd(),
+        nodeid="testing/tests/android/common/wifi_bt/test_bt_onoff.py::test_bt_onoff_scan_via_android_client",
+        case_config={
+            "bt_onoff_scan:cycle_count": 2,
+            "bt_onoff_scan:bt_target": "None",
+        },
+        prefer_catalog=False,
+    )
+
+    definition_ids = [step["definition_id"] for step in plan]
+    assert definition_ids == [
+        "smarttest.runner.prepare",
+        "radio.bluetooth.disable",
+        "radio.bluetooth.enable",
+        "power.capture_radio_state",
+        "bluetooth.required_verify_target",
+    ]

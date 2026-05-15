@@ -10,9 +10,9 @@ data class PowerCycleRecoveryConfig(
 )
 
 object PowerCycleRecoveryChecks {
-    private const val PING_ATTEMPTS = 3
+    private const val PING_ATTEMPTS = 10
     private const val BLUETOOTH_TIMEOUT_MS = 60_000L
-    private const val RETRY_DELAY_MS = 2_000L
+    private const val RETRY_DELAY_MS = 3_000L
     private const val CONNECTED_BT_MAC_COMMAND =
         "dumpsys bluetooth_manager | grep -B1 \"Connected: true\" | grep \"Peer:\" | awk '{print \$2}'"
 
@@ -123,6 +123,7 @@ object PowerCycleRecoveryChecks {
             context.log("invalid recovery ping target format: $pingTarget")
             return false
         }
+        var lastFailureSignature = ""
         repeat(PING_ATTEMPTS) { attempt ->
             val record = context.execShell(
                 label = "recovery_ping_${attempt + 1}",
@@ -132,10 +133,14 @@ object PowerCycleRecoveryChecks {
             if (record.result.success) {
                 return true
             }
-            context.log(
-                "recovery ping attempt ${attempt + 1}/$PING_ATTEMPTS failed: " +
-                    "target=$pingTarget exit=${record.result.exitCode} stderr=${record.result.stderr.ifBlank { "<empty>" }}",
-            )
+            val failureSignature = "exit=${record.result.exitCode} stderr=${record.result.stderr.ifBlank { "<empty>" }}"
+            if (failureSignature != lastFailureSignature) {
+                context.log(
+                    "recovery ping state changed on attempt ${attempt + 1}/$PING_ATTEMPTS: " +
+                        "target=$pingTarget $failureSignature",
+                )
+                lastFailureSignature = failureSignature
+            }
             if (attempt + 1 < PING_ATTEMPTS) {
                 delay(RETRY_DELAY_MS)
             }
@@ -158,6 +163,7 @@ object PowerCycleRecoveryChecks {
         val deadlineMs = System.currentTimeMillis() + BLUETOOTH_TIMEOUT_MS
         var attempt = 1
         var lastObserved = emptyList<String>()
+        var lastFailureSignature = ""
         while (System.currentTimeMillis() <= deadlineMs) {
             val snapshot = context.environment.stateProvider.readBluetoothState()
             val profileConnected = snapshot.connectedDevices
@@ -182,11 +188,15 @@ object PowerCycleRecoveryChecks {
             if (connected.any { bluetoothAddressMatches(targetMac, it) }) {
                 return BluetoothCheckResult(connected = true, observedDevices = connected)
             }
-            context.log(
-                "recovery bluetooth attempt $attempt failed: " +
-                    "target=$targetMac connected=${connected.joinToString(",").ifBlank { "-" }} " +
-                    "stderr=${record.result.stderr.ifBlank { "<empty>" }}",
-            )
+            val failureSignature =
+                "connected=${connected.joinToString(",").ifBlank { "-" }} stderr=${record.result.stderr.ifBlank { "<empty>" }}"
+            if (failureSignature != lastFailureSignature) {
+                context.log(
+                    "recovery bluetooth state changed on attempt $attempt: " +
+                        "target=$targetMac $failureSignature",
+                )
+                lastFailureSignature = failureSignature
+            }
             val remainingMs = deadlineMs - System.currentTimeMillis()
             if (remainingMs > 0) {
                 delay(minOf(RETRY_DELAY_MS, remainingMs))

@@ -109,6 +109,10 @@ _DEFAULT_ANDROID_PARAM_SPECS = [
     ("auto_suspend:interval_sec", "Interval Seconds", ParamValueType.INT, ParamCategory.EXECUTION, 100, ""),
     ("auto_suspend:ping_target", "Ping Target", ParamValueType.STRING, ParamCategory.NETWORK, "", ""),
     ("auto_suspend:bt_target", "Bluetooth Target", ParamValueType.ENUM, ParamCategory.NETWORK, "", ""),
+    ("wifi_onoff_scan:cycle_count", "Cycle Count", ParamValueType.INT, ParamCategory.EXECUTION, 2, ""),
+    ("wifi_onoff_scan:ping_target", "Ping Target", ParamValueType.STRING, ParamCategory.NETWORK, "", ""),
+    ("bt_onoff_scan:cycle_count", "Cycle Count", ParamValueType.INT, ParamCategory.EXECUTION, 2, ""),
+    ("bt_onoff_scan:bt_target", "Bluetooth Target", ParamValueType.ENUM, ParamCategory.NETWORK, "", ""),
 ]
 
 

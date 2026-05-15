@@ -103,6 +103,19 @@ def _load_declared_plan(
         return []
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    plans = getattr(module, "SMARTTEST_CASE_PLANS", None)
+    if isinstance(plans, dict):
+        selected = _select_declared_case_plan(
+            plans,
+            root_dir=root_dir,
+            nodeid=nodeid,
+        )
+        if isinstance(selected, dict):
+            return build_declared_case_plan(
+                selected,
+                case_config=dict(case_config),
+                include_config_disabled=include_config_disabled,
+            )
     declaration = getattr(module, "SMARTTEST_CASE_PLAN", None)
     if isinstance(declaration, dict):
         return build_declared_case_plan(
@@ -111,6 +124,21 @@ def _load_declared_plan(
             include_config_disabled=include_config_disabled,
         )
     return []
+
+
+def _select_declared_case_plan(
+    plans: dict[Any, Any],
+    *,
+    root_dir: Path,
+    nodeid: str,
+) -> Any:
+    case_id = _android_case_id_from_node(root_dir=root_dir, nodeid=nodeid)
+    if case_id and case_id in plans:
+        return plans[case_id]
+    function_name = nodeid.rsplit("::", 1)[-1] if "::" in nodeid else ""
+    if function_name and function_name in plans:
+        return plans[function_name]
+    return None
 
 
 def _normalize_step(item: dict[str, Any], *, index: int) -> dict[str, Any]:
@@ -286,7 +314,8 @@ def _android_case_id_from_node(*, root_dir: Path, nodeid: str) -> str:
     tree = _parse_node_module(root_dir=root_dir, nodeid=nodeid)
     if tree is None:
         return ""
-    for node in ast.walk(tree):
+    search_root = _target_function_node(tree, nodeid) or tree
+    for node in ast.walk(search_root):
         if not isinstance(node, ast.Call):
             continue
         function_name = _call_name(node.func)
@@ -299,6 +328,18 @@ def _android_case_id_from_node(*, root_dir: Path, nodeid: str) -> str:
             if case_id:
                 return case_id
     return ""
+
+
+def _target_function_node(tree: ast.AST, nodeid: str) -> ast.AST | None:
+    if "::" not in nodeid:
+        return None
+    function_name = nodeid.rsplit("::", 1)[-1].split("[", 1)[0].strip()
+    if not function_name:
+        return None
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name:
+            return node
+    return None
 
 
 def _parse_node_module(*, root_dir: Path, nodeid: str) -> ast.AST | None:

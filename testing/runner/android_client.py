@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -30,6 +31,8 @@ DEFAULT_HOST_QUIET_STAGE_TOKENS = {"entering deep suspend"}
 DEFAULT_HOST_QUIET_SEC = 25.0
 DEFAULT_NO_POLL_CASE_IDS: set[str] = set()
 DEFAULT_SLOW_POLL_CASE_IDS: set[str] = set()
+_DYNAMIC_STEP_ID_RE = re.compile(r"^(?P<prefix>.+?)\.(?P<marker>cycle|loop)\.(?P<index>\d+)\.(?P<tail>.+)$", re.IGNORECASE)
+_STAGE_LOOP_RE = re.compile(r"\b(?P<marker>cycle|loop)\s+(?P<index>\d+)\s*/\s*(?P<total>\d+)\b", re.IGNORECASE)
 
 
 def _event_time() -> float:
@@ -248,6 +251,7 @@ class _AndroidClientStageTracker:
         self._current_stage: _RuntimeStep | None = None
         self._current_stage_key = ""
         self._planned_steps: dict[str, _RuntimeStep] = {}
+        self._dynamic_steps: dict[str, _RuntimeStep] = {}
         self._terminal = False
 
     def evidence(self, title: str, content: object, *, evidence_type: str = "log", level: str = "info") -> None:
@@ -312,7 +316,9 @@ class _AndroidClientStageTracker:
             raw_id = str(item.get("id", "") or "").strip()
             step = self._planned_steps.get(raw_id)
             if step is None:
-                continue
+                step = self._dynamic_step(raw_id=raw_id, snapshot=snapshot)
+                if step is None:
+                    continue
             status = str(item.get("status", "") or "").strip()
             if status == "running":
                 step.start()
@@ -322,6 +328,48 @@ class _AndroidClientStageTracker:
                     actual=item.get("actual", ""),
                     error=str(item.get("error", "") or ""),
                 )
+
+    def _dynamic_step(self, *, raw_id: str, snapshot: Mapping[str, object]) -> _RuntimeStep | None:
+        if not raw_id:
+            return None
+        existing = self._dynamic_steps.get(raw_id)
+        if existing is not None:
+            return existing
+        match = _DYNAMIC_STEP_ID_RE.match(raw_id)
+        if match is None:
+            return None
+        compact_id = f"{match.group('prefix')}.{match.group('marker')}.{match.group('tail')}"
+        step = _RuntimeStep(
+            step_id=f"{self._request_id}:{raw_id}",
+            title=self._dynamic_step_title(raw_id=raw_id, snapshot=snapshot),
+            kind=self._dynamic_step_kind(match.group("tail")),
+            definition_id=compact_id,
+            params={"case_id": self._case_id, "request_id": self._request_id},
+            expected="android_client reports this cycle step finished.",
+            parent_id=self._parent.step_id,
+        )
+        self._dynamic_steps[raw_id] = step
+        return step
+
+    def _dynamic_step_title(self, *, raw_id: str, snapshot: Mapping[str, object]) -> str:
+        match = _DYNAMIC_STEP_ID_RE.match(raw_id)
+        if match is None:
+            return raw_id
+        marker = match.group("marker").capitalize()
+        index = match.group("index")
+        current_stage = str(snapshot.get("currentStage", "") or "")
+        stage_match = _STAGE_LOOP_RE.search(current_stage)
+        total = stage_match.group("total") if stage_match else str(snapshot.get("totalLoops", "") or "")
+        tail = match.group("tail").replace("_", " ")
+        if total:
+            return f"{marker} {index}/{total}: {tail}"
+        return f"{marker} {index}: {tail}"
+
+    def _dynamic_step_kind(self, tail: str) -> str:
+        normalized = str(tail or "").lower()
+        if any(token in normalized for token in ("check", "verify", "capture", "ping", "bluetooth")):
+            return "check"
+        return "step"
 
     def status_waiting(self, reason: str) -> None:
         if self._current_stage is not None:

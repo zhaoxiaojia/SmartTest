@@ -500,6 +500,143 @@ def test_run_bridge_loop_progress_updates_the_whole_group(tmp_path) -> None:
     assert any(row["definition_id"] == "workflow.verify" and row["status"] == "planned" for row in rows)
 
 
+def test_run_bridge_dynamic_cycle_step_updates_initial_plan(tmp_path) -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+
+    nodeid = "testing/tests/example.py::test_case"
+    bridge = RunBridge(Path.cwd())
+    bridge._stdout_log_path = tmp_path / "logs" / "tmp_main_stdout.log"
+    bridge._stderr_log_path = tmp_path / "logs" / "tmp_main_stderr.log"
+    bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
+    bridge._stderr_mirror_log_path = tmp_path / "tmp_main_stderr.log"
+    bridge._reset_run_data()
+    case_id = bridge._ensure_case_row(case_nodeid=nodeid, title="test_case")
+    bridge._upsert_step_row(
+        {
+            "step_id": "plan:radio_case.cycle.disable",
+            "case_nodeid": nodeid,
+            "parent_id": case_id,
+            "title": "Cycle: disable radio",
+            "kind": "step",
+            "definition_id": "radio.disable",
+        },
+        status="planned",
+    )
+    bridge._upsert_step_row(
+        {
+            "step_id": "plan:radio_case.cycle.enable",
+            "case_nodeid": nodeid,
+            "parent_id": case_id,
+            "title": "Cycle: enable radio",
+            "kind": "step",
+            "definition_id": "radio.enable",
+        },
+        status="planned",
+    )
+
+    bridge._apply_event(
+        {
+            "type": "step_started",
+            "step_id": "request-1:radio_case.cycle.3.disable",
+            "case_nodeid": nodeid,
+            "parent_id": "request-1:android_client",
+            "title": "Cycle 3/5: disable",
+            "kind": "step",
+            "definition_id": "radio_case.cycle.disable",
+        }
+    )
+    bridge._apply_event(
+        {
+            "type": "step_finished",
+            "step_id": "request-1:radio_case.cycle.3.disable",
+            "case_nodeid": nodeid,
+            "status": "passed",
+            "actual": "off",
+        }
+    )
+
+    rows = bridge.stepRows()
+
+    assert any(
+        row["definition_id"] == "radio.disable"
+        and row["title"] == "Cycle 3/5: disable radio"
+        and row["status"] == "passed"
+        and row["actual"] == "off"
+        for row in rows
+    )
+    assert any(row["definition_id"] == "radio.enable" and row["title"] == "Cycle 3/5: enable radio" for row in rows)
+
+
+def test_run_bridge_dynamic_cycle_steps_advance_past_first_cycle(tmp_path) -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+
+    nodeid = "testing/tests/example.py::test_case"
+    bridge = RunBridge(Path.cwd())
+    bridge._stdout_log_path = tmp_path / "logs" / "tmp_main_stdout.log"
+    bridge._stderr_log_path = tmp_path / "logs" / "tmp_main_stderr.log"
+    bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
+    bridge._stderr_mirror_log_path = tmp_path / "tmp_main_stderr.log"
+    bridge._reset_run_data()
+    case_id = bridge._ensure_case_row(case_nodeid=nodeid, title="test_case")
+    bridge._upsert_step_row(
+        {
+            "step_id": "plan:radio_case.cycle.disable",
+            "case_nodeid": nodeid,
+            "parent_id": case_id,
+            "title": "Cycle: disable radio",
+            "kind": "step",
+            "definition_id": "radio.disable",
+        },
+        status="planned",
+    )
+
+    for cycle in (1, 2, 3):
+        runtime_id = f"request-1:radio_case.cycle.{cycle}.disable"
+        bridge._apply_event(
+            {
+                "type": "step_planned",
+                "step_id": runtime_id,
+                "case_nodeid": nodeid,
+                "parent_id": "request-1:android_client",
+                "title": f"Cycle {cycle}/5: disable",
+                "kind": "step",
+                "definition_id": "radio_case.cycle.disable",
+            }
+        )
+        bridge._apply_event(
+            {
+                "type": "step_started",
+                "step_id": runtime_id,
+                "case_nodeid": nodeid,
+                "parent_id": "request-1:android_client",
+                "title": f"Cycle {cycle}/5: disable",
+                "kind": "step",
+                "definition_id": "radio_case.cycle.disable",
+            }
+        )
+        bridge._apply_event(
+            {
+                "type": "step_finished",
+                "step_id": runtime_id,
+                "case_nodeid": nodeid,
+                "status": "passed",
+                "actual": f"cycle-{cycle}",
+            }
+        )
+
+    rows = bridge.stepRows()
+
+    assert any(
+        row["definition_id"] == "radio.disable"
+        and row["title"] == "Cycle 3/5: disable radio"
+        and row["status"] == "passed"
+        and row["actual"] == "cycle-3"
+        for row in rows
+    )
+
+
 def test_run_bridge_removes_planned_steps_skipped_by_runtime_order(tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None

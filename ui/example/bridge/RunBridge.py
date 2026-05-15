@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import threading
 import time
@@ -34,7 +35,6 @@ class RunBridge(QObject):
         r"^(?P<marker>\s*(?:cycle|loop))(?:\s+(?P<index>\d+)\s*/\s*(?P<total>\d+))?(?P<suffix>\s*:.*)$",
         re.IGNORECASE,
     )
-
     def __init__(self, root_dir: Path):
         super().__init__(QGuiApplication.instance())
         self._root_dir = root_dir.resolve()
@@ -486,7 +486,10 @@ class RunBridge(QObject):
     def _resolve_step_row_id(self, payload: dict[str, Any]) -> str:
         step_id = str(payload.get("step_id", "") or payload.get("id", ""))
         if step_id in self._step_index:
-            return step_id
+            index = self._step_index[step_id]
+            row_id = str(self._steps[index].get("id", "") or step_id)
+            self._register_step_aliases(row_id, payload)
+            return row_id
         case_nodeid = str(payload.get("case_nodeid", "") or "")
         for alias in self._step_aliases(payload):
             row_id = self._step_alias_index.get((case_nodeid, alias))
@@ -501,6 +504,7 @@ class RunBridge(QObject):
         source_match = self._LOOP_ID_RE.match(source_id.rsplit(":", 1)[-1])
         title = str(payload.get("title", "") or "").strip()
         title_match = self._LOOP_TITLE_RE.match(title)
+        case_nodeid = str(payload.get("case_nodeid", "") or "")
         if (
             source_match is None
             or title_match is None
@@ -511,7 +515,6 @@ class RunBridge(QObject):
         group_prefix = source_match.group("prefix")
         marker = source_match.group("marker").lower()
         progress = f"{title_match.group('index')}/{title_match.group('total')}"
-        case_nodeid = str(payload.get("case_nodeid", "") or "")
         current_index = self._step_index.get(row_id, -1)
         updated_count = 0
         reset_count = 0
@@ -607,10 +610,19 @@ class RunBridge(QObject):
             evidence = list(existing.get("evidence", []) or [])
             preserved_parent_id = existing.get("parent_id", "")
             preserved_depth = existing.get("depth", row["depth"])
-            existing.update({key: value for key, value in row.items() if value not in ("", {}, [])})
+            preserved_definition_id = existing.get("definition_id", "")
+            update_values = {key: value for key, value in row.items() if value not in ("", {}, [])}
+            matched_by_alias = original_step_id and original_step_id != step_id
+            incoming_loop = self._LOOP_ID_RE.match(original_step_id.rsplit(":", 1)[-1]) is not None
+            existing_loop = self._LOOP_ID_RE.match(str(existing.get("id", "") or "").rsplit(":", 1)[-1]) is not None
+            if matched_by_alias and incoming_loop and existing_loop:
+                update_values.pop("title", None)
+            existing.update(update_values)
             if preserved_parent_id and parent_id not in self._step_index:
                 existing["parent_id"] = preserved_parent_id
                 existing["depth"] = preserved_depth
+            if preserved_definition_id and row.get("definition_id"):
+                existing["definition_id"] = preserved_definition_id
             existing["status"] = status
             existing["evidence"] = evidence
             self._register_step_aliases(step_id, payload)

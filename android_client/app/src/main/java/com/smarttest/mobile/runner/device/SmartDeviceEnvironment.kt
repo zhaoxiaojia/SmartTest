@@ -18,7 +18,7 @@ object SmartDeviceEnvironmentFactory {
         val shellGateway = ProcessShellGateway()
         val commandRecorder = InMemoryCommandRecorder()
         val stateProvider = SystemDeviceStateProvider(context, shellGateway)
-        val operationGateway = RootDeviceOperationGateway(shellGateway, commandRecorder)
+        val operationGateway = RootDeviceOperationGateway(context, shellGateway, commandRecorder)
         return SmartDeviceEnvironment(
             shellGateway = shellGateway,
             commandRecorder = commandRecorder,
