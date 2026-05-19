@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from testing.runner.android_client import build_case_params, trigger_android_client_case
+from testing.actions import run_android_client_case
+from testing.runner.android_client import build_case_params
 from testing.runtime import request_case_param
 
 
@@ -16,7 +17,14 @@ SMARTTEST_CASE_PLAN = {
             "id": "auto_reboot.prepare",
             "title": "Prepare auto reboot request",
             "kind": "setup",
-            "definition_id": "power.auto_reboot.prepare",
+            "definition_id": "android_client.prepare_request",
+            "expected": "",
+        },
+        {
+            "id": "auto_reboot.trigger",
+            "title": "Trigger auto reboot execution",
+            "kind": "step",
+            "definition_id": "android_client.trigger_case",
             "expected": "",
         },
         {
@@ -84,7 +92,7 @@ def test_auto_reboot_via_android_client(request):
         bt_target=bt_target,
     )
 
-    trigger_android_client_case(
+    run_android_client_case(
         case_id="auto_reboot",
         params=params,
         trigger=request.node.nodeid,

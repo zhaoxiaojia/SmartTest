@@ -69,7 +69,7 @@ def main() -> None:
                 "case_type": case.case_type,
                 "required_params": case.required_params,
                 "required_param_groups": case.required_param_groups,
-                "android_case_id": case_ids.get(case.nodeid, ""),
+                "android_case_id": case_ids.get(case.nodeid, case.android_case_id),
                 "initial_step_plan": initial_step_plan,
             }
         )

@@ -72,6 +72,45 @@ def _apk_hash(apk_path: Path) -> str:
     return digest.hexdigest()
 
 
+def _ensure_debug_apk_built(apk_path: Path) -> None:
+    project_dir = Path(__file__).resolve().parent
+    gradlew = project_dir / ("gradlew.bat" if os.name == "nt" else "gradlew")
+    if not gradlew.exists():
+        return
+    source_roots = [
+        project_dir / "app" / "src" / "main" / "java",
+        project_dir / "app" / "src" / "main" / "res",
+    ]
+    source_files: list[Path] = []
+    for root in source_roots:
+        if root.exists():
+            source_files.extend(path for path in root.rglob("*") if path.is_file())
+    manifest = project_dir / "app" / "src" / "main" / "AndroidManifest.xml"
+    if manifest.exists():
+        source_files.append(manifest)
+    newest_source_mtime = max((path.stat().st_mtime for path in source_files), default=0.0)
+    if apk_path.exists() and apk_path.stat().st_mtime >= newest_source_mtime:
+        return
+    print("[android_client] local APK is missing or stale; build :app:assembleDebug")
+    result = subprocess.run(
+        [str(gradlew), ":app:assembleDebug"],
+        cwd=str(project_dir),
+        capture_output=True,
+        text=True,
+        check=False,
+        creationflags=_subprocess_creationflags(),
+    )
+    print(f"[android_client] build stdout: {result.stdout.strip()}")
+    print(f"[android_client] build stderr: {result.stderr.strip()}")
+    if result.returncode != 0 or not apk_path.exists():
+        raise RuntimeError(
+            "Failed to build android_client debug APK.\n"
+            f"Command: {gradlew} :app:assembleDebug\n"
+            f"stdout:\n{result.stdout}\n"
+            f"stderr:\n{result.stderr}"
+        )
+
+
 def _platform_signing_available() -> bool:
     return PLATFORM_CERT_PEM.exists() and PLATFORM_CERT_PK8.exists()
 
@@ -644,6 +683,8 @@ def ensure_test_apk_installed(
     _ensure_device_ready_before_install(adb_executable=adb_executable, adb_serial=adb_serial)
 
     resolved_apk_path = Path(apk_path or DEFAULT_APK_PATH).resolve()
+    if apk_path is None and not getattr(sys, "frozen", False):
+        _ensure_debug_apk_built(resolved_apk_path)
     if not resolved_apk_path.exists():
         print(f"[android_client] ensure install failed, APK missing: {resolved_apk_path}")
         raise RuntimeError(f"android_client test APK was not found: {resolved_apk_path}")
@@ -679,8 +720,25 @@ def ensure_test_apk_installed(
         )
 
     if installed and "/system/priv-app/" in code_path:
-        print("[android_client] existing package is priv-app; skip user APK install")
-        return False
+        print("[android_client] existing package is priv-app; verify/reinstall privileged APK")
+        privileged_apk_path = sign_privileged_apk(input_apk_path=resolved_apk_path)
+        privileged_hash = _apk_hash(privileged_apk_path)
+        privileged_state_key = _install_state_key(adb_serial=adb_serial, apk_path=privileged_apk_path)
+        privileged_mode, privileged_recorded_hash = _parse_install_state_value(
+            install_state.get(privileged_state_key, "")
+        )
+        return _ensure_privileged_install(
+            adb_executable=adb_executable,
+            resolved_apk_path=privileged_apk_path,
+            adb_serial=adb_serial,
+            current_hash=privileged_hash,
+            state_key=privileged_state_key,
+            install_state=install_state,
+            installed=installed,
+            code_path=code_path,
+            recorded_mode=privileged_mode,
+            recorded_hash=privileged_recorded_hash,
+        )
 
     if installed and recorded_mode == "user" and recorded_hash == current_hash:
         print("[android_client] user APK already installed with matching hash, skip install")

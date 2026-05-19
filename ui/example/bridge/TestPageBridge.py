@@ -186,6 +186,33 @@ class TestPageBridge(QObject):
             if file_path:
                 self._cases_by_file.setdefault(file_path, []).append(case)
 
+    def _migrate_legacy_android_selection(self) -> bool:
+        by_android_id = {
+            str(case.get("android_case_id", "") or ""): str(case.get("nodeid", "") or "")
+            for case in self._cases
+            if str(case.get("android_case_id", "") or "") and str(case.get("nodeid", "") or "")
+        }
+        if not by_android_id:
+            return False
+
+        changed = False
+        for selected in self._state.selected:
+            raw_nodeid = str(selected.nodeid or "").strip()
+            if not raw_nodeid.startswith("android://"):
+                continue
+            case_id = raw_nodeid[len("android://") :].strip()
+            mapped_nodeid = by_android_id.get(case_id, "")
+            if not mapped_nodeid:
+                self._trace("legacy_android_selection_unmapped", case_id=case_id)
+                continue
+            selected.nodeid = mapped_nodeid
+            selected.case_type = str((self._case_info(mapped_nodeid) or {}).get("case_type", selected.case_type))
+            if raw_nodeid in self._state.case_configs and mapped_nodeid not in self._state.case_configs:
+                self._state.case_configs[mapped_nodeid] = dict(self._state.case_configs.get(raw_nodeid, {}))
+            self._trace("legacy_android_selection_migrated", from_nodeid=raw_nodeid, to_nodeid=mapped_nodeid)
+            changed = True
+        return changed
+
     def _case_info(self, nodeid: str) -> dict[str, Any] | None:
         normalized = (nodeid or "").strip()
         if not normalized:
@@ -212,6 +239,9 @@ class TestPageBridge(QObject):
         return path
 
     def _file_base_name(self, file_path: str) -> str:
+        cases = self._cases_for_file(file_path)
+        if len(cases) == 1:
+            return str(cases[0].get("title", "") or cases[0].get("name", "") or file_path)
         short_file = self._trimmed_case_path(file_path)
         return short_file.split("/")[-1] if short_file else short_file
 
@@ -447,6 +477,7 @@ class TestPageBridge(QObject):
                 "case_type": c.case_type,
                 "required_params": c.required_params,
                 "required_param_groups": c.required_param_groups,
+                "android_case_id": c.android_case_id,
             }
             for c in cases
         ]
@@ -456,7 +487,8 @@ class TestPageBridge(QObject):
     def _apply_discovery_result(self, rows: list[dict[str, Any]], elapsed_ms: int) -> None:
         self._cases = [dict(row) for row in rows]
         self._rebuild_case_indexes()
-        changed = self._sync_selected_file_order()
+        changed = self._migrate_legacy_android_selection()
+        changed = self._sync_selected_file_order() or changed
         changed = self._reorder_selected_cases_by_file_order() or changed
         if changed:
             save_state(self._state_path, self._state)

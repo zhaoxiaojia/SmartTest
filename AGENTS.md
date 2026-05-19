@@ -154,8 +154,6 @@ If the root cause is unclear:
 - Prefer modifying the current condition, state transition, ordering, or data mapping. Add new helpers, state, or branches only when the current structure cannot express the required mechanism.
 - Do not add case-specific targeted fixes for a single test such as eMMC or reboot. Fix the shared mechanism that produced the problem.
 - Remove temporary debug prints after they have served their purpose. Keep only minimal, stable business diagnostics that are useful for future flow comparison.
-- For the steps mechanism, preserve a clear distinction between preconditions, test steps, and checks. Runtime updates must move through the displayed list from top to bottom; if a planned item is never reachable, either do not show it or mark it explicitly instead of silently deleting useful failure context.
-
 ## 4. Minimal-Defense Coding Style
 
 Goal: avoid "try/except everywhere" and "if everywhere" that hides bugs.

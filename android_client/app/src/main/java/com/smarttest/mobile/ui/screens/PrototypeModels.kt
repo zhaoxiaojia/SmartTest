@@ -1,6 +1,7 @@
 package com.smarttest.mobile.ui.screens
 
 import androidx.compose.ui.graphics.Color
+import com.smarttest.mobile.runner.SmartTestCatalog
 
 data class CaseParameterTemplate(
     val id: String,
@@ -31,10 +32,32 @@ data class ReportMetric(
     val accent: Color,
 )
 
-@Suppress("UNUSED_PARAMETER")
 fun buildCaseCategories(
     tertiaryAccent: Color,
     errorAccent: Color,
 ): List<CaseCategory> {
-    return emptyList()
+    return SmartTestCatalog.categories.mapIndexed { index, category ->
+        CaseCategory(
+            id = category.id,
+            title = category.title,
+            summary = category.summary,
+            accent = if (index % 2 == 0) tertiaryAccent else errorAccent,
+            cases = category.cases.map { case ->
+                CaseTemplate(
+                    id = case.id,
+                    title = case.title,
+                    objective = case.objective,
+                    checks = case.checks,
+                    parameters = case.parameters.map { parameter ->
+                        CaseParameterTemplate(
+                            id = parameter.id,
+                            label = parameter.label,
+                            hint = parameter.hint,
+                            defaultValue = parameter.defaultValue,
+                        )
+                    },
+                )
+            },
+        )
+    }
 }

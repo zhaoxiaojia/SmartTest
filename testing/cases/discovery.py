@@ -77,6 +77,7 @@ def discover_pytest_cases(
                     case_type=str(item.get("case_type", "default")),
                     required_params=[str(p) for p in item.get("required_params", [])],
                     required_param_groups=[str(g) for g in item.get("required_param_groups", [])],
+                    android_case_id=str(item.get("android_case_id", "") or ""),
                 )
             )
         return cases

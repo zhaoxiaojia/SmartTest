@@ -82,6 +82,25 @@ def test_run_bridge_stop_uses_session_stop() -> None:
     assert session.reasons == ["UI stop button"]
 
 
+def test_run_bridge_finish_clears_running_even_when_report_save_fails(monkeypatch, tmp_path) -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+
+    bridge = RunBridge(Path.cwd())
+    bridge._stdout_log_path = tmp_path / "logs" / "tmp_main_stdout.log"
+    bridge._stderr_log_path = tmp_path / "logs" / "tmp_main_stderr.log"
+    bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
+    bridge._stderr_mirror_log_path = tmp_path / "tmp_main_stderr.log"
+    bridge._begin_report_context(nodeids=["android://emmc_rw"], adb_serial="ABC123")
+    bridge._set_running(True)
+    monkeypatch.setattr(bridge._report_store, "save", lambda report: (_ for _ in ()).throw(RuntimeError("save failed")))
+
+    bridge._finish_run(0)
+
+    assert bridge.isRunning is False
+    assert any("finish_run exit running=False" in row["line"] for row in bridge._logs)
+
+
 def test_run_bridge_uses_writable_run_log_dir(tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
@@ -124,7 +143,8 @@ def test_run_bridge_start_inserts_initial_plan_before_background_start(monkeypat
     assert app is not None
 
     state_path = tmp_path / "state.json"
-    nodeid = "testing/tests/android/common/system/test_auto_reboot.py::test_auto_reboot_via_android_client"
+    nodeid = "android://auto_reboot"
+    mapped_nodeid = "testing/tests/android/common/system/test_auto_reboot.py::test_auto_reboot_via_android_client"
     save_state(
         state_path,
         SmartTestPageState(
@@ -156,13 +176,12 @@ def test_run_bridge_start_inserts_initial_plan_before_background_start(monkeypat
     rows = bridge.stepRows()
 
     assert bridge.isRunning is True
-    assert len(rows) >= 6
-    assert any(row["id"] == f"case:{nodeid}" for row in rows)
-    assert any("ping 192.168.50.1" in row["title"] for row in rows)
-    assert any("Cycle: wait interval 30s" in row["title"] for row in rows)
-    assert any(row["definition_id"] == "power.reboot" and row["kind"] == "step" for row in rows)
+    assert len(rows) >= 7
+    assert any(row["id"] == f"case:{mapped_nodeid}" for row in rows)
+    assert any(row["title"] == "Cycle: reboot DUT" for row in rows)
+    assert any(row["title"] == "Cycle: wait for DUT resume" for row in rows)
     assert any(row["definition_id"] == "network.ping" and row["kind"] == "check" for row in rows)
-    assert not any("wait interval 100s" in row["title"] for row in rows)
+    assert any(row["definition_id"] == "android_client.prepare_request" and row["status"] == "planned" for row in rows)
 
 
 def test_run_bridge_start_expands_android_step_templates(monkeypatch, tmp_path) -> None:
@@ -170,7 +189,8 @@ def test_run_bridge_start_expands_android_step_templates(monkeypatch, tmp_path) 
     assert app is not None
 
     state_path = tmp_path / "state.json"
-    nodeid = "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client"
+    nodeid = "android://emmc_rw"
+    mapped_nodeid = "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client"
     save_state(
         state_path,
         SmartTestPageState(
@@ -201,14 +221,13 @@ def test_run_bridge_start_expands_android_step_templates(monkeypatch, tmp_path) 
     rows = bridge.stepRows()
 
     assert bridge.isRunning is True
-    assert any(row["id"] == f"case:{nodeid}" for row in rows)
+    assert any(row["id"] == f"case:{mapped_nodeid}" for row in rows)
     assert not any(row["definition_id"] == "emmc_rw.execute" for row in rows)
-    assert any(row["id"].endswith("emmc_rw.cycle.copy_file") for row in rows)
-    assert any(row["id"].endswith("emmc_rw.cycle.read_file") for row in rows)
-    assert any(row["definition_id"] == "storage.emmc.cmp_file" and row["kind"] == "check" for row in rows)
-    assert any(row["definition_id"] == "smarttest.runner.prepare" and row["status"] == "passed" for row in rows)
-    assert not any(str(row["definition_id"]).startswith("emmc_rw.check.") for row in rows)
-    assert not any(row["kind"] == "check" and row["title"] == "Read back each file" for row in rows)
+    assert any(row["title"] == "Cycle: copy file" for row in rows)
+    assert any(row["title"] == "Cycle: read back file" for row in rows)
+    assert any(row["title"] == "Cycle: compare file" and row["kind"] == "check" for row in rows)
+    assert any(row["definition_id"] == "storage.emmc.prepare_request" and row["status"] == "planned" for row in rows)
+    assert not any(str(row["definition_id"]).startswith("android.") for row in rows)
 
 
 def test_run_bridge_emmc_runtime_steps_match_initial_plan_without_additions(tmp_path) -> None:
@@ -217,6 +236,7 @@ def test_run_bridge_emmc_runtime_steps_match_initial_plan_without_additions(tmp_
 
     nodeid = "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client"
     bridge = RunBridge(Path.cwd())
+    bridge._MIN_STEP_RUNNING_DISPLAY_SEC = 0.0
     bridge._stdout_log_path = tmp_path / "logs" / "tmp_main_stdout.log"
     bridge._stderr_log_path = tmp_path / "logs" / "tmp_main_stderr.log"
     bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
@@ -230,17 +250,17 @@ def test_run_bridge_emmc_runtime_steps_match_initial_plan_without_additions(tmp_
     bridge._apply_event(
         {
             "type": "step_started",
-            "step_id": "runtime:prepare",
+            "step_id": "request-1:emmc_rw.cycle.1.copy_file",
             "case_nodeid": nodeid,
-            "title": "Prepare eMMC read/write request",
+            "title": "Cycle 1/1: copy file",
             "kind": "step",
-            "definition_id": "storage.emmc.prepare_request",
+            "definition_id": "emmc_rw.cycle.copy_file",
         }
     )
     bridge._apply_event(
         {
             "type": "step_finished",
-            "step_id": "runtime:prepare",
+            "step_id": "request-1:emmc_rw.cycle.1.copy_file",
             "case_nodeid": nodeid,
             "status": "passed",
         }
@@ -248,11 +268,11 @@ def test_run_bridge_emmc_runtime_steps_match_initial_plan_without_additions(tmp_
     bridge._apply_event(
         {
             "type": "step_started",
-            "step_id": "runtime:trigger",
+            "step_id": "request-1:emmc_rw.cycle.1.read_file",
             "case_nodeid": nodeid,
-            "title": "Trigger eMMC read/write execution",
+            "title": "Cycle 1/1: read file",
             "kind": "step",
-            "definition_id": "storage.emmc.trigger_execution",
+            "definition_id": "emmc_rw.cycle.read_file",
         }
     )
     bridge._apply_event(
@@ -267,8 +287,8 @@ def test_run_bridge_emmc_runtime_steps_match_initial_plan_without_additions(tmp_
     )
     rows = bridge.stepRows()
 
-    assert sum(1 for row in rows if row["definition_id"] == "storage.emmc.prepare_request") == 1
-    assert sum(1 for row in rows if row["definition_id"] == "storage.emmc.trigger_execution") == 1
+    assert sum(1 for row in rows if row["title"] == "Cycle 1/1: copy file") == 1
+    assert sum(1 for row in rows if row["title"] == "Cycle 1/1: read back file") == 1
     assert sum(1 for row in rows if row["definition_id"] == "emmc_rw.execute") == 0
 
 
@@ -299,9 +319,9 @@ def test_run_bridge_execute_summary_step_is_hidden(tmp_path) -> None:
     )
 
     rows = bridge.stepRows()
-    assert any(row["definition_id"] == "storage.emmc.copy_file" for row in rows)
-    assert any(row["definition_id"] == "storage.emmc.read_file" for row in rows)
-    assert any(row["definition_id"] == "storage.emmc.cmp_file" for row in rows)
+    assert any(row["title"] == "Cycle: copy file" for row in rows)
+    assert any(row["title"] == "Cycle: read back file" for row in rows)
+    assert any(row["title"] == "Cycle: compare file" for row in rows)
     assert not any(row["definition_id"] == "emmc_rw.execute" for row in rows)
 
 
@@ -311,6 +331,7 @@ def test_run_bridge_runtime_steps_update_initial_plan_without_duplicates(tmp_pat
 
     nodeid = "testing/tests/android/common/system/test_auto_reboot.py::test_auto_reboot_via_android_client"
     bridge = RunBridge(Path.cwd())
+    bridge._MIN_STEP_RUNNING_DISPLAY_SEC = 0.0
     bridge._stdout_log_path = tmp_path / "logs" / "tmp_main_stdout.log"
     bridge._stderr_log_path = tmp_path / "logs" / "tmp_main_stderr.log"
     bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
@@ -341,18 +362,18 @@ def test_run_bridge_runtime_steps_update_initial_plan_without_duplicates(tmp_pat
     bridge._apply_event(
         {
             "type": "step_started",
-            "step_id": "auto_reboot-request:auto_reboot.prepare",
+            "step_id": "auto_reboot-request:auto_reboot.cycle.1.reboot",
             "case_nodeid": nodeid,
             "parent_id": "step:framework",
-            "title": "Prepare auto reboot request",
-            "kind": "setup",
-            "definition_id": "power.auto_reboot.prepare",
+            "title": "Cycle 1/1: reboot",
+            "kind": "step",
+            "definition_id": "auto_reboot.cycle.reboot",
         }
     )
     bridge._apply_event(
         {
             "type": "step_finished",
-            "step_id": "auto_reboot-request:auto_reboot.prepare",
+            "step_id": "auto_reboot-request:auto_reboot.cycle.1.reboot",
             "case_nodeid": nodeid,
             "status": "passed",
         }
@@ -370,6 +391,7 @@ def test_run_bridge_planned_event_does_not_overwrite_existing_plan_row(tmp_path)
 
     nodeid = "testing/tests/example.py::test_case"
     bridge = RunBridge(Path.cwd())
+    bridge._MIN_STEP_RUNNING_DISPLAY_SEC = 0.0
     bridge._stdout_log_path = tmp_path / "logs" / "tmp_main_stdout.log"
     bridge._stderr_log_path = tmp_path / "logs" / "tmp_main_stderr.log"
     bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
@@ -413,6 +435,7 @@ def test_run_bridge_runtime_step_outside_initial_plan_does_not_add_row(tmp_path)
 
     nodeid = "testing/tests/example.py::test_case"
     bridge = RunBridge(Path.cwd())
+    bridge._MIN_STEP_RUNNING_DISPLAY_SEC = 0.0
     bridge._stdout_log_path = tmp_path / "logs" / "tmp_main_stdout.log"
     bridge._stderr_log_path = tmp_path / "logs" / "tmp_main_stderr.log"
     bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
@@ -506,6 +529,7 @@ def test_run_bridge_dynamic_cycle_step_updates_initial_plan(tmp_path) -> None:
 
     nodeid = "testing/tests/example.py::test_case"
     bridge = RunBridge(Path.cwd())
+    bridge._MIN_STEP_RUNNING_DISPLAY_SEC = 0.0
     bridge._stdout_log_path = tmp_path / "logs" / "tmp_main_stdout.log"
     bridge._stderr_log_path = tmp_path / "logs" / "tmp_main_stderr.log"
     bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
@@ -574,6 +598,7 @@ def test_run_bridge_dynamic_cycle_steps_advance_past_first_cycle(tmp_path) -> No
 
     nodeid = "testing/tests/example.py::test_case"
     bridge = RunBridge(Path.cwd())
+    bridge._MIN_STEP_RUNNING_DISPLAY_SEC = 0.0
     bridge._stdout_log_path = tmp_path / "logs" / "tmp_main_stdout.log"
     bridge._stderr_log_path = tmp_path / "logs" / "tmp_main_stderr.log"
     bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
@@ -637,7 +662,7 @@ def test_run_bridge_dynamic_cycle_steps_advance_past_first_cycle(tmp_path) -> No
     )
 
 
-def test_run_bridge_removes_planned_steps_skipped_by_runtime_order(tmp_path) -> None:
+def test_run_bridge_keeps_planned_steps_bypassed_by_runtime_order(tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
@@ -685,11 +710,11 @@ def test_run_bridge_removes_planned_steps_skipped_by_runtime_order(tmp_path) -> 
     )
 
     rows = bridge.stepRows()
-    assert not any(row["definition_id"] == "example.first" for row in rows)
+    assert any(row["definition_id"] == "example.first" and row["status"] == "planned" for row in rows)
     assert any(row["definition_id"] == "example.second" and row["status"] == "running" for row in rows)
 
 
-def test_run_bridge_removes_unrun_planned_steps_when_case_finishes(tmp_path) -> None:
+def test_run_bridge_keeps_unrun_planned_steps_when_case_finishes(tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
@@ -716,11 +741,11 @@ def test_run_bridge_removes_unrun_planned_steps_when_case_finishes(tmp_path) -> 
     bridge._apply_event({"type": "case_finished", "case_nodeid": nodeid, "status": "passed"})
 
     rows = bridge.stepRows()
-    assert not any(row["definition_id"] == "example.never" for row in rows)
+    assert any(row["definition_id"] == "example.never" and row["status"] == "planned" for row in rows)
     assert any(row["id"] == f"case:{nodeid}" and row["status"] == "passed" for row in rows)
 
 
-def test_run_bridge_marks_unreached_planned_steps_skipped_when_case_fails(tmp_path) -> None:
+def test_run_bridge_keeps_unreached_planned_steps_when_case_fails(tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
@@ -747,5 +772,5 @@ def test_run_bridge_marks_unreached_planned_steps_skipped_when_case_fails(tmp_pa
     bridge._apply_event({"type": "case_finished", "case_nodeid": nodeid, "status": "failed"})
 
     rows = bridge.stepRows()
-    assert any(row["definition_id"] == "example.never" and row["status"] == "skipped" for row in rows)
+    assert any(row["definition_id"] == "example.never" and row["status"] == "planned" for row in rows)
     assert any(row["id"] == f"case:{nodeid}" and row["status"] == "failed" for row in rows)

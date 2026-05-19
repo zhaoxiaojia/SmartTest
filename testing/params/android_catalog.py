@@ -39,6 +39,25 @@ class AndroidCatalogParam:
 
 
 @dataclass(frozen=True)
+class AndroidCatalogCase:
+    category_id: str
+    category_title: str
+    case_id: str
+    title: str
+    objective: str
+    checks: list[str]
+    params: list[AndroidCatalogParam]
+
+
+@dataclass(frozen=True)
+class AndroidCatalogCategory:
+    category_id: str
+    title: str
+    summary: str
+    cases: list[AndroidCatalogCase]
+
+
+@dataclass(frozen=True)
 class AndroidStepTemplate:
     case_id: str
     template_id: str
@@ -75,23 +94,97 @@ def _extract_string_argument(block: str, marker: str) -> str:
     return block[start:end]
 
 
+def _extract_list_strings(block: str, marker: str) -> list[str]:
+    start = block.find(marker)
+    if start < 0:
+        return []
+    start = block.find("(", start)
+    if start < 0:
+        return []
+    values_block, _ = _extract_balanced_block(block, start)
+    values: list[str] = []
+    cursor = 0
+    while True:
+        quote_start = values_block.find('"', cursor)
+        if quote_start < 0:
+            break
+        quote_end = values_block.find('"', quote_start + 1)
+        if quote_end < 0:
+            break
+        values.append(values_block[quote_start + 1 : quote_end])
+        cursor = quote_end + 1
+    return values
+
+
+def _extract_definition_blocks(text: str, name: str) -> list[tuple[str, str]]:
+    blocks: list[tuple[str, str]] = []
+    search_from = 0
+    marker = f"{name}("
+    while True:
+        idx = text.find(marker, search_from)
+        if idx < 0:
+            break
+        block_start = text.find("(", idx)
+        block, block_end = _extract_balanced_block(text, block_start)
+        blocks.append((block, text[search_from:idx]))
+        search_from = block_end
+    return blocks
+
+
+def _extract_function_body(text: str, function_name: str) -> str:
+    marker = f"fun {function_name}"
+    idx = text.find(marker)
+    if idx < 0:
+        return ""
+    start = text.find("{", idx)
+    if start < 0:
+        return ""
+    depth = 0
+    for index in range(start, len(text)):
+        char = text[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : index + 1]
+    return ""
+
+
 def _extract_parameter_blocks(case_block: str) -> list[str]:
     parameters_marker = "parameters = listOf("
     start = case_block.find(parameters_marker)
+    if start >= 0:
+        start = case_block.find("(", start)
+        if start < 0:
+            return []
+        params_block, _ = _extract_balanced_block(case_block, start)
+        return _parameter_blocks_from_text(params_block)
+
+    function_marker = "parameters = "
+    start = case_block.find(function_marker)
     if start < 0:
         return []
-    start = case_block.find("(", start)
-    if start < 0:
+    start += len(function_marker)
+    end = case_block.find("(", start)
+    if end < 0:
         return []
-    params_block, _ = _extract_balanced_block(case_block, start)
+    function_name = case_block[start:end].strip()
+    if not function_name:
+        return []
+    function_body = _extract_function_body(_catalog_path().read_text(encoding="utf-8"), function_name)
+    return _parameter_blocks_from_text(function_body)
+
+
+def _parameter_blocks_from_text(text: str) -> list[str]:
     blocks: list[str] = []
     search_from = 0
     while True:
-        idx = params_block.find("TestParameterDefinition(", search_from)
+        idx = text.find("TestParameterDefinition(", search_from)
         if idx < 0:
             break
-        block_start = params_block.find("(", idx)
-        param_block, block_end = _extract_balanced_block(params_block, block_start)
+        block_start = text.find("(", idx)
+        param_block, block_end = _extract_balanced_block(text, block_start)
         blocks.append(param_block)
         search_from = block_end
     return blocks
@@ -148,46 +241,89 @@ def _extract_template_value(block: str, name: str, position: int, default: str =
 def _iter_case_blocks() -> list[tuple[str, str]]:
     text = _catalog_path().read_text(encoding="utf-8")
     cases: list[tuple[str, str]] = []
-    search_from = 0
-    while True:
-        idx = text.find("TestCaseDefinition(", search_from)
-        if idx < 0:
-            break
-        block_start = text.find("(", idx)
-        case_block, block_end = _extract_balanced_block(text, block_start)
-        search_from = block_end
+    for case_block, _ in _extract_definition_blocks(text, "TestCaseDefinition"):
         case_id = _extract_string_argument(case_block, 'id = "')
         if case_id:
             cases.append((case_id, case_block))
     return cases
 
 
+def _param_from_block(case_id: str, param_block: str) -> AndroidCatalogParam | None:
+    values: list[str] = []
+    cursor = 0
+    while True:
+        quote_start = param_block.find('"', cursor)
+        if quote_start < 0:
+            break
+        quote_end = param_block.find('"', quote_start + 1)
+        if quote_end < 0:
+            break
+        values.append(param_block[quote_start + 1 : quote_end])
+        cursor = quote_end + 1
+    if len(values) < 4:
+        return None
+    param_id, label, hint, default_value = values[:4]
+    return AndroidCatalogParam(
+        case_id=case_id,
+        param_id=param_id,
+        label=label,
+        hint=hint,
+        default_value=default_value,
+    )
+
+
+@lru_cache(maxsize=1)
+def load_android_catalog_categories() -> list[AndroidCatalogCategory]:
+    text = _catalog_path().read_text(encoding="utf-8")
+    categories: list[AndroidCatalogCategory] = []
+    for category_block, _ in _extract_definition_blocks(text, "TestCategoryDefinition"):
+        category_id = _extract_string_argument(category_block, 'id = "')
+        if not category_id:
+            continue
+        category_title = _extract_string_argument(category_block, 'title = "')
+        category_summary = _extract_string_argument(category_block, 'summary = "')
+        cases: list[AndroidCatalogCase] = []
+        for case_block, _ in _extract_definition_blocks(category_block, "TestCaseDefinition"):
+            case_id = _extract_string_argument(case_block, 'id = "')
+            if not case_id:
+                continue
+            params = [
+                param
+                for param_block in _extract_parameter_blocks(case_block)
+                if (param := _param_from_block(case_id, param_block)) is not None
+            ]
+            cases.append(
+                AndroidCatalogCase(
+                    category_id=category_id,
+                    category_title=category_title,
+                    case_id=case_id,
+                    title=_extract_string_argument(case_block, 'title = "'),
+                    objective=_extract_string_argument(case_block, 'objective = "'),
+                    checks=_extract_list_strings(case_block, "checks = listOf("),
+                    params=params,
+                )
+            )
+        categories.append(
+            AndroidCatalogCategory(
+                category_id=category_id,
+                title=category_title,
+                summary=category_summary,
+                cases=cases,
+            )
+        )
+    return categories
+
+
+def load_android_catalog_cases() -> list[AndroidCatalogCase]:
+    return [case for category in load_android_catalog_categories() for case in category.cases]
+
+
 @lru_cache(maxsize=1)
 def load_android_catalog_params() -> dict[str, AndroidCatalogParam]:
     params: dict[str, AndroidCatalogParam] = {}
-    for case_id, case_block in _iter_case_blocks():
-        for param_block in _extract_parameter_blocks(case_block):
-            values: list[str] = []
-            cursor = 0
-            while True:
-                quote_start = param_block.find('"', cursor)
-                if quote_start < 0:
-                    break
-                quote_end = param_block.find('"', quote_start + 1)
-                if quote_end < 0:
-                    break
-                values.append(param_block[quote_start + 1 : quote_end])
-                cursor = quote_end + 1
-            if len(values) < 4:
-                continue
-            param_id, label, hint, default_value = values[:4]
-            params[f"{case_id}:{param_id}"] = AndroidCatalogParam(
-                case_id=case_id,
-                param_id=param_id,
-                label=label,
-                hint=hint,
-                default_value=default_value,
-            )
+    for case in load_android_catalog_cases():
+        for param in case.params:
+            params[f"{param.case_id}:{param.param_id}"] = param
     return params
 
 

@@ -5,6 +5,7 @@ from functools import cached_property
 from typing import Any, Iterable
 
 from .binding import CaseParamBinding, ParamGroup
+from .android_catalog import load_android_catalog_params
 from .options import static_param_options
 from .schema import ParamCategory, ParamField, ParamSchema, ParamScope, ParamValueType
 
@@ -95,25 +96,46 @@ def _case_param_field(
     )
 
 
-_DEFAULT_ANDROID_PARAM_SPECS = [
-    ("emmc_rw:loop_count", "Loop Count", ParamValueType.INT, ParamCategory.EXECUTION, 180, ""),
-    ("emmc_rw:source_profile", "Source Profile", ParamValueType.STRING, ParamCategory.EXECUTION, "random1", ""),
-    ("emmc_rw:source_size_kb", "Source Size (KB)", ParamValueType.INT, ParamCategory.EXECUTION, 51200, ""),
-    ("emmc_rw:min_free_kb", "Minimum Free Space (KB)", ParamValueType.INT, ParamCategory.EXECUTION, 307200, ""),
-    ("emmc_rw:work_dir", "Working Directory", ParamValueType.PATH, ParamCategory.EXECUTION, "/data/local/tmp/smarttest/emmc_rw", ""),
-    ("auto_reboot:cycle_count", "Cycle Count", ParamValueType.INT, ParamCategory.EXECUTION, 20, ""),
-    ("auto_reboot:interval_sec", "Interval Seconds", ParamValueType.INT, ParamCategory.EXECUTION, 100, ""),
-    ("auto_reboot:ping_target", "Ping Target", ParamValueType.STRING, ParamCategory.NETWORK, "", ""),
-    ("auto_reboot:bt_target", "Bluetooth Target", ParamValueType.ENUM, ParamCategory.NETWORK, "", ""),
-    ("auto_suspend:cycle_count", "Cycle Count", ParamValueType.INT, ParamCategory.EXECUTION, 20, ""),
-    ("auto_suspend:interval_sec", "Interval Seconds", ParamValueType.INT, ParamCategory.EXECUTION, 100, ""),
-    ("auto_suspend:ping_target", "Ping Target", ParamValueType.STRING, ParamCategory.NETWORK, "", ""),
-    ("auto_suspend:bt_target", "Bluetooth Target", ParamValueType.ENUM, ParamCategory.NETWORK, "", ""),
-    ("wifi_onoff_scan:cycle_count", "Cycle Count", ParamValueType.INT, ParamCategory.EXECUTION, 2, ""),
-    ("wifi_onoff_scan:ping_target", "Ping Target", ParamValueType.STRING, ParamCategory.NETWORK, "", ""),
-    ("bt_onoff_scan:cycle_count", "Cycle Count", ParamValueType.INT, ParamCategory.EXECUTION, 2, ""),
-    ("bt_onoff_scan:bt_target", "Bluetooth Target", ParamValueType.ENUM, ParamCategory.NETWORK, "", ""),
-]
+def _android_value_type(param_id: str) -> ParamValueType:
+    if param_id.endswith("_dir"):
+        return ParamValueType.PATH
+    if param_id.endswith("_target") and param_id.startswith("bt"):
+        return ParamValueType.ENUM
+    if param_id.endswith("_count") or param_id.endswith("_sec") or param_id.endswith("_kb"):
+        return ParamValueType.INT
+    return ParamValueType.STRING
+
+
+def _android_category(param_id: str) -> ParamCategory:
+    if "target" in param_id:
+        return ParamCategory.NETWORK
+    return ParamCategory.EXECUTION
+
+
+def _android_default_value(raw_value: str, value_type: ParamValueType) -> Any:
+    if value_type == ParamValueType.INT:
+        try:
+            return int(str(raw_value).strip())
+        except ValueError:
+            return 0
+    return raw_value
+
+
+def _android_catalog_fields() -> list[ParamField]:
+    fields: list[ParamField] = []
+    for key, param in sorted(load_android_catalog_params().items()):
+        value_type = _android_value_type(param.param_id)
+        fields.append(
+            _case_param_field(
+                key,
+                param.label,
+                value_type,
+                _android_category(param.param_id),
+                _android_default_value(param.default_value, value_type),
+                param.hint,
+            )
+        )
+    return fields
 
 
 def default_registry() -> SchemaRegistry:
@@ -141,10 +163,7 @@ def default_registry() -> SchemaRegistry:
         "default": ParamSchema(
             schema_id="case_type_default",
             title="Default",
-            fields=[
-                _case_param_field(key, label, value_type, category, default, description)
-                for key, label, value_type, category, default, description in _DEFAULT_ANDROID_PARAM_SPECS
-            ],
+            fields=_android_catalog_fields(),
         ),
     }
 

@@ -41,6 +41,17 @@ Scope: everything under `ui/`.
 - This applies to toggles, combo selections, filter inputs, multi-select state, and similar preference-like controls.
 - Do not implement page-specific ad hoc persistence when a generic `SettingsHelper` getter/setter can be reused.
 
+## Run Page Steps Mechanism
+
+- The Run page steps list is a frontend presentation mechanism owned by the UI bridge/controller layer. QML renders rows and status changes only; it must not infer business step structure from raw runner, APK, or DUT data.
+- Every visible test case, whether pure pytest or an APK-driven pytest wrapper, must declare explicit step information in its `test_xxx.py` entry file. The declaration must cover setup steps, test steps, and checks when checks exist.
+- The APK must not define, mirror, or synthesize frontend step rows. Android-side status may help update progress, but the row catalog, row order, cycle grouping, and check inclusion come from the pytest-side declarations and user config.
+- When the user finishes case configuration and starts a run, the bridge must build the complete initial Run page steps model before execution begins. User config can change loop counts and enable/disable case-specific checks, and those decisions must be reflected before the Run page displays the run.
+- Loop/cycle cases show one row for each declared step inside the cycle. If a cycle has five declared steps, all five rows are displayed. When runtime advances to another cycle, every row in that cycle group refreshes its progress label, for example `3/5`.
+- Each step row has a visible lifecycle: `planned` -> `running` -> `passed` or `failed`. Runtime events that arrive quickly must still let the Run page show `running`; rows must not jump directly from `planned` to terminal state.
+- Runtime updates may only update existing declared rows. They must not delete planned rows, collapse multiple declared cycle rows into one row, or create APK-derived replacement rows. Unmatched runtime steps should be printed as diagnostics with case nodeid, step id, definition id, status/event type, and relevant parameters.
+- Debugging this mechanism requires flow-boundary prints for initial plan loading, selected nodeid/config handoff, event ingestion, row matching, cycle progress refresh, and unmatched runtime updates. Keep temporary prints until the user confirms the behavior.
+
 ## UI Data Source Caching (for selectable lists)
 
 - For user-selectable data-source lists shown in UI (for example device lists, source lists, selectable scopes), the default flow must be:

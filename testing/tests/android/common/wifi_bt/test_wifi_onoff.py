@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from testing.runner.android_client import build_case_params, trigger_android_client_case
+from testing.actions import run_android_client_case
+from testing.runner.android_client import build_case_params
 from testing.runtime import request_case_param
 
 
@@ -12,6 +13,20 @@ pytestmark = pytest.mark.case_type("wifi_bt")
 SMARTTEST_CASE_PLAN = {
     "case_id": "wifi_onoff_scan",
     "steps": [
+        {
+            "id": "wifi_onoff_scan.prepare",
+            "title": "Prepare Wi-Fi on/off request",
+            "kind": "setup",
+            "definition_id": "android_client.prepare_request",
+            "expected": "",
+        },
+        {
+            "id": "wifi_onoff_scan.trigger",
+            "title": "Trigger Wi-Fi on/off execution",
+            "kind": "step",
+            "definition_id": "android_client.trigger_case",
+            "expected": "",
+        },
         {
             "id": "wifi_onoff_scan.cycle.disable",
             "title": "Cycle: disable Wi-Fi",
@@ -37,7 +52,7 @@ SMARTTEST_CASE_PLAN = {
             "id": "wifi_onoff_scan.cycle.ping",
             "title": "Cycle: ping {wifi_onoff_scan:ping_target}",
             "kind": "check",
-            "definition_id": "network.required_ping",
+            "definition_id": "network.ping",
             "expected": "",
         },
     ],
@@ -50,7 +65,7 @@ SMARTTEST_CASE_PLAN = {
     "wifi_onoff_scan:ping_target",
 )
 def test_wifi_onoff_scan_via_android_client(request):
-    trigger_android_client_case(
+    run_android_client_case(
         case_id="wifi_onoff_scan",
         params=build_case_params(
             "wifi_onoff_scan",

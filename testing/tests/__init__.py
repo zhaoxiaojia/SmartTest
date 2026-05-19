@@ -17,16 +17,7 @@ def build_declared_case_plan(
         for key, value in case_config.items()
         if not case_id or str(key).startswith(f"{case_id}:")
     }
-    steps: list[dict[str, Any]] = [
-        {
-            "id": "prepare_runner",
-            "title": "Prepare runner and parameters",
-            "kind": "setup",
-            "definition_id": "smarttest.runner.prepare",
-            "params": dict(params),
-            "expected": "Runner receives selected case and user parameters.",
-        }
-    ]
+    steps: list[dict[str, Any]] = []
     raw_steps = declaration.get("steps", [])
     if not isinstance(raw_steps, list):
         return steps

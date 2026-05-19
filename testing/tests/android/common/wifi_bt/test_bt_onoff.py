@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from testing.runner.android_client import build_case_params, trigger_android_client_case
+from testing.actions import run_android_client_case
+from testing.runner.android_client import build_case_params
 from testing.runtime import request_case_param
 
 
@@ -12,6 +13,20 @@ pytestmark = pytest.mark.case_type("wifi_bt")
 SMARTTEST_CASE_PLAN = {
     "case_id": "bt_onoff_scan",
     "steps": [
+        {
+            "id": "bt_onoff_scan.prepare",
+            "title": "Prepare Bluetooth on/off request",
+            "kind": "setup",
+            "definition_id": "android_client.prepare_request",
+            "expected": "",
+        },
+        {
+            "id": "bt_onoff_scan.trigger",
+            "title": "Trigger Bluetooth on/off execution",
+            "kind": "step",
+            "definition_id": "android_client.trigger_case",
+            "expected": "",
+        },
         {
             "id": "bt_onoff_scan.cycle.disable",
             "title": "Cycle: disable Bluetooth",
@@ -37,7 +52,7 @@ SMARTTEST_CASE_PLAN = {
             "id": "bt_onoff_scan.cycle.bluetooth",
             "title": "Cycle: verify Bluetooth target",
             "kind": "check",
-            "definition_id": "bluetooth.required_verify_target",
+            "definition_id": "bluetooth.verify_target",
             "expected": "",
         },
     ],
@@ -49,7 +64,7 @@ SMARTTEST_CASE_PLAN = {
     "bt_onoff_scan:bt_target",
 )
 def test_bt_onoff_scan_via_android_client(request):
-    trigger_android_client_case(
+    run_android_client_case(
         case_id="bt_onoff_scan",
         params=build_case_params(
             "bt_onoff_scan",

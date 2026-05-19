@@ -11,6 +11,11 @@ from testing.runner import android_client as runner_android_client
 from testing.runtime.events import reset_current_case_nodeid, set_current_case_nodeid
 
 
+@pytest.fixture(autouse=True)
+def disable_android_auto_build(monkeypatch) -> None:
+    monkeypatch.setattr(android_client, "_ensure_debug_apk_built", lambda apk_path: None)
+
+
 def test_install_test_apk_rejects_missing_apk(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
 
@@ -316,7 +321,7 @@ def test_ensure_test_apk_installed_user_case_reuses_existing_privapp(monkeypatch
     assert saved == {}
 
 
-def test_ensure_test_apk_installed_user_case_reuses_stale_privapp_without_update(monkeypatch) -> None:
+def test_ensure_test_apk_installed_user_case_reprovisions_stale_privapp(monkeypatch) -> None:
     monkeypatch.setattr(Path, "exists", lambda self: True)
     monkeypatch.setattr(android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
     monkeypatch.setattr(android_client, "_ensure_device_ready_before_install", lambda **kwargs: None)
@@ -344,13 +349,13 @@ def test_ensure_test_apk_installed_user_case_reuses_stale_privapp_without_update
 
     installed = android_client.ensure_test_apk_installed(adb_serial="ABC123", require_privileged=False)
 
-    assert installed is False
-    assert calls == []
+    assert installed is True
+    assert calls == ["provision"]
     assert install_calls == []
-    assert saved == {}
+    assert saved == {"ABC123|com.smarttest.mobile|C:\\fake.apk": "privapp:hash-new"}
 
 
-def test_ensure_test_apk_installed_user_case_does_not_repair_privapp_record_when_package_exists(monkeypatch) -> None:
+def test_ensure_test_apk_installed_user_case_repairs_privapp_record_when_device_hash_matches(monkeypatch) -> None:
     monkeypatch.setattr(Path, "exists", lambda self: True)
     monkeypatch.setattr(android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
     monkeypatch.setattr(android_client, "_ensure_device_ready_before_install", lambda **kwargs: None)
@@ -371,7 +376,7 @@ def test_ensure_test_apk_installed_user_case_does_not_repair_privapp_record_when
     installed = android_client.ensure_test_apk_installed(adb_serial="ABC123", require_privileged=False)
 
     assert installed is False
-    assert saved == {}
+    assert saved == {"ABC123|com.smarttest.mobile|C:\\fake.apk": "privapp:hash-new"}
 
 
 def test_ensure_test_apk_installed_privileged_case_requires_adb_root_for_stale_user_install(monkeypatch) -> None:

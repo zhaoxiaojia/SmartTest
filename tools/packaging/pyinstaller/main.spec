@@ -40,6 +40,19 @@ android_privapp_permissions = os.path.join(
     "privapp-permissions-com.smarttest.mobile.xml",
 )
 android_client_init = os.path.join(repo_root, "android_client", "__init__.py")
+android_smarttest_catalog = os.path.join(
+    repo_root,
+    "android_client",
+    "app",
+    "src",
+    "main",
+    "java",
+    "com",
+    "smarttest",
+    "mobile",
+    "runner",
+    "SmartTestCatalog.kt",
+)
 
 a = Analysis(
     [mainPath],
@@ -65,6 +78,20 @@ a = Analysis(
         (
             android_client_init,
             "android_client",
+        ),
+        (
+            android_smarttest_catalog,
+            os.path.join(
+                "android_client",
+                "app",
+                "src",
+                "main",
+                "java",
+                "com",
+                "smarttest",
+                "mobile",
+                "runner",
+            ),
         ),
         (
             android_platform_apk,

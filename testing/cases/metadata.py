@@ -52,4 +52,12 @@ def build_case_metadata(item: Any, registry: SchemaRegistry) -> dict[str, object
         "case_type": infer_case_type(item),
         "required_params": required_params,
         "required_param_groups": list(binding.group_ids),
+        "android_case_id": infer_android_case_id(item),
     }
+
+
+def infer_android_case_id(item: Any) -> str:
+    name = str(getattr(item, "name", "") or "").split("[", 1)[0]
+    if name.startswith("test_") and name.endswith("_via_android_client"):
+        return name[len("test_") : -len("_via_android_client")]
+    return ""

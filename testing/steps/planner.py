@@ -2,17 +2,12 @@ from __future__ import annotations
 
 import ast
 import importlib.util
-import re
 from pathlib import Path
 from typing import Any
 
 from testing.actions import ActionPlanContext, get_action
 from testing.cases.catalog import load_runtime_test_catalog
 from testing.tests import build_declared_case_plan, declared_step_enabled
-
-
-_CYCLE_ID_RE = re.compile(r"\.(cycle|loop)\.\d+\.")
-_CYCLE_TITLE_RE = re.compile(r"\b(cycle|loop)\s+\d+\s*/\s*\d+\s*:\s*", re.IGNORECASE)
 
 
 def build_step_plan(
@@ -27,6 +22,7 @@ def build_step_plan(
     if use_catalog_plan:
         catalog_plan = _catalog_step_plan(root_dir=root_dir, nodeid=nodeid, case_config=case_config)
         if catalog_plan:
+            _trace_plan("catalog", nodeid=nodeid, steps=catalog_plan, case_config=case_config)
             return _remove_case_execute_summary_steps(catalog_plan)
     declared_plan = _load_declared_plan(
         root_dir=root_dir,
@@ -38,10 +34,16 @@ def build_step_plan(
         declared_steps = _declared_runtime_steps(root_dir=root_dir, nodeid=nodeid, case_config=case_config)
         mirrored_plan = _android_mirrored_plan(root_dir=root_dir, nodeid=nodeid, case_config=case_config)
         if declared_steps or mirrored_plan:
-            return _remove_case_execute_summary_steps(_merge_plans([*declared_steps, *mirrored_plan]))
-        return _fallback_plan(nodeid=nodeid, case_config=case_config)
+            result = _remove_case_execute_summary_steps(_merge_plans([*declared_steps, *mirrored_plan]))
+            _trace_plan("runtime_ast", nodeid=nodeid, steps=result, case_config=case_config)
+            return result
+        result = _fallback_plan(nodeid=nodeid, case_config=case_config)
+        _trace_plan("fallback", nodeid=nodeid, steps=result, case_config=case_config)
+        return result
     normalized = [_normalize_step(item, index=index) for index, item in enumerate(declared_plan)]
-    return _remove_case_execute_summary_steps(_compact_repeated_cycle_steps(normalized))
+    result = _remove_case_execute_summary_steps(normalized)
+    _trace_plan("declared", nodeid=nodeid, steps=result, case_config=case_config)
+    return result
 
 
 def _catalog_step_plan(*, root_dir: Path, nodeid: str, case_config: dict[str, Any]) -> list[dict[str, Any]]:
@@ -64,7 +66,7 @@ def _catalog_step_plan(*, root_dir: Path, nodeid: str, case_config: dict[str, An
             item["title"] = _resolve_title_placeholders(str(item.get("title", "") or ""), current)
         case_id = str(row.get("android_case_id", "") or "").strip()
         resolved = [item for item in resolved if _step_enabled(item, case_id=case_id)]
-        return _remove_case_execute_summary_steps(_compact_repeated_cycle_steps(resolved))
+        return _remove_case_execute_summary_steps(resolved)
     return []
 
 
@@ -167,41 +169,6 @@ def _merge_plans(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         seen.add(key)
         merged.append(normalized)
     return merged
-
-
-def _looks_like_cycle_step(item: dict[str, Any]) -> bool:
-    raw_id = str(item.get("id", "") or "")
-    title = str(item.get("title", "") or "")
-    return bool(_CYCLE_ID_RE.search(raw_id) or _CYCLE_TITLE_RE.search(title))
-
-
-def _compact_step_id(raw_id: str) -> str:
-    compact = _CYCLE_ID_RE.sub(lambda m: f".{m.group(1)}.", raw_id)
-    return compact
-
-
-def _compact_step_title(title: str) -> str:
-    return _CYCLE_TITLE_RE.sub(lambda m: f"{m.group(1).capitalize()}: ", title).strip()
-
-
-def _compact_repeated_cycle_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    compacted: list[dict[str, Any]] = []
-    seen: set[tuple[str, str, str]] = set()
-    for item in steps:
-        if not _looks_like_cycle_step(item):
-            compacted.append(item)
-            continue
-        kind = str(item.get("kind", "") or "")
-        definition_id = str(item.get("definition_id", "") or "")
-        key = ("cycle", kind, definition_id)
-        if key in seen:
-            continue
-        seen.add(key)
-        compact = dict(item)
-        compact["id"] = _compact_step_id(str(item.get("id", "") or ""))
-        compact["title"] = _compact_step_title(str(item.get("title", "") or ""))
-        compacted.append(compact)
-    return compacted
 
 
 def _is_case_execute_summary_step(item: dict[str, Any]) -> bool:
@@ -390,3 +357,19 @@ def _fallback_plan(*, nodeid: str, case_config: dict[str, Any]) -> list[dict[str
             "expected": "Runner receives selected case and user parameters.",
         },
     ]
+
+
+def _trace_plan(source: str, *, nodeid: str, steps: list[dict[str, Any]], case_config: dict[str, Any]) -> None:
+    print(
+        "[steps.plan] "
+        f"source={source} nodeid={nodeid} count={len(steps)} "
+        f"config_keys={','.join(sorted(str(key) for key in case_config)) or '<none>'}"
+    )
+    for index, step in enumerate(steps, start=1):
+        print(
+            "[steps.plan.item] "
+            f"index={index} id={str(step.get('id', '') or '<empty>')} "
+            f"kind={str(step.get('kind', '') or '<empty>')} "
+            f"definition_id={str(step.get('definition_id', '') or '<empty>')} "
+            f"title={str(step.get('title', '') or '<empty>')}"
+        )
