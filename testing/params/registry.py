@@ -10,6 +10,9 @@ from .options import static_param_options
 from .schema import ParamCategory, ParamField, ParamSchema, ParamScope, ParamValueType
 
 
+CPU_FREQUENCY_PARAM_KEY = "cpu_frequency:frequencies"
+
+
 @dataclass(frozen=True)
 class SchemaRegistry:
     global_context: ParamSchema
@@ -83,6 +86,7 @@ def _case_param_field(
     category: ParamCategory,
     default: Any = "",
     description: str = "",
+    options_source: str = "",
 ) -> ParamField:
     return ParamField(
         key=key,
@@ -93,6 +97,7 @@ def _case_param_field(
         default=default,
         description=description,
         enum_values=static_param_options(key),
+        options_source=options_source,
     )
 
 
@@ -138,6 +143,20 @@ def _android_catalog_fields() -> list[ParamField]:
     return fields
 
 
+def _pure_pytest_case_fields() -> list[ParamField]:
+    return [
+        _case_param_field(
+            CPU_FREQUENCY_PARAM_KEY,
+            "CPU frequencies",
+            ParamValueType.MULTI_ENUM,
+            ParamCategory.EXECUTION,
+            [],
+            "Select the CPU frequencies to switch through.",
+            "testing.actions.cpu_frequency:list_cpu_frequency_options",
+        )
+    ]
+
+
 def default_registry() -> SchemaRegistry:
     """
     Default schemas shipped with SmartTest.
@@ -163,7 +182,10 @@ def default_registry() -> SchemaRegistry:
         "default": ParamSchema(
             schema_id="case_type_default",
             title="Default",
-            fields=_android_catalog_fields(),
+            fields=[
+                *_android_catalog_fields(),
+                *_pure_pytest_case_fields(),
+            ],
         ),
     }
 

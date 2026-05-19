@@ -117,9 +117,14 @@ def main() -> None:
     if mismatches:
         raise SystemExit("Step plan parity check failed:\n" + "\n".join(mismatches))
 
-    missing = [row["nodeid"] for row in payload if not row.get("android_case_id")]
+    missing = [
+        row["nodeid"]
+        for row in payload
+        if str(row.get("name", "") or "").endswith("_via_android_client")
+        and not row.get("android_case_id")
+    ]
     if missing:
-        raise SystemExit("Missing android_case_id for packaged tests:\n" + "\n".join(missing))
+        raise SystemExit("Missing android_case_id for mirrored android_client tests:\n" + "\n".join(missing))
 
 
 if __name__ == "__main__":

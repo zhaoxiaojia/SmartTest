@@ -417,7 +417,10 @@ FluPage {
                                         }
 
                                         Repeater{
-                                            model: TestPageBridge.caseParamFields(case_param_expander.caseNodeId)
+                                            model: {
+                                                var _version = stateVersion
+                                                return TestPageBridge.caseParamFields(case_param_expander.caseNodeId)
+                                            }
                                             ColumnLayout{
                                                 property string caseNodeId: case_param_expander.caseNodeId
                                                 property var fieldData: modelData
@@ -584,6 +587,24 @@ FluPage {
                                                     font: FluTextStyle.Caption
                                                     color: FluTheme.fontSecondaryColor
                                                     wrapMode: Text.WordWrap
+                                                }
+
+                                                ColumnLayout{
+                                                    visible: fieldData.type === "multi_enum"
+                                                    Layout.fillWidth: true
+                                                    spacing: 4
+                                                    Repeater{
+                                                        model: fieldData.enum_values || []
+                                                        FluCheckBox{
+                                                            Layout.alignment: Qt.AlignLeft
+                                                            text: modelData
+                                                            checked: {
+                                                                var _version = stateVersion
+                                                                return TestPageBridge.caseParamListContains(caseNodeId, fieldData.key, modelData)
+                                                            }
+                                                            onClicked: TestPageBridge.setCaseParamListItemSelected(caseNodeId, fieldData.key, modelData, checked)
+                                                        }
+                                                    }
                                                 }
 
                                                 FluToggleSwitch{

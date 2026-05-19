@@ -11,6 +11,7 @@ class ParamValueType(str, Enum):
     FLOAT = "float"
     BOOL = "bool"
     ENUM = "enum"
+    MULTI_ENUM = "multi_enum"
     PATH = "path"
     MULTILINE = "multiline"
 
@@ -30,7 +31,7 @@ class ParamScope(str, Enum):
     CASE = "case"
 
 
-ParamType = Literal["string", "int", "float", "bool", "enum", "path", "multiline"] | ParamValueType
+ParamType = Literal["string", "int", "float", "bool", "enum", "multi_enum", "path", "multiline"] | ParamValueType
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,7 @@ class ParamField:
     group: str = ""
     required: bool = False
     enum_values: list[str] = field(default_factory=list)
+    options_source: str = ""
 
 
 @dataclass(frozen=True)

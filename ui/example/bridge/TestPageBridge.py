@@ -13,8 +13,9 @@ from PySide6.QtGui import QGuiApplication
 from testing.cases.catalog import is_packaged_runtime, load_packaged_test_catalog
 from testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
 from testing.params.adb_devices import list_adb_devices
+from testing.params.options import dynamic_param_options, normalize_option_values, option_cache_key
 from testing.params.registry import SchemaRegistry, default_registry
-from testing.params.schema import ParamField, ParamSchema, ParamScope, defaults_for_schema
+from testing.params.schema import ParamField, ParamSchema, ParamScope, ParamValueType, defaults_for_schema
 from testing.state.local_store import load_pref, save_pref
 from testing.state.models import SelectedCase, TestPageState
 from testing.state.store import load_state, save_state
@@ -27,6 +28,7 @@ class TestPageBridge(QObject):
     _discoveryResult = Signal("QVariantList", int)
     _discoveryError = Signal(str, int)
     _adbRefreshResult = Signal("QVariantList", int)
+    _paramOptionsRefreshResult = Signal("QVariantMap")
 
     def __init__(self, root_dir: Path):
         super().__init__(QGuiApplication.instance())
@@ -40,13 +42,16 @@ class TestPageBridge(QObject):
         self._frontend_pref_path = self._state_path.parent / "frontend_prefs.json"
         self._state = load_state(self._state_path)
         self._adb_devices = self._load_cached_adb_devices()
+        self._param_options = self._load_cached_param_options()
         self._adb_refresh_running = False
         self._adb_refresh_started = False
+        self._param_options_refreshing: set[str] = set()
         self._discovery_running = False
         self._discovery_loaded = False
         self._discoveryResult.connect(self._apply_discovery_result)
         self._discoveryError.connect(self._apply_discovery_error)
         self._adbRefreshResult.connect(self._apply_adb_refresh_result)
+        self._paramOptionsRefreshResult.connect(self._apply_param_options_refresh_result)
         self._ensure_state_defaults()
         self._sync_dut_selection()
 
@@ -100,6 +105,19 @@ class TestPageBridge(QObject):
                 normalized.append(serial)
         save_pref(self._frontend_pref_path, "test.dut.devices", normalized)
 
+    def _load_cached_param_options(self) -> dict[str, list[str]]:
+        cached = load_pref(self._frontend_pref_path, "test.param_options", {})
+        if not isinstance(cached, dict):
+            return {}
+        return {
+            str(key): normalize_option_values(value)
+            for key, value in cached.items()
+            if str(key).strip()
+        }
+
+    def _save_cached_param_options(self) -> None:
+        save_pref(self._frontend_pref_path, "test.param_options", self._param_options)
+
     def _schedule_adb_refresh(self, reason: str) -> None:
         if self._adb_refresh_running:
             self._trace("adb_refresh_skip_running", reason=reason)
@@ -108,10 +126,52 @@ class TestPageBridge(QObject):
         self._trace("adb_refresh_start", reason=reason)
         Thread(target=self._refresh_adb_devices_worker, daemon=True).start()
 
+    def _current_dut_serial(self) -> str:
+        return str(self._state.global_context.get("dut", "") or "").strip()
+
+    def _schedule_param_options_refresh(self, source: str, reason: str) -> None:
+        normalized_source = str(source or "").strip()
+        if not normalized_source:
+            return
+        selected_serial = self._current_dut_serial()
+        cache_key = option_cache_key(normalized_source, selected_serial)
+        if cache_key in self._param_options_refreshing:
+            self._trace("param_options_refresh_skip_running", reason=reason, source=normalized_source)
+            return
+        self._param_options_refreshing.add(cache_key)
+        self._trace(
+            "param_options_refresh_start",
+            reason=reason,
+            source=normalized_source,
+            dut=selected_serial or "<default>",
+        )
+        Thread(
+            target=self._refresh_param_options_worker,
+            args=(normalized_source, selected_serial, cache_key),
+            daemon=True,
+        ).start()
+
     def _refresh_adb_devices_worker(self) -> None:
         started_at = time.monotonic()
         devices = list_adb_devices()
         self._adbRefreshResult.emit(devices, int((time.monotonic() - started_at) * 1000))
+
+    def _refresh_param_options_worker(self, source: str, selected_serial: str, cache_key: str) -> None:
+        started_at = time.monotonic()
+        payload: dict[str, Any] = {
+            "source": source,
+            "dut": selected_serial,
+            "cache_key": cache_key,
+            "options": [],
+            "error": "",
+            "elapsed_ms": 0,
+        }
+        try:
+            payload["options"] = dynamic_param_options(source, selected_serial or None)
+        except Exception as exc:  # noqa: BLE001 - external adb refresh should not break page render
+            payload["error"] = str(exc)
+        payload["elapsed_ms"] = int((time.monotonic() - started_at) * 1000)
+        self._paramOptionsRefreshResult.emit(payload)
 
     @Slot("QVariantList", int)
     def _apply_adb_refresh_result(self, devices: list[Any], elapsed_ms: int) -> None:
@@ -127,7 +187,32 @@ class TestPageBridge(QObject):
         if changed:
             save_state(self._state_path, self._state)
         self._trace("adb_refresh_done", devices=len(self._adb_devices), elapsed_ms=elapsed_ms)
+        self._refresh_selected_param_options("adb_refresh_done")
         self.stateChanged.emit()
+
+    @Slot("QVariantMap")
+    def _apply_param_options_refresh_result(self, payload: dict[str, Any]) -> None:
+        source = str(payload.get("source", "") or "").strip()
+        cache_key = str(payload.get("cache_key", "") or "").strip()
+        elapsed_ms = int(payload.get("elapsed_ms", 0) or 0)
+        error = str(payload.get("error", "") or "").strip()
+        if cache_key:
+            self._param_options_refreshing.discard(cache_key)
+        if error:
+            self._trace("param_options_refresh_error", source=source, elapsed_ms=elapsed_ms, error=error)
+            self.stateChanged.emit()
+            return
+
+        options = normalize_option_values(payload.get("options", []))
+        if not cache_key:
+            cache_key = option_cache_key(source, str(payload.get("dut", "") or "").strip())
+        changed = self._param_options.get(cache_key, []) != options
+        if changed:
+            self._param_options[cache_key] = options
+            self._save_cached_param_options()
+        self._trace("param_options_refresh_done", source=source, options=len(options), elapsed_ms=elapsed_ms)
+        if changed:
+            self.stateChanged.emit()
 
     def _sync_dut_selection(self) -> bool:
         current = str(self._state.global_context.get("dut", "") or "").strip()
@@ -143,6 +228,23 @@ class TestPageBridge(QObject):
             self._state.global_context["dut"] = ""
             return True
         return False
+
+    def _selected_option_sources(self) -> list[str]:
+        sources: list[str] = []
+        for selected in self._state.selected:
+            case = self._case_info(selected.nodeid)
+            if case is None:
+                continue
+            for param_key in list(case.get("required_params", [])):
+                field = self._field_for_key(str(param_key))
+                source = str(field.options_source if field is not None else "").strip()
+                if source and source not in sources:
+                    sources.append(source)
+        return sources
+
+    def _refresh_selected_param_options(self, reason: str) -> None:
+        for source in self._selected_option_sources():
+            self._schedule_param_options_refresh(source, reason)
 
     def _field_label(self, field: ParamField) -> str:
         if field.key == "dut":
@@ -168,11 +270,15 @@ class TestPageBridge(QObject):
             "group": field.group,
             "required": field.required,
             "enum_values": self._enum_values_for_field(field),
+            "options_source": field.options_source,
         }
 
     def _enum_values_for_field(self, field: ParamField) -> list[str]:
         if field.key == "dut":
             return list(self._adb_devices)
+        source = str(field.options_source or "").strip()
+        if source:
+            return list(self._param_options.get(option_cache_key(source, self._current_dut_serial()), []))
         return list(field.enum_values)
 
     def _rebuild_case_indexes(self) -> None:
@@ -224,6 +330,10 @@ class TestPageBridge(QObject):
         if not normalized:
             return None
         return self._registry.get_param(normalized)
+
+    def _is_multi_enum_field(self, field: ParamField) -> bool:
+        field_type = field.type.value if hasattr(field.type, "value") else field.type
+        return field_type == ParamValueType.MULTI_ENUM.value
 
     def _cases_for_file(self, file_path: str) -> list[dict[str, Any]]:
         normalized = (file_path or "").strip()
@@ -314,43 +424,47 @@ class TestPageBridge(QObject):
             return None
 
         if field.scope == ParamScope.GLOBAL_CONTEXT:
-            return self._state.global_context.get(field.key, field.default)
+            value = self._state.global_context.get(field.key, field.default)
+            return normalize_option_values(value) if self._is_multi_enum_field(field) else value
 
         if field.scope == ParamScope.CASE_TYPE_SHARED:
             case_type = str(case.get("case_type") or "default")
             case_type_values = self._state.case_type_configs.get(case_type, {})
-            return case_type_values.get(field.key, field.default)
+            value = case_type_values.get(field.key, field.default)
+            return normalize_option_values(value) if self._is_multi_enum_field(field) else value
 
         case_values = self._state.case_configs.get(str(case.get("nodeid", "")), {})
-        return case_values.get(field.key, field.default)
+        value = case_values.get(field.key, field.default)
+        return normalize_option_values(value) if self._is_multi_enum_field(field) else value
 
     def _set_case_param_value(self, *, nodeid: str, key: str, value: Any) -> bool:
         case = self._case_info(nodeid)
         field = self._field_for_key(key)
         if case is None or field is None:
             return False
+        next_value = normalize_option_values(value) if self._is_multi_enum_field(field) else value
 
         if field.scope == ParamScope.GLOBAL_CONTEXT:
-            if self._state.global_context.get(field.key) == value:
+            if self._state.global_context.get(field.key) == next_value:
                 return False
-            self._state.global_context[field.key] = value
+            self._state.global_context[field.key] = next_value
             return True
 
         if field.scope == ParamScope.CASE_TYPE_SHARED:
             case_type = str(case.get("case_type") or "default")
             self._state.case_type_configs.setdefault(case_type, {})
-            if self._state.case_type_configs[case_type].get(field.key) == value:
+            if self._state.case_type_configs[case_type].get(field.key) == next_value:
                 return False
-            self._state.case_type_configs[case_type][field.key] = value
+            self._state.case_type_configs[case_type][field.key] = next_value
             return True
 
         case_nodeid = str(case.get("nodeid", "")).strip()
         if not case_nodeid:
             return False
         self._state.case_configs.setdefault(case_nodeid, {})
-        if self._state.case_configs[case_nodeid].get(field.key) == value:
+        if self._state.case_configs[case_nodeid].get(field.key) == next_value:
             return False
-        self._state.case_configs[case_nodeid][field.key] = value
+        self._state.case_configs[case_nodeid][field.key] = next_value
         return True
 
     def _selected_nodeids(self) -> list[str]:
@@ -500,6 +614,7 @@ class TestPageBridge(QObject):
             cases=len(self._cases),
             elapsed_ms=elapsed_ms,
         )
+        self._refresh_selected_param_options("discover_done")
 
     @Slot(str, int)
     def _apply_discovery_error(self, message: str, elapsed_ms: int) -> None:
@@ -721,11 +836,18 @@ class TestPageBridge(QObject):
     def caseParamValue(self, nodeid: str, key: str):
         return self._resolve_case_value(nodeid=nodeid, key=key)
 
+    @Slot(str, str, str, result=bool)
+    def caseParamListContains(self, nodeid: str, key: str, value: str) -> bool:
+        values = normalize_option_values(self._resolve_case_value(nodeid=nodeid, key=key))
+        return str(value or "").strip() in values
+
     @Slot(str, bool)
     def setCaseSelected(self, nodeid: str, selected: bool) -> None:
         if not self._set_case_selected(nodeid, selected):
             return
         self._save_and_emit()
+        if selected:
+            self._refresh_selected_param_options("case_selected")
 
     @Slot(str, bool)
     def setFileSelected(self, file_path: str, selected: bool) -> None:
@@ -749,6 +871,8 @@ class TestPageBridge(QObject):
         self._sync_selected_file_order()
         self._reorder_selected_cases_by_file_order()
         self._save_and_emit()
+        if selected:
+            self._refresh_selected_param_options("file_selected")
 
     @Slot(str, result=bool)
     def isCaseSelected(self, nodeid: str) -> bool:
@@ -778,6 +902,8 @@ class TestPageBridge(QObject):
         if self._state.global_context.get(key) == value:
             return
         self._state.global_context[key] = value
+        if key == "dut":
+            self._refresh_selected_param_options("dut_changed")
         self._save_and_emit()
 
     @Slot(str, str, "QVariant")
@@ -791,6 +917,20 @@ class TestPageBridge(QObject):
     @Slot(str, str, "QVariant")
     def setCaseParamValue(self, nodeid: str, key: str, value: Any) -> None:
         if not self._set_case_param_value(nodeid=nodeid, key=key, value=value):
+            return
+        self._save_and_emit()
+
+    @Slot(str, str, str, bool)
+    def setCaseParamListItemSelected(self, nodeid: str, key: str, value: str, selected: bool) -> None:
+        option = str(value or "").strip()
+        if not option:
+            return
+        current = normalize_option_values(self._resolve_case_value(nodeid=nodeid, key=key))
+        if selected and option not in current:
+            current.append(option)
+        if not selected:
+            current = [item for item in current if item != option]
+        if not self._set_case_param_value(nodeid=nodeid, key=key, value=current):
             return
         self._save_and_emit()
 

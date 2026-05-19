@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from testing.params.android_catalog import load_android_catalog_cases
 from testing.params.registry import default_registry
+from testing.params.schema import ParamValueType
+
+CPU_FREQUENCY_PARAM_KEY = "cpu_frequency:frequencies"
 
 
 def test_default_registry_resolves_group_members():
@@ -91,6 +94,10 @@ def test_default_registry_includes_android_client_emmc_params():
     assert registry.get_param("wifi_onoff_scan:ping_target") is not None
     assert registry.get_param("bt_onoff_scan:cycle_count") is not None
     assert registry.get_param("bt_onoff_scan:bt_target") is not None
+    cpu_frequency_param = registry.get_param(CPU_FREQUENCY_PARAM_KEY)
+    assert cpu_frequency_param is not None
+    assert cpu_frequency_param.type == ParamValueType.MULTI_ENUM
+    assert cpu_frequency_param.options_source == "testing.actions.cpu_frequency:list_cpu_frequency_options"
 
 
 def test_default_registry_uses_fixed_bluetooth_target_list():

@@ -64,6 +64,16 @@ Scope: everything under `ui/`.
 - For bridge-owned UI preferences, use the shared local JSON preference store (`testing/state/local_store.py`) instead of adding one-off per-feature persistence helpers.
 - Keep tool capability modules (for example `testing/params/adb_devices.py`) free of UI cache persistence responsibilities.
 
+## Test Parameter Option Sources
+
+- Test case parameter categories and field contracts are fixed by the `testing/params` schema/registry layer. QML must only render the field view model returned by the bridge.
+- Dynamic selectable ranges must be declared by parameter metadata, such as an option source id, not by parameter-key special cases in QML or page code.
+- On Test page load, the bridge should refresh DUT identity first, then refresh the dynamic option sources needed by the currently selected cases. Cached options may be shown immediately while refresh runs.
+- When the selected DUT or selected cases change, the bridge should refresh only the affected dynamic option sources.
+- Do not add per-case or per-parameter refresh methods/signals to `TestPageBridge` for every new parameter. Add or register a provider in the parameter layer, then let the generic bridge refresh path handle it.
+- UI getters such as field/model readers must be side-effect free. External commands and DUT interaction should run from page-load, user-refresh, DUT-change, or selection-change refresh flows.
+- Dynamic option caches must be keyed by option source and DUT identity when the result depends on the connected DUT.
+
 ## Layering
 
 - Keep UI logic in QML/FluentUI and thin Python bridges (signals/slots).
