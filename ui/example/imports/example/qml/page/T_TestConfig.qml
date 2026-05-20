@@ -661,9 +661,22 @@ FluPage {
                     width: parent.width
                     spacing: 10
 
-                    FluText{
-                        text: qsTr("DUT")
-                        font: FluTextStyle.Subtitle
+                    RowLayout{
+                        Layout.fillWidth: true
+                        spacing: 8
+                        FluText{
+                            text: qsTr("DUT")
+                            font: FluTextStyle.Subtitle
+                            Layout.fillWidth: true
+                        }
+                        FluIconButton{
+                            iconSource: FluentIcons.Sync
+                            iconSize: 14
+                            width: 32
+                            height: 32
+                            text: qsTr("Refresh")
+                            onClicked: TestPageBridge.refreshGlobalSchema()
+                        }
                     }
 
                     Repeater{
@@ -671,39 +684,50 @@ FluPage {
                             var _version = stateVersion
                             return TestPageBridge.globalSchema().fields
                         }
-                        RowLayout{
+                        ColumnLayout{
                             Layout.fillWidth: true
-                            spacing: 8
+                            spacing: 6
+                            property var fieldData: modelData
+                            property var fieldOptions: fieldData.enum_values || []
                             FluText{
-                                text: modelData.label
-                                Layout.preferredWidth: 140
+                                text: fieldData.label
+                                Layout.fillWidth: true
                                 elide: Text.ElideRight
                             }
                             FluComboBox{
-                                id: combo_dut
-                                visible: modelData.type === "enum"
+                                id: combo_global_param
+                                visible: fieldData.type === "enum"
                                 Layout.fillWidth: true
-                                model: modelData.enum_values || []
+                                enabled: fieldOptions.length > 0
+                                model: fieldOptions
                                 currentIndex: {
                                     var _version = stateVersion
-                                    var options = modelData.enum_values || []
-                                    var currentValue = TestPageBridge.globalContext()[modelData.key] + ""
+                                    var options = fieldOptions
+                                    var currentValue = TestPageBridge.globalContext()[fieldData.key] + ""
                                     return options.indexOf(currentValue)
                                 }
                                 onDownChanged: {
-                                    if(down && modelData.key === "dut"){
+                                    if(down && fieldData.key === "dut"){
                                         TestPageBridge.refreshGlobalSchema()
                                     }
                                 }
                                 onActivated: {
                                     if(currentIndex >= 0){
-                                        TestPageBridge.setGlobalValue(modelData.key, currentText)
+                                        TestPageBridge.setGlobalValue(fieldData.key, currentText)
                                     }
                                 }
                             }
+                            FluText{
+                                visible: fieldData.key === "dut" && fieldOptions.length === 0
+                                Layout.fillWidth: true
+                                text: qsTr("No DUT")
+                                font: FluTextStyle.Caption
+                                color: FluTheme.fontSecondaryColor
+                                wrapMode: Text.WordWrap
+                            }
                             FluTextBox{
                                 id: text_global_param
-                                visible: modelData.type !== "enum"
+                                visible: fieldData.type !== "enum"
                                 Layout.fillWidth: true
                                 Binding {
                                     target: text_global_param
@@ -711,17 +735,18 @@ FluPage {
                                     when: text_global_param.visible && !text_global_param.activeFocus
                                     value: {
                                         var _version = stateVersion
-                                        var value = TestPageBridge.globalContext()[modelData.key]
+                                        var value = TestPageBridge.globalContext()[fieldData.key]
                                         return value === undefined || value === null ? "" : (value + "")
                                     }
                                 }
-                                onTextChanged: TestPageBridge.setGlobalValue(modelData.key, text)
-                                onEditingFinished: TestPageBridge.setGlobalValue(modelData.key, text)
+                                onTextChanged: TestPageBridge.setGlobalValue(fieldData.key, text)
+                                onEditingFinished: TestPageBridge.setGlobalValue(fieldData.key, text)
+                            }
+                            FluDivider{
+                                Layout.fillWidth: true
                             }
                         }
                     }
-
-                    FluDivider{}
                 }
             }
         }

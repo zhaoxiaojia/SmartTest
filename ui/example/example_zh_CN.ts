@@ -4422,6 +4422,16 @@ Some contents...</source>
         <translation>DUT</translation>
     </message>
     <message>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="656"/>
+        <source>Refresh</source>
+        <translation>刷新</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="710"/>
+        <source>No DUT</source>
+        <translation>无 DUT</translation>
+    </message>
+    <message>
         <location filename="imports/example/qml/page/T_TestConfig.qml" line="713"/>
         <source>Stop</source>
         <translation>停止</translation>
