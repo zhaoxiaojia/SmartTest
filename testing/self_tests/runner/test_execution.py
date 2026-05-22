@@ -59,4 +59,5 @@ def test_packaged_runtime_uses_bundled_python_pytest_runner(monkeypatch, tmp_pat
     assert kwargs["cwd"] == str(runtime_root.resolve())
     env = kwargs["env"]
     assert "SMARTTEST_STEP_EVENTS_OUT" in env
+    assert "SMARTTEST_RUN_CONFIG_JSON" in env
     assert "SMARTTEST_CASE_CONFIGS_JSON" in env

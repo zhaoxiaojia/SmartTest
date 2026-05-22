@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any, Iterable
 
-from .binding import CaseParamBinding, ParamGroup
 from .android_catalog import load_android_catalog_params
+from .binding import CaseParamBinding, ParamGroup
 from .options import static_param_options
 from .schema import ParamCategory, ParamField, ParamSchema, ParamScope, ParamValueType
 
@@ -81,21 +81,17 @@ class SchemaRegistry:
 
 def _case_param_field(
     key: str,
-    label: str,
     value_type: ParamValueType,
     category: ParamCategory,
     default: Any = "",
-    description: str = "",
     options_source: str = "",
 ) -> ParamField:
     return ParamField(
         key=key,
-        label=label,
         type=value_type,
         category=category,
         scope=ParamScope.CASE,
         default=default,
-        description=description,
         enum_values=static_param_options(key),
         options_source=options_source,
     )
@@ -133,11 +129,9 @@ def _android_catalog_fields() -> list[ParamField]:
         fields.append(
             _case_param_field(
                 key,
-                param.label,
                 value_type,
                 _android_category(param.param_id),
                 _android_default_value(param.default_value, value_type),
-                param.hint,
             )
         )
     return fields
@@ -146,14 +140,54 @@ def _android_catalog_fields() -> list[ParamField]:
 def _pure_pytest_case_fields() -> list[ParamField]:
     return [
         _case_param_field(
+            "ac_onoff:cycle_count",
+            ParamValueType.INT,
+            ParamCategory.EXECUTION,
+            20,
+        ),
+        _case_param_field(
+            "ac_onoff:power_off_sec",
+            ParamValueType.INT,
+            ParamCategory.EXECUTION,
+            5,
+        ),
+        _case_param_field(
+            "ac_onoff:power_off_step_sec",
+            ParamValueType.FLOAT,
+            ParamCategory.EXECUTION,
+            0,
+        ),
+        _case_param_field(
+            "ac_onoff:power_on_wait_sec",
+            ParamValueType.INT,
+            ParamCategory.EXECUTION,
+            60,
+        ),
+        _case_param_field(
+            "ac_onoff:power_on_wait_step_sec",
+            ParamValueType.FLOAT,
+            ParamCategory.EXECUTION,
+            0,
+        ),
+        _case_param_field(
+            "ac_onoff:ping_target",
+            ParamValueType.STRING,
+            ParamCategory.NETWORK,
+            "",
+        ),
+        _case_param_field(
+            "ac_onoff:bt_target",
+            ParamValueType.ENUM,
+            ParamCategory.NETWORK,
+            "",
+        ),
+        _case_param_field(
             CPU_FREQUENCY_PARAM_KEY,
-            "CPU frequencies",
             ParamValueType.MULTI_ENUM,
             ParamCategory.EXECUTION,
             [],
-            "Select the CPU frequencies to switch through.",
             "testing.actions.cpu_frequency:list_cpu_frequency_options",
-        )
+        ),
     ]
 
 
@@ -165,11 +199,9 @@ def default_registry() -> SchemaRegistry:
     """
     global_context = ParamSchema(
         schema_id="global_context",
-        title="Global",
         fields=[
             ParamField(
                 key="dut",
-                label="DUT",
                 type=ParamValueType.ENUM,
                 category=ParamCategory.DEVICE,
                 scope=ParamScope.GLOBAL_CONTEXT,
@@ -181,7 +213,6 @@ def default_registry() -> SchemaRegistry:
     case_type_schemas = {
         "default": ParamSchema(
             schema_id="case_type_default",
-            title="Default",
             fields=[
                 *_android_catalog_fields(),
                 *_pure_pytest_case_fields(),
@@ -192,7 +223,6 @@ def default_registry() -> SchemaRegistry:
     param_groups = {
         "dut_identity": ParamGroup(
             group_id="dut_identity",
-            title="DUT",
             param_keys=["dut"],
         ),
     }

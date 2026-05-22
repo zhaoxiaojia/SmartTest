@@ -1,8 +1,13 @@
 # SmartTest Agent Rules (Codex)
 
-This file defines how Codex should work in this repository.
+This file defines repository-wide hard rules. Detailed task workflows live in project skills under `.codex/skills/`.
 
-## 0. Default Priorities
+## 0. Project Skills
+
+- Use `.codex/skills/smarttest-ui-workflow/SKILL.md` for UI/QML/FluentUI, bridge view models, translations, QRC rebuilds, and source/package UI validation.
+- Use `.codex/skills/smarttest-testing-workflow/SKILL.md` for pytest discovery/run flow, parameters, DUT serial handling, lab equipment, steps, reports, and Android mirrored cases.
+
+## 1. Default Priorities
 
 1. Prefer existing FluentUI components/styles/effects from the codebase.
 2. Preserve known-good behavior: if the user says "this used to work", treat it as a regression and fix root cause.
@@ -11,174 +16,97 @@ This file defines how Codex should work in this repository.
 5. Design and verify toward the installed/packaged runtime first. `python main.py` debug runs are useful for development, but final behavior must match the normal installed app.
 6. During development/debugging, do not rebuild the packaged app/installer after every change. Rebuild packaged artifacts only when the user explicitly asks, when preparing a release handoff, or when the change specifically targets packaged-runtime behavior.
 
-## 1. Frontend Rules (FluentUI First)
+## 2. Frontend Hard Rules
 
-- For any UI requirement, first search and reuse existing FluentUI QML controls and patterns already present in this repo (example gallery, controls, styles, animations).
-- If a requirement cannot be met cleanly with existing FluentUI controls, stop and discuss tradeoffs before introducing new UI code or alternative libraries.
-- Do not replace FluentUI controls with Qt Quick Controls equivalents "for simplicity" without explicit user approval.
+- Prefer existing FluentUI QML controls and patterns; do not replace them with Qt Quick Controls or other UI libraries without explicit user approval.
+- QML is display-oriented. Bridge/controller Python owns business-facing view models, ordering, grouping, parameter applicability, and Test page relationships.
+- Frontend-owned text must use the translation system and ship with both `en_US` and `zh_CN`. External/system text remains raw.
+- All fixed frontend display text has one resource entrypoint: `ui/example/example_en_US.ts` and `ui/example/example_zh_CN.ts`. The testing layer must not own UI wording; `testing/` may expose machine-readable keys, types, defaults, scopes, option sources, and runtime results, but not frontend labels, descriptions, hints, titles, locale strings, or bilingual text.
+- User-visible UI selections persist by default unless explicitly transient.
+- QRC-backed changes must rebuild the relevant `resource_rc.py` before handoff.
+- Distinguish source-run validation from packaged app validation. Do not imply `SmartTest.exe` contains source edits unless a packaging/build step has been completed.
 
-### QRC Resource Rebuild
-
-- `ui/example/main.py` loads QML from `qrc:/...`, not directly from source files.
-- After any change to files covered by `ui/example/imports/resource.qrc`, you must rebuild `ui/example/imports/resource_rc.py` before handing off or asking the user to run the app.
-- Use this command from repo root:
-  - `.\.venv\Scripts\pyside6-rcc.exe ui\example\imports\resource.qrc -o ui\example\imports\resource_rc.py`
-- If FluentUI resource files under `ui/FluentUI/imports/resource.qrc` are changed, rebuild that resource file too before finishing.
-
-### UI Verification After Rebuild
-
-- Rebuilding `resource_rc.py` is required but not sufficient. After rebuilding, verify that the updated resource is actually loadable before handoff.
-- Minimum verification for `ui/example/imports/resource.qrc` changes:
-  - confirm `ui/example/imports/resource_rc.py` has been regenerated after the edited QML file
-  - run the app from the source entrypoint at repo root: `.\.venv\Scripts\python.exe main.py`
-  - if a full interactive run is not practical, perform a short startup validation and inspect startup logs/errors
-- If the user reports a QML runtime error after a UI change, do not assume rebuild already took effect. Rebuild again, then reproduce from the source entrypoint before answering.
-- Do not rely on static inspection alone for QRC-backed UI changes when a runtime validation is feasible.
-
-### Source vs Packaged App
-
-- Distinguish clearly between the source-run app and packaged binaries.
-- The product target is the installed/packaged app ("run"), not only the source/debug path ("debug run").
-- The product target is the installed/packaged app ("运行"), not only the source/debug path ("调试运行"). Development decisions must account for packaged runtime behavior such as `sys.frozen`, bundled resources, subprocess behavior, and stale installed artifacts.
-- Source validation must use repo root `main.py`, which ensures the in-repo `ui/` packages are imported first.
-- Do not assume `SmartTest.exe` reflects current source edits. A previously built exe may contain stale QML/resources.
-- Before telling the user to test with `SmartTest.exe`, confirm whether a packaging/build step is also required and say so explicitly.
-- If source-run and packaged-run behavior differ, treat packaged-run as the release target and debug the divergence instead of accepting source-run success as sufficient.
-- During iterative development/debugging, do not rebuild packaged artifacts automatically. If packaging is required for release validation or the user explicitly asks for `SmartTest.exe` / installer testing, rebuild the packaged artifact before handoff whenever possible. If packaging cannot be completed, state the blocker and do not imply that the installed app includes the changes.
-- In handoff notes for UI work, state which entrypoint was verified:
-  - source: `.\.venv\Scripts\python.exe main.py`
-  - packaged: `SmartTest.exe` or other built artifact
-
-## 2. Backend/Framework Layering
+## 3. Backend/Framework Layering
 
 Target architecture:
 
-- `ui/`: QML/FluentUI app code and UI assets (run from source).
-- `testing/`: pytest invocation, collection, reporting, cancellation, and tests.
+- `ui/`: QML/FluentUI app code, UI assets, and thin Python bridges.
+- `testing/`: pytest invocation, collection, runtime config, actions, tools, reporting, cancellation, and tests.
 - `debug/`: reserved for debugging utilities, log viewers, tooling.
 - `jira/`: reserved for Jira integration (API client, auth, mappings).
 
 Guidelines:
 
-- Keep UI logic in QML/FluentUI and thin Python bridges (signals/slots).
-- Keep pytest logic isolated: no UI imports inside runner code.
+- Keep pytest logic isolated: no UI imports inside runner/runtime/action/tool code.
+- UI/QML must not import `testing/` directly; use registered Python bridges.
 - When adding new modules, put them into the appropriate layer folder even if the feature is not finished yet.
 
-## 2.1 Strict Ownership / Decoupling
+## 4. Strict Ownership / Decoupling
 
 - All business code must belong to exactly one layer. Do not place "shared" logic into a random folder.
 - If ownership is ambiguous, stop and ask the user before writing code.
-- UI work must stay in the UI layer (FluentUI/QML usage). Test execution logic must stay in the pytest layer.
-- Keep layers strictly decoupled to keep issues easy to localize and fix.
-- Except for test case development under `testing/tests`, all changes must be rule/mechanism-level by default.
-- Do not add code that only affects one specific case, scenario, parameter value, or condition unless the user explicitly asks for that special business handling.
+- Except for test case development under `testing/tests`, changes must be rule/mechanism-level by default.
+- Do not add code that only affects one specific case, scenario, parameter value, or condition unless the user explicitly asks for that special handling.
 - Static special-case code is not allowed by default. Requirements should be implemented through reusable rules, data contracts, state transitions, or shared mechanisms.
 
-## 2.2 Architecture Optimization Principles
+## 5. Architecture Optimization Principles
 
 Apply these principles when improving existing modules or adding new ones:
 
-- Decoupling:
-  - Reduce direct module-to-module knowledge.
-  - Prefer stable interfaces, injected dependencies, and event/message style coordination over hard references.
-- High cohesion:
-  - Keep each module focused on one business responsibility.
-  - If a class or file is doing unrelated jobs, split it by responsibility rather than growing condition branches.
-- Depend on abstractions:
-  - Depend on contracts, protocols, service interfaces, or narrow bridge APIs rather than concrete implementations.
-  - Keep callers stable when implementations change.
-- Encapsulation:
-  - Hide internal state and implementation details.
-  - Expose the minimum surface needed by the caller; avoid leaking raw internal structures when a shaped view model is better.
-- Composition over inheritance:
-  - Prefer assembling smaller services/components instead of building deep inheritance chains.
-  - Use inheritance only for true `is-a` relationships; prefer composition for `has-a` relationships.
-- Open/closed principle:
-  - Extend behavior by adding new implementations, adapters, or handlers where practical.
-  - Avoid rewriting stable code paths when a new strategy/module can be introduced alongside them.
-- Dependency injection:
-  - Pass dependencies in from the outside where practical, especially for services, clients, caches, and adapters.
-  - Prefer constructor injection or explicit factory assembly over hidden global lookups.
-- YAGNI:
-  - Implement what the current product needs, not speculative framework layers.
-  - Start simple, then refactor once a real second use case or extension point exists.
+- Reduce direct module-to-module knowledge; prefer stable interfaces, injected dependencies, and event/message style coordination.
+- Keep each module focused on one business responsibility.
+- Depend on contracts, protocols, service interfaces, or narrow bridge APIs rather than concrete implementations.
+- Hide internal state and expose the minimum surface needed by the caller.
+- Prefer composition over inheritance unless there is a true `is-a` relationship.
+- Extend behavior with new implementations, adapters, or handlers when practical.
+- Pass dependencies in from the outside where practical, especially for services, clients, caches, and adapters.
+- Implement what the current product needs; avoid speculative framework layers.
 
-### Practical Review Questions
+Before finalizing a refactor, check:
 
-Before finalizing an optimization or refactor, check:
+- Does this reduce coupling, or just move code around?
+- Is each module/class easier to describe in one sentence?
+- Is the new abstraction needed now?
+- Did business ownership remain clear by layer?
+- Did extension points improve without making the common path harder?
 
-- Does this change reduce coupling, or just move code around?
-- Is each module/class easier to describe in one sentence after the change?
-- Did we introduce a new abstraction because it is already needed now, or only because it might be useful later?
-- Did we keep business ownership clear by layer?
-- Did we improve extension points without making the common path harder to follow?
-
-### Controller-Owned UI Data
-
-- QML is display-only for business data: show/hide, layout, visual state, and emitting user actions.
-- Do not rebuild business relationships inside QML from raw data snapshots.
-- For the Test page specifically, these relationships must be produced by Python bridge/controller code, not recomputed in QML:
-  - `TestTree -> Selected`
-  - `Selected -> Parameter`
-  - `TestTree -> Selected -> CaseType`
-- UI-only state may stay in QML when it is purely presentational, such as:
-  - current filter text
-  - expand/collapse state
-  - focus state
-  - transient drag hover visuals
-- If QML starts assembling ordered models, grouping trees, selection mappings, or parameter applicability from raw case data, move that logic into the bridge/controller layer.
-
-## 3. Bug Fix Policy (No Workarounds)
+## 6. Bug Fix Policy (No Workarounds)
 
 When the user says a feature "was working before":
 
 - Do not bypass it with a new implementation.
-- Do not "paper over" with a different code path.
-- Find the root cause and fix it where it belongs (correct module, correct abstraction).
+- Do not paper over it with a different code path.
+- Find the root cause and fix it where it belongs.
 - Keep the fix scoped to the bug; do not refactor unrelated areas.
 
-If the root cause is unclear:
+For bug investigations:
 
-- Ask clarifying questions before changing code.
-- Provide a short hypothesis list and a minimal plan to validate it.
+- Use logs or prints from the relevant flow before changing behavior.
+- If current logs are insufficient, add minimal temporary prints at flow boundaries.
+- Debug prints should expose business identity such as selected nodeid, Android case id, request id, step id, definition id, status, and parameter set.
+- Fix the exact mismatch or failing transition first.
+- Remove temporary debug prints after they have served their purpose.
+- Do not add case-specific fixes for examples such as eMMC or reboot; fix the shared mechanism.
 
-### Debugging Evidence and Fix Order
-
-- Every bug investigation must be backed by explicit logs or prints from the relevant flow. Do not guess across UI -> runner -> DUT boundaries without evidence.
-- When the user asks to analyze prints/logs first, only inspect and compare the available output before proposing code changes. Do not modify business code until the user explicitly approves a fix; updating repository instruction files such as `AGENTS.md` is allowed only when requested.
-- For all bug investigations, do not modify behavior until the available prints/logs can point to a concrete root cause. If the current logs are insufficient, add more targeted flow-boundary prints that show code execution, state transitions, and data handoff across UI, runner, pytest, DUT, and reporting layers.
-- If existing logs do not show the flow handoff clearly, add minimal temporary prints at the flow transition points before changing behavior.
-- Debug prints should expose the business identity being handed off, such as selected nodeid, Android case id, request id, step id, definition id, status, and parameter set.
-- Use the prints to identify the exact mismatch or failing transition first. After the print exposes the issue, fix by adjusting the existing logic before adding new code.
-- When adding temporary prints for diagnosis, keep them until the user explicitly confirms the behavior meets the requirement, then remove or comment them.
-- Prefer modifying the current condition, state transition, ordering, or data mapping. Add new helpers, state, or branches only when the current structure cannot express the required mechanism.
-- Do not add case-specific targeted fixes for a single test such as eMMC or reboot. Fix the shared mechanism that produced the problem.
-- Remove temporary debug prints after they have served their purpose. Keep only minimal, stable business diagnostics that are useful for future flow comparison.
-## 4. Minimal-Defense Coding Style
-
-Goal: avoid "try/except everywhere" and "if everywhere" that hides bugs.
+## 7. Minimal-Defense Coding Style
 
 - Do not add broad `try/except` blocks to suppress errors.
 - Do not add speculative guard checks that merely avoid crashes without addressing the cause.
-- Use concise value normalization where appropriate (e.g., ternary expressions for empty-string defaults).
+- Use concise value normalization where appropriate.
+- Handle errors at external I/O boundaries and user-input boundaries to produce clear, actionable messages.
 
-Allowed exceptions (must be explicit and minimal):
+## 8. Collaboration Workflow For Large Modules
 
-- External I/O boundaries (network, filesystem, subprocess): handle errors to produce a clear, actionable message.
-- User-provided inputs: validate at the boundary (not deep inside unrelated functions).
+For any large business module request (new subsystem, cross-layer changes, new data model, new UI navigation concept), discuss first:
 
-## 5. Collaboration Workflow for Large Modules
+- proposed module boundaries
+- folder layout
+- public interfaces (signals/slots, Python APIs)
+- expected flows (UI -> controller -> runner -> results)
 
-For any "large business module" request (new subsystem, cross-layer changes, new data model, new UI navigation concept):
+Only implement after the user confirms the approach.
 
-- Stop and discuss first:
-  - proposed module boundaries
-  - folder layout
-  - public interfaces (signals/slots, Python APIs)
-  - expected flows (UI -> controller -> runner -> results)
-- Only implement after the user confirms the approach.
-
-## 6. External Links / Upstream Coupling
+## 9. External Links / Upstream Coupling
 
 - Do not add hard-coded links to upstream author repos or services.
-- OTA/update mechanisms must be configurable (endpoints provided by SmartTest), disabled by default.
+- OTA/update mechanisms must be configurable through SmartTest-owned endpoints and disabled by default.

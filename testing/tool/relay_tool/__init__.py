@@ -60,7 +60,7 @@ def get_relay_controller(
         press_seconds = kwargs.get("press_seconds")
         return UsbRelayController(str(port), mode=mode, press_seconds=press_seconds)
 
-    if relay_key == "gwgj-xc3012":
+    if relay_key in {"gwgj-xc3012", "snmp_pdu", "snmp-pdu", "pdusnmp", "pdu_snmp"}:
         from .pdusnmp import power_ctrl
 
         params = relay_params or ()

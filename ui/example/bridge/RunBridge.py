@@ -13,12 +13,12 @@ from uuid import uuid4
 from PySide6.QtCore import QObject, Property, QStandardPaths, QTimer, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from testing.params.adb_devices import list_adb_devices
 from testing.reporting import ReportStore, build_run_report
-from testing.cases.catalog import is_packaged_runtime, load_runtime_test_catalog
+from testing.cases.catalog import is_packaged_runtime
+from testing.runner.config import RunConfig, build_run_config_from_state, resolve_dut_serial
 from testing.runner.execution import TestRunSession, start_pytest_run
 from testing.steps import build_step_plan
-from testing.state.store import load_state, save_state
+from testing.state.store import load_state
 
 
 class RunBridge(QObject):
@@ -90,85 +90,25 @@ class RunBridge(QObject):
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
     def _resolve_adb_serial(self, saved_dut: str) -> str | None:
-        devices = list_adb_devices()
         normalized_saved = str(saved_dut or "").strip()
-        print(f"{self._trace_timestamp()} [RunBridge] discovered adb devices: {devices}")
         print(f"{self._trace_timestamp()} [RunBridge] saved dut: {normalized_saved or '<empty>'}")
-        raw_saved = str(saved_dut or "").strip()
-        if raw_saved and raw_saved in devices:
-            return raw_saved
-        if len(devices) == 1:
-            return devices[0]
-        return None
+        return resolve_dut_serial(normalized_saved)
 
-    def _selected_run_targets(self) -> tuple[list[str], str | None, dict[str, dict[str, Any]]]:
-        state_path = self._default_state_path()
-        state = load_state(state_path)
-        raw_nodeids = [case.nodeid for case in state.selected if case.nodeid]
-        saved_dut = str(state.global_context.get("dut", "") or "").strip()
-        adb_serial = self._resolve_adb_serial(saved_dut)
-        if adb_serial and adb_serial != saved_dut:
-            state.global_context["dut"] = adb_serial
-            save_state(state_path, state)
-        raw_case_configs = {
-            nodeid: dict(state.case_configs.get(nodeid, {}))
-            for nodeid in raw_nodeids
-            if isinstance(state.case_configs.get(nodeid, {}), dict)
-        }
-        nodeids, case_configs = self._normalize_selected_run_inputs(raw_nodeids, raw_case_configs)
-        return nodeids, adb_serial, case_configs
+    def _selected_run_config(self) -> RunConfig:
+        state = load_state(self._default_state_path())
+        run_config, diagnostics = build_run_config_from_state(root_dir=self._root_dir, state=state)
+        for line in diagnostics:
+            print(line)
+            self._append_log(line)
+        return run_config
 
     def _selected_run_inputs(self) -> tuple[list[str], str, dict[str, dict[str, Any]]]:
-        state = load_state(self._default_state_path())
-        raw_nodeids = [case.nodeid for case in state.selected if case.nodeid]
-        saved_dut = str(state.global_context.get("dut", "") or "").strip()
-        raw_case_configs = {
-            nodeid: dict(state.case_configs.get(nodeid, {}))
-            for nodeid in raw_nodeids
-            if isinstance(state.case_configs.get(nodeid, {}), dict)
-        }
-        nodeids, case_configs = self._normalize_selected_run_inputs(raw_nodeids, raw_case_configs)
-        return nodeids, saved_dut, case_configs
-
-    def _normalize_selected_run_inputs(
-        self,
-        nodeids: list[str],
-        case_configs: dict[str, dict[str, Any]],
-    ) -> tuple[list[str], dict[str, dict[str, Any]]]:
-        catalog_by_android_id = {
-            str(row.get("android_case_id", "") or ""): str(row.get("nodeid", "") or "")
-            for row in load_runtime_test_catalog(root_dir=self._root_dir)
-            if str(row.get("android_case_id", "") or "") and str(row.get("nodeid", "") or "")
-        }
-        normalized_nodeids: list[str] = []
-        normalized_configs: dict[str, dict[str, Any]] = {}
-        for nodeid in nodeids:
-            raw_nodeid = str(nodeid or "").strip()
-            mapped_nodeid = raw_nodeid
-            if raw_nodeid.startswith("android://"):
-                case_id = raw_nodeid[len("android://") :].strip()
-                mapped_nodeid = catalog_by_android_id.get(case_id, "")
-                trace_line = (
-                    "[steps.trace] legacy_android_nodeid "
-                    f"from={raw_nodeid or '<empty>'} to={mapped_nodeid or '<unmapped>'} case_id={case_id or '<empty>'}"
-                )
-                print(trace_line)
-                self._append_log(trace_line)
-                if not mapped_nodeid:
-                    mapped_nodeid = raw_nodeid
-            if mapped_nodeid not in normalized_nodeids:
-                normalized_nodeids.append(mapped_nodeid)
-            normalized_configs[mapped_nodeid] = dict(case_configs.get(raw_nodeid, case_configs.get(mapped_nodeid, {})))
-        return normalized_nodeids, normalized_configs
-
-    def _resolve_saved_adb_serial(self, saved_dut: str) -> str | None:
-        state_path = self._default_state_path()
-        state = load_state(state_path)
-        adb_serial = self._resolve_adb_serial(saved_dut)
-        if adb_serial and adb_serial != saved_dut:
-            state.global_context["dut"] = adb_serial
-            save_state(state_path, state)
-        return adb_serial
+        run_config = self._selected_run_config()
+        return (
+            list(run_config.nodeids),
+            str(run_config.global_context.get("dut", "") or ""),
+            {key: dict(value) for key, value in run_config.case_configs.items()},
+        )
 
     def _set_running(self, running: bool) -> None:
         if self._running == running:
@@ -279,15 +219,12 @@ class RunBridge(QObject):
 
     def _start_run_session(
         self,
-        nodeids: list[str],
-        adb_serial: str | None,
-        case_configs: dict[str, dict[str, Any]],
+        run_config: RunConfig,
     ) -> TestRunSession:
         return start_pytest_run(
             root_dir=self._root_dir,
-            nodeids=nodeids,
-            adb_serial=adb_serial,
-            case_configs=case_configs,
+            nodeids=run_config.nodeids,
+            run_config=run_config,
         )
 
     def _pump_stdout(self, session: TestRunSession) -> None:
@@ -353,14 +290,11 @@ class RunBridge(QObject):
     def _start_run_background(
         self,
         *,
-        nodeids: list[str],
-        saved_dut: str,
-        case_configs: dict[str, dict[str, Any]],
+        run_config: RunConfig,
     ) -> None:
         try:
-            adb_serial = self._resolve_saved_adb_serial(saved_dut)
-            self._run_adb_serial = adb_serial
-            session = self._start_run_session(nodeids, adb_serial, case_configs)
+            self._run_adb_serial = run_config.dut_serial
+            session = self._start_run_session(run_config)
             self._session = session
             self._logSignal.emit(
                 f"[run] runner session started pid={getattr(session.process, 'pid', '<unknown>')}"
@@ -847,15 +781,17 @@ class RunBridge(QObject):
         if self._running:
             return
         try:
-            nodeids, saved_dut, case_configs = self._selected_run_inputs()
+            run_config = self._selected_run_config()
+            nodeids = list(run_config.nodeids)
+            case_configs = {key: dict(value) for key, value in run_config.case_configs.items()}
             if not nodeids:
                 self.errorOccurred.emit(self.tr("No selected test cases to run."))
                 return
 
             self._reset_run_data()
-            self._begin_report_context(nodeids=nodeids, adb_serial=None)
+            self._begin_report_context(nodeids=nodeids, adb_serial=run_config.dut_serial)
             self._stop_requested = False
-            self._append_start_diagnostics(nodeids=nodeids, adb_serial=None)
+            self._append_start_diagnostics(nodeids=nodeids, adb_serial=run_config.dut_serial)
             self._append_initial_step_plan(nodeids=nodeids, case_configs=case_configs)
         except Exception as exc:  # noqa: BLE001
             self._append_local_log(self._stderr_log_path, str(exc))
@@ -869,9 +805,7 @@ class RunBridge(QObject):
         threading.Thread(
             target=self._start_run_background,
             kwargs={
-                "nodeids": nodeids,
-                "saved_dut": saved_dut,
-                "case_configs": case_configs,
+                "run_config": run_config,
             },
             daemon=True,
         ).start()

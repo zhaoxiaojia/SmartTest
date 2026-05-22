@@ -21,6 +21,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "case_type(name): SmartTest case classification.")
     config.addinivalue_line("markers", "requires_params(*param_keys): SmartTest configurable parameter keys.")
     config.addinivalue_line("markers", "requires_param_groups(*group_ids): SmartTest configurable parameter groups.")
+    config.addinivalue_line("markers", "requires_equipment(*equipment_kinds): SmartTest environment equipment requirements.")
     for marker_name in ("smoke", "stress", "performance", "regression", "wifi"):
         config.addinivalue_line("markers", f"{marker_name}: SmartTest marker.")
 

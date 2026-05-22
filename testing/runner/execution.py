@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from testing.cases.catalog import is_packaged_runtime
+from testing.runner.config import RUN_CONFIG_ENV, RunConfig, run_config_to_json
 
 
 def _subprocess_creationflags() -> int:
@@ -67,7 +68,20 @@ def start_pytest_run(
     nodeids: list[str],
     adb_serial: str | None = None,
     case_configs: dict[str, dict[str, object]] | None = None,
+    equipment_config: dict[str, object] | None = None,
+    run_config: RunConfig | None = None,
 ) -> TestRunSession:
+    if run_config is None:
+        run_config = RunConfig(
+            nodeids=list(nodeids),
+            case_configs={str(key): dict(value) for key, value in (case_configs or {}).items()},
+            dut_serial=adb_serial,
+            equipment=dict(equipment_config or {}),
+        )
+    else:
+        nodeids = list(run_config.nodeids)
+        case_configs = {str(key): dict(value) for key, value in run_config.case_configs.items()}
+        adb_serial = run_config.dut_serial
     packaged = is_packaged_runtime()
     root_dir = Path(getattr(sys, "_MEIPASS", root_dir)).resolve() if packaged else root_dir.resolve()
     tempdir = tempfile.TemporaryDirectory(prefix="smarttest_pytest_run_")
@@ -76,7 +90,8 @@ def start_pytest_run(
     env["PYTHONPATH"] = str(root_dir) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     env["PYTHONUNBUFFERED"] = "1"
     env["SMARTTEST_STEP_EVENTS_OUT"] = str(event_file)
-    env["SMARTTEST_CASE_CONFIGS_JSON"] = json.dumps(case_configs or {}, ensure_ascii=False)
+    env[RUN_CONFIG_ENV] = run_config_to_json(run_config)
+    env["SMARTTEST_CASE_CONFIGS_JSON"] = json.dumps(run_config.case_configs, ensure_ascii=False)
     if adb_serial:
         env["SMARTTEST_ADB_SERIAL"] = str(adb_serial)
     python_executable = Path(sys.executable)

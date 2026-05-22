@@ -14,6 +14,7 @@ FluPage {
     property int stateVersion: 0
     property var selectedModel: []
     property var selectedCaseParamsModel: []
+    property var envEquipmentModel: []
     property var caseTreeDataSource: []
     property var caseExpandState: ({})
     property var caseParamExpandState: ({})
@@ -24,16 +25,6 @@ FluPage {
             return path.substring("testing/tests/".length)
         }
         return path
-    }
-
-    function paramScopeLabel(scope){
-        if(scope === "global_context"){
-            return qsTr("Global")
-        }
-        if(scope === "case_type_shared"){
-            return qsTr("Shared by Case Type")
-        }
-        return qsTr("Per Case")
     }
 
     function caseParamTextValue(nodeid, key){
@@ -124,10 +115,12 @@ FluPage {
         caseTreeDataSource = decorateTreeNodes(TestPageBridge.caseTree((txt_filter.text || "").toString(), expandedKeys()))
         selectedModel = TestPageBridge.selectedFileRows()
         selectedCaseParamsModel = TestPageBridge.selectedCaseParamRows()
+        envEquipmentModel = TestPageBridge.envEquipmentRows()
         console.debug("[TEST_QML] refreshViewModels done " + Date.now()
                       + " tree=" + caseTreeDataSource.length
                       + " selected=" + selectedModel.length
-                      + " params=" + selectedCaseParamsModel.length)
+                      + " params=" + selectedCaseParamsModel.length
+                      + " env=" + envEquipmentModel.length)
     }
 
     Connections{
@@ -424,10 +417,95 @@ FluPage {
                                             ColumnLayout{
                                                 property string caseNodeId: case_param_expander.caseNodeId
                                                 property var fieldData: modelData
+                                                property bool compactTextField: fieldData.type === "string" || fieldData.type === "float" || fieldData.type === "int"
                                                 Layout.fillWidth: true
                                                 spacing: 4
 
+                                                RowLayout{
+                                                    visible: compactTextField
+                                                    Layout.fillWidth: true
+                                                    spacing: 12
+
+                                                    ColumnLayout{
+                                                        Layout.fillWidth: true
+                                                        spacing: 2
+                                                        FluText{
+                                                            text: fieldData.label
+                                                            font: FluTextStyle.BodyStrong
+                                                            Layout.fillWidth: true
+                                                            wrapMode: Text.WordWrap
+                                                        }
+                                                        FluText{
+                                                            Layout.fillWidth: true
+                                                            text: {
+                                                                var summary = fieldData.scope_label || ""
+                                                                if(fieldData.description){
+                                                                    summary += " - " + fieldData.description
+                                                                }
+                                                                return summary
+                                                            }
+                                                            font: FluTextStyle.Caption
+                                                            color: FluTheme.fontSecondaryColor
+                                                            wrapMode: Text.WordWrap
+                                                        }
+                                                    }
+
+                                                    FluTextBox{
+                                                        id: text_case_param_compact
+                                                        Layout.preferredWidth: fieldData.type === "int" || fieldData.type === "float" ? 112 : 180
+                                                        Layout.maximumWidth: fieldData.type === "int" || fieldData.type === "float" ? 112 : 220
+                                                        placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
+                                                        cleanEnabled: false
+                                                        property bool persistReady: false
+                                                        function stateText(){
+                                                            var value = caseParamTextValue(caseNodeId, fieldData.key)
+                                                            return value === undefined || value === null ? "" : (value + "")
+                                                        }
+                                                        function syncFromState(){
+                                                            if(!visible || activeFocus){
+                                                                return
+                                                            }
+                                                            var nextText = stateText()
+                                                            if(text !== nextText){
+                                                                text = nextText
+                                                            }
+                                                        }
+                                                        function persistValue(){
+                                                            if(!persistReady){
+                                                                return
+                                                            }
+                                                            if(fieldData.type === "int"){
+                                                                var parsed = parseInt(text, 10)
+                                                                if(isNaN(parsed)){
+                                                                    return
+                                                                }
+                                                                TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, parsed)
+                                                                return
+                                                            }
+                                                            TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
+                                                        }
+                                                        Component.onCompleted: {
+                                                            syncFromState()
+                                                            persistReady = true
+                                                        }
+                                                        onVisibleChanged: syncFromState()
+                                                        onActiveFocusChanged: {
+                                                            if(!activeFocus){
+                                                                persistValue()
+                                                            }
+                                                        }
+                                                        onEditingFinished: persistValue()
+                                                        Connections {
+                                                            target: page_root
+                                                            function onStateVersionChanged() {
+                                                                text_case_param_compact.syncFromState()
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
                                                 FluText{
+                                                    visible: !compactTextField
                                                     text: fieldData.label
                                                     font: FluTextStyle.BodyStrong
                                                     Layout.fillWidth: true
@@ -435,9 +513,10 @@ FluPage {
                                                 }
 
                                                 FluText{
+                                                    visible: !compactTextField
                                                     Layout.fillWidth: true
                                                     text: {
-                                                        var summary = paramScopeLabel(fieldData.scope)
+                                                        var summary = fieldData.scope_label || ""
                                                         if(fieldData.description){
                                                             summary += " - " + fieldData.description
                                                         }
@@ -450,64 +529,37 @@ FluPage {
 
                                                 FluTextBox{
                                                     id: text_case_param
-                                                    visible: fieldData.type === "string" || fieldData.type === "path" || fieldData.type === "float"
+                                                    visible: fieldData.type === "path"
                                                     Layout.fillWidth: true
                                                     placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
-                                                    Binding {
-                                                        target: text_case_param
-                                                        property: "text"
-                                                        when: text_case_param.visible && !text_case_param.activeFocus
-                                                        value: caseParamTextValue(caseNodeId, fieldData.key)
-                                                    }
-                                                    onTextChanged: TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
-                                                    onEditingFinished: TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
-                                                }
-
-                                                FluSpinBox{
-                                                    id: spin_case_param
                                                     property bool persistReady: false
-                                                    property int _lastPersistedValue: 0
-                                                    function syncFromState(){
-                                                        if(!visible){
-                                                            return
-                                                        }
-                                                        if(activeFocus){
-                                                            return
-                                                        }
-                                                        if(contentItem && contentItem.activeFocus){
-                                                            return
-                                                        }
-                                                        var nextValue = caseParamIntValue(caseNodeId, fieldData.key, fieldData.default)
-                                                        if(value !== nextValue){
-                                                            value = nextValue
-                                                        }
-                                                        _lastPersistedValue = nextValue
+                                                    function stateText(){
+                                                        var value = caseParamTextValue(caseNodeId, fieldData.key)
+                                                        return value === undefined || value === null ? "" : (value + "")
                                                     }
-                                                    function persistParsedText(rawText, eventName){
+                                                    function syncFromState(){
+                                                        if(!visible || activeFocus){
+                                                            return
+                                                        }
+                                                        var nextText = stateText()
+                                                        if(text !== nextText){
+                                                            text = nextText
+                                                        }
+                                                    }
+                                                    function persistValue(){
                                                         if(!persistReady){
                                                             return
                                                         }
-                                                        var parsed = parseInt(rawText, 10)
-                                                        if(isNaN(parsed)){
+                                                        if(fieldData.type === "int"){
+                                                            var parsed = parseInt(text, 10)
+                                                            if(isNaN(parsed)){
+                                                                return
+                                                            }
+                                                            TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, parsed)
                                                             return
                                                         }
-                                                        if(parsed < from){
-                                                            parsed = from
-                                                        }
-                                                        if(parsed > to){
-                                                            parsed = to
-                                                        }
-                                                        if(_lastPersistedValue === parsed){
-                                                            return
-                                                        }
-                                                        _lastPersistedValue = parsed
-                                                        TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, parsed)
+                                                        TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
                                                     }
-                                                    visible: fieldData.type === "int"
-                                                    Layout.fillWidth: true
-                                                    editable: true
-                                                    from: -1000000
-                                                    to: 1000000
                                                     Component.onCompleted: {
                                                         syncFromState()
                                                         persistReady = true
@@ -515,35 +567,14 @@ FluPage {
                                                     onVisibleChanged: syncFromState()
                                                     onActiveFocusChanged: {
                                                         if(!activeFocus){
-                                                            syncFromState()
+                                                            persistValue()
                                                         }
                                                     }
-                                                    onValueModified: {
-                                                        if(!persistReady){
-                                                            return
-                                                        }
-                                                        _lastPersistedValue = value
-                                                        TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, value)
-                                                    }
+                                                    onEditingFinished: persistValue()
                                                     Connections {
                                                         target: page_root
                                                         function onStateVersionChanged() {
-                                                            spin_case_param.syncFromState()
-                                                        }
-                                                    }
-                                                    Connections {
-                                                        target: spin_case_param.contentItem
-                                                        function onTextEdited() {
-                                                            spin_case_param.persistParsedText(spin_case_param.contentItem.text)
-                                                        }
-                                                        function onEditingFinished() {
-                                                            spin_case_param.persistParsedText(spin_case_param.contentItem.text)
-                                                        }
-                                                        function onActiveFocusChanged() {
-                                                            if(!spin_case_param.contentItem.activeFocus){
-                                                                spin_case_param.persistParsedText(spin_case_param.contentItem.text)
-                                                                spin_case_param.syncFromState()
-                                                            }
+                                                            text_case_param.syncFromState()
                                                         }
                                                     }
                                                 }
@@ -645,105 +676,314 @@ FluPage {
             }
         }
 
-        FluFrame{
+        FluSplitLayout{
             SplitView.fillWidth: true
             SplitView.preferredWidth: layout_main.width/3
             SplitView.minimumWidth: 260
             SplitView.fillHeight: true
-            padding: 10
-            Flickable{
-                anchors.fill: parent
-                clip: true
-                contentHeight: col_right.implicitHeight
-                ScrollBar.vertical: FluScrollBar{}
-                ColumnLayout{
-                    id: col_right
-                    width: parent.width
-                    spacing: 10
+            orientation: Qt.Vertical
 
-                    RowLayout{
-                        Layout.fillWidth: true
+            FluFrame{
+                SplitView.fillHeight: true
+                SplitView.minimumHeight: 150
+                padding: 10
+                Flickable{
+                    anchors.fill: parent
+                    clip: true
+                    contentHeight: col_dut.implicitHeight
+                    ScrollBar.vertical: FluScrollBar{}
+                    ColumnLayout{
+                        id: col_dut
+                        width: parent.width
+                        spacing: 10
+
+                        RowLayout{
+                            Layout.fillWidth: true
+                            spacing: 8
+                            FluText{
+                                text: qsTr("DUT")
+                                font: FluTextStyle.Subtitle
+                                Layout.fillWidth: true
+                            }
+                            FluIconButton{
+                                iconSource: FluentIcons.Sync
+                                iconSize: 14
+                                width: 32
+                                height: 32
+                                text: qsTr("Refresh")
+                                onClicked: TestPageBridge.refreshGlobalSchema()
+                            }
+                        }
+
+                        Repeater{
+                            model: {
+                                var _version = stateVersion
+                                return TestPageBridge.globalSchema().fields
+                            }
+                            ColumnLayout{
+                                Layout.fillWidth: true
+                                spacing: 6
+                                property var fieldData: modelData
+                                property var fieldOptions: fieldData.enum_values || []
+                                FluText{
+                                    text: fieldData.label
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                }
+                                FluComboBox{
+                                    id: combo_global_param
+                                    visible: fieldData.type === "enum"
+                                    Layout.fillWidth: true
+                                    enabled: fieldOptions.length > 0
+                                    model: fieldOptions
+                                    currentIndex: {
+                                        var _version = stateVersion
+                                        var options = fieldOptions
+                                        var currentValue = TestPageBridge.globalContext()[fieldData.key] + ""
+                                        return options.indexOf(currentValue)
+                                    }
+                                    onDownChanged: {
+                                        if(down && fieldData.key === "dut"){
+                                            TestPageBridge.refreshGlobalSchema()
+                                        }
+                                    }
+                                    onActivated: {
+                                        if(currentIndex >= 0){
+                                            TestPageBridge.setGlobalValue(fieldData.key, currentText)
+                                        }
+                                    }
+                                }
+                                FluText{
+                                    visible: fieldData.key === "dut" && fieldOptions.length === 0
+                                    Layout.fillWidth: true
+                                    text: qsTr("No DUT")
+                                    font: FluTextStyle.Caption
+                                    color: FluTheme.fontSecondaryColor
+                                    wrapMode: Text.WordWrap
+                                }
+                                FluTextBox{
+                                    id: text_global_param
+                                    visible: fieldData.type !== "enum"
+                                    Layout.fillWidth: true
+                                    Binding {
+                                        target: text_global_param
+                                        property: "text"
+                                        when: text_global_param.visible && !text_global_param.activeFocus
+                                        value: {
+                                            var _version = stateVersion
+                                            var value = TestPageBridge.globalContext()[fieldData.key]
+                                            return value === undefined || value === null ? "" : (value + "")
+                                        }
+                                    }
+                                    onTextChanged: TestPageBridge.setGlobalValue(fieldData.key, text)
+                                    onEditingFinished: TestPageBridge.setGlobalValue(fieldData.key, text)
+                                }
+                                FluDivider{
+                                    Layout.fillWidth: true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            FluFrame{
+                visible: envEquipmentModel.length > 0
+                SplitView.preferredHeight: 360
+                SplitView.minimumHeight: 160
+                padding: 10
+                Flickable{
+                    anchors.fill: parent
+                    clip: true
+                    contentHeight: col_env.implicitHeight
+                    ScrollBar.vertical: FluScrollBar{}
+                    ColumnLayout{
+                        id: col_env
+                        width: parent.width
                         spacing: 8
+
                         FluText{
-                            text: qsTr("DUT")
+                            text: qsTr("Env")
                             font: FluTextStyle.Subtitle
                             Layout.fillWidth: true
                         }
-                        FluIconButton{
-                            iconSource: FluentIcons.Sync
-                            iconSize: 14
-                            width: 32
-                            height: 32
-                            text: qsTr("Refresh")
-                            onClicked: TestPageBridge.refreshGlobalSchema()
-                        }
-                    }
 
-                    Repeater{
-                        model: {
-                            var _version = stateVersion
-                            return TestPageBridge.globalSchema().fields
-                        }
-                        ColumnLayout{
-                            Layout.fillWidth: true
-                            spacing: 6
-                            property var fieldData: modelData
-                            property var fieldOptions: fieldData.enum_values || []
-                            FluText{
-                                text: fieldData.label
+                        Repeater{
+                            model: envEquipmentModel
+                            FluExpander{
+                                id: env_equipment_expander
+                                property string equipmentKind: modelData.kind || ""
                                 Layout.fillWidth: true
-                                elide: Text.ElideRight
-                            }
-                            FluComboBox{
-                                id: combo_global_param
-                                visible: fieldData.type === "enum"
-                                Layout.fillWidth: true
-                                enabled: fieldOptions.length > 0
-                                model: fieldOptions
-                                currentIndex: {
-                                    var _version = stateVersion
-                                    var options = fieldOptions
-                                    var currentValue = TestPageBridge.globalContext()[fieldData.key] + ""
-                                    return options.indexOf(currentValue)
-                                }
-                                onDownChanged: {
-                                    if(down && fieldData.key === "dut"){
-                                        TestPageBridge.refreshGlobalSchema()
+                                headerText: modelData.label || equipmentKind
+                                expand: true
+                                contentHeight: env_equipment_content.implicitHeight
+
+                                Item{
+                                    id: env_equipment_content
+                                    width: parent.width
+                                    implicitHeight: col_env_equipment_form.implicitHeight + 24
+
+                                    ColumnLayout{
+                                        id: col_env_equipment_form
+                                        x: 12
+                                        y: 12
+                                        width: parent.width - 24
+                                        spacing: 8
+
+                                        FluText{
+                                            text: modelData.typeLabel || qsTr("Type")
+                                            Layout.fillWidth: true
+                                            elide: Text.ElideRight
+                                        }
+
+                                        FluComboBox{
+                                            id: combo_env_equipment_type
+                                            Layout.fillWidth: true
+                                            textRole: "label"
+                                            model: modelData.typeOptions || []
+                                            currentIndex: {
+                                                var options = modelData.typeOptions || []
+                                                for(var i = 0; i < options.length; i++){
+                                                    if(options[i].value === modelData.type){
+                                                        return i
+                                                    }
+                                                }
+                                                return options.length > 0 ? 0 : -1
+                                            }
+                                            onActivated: {
+                                                var options = modelData.typeOptions || []
+                                                if(currentIndex >= 0 && currentIndex < options.length){
+                                                    TestPageBridge.setEnvEquipmentType(env_equipment_expander.equipmentKind, options[currentIndex].value)
+                                                }
+                                            }
+                                        }
+
+                                        Repeater{
+                                            model: modelData.fields || []
+                                            ColumnLayout{
+                                                Layout.fillWidth: true
+                                                spacing: 4
+                                                property var fieldData: modelData
+                                                property bool compactTextField: fieldData.type === "string" || fieldData.type === "int"
+
+                                                RowLayout{
+                                                    visible: compactTextField
+                                                    Layout.fillWidth: true
+                                                    spacing: 12
+
+                                                    ColumnLayout{
+                                                        Layout.fillWidth: true
+                                                        spacing: 2
+                                                        FluText{
+                                                            text: fieldData.label
+                                                            font: FluTextStyle.BodyStrong
+                                                            Layout.fillWidth: true
+                                                            wrapMode: Text.WordWrap
+                                                        }
+                                                        FluText{
+                                                            visible: !!fieldData.description
+                                                            Layout.fillWidth: true
+                                                            text: fieldData.description || ""
+                                                            font: FluTextStyle.Caption
+                                                            color: FluTheme.fontSecondaryColor
+                                                            wrapMode: Text.WordWrap
+                                                        }
+                                                    }
+
+                                                    FluTextBox{
+                                                        id: text_env_equipment_compact
+                                                        Layout.preferredWidth: fieldData.type === "int" ? 112 : 180
+                                                        Layout.maximumWidth: fieldData.type === "int" ? 112 : 220
+                                                        cleanEnabled: false
+                                                        property bool persistReady: false
+                                                        function stateText(){
+                                                            var value = TestPageBridge.envEquipmentValue(env_equipment_expander.equipmentKind, fieldData.key)
+                                                            return value === undefined || value === null ? "" : (value + "")
+                                                        }
+                                                        function syncFromState(){
+                                                            if(!visible || activeFocus){
+                                                                return
+                                                            }
+                                                            var nextText = stateText()
+                                                            if(text !== nextText){
+                                                                text = nextText
+                                                            }
+                                                        }
+                                                        function persistValue(){
+                                                            if(!persistReady){
+                                                                return
+                                                            }
+                                                            if(fieldData.type === "int"){
+                                                                var parsed = parseInt(text, 10)
+                                                                if(isNaN(parsed)){
+                                                                    return
+                                                                }
+                                                                TestPageBridge.setEnvEquipmentValue(env_equipment_expander.equipmentKind, fieldData.key, parsed)
+                                                                return
+                                                            }
+                                                            TestPageBridge.setEnvEquipmentValue(env_equipment_expander.equipmentKind, fieldData.key, text)
+                                                        }
+                                                        Component.onCompleted: {
+                                                            syncFromState()
+                                                            persistReady = true
+                                                        }
+                                                        onVisibleChanged: syncFromState()
+                                                        onActiveFocusChanged: {
+                                                            if(!activeFocus){
+                                                                persistValue()
+                                                            }
+                                                        }
+                                                        onEditingFinished: persistValue()
+                                                        Connections {
+                                                            target: page_root
+                                                            function onStateVersionChanged() {
+                                                                text_env_equipment_compact.syncFromState()
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                FluText{
+                                                    visible: !compactTextField
+                                                    text: fieldData.label
+                                                    font: FluTextStyle.BodyStrong
+                                                    Layout.fillWidth: true
+                                                    wrapMode: Text.WordWrap
+                                                }
+
+                                                FluText{
+                                                    visible: !compactTextField && !!fieldData.description
+                                                    Layout.fillWidth: true
+                                                    text: fieldData.description || ""
+                                                    font: FluTextStyle.Caption
+                                                    color: FluTheme.fontSecondaryColor
+                                                    wrapMode: Text.WordWrap
+                                                }
+
+                                                FluComboBox{
+                                                    id: combo_env_equipment_field
+                                                    visible: fieldData.type === "enum"
+                                                    Layout.fillWidth: true
+                                                    model: fieldData.enum_values || []
+                                                    currentIndex: {
+                                                        var options = fieldData.enum_values || []
+                                                        var currentValue = fieldData.value === undefined || fieldData.value === null ? "" : (fieldData.value + "")
+                                                        return options.indexOf(currentValue)
+                                                    }
+                                                    onActivated: {
+                                                        if(currentIndex >= 0){
+                                                            TestPageBridge.setEnvEquipmentValue(env_equipment_expander.equipmentKind, fieldData.key, currentText)
+                                                        }
+                                                    }
+                                                }
+
+                                                FluDivider{
+                                                    Layout.fillWidth: true
+                                                }
+                                            }
+                                        }
                                     }
                                 }
-                                onActivated: {
-                                    if(currentIndex >= 0){
-                                        TestPageBridge.setGlobalValue(fieldData.key, currentText)
-                                    }
-                                }
-                            }
-                            FluText{
-                                visible: fieldData.key === "dut" && fieldOptions.length === 0
-                                Layout.fillWidth: true
-                                text: qsTr("No DUT")
-                                font: FluTextStyle.Caption
-                                color: FluTheme.fontSecondaryColor
-                                wrapMode: Text.WordWrap
-                            }
-                            FluTextBox{
-                                id: text_global_param
-                                visible: fieldData.type !== "enum"
-                                Layout.fillWidth: true
-                                Binding {
-                                    target: text_global_param
-                                    property: "text"
-                                    when: text_global_param.visible && !text_global_param.activeFocus
-                                    value: {
-                                        var _version = stateVersion
-                                        var value = TestPageBridge.globalContext()[fieldData.key]
-                                        return value === undefined || value === null ? "" : (value + "")
-                                    }
-                                }
-                                onTextChanged: TestPageBridge.setGlobalValue(fieldData.key, text)
-                                onEditingFinished: TestPageBridge.setGlobalValue(fieldData.key, text)
-                            }
-                            FluDivider{
-                                Layout.fillWidth: true
                             }
                         }
                     }

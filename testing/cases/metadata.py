@@ -31,6 +31,17 @@ def marker_args(item: Any, marker_name: str) -> list[str]:
     return values
 
 
+def unique_marker_args(item: Any, marker_name: str) -> list[str]:
+    values: list[str] = []
+    seen: set[str] = set()
+    for value in marker_args(item, marker_name):
+        if value in seen:
+            continue
+        seen.add(value)
+        values.append(value)
+    return values
+
+
 def build_case_param_binding(item: Any) -> CaseParamBinding:
     return CaseParamBinding(
         target_kind=BindingTargetKind.CASE,
@@ -52,6 +63,7 @@ def build_case_metadata(item: Any, registry: SchemaRegistry) -> dict[str, object
         "case_type": infer_case_type(item),
         "required_params": required_params,
         "required_param_groups": list(binding.group_ids),
+        "required_equipment": unique_marker_args(item, "requires_equipment"),
         "android_case_id": infer_android_case_id(item),
     }
 

@@ -12,4 +12,5 @@ class TestCaseInfo:
     case_type: str
     required_params: list[str] = field(default_factory=list)
     required_param_groups: list[str] = field(default_factory=list)
+    required_equipment: list[str] = field(default_factory=list)
     android_case_id: str = ""

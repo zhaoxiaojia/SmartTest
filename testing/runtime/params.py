@@ -4,11 +4,16 @@ import json
 import os
 from typing import Any, Callable
 
+from .config import runtime_config
+
 
 _CASE_CONFIGS_ENV = "SMARTTEST_CASE_CONFIGS_JSON"
 
 
 def _case_configs() -> dict[str, dict[str, Any]]:
+    configured = runtime_config().case_configs
+    if configured:
+        return configured
     raw = os.environ.get(_CASE_CONFIGS_ENV, "").strip()
     if not raw:
         return {}

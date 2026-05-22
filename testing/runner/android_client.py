@@ -12,6 +12,7 @@ from typing import Mapping
 
 from android_client import PACKAGE_NAME, PRIVILEGED_CASE_IDS, ensure_test_apk_installed
 from testing.params.adb_devices import resolve_adb_serial_for_command
+from testing.runtime.config import current_dut_serial
 from testing.runtime.events import current_case_nodeid, current_step, emit_event
 
 
@@ -409,6 +410,13 @@ def _adb_base_cmd(*, adb_executable: str, adb_serial: str | None = None) -> list
     if serial:
         cmd.extend(["-s", serial])
     return cmd
+
+
+def _serial_for_log(serial: str | None) -> str:
+    text = str(serial or "").strip()
+    if not text:
+        return "<default>"
+    return text.encode("unicode_escape").decode("ascii")
 
 
 def _env_token_set(name: str, default: set[str]) -> set[str]:
@@ -1120,10 +1128,12 @@ def trigger_android_client_case(
         raise RuntimeError("adb is not available in PATH.")
 
     component = os.environ.get("SMARTTEST_ANDROID_COMPONENT", DEFAULT_COMPONENT)
-    serial = str(adb_serial or os.environ.get("SMARTTEST_ADB_SERIAL", "").strip())
+    requested_serial = str(adb_serial or current_dut_serial())
+    command_serial = resolve_adb_serial_for_command(requested_serial)
     print(f"[testing.runner.android_client] case_id={case_id}")
     print(f"[testing.runner.android_client] adb={adb_executable}")
-    print(f"[testing.runner.android_client] use_explicit_serial={bool(resolve_adb_serial_for_command(serial))}")
+    print(f"[testing.runner.android_client] requested_serial={_serial_for_log(requested_serial)}")
+    print(f"[testing.runner.android_client] command_serial={_serial_for_log(command_serial)}")
     print(f"[testing.runner.android_client] component={component}")
     print(f"[testing.runner.android_client] params={dict(params or {})}")
     request_id = f"{case_id}-{uuid.uuid4().hex[:12]}"
@@ -1133,23 +1143,23 @@ def trigger_android_client_case(
         stage_tracker.evidence("Request parameters", dict(params), evidence_type="params")
     require_privileged = case_id in PRIVILEGED_CASE_IDS
     print(f"[testing.runner.android_client] require_privileged={require_privileged}")
-    if require_privileged and android_client_installed(adb_serial=serial):
+    if require_privileged and android_client_installed(adb_serial=command_serial):
         stop_android_client_run(
-            adb_serial=serial,
+            adb_serial=command_serial,
             reason=f"prepare privileged provisioning for {case_id}",
         )
         time.sleep(1.0)
-        _launch_android_client_main(adb_executable=adb_executable, adb_serial=serial)
-    ensure_test_apk_installed(adb_serial=serial, require_privileged=require_privileged)
-    installed = android_client_installed(adb_serial=serial)
+        _launch_android_client_main(adb_executable=adb_executable, adb_serial=command_serial)
+    ensure_test_apk_installed(adb_serial=command_serial, require_privileged=require_privileged)
+    installed = android_client_installed(adb_serial=command_serial)
     print(f"[testing.runner.android_client] installed_after_ensure={installed}")
     if not installed:
         raise RuntimeError("android_client is still not installed after install attempt.")
-    _force_stop_android_client(adb_executable=adb_executable, adb_serial=serial)
+    _force_stop_android_client(adb_executable=adb_executable, adb_serial=command_serial)
     baseline_signature = None
     baseline_log_count = 0
     try:
-        baseline_snapshot = read_android_client_snapshot(adb_executable=adb_executable, adb_serial=serial)
+        baseline_snapshot = read_android_client_snapshot(adb_executable=adb_executable, adb_serial=command_serial)
         baseline_signature = _snapshot_signature(baseline_snapshot)
         baseline_logs = baseline_snapshot.get("logLines", [])
         if isinstance(baseline_logs, list):
@@ -1179,11 +1189,11 @@ def trigger_android_client_case(
                 f"case_id={case_id} baseline_request_id={baseline_request_id or '<empty>'}"
             )
             stop_android_client_run(
-                adb_serial=serial,
+                adb_serial=command_serial,
                 reason=f"reset stale android_client run before request {request_id}",
             )
             time.sleep(2.0)
-            _force_stop_android_client(adb_executable=adb_executable, adb_serial=serial)
+            _force_stop_android_client(adb_executable=adb_executable, adb_serial=command_serial)
             baseline_signature = None
             baseline_log_count = 0
     except Exception as exc:  # noqa: BLE001
@@ -1196,7 +1206,7 @@ def trigger_android_client_case(
         trigger=trigger,
         source=source,
         params=params,
-        adb_serial=serial,
+        adb_serial=command_serial,
     )
     combined_output = "\n".join(part for part in (result.stdout, result.stderr) if part).strip()
     if result.returncode != 0 or "Error:" in combined_output or "Exception occurred" in combined_output:
@@ -1236,7 +1246,7 @@ def trigger_android_client_case(
             case_id=case_id,
             request_id=request_id,
             trigger=trigger,
-            adb_serial=serial,
+            adb_serial=command_serial,
             poll_interval_sec=wait_poll_interval_sec,
             timeout_sec=float(os.environ.get("SMARTTEST_ANDROID_CASE_TIMEOUT_SEC", DEFAULT_TIMEOUT_SEC)),
             baseline_signature=baseline_signature,

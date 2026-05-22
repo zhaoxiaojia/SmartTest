@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
@@ -4357,21 +4357,6 @@ Some contents...</source>
         <translation>测试</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="30"/>
-        <source>Global</source>
-        <translation>全局</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="33"/>
-        <source>Shared by Case Type</source>
-        <translation>按用例类型共享</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="35"/>
-        <source>Per Case</source>
-        <translation>每个用例独立</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_TestConfig.qml" line="181"/>
         <source>Test Cases</source>
         <translation>测试用例</translation>
@@ -4453,6 +4438,16 @@ Some contents...</source>
     <message>
         <source>Special Params (by Case Type)</source>
         <translation type="vanished">特殊参数（按用例类型）</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="673"/>
+        <source>Env</source>
+        <translation>陪测</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="701"/>
+        <source>Type</source>
+        <translation>类型</translation>
     </message>
 </context>
 <context>
@@ -4797,10 +4792,74 @@ Some contents...</source>
 </context>
 <context>
     <name>TestPageBridge</name>
-    <message>
-        <location filename="bridge/TestPageBridge.py" line="150"/>
-        <source>DUT</source>
-        <translation>DUT</translation>
-    </message>
+    <message><source>test.schema.global_context.title</source><translation>全局</translation></message>
+    <message><source>test.schema.case_type_default.title</source><translation>默认</translation></message>
+    <message><source>test.param.scope.global_context</source><translation>全局</translation></message>
+    <message><source>test.param.scope.case_type_shared</source><translation>用例类型</translation></message>
+    <message><source>test.param.scope.case</source><translation>每个用例独立</translation></message>
+    <message><source>test.param.dut.label</source><translation>DUT</translation></message>
+    <message><source>test.param.dut.description</source><translation>当前选择的待测设备。</translation></message>
+    <message><source>test.param.ac_onoff.cycle_count.label</source><translation>循环次数</translation></message>
+    <message><source>test.param.ac_onoff.cycle_count.description</source><translation>继电器上下电循环次数。</translation></message>
+    <message><source>test.param.ac_onoff.power_off_sec.label</source><translation>下电时长（秒）</translation></message>
+    <message><source>test.param.ac_onoff.power_off_sec.description</source><translation>每次循环中继电器保持下电的秒数。</translation></message>
+    <message><source>test.param.ac_onoff.power_off_step_sec.label</source><translation>下电步长（秒）</translation></message>
+    <message><source>test.param.ac_onoff.power_off_step_sec.description</source><translation>每次循环后追加到下电时长的秒数。可使用负数递减。</translation></message>
+    <message><source>test.param.ac_onoff.power_on_wait_sec.label</source><translation>上电等待时长（秒）</translation></message>
+    <message><source>test.param.ac_onoff.power_on_wait_sec.description</source><translation>继电器上电后，执行检查点前等待的秒数。</translation></message>
+    <message><source>test.param.ac_onoff.power_on_wait_step_sec.label</source><translation>上电等待步长（秒）</translation></message>
+    <message><source>test.param.ac_onoff.power_on_wait_step_sec.description</source><translation>每次循环后追加到上电等待时长的秒数。可使用负数递减。</translation></message>
+    <message><source>test.param.ac_onoff.ping_target.label</source><translation>Ping 目标</translation></message>
+    <message><source>test.param.ac_onoff.ping_target.description</source><translation>DUT 侧用于 Wi-Fi 回连检查的 ping 目标。</translation></message>
+    <message><source>test.param.ac_onoff.bt_target.label</source><translation>蓝牙目标</translation></message>
+    <message><source>test.param.ac_onoff.bt_target.description</source><translation>用于蓝牙回连检查的目标设备。</translation></message>
+    <message><source>test.param.cpu_frequency.frequencies.label</source><translation>CPU 频点</translation></message>
+    <message><source>test.param.cpu_frequency.frequencies.description</source><translation>选择要切换测试的 CPU 频点。</translation></message>
+    <message><source>test.param.auto_reboot.bt_target.label</source><translation>蓝牙目标</translation></message>
+    <message><source>test.param.auto_reboot.bt_target.description</source><translation>可选目标 MAC；不检查时填 None 或留空。</translation></message>
+    <message><source>test.param.auto_reboot.cycle_count.label</source><translation>循环次数</translation></message>
+    <message><source>test.param.auto_reboot.cycle_count.description</source><translation>默认 20</translation></message>
+    <message><source>test.param.auto_reboot.interval_sec.label</source><translation>间隔（秒）</translation></message>
+    <message><source>test.param.auto_reboot.interval_sec.description</source><translation>默认 100</translation></message>
+    <message><source>test.param.auto_reboot.ping_target.label</source><translation>Ping 目标</translation></message>
+    <message><source>test.param.auto_reboot.ping_target.description</source><translation>可选 ping 目标。</translation></message>
+    <message><source>test.param.auto_suspend.bt_target.label</source><translation>蓝牙目标</translation></message>
+    <message><source>test.param.auto_suspend.bt_target.description</source><translation>可选目标 MAC；不检查时填 None 或留空。</translation></message>
+    <message><source>test.param.auto_suspend.cycle_count.label</source><translation>循环次数</translation></message>
+    <message><source>test.param.auto_suspend.cycle_count.description</source><translation>默认 20</translation></message>
+    <message><source>test.param.auto_suspend.interval_sec.label</source><translation>间隔（秒）</translation></message>
+    <message><source>test.param.auto_suspend.interval_sec.description</source><translation>默认 100</translation></message>
+    <message><source>test.param.auto_suspend.ping_target.label</source><translation>Ping 目标</translation></message>
+    <message><source>test.param.auto_suspend.ping_target.description</source><translation>可选 ping 目标。</translation></message>
+    <message><source>test.param.bt_onoff_scan.bt_target.label</source><translation>蓝牙目标</translation></message>
+    <message><source>test.param.bt_onoff_scan.bt_target.description</source><translation>必填目标 MAC；不检查时填 None 或留空。</translation></message>
+    <message><source>test.param.bt_onoff_scan.cycle_count.label</source><translation>循环次数</translation></message>
+    <message><source>test.param.bt_onoff_scan.cycle_count.description</source><translation>默认 2</translation></message>
+    <message><source>test.param.emmc_rw.loop_count.label</source><translation>循环次数</translation></message>
+    <message><source>test.param.emmc_rw.loop_count.description</source><translation>默认 180</translation></message>
+    <message><source>test.param.emmc_rw.min_free_kb.label</source><translation>最小剩余空间（KB）</translation></message>
+    <message><source>test.param.emmc_rw.min_free_kb.description</source><translation>默认 307200</translation></message>
+    <message><source>test.param.emmc_rw.source_profile.label</source><translation>数据源配置</translation></message>
+    <message><source>test.param.emmc_rw.source_profile.description</source><translation>random1 / random2</translation></message>
+    <message><source>test.param.emmc_rw.source_size_kb.label</source><translation>数据源大小（KB）</translation></message>
+    <message><source>test.param.emmc_rw.source_size_kb.description</source><translation>默认 51200</translation></message>
+    <message><source>test.param.emmc_rw.work_dir.label</source><translation>工作目录</translation></message>
+    <message><source>test.param.emmc_rw.work_dir.description</source><translation>默认 /data/local/tmp/smarttest/emmc_rw</translation></message>
+    <message><source>test.param.wifi_onoff_scan.cycle_count.label</source><translation>循环次数</translation></message>
+    <message><source>test.param.wifi_onoff_scan.cycle_count.description</source><translation>默认 2</translation></message>
+    <message><source>test.param.wifi_onoff_scan.ping_target.label</source><translation>Ping 目标</translation></message>
+    <message><source>test.param.wifi_onoff_scan.ping_target.description</source><translation>用于回连检查，必填。</translation></message>
+    <message><source>test.env.relay.label</source><translation>继电器</translation></message>
+    <message><source>test.env.equipment.type.label</source><translation>类型</translation></message>
+    <message><source>test.env.relay.type.snmp_pdu</source><translation>SNMP PDU</translation></message>
+    <message><source>test.env.relay.type.usb_relay</source><translation>USB 继电器</translation></message>
+    <message><source>test.env.relay.snmp_pdu.ip.label</source><translation>IP 地址</translation></message>
+    <message><source>test.env.relay.snmp_pdu.ip.description</source><translation>SNMP PDU 地址。</translation></message>
+    <message><source>test.env.relay.snmp_pdu.port.label</source><translation>插口端口</translation></message>
+    <message><source>test.env.relay.usb_relay.port.label</source><translation>串口</translation></message>
+    <message><source>test.env.relay.usb_relay.port.description</source><translation>USB 继电器串口，例如 COM4。</translation></message>
+    <message><source>test.env.relay.usb_relay.mode.label</source><translation>接线模式</translation></message>
+    <message><source>test.env.relay.usb_relay.press_seconds.label</source><translation>按压秒数</translation></message>
 </context>
 </TS>
+

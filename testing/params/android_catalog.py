@@ -33,27 +33,19 @@ def _catalog_path() -> Path:
 class AndroidCatalogParam:
     case_id: str
     param_id: str
-    label: str
-    hint: str
     default_value: str
 
 
 @dataclass(frozen=True)
 class AndroidCatalogCase:
     category_id: str
-    category_title: str
     case_id: str
-    title: str
-    objective: str
-    checks: list[str]
     params: list[AndroidCatalogParam]
 
 
 @dataclass(frozen=True)
 class AndroidCatalogCategory:
     category_id: str
-    title: str
-    summary: str
     cases: list[AndroidCatalogCase]
 
 
@@ -92,28 +84,6 @@ def _extract_string_argument(block: str, marker: str) -> str:
     if end < 0:
         return ""
     return block[start:end]
-
-
-def _extract_list_strings(block: str, marker: str) -> list[str]:
-    start = block.find(marker)
-    if start < 0:
-        return []
-    start = block.find("(", start)
-    if start < 0:
-        return []
-    values_block, _ = _extract_balanced_block(block, start)
-    values: list[str] = []
-    cursor = 0
-    while True:
-        quote_start = values_block.find('"', cursor)
-        if quote_start < 0:
-            break
-        quote_end = values_block.find('"', quote_start + 1)
-        if quote_end < 0:
-            break
-        values.append(values_block[quote_start + 1 : quote_end])
-        cursor = quote_end + 1
-    return values
 
 
 def _extract_definition_blocks(text: str, name: str) -> list[tuple[str, str]]:
@@ -262,12 +232,11 @@ def _param_from_block(case_id: str, param_block: str) -> AndroidCatalogParam | N
         cursor = quote_end + 1
     if len(values) < 4:
         return None
-    param_id, label, hint, default_value = values[:4]
+    param_id = values[0]
+    default_value = values[3]
     return AndroidCatalogParam(
         case_id=case_id,
         param_id=param_id,
-        label=label,
-        hint=hint,
         default_value=default_value,
     )
 
@@ -280,8 +249,6 @@ def load_android_catalog_categories() -> list[AndroidCatalogCategory]:
         category_id = _extract_string_argument(category_block, 'id = "')
         if not category_id:
             continue
-        category_title = _extract_string_argument(category_block, 'title = "')
-        category_summary = _extract_string_argument(category_block, 'summary = "')
         cases: list[AndroidCatalogCase] = []
         for case_block, _ in _extract_definition_blocks(category_block, "TestCaseDefinition"):
             case_id = _extract_string_argument(case_block, 'id = "')
@@ -295,19 +262,13 @@ def load_android_catalog_categories() -> list[AndroidCatalogCategory]:
             cases.append(
                 AndroidCatalogCase(
                     category_id=category_id,
-                    category_title=category_title,
                     case_id=case_id,
-                    title=_extract_string_argument(case_block, 'title = "'),
-                    objective=_extract_string_argument(case_block, 'objective = "'),
-                    checks=_extract_list_strings(case_block, "checks = listOf("),
                     params=params,
                 )
             )
         categories.append(
             AndroidCatalogCategory(
                 category_id=category_id,
-                title=category_title,
-                summary=category_summary,
                 cases=cases,
             )
         )

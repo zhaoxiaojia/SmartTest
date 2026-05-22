@@ -20,6 +20,11 @@ from testing.state.local_store import load_pref, save_pref
 from testing.state.models import SelectedCase, TestPageState
 from testing.state.store import load_state, save_state
 
+try:
+    from example.helper.TranslateHelper import TranslateHelper
+except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
+    from ui.example.helper.TranslateHelper import TranslateHelper
+
 
 class TestPageBridge(QObject):
     casesChanged = Signal()
@@ -52,6 +57,7 @@ class TestPageBridge(QObject):
         self._discoveryError.connect(self._apply_discovery_error)
         self._adbRefreshResult.connect(self._apply_adb_refresh_result)
         self._paramOptionsRefreshResult.connect(self._apply_param_options_refresh_result)
+        TranslateHelper().currentChanged.connect(self._handle_language_changed)
         self._ensure_state_defaults()
         self._sync_dut_selection()
 
@@ -75,8 +81,9 @@ class TestPageBridge(QObject):
         legacy_dut = self._state.global_context.get("dut_model")
         if "dut" not in self._state.global_context and legacy_dut not in (None, ""):
             self._state.global_context["dut"] = legacy_dut
+        preserved_global_keys = {*global_defaults, "equipment", "test_equipment"}
         self._state.global_context = {
-            key: value for key, value in self._state.global_context.items() if key in global_defaults
+            key: value for key, value in self._state.global_context.items() if key in preserved_global_keys
         }
         for key, value in global_defaults.items():
             self._state.global_context.setdefault(key, value)
@@ -117,6 +124,9 @@ class TestPageBridge(QObject):
 
     def _save_cached_param_options(self) -> None:
         save_pref(self._frontend_pref_path, "test.param_options", self._param_options)
+
+    def _handle_language_changed(self) -> None:
+        self.stateChanged.emit()
 
     def _schedule_adb_refresh(self, reason: str) -> None:
         if self._adb_refresh_running:
@@ -246,15 +256,30 @@ class TestPageBridge(QObject):
         for source in self._selected_option_sources():
             self._schedule_param_options_refresh(source, reason)
 
+    def _param_text_key(self, param_key: str, part: str) -> str:
+        normalized = str(param_key or "").strip().replace(":", ".")
+        return f"test.param.{normalized}.{part}"
+
     def _field_label(self, field: ParamField) -> str:
-        if field.key == "dut":
-            return self.tr("DUT")
-        return field.label
+        return self.tr(self._param_text_key(field.key, "label"))
+
+    def _field_description(self, field: ParamField) -> str:
+        return self.tr(self._param_text_key(field.key, "description"))
+
+    def _scope_label(self, scope: Any) -> str:
+        raw_scope = scope.value if hasattr(scope, "value") else str(scope or "")
+        labels = {
+            ParamScope.GLOBAL_CONTEXT.value: "test.param.scope.global_context",
+            ParamScope.CASE_TYPE_SHARED.value: "test.param.scope.case_type_shared",
+            ParamScope.CASE.value: "test.param.scope.case",
+        }
+        return self.tr(labels.get(str(raw_scope), labels[ParamScope.CASE.value]))
 
     def _schema_to_jsonable(self, schema: ParamSchema) -> dict[str, Any]:
         return {
             "schema_id": schema.schema_id,
-            "title": schema.title,
+            "title": self.tr(f"test.schema.{schema.schema_id}.title"),
+            "title_source": "fixed",
             "fields": [self._field_to_jsonable(f) for f in schema.fields],
         }
 
@@ -262,14 +287,19 @@ class TestPageBridge(QObject):
         return {
             "key": field.key,
             "label": self._field_label(field),
+            "label_source": "fixed",
             "type": field.type.value if hasattr(field.type, "value") else field.type,
             "category": field.category.value if hasattr(field.category, "value") else field.category,
             "scope": field.scope.value if hasattr(field.scope, "value") else field.scope,
+            "scope_label": self._scope_label(field.scope),
+            "scope_label_source": "fixed",
             "default": field.default,
-            "description": field.description,
+            "description": self._field_description(field),
+            "description_source": "fixed",
             "group": field.group,
             "required": field.required,
             "enum_values": self._enum_values_for_field(field),
+            "enum_values_source": "dynamic" if field.options_source else "fixed",
             "options_source": field.options_source,
         }
 
@@ -561,6 +591,7 @@ class TestPageBridge(QObject):
                     "case_type": str(c.get("case_type", "default")),
                     "required_params": [str(p) for p in list(c.get("required_params") or [])],
                     "required_param_groups": [str(g) for g in list(c.get("required_param_groups") or [])],
+                    "required_equipment": [str(e) for e in list(c.get("required_equipment") or [])],
                     "android_case_id": str(c.get("android_case_id", "")),
                 }
                 for c in cases
@@ -591,6 +622,7 @@ class TestPageBridge(QObject):
                 "case_type": c.case_type,
                 "required_params": c.required_params,
                 "required_param_groups": c.required_param_groups,
+                "required_equipment": c.required_equipment,
                 "android_case_id": c.android_case_id,
             }
             for c in cases
@@ -638,6 +670,7 @@ class TestPageBridge(QObject):
                 "case_type": str(item.get("case_type", "default")),
                 "required_params": list(item.get("required_params", [])),
                 "required_param_groups": list(item.get("required_param_groups", [])),
+                "required_equipment": list(item.get("required_equipment", [])),
                 "selected": str(item.get("nodeid", "")) in selected,
             }
             for item in self._cases
@@ -662,8 +695,11 @@ class TestPageBridge(QObject):
             rows.append(
                 {
                     "file": file_path,
+                    "file_source": "dynamic",
                     "name": self._file_base_name(file_path),
+                    "name_source": "dynamic",
                     "short_file": self._trimmed_case_path(file_path),
+                    "short_file_source": "dynamic",
                 }
             )
         return rows
@@ -677,11 +713,16 @@ class TestPageBridge(QObject):
                 rows.append(
                     {
                         "nodeid": str(case.get("nodeid", "")),
+                        "nodeid_source": "dynamic",
                         "file": str(case.get("file", "")),
+                        "file_source": "dynamic",
                         "name": str(case.get("name", "")),
+                        "name_source": "dynamic",
                         "case_type": str(case.get("case_type", "default")),
+                        "case_type_source": "dynamic",
                         "required_params": list(case.get("required_params", [])),
                         "required_param_groups": list(case.get("required_param_groups", [])),
+                        "required_equipment": list(case.get("required_equipment", [])),
                     }
                 )
         return rows
@@ -699,6 +740,135 @@ class TestPageBridge(QObject):
                 seen.add(case_type)
                 types.append(case_type)
         return types
+
+    def _selected_required_equipment(self) -> list[str]:
+        required: list[str] = []
+        seen: set[str] = set()
+        for selected in self._state.selected:
+            case = self._case_info(selected.nodeid)
+            if case is None:
+                continue
+            for value in list(case.get("required_equipment", [])):
+                kind = str(value or "").strip().lower()
+                if not kind or kind in seen:
+                    continue
+                seen.add(kind)
+                required.append(kind)
+        return required
+
+    def _equipment_config(self) -> dict[str, Any]:
+        raw = self._state.global_context.get("equipment", {})
+        return dict(raw) if isinstance(raw, dict) else {}
+
+    def _relay_type_rows(self) -> list[dict[str, Any]]:
+        return [
+            {"value": "snmp_pdu", "label": self.tr("test.env.relay.type.snmp_pdu"), "label_source": "fixed"},
+            {"value": "usb_relay", "label": self.tr("test.env.relay.type.usb_relay"), "label_source": "fixed"},
+        ]
+
+    def _relay_fields(self, relay_type: str, config: dict[str, Any]) -> list[dict[str, Any]]:
+        normalized_type = str(relay_type or "").strip() or "snmp_pdu"
+        if normalized_type == "usb_relay":
+            specs = [
+                {
+                    "key": "port",
+                    "label": self.tr("test.env.relay.usb_relay.port.label"),
+                    "label_source": "fixed",
+                    "type": "string",
+                    "default": "",
+                    "description": self.tr("test.env.relay.usb_relay.port.description"),
+                    "description_source": "fixed",
+                },
+                {
+                    "key": "mode",
+                    "label": self.tr("test.env.relay.usb_relay.mode.label"),
+                    "label_source": "fixed",
+                    "type": "enum",
+                    "default": "NO",
+                    "enum_values": ["NO", "NC"],
+                    "enum_values_source": "fixed",
+                    "description": "",
+                    "description_source": "fixed",
+                },
+                {
+                    "key": "press_seconds",
+                    "label": self.tr("test.env.relay.usb_relay.press_seconds.label"),
+                    "label_source": "fixed",
+                    "type": "int",
+                    "default": 1,
+                    "description": "",
+                    "description_source": "fixed",
+                },
+            ]
+        else:
+            specs = [
+                {
+                    "key": "ip",
+                    "label": self.tr("test.env.relay.snmp_pdu.ip.label"),
+                    "label_source": "fixed",
+                    "type": "string",
+                    "default": "",
+                    "description": self.tr("test.env.relay.snmp_pdu.ip.description"),
+                    "description_source": "fixed",
+                },
+                {
+                    "key": "port",
+                    "label": self.tr("test.env.relay.snmp_pdu.port.label"),
+                    "label_source": "fixed",
+                    "type": "int",
+                    "default": 1,
+                    "description": "",
+                    "description_source": "fixed",
+                },
+            ]
+        fields: list[dict[str, Any]] = []
+        for spec in specs:
+            field = dict(spec)
+            field["value"] = config.get(str(field["key"]), field.get("default", ""))
+            field["value_source"] = "user"
+            field.setdefault("enum_values", [])
+            field.setdefault("enum_values_source", "fixed")
+            fields.append(field)
+        return fields
+
+    def _env_default_config(self, kind: str, device_type: str | None = None) -> dict[str, Any]:
+        normalized_kind = str(kind or "").strip().lower()
+        if normalized_kind == "relay":
+            relay_type = str(device_type or "").strip() or "snmp_pdu"
+            config: dict[str, Any] = {"type": relay_type}
+            for field in self._relay_fields(relay_type, {}):
+                config[str(field["key"])] = field.get("default", "")
+            return config
+        return {"type": str(device_type or "").strip()}
+
+    def _env_equipment_row(self, kind: str) -> dict[str, Any] | None:
+        normalized_kind = str(kind or "").strip().lower()
+        config = self._equipment_config().get(normalized_kind, {})
+        config = dict(config) if isinstance(config, dict) else {}
+        if normalized_kind == "relay":
+            relay_type = str(config.get("type") or "snmp_pdu").strip() or "snmp_pdu"
+            return {
+                "kind": "relay",
+                "kind_source": "fixed",
+                "label": self.tr("test.env.relay.label"),
+                "label_source": "fixed",
+                "type": relay_type,
+                "type_source": "user",
+                "typeLabel": self.tr("test.env.equipment.type.label"),
+                "typeLabel_source": "fixed",
+                "typeOptions": self._relay_type_rows(),
+                "fields": self._relay_fields(relay_type, config),
+            }
+        return None
+
+    @Slot(result="QVariantList")
+    def envEquipmentRows(self):
+        rows: list[dict[str, Any]] = []
+        for kind in self._selected_required_equipment():
+            row = self._env_equipment_row(kind)
+            if row is not None:
+                rows.append(row)
+        return rows
 
     @Slot(str, "QVariantList", result="QVariantList")
     def caseTree(self, filter_text: str, expanded_keys: list[Any]):
@@ -739,7 +909,13 @@ class TestPageBridge(QObject):
                 folder_key = f"folder:{folder_path}"
                 folder_node = next((item for item in parent["folders"] if item["key"] == folder_key), None)
                 if folder_node is None:
-                    folder_node = {"key": folder_key, "label": part, "folders": [], "files": []}
+                    folder_node = {
+                        "key": folder_key,
+                        "label": part,
+                        "label_source": "dynamic",
+                        "folders": [],
+                        "files": [],
+                    }
                     parent["folders"].append(folder_node)
                 parent = folder_node
 
@@ -749,7 +925,9 @@ class TestPageBridge(QObject):
                     {
                         "key": file_key,
                         "label": file_name,
+                        "label_source": "dynamic",
                         "file": file_path,
+                        "file_source": "dynamic",
                         "checked": file_path in selected_files,
                     }
                 )
@@ -763,6 +941,7 @@ class TestPageBridge(QObject):
             children.extend(build_file(item) for item in node["files"])
             return {
                 "title": node["label"],
+                "title_source": node.get("label_source", "dynamic"),
                 "_key": node["key"],
                 "rowType": "folder",
                 "iconSource": "Folder",
@@ -773,10 +952,12 @@ class TestPageBridge(QObject):
         def build_file(node: dict[str, Any]) -> dict[str, Any]:
             return {
                 "title": node["label"],
+                "title_source": node.get("label_source", "dynamic"),
                 "_key": node["key"],
                 "rowType": "file",
                 "iconSource": "Document",
                 "file": node["file"],
+                "file_source": node.get("file_source", "dynamic"),
                 "checked": node["checked"],
             }
 
@@ -789,6 +970,7 @@ class TestPageBridge(QObject):
         return [
             {
                 "title": "tests",
+                "title_source": "dynamic",
                 "_key": "root:tests",
                 "rowType": "root",
                 "iconSource": "Folder",
@@ -815,6 +997,52 @@ class TestPageBridge(QObject):
     @Slot(result="QVariantMap")
     def globalContext(self):
         return dict(self._state.global_context)
+
+    @Slot(str, str)
+    def setEnvEquipmentType(self, kind: str, device_type: str) -> None:
+        normalized_kind = str(kind or "").strip().lower()
+        normalized_type = str(device_type or "").strip()
+        if not normalized_kind or not normalized_type:
+            return
+        equipment = self._equipment_config()
+        next_config = self._env_default_config(normalized_kind, normalized_type)
+        if equipment.get(normalized_kind) == next_config:
+            return
+        equipment[normalized_kind] = next_config
+        self._state.global_context["equipment"] = equipment
+        self._save_and_emit()
+
+    @Slot(str, str, result="QVariant")
+    def envEquipmentValue(self, kind: str, key: str) -> Any:
+        normalized_kind = str(kind or "").strip().lower()
+        normalized_key = str(key or "").strip()
+        if not normalized_kind or not normalized_key:
+            return ""
+        current = self._equipment_config().get(normalized_kind, {})
+        if not isinstance(current, dict):
+            return ""
+        if normalized_key in current:
+            return current.get(normalized_key)
+        default_config = self._env_default_config(normalized_kind, str(current.get("type") or ""))
+        return default_config.get(normalized_key, "")
+
+    @Slot(str, str, "QVariant")
+    def setEnvEquipmentValue(self, kind: str, key: str, value: Any) -> None:
+        normalized_kind = str(kind or "").strip().lower()
+        normalized_key = str(key or "").strip()
+        if not normalized_kind or not normalized_key:
+            return
+        equipment = self._equipment_config()
+        current = equipment.get(normalized_kind, {})
+        config = dict(current) if isinstance(current, dict) else {}
+        if "type" not in config:
+            config = self._env_default_config(normalized_kind)
+        if config.get(normalized_key) == value:
+            return
+        config[normalized_key] = value
+        equipment[normalized_kind] = config
+        self._state.global_context["equipment"] = equipment
+        self._save_and_emit()
 
     @Slot(str, result="QVariantMap")
     def caseTypeConfig(self, case_type: str):

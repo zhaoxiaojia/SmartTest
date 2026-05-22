@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import os
 import re
 import subprocess
 import time
 
 from testing.params.adb_devices import _decode_adb_output, _hidden_process_kwargs, resolve_adb_serial_for_command
+from testing.runtime.config import current_dut_serial
 
 
 SCALING_AVAILABLE_FREQUENCIES = "/sys/devices/system/cpu/cpufreq/policy0/scaling_available_frequencies"
@@ -108,7 +108,7 @@ class CpuFrequencyController:
 
     @classmethod
     def from_environment(cls) -> "CpuFrequencyController":
-        return cls(selected_serial=os.environ.get("SMARTTEST_ADB_SERIAL", "").strip())
+        return cls(selected_serial=current_dut_serial())
 
     def ensure_root(self) -> None:
         _run_adb(selected_serial=self.selected_serial, args=["root"], timeout=20.0, check=False)

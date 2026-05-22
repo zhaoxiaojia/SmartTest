@@ -1,5 +1,23 @@
-"""Wi-Fi lab related tools."""
+"""Wi-Fi lab related tools.
 
-from .ixchariot import ix
-from .lab_device_controller import LabDeviceController
-from .rs_test import rs
+Submodules are loaded lazily because some controllers depend on optional lab
+software that is not installed on every SmartTest runtime.
+"""
+
+__all__ = ["LabDeviceController", "ix", "rs"]
+
+
+def __getattr__(name):
+    if name == "LabDeviceController":
+        from .lab_device_controller import LabDeviceController
+
+        return LabDeviceController
+    if name == "ix":
+        from .ixchariot import ix
+
+        return ix
+    if name == "rs":
+        from .rs_test import rs
+
+        return rs
+    raise AttributeError(name)

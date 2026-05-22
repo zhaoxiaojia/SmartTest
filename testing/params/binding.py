@@ -13,7 +13,6 @@ class BindingTargetKind(str, Enum):
 @dataclass(frozen=True)
 class ParamGroup:
     group_id: str
-    title: str
     param_keys: list[str]
 
 

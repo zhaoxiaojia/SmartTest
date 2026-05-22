@@ -9,13 +9,23 @@ from urllib.request import urlopen
 
 import pytest
 
-from testing.tool.dut_tool.transports.telnet_tool import TelnetSession
-from src.util.constants import (
-    ATTENUATOR_SWD_RC4DAT_8G_95,
-    ATTENUATOR_VAUNIX_LDA_908V_8,
-    RF_ATTENUATION_MAX_DB,
-    RF_ATTENUATION_MIN_DB,
-)
+try:
+    from src.util.constants import (
+        ATTENUATOR_SWD_RC4DAT_8G_95,
+        ATTENUATOR_VAUNIX_LDA_908V_8,
+        RF_ATTENUATION_MAX_DB,
+        RF_ATTENUATION_MIN_DB,
+    )
+except ModuleNotFoundError:
+    ATTENUATOR_SWD_RC4DAT_8G_95 = "SWD-RC4DAT-8G-95"
+    ATTENUATOR_VAUNIX_LDA_908V_8 = "Vaunix-LDA-908V-8"
+    RF_ATTENUATION_MAX_DB = 95
+    RF_ATTENUATION_MIN_DB = 0
+
+
+def _pytest_config():
+    config = getattr(pytest, "config", {})
+    return dict(config) if isinstance(config, dict) else {}
 
 
 class LabDeviceController:
@@ -32,7 +42,7 @@ class LabDeviceController:
     None
         This class does not return a value.
     """
-    def __init__(self, ip):
+    def __init__(self, ip, *, model=None, config=None, channels=None):
         """
         Init.
 
@@ -52,7 +62,12 @@ class LabDeviceController:
             The result produced by the function.
         """
         self.ip = ip
-        self.model = pytest.config['rf_solution']['model']
+        self._config = dict(config or _pytest_config())
+        self._configured_channels = channels
+        rf_solution = self._rf_solution_config()
+        self.model = str(model or rf_solution.get('model', '') or '').strip()
+        if not self.model:
+            raise ValueError('attenuator model is not configured')
         self._last_set_value = None
         self.lda_channels = [1]
         self._last_used_channels = None
@@ -254,8 +269,8 @@ class LabDeviceController:
     def _select_device(self) -> None:
         """Initialise telnet or HTTP controllers based on the configured model."""
         if self.model == ATTENUATOR_VAUNIX_LDA_908V_8:
-            lda_config = pytest.config['rf_solution'].get('Vaunix-LDA-908V-8', {})
-            raw_channels = lda_config.get('channels')
+            lda_config = self._rf_solution_config().get(ATTENUATOR_VAUNIX_LDA_908V_8, {})
+            raw_channels = self._configured_channels if self._configured_channels is not None else lda_config.get('channels')
             if raw_channels is None and 'ports' in lda_config:
                 logging.warning(
                     'Deprecated configuration key "ports" detected for %s; please rename it to "channels"',
@@ -270,6 +285,8 @@ class LabDeviceController:
                 self.lda_channels,
             )
             return
+        from testing.tool.dut_tool.transports.telnet_tool import TelnetSession
+
         try:
             logging.info('Try to connect %s', self.ip)
             self.tn = TelnetSession(self.ip, port=23)
@@ -278,6 +295,10 @@ class LabDeviceController:
         except Exception as exc:
             logging.error("Failed to connect to lab controller %s: %s", self.ip, exc)
             self.tn = None
+
+    def _rf_solution_config(self):
+        rf_solution = self._config.get('rf_solution', self._config)
+        return dict(rf_solution) if isinstance(rf_solution, dict) else {}
 
     def _schedule_action(self, value: str):
         """Return a callable that applies attenuation for the current model."""

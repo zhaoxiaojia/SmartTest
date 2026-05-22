@@ -4153,21 +4153,6 @@ Some contents...</translation>
         <translation>Test</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="30"/>
-        <source>Global</source>
-        <translation>Global</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="33"/>
-        <source>Shared by Case Type</source>
-        <translation>Shared by Case Type</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="35"/>
-        <source>Per Case</source>
-        <translation>Per Case</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_TestConfig.qml" line="181"/>
         <source>Test Cases</source>
         <translation>Test Cases</translation>
@@ -4249,6 +4234,16 @@ Some contents...</translation>
     <message>
         <source>Special Params (by Case Type)</source>
         <translation type="vanished">Special Params (by Case Type)</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="673"/>
+        <source>Env</source>
+        <translation>Env</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="701"/>
+        <source>Type</source>
+        <translation>Type</translation>
     </message>
 </context>
 <context>
@@ -4565,10 +4560,73 @@ Some contents...</translation>
 </context>
 <context>
     <name>TestPageBridge</name>
-    <message>
-        <location filename="bridge/TestPageBridge.py" line="150"/>
-        <source>DUT</source>
-        <translation>DUT</translation>
-    </message>
+    <message><source>test.schema.global_context.title</source><translation>Global</translation></message>
+    <message><source>test.schema.case_type_default.title</source><translation>Default</translation></message>
+    <message><source>test.param.scope.global_context</source><translation>Global</translation></message>
+    <message><source>test.param.scope.case_type_shared</source><translation>Case Type</translation></message>
+    <message><source>test.param.scope.case</source><translation>Per Case</translation></message>
+    <message><source>test.param.dut.label</source><translation>DUT</translation></message>
+    <message><source>test.param.dut.description</source><translation>Selected device under test.</translation></message>
+    <message><source>test.param.ac_onoff.cycle_count.label</source><translation>Cycle count</translation></message>
+    <message><source>test.param.ac_onoff.cycle_count.description</source><translation>Number of relay power cycles.</translation></message>
+    <message><source>test.param.ac_onoff.power_off_sec.label</source><translation>Power off seconds</translation></message>
+    <message><source>test.param.ac_onoff.power_off_sec.description</source><translation>Seconds to keep the relay powered off in each cycle.</translation></message>
+    <message><source>test.param.ac_onoff.power_off_step_sec.label</source><translation>Power off step seconds</translation></message>
+    <message><source>test.param.ac_onoff.power_off_step_sec.description</source><translation>Seconds added to the relay power-off time after each cycle. Use negative values to decrease.</translation></message>
+    <message><source>test.param.ac_onoff.power_on_wait_sec.label</source><translation>Power on wait seconds</translation></message>
+    <message><source>test.param.ac_onoff.power_on_wait_sec.description</source><translation>Seconds to wait after relay power on before checkpoints.</translation></message>
+    <message><source>test.param.ac_onoff.power_on_wait_step_sec.label</source><translation>Power on wait step seconds</translation></message>
+    <message><source>test.param.ac_onoff.power_on_wait_step_sec.description</source><translation>Seconds added to the post-power-on wait after each cycle. Use negative values to decrease.</translation></message>
+    <message><source>test.param.ac_onoff.ping_target.label</source><translation>Ping target</translation></message>
+    <message><source>test.param.ac_onoff.ping_target.description</source><translation>DUT-side ping target used as the Wi-Fi reconnect checkpoint.</translation></message>
+    <message><source>test.param.ac_onoff.bt_target.label</source><translation>Bluetooth target</translation></message>
+    <message><source>test.param.ac_onoff.bt_target.description</source><translation>Bluetooth device target used as the reconnect checkpoint.</translation></message>
+    <message><source>test.param.cpu_frequency.frequencies.label</source><translation>CPU frequencies</translation></message>
+    <message><source>test.param.cpu_frequency.frequencies.description</source><translation>Select the CPU frequencies to switch through.</translation></message>
+    <message><source>test.param.auto_reboot.bt_target.label</source><translation>Bluetooth Target</translation></message>
+    <message><source>test.param.auto_reboot.bt_target.description</source><translation>Optional target MAC or None</translation></message>
+    <message><source>test.param.auto_reboot.cycle_count.label</source><translation>Cycle Count</translation></message>
+    <message><source>test.param.auto_reboot.cycle_count.description</source><translation>Default 20</translation></message>
+    <message><source>test.param.auto_reboot.interval_sec.label</source><translation>Interval (s)</translation></message>
+    <message><source>test.param.auto_reboot.interval_sec.description</source><translation>Default 100</translation></message>
+    <message><source>test.param.auto_reboot.ping_target.label</source><translation>Ping Target</translation></message>
+    <message><source>test.param.auto_reboot.ping_target.description</source><translation>Optional ping target</translation></message>
+    <message><source>test.param.auto_suspend.bt_target.label</source><translation>Bluetooth Target</translation></message>
+    <message><source>test.param.auto_suspend.bt_target.description</source><translation>Optional target MAC or None</translation></message>
+    <message><source>test.param.auto_suspend.cycle_count.label</source><translation>Cycle Count</translation></message>
+    <message><source>test.param.auto_suspend.cycle_count.description</source><translation>Default 20</translation></message>
+    <message><source>test.param.auto_suspend.interval_sec.label</source><translation>Interval (s)</translation></message>
+    <message><source>test.param.auto_suspend.interval_sec.description</source><translation>Default 100</translation></message>
+    <message><source>test.param.auto_suspend.ping_target.label</source><translation>Ping Target</translation></message>
+    <message><source>test.param.auto_suspend.ping_target.description</source><translation>Optional ping target</translation></message>
+    <message><source>test.param.bt_onoff_scan.bt_target.label</source><translation>Bluetooth Target</translation></message>
+    <message><source>test.param.bt_onoff_scan.bt_target.description</source><translation>Required target MAC or None</translation></message>
+    <message><source>test.param.bt_onoff_scan.cycle_count.label</source><translation>Cycle Count</translation></message>
+    <message><source>test.param.bt_onoff_scan.cycle_count.description</source><translation>Default 2</translation></message>
+    <message><source>test.param.emmc_rw.loop_count.label</source><translation>Loop Count</translation></message>
+    <message><source>test.param.emmc_rw.loop_count.description</source><translation>Default 180</translation></message>
+    <message><source>test.param.emmc_rw.min_free_kb.label</source><translation>Minimum Free Space (KB)</translation></message>
+    <message><source>test.param.emmc_rw.min_free_kb.description</source><translation>Default 307200</translation></message>
+    <message><source>test.param.emmc_rw.source_profile.label</source><translation>Source Profile</translation></message>
+    <message><source>test.param.emmc_rw.source_profile.description</source><translation>random1 / random2</translation></message>
+    <message><source>test.param.emmc_rw.source_size_kb.label</source><translation>Source Size (KB)</translation></message>
+    <message><source>test.param.emmc_rw.source_size_kb.description</source><translation>Default 51200</translation></message>
+    <message><source>test.param.emmc_rw.work_dir.label</source><translation>Working Directory</translation></message>
+    <message><source>test.param.emmc_rw.work_dir.description</source><translation>Default /data/local/tmp/smarttest/emmc_rw</translation></message>
+    <message><source>test.param.wifi_onoff_scan.cycle_count.label</source><translation>Cycle Count</translation></message>
+    <message><source>test.param.wifi_onoff_scan.cycle_count.description</source><translation>Default 2</translation></message>
+    <message><source>test.param.wifi_onoff_scan.ping_target.label</source><translation>Ping Target</translation></message>
+    <message><source>test.param.wifi_onoff_scan.ping_target.description</source><translation>Required for reconnect check</translation></message>
+    <message><source>test.env.relay.label</source><translation>Relay</translation></message>
+    <message><source>test.env.equipment.type.label</source><translation>Type</translation></message>
+    <message><source>test.env.relay.type.snmp_pdu</source><translation>SNMP PDU</translation></message>
+    <message><source>test.env.relay.type.usb_relay</source><translation>USB Relay</translation></message>
+    <message><source>test.env.relay.snmp_pdu.ip.label</source><translation>IP Address</translation></message>
+    <message><source>test.env.relay.snmp_pdu.ip.description</source><translation>SNMP PDU address.</translation></message>
+    <message><source>test.env.relay.snmp_pdu.port.label</source><translation>Outlet Port</translation></message>
+    <message><source>test.env.relay.usb_relay.port.label</source><translation>Serial Port</translation></message>
+    <message><source>test.env.relay.usb_relay.port.description</source><translation>USB relay serial port, for example COM4.</translation></message>
+    <message><source>test.env.relay.usb_relay.mode.label</source><translation>Wiring Mode</translation></message>
+    <message><source>test.env.relay.usb_relay.press_seconds.label</source><translation>Press Seconds</translation></message>
 </context>
 </TS>

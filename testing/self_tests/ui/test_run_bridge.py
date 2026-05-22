@@ -45,7 +45,7 @@ def test_run_bridge_resolves_single_connected_device_when_saved_dut_is_stale(mon
     assert app is not None
 
     bridge = RunBridge(Path.cwd())
-    monkeypatch.setattr("ui.example.bridge.RunBridge.list_adb_devices", lambda: ["R58N123ABC"])
+    monkeypatch.setattr("testing.runner.config.list_adb_devices", lambda: ["R58N123ABC"])
 
     assert bridge._resolve_adb_serial("aaaa") == "R58N123ABC"
 
@@ -55,7 +55,7 @@ def test_run_bridge_keeps_saved_device_when_it_exists(monkeypatch) -> None:
     assert app is not None
 
     bridge = RunBridge(Path.cwd())
-    monkeypatch.setattr("ui.example.bridge.RunBridge.list_adb_devices", lambda: ["ABC123", "XYZ789"])
+    monkeypatch.setattr("testing.runner.config.list_adb_devices", lambda: ["ABC123", "XYZ789"])
 
     assert bridge._resolve_adb_serial("XYZ789") == "XYZ789"
 
@@ -128,7 +128,7 @@ def test_run_bridge_start_failure_writes_stderr_log(monkeypatch, tmp_path) -> No
     def fail_selected_targets():
         raise RuntimeError("selection failed")
 
-    monkeypatch.setattr(bridge, "_selected_run_inputs", fail_selected_targets)
+    monkeypatch.setattr(bridge, "_selected_run_config", fail_selected_targets)
 
     bridge.startRun()
 
@@ -166,6 +166,7 @@ def test_run_bridge_start_inserts_initial_plan_before_background_start(monkeypat
     bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
     bridge._stderr_mirror_log_path = tmp_path / "tmp_main_stderr.log"
     monkeypatch.setattr(bridge, "_default_state_path", lambda: state_path)
+    monkeypatch.setattr("testing.runner.config.list_adb_devices", lambda: ["ABC123"])
     monkeypatch.setattr(
         "ui.example.bridge.RunBridge.threading.Thread",
         lambda *args, **kwargs: type("_Thread", (), {"start": lambda self: None})(),
@@ -211,6 +212,7 @@ def test_run_bridge_start_expands_android_step_templates(monkeypatch, tmp_path) 
     bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
     bridge._stderr_mirror_log_path = tmp_path / "tmp_main_stderr.log"
     monkeypatch.setattr(bridge, "_default_state_path", lambda: state_path)
+    monkeypatch.setattr("testing.runner.config.list_adb_devices", lambda: ["ABC123"])
     monkeypatch.setattr(
         "ui.example.bridge.RunBridge.threading.Thread",
         lambda *args, **kwargs: type("_Thread", (), {"start": lambda self: None})(),

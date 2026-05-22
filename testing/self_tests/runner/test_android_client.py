@@ -25,6 +25,17 @@ def test_install_test_apk_rejects_missing_apk(monkeypatch, tmp_path: Path) -> No
     assert "test APK was not found" in str(exc.value)
 
 
+def test_root_android_client_omits_unsafe_serial_from_adb_commands() -> None:
+    assert android_client._adb_base_cmd(
+        adb_executable="adb",
+        adb_serial="0099360090052090260214801F41D0F脗",
+    ) == ["adb"]
+
+
+def test_root_android_client_keeps_safe_serial_in_adb_commands() -> None:
+    assert android_client._adb_base_cmd(adb_executable="adb", adb_serial="ABC123") == ["adb", "-s", "ABC123"]
+
+
 def test_android_client_installed_returns_true_for_pm_path(monkeypatch) -> None:
     monkeypatch.setattr(runner_android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
     monkeypatch.setattr("testing.params.adb_devices.list_adb_devices", lambda: ["ABC123", "XYZ789"])
@@ -110,6 +121,68 @@ def test_trigger_android_client_case_runs_install_guard(monkeypatch) -> None:
     assert probe_calls == ["ABC123"]
     assert force_stop_calls == ["ABC123"]
     assert wait_calls == [("adb", "emmc_rw", "ABC123")]
+
+
+def test_trigger_android_client_case_uses_default_adb_for_unsafe_serial(monkeypatch) -> None:
+    monkeypatch.setattr(runner_android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
+    unsafe_serial = "0099360090052090260214801F41D0F脗"
+    ensure_calls: list[str] = []
+    probe_calls: list[str] = []
+    force_stop_calls: list[str] = []
+    wait_calls: list[str] = []
+    start_commands: list[list[str]] = []
+
+    monkeypatch.setattr(
+        runner_android_client,
+        "ensure_test_apk_installed",
+        lambda adb_serial=None, require_privileged=False: ensure_calls.append(adb_serial or "<default>") or False,
+    )
+    monkeypatch.setattr(
+        runner_android_client,
+        "android_client_installed",
+        lambda adb_serial=None: probe_calls.append(adb_serial or "<default>") or True,
+    )
+    monkeypatch.setattr(
+        runner_android_client,
+        "_force_stop_android_client",
+        lambda *, adb_executable, adb_serial=None, package_name=runner_android_client.PACKAGE_NAME: force_stop_calls.append(
+            adb_serial or "<default>"
+        ) or subprocess.CompletedProcess(["adb"], 0, stdout="", stderr=""),
+    )
+    monkeypatch.setattr(
+        runner_android_client,
+        "read_android_client_snapshot",
+        lambda *, adb_executable, adb_serial=None, package_name=runner_android_client.PACKAGE_NAME: (_ for _ in ()).throw(
+            RuntimeError("no snapshot")
+        ),
+    )
+    monkeypatch.setattr(
+        runner_android_client,
+        "wait_for_android_client_case_completion",
+        lambda *, adb_executable, case_id, request_id, trigger, adb_serial=None, poll_interval_sec=1.0, timeout_sec=3600.0, baseline_signature=None, baseline_log_count=0, component=runner_android_client.DEFAULT_COMPONENT, source="pytest", params=None, stage_tracker=None: wait_calls.append(
+            adb_serial or "<default>"
+        ) or {"phase": "Completed", "report": {"statusText": "ok", "totalCount": 1, "successCount": 1, "failedCount": 0}},
+    )
+
+    def fake_run(cmd, capture_output, text, check, **kwargs):  # noqa: ANN001
+        start_commands.append(list(cmd))
+        return subprocess.CompletedProcess(cmd, 0, stdout="Starting: Intent { ... }\n", stderr="")
+
+    monkeypatch.setattr(runner_android_client.subprocess, "run", fake_run)
+
+    result = runner_android_client.trigger_android_client_case(
+        case_id="emmc_rw",
+        trigger="testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client",
+        adb_serial=unsafe_serial,
+    )
+
+    assert result.returncode == 0
+    assert ensure_calls == ["<default>"]
+    assert probe_calls == ["<default>"]
+    assert force_stop_calls == ["<default>"]
+    assert wait_calls == ["<default>"]
+    assert start_commands
+    assert "-s" not in start_commands[0]
 
 
 def test_trigger_android_client_case_rejects_when_install_still_missing(monkeypatch) -> None:

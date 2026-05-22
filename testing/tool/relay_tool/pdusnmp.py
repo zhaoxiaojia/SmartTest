@@ -9,10 +9,16 @@ information, constructs SNMP command strings and executes them using
 import logging
 from testing.tool.dut_tool import command_batch as subprocess
 import time
+from collections.abc import Mapping
 from typing import Any, Sequence
 
-from src.util.constants import load_config
 from testing.tool.relay_tool import Relay
+
+try:
+    from src.util.constants import load_config
+except ModuleNotFoundError:  # pragma: no cover - legacy config package is optional
+    def load_config(refresh: bool = False) -> dict[str, Any]:
+        return {}
 
 
 class power_ctrl(Relay):
@@ -31,14 +37,16 @@ class power_ctrl(Relay):
         super().__init__(self._coerce_default_port(default_port))
         self.config = load_config(refresh=True)
 
-        compat = self.config["compatibility"]
-        power_cfg = compat["power_ctrl"]
-        relays_cfg = power_cfg["relays"]
+        relays_cfg = self._configured_relays(self.config)
 
         power_relay: dict[str, list[int]] = {}
         for entry in relays_cfg:
-            ip = str(entry["ip"]).strip()
-            ports = [int(p) for p in entry["ports"]]
+            if not isinstance(entry, Mapping):
+                continue
+            ip = str(entry.get("ip", "")).strip()
+            if not ip:
+                continue
+            ports = [int(p) for p in list(entry.get("ports") or [])]
             if ip in power_relay:
                 for port in ports:
                     if port not in power_relay[ip]:
@@ -46,9 +54,28 @@ class power_ctrl(Relay):
             else:
                 power_relay[ip] = ports
 
+        if self.port:
+            ip, port = self.port
+            ports = power_relay.setdefault(ip, [])
+            if port not in ports:
+                ports.append(port)
+
         self.power_ctrl = power_relay
         self.ip_list = list(self.power_ctrl.keys())
         self.ctrl = self._handle_env_data()
+
+    @staticmethod
+    def _configured_relays(config: Mapping[str, Any] | None) -> list[Any]:
+        if not isinstance(config, Mapping):
+            return []
+        compat = config.get("compatibility")
+        if not isinstance(compat, Mapping):
+            return []
+        power_cfg = compat.get("power_ctrl")
+        if not isinstance(power_cfg, Mapping):
+            return []
+        relays = power_cfg.get("relays")
+        return list(relays) if isinstance(relays, list) else []
 
     @staticmethod
     def _coerce_default_port(value: tuple[str, int] | Sequence[Any] | None) -> tuple[str, int] | None:

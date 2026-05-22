@@ -64,6 +64,13 @@ def _adb_base_cmd(*, adb_executable: str, adb_serial: str | None = None) -> list
     return cmd
 
 
+def _serial_for_log(serial: str | None) -> str:
+    text = str(serial or "").strip()
+    if not text:
+        return "<default>"
+    return text.encode("unicode_escape").decode("ascii")
+
+
 def _apk_hash(apk_path: Path) -> str:
     digest = hashlib.sha256()
     with apk_path.open("rb") as fh:
@@ -76,6 +83,7 @@ def _ensure_debug_apk_built(apk_path: Path) -> None:
     project_dir = Path(__file__).resolve().parent
     gradlew = project_dir / ("gradlew.bat" if os.name == "nt" else "gradlew")
     if not gradlew.exists():
+        print(f"[android_client] build check skipped: gradlew missing at {gradlew}")
         return
     source_roots = [
         project_dir / "app" / "src" / "main" / "java",
@@ -89,7 +97,14 @@ def _ensure_debug_apk_built(apk_path: Path) -> None:
     if manifest.exists():
         source_files.append(manifest)
     newest_source_mtime = max((path.stat().st_mtime for path in source_files), default=0.0)
+    apk_mtime = apk_path.stat().st_mtime if apk_path.exists() else 0.0
+    print(
+        "[android_client] build check "
+        f"apk={apk_path} exists={apk_path.exists()} apk_mtime={apk_mtime:.3f} "
+        f"newest_source_mtime={newest_source_mtime:.3f} source_files={len(source_files)}"
+    )
     if apk_path.exists() and apk_path.stat().st_mtime >= newest_source_mtime:
+        print("[android_client] build check result: existing debug APK is up to date")
         return
     print("[android_client] local APK is missing or stale; build :app:assembleDebug")
     result = subprocess.run(
@@ -350,6 +365,38 @@ def _package_code_path(
     return stdout.split("package:", 1)[-1].strip()
 
 
+def _package_version_info(
+    *,
+    adb_executable: str,
+    adb_serial: str | None = None,
+    package_name: str = PACKAGE_NAME,
+) -> dict[str, str]:
+    result = _run_adb(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        args=["shell", "dumpsys", "package", package_name],
+    )
+    if result.returncode != 0:
+        return {
+            "version_code": "",
+            "version_name": "",
+            "error": str(result.stderr or "").strip(),
+        }
+    version_code = ""
+    version_name = ""
+    for raw_line in str(result.stdout or "").splitlines():
+        line = raw_line.strip()
+        if line.startswith("versionCode="):
+            version_code = line.split(maxsplit=1)[0].split("=", 1)[-1].strip()
+        elif line.startswith("versionName="):
+            version_name = line.split("=", 1)[-1].strip()
+    return {
+        "version_code": version_code,
+        "version_name": version_name,
+        "error": "",
+    }
+
+
 def _device_file_hash(
     *,
     adb_executable: str,
@@ -578,6 +625,12 @@ def _ensure_privileged_install(
     recorded_hash: str,
 ) -> bool:
     privileged = _is_privileged_code_path(code_path)
+    print(
+        "[android_client] priv-app decision input "
+        f"installed={installed} privileged={privileged} code_path={code_path or '<missing>'} "
+        f"recorded_mode={recorded_mode or '<none>'} "
+        f"recorded_hash={recorded_hash or '<none>'} current_hash={current_hash}"
+    )
     if installed and privileged:
         device_hash = _device_file_hash(
             adb_executable=adb_executable,
@@ -680,36 +733,62 @@ def ensure_test_apk_installed(
     adb_executable = shutil.which("adb")
     if not adb_executable:
         raise RuntimeError("adb is not available in PATH.")
-    _ensure_device_ready_before_install(adb_executable=adb_executable, adb_serial=adb_serial)
+    requested_serial = str(adb_serial or "").strip()
+    command_serial = resolve_adb_serial_for_command(requested_serial)
+    print(
+        "[android_client] ensure install start "
+        f"adb={adb_executable} requested_serial={_serial_for_log(requested_serial)} "
+        f"command_serial={_serial_for_log(command_serial)} "
+        f"require_privileged={require_privileged} explicit_apk={apk_path is not None} frozen={getattr(sys, 'frozen', False)}"
+    )
+    _ensure_device_ready_before_install(adb_executable=adb_executable, adb_serial=command_serial)
 
     resolved_apk_path = Path(apk_path or DEFAULT_APK_PATH).resolve()
+    print(f"[android_client] resolved APK path before build/sign: {resolved_apk_path}")
     if apk_path is None and not getattr(sys, "frozen", False):
         _ensure_debug_apk_built(resolved_apk_path)
     if not resolved_apk_path.exists():
         print(f"[android_client] ensure install failed, APK missing: {resolved_apk_path}")
         raise RuntimeError(f"android_client test APK was not found: {resolved_apk_path}")
 
-    installed = is_test_apk_installed(adb_serial=adb_serial)
+    installed = is_test_apk_installed(adb_serial=command_serial)
 
     if require_privileged:
+        print("[android_client] privileged case requires platform-signed APK")
         resolved_apk_path = sign_privileged_apk(input_apk_path=resolved_apk_path)
         if not resolved_apk_path.exists():
             print(f"[android_client] ensure install failed, APK missing: {resolved_apk_path}")
             raise RuntimeError(f"android_client test APK was not found: {resolved_apk_path}")
 
     current_hash = _apk_hash(resolved_apk_path)
-    state_key = _install_state_key(adb_serial=adb_serial, apk_path=resolved_apk_path)
+    state_key = _install_state_key(adb_serial=command_serial, apk_path=resolved_apk_path)
     install_state = _load_install_state()
     recorded_mode, recorded_hash = _parse_install_state_value(install_state.get(state_key, ""))
-    code_path = _package_code_path(adb_executable=adb_executable, adb_serial=adb_serial)
+    code_path = _package_code_path(adb_executable=adb_executable, adb_serial=command_serial)
+    version_info = _package_version_info(adb_executable=adb_executable, adb_serial=command_serial)
+    print(f"[android_client] final APK path for install decision: {resolved_apk_path}")
     print(f"[android_client] current apk hash: {current_hash}")
     print(f"[android_client] installed on device: {installed}")
+    print(f"[android_client] device package code_path: {code_path or '<missing>'}")
+    print(
+        "[android_client] device package version "
+        f"versionCode={version_info.get('version_code') or '<missing>'} "
+        f"versionName={version_info.get('version_name') or '<missing>'} "
+        f"error={version_info.get('error') or '<none>'}"
+    )
+    print(f"[android_client] install state path: {INSTALL_STATE_PATH}")
+    print(f"[android_client] install state key: {state_key}")
+    print(
+        "[android_client] install state recorded "
+        f"mode={recorded_mode or '<none>'} hash={recorded_hash or '<none>'} "
+        f"state_entries={len(install_state)}"
+    )
 
     if require_privileged:
         return _ensure_privileged_install(
             adb_executable=adb_executable,
             resolved_apk_path=resolved_apk_path,
-            adb_serial=adb_serial,
+            adb_serial=command_serial,
             current_hash=current_hash,
             state_key=state_key,
             install_state=install_state,
@@ -723,14 +802,14 @@ def ensure_test_apk_installed(
         print("[android_client] existing package is priv-app; verify/reinstall privileged APK")
         privileged_apk_path = sign_privileged_apk(input_apk_path=resolved_apk_path)
         privileged_hash = _apk_hash(privileged_apk_path)
-        privileged_state_key = _install_state_key(adb_serial=adb_serial, apk_path=privileged_apk_path)
+        privileged_state_key = _install_state_key(adb_serial=command_serial, apk_path=privileged_apk_path)
         privileged_mode, privileged_recorded_hash = _parse_install_state_value(
             install_state.get(privileged_state_key, "")
         )
         return _ensure_privileged_install(
             adb_executable=adb_executable,
             resolved_apk_path=privileged_apk_path,
-            adb_serial=adb_serial,
+            adb_serial=command_serial,
             current_hash=privileged_hash,
             state_key=privileged_state_key,
             install_state=install_state,
@@ -741,12 +820,15 @@ def ensure_test_apk_installed(
         )
 
     if installed and recorded_mode == "user" and recorded_hash == current_hash:
-        print("[android_client] user APK already installed with matching hash, skip install")
+        print("[android_client] decision: user APK already installed with matching recorded hash, skip install")
         return False
 
-    print("[android_client] test APK missing or stale, start install")
-    install_test_apk(apk_path=resolved_apk_path, adb_serial=adb_serial)
-    if not is_test_apk_installed(adb_serial=adb_serial):
+    if not installed:
+        print("[android_client] decision: package missing on DUT, start install")
+    else:
+        print("[android_client] decision: installed package is stale or unrecorded, start install")
+    install_test_apk(apk_path=resolved_apk_path, adb_serial=command_serial)
+    if not is_test_apk_installed(adb_serial=command_serial):
         raise RuntimeError("android_client test APK install completed but package is still missing on DUT.")
     install_state[state_key] = _install_state_value(mode="user", apk_hash=current_hash)
     _save_install_state(install_state)

@@ -27,13 +27,13 @@ def test_parse_adb_devices_output_keeps_raw_single_device_serial():
     assert parse_adb_devices_output(output) == ["0099360090052090260214801F41D0F\xb6"]
 
 
-def test_resolve_adb_serial_for_command_omits_serial_when_single_device(monkeypatch) -> None:
-    monkeypatch.setattr("testing.params.adb_devices.list_adb_devices", lambda: ["ABC123"])
-
-    assert resolve_adb_serial_for_command("ABC123") is None
-
-
-def test_resolve_adb_serial_for_command_keeps_selected_serial_when_multiple_devices(monkeypatch) -> None:
-    monkeypatch.setattr("testing.params.adb_devices.list_adb_devices", lambda: ["ABC123", "XYZ789"])
-
+def test_resolve_adb_serial_for_command_keeps_selected_serial() -> None:
     assert resolve_adb_serial_for_command("ABC123") == "ABC123"
+
+
+def test_resolve_adb_serial_for_command_omits_empty_serial() -> None:
+    assert resolve_adb_serial_for_command("") is None
+
+
+def test_resolve_adb_serial_for_command_omits_unsafe_serial_suffix() -> None:
+    assert resolve_adb_serial_for_command("0099360090052090260214801F41D0F脗") is None

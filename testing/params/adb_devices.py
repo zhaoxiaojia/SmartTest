@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
+
+
+_ADB_SERIAL_ARG_RE = re.compile(r"^[A-Za-z0-9._:-]+$")
 
 
 def _decode_adb_output(output: bytes | str | None) -> str:
@@ -64,10 +68,9 @@ def list_adb_devices() -> list[str]:
 
 
 def resolve_adb_serial_for_command(selected_serial: str | None) -> str | None:
-    devices = list_adb_devices()
-    if len(devices) <= 1:
-        return None
     serial = str(selected_serial or "").strip()
-    if serial and serial in devices:
-        return serial
-    return serial or None
+    if not serial:
+        return None
+    if not _ADB_SERIAL_ARG_RE.fullmatch(serial):
+        return None
+    return serial

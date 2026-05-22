@@ -37,12 +37,10 @@ ParamType = Literal["string", "int", "float", "bool", "enum", "multi_enum", "pat
 @dataclass(frozen=True)
 class ParamField:
     key: str
-    label: str
     type: ParamType = ParamValueType.STRING
     category: ParamCategory = ParamCategory.GENERAL
     scope: ParamScope = ParamScope.CASE
     default: Any = ""
-    description: str = ""
     group: str = ""
     required: bool = False
     enum_values: list[str] = field(default_factory=list)
@@ -56,7 +54,6 @@ class ParamSchema:
     """
 
     schema_id: str
-    title: str
     fields: list[ParamField]
 
 

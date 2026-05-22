@@ -94,6 +94,15 @@ def test_default_registry_includes_android_client_emmc_params():
     assert registry.get_param("wifi_onoff_scan:ping_target") is not None
     assert registry.get_param("bt_onoff_scan:cycle_count") is not None
     assert registry.get_param("bt_onoff_scan:bt_target") is not None
+    assert registry.get_param("ac_onoff:cycle_count") is not None
+    assert registry.get_param("ac_onoff:power_off_sec") is not None
+    assert registry.get_param("ac_onoff:power_off_step_sec") is not None
+    assert registry.get_param("ac_onoff:power_on_wait_sec") is not None
+    assert registry.get_param("ac_onoff:power_on_wait_step_sec") is not None
+    assert registry.get_param("ac_onoff:ping_target") is not None
+    assert registry.get_param("ac_onoff:bt_target") is not None
+    assert registry.get_param("ac_onoff:power_off_step_sec").type == ParamValueType.FLOAT
+    assert registry.get_param("ac_onoff:power_on_wait_step_sec").type == ParamValueType.FLOAT
     cpu_frequency_param = registry.get_param(CPU_FREQUENCY_PARAM_KEY)
     assert cpu_frequency_param is not None
     assert cpu_frequency_param.type == ParamValueType.MULTI_ENUM
@@ -106,10 +115,12 @@ def test_default_registry_uses_fixed_bluetooth_target_list():
     reboot_param = registry.get_param("auto_reboot:bt_target")
     suspend_param = registry.get_param("auto_suspend:bt_target")
     bt_onoff_param = registry.get_param("bt_onoff_scan:bt_target")
+    ac_onoff_param = registry.get_param("ac_onoff:bt_target")
 
     assert reboot_param is not None
     assert suspend_param is not None
     assert bt_onoff_param is not None
+    assert ac_onoff_param is not None
     assert reboot_param.enum_values == [
         "None",
         "小米小钢炮蓝牙音箱 [74:A3:4A:13:3E:DA]",
@@ -121,3 +132,4 @@ def test_default_registry_uses_fixed_bluetooth_target_list():
     ]
     assert suspend_param.enum_values == reboot_param.enum_values
     assert bt_onoff_param.enum_values == reboot_param.enum_values
+    assert ac_onoff_param.enum_values == reboot_param.enum_values
