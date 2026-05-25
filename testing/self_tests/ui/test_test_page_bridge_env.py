@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "ui"))
 import example.imports.resource_rc  # noqa: F401
 from example.bridge.TestPageBridge import TestPageBridge
 from example.helper.TranslateHelper import TranslateHelper
+from example.helper.TsTextCatalog import TsTextCatalog
 from testing.state.models import SelectedCase
 
 
@@ -17,6 +18,21 @@ def _translator() -> TranslateHelper:
     helper = TranslateHelper()
     helper.init(None)
     return helper
+
+
+def test_ts_text_catalog_reads_test_page_parameter_text_from_ts() -> None:
+    catalog = TsTextCatalog(Path.cwd())
+
+    assert catalog.text(
+        locale="en_US",
+        context="TestPageBridge",
+        source="test.param.ac_onoff.cycle_count.label",
+    ) == "Cycle count"
+    assert catalog.text(
+        locale="zh_CN",
+        context="TestPageBridge",
+        source="test.param.ac_onoff.cycle_count.label",
+    ) == "\u5faa\u73af\u6b21\u6570"
 
 
 def test_test_page_bridge_env_rows_follow_selected_required_equipment(tmp_path) -> None:

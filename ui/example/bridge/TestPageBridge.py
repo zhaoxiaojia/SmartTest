@@ -22,8 +22,10 @@ from testing.state.store import load_state, save_state
 
 try:
     from example.helper.TranslateHelper import TranslateHelper
+    from example.helper.TsTextCatalog import TsTextCatalog
 except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
     from ui.example.helper.TranslateHelper import TranslateHelper
+    from ui.example.helper.TsTextCatalog import TsTextCatalog
 
 
 class TestPageBridge(QObject):
@@ -45,6 +47,7 @@ class TestPageBridge(QObject):
         self._state_path = self._default_state_path()
         self._trace_log_path = self._state_path.parent / "test_page_trace.log"
         self._frontend_pref_path = self._state_path.parent / "frontend_prefs.json"
+        self._text_catalog = TsTextCatalog(self._root_dir, trace=self._trace)
         self._state = load_state(self._state_path)
         self._adb_devices = self._load_cached_adb_devices()
         self._param_options = self._load_cached_param_options()
@@ -260,11 +263,18 @@ class TestPageBridge(QObject):
         normalized = str(param_key or "").strip().replace(":", ".")
         return f"test.param.{normalized}.{part}"
 
+    def _fixed_text(self, key: str) -> str:
+        return self._text_catalog.text(
+            locale=TranslateHelper().current,
+            context="TestPageBridge",
+            source=key,
+        )
+
     def _field_label(self, field: ParamField) -> str:
-        return self.tr(self._param_text_key(field.key, "label"))
+        return self._fixed_text(self._param_text_key(field.key, "label"))
 
     def _field_description(self, field: ParamField) -> str:
-        return self.tr(self._param_text_key(field.key, "description"))
+        return self._fixed_text(self._param_text_key(field.key, "description"))
 
     def _scope_label(self, scope: Any) -> str:
         raw_scope = scope.value if hasattr(scope, "value") else str(scope or "")
@@ -273,12 +283,12 @@ class TestPageBridge(QObject):
             ParamScope.CASE_TYPE_SHARED.value: "test.param.scope.case_type_shared",
             ParamScope.CASE.value: "test.param.scope.case",
         }
-        return self.tr(labels.get(str(raw_scope), labels[ParamScope.CASE.value]))
+        return self._fixed_text(labels.get(str(raw_scope), labels[ParamScope.CASE.value]))
 
     def _schema_to_jsonable(self, schema: ParamSchema) -> dict[str, Any]:
         return {
             "schema_id": schema.schema_id,
-            "title": self.tr(f"test.schema.{schema.schema_id}.title"),
+            "title": self._fixed_text(f"test.schema.{schema.schema_id}.title"),
             "title_source": "fixed",
             "fields": [self._field_to_jsonable(f) for f in schema.fields],
         }

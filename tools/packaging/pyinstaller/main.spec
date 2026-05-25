@@ -21,6 +21,8 @@ mainPath = os.path.join(repo_root, "main.py")
 ui_root = os.path.join(repo_root, "ui")
 test_catalog = os.path.join(repo_root, "build", "generated", "testing", "cases", "test_catalog.json")
 testing_root = os.path.join(repo_root, "testing")
+ai_root = os.path.join(repo_root, "AI")
+jira_tool_root = os.path.join(repo_root, "jira_tool")
 build_manifest = os.path.join(repo_root, "build", "generated", "build_manifest.json")
 android_apk = os.path.join(repo_root, "android_client", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
 android_platform_apk = os.path.join(
@@ -60,8 +62,20 @@ a = Analysis(
     binaries=[],
     datas=[
         (
+            ui_root,
+            "ui",
+        ),
+        (
             testing_root,
             "testing",
+        ),
+        (
+            ai_root,
+            "AI",
+        ),
+        (
+            jira_tool_root,
+            "jira_tool",
         ),
         (
             test_catalog,
@@ -185,7 +199,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,
+    console=bool(os.environ.get("SMARTTEST_CONSOLE")),
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

@@ -42,6 +42,14 @@ def _runtime_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _exit_code_from_event_result(result) -> int:
+    if isinstance(result, bool) or result is None:
+        return 0
+    if isinstance(result, int):
+        return result
+    return 0
+
+
 # noinspection PyTypeChecker
 def main():
     os.environ["QT_QUICK_CONTROLS_STYLE"] = "Basic"
@@ -112,9 +120,10 @@ def main():
         sys.exit(-1)
     with event_loop:
         result = event_loop.run_until_complete(app_close_event.wait())
-        if result == 931:
+        exit_code = _exit_code_from_event_result(result)
+        if exit_code == 931:
             QProcess.startDetached(QGuiApplication.instance().applicationFilePath(), QGuiApplication.instance().arguments())
-        sys.exit(result)
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":
