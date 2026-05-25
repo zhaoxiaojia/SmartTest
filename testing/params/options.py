@@ -17,6 +17,14 @@ _STATIC_OPTION_PROVIDERS: dict[str, OptionProvider] = {
     "auto_reboot:bt_target": known_bluetooth_targets,
     "auto_suspend:bt_target": known_bluetooth_targets,
     "bt_onoff_scan:bt_target": known_bluetooth_targets,
+    "local_playback_stress:actions": lambda: [
+        "pause",
+        "play",
+        "seek_forward",
+        "seek_backward",
+        "back_to_start",
+        "seek_to_end",
+    ],
 }
 
 

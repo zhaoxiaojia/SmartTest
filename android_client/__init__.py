@@ -9,7 +9,7 @@ import subprocess
 import time
 import sys
 
-from testing.params.adb_devices import resolve_adb_serial_for_command
+from testing.tool.adb import build_adb_command, effective_adb_serial
 
 
 PACKAGE_NAME = "com.smarttest.mobile"
@@ -57,11 +57,7 @@ def _subprocess_creationflags() -> int:
 
 
 def _adb_base_cmd(*, adb_executable: str, adb_serial: str | None = None) -> list[str]:
-    cmd = [adb_executable]
-    serial = resolve_adb_serial_for_command(adb_serial)
-    if serial:
-        cmd.extend(["-s", serial])
-    return cmd
+    return build_adb_command(adb_executable=adb_executable, selected_serial=adb_serial, args=[])
 
 
 def _serial_for_log(serial: str | None) -> str:
@@ -734,14 +730,14 @@ def ensure_test_apk_installed(
     if not adb_executable:
         raise RuntimeError("adb is not available in PATH.")
     requested_serial = str(adb_serial or "").strip()
-    command_serial = resolve_adb_serial_for_command(requested_serial)
+    effective_serial = effective_adb_serial(requested_serial)
     print(
         "[android_client] ensure install start "
         f"adb={adb_executable} requested_serial={_serial_for_log(requested_serial)} "
-        f"command_serial={_serial_for_log(command_serial)} "
+        f"effective_serial={_serial_for_log(effective_serial)} "
         f"require_privileged={require_privileged} explicit_apk={apk_path is not None} frozen={getattr(sys, 'frozen', False)}"
     )
-    _ensure_device_ready_before_install(adb_executable=adb_executable, adb_serial=command_serial)
+    _ensure_device_ready_before_install(adb_executable=adb_executable, adb_serial=requested_serial)
 
     resolved_apk_path = Path(apk_path or DEFAULT_APK_PATH).resolve()
     print(f"[android_client] resolved APK path before build/sign: {resolved_apk_path}")
@@ -751,7 +747,7 @@ def ensure_test_apk_installed(
         print(f"[android_client] ensure install failed, APK missing: {resolved_apk_path}")
         raise RuntimeError(f"android_client test APK was not found: {resolved_apk_path}")
 
-    installed = is_test_apk_installed(adb_serial=command_serial)
+    installed = is_test_apk_installed(adb_serial=requested_serial)
 
     if require_privileged:
         print("[android_client] privileged case requires platform-signed APK")
@@ -761,11 +757,11 @@ def ensure_test_apk_installed(
             raise RuntimeError(f"android_client test APK was not found: {resolved_apk_path}")
 
     current_hash = _apk_hash(resolved_apk_path)
-    state_key = _install_state_key(adb_serial=command_serial, apk_path=resolved_apk_path)
+    state_key = _install_state_key(adb_serial=effective_serial, apk_path=resolved_apk_path)
     install_state = _load_install_state()
     recorded_mode, recorded_hash = _parse_install_state_value(install_state.get(state_key, ""))
-    code_path = _package_code_path(adb_executable=adb_executable, adb_serial=command_serial)
-    version_info = _package_version_info(adb_executable=adb_executable, adb_serial=command_serial)
+    code_path = _package_code_path(adb_executable=adb_executable, adb_serial=requested_serial)
+    version_info = _package_version_info(adb_executable=adb_executable, adb_serial=requested_serial)
     print(f"[android_client] final APK path for install decision: {resolved_apk_path}")
     print(f"[android_client] current apk hash: {current_hash}")
     print(f"[android_client] installed on device: {installed}")
@@ -788,7 +784,7 @@ def ensure_test_apk_installed(
         return _ensure_privileged_install(
             adb_executable=adb_executable,
             resolved_apk_path=resolved_apk_path,
-            adb_serial=command_serial,
+            adb_serial=requested_serial,
             current_hash=current_hash,
             state_key=state_key,
             install_state=install_state,
@@ -802,14 +798,14 @@ def ensure_test_apk_installed(
         print("[android_client] existing package is priv-app; verify/reinstall privileged APK")
         privileged_apk_path = sign_privileged_apk(input_apk_path=resolved_apk_path)
         privileged_hash = _apk_hash(privileged_apk_path)
-        privileged_state_key = _install_state_key(adb_serial=command_serial, apk_path=privileged_apk_path)
+        privileged_state_key = _install_state_key(adb_serial=effective_serial, apk_path=privileged_apk_path)
         privileged_mode, privileged_recorded_hash = _parse_install_state_value(
             install_state.get(privileged_state_key, "")
         )
         return _ensure_privileged_install(
             adb_executable=adb_executable,
             resolved_apk_path=privileged_apk_path,
-            adb_serial=command_serial,
+            adb_serial=requested_serial,
             current_hash=privileged_hash,
             state_key=privileged_state_key,
             install_state=install_state,
@@ -827,8 +823,8 @@ def ensure_test_apk_installed(
         print("[android_client] decision: package missing on DUT, start install")
     else:
         print("[android_client] decision: installed package is stale or unrecorded, start install")
-    install_test_apk(apk_path=resolved_apk_path, adb_serial=command_serial)
-    if not is_test_apk_installed(adb_serial=command_serial):
+    install_test_apk(apk_path=resolved_apk_path, adb_serial=requested_serial)
+    if not is_test_apk_installed(adb_serial=requested_serial):
         raise RuntimeError("android_client test APK install completed but package is still missing on DUT.")
     install_state[state_key] = _install_state_value(mode="user", apk_hash=current_hash)
     _save_install_state(install_state)

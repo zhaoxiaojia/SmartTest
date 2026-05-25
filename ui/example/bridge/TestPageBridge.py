@@ -1064,11 +1064,17 @@ class TestPageBridge(QObject):
         if case is None:
             return []
         required_params = list(case.get("required_params", []))
-        return [
-            self._field_to_jsonable(field)
-            for param_key in required_params
-            if (field := self._field_for_key(str(param_key))) is not None
-        ]
+        fields: list[dict[str, Any]] = []
+        for param_key in required_params:
+            field = self._field_for_key(str(param_key))
+            if field is None:
+                continue
+            jsonable = self._field_to_jsonable(field)
+            source = str(field.options_source or "").strip()
+            if source and not jsonable.get("enum_values"):
+                self._schedule_param_options_refresh(source, "case_param_fields_empty_options")
+            fields.append(jsonable)
+        return fields
 
     @Slot(str, str, result="QVariant")
     def caseParamValue(self, nodeid: str, key: str):

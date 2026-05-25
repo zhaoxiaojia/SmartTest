@@ -453,7 +453,7 @@ FluPage {
                                                 property var fieldData: modelData
                                                 property bool compactTextField: fieldData.type === "string" || fieldData.type === "float" || fieldData.type === "int"
                                                 Layout.fillWidth: true
-                                                spacing: 4
+                                                spacing: 2
 
                                                 RowLayout{
                                                     visible: compactTextField
@@ -657,11 +657,15 @@ FluPage {
                                                 ColumnLayout{
                                                     visible: fieldData.type === "multi_enum"
                                                     Layout.fillWidth: true
-                                                    spacing: 4
+                                                    spacing: 2
                                                     Repeater{
                                                         model: fieldData.enum_values || []
                                                         FluCheckBox{
                                                             Layout.alignment: Qt.AlignLeft
+                                                            Layout.preferredHeight: 24
+                                                            size: 16
+                                                            textSpacing: 4
+                                                            font: FluTextStyle.Caption
                                                             text: modelData
                                                             checked: {
                                                                 var _version = stateVersion
@@ -683,7 +687,7 @@ FluPage {
                                                     id: text_case_param_multiline
                                                     visible: fieldData.type === "multiline"
                                                     Layout.fillWidth: true
-                                                    Layout.preferredHeight: 96
+                                                    Layout.preferredHeight: 76
                                                     placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
                                                     isCtrlEnterForNewline: true
                                                     Binding {

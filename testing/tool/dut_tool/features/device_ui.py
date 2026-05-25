@@ -8,6 +8,8 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 from typing import Optional, List, Tuple, Any, Set
 
+from testing.tool.adb import build_adb_command, effective_adb_serial
+
 class UiautomatorTool:
     """
     Per-device uiautomator2 session wrapper used by DUT UI feature flows.
@@ -905,7 +907,10 @@ class DeviceUiFeature(FeatureBase):
 
             # Step 2: Remove (forget) the current network
             result2 = subprocess.run(
-                ["adb", "-s", serial, "shell", "wpa_cli", "remove_network", current_net_id],
+                build_adb_command(
+                    selected_serial=serial,
+                    args=["shell", "wpa_cli", "remove_network", current_net_id],
+                ),
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,text=True, timeout=timeout
             )
 
@@ -925,9 +930,10 @@ class DeviceUiFeature(FeatureBase):
     def _run_adb(cmd: str) -> None:
         """鎵ц ADB 鍛戒护锛堥潤榛橈級"""
         try:
+            normalized_cmd = DeviceUiFeature._normalize_adb_command(cmd)
             #subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
             result = subprocess.run(
-                cmd,
+                normalized_cmd,
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,  # 鑷姩澶勭悊 stdout/stderr
@@ -952,8 +958,9 @@ class DeviceUiFeature(FeatureBase):
     def _run_adb_capture_output(cmd: str, timeout: int = 10) -> str:
         """Run an ADB command and return stdout for parsing."""
         try:
+            normalized_cmd = DeviceUiFeature._normalize_adb_command(cmd)
             result = subprocess.run(
-                cmd,
+                normalized_cmd,
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -975,6 +982,18 @@ class DeviceUiFeature(FeatureBase):
         except Exception as e:
             logging.error(f"Exception running ADB: {e}")
             return ""
+
+    @staticmethod
+    def _normalize_adb_command(cmd: str) -> str:
+        text = str(cmd or "").strip()
+        match = re.match(r"^(adb)\s+-s\s+(\S+)(\s+.*)?$", text)
+        if not match:
+            return text
+        serial = effective_adb_serial(match.group(2))
+        suffix = str(match.group(3) or "")
+        if serial:
+            return f"adb -s {serial}{suffix}"
+        return f"adb{suffix}"
 
     @staticmethod
     def _dump_ui(serial: str, logdir: Optional[Path] = None) -> Any:

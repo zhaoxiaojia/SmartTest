@@ -4845,6 +4845,20 @@ Some contents...</source>
     <message><source>test.param.emmc_rw.source_size_kb.description</source><translation>默认 51200</translation></message>
     <message><source>test.param.emmc_rw.work_dir.label</source><translation>工作目录</translation></message>
     <message><source>test.param.emmc_rw.work_dir.description</source><translation>默认 /data/local/tmp/smarttest/emmc_rw</translation></message>
+    <message><source>test.param.local_playback_stress.media_dir.label</source><translation>媒体目录</translation></message>
+    <message><source>test.param.local_playback_stress.media_dir.description</source><translation>未选择文件时运行期扫描的 DUT 目录。默认 /storage/emulated/0/Movies。</translation></message>
+    <message><source>test.param.local_playback_stress.media_files.label</source><translation>播放文件</translation></message>
+    <message><source>test.param.local_playback_stress.media_files.description</source><translation>从 DUT 内置 Movies 和 U 盘 Movies 目录发现的文件。留空时运行期扫描媒体目录。</translation></message>
+    <message><source>test.param.local_playback_stress.actions.label</source><translation>压测动作</translation></message>
+    <message><source>test.param.local_playback_stress.actions.description</source><translation>通过 Android 媒体按键事件发送给 ExoPlayer 的播放操作。</translation></message>
+    <message><source>test.param.local_playback_stress.loop_count.label</source><translation>循环次数</translation></message>
+    <message><source>test.param.local_playback_stress.loop_count.description</source><translation>重复执行所选文件和动作配置的次数。</translation></message>
+    <message><source>test.param.local_playback_stress.random_playback.label</source><translation>随机播放</translation></message>
+    <message><source>test.param.local_playback_stress.random_playback.description</source><translation>每轮循环内打乱所选文件顺序。</translation></message>
+    <message><source>test.param.local_playback_stress.action_interval_sec.label</source><translation>动作间隔（秒）</translation></message>
+    <message><source>test.param.local_playback_stress.action_interval_sec.description</source><translation>每个播放动作执行后的等待时间。</translation></message>
+    <message><source>test.param.local_playback_stress.start_wait_sec.label</source><translation>起播等待（秒）</translation></message>
+    <message><source>test.param.local_playback_stress.start_wait_sec.description</source><translation>每个媒体文件起播后，发送压测动作前的等待时间。</translation></message>
     <message><source>test.param.wifi_onoff_scan.cycle_count.label</source><translation>循环次数</translation></message>
     <message><source>test.param.wifi_onoff_scan.cycle_count.description</source><translation>默认 2</translation></message>
     <message><source>test.param.wifi_onoff_scan.ping_target.label</source><translation>Ping 目标</translation></message>

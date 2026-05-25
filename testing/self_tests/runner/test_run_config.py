@@ -14,8 +14,26 @@ def test_resolve_dut_serial_uses_only_device_when_saved_value_is_stale() -> None
     assert resolve_dut_serial("OLD", devices=["ABC123"]) == "ABC123"
 
 
-def test_resolve_dut_serial_omits_single_unsafe_device_serial() -> None:
-    assert resolve_dut_serial("OLD", devices=["0099360090052090260214801F41D0F脗"]) is None
+def test_resolve_dut_serial_keeps_single_unsafe_device_serial() -> None:
+    assert resolve_dut_serial("OLD", devices=["0099360090052090260214801F41D0F脗"]) == "0099360090052090260214801F41D0F脗"
+
+
+def test_build_run_config_from_state_keeps_unsafe_selected_dut_for_command_boundary() -> None:
+    unsafe_serial = "0099360090052090260214801F41D0F脗"
+    state = SmartTestPageState(
+        selected=[SelectedCase("testing/tests/example.py::test_case")],
+        global_context={"dut": unsafe_serial},
+    )
+
+    run_config, diagnostics = build_run_config_from_state(
+        root_dir=Path.cwd(),
+        state=state,
+        device_lister=lambda: [unsafe_serial],
+    )
+
+    assert diagnostics == []
+    assert run_config.dut_serial == unsafe_serial
+    assert run_config.global_context["dut"] == unsafe_serial
 
 
 def test_build_run_config_from_state_carries_equipment_config() -> None:

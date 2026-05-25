@@ -195,3 +195,40 @@ def test_test_page_bridge_parameter_text_follows_current_language(tmp_path) -> N
         assert ac_fields[0]["label_source"] == "fixed"
     finally:
         helper.current = previous_language
+
+
+def test_case_param_fields_schedules_empty_dynamic_options(tmp_path, monkeypatch) -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+
+    nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
+    bridge = TestPageBridge(Path.cwd())
+    bridge._state_path = tmp_path / "test_page_state.json"
+    bridge._cases = [
+        {
+            "nodeid": nodeid,
+            "file": "testing/tests/android/stress/test_local_playback_stress.py",
+            "name": "test_local_playback_stress",
+            "markers": [],
+            "case_type": "stress",
+            "required_params": ["local_playback_stress:media_files"],
+            "required_param_groups": [],
+            "required_equipment": [],
+            "android_case_id": "",
+        }
+    ]
+    bridge._rebuild_case_indexes()
+    scheduled: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        bridge,
+        "_schedule_param_options_refresh",
+        lambda source, reason: scheduled.append((source, reason)),
+    )
+
+    fields = bridge.caseParamFields(nodeid)
+
+    assert fields[0]["key"] == "local_playback_stress:media_files"
+    assert fields[0]["enum_values"] == []
+    assert scheduled == [
+        ("testing.actions.local_playback:list_media_files", "case_param_fields_empty_options")
+    ]

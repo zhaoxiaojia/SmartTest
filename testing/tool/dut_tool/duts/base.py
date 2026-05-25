@@ -15,6 +15,7 @@ from testing.tool.dut_tool.features.wifi import WifiFeature
 from testing.tool.dut_tool.features.youtube import YoutubeFeature
 from testing.tool.wifi_lab_tool.ixchariot import ix
 from testing.tool.dut_tool.command_batch import CommandBatch, CommandRunner, CommandExecutionError, CommandTimeoutError
+from testing.tool.adb import effective_adb_serial
 
 
 class BaseDut:
@@ -426,6 +427,17 @@ class BaseDut:
 
     def run_host_shell(self, command: str):
         return self.checkoutput_term(command)
+
+    def adb_command_prefix(self) -> str:
+        serial = effective_adb_serial(getattr(self, "serialnumber", ""))
+        if serial:
+            return f"adb -s {serial}"
+        return "adb"
+
+    def adb_command(self, *parts: object) -> str:
+        suffix = " ".join(str(part).strip() for part in parts if str(part).strip())
+        prefix = self.adb_command_prefix()
+        return f"{prefix} {suffix}".strip()
 
     def ping(
         self,

@@ -1,0 +1,4 @@
+interface:
+  display_name: "SmartTest Testing Workflow"
+  short_description: "SmartTest pytest workflow rules"
+  default_prompt: "Use this skill when modifying or debugging SmartTest pytest execution, test parameters, DUT/lab equipment, runner events, or reports."

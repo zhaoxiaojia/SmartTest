@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
-import subprocess
 import time
 
-from testing.params.adb_devices import _decode_adb_output, _hidden_process_kwargs, resolve_adb_serial_for_command
 from testing.runtime.config import current_dut_serial
+from testing.tool.adb import run_adb as _run_adb
 
 
 SCALING_AVAILABLE_FREQUENCIES = "/sys/devices/system/cpu/cpufreq/policy0/scaling_available_frequencies"
@@ -31,51 +30,6 @@ def parse_frequency_list(output: str) -> list[str]:
         seen.add(value)
         frequencies.append(value)
     return frequencies
-
-
-def _adb_command(*, selected_serial: str | None, args: list[str]) -> list[str]:
-    command = ["adb"]
-    serial = resolve_adb_serial_for_command(selected_serial)
-    if serial:
-        command.extend(["-s", serial])
-    command.extend(args)
-    return command
-
-
-def _run_adb(
-    *,
-    selected_serial: str | None,
-    args: list[str],
-    timeout: float = 15.0,
-    check: bool = True,
-) -> subprocess.CompletedProcess[str]:
-    command = _adb_command(selected_serial=selected_serial, args=args)
-    try:
-        result = subprocess.run(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            stdin=subprocess.DEVNULL,
-            text=False,
-            check=False,
-            timeout=timeout,
-            **_hidden_process_kwargs(),
-        )
-    except FileNotFoundError as exc:
-        raise RuntimeError("adb was not found in PATH.") from exc
-    except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(f"ADB command timed out after {timeout}s: {' '.join(command)}") from exc
-
-    completed = subprocess.CompletedProcess(
-        command,
-        result.returncode,
-        _decode_adb_output(result.stdout),
-        _decode_adb_output(result.stderr),
-    )
-    if check and completed.returncode != 0:
-        detail = (completed.stderr or completed.stdout or "").strip()
-        raise RuntimeError(f"ADB command failed ({completed.returncode}): {' '.join(command)}\n{detail}")
-    return completed
 
 
 def _adb_shell(

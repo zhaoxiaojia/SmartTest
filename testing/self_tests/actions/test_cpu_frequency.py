@@ -3,6 +3,7 @@ from __future__ import annotations
 from testing.actions import cpu_frequency
 from testing.actions.cpu_frequency import CpuFrequencyController, parse_frequency_list
 from testing.params.options import normalize_option_values
+from testing.tool import adb as adb_tool
 import subprocess
 
 
@@ -53,13 +54,11 @@ def test_cpu_frequency_controller_rejects_invalid_frequency() -> None:
 def test_adb_shell_passes_remote_command_as_single_adb_argument(monkeypatch) -> None:
     observed: list[list[str]] = []
 
-    monkeypatch.setattr(cpu_frequency, "resolve_adb_serial_for_command", lambda serial: serial)
-
     def fake_run(args, **kwargs):  # noqa: ANN001
         observed.append(list(args))
         return subprocess.CompletedProcess(args, 0, b"500000\n", b"")
 
-    monkeypatch.setattr(cpu_frequency.subprocess, "run", fake_run)
+    monkeypatch.setattr(adb_tool.subprocess, "run", fake_run)
 
     result = cpu_frequency._adb_shell("cat /sys/path with spaces", selected_serial="ABC123")
 

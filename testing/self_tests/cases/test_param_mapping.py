@@ -101,12 +101,23 @@ def test_default_registry_includes_android_client_emmc_params():
     assert registry.get_param("ac_onoff:power_on_wait_step_sec") is not None
     assert registry.get_param("ac_onoff:ping_target") is not None
     assert registry.get_param("ac_onoff:bt_target") is not None
+    assert registry.get_param("local_playback_stress:media_dir") is not None
+    assert registry.get_param("local_playback_stress:media_files") is not None
+    assert registry.get_param("local_playback_stress:actions") is not None
+    assert registry.get_param("local_playback_stress:loop_count") is not None
+    assert registry.get_param("local_playback_stress:random_playback") is not None
+    assert registry.get_param("local_playback_stress:action_interval_sec") is not None
+    assert registry.get_param("local_playback_stress:start_wait_sec") is not None
     assert registry.get_param("ac_onoff:power_off_step_sec").type == ParamValueType.FLOAT
     assert registry.get_param("ac_onoff:power_on_wait_step_sec").type == ParamValueType.FLOAT
     cpu_frequency_param = registry.get_param(CPU_FREQUENCY_PARAM_KEY)
     assert cpu_frequency_param is not None
     assert cpu_frequency_param.type == ParamValueType.MULTI_ENUM
     assert cpu_frequency_param.options_source == "testing.actions.cpu_frequency:list_cpu_frequency_options"
+    media_files_param = registry.get_param("local_playback_stress:media_files")
+    assert media_files_param is not None
+    assert media_files_param.type == ParamValueType.MULTI_ENUM
+    assert media_files_param.options_source == "testing.actions.local_playback:list_media_files"
 
 
 def test_default_registry_uses_fixed_bluetooth_target_list():

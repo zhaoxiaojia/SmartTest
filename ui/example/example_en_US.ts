@@ -4613,6 +4613,20 @@ Some contents...</translation>
     <message><source>test.param.emmc_rw.source_size_kb.description</source><translation>Default 51200</translation></message>
     <message><source>test.param.emmc_rw.work_dir.label</source><translation>Working Directory</translation></message>
     <message><source>test.param.emmc_rw.work_dir.description</source><translation>Default /data/local/tmp/smarttest/emmc_rw</translation></message>
+    <message><source>test.param.local_playback_stress.media_dir.label</source><translation>Media directory</translation></message>
+    <message><source>test.param.local_playback_stress.media_dir.description</source><translation>DUT directory to scan at runtime when no files are selected. Default /storage/emulated/0/Movies.</translation></message>
+    <message><source>test.param.local_playback_stress.media_files.label</source><translation>Playback files</translation></message>
+    <message><source>test.param.local_playback_stress.media_files.description</source><translation>Files discovered from DUT internal Movies and USB Movies directories. Leave empty to scan the media directory at runtime.</translation></message>
+    <message><source>test.param.local_playback_stress.actions.label</source><translation>Stress actions</translation></message>
+    <message><source>test.param.local_playback_stress.actions.description</source><translation>Playback operations sent to ExoPlayer through Android media key events.</translation></message>
+    <message><source>test.param.local_playback_stress.loop_count.label</source><translation>Loop count</translation></message>
+    <message><source>test.param.local_playback_stress.loop_count.description</source><translation>Number of times to repeat the selected file and action configuration.</translation></message>
+    <message><source>test.param.local_playback_stress.random_playback.label</source><translation>Random playback</translation></message>
+    <message><source>test.param.local_playback_stress.random_playback.description</source><translation>Shuffle selected files in each loop.</translation></message>
+    <message><source>test.param.local_playback_stress.action_interval_sec.label</source><translation>Action interval seconds</translation></message>
+    <message><source>test.param.local_playback_stress.action_interval_sec.description</source><translation>Wait time after each playback action.</translation></message>
+    <message><source>test.param.local_playback_stress.start_wait_sec.label</source><translation>Start wait seconds</translation></message>
+    <message><source>test.param.local_playback_stress.start_wait_sec.description</source><translation>Wait time after launching each media file before sending stress actions.</translation></message>
     <message><source>test.param.wifi_onoff_scan.cycle_count.label</source><translation>Cycle Count</translation></message>
     <message><source>test.param.wifi_onoff_scan.cycle_count.description</source><translation>Default 2</translation></message>
     <message><source>test.param.wifi_onoff_scan.ping_target.label</source><translation>Ping Target</translation></message>

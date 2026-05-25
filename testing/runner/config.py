@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from testing.cases.catalog import load_runtime_test_catalog
-from testing.params.adb_devices import list_adb_devices, resolve_adb_serial_for_command
+from testing.params.adb_devices import list_adb_devices
 from testing.state.models import TestPageState
 
 
@@ -40,9 +40,9 @@ def resolve_dut_serial(
     current_devices = devices if devices is not None else (device_lister or list_adb_devices)()
     selected = str(selected_serial or "").strip()
     if selected and selected in current_devices:
-        return resolve_adb_serial_for_command(selected)
+        return selected
     if len(current_devices) == 1:
-        return resolve_adb_serial_for_command(current_devices[0])
+        return current_devices[0]
     return None
 
 

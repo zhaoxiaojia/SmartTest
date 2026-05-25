@@ -334,8 +334,7 @@ class android(BaseDut):
         """
         if isinstance(keycode, int):
             keycode = str(keycode)
-        self.checkoutput_term(self.ADB_S + self.serialnumber +
-                              " shell input keyevent " + keycode)
+        self.checkoutput_term(self.adb_command("shell input keyevent", keycode))
         time.sleep(0.5)
 
     def send_event(self, key, hold=3):
@@ -581,7 +580,7 @@ class android(BaseDut):
         None
             This method does not return a value.
         """
-        self.checkoutput_term(self.ADB_S + self.serialnumber + " shell input tap " + str(x) + " " + str(y))
+        self.checkoutput_term(self.adb_command("shell input tap", x, y))
 
     def _swipe_impl(self, x_start, y_start, x_end, y_end, duration):
         """
@@ -611,8 +610,7 @@ class android(BaseDut):
         None
             This method does not return a value.
         """
-        self.checkoutput_term(self.ADB_S + self.serialnumber + " shell input swipe " + str(x_start) +
-                              " " + str(y_start) + " " + str(x_end) + " " + str(y_end) + " " + str(duration))
+        self.checkoutput_term(self.adb_command("shell input swipe", x_start, y_start, x_end, y_end, duration))
 
     def _text_impl(self, text):
         """
@@ -636,7 +634,7 @@ class android(BaseDut):
         """
         if isinstance(text, int):
             text = str(text)
-        self.checkoutput_term(self.ADB_S + self.serialnumber + " shell input text " + text)
+        self.checkoutput_term(self.adb_command("shell input text", text))
 
     def _clear_logcat_impl(self):
         """
@@ -651,7 +649,7 @@ class android(BaseDut):
         None
             This method does not return a value.
         """
-        self.checkoutput_term(self.ADB_S + self.serialnumber + " logcat -b all -c")
+        self.checkoutput_term(self.adb_command("logcat -b all -c"))
 
     def _save_logcat_impl(self, filepath, *, tag=''):
         """
@@ -676,11 +674,11 @@ class android(BaseDut):
         """
         filepath = self.logdir + '/' + filepath
         logcat_file = open(filepath, 'w')
-        base_cmd = f"adb -s {self.serialnumber} shell logcat -v time {tag}"
+        base_cmd = self.adb_command("shell logcat -v time", tag)
         if tag and ("grep -E" not in tag) and ("all" not in tag):
             tag = f'-s {tag}'
             log = self.command_runner.popen(
-                f"adb -s {self.serialnumber} shell logcat -v time {tag}".split(),
+                self.adb_command("shell logcat -v time", tag).split(),
                 stdout=logcat_file,
                 stderr=subprocess.STDOUT,
             )
@@ -772,10 +770,9 @@ class android(BaseDut):
             self.app_stop(packageName)
         except Exception as e:
             ...
-        command = self.ADB_S + self.serialnumber + " shell am start -a " + intentname + " -n " + packageName + "/" + activityName
+        command = self.adb_command("shell am start -a", intentname, "-n", packageName + "/" + activityName)
         logging.info(command)
-        self.checkoutput_term(self.ADB_S + self.serialnumber +
-                              " shell am start -a " + intentname + " -n " + packageName + "/" + activityName)
+        self.checkoutput_term(command)
 
     def pull(self, filepath, destination):
         """
@@ -798,8 +795,7 @@ class android(BaseDut):
         None
             This method does not return a value.
         """
-        self.checkoutput_term(self.ADB_S + self.serialnumber +
-                              " pull " + filepath + " " + destination)
+        self.checkoutput_term(self.adb_command("pull", filepath, destination))
 
     def push(self, filepath, destination):
         """
@@ -823,10 +819,9 @@ class android(BaseDut):
         None
             This method does not return a value.
         """
-        logging.info(self.ADB_S + self.serialnumber +
-                     " push " + filepath + " " + destination)
-        self.checkoutput_term(self.ADB_S + self.serialnumber +
-                              " push " + filepath + " " + destination)
+        command = self.adb_command("push", filepath, destination)
+        logging.info(command)
+        self.checkoutput_term(command)
 
     def shell(self, cmd):
         """
@@ -847,7 +842,7 @@ class android(BaseDut):
         None
             This method does not return a value.
         """
-        self.checkoutput_term(self.ADB_S + self.serialnumber + " shell " + cmd)
+        self.checkoutput_term(self.adb_command("shell", cmd))
 
     def check_apk_exist(self, package_name):
         """
@@ -996,7 +991,7 @@ class android(BaseDut):
         None
             This method does not return a value.
         """
-        self.checkoutput_term(self.ADB_S + self.serialnumber + " shell rm " + flags + " " + path)
+        self.checkoutput_term(self.adb_command("shell rm", flags, path))
 
     def _uiautomator_dump_impl(self, *, filepath='', uiautomator_type='u2'):
         """
@@ -1063,7 +1058,7 @@ class android(BaseDut):
         None
             This method does not return a value.
         """
-        self.checkoutput_term(self.ADB_S + self.serialnumber + " shell cmd statusbar expand-notifications")
+        self.checkoutput_term(self.adb_command("shell cmd statusbar expand-notifications"))
 
     def _screencap(self, filepath, layer="osd", app_level=28):
         """
@@ -1090,7 +1085,7 @@ class android(BaseDut):
             This method does not return a value.
         """
         if layer == "osd":
-            self.checkoutput_term(self.ADB_S + self.serialnumber + " shell screencap -p " + filepath)
+            self.checkoutput_term(self.adb_command("shell screencap -p", filepath))
         else:
             png_type = 1
             if layer == "video" or layer == self.OSD_VIDEO_LAYER:
@@ -1635,8 +1630,8 @@ class android(BaseDut):
         Any
             The result produced by the function.
         """
-        logging.debug(f"command:{self.ADB_S + self.serialnumber + ' ' + command}")
-        cmd = self.ADB_S + self.serialnumber + ' ' + command
+        cmd = self.adb_command(command)
+        logging.debug(f"command:{cmd}")
         return self.popen_term(cmd)
 
     def popen_term(self, command):
@@ -1702,7 +1697,7 @@ class android(BaseDut):
         Any
             The result produced by the function.
         """
-        command = self.ADB_S + self.serialnumber + ' ' + command
+        command = self.adb_command(command)
         return self.checkoutput_term(command)
 
     @connect_again
@@ -1728,7 +1723,7 @@ class android(BaseDut):
         if isinstance(command, list):
             result = self.command_runner.run(command, shell=False)
             return result.stdout
-        adb_command = f"{self.ADB_S}{self.serialnumber} shell {command}"
+        adb_command = self.adb_command("shell", command)
         result = self.command_runner.run(adb_command, shell=True)
         return result.stdout
 

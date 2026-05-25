@@ -177,10 +177,10 @@ def test_trigger_android_client_case_uses_default_adb_for_unsafe_serial(monkeypa
     )
 
     assert result.returncode == 0
-    assert ensure_calls == ["<default>"]
-    assert probe_calls == ["<default>"]
-    assert force_stop_calls == ["<default>"]
-    assert wait_calls == ["<default>"]
+    assert ensure_calls == [unsafe_serial]
+    assert probe_calls == [unsafe_serial]
+    assert force_stop_calls == [unsafe_serial]
+    assert wait_calls == [unsafe_serial]
     assert start_commands
     assert "-s" not in start_commands[0]
 

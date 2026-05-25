@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import re
-import subprocess
 
-from .adb_devices import _decode_adb_output, _hidden_process_kwargs, resolve_adb_serial_for_command
+from testing.tool.adb import run_adb
 
 
 _MAC_PATTERN = r"([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})"
@@ -85,24 +84,18 @@ def parse_paired_bluetooth_devices_output(output: str) -> list[str]:
 
 
 def list_paired_bluetooth_devices(selected_serial: str | None = None) -> list[str]:
-    serial = resolve_adb_serial_for_command(selected_serial)
-    cmd = ["adb"]
-    if serial:
-        cmd.extend(["-s", serial])
-    cmd.extend(["shell", "dumpsys", "bluetooth_manager"])
     try:
-        result = subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            stdin=subprocess.DEVNULL,
-            text=False,
+        result = run_adb(
+            selected_serial=selected_serial,
+            args=["shell", "dumpsys", "bluetooth_manager"],
+            timeout=15.0,
             check=False,
-            **_hidden_process_kwargs(),
         )
     except FileNotFoundError:
+        return []
+    except RuntimeError:
         return []
 
     if result.returncode != 0:
         return []
-    return parse_paired_bluetooth_devices_output(_decode_adb_output(result.stdout))
+    return parse_paired_bluetooth_devices_output(result.stdout)

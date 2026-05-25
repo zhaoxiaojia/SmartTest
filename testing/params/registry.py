@@ -140,6 +140,49 @@ def _android_catalog_fields() -> list[ParamField]:
 def _pure_pytest_case_fields() -> list[ParamField]:
     return [
         _case_param_field(
+            "local_playback_stress:media_dir",
+            ParamValueType.PATH,
+            ParamCategory.EXECUTION,
+            "/storage/emulated/0/Movies",
+        ),
+        _case_param_field(
+            "local_playback_stress:media_files",
+            ParamValueType.MULTI_ENUM,
+            ParamCategory.EXECUTION,
+            [],
+            "testing.actions.local_playback:list_media_files",
+        ),
+        _case_param_field(
+            "local_playback_stress:actions",
+            ParamValueType.MULTI_ENUM,
+            ParamCategory.EXECUTION,
+            ["pause", "play", "seek_forward", "seek_backward"],
+        ),
+        _case_param_field(
+            "local_playback_stress:loop_count",
+            ParamValueType.INT,
+            ParamCategory.EXECUTION,
+            20,
+        ),
+        _case_param_field(
+            "local_playback_stress:random_playback",
+            ParamValueType.BOOL,
+            ParamCategory.EXECUTION,
+            False,
+        ),
+        _case_param_field(
+            "local_playback_stress:action_interval_sec",
+            ParamValueType.FLOAT,
+            ParamCategory.EXECUTION,
+            3,
+        ),
+        _case_param_field(
+            "local_playback_stress:start_wait_sec",
+            ParamValueType.FLOAT,
+            ParamCategory.EXECUTION,
+            10,
+        ),
+        _case_param_field(
             "ac_onoff:cycle_count",
             ParamValueType.INT,
             ParamCategory.EXECUTION,
