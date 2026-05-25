@@ -7,6 +7,15 @@ Item {
     property string  headerText: ""
     property bool expand: false
     property int contentHeight : 300
+    property bool headerCustomStyle: false
+    property color headerBackgroundColor: FluTheme.frameColor
+    property color headerActiveBackgroundColor: FluTheme.frameActiveColor
+    property color headerBorderColor: FluTheme.dividerColor
+    property color headerTextColor: FluTheme.fontPrimaryColor
+    property color headerAccentColor: "transparent"
+    property int headerAccentWidth: 0
+    property int headerTextLeftMargin: 15
+    property bool headerTextStrong: false
     default property alias content: container.data
     id:control
     implicitHeight: Math.max((layout_header.height + layout_container.height),layout_header.height)
@@ -26,12 +35,27 @@ Item {
         width: parent.width
         height: 45
         radius: 4
-        border.color: FluTheme.dividerColor
         color: {
+            if(headerCustomStyle){
+                return Window.active ? headerActiveBackgroundColor : headerBackgroundColor
+            }
             if(Window.active){
                 return FluTheme.frameActiveColor
             }
             return FluTheme.frameColor
+        }
+        border.color: headerCustomStyle ? headerBorderColor : FluTheme.dividerColor
+        Rectangle{
+            visible: headerCustomStyle && headerAccentWidth > 0
+            width: headerAccentWidth
+            height: parent.height - 12
+            radius: Math.min(width, 2)
+            color: headerAccentColor
+            anchors{
+                verticalCenter: parent.verticalCenter
+                left: parent.left
+                leftMargin: 8
+            }
         }
         MouseArea{
             id:control_mouse
@@ -46,8 +70,10 @@ Item {
             anchors{
                 verticalCenter: parent.verticalCenter
                 left: parent.left
-                leftMargin: 15
+                leftMargin: headerTextLeftMargin
             }
+            color: headerTextColor
+            font: headerTextStrong ? FluTextStyle.BodyStrong : FluTextStyle.Body
         }
         FluIconButton{
             anchors{

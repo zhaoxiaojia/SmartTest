@@ -27,6 +27,30 @@ FluPage {
         return path
     }
 
+    function themePair(lightColor, darkColor){
+        return FluTheme.dark ? darkColor : lightColor
+    }
+
+    function caseParamHeaderColor(){
+        return themePair("#F5F9FF", "#202A36")
+    }
+
+    function caseParamHeaderActiveColor(){
+        return themePair("#EEF6FF", "#253244")
+    }
+
+    function caseParamHeaderBorderColor(){
+        return themePair("#CFE3F8", "#3A4D63")
+    }
+
+    function caseParamAccentColor(){
+        return themePair("#0F6CBD", "#60CDFF")
+    }
+
+    function caseParamHeaderTextColor(){
+        return themePair("#0F172A", "#F3F7FA")
+    }
+
     function caseParamTextValue(nodeid, key){
         var _version = stateVersion
         var value = TestPageBridge.caseParamValue(nodeid, key)
@@ -358,7 +382,7 @@ FluPage {
                     ColumnLayout{
                         id: col_case_params
                         width: parent.width
-                        spacing: 8
+                        spacing: 12
                         FluText{
                             visible: selectedCaseParamsModel.length === 0
                             Layout.fillWidth: true
@@ -373,7 +397,17 @@ FluPage {
                                 id: case_param_expander
                                 property string caseNodeId: modelData.nodeid || ""
                                 Layout.fillWidth: true
+                                Layout.topMargin: index === 0 ? 0 : 2
                                 headerText: modelData.name + "  (" + modelData.required_params.length + ")"
+                                headerCustomStyle: true
+                                headerBackgroundColor: caseParamHeaderColor()
+                                headerActiveBackgroundColor: caseParamHeaderActiveColor()
+                                headerBorderColor: caseParamHeaderBorderColor()
+                                headerTextColor: caseParamHeaderTextColor()
+                                headerAccentColor: caseParamAccentColor()
+                                headerAccentWidth: 3
+                                headerTextLeftMargin: 22
+                                headerTextStrong: true
                                 expand: isCaseParamExpanded(caseNodeId, modelData.required_params.length)
                                 contentHeight: expander_content.implicitHeight
                                 onExpandChanged: {
@@ -452,8 +486,8 @@ FluPage {
 
                                                     FluTextBox{
                                                         id: text_case_param_compact
-                                                        Layout.preferredWidth: fieldData.type === "int" || fieldData.type === "float" ? 112 : 180
-                                                        Layout.maximumWidth: fieldData.type === "int" || fieldData.type === "float" ? 112 : 220
+                                                        Layout.preferredWidth: 180
+                                                        Layout.maximumWidth: 180
                                                         placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
                                                         cleanEnabled: false
                                                         property bool persistReady: false
@@ -892,8 +926,8 @@ FluPage {
 
                                                     FluTextBox{
                                                         id: text_env_equipment_compact
-                                                        Layout.preferredWidth: fieldData.type === "int" ? 112 : 180
-                                                        Layout.maximumWidth: fieldData.type === "int" ? 112 : 220
+                                                        Layout.preferredWidth: 180
+                                                        Layout.maximumWidth: 180
                                                         cleanEnabled: false
                                                         property bool persistReady: false
                                                         function stateText(){

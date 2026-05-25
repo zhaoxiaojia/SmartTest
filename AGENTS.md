@@ -22,6 +22,7 @@ This file defines repository-wide hard rules. Detailed task workflows live in pr
 - QML is display-oriented. Bridge/controller Python owns business-facing view models, ordering, grouping, parameter applicability, and Test page relationships.
 - Frontend-owned text must use the translation system and ship with both `en_US` and `zh_CN`. External/system text remains raw.
 - All fixed frontend display text has one resource entrypoint: `ui/example/example_en_US.ts` and `ui/example/example_zh_CN.ts`. The testing layer must not own UI wording; `testing/` may expose machine-readable keys, types, defaults, scopes, option sources, and runtime results, but not frontend labels, descriptions, hints, titles, locale strings, or bilingual text.
+- Custom UI drawing colors must be theme-paired: whenever QML/UI code uses a custom color instead of an existing `FluTheme`/FluentUI semantic color, provide explicit light-theme and dark-theme values and select between them through the current theme state. Do not add single-value hard-coded colors for theme-sensitive UI.
 - User-visible UI selections persist by default unless explicitly transient.
 - QRC-backed changes must rebuild the relevant `resource_rc.py` before handoff.
 - Distinguish source-run validation from packaged app validation. Do not imply `SmartTest.exe` contains source edits unless a packaging/build step has been completed.
