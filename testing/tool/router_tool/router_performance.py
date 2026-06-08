@@ -7,13 +7,36 @@ This module is part of the AsusRouter package.
 import logging
 import sys
 from collections.abc import Mapping
+from collections import defaultdict
 from dataclasses import dataclass
 import re
 import os
 import json
 from typing import Literal
-from src.util.mixin import json_mixin, nested_dict
-from src.util.constants import RouterConst
+def nested_dict():
+    return defaultdict(nested_dict)
+
+
+class json_mixin:
+    def to_dict(self):
+        return {
+            key: value
+            for key, value in vars(self).items()
+            if not key.startswith("_")
+        }
+
+
+class RouterConst:
+    dut_wifichip = "COMMON_WLAN0"
+    FPGA_CONFIG = {
+        "COMMON": {"mimo": "1X1"},
+        "W1": {"mimo": "1X1"},
+        "W1L": {"mimo": "1X1"},
+        "W1U": {"mimo": "1X1"},
+        "W2": {"mimo": "2X2"},
+        "W2L": {"mimo": "2X2"},
+        "W2U": {"mimo": "2X2"},
+    }
 
 wifichip, interface = RouterConst.dut_wifichip.split('_')
 

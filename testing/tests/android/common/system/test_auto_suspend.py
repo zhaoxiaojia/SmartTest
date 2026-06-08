@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from testing.actions import run_android_client_case
-from testing.runner.android_client import build_case_params
-from testing.runtime import request_case_param
+from testing.runner.android_client import run_android_client_case
 
 
 pytestmark = pytest.mark.case_type("system")
@@ -80,16 +78,7 @@ SMARTTEST_CASE_PLAN = {
     "auto_suspend:bt_target",
 )
 def test_auto_suspend_via_android_client(request):
-    params = build_case_params(
-        "auto_suspend",
-        cycle_count=request_case_param(request, "auto_suspend:cycle_count", 20, cast=int),
-        interval_sec=request_case_param(request, "auto_suspend:interval_sec", 100, cast=int),
-        ping_target=request_case_param(request, "auto_suspend:ping_target", ""),
-        bt_target=request_case_param(request, "auto_suspend:bt_target", ""),
-    )
-
     run_android_client_case(
         case_id="auto_suspend",
-        params=params,
         trigger=request.node.nodeid,
     )

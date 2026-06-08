@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from testing.reporting import ReportStore, build_run_report
+from testing.reporting.store import ReportStore, build_run_report
 
 
 def test_build_run_report_counts_case_rows_only() -> None:

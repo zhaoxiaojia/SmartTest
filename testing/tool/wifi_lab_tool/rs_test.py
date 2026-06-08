@@ -12,10 +12,6 @@ from pathlib import Path
 from testing.tool.dut_tool import command_batch as subprocess
 from typing import Optional
 
-from src.util.decorators import singleton
-
-
-@singleton
 class rs:
     """Singleton controller wrapper for RF power and turntable interactions.
 

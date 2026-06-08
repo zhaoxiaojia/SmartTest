@@ -8,7 +8,7 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 from typing import Optional, List, Tuple, Any, Set
 
-from testing.tool.adb import build_adb_command, effective_adb_serial
+from testing.params.adb_devices import resolve_adb_serial_for_command
 
 class UiautomatorTool:
     """
@@ -906,11 +906,11 @@ class DeviceUiFeature(FeatureBase):
                 return True
 
             # Step 2: Remove (forget) the current network
+            remove_network_cmd = DeviceUiFeature._normalize_adb_command(
+                f"adb -s {serial} shell wpa_cli remove_network {current_net_id}"
+            )
             result2 = subprocess.run(
-                build_adb_command(
-                    selected_serial=serial,
-                    args=["shell", "wpa_cli", "remove_network", current_net_id],
-                ),
+                remove_network_cmd.split(),
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,text=True, timeout=timeout
             )
 
@@ -989,7 +989,7 @@ class DeviceUiFeature(FeatureBase):
         match = re.match(r"^(adb)\s+-s\s+(\S+)(\s+.*)?$", text)
         if not match:
             return text
-        serial = effective_adb_serial(match.group(2))
+        serial = resolve_adb_serial_for_command(match.group(2))
         suffix = str(match.group(3) or "")
         if serial:
             return f"adb -s {serial}{suffix}"

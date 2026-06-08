@@ -23,8 +23,8 @@ from testing.tool.dut_tool.command_batch import (
     CommandRunner,
 )
 from testing.tool.wifi_lab_tool.ixchariot import ix
-from testing.tool.router_tool.router_performance import handle_expectdata
-from src.util.constants import is_database_debug_enabled
+def is_database_debug_enabled() -> bool:
+    return False
 
 
 @dataclass
@@ -512,6 +512,8 @@ class IperfFeature(FeatureBase):
         return dut_ip
 
     def get_rx_rate(self, router_info, type="TCP", corner_tool=None, db_set="", debug=False):
+        from testing.tool.router_tool.router_performance import handle_expectdata
+
         router_cfg = {
             router_info.band: {
                 "mode": router_info.wireless_mode,
@@ -643,6 +645,8 @@ class IperfFeature(FeatureBase):
         return ",".join([cell for cell in throughput_cells if cell]) or "0"
 
     def get_tx_rate(self, router_info, type="TCP", corner_tool=None, db_set="", debug=False):
+        from testing.tool.router_tool.router_performance import handle_expectdata
+
         router_cfg = {
             router_info.band: {
                 "mode": router_info.wireless_mode,

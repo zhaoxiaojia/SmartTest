@@ -1,6 +1,6 @@
 ---
 name: smarttest-testing-workflow
-description: SmartTest testing workflow for pytest discovery, runner execution, run config, parameter contracts, DUT serial handling, lab equipment, runtime events, steps, reports, and Android mirrored cases. Use when working in testing/, pytest cases, testing/runner/, testing/runtime/, testing/params/, testing/actions/, testing/tool/, or UI-to-pytest execution issues.
+description: SmartTest testing workflow for pytest discovery, runner execution, run config, parameter contracts, DUT serial handling, lab equipment, runtime events, steps, reports, and Android mirrored cases. Use when working in testing/, pytest cases, testing/runner/, testing/runtime/, testing/params/, testing/steps/, testing/tool/, or UI-to-pytest execution issues.
 ---
 
 # SmartTest Testing Workflow
@@ -14,14 +14,20 @@ Use this skill to keep SmartTest pytest execution, DUT/lab equipment access, par
 Keep each layer narrow:
 
 - `testing/tests/`: case flow, markers, and parameter consumption only
-- `testing/actions/`: reusable business actions and result normalization
+- `testing/steps/definitions.py`: reusable step definitions, planning decisions, and check executors
+- `testing/runner/android_client.py`: Android client trigger helpers and Android client case plan composition
 - `testing/tool/dut_tool/`: concrete DUT capabilities and transports
+- `testing/tool/dut_tool/features/`: reusable DUT business features
 - `testing/tool/equipment.py`: lab equipment composition root
 - `testing/runner/`: pytest subprocess, Android client transport, cancellation
 - `testing/runtime/`: pytest-time config, params, steps, events, equipment singleton
 - `testing/reporting/`: report assembly and storage
 
-Do not import UI modules from `testing/`. UI may call `testing/` through Python bridges, but QML must not import `testing/` directly.
+Do not add pass-through wrappers or package-level re-export facades in `testing/`. Import from the module that owns the behavior unless an external/stable API boundary is explicitly required.
+
+Do not import UI modules from `testing/`, except `ui/jsonTool.py` when business code needs persisted frontend configuration and `ui/yamlTool.py` when code needs shared YAML loading. UI may call `testing/` through Python bridges, but QML must not import `testing/` directly.
+
+Frontend user configuration and parameter values are persisted as JSON under `%LOCALAPPDATA%\Amlogic\SmartTest` through `ui/jsonTool.py`. When pytest cases, step planning, reports, AI, debug, or other business code need frontend configuration, load the relevant JSON through `jsonTool` directly. Do not introduce alternate config stores, environment-variable parameter transport, or business-specific helpers that hide the JSON source.
 
 ## Discovery And Metadata
 
@@ -35,17 +41,20 @@ Do not import UI modules from `testing/`. UI may call `testing/` through Python 
 
 1. Define parameter schemas in `testing/params/schema.py` and `testing/params/registry.py`.
 2. Keep parameter schemas UI-neutral. `testing/` defines machine contracts only: keys, value types, defaults, scopes, option sources, groups, and runtime values. It must not provide frontend labels, descriptions, hints, titles, locale strings, or bilingual display text.
-3. Bind case requirements close to the pytest case with markers:
+3. Use `testing/params/required_params.yaml` to centrally define run-blocking required case inputs. `requires_params` means "show these parameters for the case"; it does not make every parameter mandatory.
+4. Validate required parameters through `testing/params/validation.py` before starting a run. Missing required values must block execution before pytest starts.
+5. DUT-backed dynamic option loading must go through `testing/tool/dut_tool/parameter_adapter.py`. Do not call DUT feature option providers directly from UI bridge getter methods or QML bindings.
+6. Bind case requirements close to the pytest case with markers:
 
 ```python
 @pytest.mark.requires_params("operator", "duration_s")
 @pytest.mark.requires_param_groups("stress_runtime")
 ```
 
-4. Let `testing/conftest.py` expand groups and export `required_params` / `required_param_groups`.
-5. Keep scope explicit: `global_context`, `case_type_shared`, or `case`.
-6. Cases with no mapping must export an empty list, not placeholder fields.
-7. For Android mirrored cases, keep the Android catalog contract aligned with `android_client/app/src/main/java/com/smarttest/mobile/runner/SmartTestCatalog.kt` and use case-scoped keys such as `emmc_rw:loop_count`.
+7. Let `testing/conftest.py` expand groups and export `required_params` / `required_param_groups`.
+8. Keep scope explicit: `global_context`, `case_type_shared`, or `case`.
+9. Cases with no mapping must export an empty list, not placeholder fields.
+10. For Android mirrored cases, keep the Android catalog contract aligned with `android_client/app/src/main/java/com/smarttest/mobile/runner/SmartTestCatalog.kt` and use case-scoped keys such as `emmc_rw:loop_count`.
 
 ## Run Flow
 
@@ -57,12 +66,12 @@ UI/TestPage state
   -> testing.runner.config.RunConfig
   -> testing.runner.execution.start_pytest_run
   -> SMARTTEST_RUN_CONFIG_JSON
-  -> testing.runtime.config / params / equipment
+  -> testing.runtime.config / equipment
   -> pytest case/action/tool execution
   -> runtime events and report store
 ```
 
-Use legacy env vars such as `SMARTTEST_ADB_SERIAL` and `SMARTTEST_CASE_CONFIGS_JSON` only for compatibility while the unified run config remains the source of truth.
+Do not pass frontend parameter values through run-config fields or environment variables. Business code that needs frontend configuration must read the persisted JSON through `ui/jsonTool.py`.
 
 ## DUT And Lab Equipment
 
@@ -71,6 +80,7 @@ Use legacy env vars such as `SMARTTEST_ADB_SERIAL` and `SMARTTEST_CASE_CONFIGS_J
 3. Access lab equipment through `testing.runtime.test_equipment()` or `testing.tool.equipment.TestEquipment`.
 4. Extend `TestEquipment` for shared relay, attenuator, router, or future lab devices instead of adding case-local construction.
 5. Keep `testing/tool/` hardware wrappers free of UI cache, QML, and report presentation logic.
+6. `testing/tool/dut_tool/duts/` owns DUT transport/session interaction; `testing/tool/dut_tool/features/` owns concrete DUT commands. UI-triggered DUT discovery and DUT-backed CaseParameters option refresh are owned by `testing/tool/dut_tool/parameter_adapter.py`.
 
 ## ADB Command Serial Policy
 
@@ -108,6 +118,16 @@ Use this workflow when debugging or changing APK-backed cases:
 4. Keep unmatched runtime updates diagnostic-rich: nodeid, step id, definition id, status/event type, and parameters.
 5. Failed cases must be recorded and the run must continue unless stop-on-failure is explicitly enabled.
 
+## Local Playback Stress Action Safety
+
+1. Local playback stress actions must be scheduled from the current playback time and media duration read from the action-preflight screenshot, not blindly executed from the selected action list.
+2. Progress reads must first analyze a screenshot as-is; if playback time or controls are not visible, tap once and analyze a fresh screenshot, repeating only within the shared retry limit.
+3. If current playback has five seconds or less remaining, skip `seek_forward`.
+4. If current playback is already at or beyond 75% of duration, skip `seek_to_end`.
+5. If the action-preflight screenshot cannot provide current time and duration, dump media session state; skip only the current action when the file is still playing, and stop scheduling the remaining actions for the current file when media session is no longer playing that file.
+6. Skipped actions must emit diagnostic logs with action, current time, duration, remaining time, and skip reason.
+7. Do not add case-specific handling for one file name, format, path, or parameter value; implement reusable scheduling rules.
+
 ## Debugging Flow
 
 1. Gather logs/prints from the relevant handoff before changing behavior.
@@ -123,7 +143,7 @@ Run focused self-tests for the changed surface. Common targets:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest testing\self_tests\runner testing\self_tests\runtime testing\self_tests\params -q
 .\.venv\Scripts\python.exe -m pytest testing\self_tests\ui\test_run_bridge.py -q
-.\.venv\Scripts\python.exe -m compileall testing\runner testing\runtime testing\actions testing\tool
+.\.venv\Scripts\python.exe -m compileall testing\runner testing\runtime testing\steps testing\tool
 ```
 
 For hardware-dependent tests, prefer unit tests with injected device listers, transports, equipment factories, and subprocess runners.
@@ -131,7 +151,8 @@ For hardware-dependent tests, prefer unit tests with injected device listers, tr
 ## Redundancy Checks
 
 - If DUT serial selection appears in more than one layer, keep it only at the run boundary and pass the selected serial down.
-- If pytest cases call low-level DUT/APK APIs directly while a shared action exists, route through `testing/actions/`.
+- If dynamic CaseParameters options are fetched from a DUT outside `DutParameterAdapter`, move that code into the adapter instead of adding another refresh path.
+- If pytest cases call low-level DUT/APK APIs directly while a shared step definition, runner helper, or DUT feature exists, route through that shared mechanism.
 - If bridge code understands pytest internals beyond run config and result events, move that detail into `testing/runner/` or `testing/runtime/`.
 - If Android mirrored cases define a second parameter catalog, align them back to the Android catalog and pytest markers.
 - If equipment construction appears in individual cases, move it into `TestEquipment` or a tool adapter used by `TestEquipment`.

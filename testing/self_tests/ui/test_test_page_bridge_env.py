@@ -121,6 +121,25 @@ def test_test_page_bridge_keeps_equipment_when_pruning_global_context(tmp_path) 
     }
 
 
+def test_test_page_bridge_prunes_stale_fixed_enum_values(tmp_path) -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+
+    nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
+    bridge = TestPageBridge(Path.cwd())
+    bridge._state_path = tmp_path / "test_page_state.json"
+    bridge._state.case_parameters = {
+        nodeid: {
+            "local_playback_stress:actions": ["play", "seek_forward"],
+        }
+    }
+
+    changed = bridge._ensure_state_defaults()
+
+    assert changed is True
+    assert bridge._state.case_parameters[nodeid]["local_playback_stress:actions"] == ["seek_forward"]
+
+
 def test_test_page_bridge_parameter_text_follows_current_language(tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
@@ -197,10 +216,11 @@ def test_test_page_bridge_parameter_text_follows_current_language(tmp_path) -> N
         helper.current = previous_language
 
 
-def test_case_param_fields_schedules_empty_dynamic_options(tmp_path, monkeypatch) -> None:
+def test_case_param_fields_does_not_schedule_empty_dynamic_options(tmp_path, monkeypatch) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
+    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
     nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
     bridge = TestPageBridge(Path.cwd())
     bridge._state_path = tmp_path / "test_page_state.json"
@@ -229,6 +249,305 @@ def test_case_param_fields_schedules_empty_dynamic_options(tmp_path, monkeypatch
 
     assert fields[0]["key"] == "local_playback_stress:media_files"
     assert fields[0]["enum_values"] == []
-    assert scheduled == [
-        ("testing.actions.local_playback:list_media_files", "case_param_fields_empty_options")
+    assert scheduled == []
+
+
+def test_dut_change_refreshes_dynamic_options_for_selected_cases_only(tmp_path, monkeypatch) -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+
+    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    playback_nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
+    ac_nodeid = "testing/tests/android/stress/test_ac_onoff.py::test_ac_onoff_via_relay"
+    source = "testing.tool.dut_tool.features.local_playback:list_media_dirs"
+    bridge = TestPageBridge(Path.cwd())
+    bridge._state_path = tmp_path / "test_page_state.json"
+    bridge._cases = [
+        {
+            "nodeid": playback_nodeid,
+            "file": "testing/tests/android/stress/test_local_playback_stress.py",
+            "name": "test_local_playback_stress",
+            "markers": [],
+            "case_type": "stress",
+            "required_params": ["local_playback_stress:media_dir", "local_playback_stress:media_files"],
+            "required_param_groups": [],
+            "required_equipment": [],
+            "android_case_id": "",
+        },
+        {
+            "nodeid": ac_nodeid,
+            "file": "testing/tests/android/stress/test_ac_onoff.py",
+            "name": "test_ac_onoff_via_relay",
+            "markers": [],
+            "case_type": "stress",
+            "required_params": ["ac_onoff:cycle_count"],
+            "required_param_groups": [],
+            "required_equipment": [],
+            "android_case_id": "",
+        },
     ]
+    bridge._rebuild_case_indexes()
+    bridge._state.selected = [
+        SelectedCase(nodeid=playback_nodeid, case_type="stress"),
+        SelectedCase(nodeid=ac_nodeid, case_type="stress"),
+    ]
+    scheduled: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(
+        bridge,
+        "_schedule_param_options_refresh",
+        lambda refresh_source, reason, *, nodeid="": scheduled.append((refresh_source, reason, nodeid)),
+    )
+
+    bridge.setGlobalValue("dut", "ABC123")
+
+    assert scheduled == [(source, "dut_changed", playback_nodeid)]
+
+
+def test_case_parameter_dependency_change_refreshes_affected_dynamic_options(tmp_path, monkeypatch) -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+
+    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
+    source = "testing.tool.dut_tool.features.local_playback:list_media_files"
+    bridge = TestPageBridge(Path.cwd())
+    bridge._state_path = tmp_path / "test_page_state.json"
+    bridge._cases = [
+        {
+            "nodeid": nodeid,
+            "file": "testing/tests/android/stress/test_local_playback_stress.py",
+            "name": "test_local_playback_stress",
+            "markers": [],
+            "case_type": "stress",
+            "required_params": ["local_playback_stress:media_dir", "local_playback_stress:media_files"],
+            "required_param_groups": [],
+            "required_equipment": [],
+            "android_case_id": "",
+        }
+    ]
+    bridge._rebuild_case_indexes()
+    bridge._state.selected = [SelectedCase(nodeid=nodeid, case_type="stress")]
+    scheduled: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(
+        bridge,
+        "_schedule_param_options_refresh",
+        lambda refresh_source, reason, *, nodeid="": scheduled.append((refresh_source, reason, nodeid)),
+    )
+
+    bridge.setCaseParamValue(nodeid, "local_playback_stress:media_dir", "/storage/*/Movies")
+
+    assert scheduled == [(source, "param_dependency_changed:local_playback_stress:media_dir", nodeid)]
+
+
+def test_dut_change_refreshes_dynamic_options_for_each_selected_node(tmp_path, monkeypatch) -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+
+    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    first_nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
+    second_nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress_variant"
+    source = "testing.tool.dut_tool.features.local_playback:list_media_files"
+    bridge = TestPageBridge(Path.cwd())
+    bridge._state_path = tmp_path / "test_page_state.json"
+    bridge._cases = [
+        {
+            "nodeid": first_nodeid,
+            "file": "testing/tests/android/stress/test_local_playback_stress.py",
+            "name": "test_local_playback_stress",
+            "markers": [],
+            "case_type": "stress",
+            "required_params": ["local_playback_stress:media_files"],
+            "required_param_groups": [],
+            "required_equipment": [],
+            "android_case_id": "",
+        },
+        {
+            "nodeid": second_nodeid,
+            "file": "testing/tests/android/stress/test_local_playback_stress.py",
+            "name": "test_local_playback_stress_variant",
+            "markers": [],
+            "case_type": "stress",
+            "required_params": ["local_playback_stress:media_files"],
+            "required_param_groups": [],
+            "required_equipment": [],
+            "android_case_id": "",
+        },
+    ]
+    bridge._rebuild_case_indexes()
+    bridge._state.selected = [
+        SelectedCase(nodeid=first_nodeid, case_type="stress"),
+        SelectedCase(nodeid=second_nodeid, case_type="stress"),
+    ]
+    scheduled: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(
+        bridge,
+        "_schedule_param_options_refresh",
+        lambda refresh_source, reason, *, nodeid="": scheduled.append((refresh_source, reason, nodeid)),
+    )
+
+    bridge.setGlobalValue("dut", "ABC123")
+
+    assert scheduled == [
+        (source, "dut_changed", first_nodeid),
+        (source, "dut_changed", second_nodeid),
+    ]
+
+
+def test_media_dir_refresh_writes_directory_and_schedules_playback_files(tmp_path, monkeypatch) -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+
+    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
+    source = "testing.tool.dut_tool.features.local_playback:list_media_dirs"
+    dependent_source = "testing.tool.dut_tool.features.local_playback:list_media_files"
+    bridge = TestPageBridge(Path.cwd())
+    bridge._state_path = tmp_path / "test_page_state.json"
+    bridge._cases = [
+        {
+            "nodeid": nodeid,
+            "file": "testing/tests/android/stress/test_local_playback_stress.py",
+            "name": "test_local_playback_stress",
+            "markers": [],
+            "case_type": "stress",
+            "required_params": ["local_playback_stress:media_dir", "local_playback_stress:media_files"],
+            "required_param_groups": [],
+            "required_equipment": [],
+            "android_case_id": "",
+        }
+    ]
+    bridge._rebuild_case_indexes()
+    bridge._state.selected = [SelectedCase(nodeid=nodeid, case_type="stress")]
+    bridge._state.case_parameters = {
+        nodeid: {
+            "local_playback_stress:media_dir": "/storage/OLD/Movies",
+            "local_playback_stress:media_files": ["/storage/OLD/Movies/old.mp4"],
+        }
+    }
+    scheduled: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(
+        bridge,
+        "_schedule_param_options_refresh",
+        lambda refresh_source, reason, *, nodeid="": scheduled.append((refresh_source, reason, nodeid)),
+    )
+
+    bridge._apply_param_options_refresh_result(
+        {
+            "source": source,
+            "dut": "ABC123",
+            "cache_key": "",
+            "nodeid": nodeid,
+            "options": ["/mnt/media_rw/A4F1-6FB4/Movies"],
+            "error": "",
+            "elapsed_ms": 12,
+        }
+    )
+
+    assert bridge._state.case_parameters[nodeid]["local_playback_stress:media_dir"] == "/storage/A4F1-6FB4/Movies"
+    assert scheduled == [(dependent_source, "param_source_refreshed:local_playback_stress:media_dir", nodeid)]
+
+
+def test_dynamic_options_refresh_preserves_selected_multi_enum_values(tmp_path, monkeypatch) -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+
+    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
+    source = "testing.tool.dut_tool.features.local_playback:list_media_files"
+    bridge = TestPageBridge(Path.cwd())
+    bridge._state_path = tmp_path / "test_page_state.json"
+    bridge._cases = [
+        {
+            "nodeid": nodeid,
+            "file": "testing/tests/android/stress/test_local_playback_stress.py",
+            "name": "test_local_playback_stress",
+            "markers": [],
+            "case_type": "stress",
+            "required_params": ["local_playback_stress:media_files"],
+            "required_param_groups": [],
+            "required_equipment": [],
+            "android_case_id": "",
+        }
+    ]
+    bridge._rebuild_case_indexes()
+    bridge._state.selected = [SelectedCase(nodeid=nodeid, case_type="stress")]
+    bridge._state.case_parameters = {
+        nodeid: {
+            "local_playback_stress:media_dir": "/storage/OLD/Movies",
+            "local_playback_stress:media_files": ["/storage/A4F1-6FB4/Movies/生活大爆炸.xvid.avi"],
+        }
+    }
+
+    bridge._apply_param_options_refresh_result(
+        {
+            "source": source,
+            "dut": "ABC123",
+            "cache_key": "",
+            "nodeid": nodeid,
+            "options": [
+                "/mnt/media_rw/A4F1-6FB4/Movies/demo.mp4",
+                "/storage/A4F1-6FB4/Movies/demo2.ts",
+                "/storage/A4F1-6FB4/Movies/生活大爆炸.xvid.avi",
+            ],
+            "error": "",
+            "elapsed_ms": 12,
+        }
+    )
+
+    assert bridge._state.case_parameters[nodeid]["local_playback_stress:media_files"] == [
+        "/storage/A4F1-6FB4/Movies/生活大爆炸.xvid.avi",
+    ]
+    assert bridge._state.case_parameters[nodeid]["local_playback_stress:media_dir"] == "/storage/OLD/Movies"
+
+
+def test_dynamic_options_refresh_keeps_case_parameters_when_list_is_unchanged(tmp_path, monkeypatch) -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+
+    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
+    source = "testing.tool.dut_tool.features.local_playback:list_media_files"
+    existing = ["/storage/A4F1-6FB4/Movies/demo.mp4"]
+    bridge = TestPageBridge(Path.cwd())
+    bridge._state_path = tmp_path / "test_page_state.json"
+    bridge._cases = [
+        {
+            "nodeid": nodeid,
+            "file": "testing/tests/android/stress/test_local_playback_stress.py",
+            "name": "test_local_playback_stress",
+            "markers": [],
+            "case_type": "stress",
+            "required_params": ["local_playback_stress:media_files"],
+            "required_param_groups": [],
+            "required_equipment": [],
+            "android_case_id": "",
+        }
+    ]
+    bridge._rebuild_case_indexes()
+    bridge._state.selected = [SelectedCase(nodeid=nodeid, case_type="stress")]
+    bridge._state.case_parameters = {
+        nodeid: {
+            "local_playback_stress:media_dir": "/storage/A4F1-6FB4/Movies",
+            "local_playback_stress:media_files": list(existing),
+        }
+    }
+    saved_paths: list[Path] = []
+    monkeypatch.setattr(
+        "example.bridge.TestPageBridge.save_state",
+        lambda path, state: saved_paths.append(path),
+    )
+
+    bridge._apply_param_options_refresh_result(
+        {
+            "source": source,
+            "dut": "ABC123",
+            "cache_key": "",
+            "nodeid": nodeid,
+            "options": list(existing),
+            "error": "",
+            "elapsed_ms": 12,
+        }
+    )
+
+    assert bridge._state.case_parameters[nodeid]["local_playback_stress:media_files"] == existing
+    assert saved_paths == []

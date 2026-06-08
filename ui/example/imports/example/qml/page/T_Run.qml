@@ -5,6 +5,7 @@ import FluentUI 1.0
 import "../global"
 
 FluPage {
+    id: page_root
     title: qsTr("Run")
     launchMode: FluPageType.SingleInstance
     property int footerHeight: 30
@@ -17,6 +18,7 @@ FluPage {
     property int previousLogLineCount: 0
     property bool programmaticLogScroll: false
     property real logMovementStartY: 0
+    property string validationDialogMessage: ""
 
     ListModel{
         id: logListModel
@@ -133,6 +135,10 @@ FluPage {
         }
         function onErrorOccurred(msg){
             showError(msg)
+        }
+        function onValidationFailed(msg){
+            validationDialogMessage = msg
+            dialog_validation.open()
         }
     }
 
@@ -353,5 +359,30 @@ FluPage {
         height: footerHeight
         text: RunBridge.isRunning ? qsTr("Stop") : qsTr("Start")
         onClicked: RunBridge.toggleRun()
+    }
+
+    FluContentDialog{
+        id: dialog_validation
+        title: qsTr("Required Parameters")
+        buttonFlags: FluContentDialogType.PositiveButton
+        positiveText: qsTr("OK")
+        contentDelegate: Component{
+            Item{
+                implicitWidth: dialog_validation.width
+                implicitHeight: validation_message_text.implicitHeight + 16
+                FluText{
+                    id: validation_message_text
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.leftMargin: 20
+                    anchors.rightMargin: 20
+                    anchors.topMargin: 4
+                    text: page_root.validationDialogMessage
+                    font: FluTextStyle.Body
+                    wrapMode: Text.Wrap
+                }
+            }
+        }
     }
 }

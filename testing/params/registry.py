@@ -85,6 +85,7 @@ def _case_param_field(
     category: ParamCategory,
     default: Any = "",
     options_source: str = "",
+    refreshes_options_sources: list[str] | None = None,
 ) -> ParamField:
     return ParamField(
         key=key,
@@ -94,6 +95,7 @@ def _case_param_field(
         default=default,
         enum_values=static_param_options(key),
         options_source=options_source,
+        refreshes_options_sources=list(refreshes_options_sources or []),
     )
 
 
@@ -143,20 +145,24 @@ def _pure_pytest_case_fields() -> list[ParamField]:
             "local_playback_stress:media_dir",
             ParamValueType.PATH,
             ParamCategory.EXECUTION,
-            "/storage/emulated/0/Movies",
+            "/storage/*/Movies /storage/*/Video",
+            "testing.tool.dut_tool.features.local_playback:list_media_dirs",
+            refreshes_options_sources=[
+                "testing.tool.dut_tool.features.local_playback:list_media_files",
+            ],
         ),
         _case_param_field(
             "local_playback_stress:media_files",
             ParamValueType.MULTI_ENUM,
             ParamCategory.EXECUTION,
             [],
-            "testing.actions.local_playback:list_media_files",
+            "testing.tool.dut_tool.features.local_playback:list_media_files",
         ),
         _case_param_field(
             "local_playback_stress:actions",
             ParamValueType.MULTI_ENUM,
             ParamCategory.EXECUTION,
-            ["pause", "play", "seek_forward", "seek_backward"],
+            ["pause", "seek_forward", "seek_backward"],
         ),
         _case_param_field(
             "local_playback_stress:loop_count",
@@ -229,7 +235,7 @@ def _pure_pytest_case_fields() -> list[ParamField]:
             ParamValueType.MULTI_ENUM,
             ParamCategory.EXECUTION,
             [],
-            "testing.actions.cpu_frequency:list_cpu_frequency_options",
+            "testing.tool.dut_tool.features.system:list_cpu_frequency_options",
         ),
     ]
 

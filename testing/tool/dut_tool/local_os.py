@@ -5,7 +5,7 @@ from testing.tool.dut_tool import command_batch as subprocess
 import time
 import locale
 
-from testing.yamlTool import yamlTool
+from ui.yamlTool import yamlTool
 
 
 class LocalOS:

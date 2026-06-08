@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
 import time
 import uuid
 from pathlib import Path
 from typing import Any
+
+from ui import jsonTool
 
 
 class AIChatSessionStore:
@@ -228,10 +229,7 @@ class AIChatSessionStore:
         self._save()
 
     def _load(self) -> dict[str, Any]:
-        if not self._store_path.exists():
-            return {"sessions": [], "projects": _default_projects()}
-        with self._store_path.open("r", encoding="utf-8") as handle:
-            payload = json.load(handle)
+        payload = jsonTool.read_json(self._store_path, {})
         sessions = payload.get("sessions") if isinstance(payload, dict) else None
         projects = payload.get("projects") if isinstance(payload, dict) else None
         return {
@@ -240,9 +238,7 @@ class AIChatSessionStore:
         }
 
     def _save(self) -> None:
-        self._store_path.parent.mkdir(parents=True, exist_ok=True)
-        with self._store_path.open("w", encoding="utf-8") as handle:
-            json.dump(self._data, handle, ensure_ascii=False, indent=2)
+        jsonTool.write_json(self._store_path, self._data)
 
     def _find_session(self, session_id: str) -> dict[str, Any] | None:
         for session in self._data["sessions"]:

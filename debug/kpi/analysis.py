@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import re
 import base64
 from datetime import datetime
@@ -8,6 +7,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 import cv2
+
+from ui import jsonTool
 
 
 ProgressCallback = Callable[[dict[str, Any]], None]
@@ -189,8 +190,7 @@ def _frame_payload(session: dict[str, Any], frame_index: int, image_path: Path) 
 
 def _save_session(session: dict[str, Any]) -> None:
     session_dir = Path(str(session["session_dir"]))
-    session_dir.mkdir(parents=True, exist_ok=True)
-    (session_dir / "session.json").write_text(json.dumps(session, ensure_ascii=False, indent=2), encoding="utf-8")
+    jsonTool.write_json(session_dir / "session.json", session)
 
 
 def _safe_stem(path: Path) -> str:

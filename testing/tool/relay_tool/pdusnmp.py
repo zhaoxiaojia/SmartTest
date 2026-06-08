@@ -14,11 +14,9 @@ from typing import Any, Sequence
 
 from testing.tool.relay_tool import Relay
 
-try:
-    from src.util.constants import load_config
-except ModuleNotFoundError:  # pragma: no cover - legacy config package is optional
-    def load_config(refresh: bool = False) -> dict[str, Any]:
-        return {}
+
+def load_config(refresh: bool = False) -> dict[str, Any]:
+    return {}
 
 
 class power_ctrl(Relay):

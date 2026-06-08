@@ -19,7 +19,6 @@ import "../global"
     minimumHeight: 320
     launchMode: FluWindowType.SingleTask
     fitsAppBarWindows: true
-    property bool runWasActive: false
     appBar: FluAppBar {
         width: window.width
         height: 30
@@ -85,13 +84,11 @@ import "../global"
 
     Connections{
         target: RunBridge
-        function onRunningChanged(){
-            if(RunBridge.isRunning){
-                runWasActive = true
+        function onRunFinished(result){
+            if(!result || result.stopped){
                 return
             }
-            if(runWasActive){
-                runWasActive = false
+            if(result.returncode === 0){
                 ItemsOriginal.openReport()
             }
         }

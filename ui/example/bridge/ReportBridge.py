@@ -4,10 +4,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QObject, QStandardPaths, QUrl, Signal, Slot
+from PySide6.QtCore import QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 
-from testing.reporting import ReportStore, filter_report_logs
+from testing.reporting.store import ReportStore, filter_report_logs
+
+try:
+    from example.helper.AppPaths import app_data_dir
+except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
+    from ui.example.helper.AppPaths import app_data_dir
 
 
 class ReportBridge(QObject):
@@ -21,8 +26,7 @@ class ReportBridge(QObject):
         self.refresh()
 
     def _default_reports_dir(self) -> Path:
-        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
-        return Path(base) / "SmartTest" / "reports"
+        return app_data_dir() / "reports"
 
     def _format_duration(self, duration_ms: Any) -> str:
         total_seconds = max(0, int(duration_ms or 0) // 1000)

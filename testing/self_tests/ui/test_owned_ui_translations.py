@@ -67,6 +67,8 @@ REQUIRED_TRANSLATIONS = {
         "Enabled",
         "Disabled",
         "DUT",
+        "Required Parameters",
+        "OK",
     },
     "T_Run": {
         "Run",
@@ -74,10 +76,15 @@ REQUIRED_TRANSLATIONS = {
         "Stop",
         "Steps",
         "Logs",
+        "Required Parameters",
+        "OK",
     },
     "RunBridge": {
         "No selected test cases to run.",
         "Failed to start pytest run. {detail}",
+        "Select a DUT before starting the selected test cases.",
+        "Missing required parameter: {param} ({case})",
+        "Fix required test parameters before starting.",
     },
     "TestPageBridge": {
         "test.env.equipment.type.label",

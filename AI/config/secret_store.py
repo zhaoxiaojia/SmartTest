@@ -3,12 +3,11 @@ from __future__ import annotations
 import base64
 import ctypes
 from ctypes import wintypes
-import json
-import os
 from pathlib import Path
 from sys import platform
 
 from AI.core.errors import AIConfigurationError
+from ui import jsonTool
 
 _DPAPI_ENTROPY = b"SmartTest.AI.SecretStore.v1"
 
@@ -39,25 +38,17 @@ class AISecretStore:
         payload = {
             "encrypted_api_key": base64.b64encode(protected_bytes).decode("ascii"),
         }
-        self._store_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        jsonTool.write_json(self._store_path, payload)
 
     def _read_payload(self) -> dict[str, str]:
-        if not self._store_path.exists():
-            return {}
-        text = self._store_path.read_text(encoding="utf-8").strip()
-        if text == "":
-            return {}
-        payload = json.loads(text)
+        payload = jsonTool.read_json(self._store_path, {})
         if not isinstance(payload, dict):
             raise AIConfigurationError(f"Invalid AI secret store payload: {self._store_path}")
         return payload
 
 
 def default_secret_store_path() -> Path:
-    local_appdata = os.getenv("LOCALAPPDATA", "").strip()
-    if not local_appdata:
-        local_appdata = str(Path.home() / "AppData" / "Local")
-    return Path(local_appdata) / "SmartTest" / "AI" / "secret_store.json"
+    return jsonTool.app_data_dir() / "AI" / "secret_store.json"
 
 
 class _DataBlob(ctypes.Structure):

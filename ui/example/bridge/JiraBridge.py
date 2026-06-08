@@ -1,7 +1,6 @@
 ﻿from __future__ import annotations
 
 import logging
-import json
 import os
 from pathlib import Path
 from threading import Lock, Thread
@@ -10,18 +9,22 @@ import uuid
 from typing import Any, Callable
 from urllib.parse import quote
 
-from PySide6.QtCore import QObject, Property, QT_TRANSLATE_NOOP, QStandardPaths, Signal, Slot
+from PySide6.QtCore import QObject, Property, QT_TRANSLATE_NOOP, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from jira_tool import (
-    JiraWorkspaceService,
-    create_jira_workspace_service,
-    parse_csv_ids,
-    parse_csv_terms,
-)
+from ui import jsonTool
+
+from jira_tool.services.factory import create_jira_workspace_service
+from jira_tool.services.query_builder import parse_csv_ids, parse_csv_terms
+from jira_tool.services.workspace import JiraWorkspaceService
 from example.bridge.AuthBridge import AuthBridge
 from example.helper.TranslateHelper import TranslateHelper
 from example.helper.UiText import raw_text, render_template, render_text, translated_text
+
+try:
+    from example.helper.AppPaths import app_data_dir
+except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
+    from ui.example.helper.AppPaths import app_data_dir
 
 JIRA_BASE_URL = os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")
 _MAX_DISPLAY_ISSUES = 50
@@ -269,23 +272,17 @@ class JiraBridge(QObject):
         )
 
     def _history_path(self) -> Path:
-        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
-        return Path(base) / "SmartTest" / "Jira" / "ai_conversation_history.json"
+        return app_data_dir() / "Jira" / "ai_conversation_history.json"
 
     def _load_conversation_history(self) -> list[dict[str, Any]]:
         path = self._history_path()
-        if not path.exists():
-            return []
-        with path.open("r", encoding="utf-8") as handle:
-            payload = json.load(handle)
+        payload = jsonTool.read_json(path, {})
         rows = payload.get("conversations") if isinstance(payload, dict) else None
         return rows if isinstance(rows, list) else []
 
     def _save_conversation_history(self) -> None:
         path = self._history_path()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w", encoding="utf-8") as handle:
-            json.dump({"conversations": self._conversation_history[:50]}, handle, ensure_ascii=False, indent=2)
+        jsonTool.write_json(path, {"conversations": self._conversation_history[:50]})
 
     def _current_history_title(self) -> str:
         for row in self._conversation:
@@ -510,8 +507,7 @@ class JiraBridge(QObject):
         self.stateChanged.emit()
 
     def _cache_dir(self) -> Path:
-        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
-        return Path(base) / "SmartTest" / "jira"
+        return app_data_dir() / "jira"
 
     def _set_loading(self, value: bool) -> None:
         if self._loading == value:

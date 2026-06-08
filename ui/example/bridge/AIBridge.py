@@ -7,12 +7,18 @@ from threading import Lock, Thread
 from typing import Any
 from urllib.parse import unquote, urlparse
 
-from PySide6.QtCore import QObject, Property, QT_TRANSLATE_NOOP, QStandardPaths, Signal, Slot
+from PySide6.QtCore import QObject, Property, QT_TRANSLATE_NOOP, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
 from AI.core.models import AIChatMessage
-from AI.services import AIChatSessionStore, AIChatService, create_default_ai_chat_service
+from AI.services.chat_service import AIChatService, create_default_ai_chat_service
+from AI.services.session_store import AIChatSessionStore
 from example.helper.UiText import render_text, translated_text
+
+try:
+    from example.helper.AppPaths import app_data_dir
+except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
+    from ui.example.helper.AppPaths import app_data_dir
 
 _MAX_ATTACHMENT_BYTES = 1024 * 1024
 _SUPPORTED_SUFFIXES = {
@@ -84,12 +90,10 @@ class AIBridge(QObject):
         return render_text(self, state)
 
     def _store_path(self) -> Path:
-        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
-        return Path(base) / "SmartTest" / "AI" / "chat_sessions.json"
+        return app_data_dir() / "AI" / "chat_sessions.json"
 
     def _share_dir(self) -> Path:
-        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
-        return Path(base) / "SmartTest" / "AI" / "shared"
+        return app_data_dir() / "AI" / "shared"
 
     def _set_loading(self, value: bool) -> None:
         if self._loading == value:

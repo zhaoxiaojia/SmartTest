@@ -113,11 +113,14 @@ def test_default_registry_includes_android_client_emmc_params():
     cpu_frequency_param = registry.get_param(CPU_FREQUENCY_PARAM_KEY)
     assert cpu_frequency_param is not None
     assert cpu_frequency_param.type == ParamValueType.MULTI_ENUM
-    assert cpu_frequency_param.options_source == "testing.actions.cpu_frequency:list_cpu_frequency_options"
+    assert cpu_frequency_param.options_source == "testing.tool.dut_tool.features.system:list_cpu_frequency_options"
     media_files_param = registry.get_param("local_playback_stress:media_files")
     assert media_files_param is not None
     assert media_files_param.type == ParamValueType.MULTI_ENUM
-    assert media_files_param.options_source == "testing.actions.local_playback:list_media_files"
+    assert media_files_param.options_source == "testing.tool.dut_tool.features.local_playback:list_media_files"
+    actions_param = registry.get_param("local_playback_stress:actions")
+    assert actions_param is not None
+    assert "play" not in actions_param.enum_values
 
 
 def test_default_registry_uses_fixed_bluetooth_target_list():

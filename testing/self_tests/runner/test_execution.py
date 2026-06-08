@@ -39,7 +39,6 @@ def test_packaged_runtime_uses_bundled_python_pytest_runner(monkeypatch, tmp_pat
     session = execution.start_pytest_run(
         root_dir=Path("D:/SmartTest"),
         nodeids=["testing/tests/example.py::test_case"],
-        case_configs={"testing/tests/example.py::test_case": {"example:param": 1}},
     )
 
     assert session.process is not None
@@ -60,4 +59,3 @@ def test_packaged_runtime_uses_bundled_python_pytest_runner(monkeypatch, tmp_pat
     env = kwargs["env"]
     assert "SMARTTEST_STEP_EVENTS_OUT" in env
     assert "SMARTTEST_RUN_CONFIG_JSON" in env
-    assert "SMARTTEST_CASE_CONFIGS_JSON" in env

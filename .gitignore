@@ -11,3 +11,21 @@ source.zip
 source_all.zip
 *.qm
 android_client/signapk/
+
+# Local packaged/build output and temporary diagnostics
+_internal/
+AutoSuspend-master/
+_tmp_kpi_review/
+tmp_main_*.log
+demo_outlook.py
+smtp_check.py
+teams_demo.py
+
+# Local playback OCR/debug capture output
+local_playback_capture_trials/
+local_playback_capture_trials_wait6/
+local_playback_multi_video_screenshots/
+movies_stress_screenshot_check/
+ocr_debug/
+seek_forward_debug_current/
+screen.png

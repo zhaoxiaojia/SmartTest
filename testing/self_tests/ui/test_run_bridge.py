@@ -7,6 +7,7 @@ from PySide6.QtGui import QGuiApplication
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "ui"))
 
+from testing.params.validation import RunValidationIssue
 from testing.state.models import SelectedCase, TestPageState as SmartTestPageState
 from testing.state.store import save_state
 from ui.example import main as example_main
@@ -138,18 +139,94 @@ def test_run_bridge_start_failure_writes_stderr_log(monkeypatch, tmp_path) -> No
     assert errors and "selection failed" in errors[-1]
 
 
+def test_run_bridge_start_blocks_missing_required_case_parameter(monkeypatch, tmp_path) -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+
+    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    state_path = tmp_path / "test_page_state.json"
+    nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
+    save_state(
+        state_path,
+        SmartTestPageState(
+            selected=[SelectedCase(nodeid=nodeid, case_type="stress")],
+            case_parameters={nodeid: {"local_playback_stress:media_files": []}},
+            global_context={"dut": "ABC123"},
+        ),
+    )
+    bridge = RunBridge(Path.cwd())
+    bridge._stdout_log_path = tmp_path / "logs" / "tmp_main_stdout.log"
+    bridge._stderr_log_path = tmp_path / "logs" / "tmp_main_stderr.log"
+    bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
+    bridge._stderr_mirror_log_path = tmp_path / "tmp_main_stderr.log"
+    monkeypatch.setattr(bridge, "_default_state_path", lambda: state_path)
+    monkeypatch.setattr("testing.params.validation.list_adb_devices", lambda: ["ABC123"])
+    validation_errors: list[str] = []
+    bridge.validationFailed.connect(validation_errors.append)
+
+    started = bridge.startRun()
+
+    assert started is False
+    assert bridge.isRunning is False
+    assert validation_errors
+    assert "Missing required parameter" in validation_errors[-1]
+    assert "Playback files" in validation_errors[-1]
+
+
+def test_run_bridge_finish_emits_explicit_completion_event(tmp_path) -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+
+    bridge = RunBridge(Path.cwd())
+    bridge._stdout_log_path = tmp_path / "logs" / "tmp_main_stdout.log"
+    bridge._stderr_log_path = tmp_path / "logs" / "tmp_main_stderr.log"
+    bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
+    bridge._stderr_mirror_log_path = tmp_path / "tmp_main_stderr.log"
+    bridge._reset_run_data()
+    bridge._set_running(True)
+    finished: list[dict] = []
+    bridge.runFinished.connect(finished.append)
+
+    bridge._finish_run(0)
+
+    assert bridge.isRunning is False
+    assert finished == [{"returncode": 0, "stopped": False}]
+
+
+def test_run_bridge_validation_message_uses_parameter_label() -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+
+    bridge = RunBridge(Path.cwd())
+    message = bridge._format_run_validation_message(
+        [
+            RunValidationIssue(
+                code="missing_required_param",
+                nodeid="testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress",
+                case_name="test_local_playback_stress",
+                param_key="local_playback_stress:media_dir",
+            )
+        ]
+    )
+
+    assert "Missing required parameter" in message
+    assert "Media directory" in message
+    assert "local_playback_stress:media_dir" not in message
+
+
 def test_run_bridge_start_inserts_initial_plan_before_background_start(monkeypatch, tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    state_path = tmp_path / "state.json"
+    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    state_path = tmp_path / "test_page_state.json"
     nodeid = "android://auto_reboot"
     mapped_nodeid = "testing/tests/android/common/system/test_auto_reboot.py::test_auto_reboot_via_android_client"
     save_state(
         state_path,
         SmartTestPageState(
             selected=[SelectedCase(nodeid=nodeid)],
-            case_configs={
+            case_parameters={
                 nodeid: {
                     "auto_reboot:cycle_count": 1.0,
                     "auto_reboot:interval_sec": 30.0,
@@ -189,14 +266,15 @@ def test_run_bridge_start_expands_android_step_templates(monkeypatch, tmp_path) 
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    state_path = tmp_path / "state.json"
+    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    state_path = tmp_path / "test_page_state.json"
     nodeid = "android://emmc_rw"
     mapped_nodeid = "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client"
     save_state(
         state_path,
         SmartTestPageState(
             selected=[SelectedCase(nodeid=nodeid)],
-            case_configs={
+            case_parameters={
                 nodeid: {
                     "emmc_rw:loop_count": 1.0,
                     "emmc_rw:source_profile": "random1",
@@ -232,11 +310,19 @@ def test_run_bridge_start_expands_android_step_templates(monkeypatch, tmp_path) 
     assert not any(str(row["definition_id"]).startswith("android.") for row in rows)
 
 
-def test_run_bridge_emmc_runtime_steps_match_initial_plan_without_additions(tmp_path) -> None:
+def test_run_bridge_emmc_runtime_steps_match_initial_plan_without_additions(monkeypatch, tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
+    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
     nodeid = "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client"
+    save_state(
+        tmp_path / "test_page_state.json",
+        SmartTestPageState(
+            selected=[SelectedCase(nodeid=nodeid)],
+            case_parameters={nodeid: {"emmc_rw:loop_count": 1.0}},
+        ),
+    )
     bridge = RunBridge(Path.cwd())
     bridge._MIN_STEP_RUNNING_DISPLAY_SEC = 0.0
     bridge._stdout_log_path = tmp_path / "logs" / "tmp_main_stdout.log"
@@ -244,10 +330,7 @@ def test_run_bridge_emmc_runtime_steps_match_initial_plan_without_additions(tmp_
     bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
     bridge._stderr_mirror_log_path = tmp_path / "tmp_main_stderr.log"
     bridge._reset_run_data()
-    bridge._append_initial_step_plan(
-        nodeids=[nodeid],
-        case_configs={nodeid: {"emmc_rw:loop_count": 1.0}},
-    )
+    bridge._append_initial_step_plan(nodeids=[nodeid])
 
     bridge._apply_event(
         {
@@ -294,21 +377,26 @@ def test_run_bridge_emmc_runtime_steps_match_initial_plan_without_additions(tmp_
     assert sum(1 for row in rows if row["definition_id"] == "emmc_rw.execute") == 0
 
 
-def test_run_bridge_execute_summary_step_is_hidden(tmp_path) -> None:
+def test_run_bridge_execute_summary_step_is_hidden(monkeypatch, tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
+    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
     nodeid = "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client"
+    save_state(
+        tmp_path / "test_page_state.json",
+        SmartTestPageState(
+            selected=[SelectedCase(nodeid=nodeid)],
+            case_parameters={nodeid: {"emmc_rw:loop_count": 1.0}},
+        ),
+    )
     bridge = RunBridge(Path.cwd())
     bridge._stdout_log_path = tmp_path / "logs" / "tmp_main_stdout.log"
     bridge._stderr_log_path = tmp_path / "logs" / "tmp_main_stderr.log"
     bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
     bridge._stderr_mirror_log_path = tmp_path / "tmp_main_stderr.log"
     bridge._reset_run_data()
-    bridge._append_initial_step_plan(
-        nodeids=[nodeid],
-        case_configs={nodeid: {"emmc_rw:loop_count": 1.0}},
-    )
+    bridge._append_initial_step_plan(nodeids=[nodeid])
     bridge._apply_event(
         {
             "type": "step_started",
@@ -327,11 +415,25 @@ def test_run_bridge_execute_summary_step_is_hidden(tmp_path) -> None:
     assert not any(row["definition_id"] == "emmc_rw.execute" for row in rows)
 
 
-def test_run_bridge_runtime_steps_update_initial_plan_without_duplicates(tmp_path) -> None:
+def test_run_bridge_runtime_steps_update_initial_plan_without_duplicates(monkeypatch, tmp_path) -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
+    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
     nodeid = "testing/tests/android/common/system/test_auto_reboot.py::test_auto_reboot_via_android_client"
+    save_state(
+        tmp_path / "test_page_state.json",
+        SmartTestPageState(
+            selected=[SelectedCase(nodeid=nodeid)],
+            case_parameters={
+                nodeid: {
+                    "auto_reboot:cycle_count": 1.0,
+                    "auto_reboot:interval_sec": 30.0,
+                    "auto_reboot:ping_target": "192.168.50.1",
+                }
+            },
+        ),
+    )
     bridge = RunBridge(Path.cwd())
     bridge._MIN_STEP_RUNNING_DISPLAY_SEC = 0.0
     bridge._stdout_log_path = tmp_path / "logs" / "tmp_main_stdout.log"
@@ -339,16 +441,7 @@ def test_run_bridge_runtime_steps_update_initial_plan_without_duplicates(tmp_pat
     bridge._stdout_mirror_log_path = tmp_path / "tmp_main_stdout.log"
     bridge._stderr_mirror_log_path = tmp_path / "tmp_main_stderr.log"
     bridge._reset_run_data()
-    bridge._append_initial_step_plan(
-        nodeids=[nodeid],
-        case_configs={
-            nodeid: {
-                "auto_reboot:cycle_count": 1.0,
-                "auto_reboot:interval_sec": 30.0,
-                "auto_reboot:ping_target": "192.168.50.1",
-            }
-        },
-    )
+    bridge._append_initial_step_plan(nodeids=[nodeid])
     initial_count = len(bridge.stepRows())
 
     bridge._apply_event(

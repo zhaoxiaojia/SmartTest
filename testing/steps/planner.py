@@ -5,8 +5,10 @@ import importlib.util
 from pathlib import Path
 from typing import Any
 
-from testing.actions import ActionPlanContext, get_action
+from ui import jsonTool
+
 from testing.cases.catalog import load_runtime_test_catalog
+from testing.steps.definitions import ActionPlanContext, get_action
 from testing.tests import build_declared_case_plan, declared_step_enabled
 
 
@@ -14,39 +16,38 @@ def build_step_plan(
     *,
     root_dir: Path,
     nodeid: str,
-    case_config: dict[str, Any],
     prefer_catalog: bool = True,
     include_config_disabled: bool = False,
 ) -> list[dict[str, Any]]:
     use_catalog_plan = prefer_catalog
     if use_catalog_plan:
-        catalog_plan = _catalog_step_plan(root_dir=root_dir, nodeid=nodeid, case_config=case_config)
+        catalog_plan = _catalog_step_plan(root_dir=root_dir, nodeid=nodeid)
         if catalog_plan:
-            _trace_plan("catalog", nodeid=nodeid, steps=catalog_plan, case_config=case_config)
+            _trace_plan("catalog", nodeid=nodeid, steps=catalog_plan)
             return _remove_case_execute_summary_steps(catalog_plan)
     declared_plan = _load_declared_plan(
         root_dir=root_dir,
         nodeid=nodeid,
-        case_config=case_config,
         include_config_disabled=include_config_disabled,
     )
     if not declared_plan:
-        declared_steps = _declared_runtime_steps(root_dir=root_dir, nodeid=nodeid, case_config=case_config)
-        mirrored_plan = _android_mirrored_plan(root_dir=root_dir, nodeid=nodeid, case_config=case_config)
+        declared_steps = _declared_runtime_steps(root_dir=root_dir, nodeid=nodeid)
+        mirrored_plan = _android_mirrored_plan(root_dir=root_dir, nodeid=nodeid)
         if declared_steps or mirrored_plan:
             result = _remove_case_execute_summary_steps(_merge_plans([*declared_steps, *mirrored_plan]))
-            _trace_plan("runtime_ast", nodeid=nodeid, steps=result, case_config=case_config)
+            _trace_plan("runtime_ast", nodeid=nodeid, steps=result)
             return result
-        result = _fallback_plan(nodeid=nodeid, case_config=case_config)
-        _trace_plan("fallback", nodeid=nodeid, steps=result, case_config=case_config)
+        result = _fallback_plan(nodeid=nodeid)
+        _trace_plan("fallback", nodeid=nodeid, steps=result)
         return result
     normalized = [_normalize_step(item, index=index) for index, item in enumerate(declared_plan)]
     result = _remove_case_execute_summary_steps(normalized)
-    _trace_plan("declared", nodeid=nodeid, steps=result, case_config=case_config)
+    _trace_plan("declared", nodeid=nodeid, steps=result)
     return result
 
 
-def _catalog_step_plan(*, root_dir: Path, nodeid: str, case_config: dict[str, Any]) -> list[dict[str, Any]]:
+def _catalog_step_plan(*, root_dir: Path, nodeid: str) -> list[dict[str, Any]]:
+    case_parameters = _case_parameters_from_json(nodeid)
     for row in load_runtime_test_catalog(root_dir=root_dir):
         if str(row.get("nodeid", "") or "").strip() != nodeid:
             continue
@@ -56,11 +57,11 @@ def _catalog_step_plan(*, root_dir: Path, nodeid: str, case_config: dict[str, An
         resolved = [_normalize_step(dict(item), index=index) for index, item in enumerate(raw_steps) if isinstance(item, dict)]
         if not resolved:
             return []
-        # Rebind params from current case config so runtime overrides are reflected.
+        # Rebind params from current case parameters so runtime overrides are reflected.
         for item in resolved:
             params = item.get("params", {})
             current = dict(params) if isinstance(params, dict) else {}
-            for key, value in case_config.items():
+            for key, value in case_parameters.items():
                 current[str(key)] = value
             item["params"] = current
             item["title"] = _resolve_title_placeholders(str(item.get("title", "") or ""), current)
@@ -68,6 +69,23 @@ def _catalog_step_plan(*, root_dir: Path, nodeid: str, case_config: dict[str, An
         resolved = [item for item in resolved if _step_enabled(item, case_id=case_id)]
         return _remove_case_execute_summary_steps(resolved)
     return []
+
+
+def _case_parameters_from_json(nodeid: str) -> dict[str, Any]:
+    raw_parameters = jsonTool.get_json_value("test_page_state.json", ["case_parameters"], {})
+    if not isinstance(raw_parameters, dict):
+        return {}
+    requested_nodeid = str(nodeid)
+    values = raw_parameters.get(requested_nodeid)
+    if isinstance(values, dict):
+        return dict(values)
+    state = jsonTool.read_json("test_page_state.json", {})
+    selected = state.get("selected", []) if isinstance(state, dict) else []
+    if isinstance(selected, list) and len(selected) == 1 and len(raw_parameters) == 1:
+        only_values = next(iter(raw_parameters.values()))
+        if isinstance(only_values, dict):
+            return dict(only_values)
+    return {}
 
 
 def _step_enabled(item: dict[str, Any], *, case_id: str) -> bool:
@@ -90,7 +108,6 @@ def _load_declared_plan(
     *,
     root_dir: Path,
     nodeid: str,
-    case_config: dict[str, Any],
     include_config_disabled: bool,
 ) -> list[dict[str, Any]]:
     path_text = nodeid.split("::", 1)[0].strip()
@@ -115,14 +132,14 @@ def _load_declared_plan(
         if isinstance(selected, dict):
             return build_declared_case_plan(
                 selected,
-                case_config=dict(case_config),
+                nodeid=nodeid,
                 include_config_disabled=include_config_disabled,
             )
     declaration = getattr(module, "SMARTTEST_CASE_PLAN", None)
     if isinstance(declaration, dict):
         return build_declared_case_plan(
             declaration,
-            case_config=dict(case_config),
+            nodeid=nodeid,
             include_config_disabled=include_config_disabled,
         )
     return []
@@ -206,7 +223,8 @@ def _format_placeholder_value(value: Any) -> str:
     return text
 
 
-def _declared_runtime_steps(*, root_dir: Path, nodeid: str, case_config: dict[str, Any]) -> list[dict[str, Any]]:
+def _declared_runtime_steps(*, root_dir: Path, nodeid: str) -> list[dict[str, Any]]:
+    case_parameters = _case_parameters_from_json(nodeid)
     tree = _parse_node_module(root_dir=root_dir, nodeid=nodeid)
     if tree is None:
         return []
@@ -216,7 +234,7 @@ def _declared_runtime_steps(*, root_dir: Path, nodeid: str, case_config: dict[st
             "title": "Prepare runner and parameters",
             "kind": "setup",
             "definition_id": "smarttest.runner.prepare",
-            "params": dict(case_config),
+            "params": dict(case_parameters),
             "expected": "Runner receives selected case and user parameters.",
         }
     ]
@@ -238,7 +256,7 @@ def _declared_runtime_steps(*, root_dir: Path, nodeid: str, case_config: dict[st
                 "title": title,
                 "kind": _step_kind(function_name),
                 "definition_id": definition_id,
-                "params": dict(case_config),
+                "params": dict(case_parameters),
                 "expected": "",
             }
         )
@@ -255,13 +273,14 @@ def _step_kind(function_name: str) -> str:
     return "step"
 
 
-def _android_mirrored_plan(*, root_dir: Path, nodeid: str, case_config: dict[str, Any]) -> list[dict[str, Any]]:
+def _android_mirrored_plan(*, root_dir: Path, nodeid: str) -> list[dict[str, Any]]:
+    case_parameters = _case_parameters_from_json(nodeid)
     case_id = _android_case_id_from_node(root_dir=root_dir, nodeid=nodeid)
     if not case_id:
         return []
     params = {
         key: value
-        for key, value in case_config.items()
+        for key, value in case_parameters.items()
         if str(key).startswith(f"{case_id}:")
     }
     case_title = nodeid.rsplit("::", 1)[-1] if "::" in nodeid else nodeid
@@ -346,24 +365,26 @@ def _call_name(node: ast.AST) -> str:
     return ""
 
 
-def _fallback_plan(*, nodeid: str, case_config: dict[str, Any]) -> list[dict[str, Any]]:
+def _fallback_plan(*, nodeid: str) -> list[dict[str, Any]]:
+    case_parameters = _case_parameters_from_json(nodeid)
     return [
         {
             "id": "prepare_runner",
             "title": "Prepare runner and parameters",
             "kind": "setup",
             "definition_id": "smarttest.runner.prepare",
-            "params": dict(case_config),
+            "params": dict(case_parameters),
             "expected": "Runner receives selected case and user parameters.",
         },
     ]
 
 
-def _trace_plan(source: str, *, nodeid: str, steps: list[dict[str, Any]], case_config: dict[str, Any]) -> None:
+def _trace_plan(source: str, *, nodeid: str, steps: list[dict[str, Any]]) -> None:
+    case_parameters = _case_parameters_from_json(nodeid)
     print(
         "[steps.plan] "
         f"source={source} nodeid={nodeid} count={len(steps)} "
-        f"config_keys={','.join(sorted(str(key) for key in case_config)) or '<none>'}"
+        f"config_keys={','.join(sorted(str(key) for key in case_parameters)) or '<none>'}"
     )
     for index, step in enumerate(steps, start=1):
         print(

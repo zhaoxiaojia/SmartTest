@@ -39,7 +39,6 @@ def test_build_run_config_from_state_keeps_unsafe_selected_dut_for_command_bound
 def test_build_run_config_from_state_carries_equipment_config() -> None:
     state = SmartTestPageState(
         selected=[SelectedCase("testing/tests/example.py::test_case")],
-        case_configs={"testing/tests/example.py::test_case": {"duration": 3}},
         global_context={
             "dut": "ABC123",
             "equipment": {
@@ -57,6 +56,5 @@ def test_build_run_config_from_state_carries_equipment_config() -> None:
 
     assert diagnostics == []
     assert run_config.nodeids == ["testing/tests/example.py::test_case"]
-    assert run_config.case_configs == {"testing/tests/example.py::test_case": {"duration": 3}}
     assert run_config.dut_serial == "ABC123"
     assert run_config.equipment["relay"]["port"] == "COM4"

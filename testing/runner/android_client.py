@@ -11,9 +11,13 @@ import uuid
 from typing import Mapping
 
 from android_client import PACKAGE_NAME, PRIVILEGED_CASE_IDS, ensure_test_apk_installed
+from ui import jsonTool
+from testing.params.registry import default_registry
 from testing.runtime.config import current_dut_serial
 from testing.runtime.events import current_case_nodeid, current_step, emit_event
-from testing.tool.adb import build_adb_command, effective_adb_serial
+from testing.runtime.steps import step as runtime_step, step_log
+from testing.steps.definitions import ActionContext, action_plan, get_action
+from testing.params.adb_devices import resolve_adb_serial_for_command
 
 
 DEFAULT_COMPONENT = "com.smarttest.mobile/com.smarttest.mobile.command.CommandActivity"
@@ -27,8 +31,12 @@ DEFAULT_PUBLIC_STATUS_FILE = "/sdcard/Android/data/com.smarttest.mobile/files/ru
 DEFAULT_POLL_INTERVAL_SEC = 1.0
 DEFAULT_TIMEOUT_SEC = 3600.0
 DEFAULT_MAX_CONSECUTIVE_STATUS_FAILURES = 5
-DEFAULT_DUT_UNAVAILABLE_STAGE_TOKENS = {"rebooting dut", "entering deep suspend"}
-DEFAULT_HOST_QUIET_STAGE_TOKENS = {"entering deep suspend"}
+DEFAULT_DUT_UNAVAILABLE_STAGE_TOKENS = {
+    "rebooting dut",
+    "entering deep suspend",
+    "waiting for deep suspend resume",
+}
+DEFAULT_HOST_QUIET_STAGE_TOKENS = {"entering deep suspend", "waiting for deep suspend resume"}
 DEFAULT_HOST_QUIET_SEC = 25.0
 DEFAULT_NO_POLL_CASE_IDS: set[str] = set()
 DEFAULT_SLOW_POLL_CASE_IDS: set[str] = set()
@@ -397,15 +405,36 @@ def _subprocess_creationflags() -> int:
     return getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
-def build_case_params(case_id: str, **params: object) -> dict[str, str]:
+def case_params_from_state(case_id: str, nodeid: str) -> dict[str, str]:
+    normalized_case_id = str(case_id or "").strip()
+    normalized_nodeid = str(nodeid or "").strip()
+    prefix = f"{normalized_case_id}:"
     resolved: dict[str, str] = {}
-    for param_id, value in params.items():
-        resolved[f"{case_id}:{param_id}"] = str(value)
+    for field in default_registry().fields_by_key.values():
+        key = str(field.key or "").strip()
+        if key.startswith(prefix) and field.default not in (None, ""):
+            resolved[key] = _param_value_to_string(field.default)
+    values = jsonTool.get_json_value("test_page_state.json", ["case_parameters", normalized_nodeid], {})
+    if isinstance(values, dict):
+        for key, value in values.items():
+            normalized_key = str(key or "").strip()
+            if normalized_key.startswith(prefix):
+                resolved[normalized_key] = _param_value_to_string(value)
     return resolved
 
 
+def _param_value_to_string(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
 def _adb_base_cmd(*, adb_executable: str, adb_serial: str | None = None) -> list[str]:
-    return build_adb_command(adb_executable=adb_executable, selected_serial=adb_serial, args=[])
+    command = [adb_executable]
+    serial = resolve_adb_serial_for_command(adb_serial)
+    if serial:
+        command.extend(["-s", serial])
+    return command
 
 
 def _serial_for_log(serial: str | None) -> str:
@@ -479,6 +508,69 @@ def _force_stop_android_client(
     print(f"[testing.runner.android_client] force-stop stdout: {result.stdout.strip()}")
     print(f"[testing.runner.android_client] force-stop stderr: {result.stderr.strip()}")
     return result
+
+
+def _prepare_android_client_request(context: ActionContext) -> str:
+    summary = ", ".join(f"{key.split(':', 1)[-1]}={value}" for key, value in context.params.items())
+    step_log(summary)
+    return summary
+
+
+def android_client_case_plan(
+    case_id: str,
+    runtime_definition_ids: list[str] | None = None,
+    *,
+    prepare_definition_id: str = "android_client.prepare_request",
+    trigger_definition_id: str = "android_client.trigger_case",
+) -> dict[str, object]:
+    return {
+        "case_id": case_id,
+        "steps": [
+            *action_plan([prepare_definition_id, trigger_definition_id]),
+            *action_plan(runtime_definition_ids or []),
+        ],
+    }
+
+
+def run_android_client_case(
+    *,
+    case_id: str,
+    trigger: str,
+    prepare_definition_id: str = "android_client.prepare_request",
+    trigger_definition_id: str = "android_client.trigger_case",
+) -> subprocess.CompletedProcess[str]:
+    resolved_params = case_params_from_state(case_id, trigger)
+    context = ActionContext(case_id=case_id, params=resolved_params, trigger=trigger)
+    prepare_action = get_action(prepare_definition_id)
+    with runtime_step(
+        prepare_action.title,
+        kind=prepare_action.kind,
+        definition_id=prepare_action.definition_id,
+        params=dict(resolved_params),
+        expected=prepare_action.expected,
+    ):
+        _prepare_android_client_request(context)
+
+    trigger_action = get_action(trigger_definition_id)
+    with runtime_step(
+        trigger_action.title,
+        kind=trigger_action.kind,
+        definition_id=trigger_action.definition_id,
+        params=dict(resolved_params),
+        expected=trigger_action.expected,
+    ):
+        result = trigger_android_client_case(
+            case_id=case_id,
+            params=resolved_params,
+            trigger=trigger,
+        )
+        stdout = (result.stdout or "").strip()
+        stderr = (result.stderr or "").strip()
+        if stdout:
+            step_log(stdout)
+        if stderr:
+            step_log(stderr, level="warning")
+        return result
 
 
 def _launch_android_client_main(
@@ -1128,7 +1220,7 @@ def trigger_android_client_case(
     print(f"[testing.runner.android_client] case_id={case_id}")
     print(f"[testing.runner.android_client] adb={adb_executable}")
     print(f"[testing.runner.android_client] requested_serial={_serial_for_log(requested_serial)}")
-    print(f"[testing.runner.android_client] effective_serial={_serial_for_log(effective_adb_serial(requested_serial))}")
+    print(f"[testing.runner.android_client] effective_serial={_serial_for_log(resolve_adb_serial_for_command(requested_serial))}")
     print(f"[testing.runner.android_client] component={component}")
     print(f"[testing.runner.android_client] params={dict(params or {})}")
     request_id = f"{case_id}-{uuid.uuid4().hex[:12]}"

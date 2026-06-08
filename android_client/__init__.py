@@ -9,7 +9,7 @@ import subprocess
 import time
 import sys
 
-from testing.tool.adb import build_adb_command, effective_adb_serial
+from testing.params.adb_devices import resolve_adb_serial_for_command
 
 
 PACKAGE_NAME = "com.smarttest.mobile"
@@ -57,7 +57,11 @@ def _subprocess_creationflags() -> int:
 
 
 def _adb_base_cmd(*, adb_executable: str, adb_serial: str | None = None) -> list[str]:
-    return build_adb_command(adb_executable=adb_executable, selected_serial=adb_serial, args=[])
+    command = [adb_executable]
+    serial = resolve_adb_serial_for_command(adb_serial)
+    if serial:
+        command.extend(["-s", serial])
+    return command
 
 
 def _serial_for_log(serial: str | None) -> str:
@@ -730,7 +734,7 @@ def ensure_test_apk_installed(
     if not adb_executable:
         raise RuntimeError("adb is not available in PATH.")
     requested_serial = str(adb_serial or "").strip()
-    effective_serial = effective_adb_serial(requested_serial)
+    effective_serial = resolve_adb_serial_for_command(requested_serial)
     print(
         "[android_client] ensure install start "
         f"adb={adb_executable} requested_serial={_serial_for_log(requested_serial)} "

@@ -42,9 +42,9 @@ class ParamField:
     scope: ParamScope = ParamScope.CASE
     default: Any = ""
     group: str = ""
-    required: bool = False
     enum_values: list[str] = field(default_factory=list)
     options_source: str = ""
+    refreshes_options_sources: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

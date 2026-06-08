@@ -1,0 +1,41 @@
+cases:
+  local_playback_stress:
+    required:
+      - local_playback_stress:media_dir
+      - local_playback_stress:media_files
+      - local_playback_stress:action_interval_sec
+      - local_playback_stress:start_wait_sec
+
+  auto_reboot:
+    required:
+      - auto_reboot:cycle_count
+      - auto_reboot:interval_sec
+
+  auto_suspend:
+    required:
+      - auto_suspend:cycle_count
+      - auto_suspend:interval_sec
+
+  cpu_frequency:
+    required:
+      - cpu_frequency:frequencies
+
+  emmc_rw:
+    required:
+      - emmc_rw:source_profile
+      - emmc_rw:source_size_kb
+      - emmc_rw:min_free_kb
+      - emmc_rw:work_dir
+
+  bt_onoff_scan:
+    required:
+      - bt_onoff_scan:bt_target
+
+  wifi_onoff_scan:
+    required:
+      - wifi_onoff_scan:ping_target
+
+  ac_onoff:
+    required:
+      - ac_onoff:power_off_sec
+      - ac_onoff:power_on_wait_sec

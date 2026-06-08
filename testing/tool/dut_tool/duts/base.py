@@ -5,17 +5,20 @@ import time
 import random
 import pytest
 import threading
-from src.util.constants import load_config
+def load_config(refresh: bool = False) -> dict:
+    return {}
 from testing.tool.dut_tool.features.device_ui import DeviceUiFeature
 from testing.tool.dut_tool.features.iperf import IperfFeature
+from testing.tool.dut_tool.features.local_playback import LocalPlaybackFeature
 from testing.tool.dut_tool.features.online_playback import OnlinePlaybackFeature
 from testing.tool.dut_tool.features.settings import SettingsFeature
 from testing.tool.dut_tool.features.stability import StabilityFeature
+from testing.tool.dut_tool.features.system import SystemFeature
 from testing.tool.dut_tool.features.wifi import WifiFeature
 from testing.tool.dut_tool.features.youtube import YoutubeFeature
 from testing.tool.wifi_lab_tool.ixchariot import ix
 from testing.tool.dut_tool.command_batch import CommandBatch, CommandRunner, CommandExecutionError, CommandTimeoutError
-from testing.tool.adb import effective_adb_serial
+from testing.params.adb_devices import resolve_adb_serial_for_command
 
 
 class BaseDut:
@@ -162,6 +165,8 @@ class BaseDut:
         self._rssi_sampled_event = threading.Event()
         self.ui = DeviceUiFeature(self)
         self.wifi = WifiFeature(self)
+        self.system = SystemFeature(self)
+        self.local_playback = LocalPlaybackFeature(self)
         self.settings = SettingsFeature(self)
         self.online_playback = OnlinePlaybackFeature(self)
         self.youtube = YoutubeFeature(self)
@@ -319,109 +324,6 @@ class BaseDut:
     def set_country_code(self, country_code: str):
         return self.checkoutput(self.SET_COUNTRY_CODE_FORMAT.format(country_code))
 
-    # Feature compatibility shims.
-    # These keep the old flat DUT API alive while new code migrates to
-    # dut.ui / dut.wifi / dut.iperf / dut.settings / dut.online_playback / dut.youtube / dut.stability composition.
-
-    def wifi_connect(
-        self,
-        ssid: str,
-        password: str = "",
-        security: str = "",
-        hidden: bool = False,
-        lan: bool = True,
-        *,
-        timeout_s: int = 90,
-    ) -> bool:
-        return self.wifi.connect(
-            ssid=ssid,
-            password=password,
-            security=security,
-            hidden=hidden,
-            lan=lan,
-            timeout_s=timeout_s,
-        )
-
-    def wifi_scan(
-        self,
-        ssid: str,
-        *,
-        attempts: int = 10,
-        scan_wait: int = 10,
-        interval: float = 1,
-    ) -> bool:
-        return self.wifi.scan(
-            ssid,
-            attempts=attempts,
-            scan_wait=scan_wait,
-            interval=interval,
-        )
-
-    def wifi_wait_ip(self, cmd: str = "", target=".", lan: bool = True, timeout_s: int = 60):
-        return self.wifi.wait_ip(cmd=cmd, target=target, lan=lan, timeout_s=timeout_s)
-
-    def wifi_forget(self):
-        return self.wifi.forget()
-
-    def _is_performance_debug_enabled(self) -> bool:
-        return self.iperf._is_performance_debug_enabled()
-
-    def kill_iperf(self):
-        return self.iperf.kill_iperf()
-
-    def push_iperf(self):
-        return self.iperf.push_iperf()
-
-    def run_iperf(self, command, adb):
-        return self.iperf.run_iperf(command, adb)
-
-    def get_logcat(self):
-        return self.iperf.get_logcat()
-
-    def get_pc_ip(self):
-        return self.iperf.get_pc_ip()
-
-    def get_dut_ip(self):
-        return self.iperf.get_dut_ip()
-
-    def accept_mobile_terms_keep_wlan_enabled(self):
-        return self.settings.accept_mobile_terms_keep_wlan_enabled()
-
-    def open_mobile_settings(self):
-        return self.settings.open_mobile_settings()
-
-    def open_android_tv_settings(self):
-        return self.settings.open_android_tv_settings()
-
-    def open_more_settings(self):
-        return self.settings.open_more_settings()
-
-    def play_exoplayer_demo_video(self, url: str = ""):
-        return self.online_playback.play_exoplayer_demo_video(url=url)
-
-    def playback_youtube(self, sleep_time=60, seek=False, seek_time=3, video_id: str = ""):
-        return self.youtube.playback(
-            sleep_time=sleep_time,
-            seek=seek,
-            seek_time=seek_time,
-            video_id=video_id,
-        )
-
-    def get_stability_apk_download_url(self) -> str:
-        return self.stability.get_stability_apk_download_url()
-
-    def list_stability_apk_packages(self) -> list[str]:
-        return self.stability.list_stability_apk_packages()
-
-    def disable_remote_control(self):
-        return self.stability.disable_remote_control()
-
-    def enable_bluetooth_hci_logging(self) -> list[str]:
-        return self.stability.enable_bluetooth_hci_logging()
-
-    def get_connected_bluetooth_mac_addresses(self) -> list[str]:
-        return self.stability.get_connected_bluetooth_mac_addresses()
-
     def run_device_shell(self, command: str):
         return self.checkoutput(command)
 
@@ -429,7 +331,7 @@ class BaseDut:
         return self.checkoutput_term(command)
 
     def adb_command_prefix(self) -> str:
-        serial = effective_adb_serial(getattr(self, "serialnumber", ""))
+        serial = resolve_adb_serial_for_command(getattr(self, "serialnumber", ""))
         if serial:
             return f"adb -s {serial}"
         return "adb"
@@ -514,7 +416,7 @@ class BaseDut:
         Any
             The result produced by the function.
         """
-        if self._dut_ip == '': self._dut_ip = self.get_dut_ip()
+        if self._dut_ip == '': self._dut_ip = self.iperf.get_dut_ip()
         return self._dut_ip
 
     @dut_ip.setter
@@ -547,7 +449,7 @@ class BaseDut:
         Any
             The result produced by the function.
         """
-        if self._pc_ip == '': self._pc_ip = self.get_pc_ip()
+        if self._pc_ip == '': self._pc_ip = self.iperf.get_pc_ip()
         self.ip_target = '.'.join(self._pc_ip.split('.')[:3])
         return self._pc_ip
 
@@ -747,7 +649,7 @@ class BaseDut:
         Any
             The result produced by the function.
         """
-        if self._is_performance_debug_enabled():
+        if self.iperf._is_performance_debug_enabled():
             simulated_rssi = -random.randint(40, 80)
             self.rssi_num = simulated_rssi
             self.freq_num = 0
@@ -844,7 +746,7 @@ class BaseDut:
         self.wf0_rssi = -1
         self.wf1_rssi = -1
 
-        if self._is_performance_debug_enabled():
+        if self.iperf._is_performance_debug_enabled():
             # 妯℃嫙璋冭瘯妯″紡
             import random
             self.bcn_rssi = -random.randint(30, 80)

@@ -12,7 +12,6 @@ def test_runtime_config_reads_unified_run_config(monkeypatch) -> None:
         json.dumps(
             {
                 "nodeids": ["testing/tests/example.py::test_case"],
-                "case_configs": {"testing/tests/example.py::test_case": {"duration": 5}},
                 "dut_serial": "ABC123",
                 "equipment": {"relay": {"type": "usb_relay", "port": "COM4"}},
             }
@@ -25,4 +24,3 @@ def test_runtime_config_reads_unified_run_config(monkeypatch) -> None:
     assert config.dut_serial == "ABC123"
     assert current_dut_serial() == "ABC123"
     assert equipment_config()["relay"]["port"] == "COM4"
-    assert config.case_configs["testing/tests/example.py::test_case"]["duration"] == 5

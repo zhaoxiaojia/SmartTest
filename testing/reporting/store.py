@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
-from json import JSONDecodeError
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
+
+from ui import jsonTool
 
 
 REPORT_SCHEMA_VERSION = 1
@@ -117,9 +117,8 @@ class ReportStore:
         run_id = _safe_text(report.get("run_id")) or uuid4().hex
         report = dict(report)
         report["run_id"] = run_id
-        self._reports_dir.mkdir(parents=True, exist_ok=True)
         path = self._reports_dir / f"{run_id}.json"
-        path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        jsonTool.write_json(path, report)
         return path
 
     def list_reports(self) -> list[dict[str, Any]]:
@@ -146,8 +145,8 @@ class ReportStore:
         if not path.exists():
             return None
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except JSONDecodeError:
+            data = jsonTool.read_json(path, {})
+        except ValueError:
             return None
         if not isinstance(data, dict):
             return None

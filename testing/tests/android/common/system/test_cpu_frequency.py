@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from testing.actions.cpu_frequency import (
-    CpuFrequencyController,
+from testing.tool.dut_tool.features.system import (
     CpuFrequencySnapshot,
 )
 from testing.params.options import normalize_option_values
 from testing.params.registry import CPU_FREQUENCY_PARAM_KEY
-from testing.runtime import case_step, request_case_param, step_log
+from testing.runtime.config import current_dut_serial
+from ui import jsonTool
+from testing.runtime.steps import case_step, step_log
 
 
 pytestmark = pytest.mark.case_type("system")
@@ -51,10 +52,15 @@ SMARTTEST_CASE_PLAN = {
 
 @pytest.mark.requires_params(CPU_FREQUENCY_PARAM_KEY)
 def test_cpu_frequency_switching(request):
+    values = jsonTool.get_json_value("test_page_state.json", ["case_parameters", request.node.nodeid], {})
+    values = dict(values) if isinstance(values, dict) else {}
     selected_frequencies = normalize_option_values(
-        request_case_param(request, CPU_FREQUENCY_PARAM_KEY, [])
+        values.get(CPU_FREQUENCY_PARAM_KEY, [])
     )
-    controller = CpuFrequencyController.from_environment()
+    from testing.tool.dut_tool.duts.android import android
+
+    dut = android(serialnumber=current_dut_serial())
+    system = dut.system
     original: CpuFrequencySnapshot | None = None
 
     with case_step(
@@ -63,7 +69,7 @@ def test_cpu_frequency_switching(request):
         params={CPU_FREQUENCY_PARAM_KEY: selected_frequencies},
         expected="DUT returns selectable CPU frequency values.",
     ):
-        available_frequencies = controller.available_frequencies()
+        available_frequencies = system.available_cpu_frequencies()
         step_log(f"available_frequencies={available_frequencies}")
         if not available_frequencies:
             pytest.fail("No CPU frequencies were returned by scaling_available_frequencies.")
@@ -81,8 +87,8 @@ def test_cpu_frequency_switching(request):
         definition_id="cpu.frequency.read_original",
         expected="Original governor and current frequency are captured before switching.",
     ):
-        controller.ensure_root()
-        original = controller.snapshot()
+        system.ensure_root()
+        original = system.cpu_frequency_snapshot()
         step_log(
             "original_governor="
             f"{original.governor} original_current_frequency={original.current_frequency}"
@@ -102,13 +108,13 @@ def test_cpu_frequency_switching(request):
                 },
                 expected=f"scaling_cur_freq={target_frequency}",
             ):
-                current_before = controller.read_current_frequency()
+                current_before = system.read_current_cpu_frequency()
                 step_log(
                     f"before={current_before} target={target_frequency} "
                     f"index={index}/{total}"
                 )
-                controller.set_frequency(target_frequency)
-                observed = controller.wait_current_frequency(target_frequency)
+                system.set_cpu_frequency(target_frequency)
+                observed = system.wait_current_cpu_frequency(target_frequency)
                 step_log(f"after={observed} target={target_frequency}")
                 assert observed == target_frequency, (
                     f"CPU frequency switch failed: target={target_frequency}, observed={observed}"
@@ -121,7 +127,7 @@ def test_cpu_frequency_switching(request):
                 params={"original_frequency": original.current_frequency},
                 expected=f"scaling_cur_freq={original.current_frequency}",
             ):
-                restored = controller.restore(original)
+                restored = system.restore_cpu_frequency(original)
                 step_log(
                     f"restored={restored} original={original.current_frequency} "
                     f"governor={original.governor}"

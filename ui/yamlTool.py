@@ -9,9 +9,10 @@ import logging
 from pathlib import Path
 from typing import Union
 
-import yaml
-
-from src.util.constants import get_config_base
+try:
+    import yaml
+except ModuleNotFoundError:  # pragma: no cover - depends on packaged dependencies
+    yaml = None
 
 
 class yamlTool:
@@ -40,7 +41,7 @@ class yamlTool:
         """
         resolved = Path(path)
         if not resolved.is_absolute():
-            resolved = get_config_base() / resolved
+            resolved = Path.cwd() / "config" / resolved
         self.path = resolved
         self.parsed_yaml_file = self._load_file()
 
@@ -57,7 +58,10 @@ class yamlTool:
         for encoding in ("utf-8", "gbk"):
             try:
                 with self.path.open(encoding=encoding) as stream:
-                    return yaml.load(stream, Loader=yaml.FullLoader) or {}
+                    text = stream.read()
+                    if yaml is not None:
+                        return yaml.safe_load(text) or {}
+                    return _parse_simple_yaml_mapping(text)
             except UnicodeDecodeError:
                 continue
             except Exception as exc:  # pragma: no cover - I/O depends on environment
@@ -76,5 +80,23 @@ class yamlTool:
             the key is not present.
         """
         return self.parsed_yaml_file.get(note)
+
+
+def _parse_simple_yaml_mapping(text: str) -> dict:
+    result: dict[str, dict] = {}
+    current_key = ""
+    for raw_line in text.splitlines():
+        line = raw_line.rstrip()
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if not raw_line.startswith((" ", "\t")) and stripped.endswith(":"):
+            current_key = stripped[:-1].strip()
+            result[current_key] = {}
+            continue
+        if current_key and ":" in stripped:
+            key, value = stripped.split(":", 1)
+            result[current_key][key.strip()] = value.strip().strip('"')
+    return result
 
 

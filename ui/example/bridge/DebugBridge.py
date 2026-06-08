@@ -3,10 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 from threading import Lock, Thread
 
-from PySide6.QtCore import QObject, QStandardPaths, Signal, Slot
+from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
 from debug.kpi_video import load_kpi_review_frame, mark_kpi_review_frame, prepare_kpi_review_session
+
+try:
+    from example.helper.AppPaths import app_data_dir
+except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
+    from ui.example.helper.AppPaths import app_data_dir
 
 
 class DebugBridge(QObject):
@@ -105,5 +110,4 @@ class DebugBridge(QObject):
         return resolved
 
     def _review_work_dir(self) -> Path:
-        base = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation))
-        return base / "SmartTest" / "debug" / "kpi_review"
+        return app_data_dir() / "debug" / "kpi_review"

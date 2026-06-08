@@ -67,20 +67,17 @@ def start_pytest_run(
     root_dir: Path,
     nodeids: list[str],
     adb_serial: str | None = None,
-    case_configs: dict[str, dict[str, object]] | None = None,
     equipment_config: dict[str, object] | None = None,
     run_config: RunConfig | None = None,
 ) -> TestRunSession:
     if run_config is None:
         run_config = RunConfig(
             nodeids=list(nodeids),
-            case_configs={str(key): dict(value) for key, value in (case_configs or {}).items()},
             dut_serial=adb_serial,
             equipment=dict(equipment_config or {}),
         )
     else:
         nodeids = list(run_config.nodeids)
-        case_configs = {str(key): dict(value) for key, value in run_config.case_configs.items()}
         adb_serial = run_config.dut_serial
     packaged = is_packaged_runtime()
     root_dir = Path(getattr(sys, "_MEIPASS", root_dir)).resolve() if packaged else root_dir.resolve()
@@ -91,7 +88,6 @@ def start_pytest_run(
     env["PYTHONUNBUFFERED"] = "1"
     env["SMARTTEST_STEP_EVENTS_OUT"] = str(event_file)
     env[RUN_CONFIG_ENV] = run_config_to_json(run_config)
-    env["SMARTTEST_CASE_CONFIGS_JSON"] = json.dumps(run_config.case_configs, ensure_ascii=False)
     if adb_serial:
         env["SMARTTEST_ADB_SERIAL"] = str(adb_serial)
     python_executable = Path(sys.executable)

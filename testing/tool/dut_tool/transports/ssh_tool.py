@@ -13,7 +13,8 @@ import asyncssh
 from asyncssh.connection import SSHClientConnection
 from asyncssh.process import SSHClientProcess
 
-from src.util.constants import get_telnet_connect_window
+def get_telnet_connect_window() -> tuple[float, float]:
+    return 0.05, 0.2
 
 
 class FastConnectSSHClient(asyncssh.SSHClient):

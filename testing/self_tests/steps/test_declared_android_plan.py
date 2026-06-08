@@ -4,15 +4,28 @@ from pathlib import Path
 
 import pytest
 
-from testing.steps import build_step_plan
+from ui import jsonTool
+
+from testing.steps.planner import build_step_plan
 from testing.tests.android.stress.test_ac_onoff import _cycle_seconds, _relay_power
 
 
-def test_android_wrapped_case_plan_comes_from_pytest_declaration() -> None:
+def _write_case_parameters(monkeypatch, tmp_path, nodeid: str, parameters: dict[str, object]) -> None:
+    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    jsonTool.write_json("test_page_state.json", {"case_parameters": {nodeid: dict(parameters)}})
+
+
+def test_android_wrapped_case_plan_comes_from_pytest_declaration(monkeypatch, tmp_path) -> None:
+    nodeid = "testing/tests/android/common/wifi_bt/test_wifi_onoff.py::test_wifi_onoff_scan_via_android_client"
+    _write_case_parameters(
+        monkeypatch,
+        tmp_path,
+        nodeid,
+        {"wifi_onoff_scan:cycle_count": 2, "wifi_onoff_scan:ping_target": "192.168.1.1"},
+    )
     plan = build_step_plan(
         root_dir=Path.cwd(),
-        nodeid="testing/tests/android/common/wifi_bt/test_wifi_onoff.py::test_wifi_onoff_scan_via_android_client",
-        case_config={"wifi_onoff_scan:cycle_count": 2, "wifi_onoff_scan:ping_target": "192.168.1.1"},
+        nodeid=nodeid,
         prefer_catalog=False,
     )
 
@@ -28,22 +41,30 @@ def test_android_wrapped_case_plan_comes_from_pytest_declaration() -> None:
     assert all(not str(step["definition_id"]).startswith("android.") for step in plan)
 
 
-def test_config_disabled_check_is_not_shown_in_initial_run_plan() -> None:
+def test_config_disabled_check_is_not_shown_in_initial_run_plan(monkeypatch, tmp_path) -> None:
+    nodeid = "testing/tests/android/common/wifi_bt/test_wifi_onoff.py::test_wifi_onoff_scan_via_android_client"
+    _write_case_parameters(
+        monkeypatch,
+        tmp_path,
+        nodeid,
+        {"wifi_onoff_scan:cycle_count": 2, "wifi_onoff_scan:ping_target": ""},
+    )
     plan = build_step_plan(
         root_dir=Path.cwd(),
-        nodeid="testing/tests/android/common/wifi_bt/test_wifi_onoff.py::test_wifi_onoff_scan_via_android_client",
-        case_config={"wifi_onoff_scan:cycle_count": 2, "wifi_onoff_scan:ping_target": ""},
+        nodeid=nodeid,
         prefer_catalog=False,
     )
 
     assert not any(step["definition_id"] == "network.ping" for step in plan)
 
 
-def test_relay_ac_onoff_plan_uses_relay_steps_and_dut_checkpoints() -> None:
-    plan = build_step_plan(
-        root_dir=Path.cwd(),
-        nodeid="testing/tests/android/stress/test_ac_onoff.py::test_ac_onoff_via_relay",
-        case_config={
+def test_relay_ac_onoff_plan_uses_relay_steps_and_dut_checkpoints(monkeypatch, tmp_path) -> None:
+    nodeid = "testing/tests/android/stress/test_ac_onoff.py::test_ac_onoff_via_relay"
+    _write_case_parameters(
+        monkeypatch,
+        tmp_path,
+        nodeid,
+        {
             "ac_onoff:cycle_count": 2,
             "ac_onoff:power_off_sec": 5,
             "ac_onoff:power_off_step_sec": 1,
@@ -52,6 +73,10 @@ def test_relay_ac_onoff_plan_uses_relay_steps_and_dut_checkpoints() -> None:
             "ac_onoff:ping_target": "192.168.50.1",
             "ac_onoff:bt_target": "",
         },
+    )
+    plan = build_step_plan(
+        root_dir=Path.cwd(),
+        nodeid=nodeid,
         prefer_catalog=False,
     )
 

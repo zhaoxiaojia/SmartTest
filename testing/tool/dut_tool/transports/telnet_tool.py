@@ -19,9 +19,23 @@ from typing import Optional, Tuple
 import pytest
 import telnetlib3
 from telnetlib3.client import TelnetClient
-from src.util.constants import DEFAULT_CONNECT_MINWAIT, DEFAULT_CONNECT_MAXWAIT, get_telnet_connect_window
 from typing import Annotated
-from src.util.constants import load_config
+DEFAULT_CONNECT_MINWAIT = 0.05
+DEFAULT_CONNECT_MAXWAIT = 0.2
+
+
+def load_config() -> dict:
+    return {}
+
+
+def get_telnet_connect_window() -> tuple[float, float]:
+    cfg = load_config()
+    telnet_cfg = cfg.get("telnet", {}) if isinstance(cfg.get("telnet", {}), dict) else {}
+    minwait = float(telnet_cfg.get("connect_minwait", DEFAULT_CONNECT_MINWAIT))
+    maxwait = float(telnet_cfg.get("connect_maxwait", DEFAULT_CONNECT_MAXWAIT))
+    if maxwait < minwait:
+        maxwait = minwait
+    return minwait, maxwait
 
 
 class FastNegotiationTelnetClient(TelnetClient):

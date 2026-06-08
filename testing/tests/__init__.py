@@ -2,19 +2,22 @@ from __future__ import annotations
 
 from typing import Any
 
-from testing.actions import action_step_enabled
+from ui import jsonTool
+
+from testing.steps.definitions import action_step_enabled
 
 
 def build_declared_case_plan(
     declaration: dict[str, Any],
     *,
-    case_config: dict[str, Any],
+    nodeid: str,
     include_config_disabled: bool = False,
 ) -> list[dict[str, Any]]:
     case_id = str(declaration.get("case_id", "") or "").strip()
+    case_parameters = _case_parameters_from_json(nodeid)
     params = {
         str(key): value
-        for key, value in case_config.items()
+        for key, value in case_parameters.items()
         if not case_id or str(key).startswith(f"{case_id}:")
     }
     steps: list[dict[str, Any]] = []
@@ -35,6 +38,11 @@ def build_declared_case_plan(
         step["title"] = _resolve_title_placeholders(str(step.get("title", "") or ""), params)
         steps.append(step)
     return steps
+
+
+def _case_parameters_from_json(nodeid: str) -> dict[str, Any]:
+    values = jsonTool.get_json_value("test_page_state.json", ["case_parameters", str(nodeid)], {})
+    return dict(values) if isinstance(values, dict) else {}
 
 
 def declared_step_enabled(step: dict[str, Any], params: dict[str, Any]) -> bool:

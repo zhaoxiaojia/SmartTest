@@ -9,18 +9,10 @@ from urllib.request import urlopen
 
 import pytest
 
-try:
-    from src.util.constants import (
-        ATTENUATOR_SWD_RC4DAT_8G_95,
-        ATTENUATOR_VAUNIX_LDA_908V_8,
-        RF_ATTENUATION_MAX_DB,
-        RF_ATTENUATION_MIN_DB,
-    )
-except ModuleNotFoundError:
-    ATTENUATOR_SWD_RC4DAT_8G_95 = "SWD-RC4DAT-8G-95"
-    ATTENUATOR_VAUNIX_LDA_908V_8 = "Vaunix-LDA-908V-8"
-    RF_ATTENUATION_MAX_DB = 95
-    RF_ATTENUATION_MIN_DB = 0
+ATTENUATOR_SWD_RC4DAT_8G_95 = "SWD-RC4DAT-8G-95"
+ATTENUATOR_VAUNIX_LDA_908V_8 = "Vaunix-LDA-908V-8"
+RF_ATTENUATION_MAX_DB = 95
+RF_ATTENUATION_MIN_DB = 0
 
 
 def _pytest_config():

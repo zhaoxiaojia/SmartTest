@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import re
 
-from testing.tool.adb import run_adb
-
 
 _MAC_PATTERN = r"([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})"
 NO_BLUETOOTH_TARGET = "None"
@@ -85,17 +83,10 @@ def parse_paired_bluetooth_devices_output(output: str) -> list[str]:
 
 def list_paired_bluetooth_devices(selected_serial: str | None = None) -> list[str]:
     try:
-        result = run_adb(
-            selected_serial=selected_serial,
-            args=["shell", "dumpsys", "bluetooth_manager"],
-            timeout=15.0,
-            check=False,
-        )
-    except FileNotFoundError:
-        return []
-    except RuntimeError:
+        from testing.tool.dut_tool.duts.android import android
+
+        output = android(serialnumber=str(selected_serial or "").strip()).run_device_shell("dumpsys bluetooth_manager")
+    except Exception:
         return []
 
-    if result.returncode != 0:
-        return []
-    return parse_paired_bluetooth_devices_output(result.stdout)
+    return parse_paired_bluetooth_devices_output(output)

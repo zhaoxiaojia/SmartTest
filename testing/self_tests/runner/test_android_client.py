@@ -324,6 +324,12 @@ def test_ensure_test_apk_installed_privileged_case_repairs_stale_record_when_dev
 def test_detect_adb_root_mode_accepts_empty_adb_root_output(monkeypatch) -> None:
     calls: list[list[str]] = []
 
+    monkeypatch.setattr(
+        android_client.subprocess,
+        "run",
+        lambda cmd, **kwargs: subprocess.CompletedProcess(cmd, 0, stdout="", stderr=""),
+    )
+
     def fake_run_adb(*, adb_executable: str, adb_serial: str | None = None, args: list[str]):  # noqa: ANN001
         calls.append(list(args))
         if args == ["root"]:
@@ -646,6 +652,14 @@ def test_dut_unavailable_wait_state_enters_and_exits_for_suspend_stage() -> None
     waiting = runner_android_client._next_dut_unavailable_wait_state(
         phase="Running",
         current_stage="entering deep suspend",
+        matches_request=True,
+        waiting_for_device_resume=False,
+    )
+    assert waiting is True
+
+    waiting = runner_android_client._next_dut_unavailable_wait_state(
+        phase="Running",
+        current_stage="loop 1/10 waiting for deep suspend resume",
         matches_request=True,
         waiting_for_device_resume=False,
     )

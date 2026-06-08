@@ -5,9 +5,11 @@ from typing import Any
 
 import pytest
 
-from testing.actions import ActionContext, get_action
-from testing.runtime import request_case_param, step, step_log, test_equipment as runtime_test_equipment
 from testing.runtime.config import current_dut_serial
+from testing.runtime.equipment import test_equipment as runtime_test_equipment
+from ui import jsonTool
+from testing.runtime.steps import step, step_log
+from testing.steps.definitions import ActionContext, get_action
 
 
 pytestmark = [
@@ -155,22 +157,16 @@ def test_ac_onoff_via_relay(request):
 
 
 def _case_params(request) -> dict[str, Any]:
+    values = jsonTool.get_json_value("test_page_state.json", ["case_parameters", request.node.nodeid], {})
+    values = dict(values) if isinstance(values, dict) else {}
     return {
-        "ac_onoff:cycle_count": max(request_case_param(request, "ac_onoff:cycle_count", 20, cast=int), 1),
-        "ac_onoff:power_off_sec": max(request_case_param(request, "ac_onoff:power_off_sec", 5, cast=int), 0),
-        "ac_onoff:power_off_step_sec": request_case_param(request, "ac_onoff:power_off_step_sec", 0, cast=float),
-        "ac_onoff:power_on_wait_sec": max(
-            request_case_param(request, "ac_onoff:power_on_wait_sec", 60, cast=int),
-            0,
-        ),
-        "ac_onoff:power_on_wait_step_sec": request_case_param(
-            request,
-            "ac_onoff:power_on_wait_step_sec",
-            0,
-            cast=float,
-        ),
-        "ac_onoff:ping_target": request_case_param(request, "ac_onoff:ping_target", ""),
-        "ac_onoff:bt_target": request_case_param(request, "ac_onoff:bt_target", ""),
+        "ac_onoff:cycle_count": max(int(values.get("ac_onoff:cycle_count", 20)), 1),
+        "ac_onoff:power_off_sec": max(int(values.get("ac_onoff:power_off_sec", 5)), 0),
+        "ac_onoff:power_off_step_sec": float(values.get("ac_onoff:power_off_step_sec", 0)),
+        "ac_onoff:power_on_wait_sec": max(int(values.get("ac_onoff:power_on_wait_sec", 60)), 0),
+        "ac_onoff:power_on_wait_step_sec": float(values.get("ac_onoff:power_on_wait_step_sec", 0)),
+        "ac_onoff:ping_target": values.get("ac_onoff:ping_target", ""),
+        "ac_onoff:bt_target": values.get("ac_onoff:bt_target", ""),
     }
 
 

@@ -117,7 +117,7 @@ class android(BaseDut):
             self.remount()
 
     def _wifi_connect_impl(self, params: WifiConnectParams) -> bool:
-        self.wifi_forget()
+        self.wifi.forget()
         return bool(
             self._android_connect_wifi(
                 params.ssid,
@@ -1920,7 +1920,7 @@ class android(BaseDut):
                     target = self.ip_target
                 else:
                     target = "."
-                ok, _ = self.wifi_wait_ip(cmd=command, target=target, lan=lan)
+                ok, _ = self.wifi.wait_ip(cmd=command, target=target, lan=lan)
                 if ok:
                     connect_status = True
                     break
@@ -2413,7 +2413,7 @@ class android(BaseDut):
                 else:
                     assert passwd in self.get_dump_info(), "passwd not currently"
         logging.info('check status done')
-        self.wifi_wait_ip(target=target)
+        self.wifi.wait_ip(target=target)
         return True
 
     def connect_save_ssid(self, ssid, target=''):
@@ -2436,7 +2436,7 @@ class android(BaseDut):
         """
         self.find_ssid(ssid)
         self.wait_and_tap('Connect', 'text')
-        self.wifi_wait_ip(target=target)
+        self.wifi.wait_ip(target=target)
         return True
 
     def forget_ssid(self, ssid):
@@ -2602,7 +2602,7 @@ class android(BaseDut):
                 self.enter()
             self.text(passwd)
             self.keyevent(66)
-        self.wifi_wait_ip()
+        self.wifi.wait_ip()
         return True
 
     def open_wifi(self) -> None:

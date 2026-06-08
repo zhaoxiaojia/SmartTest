@@ -1,7 +1,9 @@
-from PySide6.QtCore import QObject, Slot, QStandardPaths, QSettings
+from PySide6.QtCore import QObject, Slot, QSettings
 from PySide6.QtGui import QGuiApplication
 
 from FluentUI.Singleton import Singleton
+
+from .AppPaths import app_data_dir
 
 
 # noinspection PyPep8Naming
@@ -11,7 +13,7 @@ class SettingsHelper(QObject):
         super().__init__(QGuiApplication.instance())
         self._settings = QSettings()
         iniFileName = "example.ini"
-        iniFilePath = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation) + "/" + iniFileName
+        iniFilePath = str(app_data_dir() / iniFileName)
         self._settings = QSettings(iniFilePath, QSettings.Format.IniFormat)
 
     def _save(self, key, val):

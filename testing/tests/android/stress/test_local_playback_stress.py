@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
-from testing.actions.local_playback import DEFAULT_MEDIA_DIR, run_local_playback_stress
-from testing.runtime import request_case_param, step
 from testing.runtime.config import current_dut_serial
+from testing.runtime.steps import step
+from testing.tool.dut_tool.features.local_playback import LocalPlaybackFeature, run_local_playback_stress
 
 
 pytestmark = pytest.mark.case_type("stress")
@@ -22,6 +20,13 @@ SMARTTEST_CASE_PLAN = {
             "kind": "setup",
             "definition_id": "local_playback.prepare",
             "expected": "DUT, playback files, actions, and loop settings are available.",
+        },
+        {
+            "id": "local_playback_stress.stop_player",
+            "title": "Stop existing ExoPlayer session",
+            "kind": "setup",
+            "definition_id": "local_playback.stop_player",
+            "expected": "Any existing ExoPlayer playback page is closed before starting the stress loop.",
         },
         {
             "id": "local_playback_stress.loop",
@@ -48,64 +53,35 @@ def test_local_playback_stress(request):
     if not selected_serial:
         pytest.fail("Select a DUT before running local playback stress.")
 
-    params = _case_params(request)
     with step(
         "Prepare local playback stress configuration",
         phase="setup",
         kind="setup",
         definition_id="local_playback.prepare",
-        params=params,
         expected="DUT, playback files, actions, and loop settings are available.",
         step_id="local_playback_stress.prepare",
     ):
-        if not params["local_playback_stress:actions"]:
-            pytest.fail("Select at least one local playback stress action.")
+        pass
+
+    with step(
+        "Stop existing ExoPlayer session",
+        phase="setup",
+        kind="setup",
+        definition_id="local_playback.stop_player",
+        expected="Any existing ExoPlayer playback page is closed before starting the stress loop.",
+        step_id="local_playback_stress.stop_player",
+    ):
+        LocalPlaybackFeature.for_selected_serial(selected_serial).stop_player()
 
     with step(
         "Run local playback stress loop",
         kind="step",
         definition_id="local_playback.loop",
-        params=params,
         expected="ExoPlayer starts each selected local file and receives the selected stress actions.",
         step_id="local_playback_stress.loop",
     ):
         run_local_playback_stress(
-            params=params,
+            nodeid=request.node.nodeid,
             selected_serial=selected_serial,
             trigger=request.node.nodeid,
         )
-
-
-def _case_params(request) -> dict[str, Any]:
-    return {
-        "local_playback_stress:media_dir": request_case_param(
-            request,
-            "local_playback_stress:media_dir",
-            DEFAULT_MEDIA_DIR,
-        ),
-        "local_playback_stress:media_files": request_case_param(
-            request,
-            "local_playback_stress:media_files",
-            [],
-        ),
-        "local_playback_stress:actions": request_case_param(
-            request,
-            "local_playback_stress:actions",
-            ["pause", "play", "seek_forward", "seek_backward"],
-        ),
-        "local_playback_stress:loop_count": max(
-            request_case_param(request, "local_playback_stress:loop_count", 20, cast=int),
-            1,
-        ),
-        "local_playback_stress:random_playback": bool(
-            request_case_param(request, "local_playback_stress:random_playback", False),
-        ),
-        "local_playback_stress:action_interval_sec": max(
-            request_case_param(request, "local_playback_stress:action_interval_sec", 3, cast=float),
-            0,
-        ),
-        "local_playback_stress:start_wait_sec": max(
-            request_case_param(request, "local_playback_stress:start_wait_sec", 10, cast=float),
-            0,
-        ),
-    }

@@ -59,7 +59,7 @@ def main():
         QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Direct3D11)
     else:
         QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.OpenGL)
-    QGuiApplication.setOrganizationName("SmartTest")
+    QGuiApplication.setOrganizationName("Amlogic")
     QGuiApplication.setOrganizationDomain("")
     QGuiApplication.setApplicationName("SmartTest")
     QGuiApplication.setApplicationDisplayName("SmartTest")

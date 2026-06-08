@@ -11,7 +11,6 @@ from testing.runner.config import RUN_CONFIG_ENV
 @dataclass(frozen=True)
 class RuntimeConfig:
     nodeids: list[str] = field(default_factory=list)
-    case_configs: dict[str, dict[str, Any]] = field(default_factory=dict)
     dut_serial: str = ""
     equipment: dict[str, Any] = field(default_factory=dict)
     global_context: dict[str, Any] = field(default_factory=dict)
@@ -23,11 +22,6 @@ def runtime_config() -> RuntimeConfig:
         return RuntimeConfig()
     return RuntimeConfig(
         nodeids=[str(item) for item in list(payload.get("nodeids") or [])],
-        case_configs={
-            str(nodeid): dict(values)
-            for nodeid, values in dict(payload.get("case_configs") or {}).items()
-            if isinstance(values, dict)
-        },
         dut_serial=str(payload.get("dut_serial", "") or "").strip(),
         equipment=dict(payload.get("equipment") or {}) if isinstance(payload.get("equipment"), dict) else {},
         global_context=dict(payload.get("global_context") or {})

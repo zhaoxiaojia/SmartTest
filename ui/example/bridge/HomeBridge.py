@@ -7,8 +7,15 @@ from threading import Lock, Thread
 from typing import Any
 from urllib.request import Request, urlopen
 
-from PySide6.QtCore import QObject, Property, QStandardPaths, Signal, Slot
+from PySide6.QtCore import QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
+
+from ui import jsonTool
+
+try:
+    from example.helper.AppPaths import app_data_dir
+except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
+    from ui.example.helper.AppPaths import app_data_dir
 
 _BING_ARCHIVE_URL = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN"
 
@@ -28,16 +35,15 @@ class HomeBridge(QObject):
         self._load_wallpaper_cache()
 
     def _cache_path(self) -> Path:
-        base = Path(QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation))
-        return base / "home_wallpaper.json"
+        return app_data_dir() / "home_wallpaper.json"
 
     def _load_wallpaper_cache(self) -> None:
         path = self._cache_path()
-        if not path.exists():
-            return
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+            data = jsonTool.read_json(path, {})
+        except ValueError:
+            return
+        if not isinstance(data, dict):
             return
         self._wallpaper_url = str(data.get("url") or "")
         self._wallpaper_title = str(data.get("title") or "")
@@ -46,8 +52,7 @@ class HomeBridge(QObject):
     def _save_wallpaper_cache(self, data: dict[str, str]) -> None:
         path = self._cache_path()
         try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            jsonTool.write_json(path, data)
         except OSError as exc:
             logging.getLogger(__name__).warning("Failed to cache home wallpaper: %s", exc)
 

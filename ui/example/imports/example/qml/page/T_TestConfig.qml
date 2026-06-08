@@ -18,6 +18,7 @@ FluPage {
     property var caseTreeDataSource: []
     property var caseExpandState: ({})
     property var caseParamExpandState: ({})
+    property string validationDialogMessage: ""
 
     function trimmedCasePath(filePath){
         var path = (filePath || "").toString()
@@ -165,6 +166,10 @@ FluPage {
         target: RunBridge
         function onErrorOccurred(msg){
             showError(msg)
+        }
+        function onValidationFailed(msg){
+            validationDialogMessage = msg
+            dialog_validation.open()
         }
     }
 
@@ -518,11 +523,17 @@ FluPage {
                                                             }
                                                             TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
                                                         }
+                                                        function persistUserEdit(){
+                                                            if(activeFocus){
+                                                                persistValue()
+                                                            }
+                                                        }
                                                         Component.onCompleted: {
                                                             syncFromState()
                                                             persistReady = true
                                                         }
                                                         onVisibleChanged: syncFromState()
+                                                        onTextChanged: persistUserEdit()
                                                         onActiveFocusChanged: {
                                                             if(!activeFocus){
                                                                 persistValue()
@@ -538,12 +549,25 @@ FluPage {
                                                     }
                                                 }
 
-                                                FluText{
+                                                RowLayout{
                                                     visible: !compactTextField
-                                                    text: fieldData.label
-                                                    font: FluTextStyle.BodyStrong
                                                     Layout.fillWidth: true
-                                                    wrapMode: Text.WordWrap
+                                                    spacing: 8
+                                                    FluText{
+                                                        text: fieldData.label
+                                                        font: FluTextStyle.BodyStrong
+                                                        Layout.fillWidth: true
+                                                        wrapMode: Text.WordWrap
+                                                    }
+                                                    FluIconButton{
+                                                        visible: fieldData.options_source !== undefined && fieldData.options_source !== ""
+                                                        iconSource: FluentIcons.Sync
+                                                        iconSize: 12
+                                                        width: 28
+                                                        height: 28
+                                                        text: qsTr("Refresh")
+                                                        onClicked: TestPageBridge.refreshCaseParamOptions(caseNodeId, fieldData.key)
+                                                    }
                                                 }
 
                                                 FluText{
@@ -594,11 +618,17 @@ FluPage {
                                                         }
                                                         TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
                                                     }
+                                                    function persistUserEdit(){
+                                                        if(activeFocus){
+                                                            persistValue()
+                                                        }
+                                                    }
                                                     Component.onCompleted: {
                                                         syncFromState()
                                                         persistReady = true
                                                     }
                                                     onVisibleChanged: syncFromState()
+                                                    onTextChanged: persistUserEdit()
                                                     onActiveFocusChanged: {
                                                         if(!activeFocus){
                                                             persistValue()
@@ -1041,8 +1071,35 @@ FluPage {
                 RunBridge.stopRun()
                 return
             }
-            ItemsOriginal.startPageByItem({ title: qsTr("Run"), url: "qrc:/example/qml/page/T_Run.qml" })
-            RunBridge.startRun()
+            page_root.forceActiveFocus(Qt.MouseFocusReason)
+            if(RunBridge.startRun()){
+                ItemsOriginal.startPageByItem({ title: qsTr("Run"), url: "qrc:/example/qml/page/T_Run.qml" })
+            }
+        }
+    }
+
+    FluContentDialog{
+        id: dialog_validation
+        title: qsTr("Required Parameters")
+        buttonFlags: FluContentDialogType.PositiveButton
+        positiveText: qsTr("OK")
+        contentDelegate: Component{
+            Item{
+                implicitWidth: dialog_validation.width
+                implicitHeight: validation_message_text.implicitHeight + 16
+                FluText{
+                    id: validation_message_text
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.leftMargin: 20
+                    anchors.rightMargin: 20
+                    anchors.topMargin: 4
+                    text: page_root.validationDialogMessage
+                    font: FluTextStyle.Body
+                    wrapMode: Text.Wrap
+                }
+            }
         }
     }
 }

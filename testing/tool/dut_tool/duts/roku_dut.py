@@ -26,9 +26,29 @@ from testing.tool.dut_tool.transports.telnet_tool import telnet_tool
 from testing.tool.dut_tool.duts.linux import linux
 from testing.tool.dut_tool.features.wifi import WifiConnectParams
 from testing.tool.network_tool.roku_wpa import roku_wpa
-from src.util.constants import load_config
-from src.util.constants import RokuConst
 from typing import Annotated
+
+
+def load_config(refresh: bool = False) -> dict:
+    return {}
+
+
+class RokuConst:
+    COMMANDS = {
+        "home": "Home",
+        "back": "Back",
+        "up": "Up",
+        "down": "Down",
+        "left": "Left",
+        "right": "Right",
+        "select": "Select",
+        "play": "Play",
+        "pause": "Play",
+        "rewind": "Rev",
+        "forward": "Fwd",
+        "info": "Info",
+    }
+    SENSORS: set[str] = set()
 
 
 def _get_roku_ip() -> Optional[str]:

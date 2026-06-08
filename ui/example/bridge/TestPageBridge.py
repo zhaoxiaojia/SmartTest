@@ -7,23 +7,26 @@ from threading import Thread
 import time
 from typing import Any
 
-from PySide6.QtCore import QObject, Signal, Slot, QStandardPaths
+from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
 from testing.cases.catalog import is_packaged_runtime, load_packaged_test_catalog
 from testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
-from testing.params.adb_devices import list_adb_devices
-from testing.params.options import dynamic_param_options, normalize_option_values, option_cache_key
+from testing.params.options import normalize_option_values, option_cache_key
 from testing.params.registry import SchemaRegistry, default_registry
+from testing.params.requirements import required_params_for_case
 from testing.params.schema import ParamField, ParamSchema, ParamScope, ParamValueType, defaults_for_schema
 from testing.state.local_store import load_pref, save_pref
 from testing.state.models import SelectedCase, TestPageState
 from testing.state.store import load_state, save_state
+from testing.tool.dut_tool.parameter_adapter import DutParameterAdapter
 
 try:
+    from example.helper.AppPaths import app_data_dir
     from example.helper.TranslateHelper import TranslateHelper
     from example.helper.TsTextCatalog import TsTextCatalog
 except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
+    from ui.example.helper.AppPaths import app_data_dir
     from ui.example.helper.TranslateHelper import TranslateHelper
     from ui.example.helper.TsTextCatalog import TsTextCatalog
 
@@ -48,6 +51,7 @@ class TestPageBridge(QObject):
         self._trace_log_path = self._state_path.parent / "test_page_trace.log"
         self._frontend_pref_path = self._state_path.parent / "frontend_prefs.json"
         self._text_catalog = TsTextCatalog(self._root_dir, trace=self._trace)
+        self._dut_parameter_adapter = DutParameterAdapter()
         self._state = load_state(self._state_path)
         self._adb_devices = self._load_cached_adb_devices()
         self._param_options = self._load_cached_param_options()
@@ -61,8 +65,10 @@ class TestPageBridge(QObject):
         self._adbRefreshResult.connect(self._apply_adb_refresh_result)
         self._paramOptionsRefreshResult.connect(self._apply_param_options_refresh_result)
         TranslateHelper().currentChanged.connect(self._handle_language_changed)
-        self._ensure_state_defaults()
-        self._sync_dut_selection()
+        state_changed = self._ensure_state_defaults()
+        state_changed = self._sync_dut_selection() or state_changed
+        if state_changed:
+            save_state(self._state_path, self._state)
 
     def _trace(self, stage: str, **values: Any) -> None:
         details = " ".join(f"{key}={values[key]}" for key in sorted(values))
@@ -76,25 +82,93 @@ class TestPageBridge(QObject):
             pass
 
     def _default_state_path(self) -> Path:
-        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
-        return Path(base) / "SmartTest" / "test_page_state.json"
+        return app_data_dir() / "test_page_state.json"
 
-    def _ensure_state_defaults(self) -> None:
+    def _ensure_state_defaults(self) -> bool:
+        changed = False
         global_defaults = defaults_for_schema(self._registry.global_context)
         legacy_dut = self._state.global_context.get("dut_model")
         if "dut" not in self._state.global_context and legacy_dut not in (None, ""):
             self._state.global_context["dut"] = legacy_dut
+            changed = True
         preserved_global_keys = {*global_defaults, "equipment", "test_equipment"}
-        self._state.global_context = {
+        next_global_context = {
             key: value for key, value in self._state.global_context.items() if key in preserved_global_keys
         }
+        if next_global_context != self._state.global_context:
+            changed = True
+        self._state.global_context = next_global_context
         for key, value in global_defaults.items():
-            self._state.global_context.setdefault(key, value)
+            if key not in self._state.global_context:
+                self._state.global_context[key] = value
+                changed = True
         if not hasattr(self._state, "selected_files"):
             self._state.selected_files = []
+            changed = True
+        changed = self._migrate_local_playback_storage_paths() or changed
+        changed = self._prune_stored_fixed_enum_values() or changed
+        return changed
+
+    def _migrate_local_playback_storage_paths(self) -> bool:
+        old_default = "/storage/emulated/0/Movies"
+        legacy_default = "/mnt/media_rw"
+        legacy_movies_default = "/mnt/media_rw/*/Movies"
+        new_default = "/storage/*/Movies /storage/*/Video"
+        changed = False
+        for params in self._state.case_parameters.values():
+            if not isinstance(params, dict):
+                continue
+            media_dir = params.get("local_playback_stress:media_dir")
+            if media_dir in (old_default, legacy_default, legacy_movies_default):
+                params["local_playback_stress:media_dir"] = new_default
+                changed = True
+            elif isinstance(media_dir, str) and media_dir.startswith("/mnt/media_rw/"):
+                params["local_playback_stress:media_dir"] = _storage_playback_path(media_dir)
+                changed = True
+            media_files = params.get("local_playback_stress:media_files")
+            if isinstance(media_files, list):
+                next_files = [_storage_playback_path(str(value or "").strip()) for value in media_files]
+                if next_files != media_files:
+                    params["local_playback_stress:media_files"] = next_files
+                    changed = True
+        return changed
+
+    def _prune_stored_fixed_enum_values(self) -> bool:
+        changed = False
+        for values in (
+            self._state.global_context,
+            *self._state.case_type_configs.values(),
+            *self._state.case_parameters.values(),
+        ):
+            if not isinstance(values, dict):
+                continue
+            for key in list(values.keys()):
+                field = self._field_for_key(key)
+                if field is None or field.options_source or not field.enum_values:
+                    continue
+                if self._is_multi_enum_field(field):
+                    current = normalize_option_values(values.get(key, []))
+                    next_values = [value for value in current if value in field.enum_values]
+                    if next_values == current:
+                        continue
+                    values[key] = next_values
+                    self._trace(
+                        "param_fixed_enum_pruned",
+                        field=key,
+                        removed=len(current) - len(next_values),
+                        kept=len(next_values),
+                    )
+                    changed = True
+                    continue
+                field_type = field.type.value if hasattr(field.type, "value") else field.type
+                if field_type == ParamValueType.ENUM.value and values.get(key) not in field.enum_values:
+                    values[key] = field.default
+                    self._trace("param_fixed_enum_reset", field=key)
+                    changed = True
+        return changed
 
     def _refresh_adb_devices(self) -> None:
-        self._adb_devices = list_adb_devices()
+        self._adb_devices = self._dut_parameter_adapter.refresh_duts()
 
     def _load_cached_adb_devices(self) -> list[str]:
         cached = load_pref(self._frontend_pref_path, "test.dut.devices", [])
@@ -120,7 +194,7 @@ class TestPageBridge(QObject):
         if not isinstance(cached, dict):
             return {}
         return {
-            str(key): normalize_option_values(value)
+            str(key): _storage_playback_options(normalize_option_values(value))
             for key, value in cached.items()
             if str(key).strip()
         }
@@ -142,14 +216,23 @@ class TestPageBridge(QObject):
     def _current_dut_serial(self) -> str:
         return str(self._state.global_context.get("dut", "") or "").strip()
 
-    def _schedule_param_options_refresh(self, source: str, reason: str) -> None:
+    def _schedule_param_options_refresh(self, source: str, reason: str, *, nodeid: str = "") -> None:
         normalized_source = str(source or "").strip()
         if not normalized_source:
+            self._trace("param_options_refresh_skip_empty_source", reason=reason)
             return
         selected_serial = self._current_dut_serial()
-        cache_key = option_cache_key(normalized_source, selected_serial)
+        normalized_nodeid = str(nodeid or "").strip()
+        cache_key = _param_options_cache_key(normalized_source, selected_serial, normalized_nodeid)
         if cache_key in self._param_options_refreshing:
-            self._trace("param_options_refresh_skip_running", reason=reason, source=normalized_source)
+            self._trace(
+                "param_options_refresh_skip_running",
+                reason=reason,
+                source=normalized_source,
+                dut=selected_serial or "<default>",
+                cache_key=cache_key,
+                nodeid=normalized_nodeid or "<none>",
+            )
             return
         self._param_options_refreshing.add(cache_key)
         self._trace(
@@ -157,32 +240,38 @@ class TestPageBridge(QObject):
             reason=reason,
             source=normalized_source,
             dut=selected_serial or "<default>",
+            cache_key=cache_key,
+            nodeid=normalized_nodeid or "<none>",
         )
         Thread(
             target=self._refresh_param_options_worker,
-            args=(normalized_source, selected_serial, cache_key),
+            args=(normalized_source, selected_serial, cache_key, normalized_nodeid),
             daemon=True,
         ).start()
 
     def _refresh_adb_devices_worker(self) -> None:
         started_at = time.monotonic()
-        devices = list_adb_devices()
+        devices = self._dut_parameter_adapter.refresh_duts()
         self._adbRefreshResult.emit(devices, int((time.monotonic() - started_at) * 1000))
 
-    def _refresh_param_options_worker(self, source: str, selected_serial: str, cache_key: str) -> None:
+    def _refresh_param_options_worker(self, source: str, selected_serial: str, cache_key: str, nodeid: str) -> None:
         started_at = time.monotonic()
         payload: dict[str, Any] = {
             "source": source,
             "dut": selected_serial,
             "cache_key": cache_key,
+            "nodeid": nodeid,
             "options": [],
             "error": "",
             "elapsed_ms": 0,
         }
-        try:
-            payload["options"] = dynamic_param_options(source, selected_serial or None)
-        except Exception as exc:  # noqa: BLE001 - external adb refresh should not break page render
-            payload["error"] = str(exc)
+        result = self._dut_parameter_adapter.refresh_case_parameter_options(
+            source,
+            selected_serial or None,
+            nodeid=nodeid,
+        )
+        payload["options"] = result.options
+        payload["error"] = result.error
         payload["elapsed_ms"] = int((time.monotonic() - started_at) * 1000)
         self._paramOptionsRefreshResult.emit(payload)
 
@@ -212,20 +301,91 @@ class TestPageBridge(QObject):
         if cache_key:
             self._param_options_refreshing.discard(cache_key)
         if error:
-            self._trace("param_options_refresh_error", source=source, elapsed_ms=elapsed_ms, error=error)
+            self._trace(
+                "param_options_refresh_error",
+                source=source,
+                dut=str(payload.get("dut", "") or "").strip() or "<default>",
+                cache_key=cache_key,
+                elapsed_ms=elapsed_ms,
+                error=error,
+            )
+            if cache_key and self._param_options.get(cache_key):
+                self._param_options[cache_key] = []
+                self._save_cached_param_options()
             self.stateChanged.emit()
             return
 
-        options = normalize_option_values(payload.get("options", []))
+        options = _storage_playback_options(normalize_option_values(payload.get("options", [])))
         if not cache_key:
-            cache_key = option_cache_key(source, str(payload.get("dut", "") or "").strip())
-        changed = self._param_options.get(cache_key, []) != options
+            cache_key = _param_options_cache_key(
+                source,
+                str(payload.get("dut", "") or "").strip(),
+                str(payload.get("nodeid", "") or "").strip(),
+            )
+        changed = cache_key not in self._param_options or self._param_options.get(cache_key, []) != options
         if changed:
             self._param_options[cache_key] = options
             self._save_cached_param_options()
-        self._trace("param_options_refresh_done", source=source, options=len(options), elapsed_ms=elapsed_ms)
-        if changed:
+        state_synced = self._sync_dynamic_values_from_options(
+            source=source,
+            nodeid=str(payload.get("nodeid", "") or "").strip(),
+            options=options,
+        )
+        if state_synced:
+            save_state(self._state_path, self._state)
+        self._refresh_options_dependent_on_source(source=source, nodeid=str(payload.get("nodeid", "") or "").strip())
+        self._trace(
+            "param_options_refresh_done",
+            source=source,
+            dut=str(payload.get("dut", "") or "").strip() or "<default>",
+            cache_key=cache_key,
+            options=len(options),
+            changed=changed,
+            state_synced=state_synced,
+            elapsed_ms=elapsed_ms,
+        )
+        if changed or state_synced:
             self.stateChanged.emit()
+
+    def _sync_dynamic_values_from_options(self, *, source: str, nodeid: str, options: list[str]) -> bool:
+        normalized_source = str(source or "").strip()
+        if not normalized_source:
+            return False
+        normalized_nodeid = str(nodeid or "").strip()
+        next_options = _storage_playback_options(normalize_option_values(options))
+        changed = False
+        for selected in self._state.selected:
+            if normalized_nodeid and str(selected.nodeid or "").strip() != normalized_nodeid:
+                continue
+            case = self._case_info(selected.nodeid)
+            if case is None:
+                continue
+            case_nodeid = str(case.get("nodeid", "") or "").strip()
+            if not case_nodeid:
+                continue
+            case_values = self._state.case_parameters.setdefault(case_nodeid, {})
+            for param_key in list(case.get("required_params", [])):
+                field = self._field_for_key(str(param_key))
+                if field is None or str(field.options_source or "").strip() != normalized_source:
+                    continue
+                if self._is_multi_enum_field(field):
+                    continue
+                next_value = _dynamic_value_for_field(field, next_options)
+                raw_current = normalize_option_values(case_values.get(field.key, []))
+                current = case_values.get(field.key, field.default)
+                if next_value == current:
+                    continue
+                case_values[field.key] = next_value
+                self._trace(
+                    "param_options_synced_selected_values",
+                    nodeid=case_nodeid,
+                    field=field.key,
+                    source=normalized_source,
+                    previous=_value_size(current),
+                    next=_value_size(next_value),
+                )
+                changed = True
+        return changed
 
     def _sync_dut_selection(self) -> bool:
         current = str(self._state.global_context.get("dut", "") or "").strip()
@@ -242,22 +402,94 @@ class TestPageBridge(QObject):
             return True
         return False
 
-    def _selected_option_sources(self) -> list[str]:
-        sources: list[str] = []
+    def _selected_option_refresh_targets(self) -> list[tuple[str, str]]:
+        targets: list[tuple[str, str]] = []
+        seen: set[tuple[str, str]] = set()
         for selected in self._state.selected:
             case = self._case_info(selected.nodeid)
             if case is None:
+                self._trace("param_options_selected_case_missing", nodeid=selected.nodeid)
                 continue
+            nodeid = str(selected.nodeid or "").strip()
+            blocked_sources = self._dependent_sources_for_case(case)
             for param_key in list(case.get("required_params", [])):
                 field = self._field_for_key(str(param_key))
                 source = str(field.options_source if field is not None else "").strip()
-                if source and source not in sources:
-                    sources.append(source)
-        return sources
+                if source in blocked_sources:
+                    continue
+                target = (source, nodeid)
+                if source and target not in seen:
+                    seen.add(target)
+                    targets.append(target)
+        self._trace(
+            "param_options_selected_targets",
+            selected=len(self._state.selected),
+            targets=",".join(f"{source}@{nodeid}" for source, nodeid in targets) or "<none>",
+            dut=self._current_dut_serial() or "<default>",
+        )
+        return targets
 
     def _refresh_selected_param_options(self, reason: str) -> None:
-        for source in self._selected_option_sources():
-            self._schedule_param_options_refresh(source, reason)
+        targets = self._selected_option_refresh_targets()
+        if not targets:
+            self._trace("param_options_refresh_no_sources", reason=reason)
+        for source, nodeid in targets:
+            self._schedule_param_options_refresh(source, reason, nodeid=nodeid)
+
+    def _refresh_options_affected_by_param_change(self, *, nodeid: str, key: str) -> None:
+        field = self._field_for_key(key)
+        if field is None:
+            return
+        sources = [str(source or "").strip() for source in field.refreshes_options_sources]
+        sources = [source for source in sources if source]
+        if not sources:
+            return
+        selected_nodeids = set(self._selected_nodeids())
+        normalized_nodeid = str(nodeid or "").strip()
+        if normalized_nodeid not in selected_nodeids:
+            self._trace(
+                "param_dependency_refresh_skip_unselected",
+                nodeid=normalized_nodeid or "<none>",
+                key=key,
+            )
+            return
+        for source in sources:
+            self._schedule_param_options_refresh(
+                source,
+                f"param_dependency_changed:{key}",
+                nodeid=normalized_nodeid,
+            )
+
+    def _refresh_options_dependent_on_source(self, *, source: str, nodeid: str) -> None:
+        normalized_source = str(source or "").strip()
+        normalized_nodeid = str(nodeid or "").strip()
+        if not normalized_source or not normalized_nodeid:
+            return
+        case = self._case_info(normalized_nodeid)
+        if case is None:
+            return
+        for param_key in list(case.get("required_params", [])):
+            field = self._field_for_key(str(param_key))
+            if field is None or str(field.options_source or "").strip() != normalized_source:
+                continue
+            for dependent_source in field.refreshes_options_sources:
+                normalized_dependent = str(dependent_source or "").strip()
+                if not normalized_dependent:
+                    continue
+                self._schedule_param_options_refresh(
+                    normalized_dependent,
+                    f"param_source_refreshed:{field.key}",
+                    nodeid=normalized_nodeid,
+                )
+
+    def _dependent_sources_for_case(self, case: dict[str, Any]) -> set[str]:
+        sources: set[str] = set()
+        for param_key in list(case.get("required_params", [])):
+            field = self._field_for_key(str(param_key))
+            if field is None or not str(field.options_source or "").strip():
+                continue
+            sources.update(str(source or "").strip() for source in field.refreshes_options_sources)
+        return {source for source in sources if source}
 
     def _param_text_key(self, param_key: str, part: str) -> str:
         normalized = str(param_key or "").strip().replace(":", ".")
@@ -293,7 +525,7 @@ class TestPageBridge(QObject):
             "fields": [self._field_to_jsonable(f) for f in schema.fields],
         }
 
-    def _field_to_jsonable(self, field: ParamField) -> dict[str, Any]:
+    def _field_to_jsonable(self, field: ParamField, *, nodeid: str = "") -> dict[str, Any]:
         return {
             "key": field.key,
             "label": self._field_label(field),
@@ -307,18 +539,30 @@ class TestPageBridge(QObject):
             "description": self._field_description(field),
             "description_source": "fixed",
             "group": field.group,
-            "required": field.required,
-            "enum_values": self._enum_values_for_field(field),
+            "required": False,
+            "enum_values": self._enum_values_for_field(field, nodeid=nodeid),
             "enum_values_source": "dynamic" if field.options_source else "fixed",
             "options_source": field.options_source,
+            "refreshes_options_sources": list(field.refreshes_options_sources),
         }
 
-    def _enum_values_for_field(self, field: ParamField) -> list[str]:
+    def _enum_values_for_field(self, field: ParamField, *, nodeid: str = "") -> list[str]:
         if field.key == "dut":
             return list(self._adb_devices)
         source = str(field.options_source or "").strip()
         if source:
-            return list(self._param_options.get(option_cache_key(source, self._current_dut_serial()), []))
+            cache_key = _param_options_cache_key(source, self._current_dut_serial(), nodeid)
+            values = _storage_playback_options(list(self._param_options.get(cache_key, [])))
+            self._trace(
+                "param_options_read_cache",
+                field=field.key,
+                source=source,
+                dut=self._current_dut_serial() or "<default>",
+                cache_key=cache_key,
+                nodeid=str(nodeid or "").strip() or "<none>",
+                options=len(values),
+            )
+            return values
         return list(field.enum_values)
 
     def _rebuild_case_indexes(self) -> None:
@@ -353,8 +597,8 @@ class TestPageBridge(QObject):
                 continue
             selected.nodeid = mapped_nodeid
             selected.case_type = str((self._case_info(mapped_nodeid) or {}).get("case_type", selected.case_type))
-            if raw_nodeid in self._state.case_configs and mapped_nodeid not in self._state.case_configs:
-                self._state.case_configs[mapped_nodeid] = dict(self._state.case_configs.get(raw_nodeid, {}))
+            if raw_nodeid in self._state.case_parameters and mapped_nodeid not in self._state.case_parameters:
+                self._state.case_parameters[mapped_nodeid] = dict(self._state.case_parameters.get(raw_nodeid, {}))
             self._trace("legacy_android_selection_migrated", from_nodeid=raw_nodeid, to_nodeid=mapped_nodeid)
             changed = True
         return changed
@@ -473,7 +717,7 @@ class TestPageBridge(QObject):
             value = case_type_values.get(field.key, field.default)
             return normalize_option_values(value) if self._is_multi_enum_field(field) else value
 
-        case_values = self._state.case_configs.get(str(case.get("nodeid", "")), {})
+        case_values = self._state.case_parameters.get(str(case.get("nodeid", "")), {})
         value = case_values.get(field.key, field.default)
         return normalize_option_values(value) if self._is_multi_enum_field(field) else value
 
@@ -501,10 +745,10 @@ class TestPageBridge(QObject):
         case_nodeid = str(case.get("nodeid", "")).strip()
         if not case_nodeid:
             return False
-        self._state.case_configs.setdefault(case_nodeid, {})
-        if self._state.case_configs[case_nodeid].get(field.key) == next_value:
+        self._state.case_parameters.setdefault(case_nodeid, {})
+        if self._state.case_parameters[case_nodeid].get(field.key) == next_value:
             return False
-        self._state.case_configs[case_nodeid][field.key] = next_value
+        self._state.case_parameters[case_nodeid][field.key] = next_value
         return True
 
     def _selected_nodeids(self) -> list[str]:
@@ -529,7 +773,7 @@ class TestPageBridge(QObject):
                 file_path = str(case_info.get("file", "")).strip()
                 if file_path and file_path not in self._state.selected_files:
                     self._state.selected_files.append(file_path)
-            self._state.case_configs.setdefault(normalized, {})
+            self._state.case_parameters.setdefault(normalized, {})
             schema = self._registry.get_case_type_schema(case_type)
             if schema:
                 self._state.case_type_configs.setdefault(case_type, defaults_for_schema(schema))
@@ -1064,17 +1308,33 @@ class TestPageBridge(QObject):
         if case is None:
             return []
         required_params = list(case.get("required_params", []))
+        required_param_keys = set(required_params_for_case(case))
         fields: list[dict[str, Any]] = []
         for param_key in required_params:
             field = self._field_for_key(str(param_key))
             if field is None:
                 continue
-            jsonable = self._field_to_jsonable(field)
-            source = str(field.options_source or "").strip()
-            if source and not jsonable.get("enum_values"):
-                self._schedule_param_options_refresh(source, "case_param_fields_empty_options")
+            jsonable = self._field_to_jsonable(field, nodeid=nodeid)
+            jsonable["required"] = field.key in required_param_keys
             fields.append(jsonable)
         return fields
+
+    @Slot(str, str)
+    def refreshCaseParamOptions(self, nodeid: str, key: str) -> None:
+        case = self._case_info(nodeid)
+        field = self._field_for_key(key)
+        if case is None or field is None:
+            self._trace("param_options_manual_refresh_missing_field", nodeid=nodeid, key=key)
+            return
+        source = str(field.options_source or "").strip()
+        if not source:
+            self._trace("param_options_manual_refresh_no_source", nodeid=nodeid, key=key)
+            return
+        self._schedule_param_options_refresh(
+            source,
+            f"manual_field_refresh:{key}",
+            nodeid=nodeid,
+        )
 
     @Slot(str, str, result="QVariant")
     def caseParamValue(self, nodeid: str, key: str):
@@ -1163,6 +1423,7 @@ class TestPageBridge(QObject):
         if not self._set_case_param_value(nodeid=nodeid, key=key, value=value):
             return
         self._save_and_emit()
+        self._refresh_options_affected_by_param_change(nodeid=nodeid, key=key)
 
     @Slot(str, str, str, bool)
     def setCaseParamListItemSelected(self, nodeid: str, key: str, value: str, selected: bool) -> None:
@@ -1181,8 +1442,8 @@ class TestPageBridge(QObject):
     @Slot()
     def reloadState(self) -> None:
         self._state = load_state(self._state_path)
-        self._ensure_state_defaults()
-        changed = self._sync_selected_file_order()
+        changed = self._ensure_state_defaults()
+        changed = self._sync_selected_file_order() or changed
         changed = self._reorder_selected_cases_by_file_order() or changed
         if changed:
             save_state(self._state_path, self._state)
@@ -1195,3 +1456,41 @@ class TestPageBridge(QObject):
 
 def _trace_timestamp() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+
+def _storage_playback_path(value: str) -> str:
+    path = str(value or "").strip()
+    if path.startswith("/mnt/media_rw/"):
+        return "/storage/" + path[len("/mnt/media_rw/") :]
+    return path
+
+
+def _storage_playback_options(values: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for value in values:
+        path = _storage_playback_path(value)
+        if path and path not in normalized:
+            normalized.append(path)
+    return normalized
+
+
+def _param_options_cache_key(source: str, selected_serial: str | None = None, nodeid: str = "") -> str:
+    base_key = option_cache_key(source, selected_serial)
+    normalized_nodeid = str(nodeid or "").strip()
+    if not normalized_nodeid:
+        return base_key
+    return f"{base_key}#{normalized_nodeid}"
+
+
+def _dynamic_value_for_field(field: ParamField, options: list[str]) -> Any:
+    if not options:
+        return field.default
+    return options[0]
+
+
+def _value_size(value: Any) -> int:
+    if isinstance(value, (list, tuple, set)):
+        return len(value)
+    if value in (None, ""):
+        return 0
+    return 1

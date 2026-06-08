@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from testing.actions import run_android_client_case
-from testing.runner.android_client import build_case_params
-from testing.runtime import request_case_param
+from testing.runner.android_client import run_android_client_case
 
 
 pytestmark = pytest.mark.case_type("wifi_bt")
@@ -66,10 +64,5 @@ SMARTTEST_CASE_PLAN = {
 def test_bt_onoff_scan_via_android_client(request):
     run_android_client_case(
         case_id="bt_onoff_scan",
-        params=build_case_params(
-            "bt_onoff_scan",
-            cycle_count=request_case_param(request, "bt_onoff_scan:cycle_count", 2, cast=int),
-            bt_target=request_case_param(request, "bt_onoff_scan:bt_target", ""),
-        ),
         trigger=request.node.nodeid,
     )

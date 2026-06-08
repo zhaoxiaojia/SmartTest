@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 import os
 import base64
@@ -12,8 +11,15 @@ from pathlib import Path
 from sys import platform
 from typing import Any
 
-from PySide6.QtCore import QObject, Property, QStandardPaths, Signal, Slot
+from PySide6.QtCore import QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
+
+from ui import jsonTool
+
+try:
+    from example.helper.AppPaths import app_data_dir
+except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
+    from ui.example.helper.AppPaths import app_data_dir
 
 try:
     from ldap3 import ALL, NTLM, SUBTREE, Connection, Server
@@ -49,16 +55,13 @@ class AuthBridge(QObject):
         self._avatar_url = self._avatar_url_for_username(self._username)
 
     def _auth_state_path(self) -> Path:
-        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
-        return Path(base) / "SmartTest" / AUTH_STATE_FILENAME
+        return app_data_dir() / AUTH_STATE_FILENAME
 
     def _auth_secret_path(self) -> Path:
-        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
-        return Path(base) / "SmartTest" / AUTH_SECRET_FILENAME
+        return app_data_dir() / AUTH_SECRET_FILENAME
 
     def _avatar_dir(self) -> Path:
-        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
-        return Path(base) / "SmartTest" / "avatars"
+        return app_data_dir() / "avatars"
 
     def _normalize_username(self, username: str) -> str:
         clean_username = (username or "").strip()
@@ -76,7 +79,7 @@ class AuthBridge(QObject):
             return
 
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
+            data = jsonTool.read_json(path, {})
         except Exception as exc:  # noqa: BLE001
             logging.warning("Failed to read auth state file %s: %s", path, exc)
             self._username = ""
@@ -101,8 +104,7 @@ class AuthBridge(QObject):
             "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
         try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            jsonTool.write_json(path, data)
         except Exception as exc:  # noqa: BLE001
             logging.warning("Failed to write auth state file %s: %s", path, exc)
 
@@ -119,7 +121,7 @@ class AuthBridge(QObject):
         if not path.exists():
             return ""
         try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
+            payload = jsonTool.read_json(path, {})
             encrypted_value = str(payload.get("encrypted_password", "") or "").strip()
             if not encrypted_value:
                 return ""
@@ -138,7 +140,7 @@ class AuthBridge(QObject):
                 "encrypted_password": base64.b64encode(protected_bytes).decode("ascii"),
                 "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             }
-            path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            jsonTool.write_json(path, payload)
         except Exception as exc:  # noqa: BLE001
             logging.warning("Failed to save auth secret file %s: %s", path, exc)
 

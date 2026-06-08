@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import threading
 import time
 import traceback
@@ -10,15 +11,26 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from PySide6.QtCore import QObject, Property, QStandardPaths, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, Property, QTimer, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from testing.reporting import ReportStore, build_run_report
-from testing.cases.catalog import is_packaged_runtime
+from testing.reporting.store import ReportStore, build_run_report
+from testing.cases.catalog import is_packaged_runtime, load_runtime_test_catalog
+from testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
+from testing.params.validation import RunValidationIssue, validate_run_request
 from testing.runner.config import RunConfig, build_run_config_from_state, resolve_dut_serial
 from testing.runner.execution import TestRunSession, start_pytest_run
-from testing.steps import build_step_plan
+from testing.steps.planner import build_step_plan
 from testing.state.store import load_state
+
+try:
+    from example.helper.AppPaths import app_data_dir
+    from example.helper.TranslateHelper import TranslateHelper
+    from example.helper.TsTextCatalog import TsTextCatalog
+except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
+    from ui.example.helper.AppPaths import app_data_dir
+    from ui.example.helper.TranslateHelper import TranslateHelper
+    from ui.example.helper.TsTextCatalog import TsTextCatalog
 
 
 class RunBridge(QObject):
@@ -26,6 +38,8 @@ class RunBridge(QObject):
     logsChanged = Signal()
     stepsChanged = Signal()
     errorOccurred = Signal(str)
+    validationFailed = Signal(str)
+    runFinished = Signal("QVariantMap")
 
     _logSignal = Signal(str)
     _eventSignal = Signal("QVariantMap")
@@ -66,22 +80,20 @@ class RunBridge(QObject):
         self._run_selected_nodeids: list[str] = []
         self._run_adb_serial: str | None = None
         self._report_store = ReportStore(self._default_reports_dir())
+        self._text_catalog = TsTextCatalog(self._root_dir)
 
         self._logSignal.connect(self._append_log)
         self._eventSignal.connect(self._apply_event)
         self._finishSignal.connect(self._finish_run)
 
     def _default_state_path(self) -> Path:
-        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
-        return Path(base) / "SmartTest" / "test_page_state.json"
+        return app_data_dir() / "test_page_state.json"
 
     def _default_reports_dir(self) -> Path:
-        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
-        return Path(base) / "SmartTest" / "reports"
+        return app_data_dir() / "reports"
 
     def _default_run_logs_dir(self) -> Path:
-        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
-        return Path(base) / "SmartTest" / "run_logs"
+        return app_data_dir() / "run_logs"
 
     def _now_iso(self) -> str:
         return datetime.now().astimezone().isoformat(timespec="seconds")
@@ -96,19 +108,88 @@ class RunBridge(QObject):
 
     def _selected_run_config(self) -> RunConfig:
         state = load_state(self._default_state_path())
+        for selected in state.selected:
+            params = state.case_parameters.get(str(selected.nodeid or "").strip(), {})
+            print(
+                f"{self._trace_timestamp()} [RunBridge] case_parameters "
+                f"nodeid={selected.nodeid} params={params}"
+            )
         run_config, diagnostics = build_run_config_from_state(root_dir=self._root_dir, state=state)
         for line in diagnostics:
             print(line)
             self._append_log(line)
         return run_config
 
-    def _selected_run_inputs(self) -> tuple[list[str], str, dict[str, dict[str, Any]]]:
-        run_config = self._selected_run_config()
-        return (
-            list(run_config.nodeids),
-            str(run_config.global_context.get("dut", "") or ""),
-            {key: dict(value) for key, value in run_config.case_configs.items()},
+    def _validation_catalog(self, state) -> list[dict[str, Any]]:
+        rows = load_runtime_test_catalog(root_dir=self._root_dir)
+        selected_nodeids = {str(case.nodeid or "").strip() for case in state.selected if str(case.nodeid or "").strip()}
+        known_nodeids = {str(row.get("nodeid", "") or "").strip() for row in rows}
+        known_android_ids = {
+            f"android://{str(row.get('android_case_id', '') or '').strip()}"
+            for row in rows
+            if str(row.get("android_case_id", "") or "").strip()
+        }
+        if is_packaged_runtime() or selected_nodeids <= (known_nodeids | known_android_ids):
+            return rows
+        try:
+            cases = discover_pytest_cases(root_dir=self._root_dir, python_executable=sys.executable)
+        except PytestDiscoveryError:
+            return rows
+        return [
+            {
+                "nodeid": case.nodeid,
+                "file": case.file,
+                "name": case.name,
+                "markers": case.markers,
+                "case_type": case.case_type,
+                "required_params": case.required_params,
+                "required_param_groups": case.required_param_groups,
+                "required_equipment": case.required_equipment,
+                "android_case_id": case.android_case_id,
+            }
+            for case in cases
+        ]
+
+    def _validate_current_run_request(self, resolved_dut_serial: str | None) -> list[RunValidationIssue]:
+        state = load_state(self._default_state_path())
+        return validate_run_request(
+            root_dir=self._root_dir,
+            state=state,
+            catalog=self._validation_catalog(state),
+            resolved_dut_serial=resolved_dut_serial,
         )
+
+    def _format_run_validation_message(self, issues: list[RunValidationIssue]) -> str:
+        lines: list[str] = []
+        for issue in issues:
+            if issue.code == "missing_dut":
+                lines.append(self.tr("Select a DUT before starting the selected test cases."))
+                continue
+            if issue.code == "missing_required_param":
+                lines.append(
+                    self.tr("Missing required parameter: {param} ({case})").format(
+                        param=self._param_label(issue.param_key),
+                        case=issue.case_name or issue.nodeid,
+                    )
+                )
+                continue
+            lines.append(issue.param_key or issue.code)
+        message = self.tr("Fix required test parameters before starting.")
+        if lines:
+            message += "\n\n" + "\n".join(lines)
+        return message
+
+    def _param_label(self, param_key: str) -> str:
+        normalized = str(param_key or "").strip()
+        if not normalized:
+            return ""
+        text_key = f"test.param.{normalized.replace(':', '.')}.label"
+        label = self._text_catalog.text(
+            locale=TranslateHelper().current,
+            context="TestPageBridge",
+            source=text_key,
+        )
+        return label or normalized
 
     def _set_running(self, running: bool) -> None:
         if self._running == running:
@@ -181,17 +262,16 @@ class RunBridge(QObject):
         for line in diagnostics:
             self._append_log(line)
 
-    def _append_initial_step_plan(self, *, nodeids: list[str], case_configs: dict[str, dict[str, Any]]) -> None:
+    def _append_initial_step_plan(self, *, nodeids: list[str]) -> None:
         self._building_initial_plan = True
         try:
             for nodeid in nodeids:
                 case_title = nodeid.rsplit("::", 1)[-1] if "::" in nodeid else nodeid
                 case_row_id = self._ensure_case_row(case_nodeid=nodeid, title=case_title)
-                config = dict(case_configs.get(nodeid, {}))
-                plan_items = build_step_plan(root_dir=self._root_dir, nodeid=nodeid, case_config=config)
+                plan_items = build_step_plan(root_dir=self._root_dir, nodeid=nodeid)
                 self._append_log(
                     "[steps.trace] initial_plan_loaded "
-                    f"case={nodeid} items={len(plan_items)} config_keys={','.join(sorted(config)) or '<none>'}"
+                    f"case={nodeid} items={len(plan_items)}"
                 )
                 for item in plan_items:
                     raw_step_id = str(item.get("id", "") or "step")
@@ -754,6 +834,12 @@ class RunBridge(QObject):
                     self._append_traceback_log(exc)
                 self._session = None
             self._set_running(False)
+            self.runFinished.emit(
+                {
+                    "returncode": int(returncode),
+                    "stopped": bool(self._stop_requested),
+                }
+            )
             self._append_log(f"[run.trace] finish_run exit running={self._running}")
 
     @Slot(result=bool)
@@ -776,28 +862,32 @@ class RunBridge(QObject):
     def stepRows(self):
         return list(self._steps)
 
-    @Slot()
-    def startRun(self) -> None:
+    @Slot(result=bool)
+    def startRun(self) -> bool:
         if self._running:
-            return
+            return False
         try:
             run_config = self._selected_run_config()
             nodeids = list(run_config.nodeids)
-            case_configs = {key: dict(value) for key, value in run_config.case_configs.items()}
             if not nodeids:
                 self.errorOccurred.emit(self.tr("No selected test cases to run."))
-                return
+                return False
+
+            validation_issues = self._validate_current_run_request(run_config.dut_serial)
+            if validation_issues:
+                self.validationFailed.emit(self._format_run_validation_message(validation_issues))
+                return False
 
             self._reset_run_data()
             self._begin_report_context(nodeids=nodeids, adb_serial=run_config.dut_serial)
             self._stop_requested = False
             self._append_start_diagnostics(nodeids=nodeids, adb_serial=run_config.dut_serial)
-            self._append_initial_step_plan(nodeids=nodeids, case_configs=case_configs)
+            self._append_initial_step_plan(nodeids=nodeids)
         except Exception as exc:  # noqa: BLE001
             self._append_local_log(self._stderr_log_path, str(exc))
             self._append_traceback_log(exc)
             self.errorOccurred.emit(self.tr("Failed to start pytest run. {detail}").format(detail=str(exc)))
-            return
+            return False
 
         self._session = None
         self._set_running(True)
@@ -809,6 +899,7 @@ class RunBridge(QObject):
             },
             daemon=True,
         ).start()
+        return True
 
     @Slot()
     def stopRun(self) -> None:
@@ -826,12 +917,12 @@ class RunBridge(QObject):
         self._stop_requested = True
         self._session.stop("UI stop button")
 
-    @Slot()
-    def toggleRun(self) -> None:
+    @Slot(result=bool)
+    def toggleRun(self) -> bool:
         if self._running:
             self.stopRun()
-            return
-        self.startRun()
+            return True
+        return self.startRun()
 
     def _get_is_running(self) -> bool:
         return self._running
