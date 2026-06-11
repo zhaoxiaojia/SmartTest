@@ -25,6 +25,7 @@ This file defines repository-wide hard rules. Detailed task workflows live in pr
 - Custom UI drawing colors must be theme-paired: whenever QML/UI code uses a custom color instead of an existing `FluTheme`/FluentUI semantic color, provide explicit light-theme and dark-theme values and select between them through the current theme state. Do not add single-value hard-coded colors for theme-sensitive UI.
 - User-visible UI selections persist by default unless explicitly transient.
 - User-configured frontend parameters must use `%LOCALAPPDATA%\Amlogic\SmartTest\test_page_state.json` through `ui/jsonTool.py` as the single source of truth; UI bridges may keep only short-lived render/edit mirrors, and cross-layer flows must pass identity such as nodeid/source/DUT instead of frontend parameter values.
+- Frontend/runtime parameter values must be read through `testing/params/runtime.py`. Parameter type conversion must use `tools/param_conversion.py`. Do not add private `_int_param`, `_float_param`, `int(float(...))`, or equivalent parameter-conversion helpers in runner, pytest cases, feature modules, step planners, or UI bridges.
 - QRC-backed changes must rebuild the relevant `resource_rc.py` before handoff.
 - Distinguish source-run validation from packaged app validation. Do not imply `SmartTest.exe` contains source edits unless a packaging/build step has been completed.
 
@@ -50,6 +51,7 @@ Guidelines:
 - Except for test case development under `testing/tests`, changes must be rule/mechanism-level by default.
 - Do not add code that only affects one specific case, scenario, parameter value, or condition unless the user explicitly asks for that special handling.
 - Static special-case code is not allowed by default. Requirements should be implemented through reusable rules, data contracts, state transitions, or shared mechanisms.
+- Do not add case-specific parameter parsing or conversion logic. Extend the shared parameter runtime/conversion contracts instead.
 
 ## 5. Architecture Optimization Principles
 

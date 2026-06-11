@@ -13,8 +13,8 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from ui import jsonTool
-
+from tools.param_conversion import to_float, to_int, to_string_list
+from testing.params.runtime import runtime_params
 from testing.runtime.steps import step_log
 from testing.tool.dut_tool.features.base import FeatureBase
 
@@ -182,9 +182,9 @@ def build_stress_plan(
     loop_count: int,
     random_playback: bool,
 ) -> list[StressAction]:
-    normalized_files = _normalize_string_list(media_files)
-    normalized_actions = [action for action in _normalize_string_list(actions) if action in SUPPORTED_ACTIONS]
-    total_loops = max(int(loop_count), 1)
+    normalized_files = to_string_list(media_files)
+    normalized_actions = [action for action in to_string_list(actions) if action in SUPPORTED_ACTIONS]
+    total_loops = max(to_int(loop_count, default=1), 1)
     plan: list[StressAction] = []
     for loop_index in range(1, total_loops + 1):
         loop_files = list(normalized_files)
@@ -254,20 +254,20 @@ def run_local_playback_stress(
     params = _case_params_from_state(nodeid)
     playback = LocalPlaybackFeature.for_selected_serial(selected_serial)
     media_dir = _normalize_media_dir(params.get("local_playback_stress:media_dir", DEFAULT_MEDIA_DIR))
-    selected_files = _normalize_string_list(params.get("local_playback_stress:media_files", []))
+    selected_files = to_string_list(params.get("local_playback_stress:media_files", []))
     if not selected_files:
         selected_files = playback.discover_media_files(media_dir)
     if not selected_files:
         raise AssertionError(f"No supported media files found in {media_dir}.")
 
-    actions = [action for action in _normalize_string_list(params.get("local_playback_stress:actions", [])) if action in SUPPORTED_ACTIONS]
+    actions = [action for action in to_string_list(params.get("local_playback_stress:actions", [])) if action in SUPPORTED_ACTIONS]
     if not actions:
         raise AssertionError("Select at least one supported local playback stress action.")
 
-    loop_count = max(_int_param(params.get("local_playback_stress:loop_count", 1)), 1)
+    loop_count = max(to_int(params.get("local_playback_stress:loop_count", 1), default=1), 1)
     random_playback = bool(params.get("local_playback_stress:random_playback", False))
-    action_interval_sec = max(_float_param(params.get("local_playback_stress:action_interval_sec", 3)), 0.0)
-    start_wait_sec = max(_float_param(params.get("local_playback_stress:start_wait_sec", 10)), 0.0)
+    action_interval_sec = max(to_float(params.get("local_playback_stress:action_interval_sec", 3), default=3.0), 0.0)
+    start_wait_sec = max(to_float(params.get("local_playback_stress:start_wait_sec", 10), default=10.0), 0.0)
     step_log(
         "local_playback_stress "
         f"trigger={trigger} dut={selected_serial or '<default>'} "
@@ -974,17 +974,12 @@ def _media_dir_from_state(nodeid: str | None) -> str | None:
     normalized_nodeid = str(nodeid or "").strip()
     if not normalized_nodeid:
         return None
-    value = jsonTool.get_json_value(
-        "test_page_state.json",
-        ["case_parameters", normalized_nodeid, "local_playback_stress:media_dir"],
-        None,
-    )
+    value = runtime_params().get_str(normalized_nodeid, "local_playback_stress:media_dir", "")
     return str(value or "").strip() or None
 
 
 def _case_params_from_state(nodeid: str) -> dict[str, Any]:
-    values = jsonTool.get_json_value("test_page_state.json", ["case_parameters", str(nodeid)], {})
-    return dict(values) if isinstance(values, dict) else {}
+    return runtime_params().case_values(nodeid)
 
 
 def _normalize_media_dir(value: Any) -> str:
@@ -992,24 +987,6 @@ def _normalize_media_dir(value: Any) -> str:
     if directory in ("/mnt/media_rw", "/mnt/media_rw/*/Movies"):
         return DEFAULT_MEDIA_DIR
     return directory or DEFAULT_MEDIA_DIR
-
-
-def _normalize_string_list(value: Any) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, str):
-        raw_values = [part.strip() for part in value.replace("\n", ",").split(",")]
-    elif isinstance(value, (list, tuple, set)):
-        raw_values = [str(item or "").strip() for item in value]
-    else:
-        raw_values = [str(value or "").strip()]
-    normalized: list[str] = []
-    seen: set[str] = set()
-    for item in raw_values:
-        if item and item not in seen:
-            seen.add(item)
-            normalized.append(item)
-    return normalized
 
 
 def _start_playback_shell_command(file_path: str, component: str) -> str:
@@ -1054,20 +1031,6 @@ def _format_progress(progress: PlaybackProgress | None) -> str:
         f"current={progress.current_seconds} duration={progress.duration_seconds} "
         f"remaining={_playback_remaining_seconds(progress)} ratio={progress.ratio:.3f}"
     )
-
-
-def _int_param(value: Any) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return 0
-
-
-def _float_param(value: Any) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return 0.0
 
 
 def _shell_quote(value: str) -> str:

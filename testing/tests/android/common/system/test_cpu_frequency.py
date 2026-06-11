@@ -5,10 +5,9 @@ import pytest
 from testing.tool.dut_tool.features.system import (
     CpuFrequencySnapshot,
 )
-from testing.params.options import normalize_option_values
 from testing.params.registry import CPU_FREQUENCY_PARAM_KEY
+from testing.params.runtime import runtime_params
 from testing.runtime.config import current_dut_serial
-from ui import jsonTool
 from testing.runtime.steps import case_step, step_log
 
 
@@ -52,11 +51,7 @@ SMARTTEST_CASE_PLAN = {
 
 @pytest.mark.requires_params(CPU_FREQUENCY_PARAM_KEY)
 def test_cpu_frequency_switching(request):
-    values = jsonTool.get_json_value("test_page_state.json", ["case_parameters", request.node.nodeid], {})
-    values = dict(values) if isinstance(values, dict) else {}
-    selected_frequencies = normalize_option_values(
-        values.get(CPU_FREQUENCY_PARAM_KEY, [])
-    )
+    selected_frequencies = runtime_params().get_list(request.node.nodeid, CPU_FREQUENCY_PARAM_KEY, [])
     from testing.tool.dut_tool.duts.android import android
 
     dut = android(serialnumber=current_dut_serial())

@@ -14,6 +14,7 @@ from testing.cases.catalog import is_packaged_runtime, load_packaged_test_catalo
 from testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
 from testing.params.options import normalize_option_values, option_cache_key
 from testing.params.registry import SchemaRegistry, default_registry
+from testing.params.runtime import runtime_params
 from testing.params.requirements import required_params_for_case
 from testing.params.schema import ParamField, ParamSchema, ParamScope, ParamValueType, defaults_for_schema
 from testing.state.local_store import load_pref, save_pref
@@ -726,7 +727,7 @@ class TestPageBridge(QObject):
         field = self._field_for_key(key)
         if case is None or field is None:
             return False
-        next_value = normalize_option_values(value) if self._is_multi_enum_field(field) else value
+        next_value = runtime_params().normalize_for_key(field.key, value)
 
         if field.scope == ParamScope.GLOBAL_CONTEXT:
             if self._state.global_context.get(field.key) == next_value:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from testing.params.runtime import runtime_params
 from ui import jsonTool
 
 
@@ -18,8 +19,7 @@ def test_case_parameters_are_plain_json_values(monkeypatch, tmp_path) -> None:
         },
     )
 
-    values = jsonTool.get_json_value("test_page_state.json", ["case_parameters", nodeid], {})
+    params = runtime_params()
 
-    assert isinstance(values, dict)
-    assert int(values.get("emmc_rw:loop_count", 180)) == 360
-    assert values.get("emmc_rw:work_dir", "") == "/tmp/emmc"
+    assert params.get_int(nodeid, "emmc_rw:loop_count", 180) == 360
+    assert params.get_str(nodeid, "emmc_rw:work_dir", "") == "/tmp/emmc"

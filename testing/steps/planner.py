@@ -5,9 +5,10 @@ import importlib.util
 from pathlib import Path
 from typing import Any
 
-from ui import jsonTool
+from tools.param_conversion import wire_string
 
 from testing.cases.catalog import load_runtime_test_catalog
+from testing.params.runtime import runtime_params
 from testing.steps.definitions import ActionPlanContext, get_action
 from testing.tests import build_declared_case_plan, declared_step_enabled
 
@@ -47,7 +48,7 @@ def build_step_plan(
 
 
 def _catalog_step_plan(*, root_dir: Path, nodeid: str) -> list[dict[str, Any]]:
-    case_parameters = _case_parameters_from_json(nodeid)
+    case_parameters = runtime_params().case_values(nodeid)
     for row in load_runtime_test_catalog(root_dir=root_dir):
         if str(row.get("nodeid", "") or "").strip() != nodeid:
             continue
@@ -69,23 +70,6 @@ def _catalog_step_plan(*, root_dir: Path, nodeid: str) -> list[dict[str, Any]]:
         resolved = [item for item in resolved if _step_enabled(item, case_id=case_id)]
         return _remove_case_execute_summary_steps(resolved)
     return []
-
-
-def _case_parameters_from_json(nodeid: str) -> dict[str, Any]:
-    raw_parameters = jsonTool.get_json_value("test_page_state.json", ["case_parameters"], {})
-    if not isinstance(raw_parameters, dict):
-        return {}
-    requested_nodeid = str(nodeid)
-    values = raw_parameters.get(requested_nodeid)
-    if isinstance(values, dict):
-        return dict(values)
-    state = jsonTool.read_json("test_page_state.json", {})
-    selected = state.get("selected", []) if isinstance(state, dict) else []
-    if isinstance(selected, list) and len(selected) == 1 and len(raw_parameters) == 1:
-        only_values = next(iter(raw_parameters.values()))
-        if isinstance(only_values, dict):
-            return dict(only_values)
-    return {}
 
 
 def _step_enabled(item: dict[str, Any], *, case_id: str) -> bool:
@@ -205,26 +189,15 @@ def _remove_case_execute_summary_steps(steps: list[dict[str, Any]]) -> list[dict
 def _resolve_title_placeholders(title: str, params: dict[str, Any]) -> str:
     resolved = str(title or "")
     for key, value in params.items():
-        formatted = _format_placeholder_value(value)
+        formatted = wire_string(value)
         resolved = resolved.replace("{" + str(key) + "}", formatted)
         short = str(key).split(":", 1)[-1]
         resolved = resolved.replace("{" + short + "}", formatted)
     return resolved
 
 
-def _format_placeholder_value(value: Any) -> str:
-    text = str(value)
-    try:
-        numeric = float(text)
-    except ValueError:
-        return text
-    if numeric.is_integer():
-        return str(int(numeric))
-    return text
-
-
 def _declared_runtime_steps(*, root_dir: Path, nodeid: str) -> list[dict[str, Any]]:
-    case_parameters = _case_parameters_from_json(nodeid)
+    case_parameters = runtime_params().case_values(nodeid)
     tree = _parse_node_module(root_dir=root_dir, nodeid=nodeid)
     if tree is None:
         return []
@@ -274,7 +247,7 @@ def _step_kind(function_name: str) -> str:
 
 
 def _android_mirrored_plan(*, root_dir: Path, nodeid: str) -> list[dict[str, Any]]:
-    case_parameters = _case_parameters_from_json(nodeid)
+    case_parameters = runtime_params().case_values(nodeid)
     case_id = _android_case_id_from_node(root_dir=root_dir, nodeid=nodeid)
     if not case_id:
         return []
@@ -366,7 +339,7 @@ def _call_name(node: ast.AST) -> str:
 
 
 def _fallback_plan(*, nodeid: str) -> list[dict[str, Any]]:
-    case_parameters = _case_parameters_from_json(nodeid)
+    case_parameters = runtime_params().case_values(nodeid)
     return [
         {
             "id": "prepare_runner",
@@ -380,7 +353,7 @@ def _fallback_plan(*, nodeid: str) -> list[dict[str, Any]]:
 
 
 def _trace_plan(source: str, *, nodeid: str, steps: list[dict[str, Any]]) -> None:
-    case_parameters = _case_parameters_from_json(nodeid)
+    case_parameters = runtime_params().case_values(nodeid)
     print(
         "[steps.plan] "
         f"source={source} nodeid={nodeid} count={len(steps)} "

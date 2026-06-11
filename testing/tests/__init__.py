@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from ui import jsonTool
+from tools.param_conversion import wire_string
 
+from testing.params.runtime import runtime_params
 from testing.steps.definitions import action_step_enabled
 
 
@@ -14,7 +15,7 @@ def build_declared_case_plan(
     include_config_disabled: bool = False,
 ) -> list[dict[str, Any]]:
     case_id = str(declaration.get("case_id", "") or "").strip()
-    case_parameters = _case_parameters_from_json(nodeid)
+    case_parameters = runtime_params().case_values(nodeid)
     params = {
         str(key): value
         for key, value in case_parameters.items()
@@ -40,11 +41,6 @@ def build_declared_case_plan(
     return steps
 
 
-def _case_parameters_from_json(nodeid: str) -> dict[str, Any]:
-    values = jsonTool.get_json_value("test_page_state.json", ["case_parameters", str(nodeid)], {})
-    return dict(values) if isinstance(values, dict) else {}
-
-
 def declared_step_enabled(step: dict[str, Any], params: dict[str, Any]) -> bool:
     when_param = str(step.get("when_param", "") or "").strip()
     if when_param:
@@ -66,19 +62,8 @@ def declared_step_enabled(step: dict[str, Any], params: dict[str, Any]) -> bool:
 def _resolve_title_placeholders(title: str, params: dict[str, Any]) -> str:
     resolved = str(title or "")
     for key, value in params.items():
-        formatted = _format_placeholder_value(value)
+        formatted = wire_string(value)
         resolved = resolved.replace("{" + str(key) + "}", formatted)
         short = str(key).split(":", 1)[-1]
         resolved = resolved.replace("{" + short + "}", formatted)
     return resolved
-
-
-def _format_placeholder_value(value: Any) -> str:
-    text = str(value)
-    try:
-        numeric = float(text)
-    except ValueError:
-        return text
-    if numeric.is_integer():
-        return str(int(numeric))
-    return text

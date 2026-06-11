@@ -11,8 +11,7 @@ import uuid
 from typing import Mapping
 
 from android_client import PACKAGE_NAME, PRIVILEGED_CASE_IDS, ensure_test_apk_installed
-from ui import jsonTool
-from testing.params.registry import default_registry
+from testing.params.runtime import runtime_params
 from testing.runtime.config import current_dut_serial
 from testing.runtime.events import current_case_nodeid, current_step, emit_event
 from testing.runtime.steps import step as runtime_step, step_log
@@ -406,27 +405,7 @@ def _subprocess_creationflags() -> int:
 
 
 def case_params_from_state(case_id: str, nodeid: str) -> dict[str, str]:
-    normalized_case_id = str(case_id or "").strip()
-    normalized_nodeid = str(nodeid or "").strip()
-    prefix = f"{normalized_case_id}:"
-    resolved: dict[str, str] = {}
-    for field in default_registry().fields_by_key.values():
-        key = str(field.key or "").strip()
-        if key.startswith(prefix) and field.default not in (None, ""):
-            resolved[key] = _param_value_to_string(field.default)
-    values = jsonTool.get_json_value("test_page_state.json", ["case_parameters", normalized_nodeid], {})
-    if isinstance(values, dict):
-        for key, value in values.items():
-            normalized_key = str(key or "").strip()
-            if normalized_key.startswith(prefix):
-                resolved[normalized_key] = _param_value_to_string(value)
-    return resolved
-
-
-def _param_value_to_string(value: object) -> str:
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    return str(value)
+    return runtime_params().apk_params(case_id, nodeid)
 
 
 def _adb_base_cmd(*, adb_executable: str, adb_serial: str | None = None) -> list[str]:

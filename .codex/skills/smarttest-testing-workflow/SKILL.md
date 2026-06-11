@@ -27,7 +27,7 @@ Do not add pass-through wrappers or package-level re-export facades in `testing/
 
 Do not import UI modules from `testing/`, except `ui/jsonTool.py` when business code needs persisted frontend configuration and `ui/yamlTool.py` when code needs shared YAML loading. UI may call `testing/` through Python bridges, but QML must not import `testing/` directly.
 
-Frontend user configuration and parameter values are persisted as JSON under `%LOCALAPPDATA%\Amlogic\SmartTest` through `ui/jsonTool.py`. When pytest cases, step planning, reports, AI, debug, or other business code need frontend configuration, load the relevant JSON through `jsonTool` directly. Do not introduce alternate config stores, environment-variable parameter transport, or business-specific helpers that hide the JSON source.
+Frontend user configuration and parameter values are persisted as JSON under `%LOCALAPPDATA%\Amlogic\SmartTest` through `ui/jsonTool.py`. When pytest cases, step planning, reports, AI, debug, or other business code need frontend test parameters, read them through `testing/params/runtime.py`. Do not introduce alternate config stores, environment-variable parameter transport, or business-specific helpers that hide the JSON source.
 
 ## Discovery And Metadata
 
@@ -44,17 +44,18 @@ Frontend user configuration and parameter values are persisted as JSON under `%L
 3. Use `testing/params/required_params.yaml` to centrally define run-blocking required case inputs. `requires_params` means "show these parameters for the case"; it does not make every parameter mandatory.
 4. Validate required parameters through `testing/params/validation.py` before starting a run. Missing required values must block execution before pytest starts.
 5. DUT-backed dynamic option loading must go through `testing/tool/dut_tool/parameter_adapter.py`. Do not call DUT feature option providers directly from UI bridge getter methods or QML bindings.
-6. Bind case requirements close to the pytest case with markers:
+6. Parameter type conversion is globally owned by `tools/param_conversion.py`. Runtime frontend parameter access is owned by `testing/params/runtime.py`. Do not add private `_int_param`, `_float_param`, `int(float(...))`, or equivalent parameter-conversion helpers in runner, pytest cases, feature modules, step planners, or UI bridges.
+7. Bind case requirements close to the pytest case with markers:
 
 ```python
 @pytest.mark.requires_params("operator", "duration_s")
 @pytest.mark.requires_param_groups("stress_runtime")
 ```
 
-7. Let `testing/conftest.py` expand groups and export `required_params` / `required_param_groups`.
-8. Keep scope explicit: `global_context`, `case_type_shared`, or `case`.
-9. Cases with no mapping must export an empty list, not placeholder fields.
-10. For Android mirrored cases, keep the Android catalog contract aligned with `android_client/app/src/main/java/com/smarttest/mobile/runner/SmartTestCatalog.kt` and use case-scoped keys such as `emmc_rw:loop_count`.
+8. Let `testing/conftest.py` expand groups and export `required_params` / `required_param_groups`.
+9. Keep scope explicit: `global_context`, `case_type_shared`, or `case`.
+10. Cases with no mapping must export an empty list, not placeholder fields.
+11. For Android mirrored cases, keep the Android catalog contract aligned with `android_client/app/src/main/java/com/smarttest/mobile/runner/SmartTestCatalog.kt` and use case-scoped keys such as `emmc_rw:loop_count`.
 
 ## Run Flow
 
@@ -71,7 +72,7 @@ UI/TestPage state
   -> runtime events and report store
 ```
 
-Do not pass frontend parameter values through run-config fields or environment variables. Business code that needs frontend configuration must read the persisted JSON through `ui/jsonTool.py`.
+Do not pass frontend parameter values through run-config fields or environment variables. Business code that needs frontend test parameters must use `testing/params/runtime.py`, which reads the persisted JSON and applies schema-backed conversion.
 
 ## DUT And Lab Equipment
 

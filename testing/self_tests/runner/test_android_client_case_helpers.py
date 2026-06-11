@@ -26,7 +26,7 @@ def test_run_android_client_case_loads_params_from_json_and_triggers_runner(monk
     nodeid = "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client"
     jsonTool.write_json(
         "test_page_state.json",
-        {"case_parameters": {nodeid: {"emmc_rw:loop_count": 2}}},
+        {"case_parameters": {nodeid: {"emmc_rw:loop_count": 2.0}}},
     )
     calls: list[tuple[str, dict[str, object], str]] = []
 

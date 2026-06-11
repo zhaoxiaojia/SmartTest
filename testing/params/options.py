@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 import importlib
-import re
+from collections.abc import Callable
 from typing import Any
+
+from tools.param_conversion import to_string_list
 
 from .bt_devices import known_bluetooth_targets
 
@@ -38,24 +39,7 @@ def dynamic_param_options(source: str, selected_serial: str | None = None) -> li
 
 
 def normalize_option_values(raw_value: Any) -> list[str]:
-    if raw_value is None:
-        return []
-    if isinstance(raw_value, str):
-        values = re.split(r"[\s,;]+", raw_value.strip())
-    elif isinstance(raw_value, (list, tuple, set)):
-        values = list(raw_value)
-    else:
-        values = [raw_value]
-
-    normalized: list[str] = []
-    seen: set[str] = set()
-    for item in values:
-        value = str(item or "").strip()
-        if not value or value in seen:
-            continue
-        seen.add(value)
-        normalized.append(value)
-    return normalized
+    return to_string_list(raw_value)
 
 
 def option_cache_key(source: str, selected_serial: str | None = None) -> str:
