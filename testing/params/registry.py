@@ -11,6 +11,7 @@ from .schema import ParamCategory, ParamField, ParamSchema, ParamScope, ParamVal
 
 
 CPU_FREQUENCY_PARAM_KEY = "cpu_frequency:frequencies"
+CONNECTED_BLUETOOTH_TARGETS_OPTIONS_SOURCE = "testing.tool.dut_tool.features.bluetooth:list_connected_bluetooth_targets"
 
 
 @dataclass(frozen=True)
@@ -128,12 +129,14 @@ def _android_catalog_fields() -> list[ParamField]:
     fields: list[ParamField] = []
     for key, param in sorted(load_android_catalog_params().items()):
         value_type = _android_value_type(param.param_id)
+        options_source = CONNECTED_BLUETOOTH_TARGETS_OPTIONS_SOURCE if param.param_id == "bt_target" else ""
         fields.append(
             _case_param_field(
                 key,
                 value_type,
                 _android_category(param.param_id),
                 _android_default_value(param.default_value, value_type),
+                options_source,
             )
         )
     return fields
@@ -229,6 +232,7 @@ def _pure_pytest_case_fields() -> list[ParamField]:
             ParamValueType.ENUM,
             ParamCategory.NETWORK,
             "",
+            CONNECTED_BLUETOOTH_TARGETS_OPTIONS_SOURCE,
         ),
         _case_param_field(
             CPU_FREQUENCY_PARAM_KEY,

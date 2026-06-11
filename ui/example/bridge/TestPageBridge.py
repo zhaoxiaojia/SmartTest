@@ -212,7 +212,8 @@ class TestPageBridge(QObject):
             return
         self._adb_refresh_running = True
         self._trace("adb_refresh_start", reason=reason)
-        Thread(target=self._refresh_adb_devices_worker, daemon=True).start()
+        selected_serial = self._current_dut_serial() if reason == "user_refresh" else ""
+        Thread(target=self._refresh_adb_devices_worker, args=(selected_serial,), daemon=True).start()
 
     def _current_dut_serial(self) -> str:
         return str(self._state.global_context.get("dut", "") or "").strip()
@@ -250,9 +251,9 @@ class TestPageBridge(QObject):
             daemon=True,
         ).start()
 
-    def _refresh_adb_devices_worker(self) -> None:
+    def _refresh_adb_devices_worker(self, selected_serial: str = "") -> None:
         started_at = time.monotonic()
-        devices = self._dut_parameter_adapter.refresh_duts()
+        devices = self._dut_parameter_adapter.refresh_duts(selected_serial=selected_serial)
         self._adbRefreshResult.emit(devices, int((time.monotonic() - started_at) * 1000))
 
     def _refresh_param_options_worker(self, source: str, selected_serial: str, cache_key: str, nodeid: str) -> None:

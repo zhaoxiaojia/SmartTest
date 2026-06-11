@@ -678,7 +678,7 @@ FluPage {
                                                              && fieldData.key.indexOf(":bt_target") >= 0
                                                              && (fieldData.enum_values || []).length === 0
                                                     Layout.fillWidth: true
-                                                    text: qsTr("No paired Bluetooth devices found on the current DUT.")
+                                                    text: qsTr("No connected Bluetooth devices found on the current DUT.")
                                                     font: FluTextStyle.Caption
                                                     color: FluTheme.fontSecondaryColor
                                                     wrapMode: Text.WordWrap

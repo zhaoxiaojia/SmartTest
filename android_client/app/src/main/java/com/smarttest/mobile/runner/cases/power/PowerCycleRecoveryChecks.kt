@@ -13,8 +13,6 @@ object PowerCycleRecoveryChecks {
     private const val PING_ATTEMPTS = 10
     private const val BLUETOOTH_TIMEOUT_MS = 60_000L
     private const val RETRY_DELAY_MS = 3_000L
-    private const val CONNECTED_BT_MAC_COMMAND =
-        "dumpsys bluetooth_manager | grep -B1 \"Connected: true\" | grep \"Peer:\" | awk '{print \$2}'"
 
     private data class BluetoothCheckResult(
         val connected: Boolean,
@@ -165,31 +163,18 @@ object PowerCycleRecoveryChecks {
         var lastObserved = emptyList<String>()
         var lastFailureSignature = ""
         while (System.currentTimeMillis() <= deadlineMs) {
-            val snapshot = context.environment.stateProvider.readBluetoothState()
-            val profileConnected = snapshot.connectedDevices
-                .map(String::trim)
-                .filter(String::isNotEmpty)
-                .map(String::uppercase)
-            if (profileConnected.any { bluetoothAddressMatches(targetMac, it) }) {
-                return BluetoothCheckResult(connected = true, observedDevices = profileConnected)
-            }
             val record = context.execShell(
-                label = "recovery_bluetooth_$attempt",
-                command = CONNECTED_BT_MAC_COMMAND,
+                label = "recovery_bluetooth_${attempt}",
+                command = "dumpsys bluetooth_manager",
                 requireRoot = false,
             )
-            val shellConnected = record.result.stdout.lineSequence()
-                .map(String::trim)
-                .filter(String::isNotEmpty)
-                .map(String::uppercase)
-                .toList()
-            val connected = (profileConnected + shellConnected).distinct()
+            val connected = connectedBluetoothAddressesFromDumpsys(record.result.stdout).distinct()
             lastObserved = connected
             if (connected.any { bluetoothAddressMatches(targetMac, it) }) {
                 return BluetoothCheckResult(connected = true, observedDevices = connected)
             }
             val failureSignature =
-                "connected=${connected.joinToString(",").ifBlank { "-" }} stderr=${record.result.stderr.ifBlank { "<empty>" }}"
+                "exit=${record.result.exitCode} connected=${connected.joinToString(",").ifBlank { "-" }}"
             if (failureSignature != lastFailureSignature) {
                 context.log(
                     "recovery bluetooth state changed on attempt $attempt: " +
@@ -212,15 +197,75 @@ object PowerCycleRecoveryChecks {
     }
 
     private fun bluetoothAddressMatches(targetMac: String, observedMac: String): Boolean {
-        if (observedMac.equals(targetMac, ignoreCase = true)) {
+        val observedAddress = parseBluetoothTargetMac(observedMac) ?: observedMac.uppercase()
+        if (observedAddress.equals(targetMac, ignoreCase = true)) {
             return true
         }
         val targetParts = targetMac.uppercase().split(":")
-        val observedParts = observedMac.uppercase().split(":")
+        val observedParts = observedAddress.uppercase().split(":")
         if (targetParts.size != 6 || observedParts.size != 6) {
             return false
         }
         val maskedPrefix = observedParts.take(4).all { it == "XX" }
         return maskedPrefix && observedParts.takeLast(2) == targetParts.takeLast(2)
+    }
+
+    private fun connectedBluetoothAddressesFromDumpsys(raw: String): List<String> {
+        val addresses = mutableListOf<String>()
+        val seen = mutableSetOf<String>()
+        var pendingPeer = ""
+        var pendingStateMachine = ""
+
+        raw.lineSequence().forEach { line ->
+            val text = line.trim()
+            val lower = text.lowercase()
+
+            if ("statemachine" in lower && " for " in lower) {
+                pendingStateMachine = firstBluetoothAddress(text)
+                if ("state=connected" in lower) {
+                    appendBluetoothAddress(addresses, seen, pendingStateMachine)
+                    pendingStateMachine = ""
+                }
+                return@forEach
+            }
+
+            if (pendingStateMachine.isNotEmpty() && "state=connected" in lower) {
+                appendBluetoothAddress(addresses, seen, pendingStateMachine)
+                pendingStateMachine = ""
+                return@forEach
+            }
+
+            if ("state=disconnected" in lower) {
+                pendingStateMachine = ""
+            }
+
+            if (lower.startsWith("peer:") || " active peer:" in lower) {
+                pendingPeer = firstBluetoothAddress(text)
+                return@forEach
+            }
+
+            if (pendingPeer.isNotEmpty() && lower.startsWith("connected:")) {
+                if ("true" in lower) {
+                    appendBluetoothAddress(addresses, seen, pendingPeer)
+                }
+                pendingPeer = ""
+            }
+
+            if ("mcurrentdevice:" in lower) {
+                appendBluetoothAddress(addresses, seen, firstBluetoothAddress(text))
+            }
+        }
+        return addresses
+    }
+
+    private fun appendBluetoothAddress(addresses: MutableList<String>, seen: MutableSet<String>, raw: String) {
+        val address = raw.trim().uppercase()
+        if (address.isNotEmpty() && address != "00:00:00:00:00:00" && seen.add(address)) {
+            addresses.add(address)
+        }
+    }
+
+    private fun firstBluetoothAddress(text: String): String {
+        return Regex("(?:[0-9A-Fa-fXx]{2}:){5}[0-9A-Fa-fXx]{2}").find(text)?.value.orEmpty()
     }
 }

@@ -80,7 +80,7 @@ object SmartTestCatalog {
                     checks = listOf("Disable Bluetooth", "Enable Bluetooth", "Verify target"),
                     parameters = listOf(
                         TestParameterDefinition("cycle_count", "Cycle Count", "Default 2", "2"),
-                        TestParameterDefinition("bt_target", "Bluetooth Target", "Required target MAC or None", ""),
+                        TestParameterDefinition("bt_target", "Bluetooth Target", "Required connected Bluetooth target or None", ""),
                     ),
                 ),
             ),
@@ -93,6 +93,6 @@ private fun powerCycleParameters(): List<TestParameterDefinition> {
         TestParameterDefinition("cycle_count", "Loop Count", "Default 20", "20"),
         TestParameterDefinition("interval_sec", "Interval (s)", "Default 100", "100"),
         TestParameterDefinition("ping_target", "Ping Target", "Optional ping target", ""),
-        TestParameterDefinition("bt_target", "Bluetooth Target", "Optional target MAC or None", ""),
+        TestParameterDefinition("bt_target", "Bluetooth Target", "Optional connected Bluetooth target or None", ""),
     )
 }

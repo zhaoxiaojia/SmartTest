@@ -26,6 +26,50 @@ def test_adapter_refreshes_dut_list_through_injected_lister() -> None:
     assert adapter.refresh_duts() == ["ABC123", "XYZ789"]
 
 
+def test_adapter_refresh_duts_ensures_apk_for_selected_device() -> None:
+    ensure_calls: list[tuple[str, bool]] = []
+    adapter = DutParameterAdapter(
+        device_lister=lambda: ["ABC123", "XYZ789"],
+        apk_ensurer=lambda *, adb_serial=None, require_privileged=True: ensure_calls.append(
+            (adb_serial or "<default>", require_privileged)
+        ) or False,
+    )
+
+    assert adapter.refresh_duts(selected_serial="XYZ789") == ["ABC123", "XYZ789"]
+    assert ensure_calls == [("XYZ789", True)]
+
+
+def test_adapter_refresh_duts_does_not_install_single_device_without_selection() -> None:
+    ensure_calls: list[str] = []
+    adapter = DutParameterAdapter(
+        device_lister=lambda: ["ABC123"],
+        apk_ensurer=lambda *, adb_serial=None, require_privileged=True: ensure_calls.append(adb_serial or "<default>") or False,
+    )
+
+    assert adapter.refresh_duts() == ["ABC123"]
+    assert ensure_calls == []
+
+
+def test_adapter_refresh_duts_does_not_install_when_multiple_devices_without_selection() -> None:
+    ensure_calls: list[str] = []
+    adapter = DutParameterAdapter(
+        device_lister=lambda: ["ABC123", "XYZ789"],
+        apk_ensurer=lambda *, adb_serial=None, require_privileged=True: ensure_calls.append(adb_serial or "<default>") or False,
+    )
+
+    assert adapter.refresh_duts() == ["ABC123", "XYZ789"]
+    assert ensure_calls == []
+
+
+def test_adapter_refresh_duts_keeps_devices_when_apk_ensure_fails() -> None:
+    adapter = DutParameterAdapter(
+        device_lister=lambda: ["ABC123"],
+        apk_ensurer=lambda *, adb_serial=None, require_privileged=True: (_ for _ in ()).throw(RuntimeError("install failed")),
+    )
+
+    assert adapter.refresh_duts(selected_serial="ABC123") == ["ABC123"]
+
+
 def test_adapter_routes_local_playback_options_from_persisted_case_parameters(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
     nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
@@ -89,6 +133,25 @@ def test_adapter_routes_local_playback_directory_options_through_dut() -> None:
     assert result.error == ""
     assert result.options == ["/storage/A4F1-6FB4/Movies"]
     assert created[0].serial == "ABC123"
+
+
+def test_adapter_refreshes_connected_bluetooth_targets_from_dut(monkeypatch) -> None:
+    from testing.tool.dut_tool.features import bluetooth
+
+    monkeypatch.setattr(
+        bluetooth,
+        "list_connected_bluetooth_targets",
+        lambda selected_serial=None: ["None", "Speaker [11:22:33:44:55:66]"],
+    )
+    adapter = DutParameterAdapter()
+
+    result = adapter.refresh_case_parameter_options(
+        "testing.tool.dut_tool.features.bluetooth:list_connected_bluetooth_targets",
+        "ABC123",
+    )
+
+    assert result.error == ""
+    assert result.options == ["None", "Speaker [11:22:33:44:55:66]"]
 
 
 def test_adapter_returns_empty_options_and_error_when_dut_provider_fails() -> None:

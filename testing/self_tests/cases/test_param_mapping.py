@@ -5,6 +5,7 @@ from testing.params.registry import default_registry
 from testing.params.schema import ParamValueType
 
 CPU_FREQUENCY_PARAM_KEY = "cpu_frequency:frequencies"
+BT_TARGET_OPTIONS_SOURCE = "testing.tool.dut_tool.features.bluetooth:list_connected_bluetooth_targets"
 
 
 def test_default_registry_resolves_group_members():
@@ -36,39 +37,30 @@ def test_android_catalog_exports_frontend_case_contracts():
         "wifi_onoff_scan",
     ]
 
-    emmc_case = cases_by_id["emmc_rw"]
-    assert [f"{param.case_id}:{param.param_id}" for param in emmc_case.params] == [
+    assert [f"{param.case_id}:{param.param_id}" for param in cases_by_id["emmc_rw"].params] == [
         "emmc_rw:loop_count",
         "emmc_rw:source_profile",
         "emmc_rw:source_size_kb",
         "emmc_rw:min_free_kb",
         "emmc_rw:work_dir",
     ]
-
-    reboot_case = cases_by_id["auto_reboot"]
-    assert [f"{param.case_id}:{param.param_id}" for param in reboot_case.params] == [
+    assert [f"{param.case_id}:{param.param_id}" for param in cases_by_id["auto_reboot"].params] == [
         "auto_reboot:cycle_count",
         "auto_reboot:interval_sec",
         "auto_reboot:ping_target",
         "auto_reboot:bt_target",
     ]
-
-    suspend_case = cases_by_id["auto_suspend"]
-    assert [f"{param.case_id}:{param.param_id}" for param in suspend_case.params] == [
+    assert [f"{param.case_id}:{param.param_id}" for param in cases_by_id["auto_suspend"].params] == [
         "auto_suspend:cycle_count",
         "auto_suspend:interval_sec",
         "auto_suspend:ping_target",
         "auto_suspend:bt_target",
     ]
-
-    wifi_onoff_case = cases_by_id["wifi_onoff_scan"]
-    assert [f"{param.case_id}:{param.param_id}" for param in wifi_onoff_case.params] == [
+    assert [f"{param.case_id}:{param.param_id}" for param in cases_by_id["wifi_onoff_scan"].params] == [
         "wifi_onoff_scan:cycle_count",
         "wifi_onoff_scan:ping_target",
     ]
-
-    bt_onoff_case = cases_by_id["bt_onoff_scan"]
-    assert [f"{param.case_id}:{param.param_id}" for param in bt_onoff_case.params] == [
+    assert [f"{param.case_id}:{param.param_id}" for param in cases_by_id["bt_onoff_scan"].params] == [
         "bt_onoff_scan:cycle_count",
         "bt_onoff_scan:bt_target",
     ]
@@ -77,73 +69,69 @@ def test_android_catalog_exports_frontend_case_contracts():
 def test_default_registry_includes_android_client_emmc_params():
     registry = default_registry()
 
-    assert registry.get_param("emmc_rw:loop_count") is not None
-    assert registry.get_param("emmc_rw:source_profile") is not None
-    assert registry.get_param("emmc_rw:source_size_kb") is not None
-    assert registry.get_param("emmc_rw:min_free_kb") is not None
-    assert registry.get_param("emmc_rw:work_dir") is not None
-    assert registry.get_param("auto_reboot:cycle_count") is not None
-    assert registry.get_param("auto_reboot:interval_sec") is not None
-    assert registry.get_param("auto_reboot:ping_target") is not None
-    assert registry.get_param("auto_reboot:bt_target") is not None
-    assert registry.get_param("auto_suspend:cycle_count") is not None
-    assert registry.get_param("auto_suspend:interval_sec") is not None
-    assert registry.get_param("auto_suspend:ping_target") is not None
-    assert registry.get_param("auto_suspend:bt_target") is not None
-    assert registry.get_param("wifi_onoff_scan:cycle_count") is not None
-    assert registry.get_param("wifi_onoff_scan:ping_target") is not None
-    assert registry.get_param("bt_onoff_scan:cycle_count") is not None
-    assert registry.get_param("bt_onoff_scan:bt_target") is not None
-    assert registry.get_param("ac_onoff:cycle_count") is not None
-    assert registry.get_param("ac_onoff:power_off_sec") is not None
-    assert registry.get_param("ac_onoff:power_off_step_sec") is not None
-    assert registry.get_param("ac_onoff:power_on_wait_sec") is not None
-    assert registry.get_param("ac_onoff:power_on_wait_step_sec") is not None
-    assert registry.get_param("ac_onoff:ping_target") is not None
-    assert registry.get_param("ac_onoff:bt_target") is not None
-    assert registry.get_param("local_playback_stress:media_dir") is not None
-    assert registry.get_param("local_playback_stress:media_files") is not None
-    assert registry.get_param("local_playback_stress:actions") is not None
-    assert registry.get_param("local_playback_stress:loop_count") is not None
-    assert registry.get_param("local_playback_stress:random_playback") is not None
-    assert registry.get_param("local_playback_stress:action_interval_sec") is not None
-    assert registry.get_param("local_playback_stress:start_wait_sec") is not None
+    for key in [
+        "emmc_rw:loop_count",
+        "emmc_rw:source_profile",
+        "emmc_rw:source_size_kb",
+        "emmc_rw:min_free_kb",
+        "emmc_rw:work_dir",
+        "auto_reboot:cycle_count",
+        "auto_reboot:interval_sec",
+        "auto_reboot:ping_target",
+        "auto_reboot:bt_target",
+        "auto_suspend:cycle_count",
+        "auto_suspend:interval_sec",
+        "auto_suspend:ping_target",
+        "auto_suspend:bt_target",
+        "wifi_onoff_scan:cycle_count",
+        "wifi_onoff_scan:ping_target",
+        "bt_onoff_scan:cycle_count",
+        "bt_onoff_scan:bt_target",
+        "ac_onoff:cycle_count",
+        "ac_onoff:power_off_sec",
+        "ac_onoff:power_off_step_sec",
+        "ac_onoff:power_on_wait_sec",
+        "ac_onoff:power_on_wait_step_sec",
+        "ac_onoff:ping_target",
+        "ac_onoff:bt_target",
+        "local_playback_stress:media_dir",
+        "local_playback_stress:media_files",
+        "local_playback_stress:actions",
+        "local_playback_stress:loop_count",
+        "local_playback_stress:random_playback",
+        "local_playback_stress:action_interval_sec",
+        "local_playback_stress:start_wait_sec",
+    ]:
+        assert registry.get_param(key) is not None
+
     assert registry.get_param("ac_onoff:power_off_step_sec").type == ParamValueType.FLOAT
     assert registry.get_param("ac_onoff:power_on_wait_step_sec").type == ParamValueType.FLOAT
+
     cpu_frequency_param = registry.get_param(CPU_FREQUENCY_PARAM_KEY)
     assert cpu_frequency_param is not None
     assert cpu_frequency_param.type == ParamValueType.MULTI_ENUM
     assert cpu_frequency_param.options_source == "testing.tool.dut_tool.features.system:list_cpu_frequency_options"
+
     media_files_param = registry.get_param("local_playback_stress:media_files")
     assert media_files_param is not None
     assert media_files_param.type == ParamValueType.MULTI_ENUM
     assert media_files_param.options_source == "testing.tool.dut_tool.features.local_playback:list_media_files"
+
     actions_param = registry.get_param("local_playback_stress:actions")
     assert actions_param is not None
     assert "play" not in actions_param.enum_values
 
 
-def test_default_registry_uses_fixed_bluetooth_target_list():
+def test_default_registry_uses_connected_bluetooth_target_source():
     registry = default_registry()
 
-    reboot_param = registry.get_param("auto_reboot:bt_target")
-    suspend_param = registry.get_param("auto_suspend:bt_target")
-    bt_onoff_param = registry.get_param("bt_onoff_scan:bt_target")
-    ac_onoff_param = registry.get_param("ac_onoff:bt_target")
-
-    assert reboot_param is not None
-    assert suspend_param is not None
-    assert bt_onoff_param is not None
-    assert ac_onoff_param is not None
-    assert reboot_param.enum_values == [
-        "None",
-        "小米小钢炮蓝牙音箱 [74:A3:4A:13:3E:DA]",
-        "HUAWEI Sound Joy-09524 [78:04:E3:54:3E:91]",
-        "EDIFIER M380 [F4:4E:FD:44:A5:89]",
-        "SRS-XB10 [F8:DF:15:22:4A:CC]",
-        "iChocolate Mini [A0:E9:DB:23:17:58]",
-        "JBL Charge 3 [04:21:44:AB:D6:63]",
-    ]
-    assert suspend_param.enum_values == reboot_param.enum_values
-    assert bt_onoff_param.enum_values == reboot_param.enum_values
-    assert ac_onoff_param.enum_values == reboot_param.enum_values
+    for key in [
+        "auto_reboot:bt_target",
+        "auto_suspend:bt_target",
+        "bt_onoff_scan:bt_target",
+        "ac_onoff:bt_target",
+    ]:
+        field = registry.get_param(key)
+        assert field is not None
+        assert field.enum_values == []
+        assert field.options_source == BT_TARGET_OPTIONS_SOURCE

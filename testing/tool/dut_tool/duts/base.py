@@ -66,11 +66,6 @@ class BaseDut:
         "setprop persist.bluetooth.btsnoopsize 1048576000",
         "setprop persist.bluetooth.btsnooppath /data/misc/bluetooth/logs/btsnoop_hci.log",
     )
-    CONNECTED_BLUETOOTH_MAC_COMMAND = (
-        'dumpsys bluetooth_manager | grep -B1 "Connected: true" | '
-        'grep "Peer:" | awk \'{print $2}\''
-    )
-
     SKIP_OOBE = "pm disable com.google.android.tungsten.setupwraith;settings put secure user_setup_complete 1;settings put global device_provisioned 1;settings put secure tv_user_setup_complete 1"
     IW_LINNK_COMMAND = 'iw dev wlan0 link'
     IX_ENDPOINT_COMMAND = "monkey -p com.ixia.ixchariot 1"

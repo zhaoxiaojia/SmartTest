@@ -37,3 +37,22 @@ def test_step_definition_planner_disables_empty_choice_params() -> None:
         )
         is True
     )
+
+
+def test_bluetooth_verify_target_uses_dut_bluetooth_dump(monkeypatch) -> None:
+    from testing.tool.dut_tool.features import bluetooth
+
+    monkeypatch.setattr(
+        bluetooth,
+        "read_connected_bluetooth_targets",
+        lambda adb_serial=None: ["Living Room Speaker [11:22:33:44:55:66]"],
+    )
+    action = get_action("bluetooth.verify_target")
+    context = ActionContext(
+        case_id="ac_onoff",
+        params={"ac_onoff:bt_target": "Living Room Speaker [11:22:33:44:55:66]"},
+        dut=object(),
+    )
+
+    assert action.executor is not None
+    assert action.executor(context) is True

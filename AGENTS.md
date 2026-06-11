@@ -15,6 +15,7 @@ This file defines repository-wide hard rules. Detailed task workflows live in pr
 4. Make changes intentionally: discuss large modules and design first, then implement.
 5. Design and verify toward the installed/packaged runtime first. `python main.py` debug runs are useful for development, but final behavior must match the normal installed app.
 6. During development/debugging, do not rebuild the packaged app/installer after every change. Rebuild packaged artifacts only when the user explicitly asks, when preparing a release handoff, or when the change specifically targets packaged-runtime behavior.
+7. After modifying Android APK source under `android_client/`, actively compile the APK module before handoff, at minimum with `.\android_client\gradlew.bat -p android_client :app:compileDebugKotlin` or a stricter relevant Gradle task. Test execution may compare and install a newer APK later, but code changes to APK sources must still be locally compiled to catch Kotlin/Android build errors.
 
 ## 2. Frontend Hard Rules
 

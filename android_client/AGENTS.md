@@ -27,3 +27,11 @@ This file applies to the `android_client/` subtree.
 - Do not embed shell scripts directly in UI code
 - Use `runner/device/log/CommandRecorder` to preserve command history when a case executes shell/system actions
 - When porting an existing shell script into Kotlin, keep the original operational flow clear in logs and note any intentional deviations
+
+## APK Build And Install Rules
+
+- The SmartTest Android client has one default installable APK artifact: the platform-signed APK.
+- Do not expose or install the ordinary debug APK as a SmartTest runtime artifact. If Gradle creates `app-debug.apk`, treat it only as an intermediate input for platform signing.
+- APK install/update has one product entrypoint: the DUT adapter path used by the Test page DUT refresh. Runner/test execution must not install or update the APK; it may only verify that the APK is already installed and report a clear error if the user has not refreshed the DUT.
+- The DUT adapter must install/update the signed APK by default. Privileged and non-privileged cases should not diverge into separate APK artifact paths.
+- After modifying APK source, build/sign the signed APK before handoff and remove stale ordinary debug APK files when practical to avoid operator confusion.

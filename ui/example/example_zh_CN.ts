@@ -4436,7 +4436,7 @@ Some contents...</source>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_TestConfig.qml" line="681"/>
-        <source>No paired Bluetooth devices found on the current DUT.</source>
+        <source>No connected Bluetooth devices found on the current DUT.</source>
         <translation>当前 DUT 未找到已配对的蓝牙设备。</translation>
     </message>
     <message>

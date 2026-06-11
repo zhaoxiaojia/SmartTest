@@ -157,8 +157,8 @@ class SmartTestRunnerService : Service() {
 
     private fun handleStatus(reason: String) {
         val summary = reason.ifBlank { "am start STATUS" }
-        SmartTestRunStore.markStatus(summary)
-        Log.i("SmartTestRunner", "STATUS -> ${SmartTestRunStore.state.value}")
+        Log.i("SmartTestRunner", "STATUS $summary -> ${SmartTestRunStore.state.value}")
+        stopSelf()
     }
 
     private fun buildNotification(contentText: String): Notification {

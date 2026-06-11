@@ -9,6 +9,7 @@ from testing.params.options import dynamic_param_options, normalize_option_value
 
 DutFactory = Callable[[str | None], Any]
 DeviceLister = Callable[[], list[str]]
+ApkEnsurer = Callable[..., bool]
 
 
 LOCAL_PLAYBACK_OPTIONS_SOURCE = "testing.tool.dut_tool.features.local_playback:list_media_files"
@@ -34,18 +35,45 @@ class DutParameterAdapter:
         *,
         device_lister: DeviceLister | None = None,
         dut_factory: DutFactory | None = None,
+        apk_ensurer: ApkEnsurer | None = None,
     ) -> None:
         self._device_lister = device_lister or list_adb_devices
         self._dut_factory = dut_factory or _android_dut
+        self._apk_ensurer = apk_ensurer or _ensure_android_client_apk
 
-    def refresh_duts(self) -> list[str]:
+    def refresh_duts(self, selected_serial: str | None = None) -> list[str]:
         try:
             devices = _dedupe_strings(self._device_lister())
-            print(f"[DutParameterAdapter.refresh_duts] devices={devices}")
-            return devices
         except Exception as exc:
             print(f"[DutParameterAdapter.refresh_duts.error] error={exc}")
             return []
+        print(f"[DutParameterAdapter.refresh_duts] devices={devices}")
+        try:
+            self._ensure_apk_for_refresh(devices, selected_serial=selected_serial)
+        except Exception as exc:  # noqa: BLE001 - keep DUT discovery visible even when APK update fails
+            print(
+                "[DutParameterAdapter.apk_ensure_error] "
+                f"selected={str(selected_serial or '').strip() or '<auto>'} error={exc}"
+            )
+        return devices
+
+    def _ensure_apk_for_refresh(self, devices: list[str], *, selected_serial: str | None) -> None:
+        target = str(selected_serial or "").strip()
+        if target and target not in devices:
+            print(
+                "[DutParameterAdapter.apk_ensure_skip] "
+                f"selected={target} reason=not_in_discovered_devices devices={devices}"
+            )
+            return
+        if not target:
+            print(
+                "[DutParameterAdapter.apk_ensure_skip] "
+                f"reason=no_selected_target devices={devices}"
+            )
+            return
+        print(f"[DutParameterAdapter.apk_ensure_start] dut={target}")
+        installed = self._apk_ensurer(adb_serial=target, require_privileged=True)
+        print(f"[DutParameterAdapter.apk_ensure_done] dut={target} installed={installed}")
 
     def refresh_case_parameter_options(
         self,
@@ -121,6 +149,12 @@ def _android_dut(selected_serial: str | None):
     from testing.tool.dut_tool.duts.android import android
 
     return android(serialnumber=str(selected_serial or "").strip())
+
+
+def _ensure_android_client_apk(*, adb_serial: str | None = None, require_privileged: bool = True) -> bool:
+    from android_client import ensure_test_apk_installed
+
+    return ensure_test_apk_installed(adb_serial=adb_serial, require_privileged=require_privileged)
 
 
 def _dedupe_strings(values: list[str]) -> list[str]:

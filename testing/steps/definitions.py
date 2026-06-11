@@ -177,21 +177,32 @@ def _network_ping(context: ActionContext) -> bool:
 
 
 def _bluetooth_verify_target(context: ActionContext) -> bool:
-    if context.dut is None:
-        raise RuntimeError("bluetooth.verify_target requires a DUT in ActionContext.")
     target = str(_param(context, "target", _param(context, "bt_target", "")) or "").strip()
     if not target:
         raise ValueError("bluetooth.verify_target requires target or bt_target.")
-    match = re.search(r"([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})", target)
-    if not match:
-        raise ValueError(f"Invalid Bluetooth target format: {target}")
-    target_mac = match.group(1).upper()
-    observed = [
-        str(item).strip().upper()
-        for item in context.dut.stability.get_connected_bluetooth_mac_addresses()
-        if str(item).strip()
-    ]
-    return any(_bluetooth_address_matches(target_mac, item) for item in observed)
+    from testing.tool.dut_tool.features.bluetooth import read_connected_bluetooth_targets
+
+    observed = read_connected_bluetooth_targets()
+    return any(_bluetooth_target_matches(target, item) for item in observed)
+
+
+def _bluetooth_target_matches(target: str, observed: str) -> bool:
+    normalized_target = str(target or "").strip()
+    normalized_observed = str(observed or "").strip()
+    if not normalized_target or not normalized_observed:
+        return False
+    if normalized_target.casefold() == normalized_observed.casefold():
+        return True
+    target_mac = _bluetooth_target_mac(normalized_target)
+    observed_mac = _bluetooth_target_mac(normalized_observed)
+    if target_mac and observed_mac:
+        return _bluetooth_address_matches(target_mac, observed_mac)
+    return False
+
+
+def _bluetooth_target_mac(value: str) -> str:
+    match = re.search(r"([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})", str(value or ""))
+    return match.group(1).upper() if match else ""
 
 
 def _bluetooth_address_matches(target_mac: str, observed_mac: str) -> bool:

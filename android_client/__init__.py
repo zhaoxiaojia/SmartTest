@@ -13,8 +13,8 @@ from testing.params.adb_devices import resolve_adb_serial_for_command
 
 
 PACKAGE_NAME = "com.smarttest.mobile"
-APK_RELATIVE_PATH = Path("android_client", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
-PLATFORM_SIGNED_APK_RELATIVE_PATH = Path(
+RAW_DEBUG_APK_RELATIVE_PATH = Path("android_client", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
+SIGNED_APK_RELATIVE_PATH = Path(
     "android_client",
     "app",
     "build",
@@ -34,8 +34,8 @@ def _resource_path(relative_path: Path) -> Path:
     return Path(__file__).resolve().parent.parent / relative_path
 
 
-DEFAULT_APK_PATH = _resource_path(APK_RELATIVE_PATH)
-DEFAULT_PLATFORM_SIGNED_APK_PATH = _resource_path(PLATFORM_SIGNED_APK_RELATIVE_PATH)
+RAW_DEBUG_APK_PATH = _resource_path(RAW_DEBUG_APK_RELATIVE_PATH)
+DEFAULT_APK_PATH = _resource_path(SIGNED_APK_RELATIVE_PATH)
 INSTALL_STATE_PATH = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "SmartTest" / "android_client_install_state.json"
 DEFAULT_PRIVAPP_DIR = "/system/priv-app/SmartTestMobile"
 DEFAULT_PRIVAPP_APK = f"{DEFAULT_PRIVAPP_DIR}/SmartTestMobile.apk"
@@ -157,8 +157,8 @@ def sign_privileged_apk(
     input_apk_path: str | Path | None = None,
     output_apk_path: str | Path | None = None,
 ) -> Path:
-    source_apk = Path(input_apk_path or DEFAULT_APK_PATH).resolve()
-    target_apk = Path(output_apk_path or DEFAULT_PLATFORM_SIGNED_APK_PATH).resolve()
+    source_apk = Path(input_apk_path or RAW_DEBUG_APK_PATH).resolve()
+    target_apk = Path(output_apk_path or DEFAULT_APK_PATH).resolve()
 
     needs_resign = True
     if target_apk.exists():
@@ -746,19 +746,13 @@ def ensure_test_apk_installed(
     resolved_apk_path = Path(apk_path or DEFAULT_APK_PATH).resolve()
     print(f"[android_client] resolved APK path before build/sign: {resolved_apk_path}")
     if apk_path is None and not getattr(sys, "frozen", False):
-        _ensure_debug_apk_built(resolved_apk_path)
+        _ensure_debug_apk_built(RAW_DEBUG_APK_PATH)
+        resolved_apk_path = sign_privileged_apk(input_apk_path=RAW_DEBUG_APK_PATH, output_apk_path=DEFAULT_APK_PATH)
     if not resolved_apk_path.exists():
         print(f"[android_client] ensure install failed, APK missing: {resolved_apk_path}")
         raise RuntimeError(f"android_client test APK was not found: {resolved_apk_path}")
 
     installed = is_test_apk_installed(adb_serial=requested_serial)
-
-    if require_privileged:
-        print("[android_client] privileged case requires platform-signed APK")
-        resolved_apk_path = sign_privileged_apk(input_apk_path=resolved_apk_path)
-        if not resolved_apk_path.exists():
-            print(f"[android_client] ensure install failed, APK missing: {resolved_apk_path}")
-            raise RuntimeError(f"android_client test APK was not found: {resolved_apk_path}")
 
     current_hash = _apk_hash(resolved_apk_path)
     state_key = _install_state_key(adb_serial=effective_serial, apk_path=resolved_apk_path)
@@ -799,28 +793,22 @@ def ensure_test_apk_installed(
         )
 
     if installed and "/system/priv-app/" in code_path:
-        print("[android_client] existing package is priv-app; verify/reinstall privileged APK")
-        privileged_apk_path = sign_privileged_apk(input_apk_path=resolved_apk_path)
-        privileged_hash = _apk_hash(privileged_apk_path)
-        privileged_state_key = _install_state_key(adb_serial=effective_serial, apk_path=privileged_apk_path)
-        privileged_mode, privileged_recorded_hash = _parse_install_state_value(
-            install_state.get(privileged_state_key, "")
-        )
+        print("[android_client] existing package is priv-app; verify/reinstall signed APK")
         return _ensure_privileged_install(
             adb_executable=adb_executable,
-            resolved_apk_path=privileged_apk_path,
+            resolved_apk_path=resolved_apk_path,
             adb_serial=requested_serial,
-            current_hash=privileged_hash,
-            state_key=privileged_state_key,
+            current_hash=current_hash,
+            state_key=state_key,
             install_state=install_state,
             installed=installed,
             code_path=code_path,
-            recorded_mode=privileged_mode,
-            recorded_hash=privileged_recorded_hash,
+            recorded_mode=recorded_mode,
+            recorded_hash=recorded_hash,
         )
 
     if installed and recorded_mode == "user" and recorded_hash == current_hash:
-        print("[android_client] decision: user APK already installed with matching recorded hash, skip install")
+        print("[android_client] decision: signed APK already installed with matching recorded hash, skip install")
         return False
 
     if not installed:
@@ -832,13 +820,12 @@ def ensure_test_apk_installed(
         raise RuntimeError("android_client test APK install completed but package is still missing on DUT.")
     install_state[state_key] = _install_state_value(mode="user", apk_hash=current_hash)
     _save_install_state(install_state)
-    print("[android_client] test APK install finished")
+    print("[android_client] signed APK install finished")
     return True
 
 
 __all__ = [
     "DEFAULT_APK_PATH",
-    "DEFAULT_PLATFORM_SIGNED_APK_PATH",
     "INSTALL_STATE_PATH",
     "PACKAGE_NAME",
     "PRIVILEGED_CASE_IDS",

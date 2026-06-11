@@ -6,18 +6,11 @@ from typing import Any
 
 from tools.param_conversion import to_string_list
 
-from .bt_devices import known_bluetooth_targets
-
-
 OptionProvider = Callable[[], list[str]]
 DynamicOptionProvider = Callable[[str | None], list[str]]
 
 
 _STATIC_OPTION_PROVIDERS: dict[str, OptionProvider] = {
-    "ac_onoff:bt_target": known_bluetooth_targets,
-    "auto_reboot:bt_target": known_bluetooth_targets,
-    "auto_suspend:bt_target": known_bluetooth_targets,
-    "bt_onoff_scan:bt_target": known_bluetooth_targets,
     "local_playback_stress:actions": lambda: [
         "pause",
         "seek_forward",

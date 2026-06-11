@@ -10,7 +10,7 @@ import time
 import uuid
 from typing import Mapping
 
-from android_client import PACKAGE_NAME, PRIVILEGED_CASE_IDS, ensure_test_apk_installed
+from android_client import PACKAGE_NAME, PRIVILEGED_CASE_IDS
 from testing.params.runtime import runtime_params
 from testing.runtime.config import current_dut_serial
 from testing.runtime.events import current_case_nodeid, current_step, emit_event
@@ -1216,11 +1216,12 @@ def trigger_android_client_case(
         )
         time.sleep(1.0)
         _launch_android_client_main(adb_executable=adb_executable, adb_serial=requested_serial)
-    ensure_test_apk_installed(adb_serial=requested_serial, require_privileged=require_privileged)
     installed = android_client_installed(adb_serial=requested_serial)
-    print(f"[testing.runner.android_client] installed_after_ensure={installed}")
+    print(f"[testing.runner.android_client] installed_before_run={installed}")
     if not installed:
-        raise RuntimeError("android_client is still not installed after install attempt.")
+        raise RuntimeError(
+            "android_client APK is not installed on DUT. Refresh the DUT list from the Test page before running."
+        )
     _force_stop_android_client(adb_executable=adb_executable, adb_serial=requested_serial)
     baseline_signature = None
     baseline_log_count = 0

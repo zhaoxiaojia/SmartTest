@@ -19,7 +19,4 @@ class StabilityFeature(FeatureBase):
             outputs.append(self.dut.run_device_shell(command))
         return outputs
 
-    def get_connected_bluetooth_mac_addresses(self) -> list[str]:
-        output = self.dut.run_device_shell(self.dut.CONNECTED_BLUETOOTH_MAC_COMMAND) or ""
-        return [line.strip() for line in output.splitlines() if line.strip()]
 

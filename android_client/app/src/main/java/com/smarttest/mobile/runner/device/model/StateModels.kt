@@ -11,7 +11,6 @@ data class WifiState(
 data class BluetoothState(
     val enabled: Boolean,
     val adapterName: String?,
-    val connectedDevices: List<String> = emptyList(),
     val discovering: Boolean = false,
 )
 

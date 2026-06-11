@@ -4232,8 +4232,8 @@ Some contents...</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_TestConfig.qml" line="681"/>
-        <source>No paired Bluetooth devices found on the current DUT.</source>
-        <translation>No paired Bluetooth devices found on the current DUT.</translation>
+        <source>No connected Bluetooth devices found on the current DUT.</source>
+        <translation>No connected Bluetooth devices found on the current DUT.</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_TestConfig.qml" line="712"/>

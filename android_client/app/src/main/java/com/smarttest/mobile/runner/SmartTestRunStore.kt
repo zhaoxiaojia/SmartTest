@@ -111,18 +111,6 @@ object SmartTestRunStore {
         persistSnapshot(mutableState.value)
     }
 
-    fun markStatus(reason: String) {
-        mutableState.update { snapshot ->
-            snapshot.copy(
-                lastCommandSummary = reason,
-                logLines = snapshot.logLines + timestamped(
-                    "Status query: ${snapshot.phase} / ${snapshot.runningCases.size} case(s) / ${snapshot.logLines.size} log line(s)",
-                ),
-            )
-        }
-        persistSnapshot(mutableState.value)
-    }
-
     fun finishRun(statusText: String, failedCount: Int) {
         mutableState.update { snapshot ->
             val total = snapshot.runningCases.size

@@ -1,5 +1,4 @@
 package com.smarttest.mobile.runner
-
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -92,4 +91,5 @@ object RunnerSnapshotJson {
             put("statusText", report.statusText)
         }
     }
+
 }

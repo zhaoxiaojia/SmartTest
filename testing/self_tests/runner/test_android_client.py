@@ -25,6 +25,27 @@ def test_install_test_apk_rejects_missing_apk(monkeypatch, tmp_path: Path) -> No
     assert "test APK was not found" in str(exc.value)
 
 
+def test_default_android_client_apk_is_platform_signed() -> None:
+    assert android_client.DEFAULT_APK_PATH.name == "app-debug-platform.apk"
+
+
+def test_install_test_apk_defaults_to_platform_signed_apk(monkeypatch) -> None:
+    monkeypatch.setattr(android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
+    monkeypatch.setattr(Path, "exists", lambda self: True)
+    commands: list[list[str]] = []
+
+    def fake_run(cmd, capture_output, text, check, **kwargs):  # noqa: ANN001
+        commands.append(list(cmd))
+        return subprocess.CompletedProcess(cmd, 0, stdout="Success\n", stderr="")
+
+    monkeypatch.setattr(android_client.subprocess, "run", fake_run)
+
+    android_client.install_test_apk(adb_serial="ABC123")
+
+    assert commands
+    assert commands[0][-1].endswith("app-debug-platform.apk")
+
+
 def test_root_android_client_omits_unsafe_serial_from_adb_commands() -> None:
     assert android_client._adb_base_cmd(
         adb_executable="adb",
@@ -70,10 +91,9 @@ def test_ensure_test_apk_installed_skips_when_already_installed(monkeypatch) -> 
     assert called == []
 
 
-def test_trigger_android_client_case_runs_install_guard(monkeypatch) -> None:
+def test_trigger_android_client_case_does_not_install_apk(monkeypatch) -> None:
     monkeypatch.setattr(runner_android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
     monkeypatch.setattr("testing.params.adb_devices.list_adb_devices", lambda: ["ABC123"])
-    ensure_calls: list[str] = []
     probe_calls: list[str] = []
     wait_calls: list[tuple[str, str, str]] = []
     force_stop_calls: list[str] = []
@@ -81,9 +101,8 @@ def test_trigger_android_client_case_runs_install_guard(monkeypatch) -> None:
     monkeypatch.setattr(
         runner_android_client,
         "ensure_test_apk_installed",
-        lambda adb_serial=None, require_privileged=False: ensure_calls.append(
-            f"{adb_serial or '<default>'}|priv={require_privileged}"
-        ) or False,
+        lambda adb_serial=None, require_privileged=False: (_ for _ in ()).throw(AssertionError("runner must not install apk")),
+        raising=False,
     )
     monkeypatch.setattr(
         runner_android_client,
@@ -117,7 +136,6 @@ def test_trigger_android_client_case_runs_install_guard(monkeypatch) -> None:
     )
 
     assert result.returncode == 0
-    assert ensure_calls == ["ABC123|priv=False"]
     assert probe_calls == ["ABC123"]
     assert force_stop_calls == ["ABC123"]
     assert wait_calls == [("adb", "emmc_rw", "ABC123")]
@@ -126,17 +144,11 @@ def test_trigger_android_client_case_runs_install_guard(monkeypatch) -> None:
 def test_trigger_android_client_case_uses_default_adb_for_unsafe_serial(monkeypatch) -> None:
     monkeypatch.setattr(runner_android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
     unsafe_serial = "0099360090052090260214801F41D0F脗"
-    ensure_calls: list[str] = []
     probe_calls: list[str] = []
     force_stop_calls: list[str] = []
     wait_calls: list[str] = []
     start_commands: list[list[str]] = []
 
-    monkeypatch.setattr(
-        runner_android_client,
-        "ensure_test_apk_installed",
-        lambda adb_serial=None, require_privileged=False: ensure_calls.append(adb_serial or "<default>") or False,
-    )
     monkeypatch.setattr(
         runner_android_client,
         "android_client_installed",
@@ -177,7 +189,6 @@ def test_trigger_android_client_case_uses_default_adb_for_unsafe_serial(monkeypa
     )
 
     assert result.returncode == 0
-    assert ensure_calls == [unsafe_serial]
     assert probe_calls == [unsafe_serial]
     assert force_stop_calls == [unsafe_serial]
     assert wait_calls == [unsafe_serial]
@@ -187,11 +198,6 @@ def test_trigger_android_client_case_uses_default_adb_for_unsafe_serial(monkeypa
 
 def test_trigger_android_client_case_rejects_when_install_still_missing(monkeypatch) -> None:
     monkeypatch.setattr(runner_android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
-    monkeypatch.setattr(
-        runner_android_client,
-        "ensure_test_apk_installed",
-        lambda adb_serial=None, require_privileged=False: False,
-    )
     monkeypatch.setattr(runner_android_client, "android_client_installed", lambda adb_serial=None: False)
 
     with pytest.raises(RuntimeError) as exc:
@@ -201,7 +207,7 @@ def test_trigger_android_client_case_rejects_when_install_still_missing(monkeypa
             adb_serial="ABC123",
         )
 
-    assert "still not installed" in str(exc.value)
+    assert "Refresh the DUT list" in str(exc.value)
 
 
 def test_ensure_test_apk_installed_reinstalls_when_user_apk_hash_changes(monkeypatch) -> None:
@@ -388,7 +394,7 @@ def test_ensure_test_apk_installed_user_case_reuses_existing_privapp(monkeypatch
     saved: dict[str, str] = {}
     monkeypatch.setattr(android_client, "_save_install_state", lambda payload: saved.update(payload))
     monkeypatch.setattr(android_client, "is_test_apk_installed", lambda adb_serial=None: True)
-    monkeypatch.setattr(android_client, "sign_privileged_apk", lambda input_apk_path=None: Path("C:/fake.apk"))
+    monkeypatch.setattr(android_client, "sign_privileged_apk", lambda **kwargs: Path("C:/fake.apk"))
     monkeypatch.setattr(android_client, "_device_file_hash", lambda **kwargs: "hash-user")
     install_calls: list[str] = []
     monkeypatch.setattr(android_client, "install_test_apk", lambda apk_path=None, adb_serial=None: install_calls.append("install"))
@@ -415,7 +421,7 @@ def test_ensure_test_apk_installed_user_case_reprovisions_stale_privapp(monkeypa
     saved: dict[str, str] = {}
     monkeypatch.setattr(android_client, "_save_install_state", lambda payload: saved.update(payload))
     monkeypatch.setattr(android_client, "is_test_apk_installed", lambda adb_serial=None: True)
-    monkeypatch.setattr(android_client, "sign_privileged_apk", lambda input_apk_path=None: Path("C:/fake.apk"))
+    monkeypatch.setattr(android_client, "sign_privileged_apk", lambda **kwargs: Path("C:/fake.apk"))
     monkeypatch.setattr(android_client, "_device_file_hash", lambda **kwargs: "hash-old")
     calls: list[str] = []
     monkeypatch.setattr(
@@ -449,7 +455,7 @@ def test_ensure_test_apk_installed_user_case_repairs_privapp_record_when_device_
     saved: dict[str, str] = {}
     monkeypatch.setattr(android_client, "_save_install_state", lambda payload: saved.update(payload))
     monkeypatch.setattr(android_client, "is_test_apk_installed", lambda adb_serial=None: True)
-    monkeypatch.setattr(android_client, "sign_privileged_apk", lambda input_apk_path=None: Path("C:/fake.apk"))
+    monkeypatch.setattr(android_client, "sign_privileged_apk", lambda **kwargs: Path("C:/fake.apk"))
     monkeypatch.setattr(android_client, "_device_file_hash", lambda **kwargs: "hash-new")
 
     installed = android_client.ensure_test_apk_installed(adb_serial="ABC123", require_privileged=False)
@@ -496,16 +502,8 @@ def test_ensure_test_apk_installed_reports_device_not_ready_before_provision(mon
 def test_trigger_android_client_case_marks_power_case_as_privileged(monkeypatch) -> None:
     monkeypatch.setattr(runner_android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
     monkeypatch.setattr("testing.params.adb_devices.list_adb_devices", lambda: ["ABC123"])
-    ensure_calls: list[str] = []
     stop_calls: list[str] = []
     launch_calls: list[str] = []
-    monkeypatch.setattr(
-        runner_android_client,
-        "ensure_test_apk_installed",
-        lambda adb_serial=None, require_privileged=False: ensure_calls.append(
-            f"{adb_serial or '<default>'}|priv={require_privileged}"
-        ) or False,
-    )
     monkeypatch.setattr(runner_android_client, "android_client_installed", lambda adb_serial=None: True)
     monkeypatch.setattr(
         runner_android_client,
@@ -546,7 +544,6 @@ def test_trigger_android_client_case_marks_power_case_as_privileged(monkeypatch)
         adb_serial="ABC123",
     )
 
-    assert ensure_calls == ["ABC123|priv=True"]
     assert stop_calls == ["prepare privileged provisioning for auto_reboot"]
     assert launch_calls == ["ABC123"]
 
@@ -555,11 +552,6 @@ def test_trigger_android_client_case_skips_wait_in_no_poll_mode(monkeypatch) -> 
     monkeypatch.setenv("SMARTTEST_ANDROID_NO_POLL_CASES", "auto_suspend")
     monkeypatch.setattr(runner_android_client.shutil, "which", lambda name: "adb" if name == "adb" else None)
     monkeypatch.setattr("testing.params.adb_devices.list_adb_devices", lambda: ["ABC123"])
-    monkeypatch.setattr(
-        runner_android_client,
-        "ensure_test_apk_installed",
-        lambda adb_serial=None, require_privileged=False: False,
-    )
     monkeypatch.setattr(runner_android_client, "android_client_installed", lambda adb_serial=None: True)
     monkeypatch.setattr(
         runner_android_client,
