@@ -8,6 +8,7 @@ from PySide6.QtCore import QProcess, QUrl
 from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
+from PySide6.QtWebEngineQuick import QtWebEngineQuick
 
 from FluentUI import FluentUI
 from FluentUI.FluLogger import LogSetup, Logger
@@ -22,7 +23,6 @@ from example.component.Callback import Callback
 from example.imports import resource_rc as rc
 from example.helper import Async
 from example.bridge.AuthBridge import AuthBridge
-from example.bridge.AIBridge import AIBridge
 from example.bridge.HomeBridge import HomeBridge
 from example.bridge.JiraBridge import JiraBridge
 from example.bridge.ReportBridge import ReportBridge
@@ -63,6 +63,7 @@ def main():
     QGuiApplication.setOrganizationDomain("")
     QGuiApplication.setApplicationName("SmartTest")
     QGuiApplication.setApplicationDisplayName("SmartTest")
+    QtWebEngineQuick.initialize()
     LogSetup("SmartTest")
     Logger().debug(f"Load the resource '{rc.__name__}'")
     app = QGuiApplication(sys.argv)
@@ -106,7 +107,6 @@ def main():
     auth_bridge = AuthBridge()
     context.setContextProperty("AuthBridge", auth_bridge)
     context.setContextProperty("HomeBridge", HomeBridge())
-    context.setContextProperty("AIBridge", AIBridge())
     runtime_root = _runtime_root()
     context.setContextProperty("TestPageBridge", TestPageBridge(runtime_root))
     context.setContextProperty("RunBridge", RunBridge(runtime_root))

@@ -1,4 +1,0 @@
-from __future__ import annotations
-
-DEFAULT_AI_TIMEOUT_SECONDS = 30.0
-SMARTTEST_AI_API_KEY_ENV = "SMARTTEST_AI_API_KEY"

@@ -2,49 +2,6 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="en_US">
 <context>
-    <name>AIBridge</name>
-    <message>
-        <location filename="bridge/AIBridge.py" line="39"/>
-        <source>Ready</source>
-        <translation>Ready</translation>
-    </message>
-    <message>
-        <location filename="bridge/AIBridge.py" line="40"/>
-        <source>Thinking...</source>
-        <translation>Thinking...</translation>
-    </message>
-    <message>
-        <location filename="bridge/AIBridge.py" line="41"/>
-        <source>AI request failed: {message}</source>
-        <translation>AI request failed: {message}</translation>
-    </message>
-    <message>
-        <location filename="bridge/AIBridge.py" line="42"/>
-        <source>New chat</source>
-        <translation>New chat</translation>
-    </message>
-    <message>
-        <location filename="bridge/AIBridge.py" line="43"/>
-        <source>Attachment is only available for text-like files.</source>
-        <translation>Attachment is only available for text-like files.</translation>
-    </message>
-    <message>
-        <location filename="bridge/AIBridge.py" line="44"/>
-        <source>Attachment is too large. Keep files under 1 MB for this preview.</source>
-        <translation>Attachment is too large. Keep files under 1 MB for this preview.</translation>
-    </message>
-    <message>
-        <location filename="bridge/AIBridge.py" line="45"/>
-        <source>Attachment could not be read: {message}</source>
-        <translation>Attachment could not be read: {message}</translation>
-    </message>
-    <message>
-        <location filename="bridge/AIBridge.py" line="46"/>
-        <source>No response content was returned.</source>
-        <translation>No response content was returned.</translation>
-    </message>
-</context>
-<context>
     <name>App</name>
     <message>
         <location filename="imports/example/qml/App.qml" line="60"/>
@@ -1396,428 +1353,35 @@ Updated content:
         <translation>AI Assistant</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="303"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="315"/>
-        <source>Attach File</source>
-        <translation>Attach File</translation>
+        <location filename="imports/example/qml/page/T_AI.qml" line="59"/>
+        <source>DeepSeek</source>
+        <translation>DeepSeek</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="305"/>
-        <source>Text files</source>
-        <translation>Text files</translation>
+        <location filename="imports/example/qml/page/T_AI.qml" line="66"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="99"/>
+        <source>Loading...</source>
+        <translation>Loading...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="306"/>
-        <source>All files</source>
-        <translation>All files</translation>
+        <location filename="imports/example/qml/page/T_AI.qml" line="74"/>
+        <source>Reload</source>
+        <translation>Reload</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="321"/>
-        <source>Add Source</source>
-        <translation>Add Source</translation>
+        <location filename="imports/example/qml/page/T_AI.qml" line="81"/>
+        <source>Open in browser</source>
+        <translation>Open in browser</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="357"/>
-        <source>Choose MCP sources for this chat.</source>
-        <translation>Choose MCP sources for this chat.</translation>
+        <location filename="imports/example/qml/page/T_AI.qml" line="95"/>
+        <source>Ready</source>
+        <translation>Ready</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="444"/>
-        <source>Start group chat</source>
-        <translation>Start group chat</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="449"/>
-        <source>View files in chat</source>
-        <translation>View files in chat</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="454"/>
-        <source>Move to project</source>
-        <translation>Move to project</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="468"/>
-        <source>Pin chat</source>
-        <translation>Pin chat</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="473"/>
-        <source>Archive</source>
-        <translation>Archive</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="480"/>
-        <source>Rename</source>
-        <translation>Rename</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="511"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="590"/>
-        <source>Rename project</source>
-        <translation>Rename project</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="518"/>
-        <source>Delete project</source>
-        <translation>Delete project</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="527"/>
-        <source>Rename chat</source>
-        <translation>Rename chat</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="528"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="572"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="591"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="635"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="725"/>
-        <source>Cancel</source>
-        <translation>Cancel</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="529"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="592"/>
-        <source>Save</source>
-        <translation>Save</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="570"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="580"/>
-        <source>Delete chat?</source>
-        <translation>Delete chat?</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="571"/>
-        <source>This chat will be removed from SmartTest chat history.</source>
-        <translation>This chat will be removed from SmartTest chat history.</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="581"/>
-        <source>Delete &quot;%1&quot; from SmartTest chat history?</source>
-        <translation>Delete &quot;%1&quot; from SmartTest chat history?</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="633"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="647"/>
-        <source>Delete project?</source>
-        <translation>Delete project?</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="634"/>
-        <source>Project chats will remain in chat history.</source>
-        <translation>Project chats will remain in chat history.</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="648"/>
-        <source>Delete &quot;%1&quot;? Project chats will remain in chat history.</source>
-        <translation>Delete &quot;%1&quot;? Project chats will remain in chat history.</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="658"/>
-        <source>Share chat</source>
-        <translation>Share chat</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="659"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="839"/>
-        <source>Close</source>
-        <translation>Close</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="660"/>
-        <source>Copy Link</source>
-        <translation>Copy Link</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="660"/>
-        <source>Create Link</source>
-        <translation>Create Link</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="676"/>
-        <source>A local HTML snapshot will be created. Anyone who can access the copied file link can view this chat snapshot.</source>
-        <translation>A local HTML snapshot will be created. Anyone who can access the copied file link can view this chat snapshot.</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="692"/>
-        <source>Create a link to copy it</source>
-        <translation>Create a link to copy it</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="697"/>
-        <source>Delete shared link</source>
-        <translation>Delete shared link</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="724"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="726"/>
-        <source>Create project</source>
-        <translation>Create project</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="741"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="749"/>
-        <source>Project name</source>
-        <translation>Project name</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1689"/>
-        <source>This project collects chats, shared context, and uploaded files.</source>
-        <translation>This project collects chats, shared context, and uploaded files.</translation>
-    </message>
-    <message>
-        <source>Projects can collect chats and custom context for continued work.</source>
-        <translation type="vanished">Projects can collect chats and custom context for continued work.</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="830"/>
-        <source>Search chats...</source>
-        <translation>Search chats...</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="904"/>
-        <source>Today</source>
-        <translation>Today</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="999"/>
-        <source>Collapse Sidebar</source>
-        <translation>Collapse Sidebar</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1024"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1059"/>
-        <source>Search Chats</source>
-        <translation>Search Chats</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1554"/>
-        <source>New chat in %1</source>
-        <translation>New chat in %1</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="350"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1590"/>
-        <source>Sources</source>
-        <translation>Sources</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1606"/>
-        <source>No chats in this project yet.</source>
-        <translation>No chats in this project yet.</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1606"/>
-        <source>Chats in this project</source>
-        <translation>Chats in this project</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1640"/>
-        <source>No preview</source>
-        <translation>No preview</translation>
-    </message>
-    <message>
-        <source>%1 chats are available here.</source>
-        <translation type="vanished">%1 chats are available here.</translation>
-    </message>
-    <message>
-        <source>Hide chat list</source>
-        <translation type="vanished">Hide chat list</translation>
-    </message>
-    <message>
-        <source>Manage chats</source>
-        <translation type="vanished">Manage chats</translation>
-    </message>
-    <message>
-        <source>Select chats to include in this project</source>
-        <translation type="vanished">Select chats to include in this project</translation>
-    </message>
-    <message>
-        <source> messages</source>
-        <translation type="vanished"> messages</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1682"/>
-        <source>Ask this project</source>
-        <translation>Ask this project</translation>
-    </message>
-    <message>
-        <source>%1 chats will appear here.</source>
-        <translation type="vanished">%1 chats will appear here.</translation>
-    </message>
-    <message>
-        <source>Codex</source>
-        <translation type="vanished">Codex</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1031"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1129"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1255"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1366"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1486"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1751"/>
-        <source>More</source>
-        <translation>More</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1079"/>
-        <source>Projects</source>
-        <translation>Projects</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="106"/>
-        <source>New Project</source>
-        <translation>New Project</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="109"/>
-        <source>Test Notes</source>
-        <translation>Test Notes</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="777"/>
-        <source>Projects are collections of chats. They can share context and uploaded files for continued work.</source>
-        <translation>Projects are collections of chats. They can share context and uploaded files for continued work.</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1192"/>
-        <source>Recent</source>
-        <translation>Recent</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="68"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="71"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="80"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="930"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1240"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1260"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1632"/>
-        <source>Untitled Chat</source>
-        <translation>Untitled Chat</translation>
-    </message>
-    <message>
-        <source>Me</source>
-        <translation type="vanished">Me</translation>
-    </message>
-    <message>
-        <source>SmartTest</source>
-        <translation type="vanished">SmartTest</translation>
-    </message>
-    <message>
-        <source>Pro</source>
-        <translation type="vanished">Pro</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1334"/>
-        <source>DeepSeek Chat</source>
-        <translation>DeepSeek Chat</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1341"/>
-        <source>Preview</source>
-        <translation>Preview</translation>
-    </message>
-    <message>
-        <source>Memory Off</source>
-        <translation type="vanished">Memory Off</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="486"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="506"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1357"/>
-        <source>Share</source>
-        <translation>Share</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1464"/>
-        <source>Copy</source>
-        <translation>Copy</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1475"/>
-        <source>Retry</source>
-        <translation>Retry</translation>
-    </message>
-    <message>
-        <source>Developer Mode</source>
-        <translation type="vanished">Developer Mode</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1725"/>
-        <source>Ask anything</source>
-        <translation>Ask anything</translation>
-    </message>
-    <message>
-        <source>Quick</source>
-        <translation type="vanished">Quick</translation>
-    </message>
-    <message>
-        <source>Notion</source>
-        <translation type="vanished">Notion</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1788"/>
-        <source>Voice</source>
-        <translation>Voice</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1818"/>
-        <source>SmartTest AI can make mistakes. Verify important information.</source>
-        <translation>SmartTest AI can make mistakes. Verify important information.</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1583"/>
-        <source>Chats</source>
-        <translation>Chats</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="885"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1014"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1047"/>
-        <source>New Chat</source>
-        <translation>New Chat</translation>
-    </message>
-    <message>
-        <source>%1 messages</source>
-        <translation type="vanished">%1 messages</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="494"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="573"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="636"/>
-        <source>Delete</source>
-        <translation>Delete</translation>
-    </message>
-    <message>
-        <source>SmartTest AI</source>
-        <translation type="vanished">SmartTest AI</translation>
-    </message>
-    <message>
-        <source>Attach</source>
-        <translation type="vanished">Attach</translation>
-    </message>
-    <message>
-        <source>You</source>
-        <translation type="vanished">You</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1443"/>
-        <source>Thinking...</source>
-        <translation>Thinking...</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Remove</translation>
-    </message>
-    <message>
-        <source>Ask about logs, Jira, test failures, adb, pytest, or SmartTest...</source>
-        <translation type="vanished">Ask about logs, Jira, test failures, adb, pytest, or SmartTest...</translation>
-    </message>
-    <message>
-        <source>Send</source>
-        <translation type="vanished">Send</translation>
+        <location filename="imports/example/qml/page/T_AI.qml" line="97"/>
+        <source>Failed to load DeepSeek. Check intranet/VPN.</source>
+        <translation>Failed to load DeepSeek. Check intranet/VPN.</translation>
     </message>
 </context>
 <context>
@@ -2218,22 +1782,6 @@ Updated content:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>KPI Video Frame Counter</source>
-        <translation type="vanished">KPI Video Frame Counter</translation>
-    </message>
-    <message>
-        <source>Video path, for example a.mp4</source>
-        <translation type="vanished">Video path, for example a.mp4</translation>
-    </message>
-    <message>
-        <source>A</source>
-        <translation type="vanished">A</translation>
-    </message>
-    <message>
-        <source>B</source>
-        <translation type="vanished">B</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_Debug.qml" line="204"/>
         <source>Select a recorded video</source>
         <translation>Select a recorded video</translation>
@@ -2242,131 +1790,6 @@ Updated content:
         <location filename="imports/example/qml/page/T_Debug.qml" line="208"/>
         <source>Browse</source>
         <translation>Browse</translation>
-    </message>
-    <message>
-        <source>Analyzing</source>
-        <translation type="vanished">Analyzing</translation>
-    </message>
-    <message>
-        <source>Analyze</source>
-        <translation type="vanished">Analyze</translation>
-    </message>
-    <message>
-        <source>Reading frames and detecting visual state transitions...</source>
-        <translation type="vanished">Reading frames and detecting visual state transitions...</translation>
-    </message>
-    <message>
-        <source>The tool estimates start/end frames from visual state changes. Review the candidates before using the result.</source>
-        <translation type="vanished">The tool estimates start/end frames from visual state changes. Review the candidates before using the result.</translation>
-    </message>
-    <message>
-        <source>Estimated Result</source>
-        <translation type="vanished">Estimated Result</translation>
-    </message>
-    <message>
-        <source>The tool detects repeated red-light actions and playback start frames for review.</source>
-        <translation type="vanished">The tool detects repeated red-light actions and playback start frames for review.</translation>
-    </message>
-    <message>
-        <source>Detected Summary</source>
-        <translation type="vanished">Detected Summary</translation>
-    </message>
-    <message>
-        <source>Start Frame</source>
-        <translation type="vanished">Start Frame</translation>
-    </message>
-    <message>
-        <source>End Frame</source>
-        <translation type="vanished">End Frame</translation>
-    </message>
-    <message>
-        <source>Elapsed Frames</source>
-        <translation type="vanished">Elapsed Frames</translation>
-    </message>
-    <message>
-        <source>Elapsed</source>
-        <translation type="vanished">Elapsed</translation>
-    </message>
-    <message>
-        <source>Actions</source>
-        <translation type="vanished">Actions</translation>
-    </message>
-    <message>
-        <source>FPS</source>
-        <translation type="vanished">FPS</translation>
-    </message>
-    <message>
-        <source>Frames</source>
-        <translation type="vanished">Frames</translation>
-    </message>
-    <message>
-        <source>Repeated Action Detections</source>
-        <translation type="vanished">Repeated Action Detections</translation>
-    </message>
-    <message>
-        <source>time %1s -&gt; %2s | red light score %3  playback score %4</source>
-        <translation type="vanished">time %1s -&gt; %2s | red light score %3  playback score %4</translation>
-    </message>
-    <message>
-        <source>Size</source>
-        <translation type="vanished">Size</translation>
-    </message>
-    <message>
-        <source>Duration</source>
-        <translation type="vanished">Duration</translation>
-    </message>
-    <message>
-        <source>Candidates</source>
-        <translation type="vanished">Candidates</translation>
-    </message>
-    <message>
-        <source>start %1  end %2  delta %3 frames  %4 ms</source>
-        <translation type="vanished">start %1  end %2  delta %3 frames  %4 ms</translation>
-    </message>
-    <message>
-        <source>time %1s -&gt; %2s | %3</source>
-        <translation type="vanished">time %1s -&gt; %2s | %3</translation>
-    </message>
-    <message>
-        <source>red light at %1,%2 area %3 | transition frame %4 | luminance %5-&gt;%6</source>
-        <oldsource>start score %1  end score %2  luminance %3-&gt;%4 / %5-&gt;%6</oldsource>
-        <translation type="vanished">red light at %1,%2 area %3 | transition frame %4 | luminance %5-&gt;%6</translation>
-    </message>
-    <message>
-        <source>Top Candidate Evidence</source>
-        <translation type="vanished">Top Candidate Evidence</translation>
-    </message>
-    <message>
-        <source>Start frame %1</source>
-        <translation type="vanished">Start frame %1</translation>
-    </message>
-    <message>
-        <source>End frame %1</source>
-        <translation type="vanished">End frame %1</translation>
-    </message>
-    <message>
-        <source>Detected State Changes</source>
-        <translation type="vanished">Detected State Changes</translation>
-    </message>
-    <message>
-        <source>frame %1</source>
-        <translation type="vanished">frame %1</translation>
-    </message>
-    <message>
-        <source>score %1</source>
-        <translation type="vanished">score %1</translation>
-    </message>
-    <message>
-        <source>luma %1 -&gt; %2  sat %3 -&gt; %4</source>
-        <translation type="vanished">luma %1 -&gt; %2  sat %3 -&gt; %4</translation>
-    </message>
-    <message>
-        <source>Debug Tools</source>
-        <translation type="vanished">Debug Tools</translation>
-    </message>
-    <message>
-        <source>Diagnostics, logs, and utilities go here.</source>
-        <translation type="vanished">Diagnostics, logs, and utilities go here.</translation>
     </message>
 </context>
 <context>
@@ -3175,26 +2598,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation>Labels</translation>
     </message>
     <message>
-        <source>Components</source>
-        <translation type="vanished">Components</translation>
-    </message>
-    <message>
-        <source>Assignee, comma separated</source>
-        <translation type="vanished">Assignee, comma separated</translation>
-    </message>
-    <message>
-        <source>Reporter, comma separated</source>
-        <translation type="vanished">Reporter, comma separated</translation>
-    </message>
-    <message>
-        <source>Labels, comma separated</source>
-        <translation type="vanished">Labels, comma separated</translation>
-    </message>
-    <message>
-        <source>Components, comma separated</source>
-        <translation type="vanished">Components, comma separated</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="1284"/>
         <location filename="imports/example/qml/page/T_Jira.qml" line="1967"/>
         <source>Loading...</source>
@@ -3204,22 +2607,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_Jira.qml" line="1284"/>
         <source>Refresh Results</source>
         <translation>Refresh Results</translation>
-    </message>
-    <message>
-        <source>Analysis Options</source>
-        <translation type="vanished">Analysis Options</translation>
-    </message>
-    <message>
-        <source>Include comments</source>
-        <translation type="vanished">Include comments</translation>
-    </message>
-    <message>
-        <source>Include linked issues</source>
-        <translation type="vanished">Include linked issues</translation>
-    </message>
-    <message>
-        <source>Limit to my tickets</source>
-        <translation type="vanished">Limit to my tickets</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="1292"/>
@@ -3257,14 +2644,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation>Recent Sessions</translation>
     </message>
     <message>
-        <source>AI Conversation</source>
-        <translation type="vanished">AI Conversation</translation>
-    </message>
-    <message>
-        <source>Use plain language. Jira search and AI analysis are both driven from this workspace.</source>
-        <translation type="vanished">Use plain language. Jira search and AI analysis are both driven from this workspace.</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="1559"/>
         <source>History</source>
         <translation>History</translation>
@@ -3275,10 +2654,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation>Clear Session</translation>
     </message>
     <message>
-        <source>Ask Jira in natural language. Example: summarize blocked issues related to WPA this sprint.</source>
-        <translation type="vanished">Ask Jira in natural language. Example: summarize blocked issues related to WPA this sprint.</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="529"/>
         <source>Use Selected Issue</source>
         <translation>Use Selected Issue</translation>
@@ -3287,14 +2662,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_Jira.qml" line="533"/>
         <source>Analyze %1 and tell me the risk for testing.</source>
         <translation>Analyze %1 and tell me the risk for testing.</translation>
-    </message>
-    <message>
-        <source>Running...</source>
-        <translation type="vanished">Running...</translation>
-    </message>
-    <message>
-        <source>Send</source>
-        <translation type="vanished">Send</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="1852"/>
@@ -3375,10 +2742,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_Jira.qml" line="2192"/>
         <source>No comments yet.</source>
         <translation>No comments yet.</translation>
-    </message>
-    <message>
-        <source>%1 | Updated %2 | %3 comments | %4 links</source>
-        <translation type="vanished">%1 | Updated %2 | %3 comments | %4 links</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="2234"/>
@@ -3751,10 +3114,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation>Refresh</translation>
     </message>
     <message>
-        <source>No reports yet.</source>
-        <translation type="vanished">No reports yet.</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_Report.qml" line="223"/>
         <source>Unknown time</source>
         <translation>Unknown time</translation>
@@ -3809,22 +3168,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <source>Step Detail</source>
         <translation>Step Detail</translation>
     </message>
-    <message>
-        <source>Cases</source>
-        <translation type="vanished">Cases</translation>
-    </message>
-    <message>
-        <source>Logs</source>
-        <translation type="vanished">Logs</translation>
-    </message>
-    <message>
-        <source>Reports</source>
-        <translation type="vanished">Reports</translation>
-    </message>
-    <message>
-        <source>Browse historical runs and export reports.</source>
-        <translation type="vanished">Browse historical runs and export reports.</translation>
-    </message>
 </context>
 <context>
     <name>T_Run</name>
@@ -3832,10 +3175,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_Run.qml" line="9"/>
         <source>Run</source>
         <translation>Run</translation>
-    </message>
-    <message>
-        <source>Run Tests</source>
-        <translation type="vanished">Run Tests</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Run.qml" line="167"/>
@@ -3871,10 +3210,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_Run.qml" line="368"/>
         <source>OK</source>
         <translation>OK</translation>
-    </message>
-    <message>
-        <source>Execution output and progress will appear here.</source>
-        <translation type="vanished">Execution output and progress will appear here.</translation>
     </message>
 </context>
 <context>
@@ -4287,14 +3622,6 @@ Some contents...</translation>
         <translation>OK</translation>
     </message>
     <message>
-        <source>Global (DUT / Environment)</source>
-        <translation type="vanished">Global (DUT / Environment)</translation>
-    </message>
-    <message>
-        <source>Special Params (by Case Type)</source>
-        <translation type="vanished">Special Params (by Case Type)</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_TestConfig.qml" line="874"/>
         <source>Env</source>
         <translation>Env</translation>
@@ -4620,341 +3947,57 @@ Some contents...</translation>
 <context>
     <name>TestPageBridge</name>
     <message>
-        <source>test.schema.global_context.title</source>
-        <translation type="vanished">Global</translation>
-    </message>
-    <message>
-        <source>test.schema.case_type_default.title</source>
-        <translation type="vanished">Default</translation>
-    </message>
-    <message>
-        <source>test.param.scope.global_context</source>
-        <translation type="vanished">Global</translation>
-    </message>
-    <message>
-        <source>test.param.scope.case_type_shared</source>
-        <translation type="vanished">Case Type</translation>
-    </message>
-    <message>
-        <source>test.param.scope.case</source>
-        <translation type="vanished">Per Case</translation>
-    </message>
-    <message>
-        <source>test.param.dut.label</source>
-        <translation type="vanished">DUT</translation>
-    </message>
-    <message>
-        <source>test.param.dut.description</source>
-        <translation type="vanished">Selected device under test.</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.cycle_count.label</source>
-        <translation type="vanished">Cycle count</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.cycle_count.description</source>
-        <translation type="vanished">Number of relay power cycles.</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_off_sec.label</source>
-        <translation type="vanished">Power off seconds</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_off_sec.description</source>
-        <translation type="vanished">Seconds to keep the relay powered off in each cycle.</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_off_step_sec.label</source>
-        <translation type="vanished">Power off step seconds</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_off_step_sec.description</source>
-        <translation type="vanished">Seconds added to the relay power-off time after each cycle. Use negative values to decrease.</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_on_wait_sec.label</source>
-        <translation type="vanished">Power on wait seconds</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_on_wait_sec.description</source>
-        <translation type="vanished">Seconds to wait after relay power on before checkpoints.</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_on_wait_step_sec.label</source>
-        <translation type="vanished">Power on wait step seconds</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_on_wait_step_sec.description</source>
-        <translation type="vanished">Seconds added to the post-power-on wait after each cycle. Use negative values to decrease.</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.ping_target.label</source>
-        <translation type="vanished">Ping target</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.ping_target.description</source>
-        <translation type="vanished">DUT-side ping target used as the Wi-Fi reconnect checkpoint.</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.bt_target.label</source>
-        <translation type="vanished">Bluetooth target</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.bt_target.description</source>
-        <translation type="vanished">Bluetooth device target used as the reconnect checkpoint.</translation>
-    </message>
-    <message>
-        <source>test.param.cpu_frequency.frequencies.label</source>
-        <translation type="vanished">CPU frequencies</translation>
-    </message>
-    <message>
-        <source>test.param.cpu_frequency.frequencies.description</source>
-        <translation type="vanished">Select the CPU frequencies to switch through.</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.bt_target.label</source>
-        <translation type="vanished">Bluetooth Target</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.bt_target.description</source>
-        <translation type="vanished">Optional target MAC or None</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.cycle_count.label</source>
-        <translation type="vanished">Cycle Count</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.cycle_count.description</source>
-        <translation type="vanished">Default 20</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.interval_sec.label</source>
-        <translation type="vanished">Interval (s)</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.interval_sec.description</source>
-        <translation type="vanished">Default 100</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.ping_target.label</source>
-        <translation type="vanished">Ping Target</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.ping_target.description</source>
-        <translation type="vanished">Optional ping target</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.bt_target.label</source>
-        <translation type="vanished">Bluetooth Target</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.bt_target.description</source>
-        <translation type="vanished">Optional target MAC or None</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.cycle_count.label</source>
-        <translation type="vanished">Cycle Count</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.cycle_count.description</source>
-        <translation type="vanished">Default 20</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.interval_sec.label</source>
-        <translation type="vanished">Interval (s)</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.interval_sec.description</source>
-        <translation type="vanished">Default 100</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.ping_target.label</source>
-        <translation type="vanished">Ping Target</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.ping_target.description</source>
-        <translation type="vanished">Optional ping target</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.bt_target.label</source>
-        <translation type="vanished">Bluetooth Target</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.bt_target.description</source>
-        <translation type="vanished">Required target MAC or None</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.cycle_count.label</source>
-        <translation type="vanished">Cycle Count</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.cycle_count.description</source>
-        <translation type="vanished">Default 2</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.loop_count.label</source>
-        <translation type="vanished">Loop Count</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.loop_count.description</source>
-        <translation type="vanished">Default 180</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.min_free_kb.label</source>
-        <translation type="vanished">Minimum Free Space (KB)</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.min_free_kb.description</source>
-        <translation type="vanished">Default 307200</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.source_profile.label</source>
-        <translation type="vanished">Source Profile</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.source_profile.description</source>
-        <translation type="vanished">random1 / random2</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.source_size_kb.label</source>
-        <translation type="vanished">Source Size (KB)</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.source_size_kb.description</source>
-        <translation type="vanished">Default 51200</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.work_dir.label</source>
-        <translation type="vanished">Working Directory</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.work_dir.description</source>
-        <translation type="vanished">Default /data/local/tmp/smarttest/emmc_rw</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.media_dir.label</source>
-        <translation type="vanished">Media directory</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.media_dir.description</source>
-        <translation type="vanished">DUT directories to scan at runtime when no files are selected. Default /storage/*/Movies /storage/*/Video.</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.media_files.label</source>
-        <translation type="vanished">Playback files</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.media_files.description</source>
-        <translation type="vanished">Files discovered from DUT internal Movies and USB Movies directories. Select at least one file before starting.</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.actions.label</source>
-        <translation type="vanished">Stress actions</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.actions.description</source>
-        <translation type="vanished">Playback operations sent to ExoPlayer through Android media key events.</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.loop_count.label</source>
-        <translation type="vanished">Loop count</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.loop_count.description</source>
-        <translation type="vanished">Number of times to repeat the selected file and action configuration.</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.random_playback.label</source>
-        <translation type="vanished">Random playback</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.random_playback.description</source>
-        <translation type="vanished">Shuffle selected files in each loop.</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.action_interval_sec.label</source>
-        <translation type="vanished">Action interval seconds</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.action_interval_sec.description</source>
-        <translation type="vanished">Wait time after each playback action.</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.start_wait_sec.label</source>
-        <translation type="vanished">Start wait seconds</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.start_wait_sec.description</source>
-        <translation type="vanished">Wait time after launching each media file before sending stress actions.</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.cycle_count.label</source>
-        <translation type="vanished">Cycle Count</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.cycle_count.description</source>
-        <translation type="vanished">Default 2</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.ping_target.label</source>
-        <translation type="vanished">Ping Target</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.ping_target.description</source>
-        <translation type="vanished">Required for reconnect check</translation>
-    </message>
-    <message>
-        <location filename="bridge/TestPageBridge.py" line="1107"/>
+        <location filename="bridge/TestPageBridge.py" line="1109"/>
         <source>test.env.relay.label</source>
         <translation>Relay</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1111"/>
+        <location filename="bridge/TestPageBridge.py" line="1113"/>
         <source>test.env.equipment.type.label</source>
         <translation>Type</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1019"/>
+        <location filename="bridge/TestPageBridge.py" line="1021"/>
         <source>test.env.relay.type.snmp_pdu</source>
         <translation>SNMP PDU</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1020"/>
+        <location filename="bridge/TestPageBridge.py" line="1022"/>
         <source>test.env.relay.type.usb_relay</source>
         <translation>USB Relay</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1061"/>
+        <location filename="bridge/TestPageBridge.py" line="1063"/>
         <source>test.env.relay.snmp_pdu.ip.label</source>
         <translation>IP Address</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1065"/>
+        <location filename="bridge/TestPageBridge.py" line="1067"/>
         <source>test.env.relay.snmp_pdu.ip.description</source>
         <translation>SNMP PDU address.</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1070"/>
+        <location filename="bridge/TestPageBridge.py" line="1072"/>
         <source>test.env.relay.snmp_pdu.port.label</source>
         <translation>Outlet Port</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1029"/>
+        <location filename="bridge/TestPageBridge.py" line="1031"/>
         <source>test.env.relay.usb_relay.port.label</source>
         <translation>Serial Port</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1033"/>
+        <location filename="bridge/TestPageBridge.py" line="1035"/>
         <source>test.env.relay.usb_relay.port.description</source>
         <translation>USB relay serial port, for example COM4.</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1038"/>
+        <location filename="bridge/TestPageBridge.py" line="1040"/>
         <source>test.env.relay.usb_relay.mode.label</source>
         <translation>Wiring Mode</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1049"/>
+        <location filename="bridge/TestPageBridge.py" line="1051"/>
         <source>test.env.relay.usb_relay.press_seconds.label</source>
         <translation>Press Seconds</translation>
     </message>

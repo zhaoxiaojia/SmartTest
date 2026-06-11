@@ -16,7 +16,6 @@ TRANSLATION_FILES = {
 }
 
 OWNED_UI_SOURCE_FILES = {
-    "bridge/AIBridge.py",
     "bridge/AuthBridge.py",
     "bridge/HomeBridge.py",
     "bridge/JiraBridge.py",

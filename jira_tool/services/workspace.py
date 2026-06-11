@@ -1,13 +1,10 @@
 ﻿from __future__ import annotations
 
-import json
 import re
 from datetime import datetime
 from typing import Any, Callable
 
-from AI.core.errors import AIRequestError
 from AI.mcp.context import McpContextService
-from jira_tool.services.ai_analysis_service import JiraAIAnalysisService
 from jira_tool.services.issue_service import JiraIssueService
 from jira_tool.services.payloads import build_analysis_result, build_browse_result, build_detail_result, build_scope_context
 from jira_tool.services.presenter import extract_actions, record_to_issue_row
@@ -21,14 +18,12 @@ class JiraWorkspaceService:
         *,
         base_url: str,
         issue_service: JiraIssueService,
-        ai_service: JiraAIAnalysisService,
         mcp_context_service: McpContextService | None = None,
         max_display_issues: int = 50,
         max_analysis_issues: int = 1000,
     ):
         self._base_url = base_url
         self._issue_service = issue_service
-        self._ai_service = ai_service
         self._mcp_context_service = mcp_context_service
         self._max_display_issues = max_display_issues
         self._max_analysis_issues = max_analysis_issues
@@ -255,55 +250,7 @@ class JiraWorkspaceService:
             truncated=full_dataset and len(issues) >= self._max_analysis_issues,
             route=route,
         )
-        analysis_prompt = prompt.strip() or (
-            f"Summarize the main Jira risks for {project_ids_csv} / {board_label} in {timeframe_label}."
-        )
-        mcp_context = self._mcp_context(prompt) if _should_use_mcp_context(prompt) else []
-        jira_context = self._build_analysis_context(
-            prompt=analysis_prompt,
-            effective_jql=effective_jql,
-            issues=issues,
-            total_count=total_count,
-            mcp_context=mcp_context,
-        )
-        try:
-            analysis_response = self._ai_service.ask(
-                analysis_prompt,
-                jira_context=jira_context,
-                max_tokens=600,
-                temperature=0.2,
-            )
-            analysis_text = (analysis_response.text or "").strip()
-            if analysis_text == "":
-                analysis_text = self._fallback_analysis_text(issues, total_count)
-        except AIRequestError as exc:
-            _trace_workspace("analysis_ai_retry_start", worker_id=worker_id, reason=str(exc)[:180])
-            retry_context = self._build_retry_analysis_context(
-                issues=issues,
-                total_count=total_count,
-                effective_jql=effective_jql,
-            )
-            try:
-                retry_prompt = (
-                    f"{analysis_prompt}\n\n"
-                    "Respond in markdown. Keep the output concise and structured with headings/bullets/table."
-                )
-                retry_response = self._ai_service.ask(
-                    retry_prompt,
-                    jira_context=retry_context,
-                    max_tokens=700,
-                    temperature=0.2,
-                )
-                analysis_text = (retry_response.text or "").strip()
-                if analysis_text == "":
-                    analysis_text = self._fallback_analysis_text(issues, total_count)
-                _trace_workspace("analysis_ai_retry_done", worker_id=worker_id, mode="light_context")
-            except Exception as retry_exc:  # noqa: BLE001
-                _trace_workspace("analysis_ai_fallback", worker_id=worker_id, reason=str(retry_exc)[:180])
-                analysis_text = self._fallback_analysis_text_with_aggregate(issues, total_count, reason=str(retry_exc))
-        except Exception as exc:  # noqa: BLE001
-            _trace_workspace("analysis_unexpected_fallback", worker_id=worker_id, reason=str(exc)[:180])
-            analysis_text = self._fallback_analysis_text_with_aggregate(issues, total_count, reason=str(exc))
+        analysis_text = self._fallback_analysis_text(issues, total_count)
         result = build_analysis_result(
             worker_id=worker_id,
             base_url=self._base_url,
@@ -438,109 +385,6 @@ class JiraWorkspaceService:
             only_mine=only_mine,
         )
 
-    def _build_analysis_context(
-        self,
-        *,
-        prompt: str,
-        effective_jql: str,
-        issues: list[dict[str, Any]],
-        total_count: int,
-        mcp_context: list[dict[str, Any]] | None = None,
-    ) -> dict[str, Any]:
-        context: dict[str, Any] = {
-            "jql": effective_jql,
-            "returned_issue_count": len(issues),
-            "total_issue_count": total_count,
-        }
-        if mcp_context:
-            context["mcp_context"] = mcp_context
-        if len(issues) >= self._max_analysis_issues:
-            context["analysis_limit_note"] = (
-                f"Analysis is capped at the first {self._max_analysis_issues} returned issues. "
-                "Ask the user to narrow the Jira search scope if they need a complete analysis."
-            )
-        compact_issues = [_compact_issue(issue) for issue in issues]
-        if len(issues) <= 200:
-            context["issues"] = compact_issues[:120]
-            context["issue_sample_note"] = (
-                f"Only the first {len(context['issues'])} compact issues are included to control token usage."
-            )
-            return context
-        _trace_workspace("aggregate_context_start", issues=len(issues))
-        context["issues"] = compact_issues[:60]
-        context["issue_sample_note"] = (
-            f"Only the first {len(context['issues'])} compact issues are included as examples. "
-            f"issue_aggregate covers all {len(issues)} returned issues."
-        )
-        context["issue_aggregate"] = _aggregate_issues(issues)
-        return context
-
-    def _build_retry_analysis_context(
-        self,
-        *,
-        issues: list[dict[str, Any]],
-        total_count: int,
-        effective_jql: str,
-    ) -> dict[str, Any]:
-        return {
-            "jql": effective_jql,
-            "returned_issue_count": len(issues),
-            "total_issue_count": total_count,
-            "issues": [_compact_issue(issue) for issue in issues[:24]],
-            "issue_aggregate": _aggregate_issues(issues),
-            "retry_mode": "light_context",
-            "issue_sample_note": "Retry with reduced issue sample to improve response stability.",
-        }
-
-    def _summarize_issue_batches(self, *, prompt: str, issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        summaries: list[dict[str, Any]] = []
-        batch_size = 100
-        for batch_index, start in enumerate(range(0, len(issues), batch_size), start=1):
-            batch = issues[start : start + batch_size]
-            summaries.append(self._summarize_issue_batch(prompt=prompt, batch_index=batch_index, issues=batch))
-        return summaries
-
-    def _summarize_issue_batch(
-        self,
-        *,
-        prompt: str,
-        batch_index: int,
-        issues: list[dict[str, Any]],
-    ) -> dict[str, Any]:
-        batch_prompt = (
-            "Summarize this Jira issue batch for the user's analysis request.\n"
-            'Return JSON only with this schema: {"batch_index": number, "issue_count": number, '
-            '"patterns": [{"name": string, "count": number, "evidence_keys": [string]}], "risks": [string]}.\n'
-            "Use only this batch. Infer useful patterns from the issue text and metadata; do not use fixed categories unless the user asked for them."
-        )
-        batch_context = {
-            "user_request": prompt,
-            "batch_index": batch_index,
-            "issue_count": len(issues),
-            "issues": [_compact_issue(issue) for issue in issues],
-        }
-        _trace_workspace("batch_summary_request", batch_index=batch_index, issue_count=len(issues))
-        try:
-            response = self._ai_service.ask(batch_prompt, jira_context=batch_context, max_tokens=700, temperature=0.0)
-            payload = json.loads(response.text or "")
-            if isinstance(payload, dict):
-                payload.setdefault("batch_index", batch_index)
-                payload.setdefault("issue_count", len(issues))
-                return payload
-        except Exception as exc:  # noqa: BLE001
-            return {
-                "batch_index": batch_index,
-                "issue_count": len(issues),
-                "summary_error": str(exc),
-                "sample_issues": [_compact_issue(issue) for issue in issues[:10]],
-            }
-        return {
-            "batch_index": batch_index,
-            "issue_count": len(issues),
-            "summary_error": "Batch summary did not return a JSON object.",
-            "sample_issues": [_compact_issue(issue) for issue in issues[:10]],
-        }
-
     @staticmethod
     def requires_full_dataset(prompt: str) -> bool:
         normalized = (prompt or "").strip().lower()
@@ -593,40 +437,9 @@ class JiraWorkspaceService:
         return normalized
 
     def _nl_clause(self, prompt: str, *, project_label: str, mcp_context: list[dict[str, Any]] | None = None) -> str:
-        clean_prompt = prompt.strip()
-        if clean_prompt == "":
-            return ""
-        context_text = json.dumps(mcp_context or [], ensure_ascii=False, indent=2)
-        planning_prompt = (
-            "Convert the user request into one extra Jira JQL clause.\n"
-            'Return JSON only with this schema: {"jql_clause": string}.\n'
-            "Rules:\n"
-            "- Return only an additional clause, not a full query.\n"
-            "- Use only Jira fields: summary, description, text, status, priority, assignee, reporter, labels, component, issuekey.\n"
-            "- Convert natural-language search constraints into JQL filters; for free-text keyword constraints use text ~ \"keyword\".\n"
-            "- The user's current message is the primary source for search constraints; do not inherit UI search scope unless the user mentions it.\n"
-            "- Include product names, chip names, issue type, and time ranges from the user's text when they are stated.\n"
-            "- Use Internal MCP context to understand company-specific terms, chips, products, modules, and aliases before building JQL.\n"
-            "- Do not convert the analysis question itself into a filter unless it clearly narrows the Jira search scope.\n"
-            "- If the prompt is mainly analytical and adds no filter, return an empty string.\n"
-            f"- Current project scope label: {project_label}.\n"
-            f"- User prompt: {clean_prompt}\n"
-            f"Internal MCP context:\n{context_text}"
-        )
-        try:
-            _trace_workspace("nl_clause_start", prompt=clean_prompt[:120])
-            response = self._ai_service.ask(planning_prompt, model=None, max_tokens=200, temperature=0.0)
-            text = response.text or ""
-            if text.strip() == "":
-                _trace_workspace("nl_clause_empty")
-                return ""
-            payload = json.loads(_strip_json_response(text))
-        except Exception:  # noqa: BLE001
-            _trace_workspace("nl_clause_failed")
-            return ""
-        clause = str(payload.get("jql_clause", "") or "").strip()
-        _trace_workspace("nl_clause_done", clause=clause)
-        return clause
+        del prompt, project_label, mcp_context
+        _trace_workspace("nl_clause_disabled")
+        return ""
 
     @staticmethod
     def _fallback_analysis_text(issues: list[dict[str, Any]], total: int) -> str:
@@ -637,25 +450,6 @@ class JiraWorkspaceService:
             f"{total} Jira issues matched the current scope. "
             f"Top issue: {top_issue['keyId']} ({top_issue['status']}, {top_issue['priority']}) - {top_issue['summary']}"
         )
-
-    @staticmethod
-    def _fallback_analysis_text_with_aggregate(issues: list[dict[str, Any]], total: int, *, reason: str) -> str:
-        if not issues:
-            return "AI service is temporarily unavailable. No Jira issues matched the current scope."
-        by_status = _top_counts((issue.get("status", "") for issue in issues), limit=3)
-        by_priority = _top_counts((issue.get("priority", "") for issue in issues), limit=3)
-        top_issue = issues[0]
-        status_text = ", ".join(f"{item['name']}({item['count']})" for item in by_status) or "N/A"
-        priority_text = ", ".join(f"{item['name']}({item['count']})" for item in by_priority) or "N/A"
-        return (
-            "AI service is temporarily unavailable; showing an automatic Jira summary.\n"
-            f"Matched issues: {total}\n"
-            f"Top statuses: {status_text}\n"
-            f"Top priorities: {priority_text}\n"
-            f"Top issue: {top_issue.get('keyId', '')} - {top_issue.get('summary', '')}\n"
-            f"Reason: {reason[:220]}"
-        )
-
 
 def _compact_issue(issue: dict[str, Any]) -> dict[str, Any]:
     return {
@@ -668,72 +462,6 @@ def _compact_issue(issue: dict[str, Any]) -> dict[str, Any]:
         "components": issue.get("components", []),
         "detail": str(issue.get("detail", "") or "")[:180],
     }
-
-
-def _aggregate_issues(issues: list[dict[str, Any]]) -> dict[str, Any]:
-    return {
-        "issue_count": len(issues),
-        "by_status": _top_counts(issue.get("status", "") for issue in issues),
-        "by_priority": _top_counts(issue.get("priority", "") for issue in issues),
-        "by_issue_type": _top_counts(issue.get("issueType", "") for issue in issues),
-        "by_component": _top_counts(_iter_values(issue.get("components", [])) for issue in issues),
-        "by_label": _top_counts(_iter_values(issue.get("labels", [])) for issue in issues),
-        "summary_keywords": _top_summary_terms(issues),
-    }
-
-
-def _top_counts(values: Any, *, limit: int = 20) -> list[dict[str, Any]]:
-    counts: dict[str, int] = {}
-    for value in values:
-        if isinstance(value, (list, tuple, set)):
-            candidates = value
-        else:
-            candidates = [value]
-        for candidate in candidates:
-            clean = str(candidate or "").strip()
-            if clean:
-                counts[clean] = counts.get(clean, 0) + 1
-    return [
-        {"name": name, "count": count}
-        for name, count in sorted(counts.items(), key=lambda item: (-item[1], item[0].lower()))[:limit]
-    ]
-
-
-def _iter_values(values: Any) -> list[str]:
-    if not isinstance(values, (list, tuple, set)):
-        return [str(values)] if str(values or "").strip() else []
-    return [str(value) for value in values if str(value or "").strip()]
-
-
-def _top_summary_terms(issues: list[dict[str, Any]], *, limit: int = 30) -> list[dict[str, Any]]:
-    stop_words = {
-        "the",
-        "and",
-        "for",
-        "with",
-        "from",
-        "this",
-        "that",
-        "bug",
-        "issue",
-        "issues",
-        "jira",
-        "test",
-        "failed",
-        "failure",
-    }
-    counts: dict[str, int] = {}
-    for issue in issues:
-        text = f"{issue.get('summary', '')} {issue.get('detail', '')}".lower()
-        for match in re.finditer(r"\b[A-Za-z][A-Za-z0-9_.-]{2,}\b", text):
-            token = match.group(0)
-            if token in stop_words:
-                continue
-            counts[token] = counts.get(token, 0) + 1
-    return [
-        {"name": name, "count": count}
-        for name, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:limit]
-    ]
 
 
 def _combine_jql(base_jql: str, extra_clause: str) -> str:

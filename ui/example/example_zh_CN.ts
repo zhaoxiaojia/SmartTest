@@ -2,49 +2,6 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
-    <name>AIBridge</name>
-    <message>
-        <location filename="bridge/AIBridge.py" line="39"/>
-        <source>Ready</source>
-        <translation>就绪</translation>
-    </message>
-    <message>
-        <location filename="bridge/AIBridge.py" line="40"/>
-        <source>Thinking...</source>
-        <translation>思考中...</translation>
-    </message>
-    <message>
-        <location filename="bridge/AIBridge.py" line="41"/>
-        <source>AI request failed: {message}</source>
-        <translation>AI 请求失败：{message}</translation>
-    </message>
-    <message>
-        <location filename="bridge/AIBridge.py" line="42"/>
-        <source>New chat</source>
-        <translation>新对话</translation>
-    </message>
-    <message>
-        <location filename="bridge/AIBridge.py" line="43"/>
-        <source>Attachment is only available for text-like files.</source>
-        <translation>附件仅支持文本类文件。</translation>
-    </message>
-    <message>
-        <location filename="bridge/AIBridge.py" line="44"/>
-        <source>Attachment is too large. Keep files under 1 MB for this preview.</source>
-        <translation>附件过大。此预览版请使用 1 MB 以下的文件。</translation>
-    </message>
-    <message>
-        <location filename="bridge/AIBridge.py" line="45"/>
-        <source>Attachment could not be read: {message}</source>
-        <translation>无法读取附件：{message}</translation>
-    </message>
-    <message>
-        <location filename="bridge/AIBridge.py" line="46"/>
-        <source>No response content was returned.</source>
-        <translation>未返回回复内容。</translation>
-    </message>
-</context>
-<context>
     <name>App</name>
     <message>
         <location filename="imports/example/qml/App.qml" line="60"/>
@@ -262,10 +219,6 @@
 </context>
 <context>
     <name>ItemsFooter</name>
-    <message>
-        <source>About</source>
-        <translation type="obsolete">关于</translation>
-    </message>
     <message>
         <location filename="imports/example/qml/global/ItemsFooter.qml" line="17"/>
         <source>Account</source>
@@ -615,10 +568,6 @@
         <translation type="unfinished">图标</translation>
     </message>
     <message>
-        <source>Awesome</source>
-        <translation type="obsolete">图标</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/global/ItemsOriginal.qml" line="530"/>
         <source>Chart</source>
         <translation type="unfinished">图表</translation>
@@ -689,10 +638,6 @@
         <translation type="unfinished">验证码</translation>
     </message>
     <message>
-        <source>Network</source>
-        <translation type="obsolete">网络</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/global/ItemsOriginal.qml" line="616"/>
         <source>Remote Loader</source>
         <translation type="unfinished">远程加载</translation>
@@ -701,14 +646,6 @@
         <location filename="imports/example/qml/global/ItemsOriginal.qml" line="630"/>
         <source>Hot Loader</source>
         <translation type="unfinished">热加载</translation>
-    </message>
-    <message>
-        <source>3D</source>
-        <translation type="obsolete">3D</translation>
-    </message>
-    <message>
-        <source>Test Crash</source>
-        <translation type="obsolete">测试崩溃</translation>
     </message>
 </context>
 <context>
@@ -1134,10 +1071,6 @@
         <source>Signed out</source>
         <translation>已退出登录</translation>
     </message>
-    <message>
-        <source>Please feel free to enter a password</source>
-        <translation type="obsolete">请随意输入一个密码</translation>
-    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -1166,10 +1099,6 @@
         <location filename="imports/example/qml/window/MainWindow.qml" line="355"/>
         <source>Friendly Reminder</source>
         <translation type="unfinished">友情提示</translation>
-    </message>
-    <message>
-        <source>FluentUI is hidden from the tray, click on the tray to activate the window again</source>
-        <translation type="obsolete">FluentUI 在托盘中处于隐藏状态，单击托盘以再次激活窗口</translation>
     </message>
     <message>
         <location filename="imports/example/qml/window/MainWindow.qml" line="180"/>
@@ -1266,26 +1195,6 @@ Updated content:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>FluentUI is currently up to date </source>
-        <translation type="obsolete">FluentUI 目前最新版本 </translation>
-    </message>
-    <message>
-        <source> -- The current app version</source>
-        <translation type="obsolete"> -- 当前应用版本</translation>
-    </message>
-    <message>
-        <source>
-Now go and download the new version？
-
-Updated content:
-</source>
-        <translation type="obsolete">
-现在去下载新版本？
-
-更新的内容:
-</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/window/MainWindow.qml" line="454"/>
         <source>OK</source>
         <translation type="unfinished">确定</translation>
@@ -1294,10 +1203,6 @@ Updated content:
         <location filename="imports/example/qml/window/MainWindow.qml" line="483"/>
         <source>The current version is already the latest</source>
         <translation type="unfinished">当前版本已经是最新版本</translation>
-    </message>
-    <message>
-        <source>The network is abnormal</source>
-        <translation type="obsolete">网络异常</translation>
     </message>
 </context>
 <context>
@@ -1445,428 +1350,35 @@ Updated content:
         <translation>AI 助手</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="303"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="315"/>
-        <source>Attach File</source>
-        <translation>添加附件</translation>
+        <location filename="imports/example/qml/page/T_AI.qml" line="59"/>
+        <source>DeepSeek</source>
+        <translation>DeepSeek</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="305"/>
-        <source>Text files</source>
-        <translation>文本文件</translation>
+        <location filename="imports/example/qml/page/T_AI.qml" line="66"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="99"/>
+        <source>Loading...</source>
+        <translation>加载中...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="306"/>
-        <source>All files</source>
-        <translation>所有文件</translation>
+        <location filename="imports/example/qml/page/T_AI.qml" line="74"/>
+        <source>Reload</source>
+        <translation>重新加载</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="321"/>
-        <source>Add Source</source>
-        <translation>添加来源</translation>
+        <location filename="imports/example/qml/page/T_AI.qml" line="81"/>
+        <source>Open in browser</source>
+        <translation>在浏览器中打开</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="357"/>
-        <source>Choose MCP sources for this chat.</source>
-        <translation>选择用于本次对话的 MCP 来源。</translation>
+        <location filename="imports/example/qml/page/T_AI.qml" line="95"/>
+        <source>Ready</source>
+        <translation>就绪</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="444"/>
-        <source>Start group chat</source>
-        <translation>开始群聊</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="449"/>
-        <source>View files in chat</source>
-        <translation>在聊天中查看文件</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="454"/>
-        <source>Move to project</source>
-        <translation>移至项目</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="468"/>
-        <source>Pin chat</source>
-        <translation>置顶聊天</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="473"/>
-        <source>Archive</source>
-        <translation>归档</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="480"/>
-        <source>Rename</source>
-        <translation>重命名</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="511"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="590"/>
-        <source>Rename project</source>
-        <translation>重命名项目</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="518"/>
-        <source>Delete project</source>
-        <translation>删除项目</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="527"/>
-        <source>Rename chat</source>
-        <translation>重命名对话</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="528"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="572"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="591"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="635"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="725"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="529"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="592"/>
-        <source>Save</source>
-        <translation>保存</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="570"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="580"/>
-        <source>Delete chat?</source>
-        <translation>删除对话？</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="571"/>
-        <source>This chat will be removed from SmartTest chat history.</source>
-        <translation>该对话会从 SmartTest 聊天历史中移除。</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="581"/>
-        <source>Delete &quot;%1&quot; from SmartTest chat history?</source>
-        <translation>从 SmartTest 聊天历史中删除“%1”？</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="633"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="647"/>
-        <source>Delete project?</source>
-        <translation>删除项目？</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="634"/>
-        <source>Project chats will remain in chat history.</source>
-        <translation>项目中的对话会保留在聊天历史中。</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="648"/>
-        <source>Delete &quot;%1&quot;? Project chats will remain in chat history.</source>
-        <translation>删除“%1”？项目中的对话会保留在聊天历史中。</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="658"/>
-        <source>Share chat</source>
-        <translation>分享对话</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="659"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="839"/>
-        <source>Close</source>
-        <translation>关闭</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="660"/>
-        <source>Copy Link</source>
-        <translation>复制链接</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="660"/>
-        <source>Create Link</source>
-        <translation>创建链接</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="676"/>
-        <source>A local HTML snapshot will be created. Anyone who can access the copied file link can view this chat snapshot.</source>
-        <translation>将创建一个本地 HTML 快照。能访问复制文件链接的人都可以查看这份对话快照。</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="692"/>
-        <source>Create a link to copy it</source>
-        <translation>创建链接后可复制</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="697"/>
-        <source>Delete shared link</source>
-        <translation>删除分享链接</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="724"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="726"/>
-        <source>Create project</source>
-        <translation>创建项目</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="741"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="749"/>
-        <source>Project name</source>
-        <translation>项目名称</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1689"/>
-        <source>This project collects chats, shared context, and uploaded files.</source>
-        <translation>此项目汇总聊天、共享上下文和上传的文件。</translation>
-    </message>
-    <message>
-        <source>Projects can collect chats and custom context for continued work.</source>
-        <translation type="vanished">项目可以收集对话和自定义上下文，用于持续工作。</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="830"/>
-        <source>Search chats...</source>
-        <translation>搜索聊天...</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="904"/>
-        <source>Today</source>
-        <translation>今天</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="999"/>
-        <source>Collapse Sidebar</source>
-        <translation>收起侧边栏</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1024"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1059"/>
-        <source>Search Chats</source>
-        <translation>搜索聊天</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1554"/>
-        <source>New chat in %1</source>
-        <translation>%1 中的新聊天</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="350"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1590"/>
-        <source>Sources</source>
-        <translation>来源</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1606"/>
-        <source>No chats in this project yet.</source>
-        <translation>此项目还没有对话。</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1606"/>
-        <source>Chats in this project</source>
-        <translation>此项目中的对话</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1640"/>
-        <source>No preview</source>
-        <translation>暂无预览</translation>
-    </message>
-    <message>
-        <source>%1 chats are available here.</source>
-        <translation type="vanished">这里可以查看 %1 的对话。</translation>
-    </message>
-    <message>
-        <source>Hide chat list</source>
-        <translation type="vanished">收起对话列表</translation>
-    </message>
-    <message>
-        <source>Manage chats</source>
-        <translation type="vanished">管理对话</translation>
-    </message>
-    <message>
-        <source>Select chats to include in this project</source>
-        <translation type="vanished">选择要加入此项目的对话</translation>
-    </message>
-    <message>
-        <source> messages</source>
-        <translation type="vanished"> 条消息</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1682"/>
-        <source>Ask this project</source>
-        <translation>询问此项目</translation>
-    </message>
-    <message>
-        <source>%1 chats will appear here.</source>
-        <translation type="vanished">%1 的对话会显示在这里。</translation>
-    </message>
-    <message>
-        <source>Codex</source>
-        <translation type="vanished">Codex</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1031"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1129"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1255"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1366"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1486"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1751"/>
-        <source>More</source>
-        <translation>更多</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1079"/>
-        <source>Projects</source>
-        <translation>项目</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="106"/>
-        <source>New Project</source>
-        <translation>新项目</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="109"/>
-        <source>Test Notes</source>
-        <translation>觉醒日记</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="777"/>
-        <source>Projects are collections of chats. They can share context and uploaded files for continued work.</source>
-        <translation>项目是多个聊天的集合，可共享上下文和上传的文件，用于持续工作。</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1192"/>
-        <source>Recent</source>
-        <translation>最近</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="68"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="71"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="80"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="930"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1240"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1260"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1632"/>
-        <source>Untitled Chat</source>
-        <translation>未命名聊天</translation>
-    </message>
-    <message>
-        <source>Me</source>
-        <translation type="vanished">我</translation>
-    </message>
-    <message>
-        <source>SmartTest</source>
-        <translation type="vanished">SmartTest</translation>
-    </message>
-    <message>
-        <source>Pro</source>
-        <translation type="vanished">Pro</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1334"/>
-        <source>DeepSeek Chat</source>
-        <translation>DeepSeek Chat</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1341"/>
-        <source>Preview</source>
-        <translation>预览版</translation>
-    </message>
-    <message>
-        <source>Memory Off</source>
-        <translation type="vanished">记忆关闭</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="486"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="506"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1357"/>
-        <source>Share</source>
-        <translation>分享</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1464"/>
-        <source>Copy</source>
-        <translation>复制</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1475"/>
-        <source>Retry</source>
-        <translation>重试</translation>
-    </message>
-    <message>
-        <source>Developer Mode</source>
-        <translation type="vanished">开发人员模式</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1725"/>
-        <source>Ask anything</source>
-        <translation>有问题，尽管问</translation>
-    </message>
-    <message>
-        <source>Quick</source>
-        <translation type="vanished">快速</translation>
-    </message>
-    <message>
-        <source>Notion</source>
-        <translation type="vanished">Notion</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1788"/>
-        <source>Voice</source>
-        <translation>语音</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1818"/>
-        <source>SmartTest AI can make mistakes. Verify important information.</source>
-        <translation>SmartTest AI 可能会出错。请核查重要信息。</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1583"/>
-        <source>Chats</source>
-        <translation>对话</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="885"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1014"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1047"/>
-        <source>New Chat</source>
-        <translation>新建对话</translation>
-    </message>
-    <message>
-        <source>%1 messages</source>
-        <translation type="vanished">%1 条消息</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="494"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="573"/>
-        <location filename="imports/example/qml/page/T_AI.qml" line="636"/>
-        <source>Delete</source>
-        <translation>删除</translation>
-    </message>
-    <message>
-        <source>SmartTest AI</source>
-        <translation type="vanished">SmartTest AI</translation>
-    </message>
-    <message>
-        <source>Attach</source>
-        <translation type="vanished">附件</translation>
-    </message>
-    <message>
-        <source>You</source>
-        <translation type="vanished">你</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="1443"/>
-        <source>Thinking...</source>
-        <translation>思考中...</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">移除</translation>
-    </message>
-    <message>
-        <source>Ask about logs, Jira, test failures, adb, pytest, or SmartTest...</source>
-        <translation type="vanished">询问日志、Jira、测试失败、adb、pytest 或 SmartTest...</translation>
-    </message>
-    <message>
-        <source>Send</source>
-        <translation type="vanished">发送</translation>
+        <location filename="imports/example/qml/page/T_AI.qml" line="97"/>
+        <source>Failed to load DeepSeek. Check intranet/VPN.</source>
+        <translation>DeepSeek 加载失败，请检查内网/VPN。</translation>
     </message>
 </context>
 <context>
@@ -1875,25 +1387,6 @@ Updated content:
         <location filename="imports/example/qml/page/T_Acrylic.qml" line="10"/>
         <source>Acrylic</source>
         <translation type="unfinished">亚克力</translation>
-    </message>
-</context>
-<context>
-    <name>T_Awesome</name>
-    <message>
-        <source>Awesome</source>
-        <translation type="obsolete">图标</translation>
-    </message>
-    <message>
-        <source>Please enter a keyword</source>
-        <translation type="obsolete">请输入关键字</translation>
-    </message>
-    <message>
-        <source>Search</source>
-        <translation type="obsolete">搜索</translation>
-    </message>
-    <message>
-        <source>You Copied </source>
-        <translation type="obsolete">您复制</translation>
     </message>
 </context>
 <context>
@@ -2211,38 +1704,6 @@ Updated content:
         <source>Click to Select a Color - &gt;</source>
         <translation type="unfinished">点击选中颜色 - &gt;</translation>
     </message>
-    <message>
-        <source>Cancel</source>
-        <translation type="obsolete">取消</translation>
-    </message>
-    <message>
-        <source>OK</source>
-        <translation type="obsolete">确定</translation>
-    </message>
-    <message>
-        <source>Color Picker</source>
-        <translation type="obsolete">颜色选择器</translation>
-    </message>
-    <message>
-        <source>Edit Color</source>
-        <translation type="obsolete">编辑颜色</translation>
-    </message>
-    <message>
-        <source>Red</source>
-        <translation type="obsolete">红色</translation>
-    </message>
-    <message>
-        <source>Green</source>
-        <translation type="obsolete">绿色</translation>
-    </message>
-    <message>
-        <source>Blue</source>
-        <translation type="obsolete">蓝色</translation>
-    </message>
-    <message>
-        <source>Opacity</source>
-        <translation type="obsolete">透明度</translation>
-    </message>
 </context>
 <context>
     <name>T_ComboBox</name>
@@ -2268,26 +1729,6 @@ Updated content:
         <location filename="imports/example/qml/page/T_DatePicker.qml" line="51"/>
         <source>showYear=false</source>
         <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Year</source>
-        <translation type="obsolete">年</translation>
-    </message>
-    <message>
-        <source>Month</source>
-        <translation type="obsolete">月</translation>
-    </message>
-    <message>
-        <source>Day</source>
-        <translation type="obsolete">日</translation>
-    </message>
-    <message>
-        <source>Cancel</source>
-        <translation type="obsolete">取消</translation>
-    </message>
-    <message>
-        <source>OK</source>
-        <translation type="obsolete">确定</translation>
     </message>
 </context>
 <context>
@@ -2338,22 +1779,6 @@ Updated content:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>KPI Video Frame Counter</source>
-        <translation type="vanished">KPI 视频数帧工具</translation>
-    </message>
-    <message>
-        <source>Video path, for example a.mp4</source>
-        <translation type="vanished">视频路径，例如 a.mp4</translation>
-    </message>
-    <message>
-        <source>A</source>
-        <translation type="vanished">A</translation>
-    </message>
-    <message>
-        <source>B</source>
-        <translation type="vanished">B</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_Debug.qml" line="204"/>
         <source>Select a recorded video</source>
         <translation>选择录制视频</translation>
@@ -2362,131 +1787,6 @@ Updated content:
         <location filename="imports/example/qml/page/T_Debug.qml" line="208"/>
         <source>Browse</source>
         <translation>浏览</translation>
-    </message>
-    <message>
-        <source>Analyzing</source>
-        <translation type="vanished">分析中</translation>
-    </message>
-    <message>
-        <source>Analyze</source>
-        <translation type="vanished">分析</translation>
-    </message>
-    <message>
-        <source>Reading frames and detecting visual state transitions...</source>
-        <translation type="vanished">正在读取帧并检测视觉状态切换...</translation>
-    </message>
-    <message>
-        <source>The tool estimates start/end frames from visual state changes. Review the candidates before using the result.</source>
-        <translation type="vanished">工具会根据视觉状态变化估算起止帧。使用结果前请先检查候选项。</translation>
-    </message>
-    <message>
-        <source>Estimated Result</source>
-        <translation type="vanished">估算结果</translation>
-    </message>
-    <message>
-        <source>The tool detects repeated red-light actions and playback start frames for review.</source>
-        <translation type="vanished">工具检测重复红灯动作和起播开始帧，供人工复核。</translation>
-    </message>
-    <message>
-        <source>Detected Summary</source>
-        <translation type="vanished">检测汇总</translation>
-    </message>
-    <message>
-        <source>Start Frame</source>
-        <translation type="vanished">起始帧</translation>
-    </message>
-    <message>
-        <source>End Frame</source>
-        <translation type="vanished">结束帧</translation>
-    </message>
-    <message>
-        <source>Elapsed Frames</source>
-        <translation type="vanished">耗帧</translation>
-    </message>
-    <message>
-        <source>Elapsed</source>
-        <translation type="vanished">耗时</translation>
-    </message>
-    <message>
-        <source>Actions</source>
-        <translation type="vanished">动作次数</translation>
-    </message>
-    <message>
-        <source>FPS</source>
-        <translation type="vanished">FPS</translation>
-    </message>
-    <message>
-        <source>Frames</source>
-        <translation type="vanished">总帧数</translation>
-    </message>
-    <message>
-        <source>Repeated Action Detections</source>
-        <translation type="vanished">重复动作检测</translation>
-    </message>
-    <message>
-        <source>time %1s -&gt; %2s | red light score %3  playback score %4</source>
-        <translation type="vanished">时间 %1s -&gt; %2s | 红灯分数 %3  起播分数 %4</translation>
-    </message>
-    <message>
-        <source>Size</source>
-        <translation type="vanished">尺寸</translation>
-    </message>
-    <message>
-        <source>Duration</source>
-        <translation type="vanished">时长</translation>
-    </message>
-    <message>
-        <source>Candidates</source>
-        <translation type="vanished">候选项</translation>
-    </message>
-    <message>
-        <source>start %1  end %2  delta %3 frames  %4 ms</source>
-        <translation type="vanished">起始 %1  结束 %2  耗帧 %3  %4 ms</translation>
-    </message>
-    <message>
-        <source>time %1s -&gt; %2s | %3</source>
-        <translation type="vanished">时间 %1s -&gt; %2s | %3</translation>
-    </message>
-    <message>
-        <source>red light at %1,%2 area %3 | transition frame %4 | luminance %5-&gt;%6</source>
-        <oldsource>start score %1  end score %2  luminance %3-&gt;%4 / %5-&gt;%6</oldsource>
-        <translation type="vanished">红灯位置 %1,%2 面积 %3 | 状态变化帧 %4 | 亮度 %5-&gt;%6</translation>
-    </message>
-    <message>
-        <source>Top Candidate Evidence</source>
-        <translation type="vanished">首选候选证据</translation>
-    </message>
-    <message>
-        <source>Start frame %1</source>
-        <translation type="vanished">起始帧 %1</translation>
-    </message>
-    <message>
-        <source>End frame %1</source>
-        <translation type="vanished">结束帧 %1</translation>
-    </message>
-    <message>
-        <source>Detected State Changes</source>
-        <translation type="vanished">检测到的状态切换</translation>
-    </message>
-    <message>
-        <source>frame %1</source>
-        <translation type="vanished">帧 %1</translation>
-    </message>
-    <message>
-        <source>score %1</source>
-        <translation type="vanished">分数 %1</translation>
-    </message>
-    <message>
-        <source>luma %1 -&gt; %2  sat %3 -&gt; %4</source>
-        <translation type="vanished">亮度 %1 -&gt; %2  饱和度 %3 -&gt; %4</translation>
-    </message>
-    <message>
-        <source>Debug Tools</source>
-        <translation type="vanished">调试工具</translation>
-    </message>
-    <message>
-        <source>Diagnostics, logs, and utilities go here.</source>
-        <translation type="vanished">诊断信息、日志和调试工具会显示在这里。</translation>
     </message>
 </context>
 <context>
@@ -2687,23 +1987,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 </context>
 <context>
     <name>T_Home</name>
-    <message>
-        <source>FluentUI GitHub</source>
-        <translation type="obsolete">FluentUI GitHub</translation>
-    </message>
-    <message>
-        <source>The latest FluentUI controls and styles for your applications.</source>
-        <translation type="obsolete">最新的 FluentUI 控件和样式</translation>
-    </message>
-    <message>
-        <source>Initializr</source>
-        <oldsource>FluentUI Initializr</oldsource>
-        <translation type="obsolete">FluentUI脚手架</translation>
-    </message>
-    <message>
-        <source>FluentUI Initializr is a Tool that helps you create and customize Fluent UI projects with various options.</source>
-        <translation type="obsolete">FluentUI 脚手架是一个快速创建项目工具，可帮助您创建和自定义具有各种选项的 Fluent UI 项目</translation>
-    </message>
     <message>
         <location filename="imports/example/qml/page/T_Home.qml" line="22"/>
         <location filename="imports/example/qml/page/T_Home.qml" line="148"/>
@@ -2941,10 +2224,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="unfinished">请输入关键字</translation>
     </message>
     <message>
-        <source>Search</source>
-        <translation type="obsolete">搜索</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_Icons.qml" line="51"/>
         <source>You Copied </source>
         <translation type="unfinished">您复制</translation>
@@ -2956,10 +2235,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_Image.qml" line="10"/>
         <source>Image</source>
         <translation type="unfinished">图像</translation>
-    </message>
-    <message>
-        <source>Reload</source>
-        <translation type="obsolete">重新加载</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Image.qml" line="28"/>
@@ -3045,10 +2320,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="94"/>
         <source>clear all info</source>
         <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Loading...</source>
-        <translation type="obsolete">加载中...</translation>
     </message>
 </context>
 <context>
@@ -3241,14 +2512,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation>检索范围</translation>
     </message>
     <message>
-        <source>Project Filters</source>
-        <translation type="vanished">项目筛选</translation>
-    </message>
-    <message>
-        <source>Keyword, label, component...</source>
-        <translation type="vanished">关键词、标签、组件...</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="932"/>
         <source>Common Jira Filters</source>
         <translation>常用 Jira 过滤条件</translation>
@@ -3307,22 +2570,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation>关键字</translation>
     </message>
     <message>
-        <source>Assignee, comma separated</source>
-        <translation type="vanished">经办人，多个用逗号分隔</translation>
-    </message>
-    <message>
-        <source>Reporter, comma separated</source>
-        <translation type="vanished">报告人，多个用逗号分隔</translation>
-    </message>
-    <message>
-        <source>Labels, comma separated</source>
-        <translation type="vanished">标签，多个用逗号分隔</translation>
-    </message>
-    <message>
-        <source>Components, comma separated</source>
-        <translation type="vanished">组件，多个用逗号分隔</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="1161"/>
         <location filename="imports/example/qml/page/T_Jira.qml" line="2140"/>
         <source>Assignee</source>
@@ -3349,10 +2596,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation>标签</translation>
     </message>
     <message>
-        <source>Components</source>
-        <translation type="vanished">组件</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="1284"/>
         <location filename="imports/example/qml/page/T_Jira.qml" line="1967"/>
         <source>Loading...</source>
@@ -3362,22 +2605,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_Jira.qml" line="1284"/>
         <source>Refresh Results</source>
         <translation>刷新结果</translation>
-    </message>
-    <message>
-        <source>Analysis Options</source>
-        <translation type="vanished">分析选项</translation>
-    </message>
-    <message>
-        <source>Include comments</source>
-        <translation type="vanished">包含评论</translation>
-    </message>
-    <message>
-        <source>Include linked issues</source>
-        <translation type="vanished">包含关联问题</translation>
-    </message>
-    <message>
-        <source>Limit to my tickets</source>
-        <translation type="vanished">仅看我的问题单</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="1292"/>
@@ -3415,14 +2642,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation>最近会话</translation>
     </message>
     <message>
-        <source>AI Conversation</source>
-        <translation type="vanished">AI 对话</translation>
-    </message>
-    <message>
-        <source>Use plain language. Jira search and AI analysis are both driven from this workspace.</source>
-        <translation type="vanished">直接用自然语言提问。Jira 检索和 AI 分析都会在这个工作台内完成。</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="1559"/>
         <source>History</source>
         <translation>历史</translation>
@@ -3433,10 +2652,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation>清空会话</translation>
     </message>
     <message>
-        <source>Ask Jira in natural language. Example: summarize blocked issues related to WPA this sprint.</source>
-        <translation type="vanished">用自然语言向 Jira 提问。例如：总结本 Sprint 中与 WPA 相关的阻塞问题。</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="529"/>
         <source>Use Selected Issue</source>
         <translation>使用当前问题</translation>
@@ -3445,14 +2660,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_Jira.qml" line="533"/>
         <source>Analyze %1 and tell me the risk for testing.</source>
         <translation>分析 %1，并告诉我它对测试的风险。</translation>
-    </message>
-    <message>
-        <source>Running...</source>
-        <translation type="vanished">执行中...</translation>
-    </message>
-    <message>
-        <source>Send</source>
-        <translation type="vanished">发送</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="1852"/>
@@ -3533,10 +2740,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_Jira.qml" line="2192"/>
         <source>No comments yet.</source>
         <translation>还没有评论。</translation>
-    </message>
-    <message>
-        <source>%1 | Updated %2 | %3 comments | %4 links</source>
-        <translation type="vanished">%1 | 更新于 %2 | %3 条评论 | %4 个关联</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="2234"/>
@@ -3739,14 +2942,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <source>Pagination</source>
         <translation type="unfinished">分页</translation>
     </message>
-    <message>
-        <source>&lt;Previous</source>
-        <translation type="obsolete">&lt;上一页</translation>
-    </message>
-    <message>
-        <source>Next&gt;</source>
-        <translation type="obsolete">下一页&gt;</translation>
-    </message>
 </context>
 <context>
     <name>T_PieChart</name>
@@ -3919,10 +3114,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation>刷新</translation>
     </message>
     <message>
-        <source>No reports yet.</source>
-        <translation type="vanished">暂无报告。</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_Report.qml" line="223"/>
         <source>Unknown time</source>
         <translation>未知时间</translation>
@@ -3977,22 +3168,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <source>Step Detail</source>
         <translation>步骤详情</translation>
     </message>
-    <message>
-        <source>Cases</source>
-        <translation type="vanished">用例</translation>
-    </message>
-    <message>
-        <source>Logs</source>
-        <translation type="vanished">日志</translation>
-    </message>
-    <message>
-        <source>Reports</source>
-        <translation type="vanished">报告列表</translation>
-    </message>
-    <message>
-        <source>Browse historical runs and export reports.</source>
-        <translation type="vanished">查看历史运行记录并导出报告。</translation>
-    </message>
 </context>
 <context>
     <name>T_Run</name>
@@ -4000,10 +3175,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_Run.qml" line="9"/>
         <source>Run</source>
         <translation>运行</translation>
-    </message>
-    <message>
-        <source>Run Tests</source>
-        <translation type="vanished">运行测试</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Run.qml" line="167"/>
@@ -4039,10 +3210,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_Run.qml" line="368"/>
         <source>OK</source>
         <translation>确定</translation>
-    </message>
-    <message>
-        <source>Execution output and progress will appear here.</source>
-        <translation type="vanished">执行输出和进度会显示在这里。</translation>
     </message>
 </context>
 <context>
@@ -4200,26 +3367,6 @@ Some contents...</source>
         <source>ShortcutPicker</source>
         <translation type="unfinished">快捷键选择器</translation>
     </message>
-    <message>
-        <source>Activate the Shortcut</source>
-        <translation type="obsolete">激活快捷键</translation>
-    </message>
-    <message>
-        <source>Press the key combination to change the shortcut</source>
-        <translation type="obsolete">按下组合键以更改此快捷键</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="obsolete">保存</translation>
-    </message>
-    <message>
-        <source>Cancel</source>
-        <translation type="obsolete">取消</translation>
-    </message>
-    <message>
-        <source>Reset</source>
-        <translation type="obsolete">重置</translation>
-    </message>
 </context>
 <context>
     <name>T_Slider</name>
@@ -4251,22 +3398,6 @@ Some contents...</source>
         <location filename="imports/example/qml/page/T_StatusLayout.qml" line="10"/>
         <source>StatusLayout</source>
         <translation type="unfinished">状态布局</translation>
-    </message>
-    <message>
-        <source>Loading...</source>
-        <translation type="obsolete">正在加载...</translation>
-    </message>
-    <message>
-        <source>Empty</source>
-        <translation type="obsolete">空空如也</translation>
-    </message>
-    <message>
-        <source>The page went wrong...</source>
-        <translation type="obsolete">页面出错了...</translation>
-    </message>
-    <message>
-        <source>Reload</source>
-        <translation type="obsolete">重新加载</translation>
     </message>
 </context>
 <context>
@@ -4491,14 +3622,6 @@ Some contents...</source>
         <translation>确定</translation>
     </message>
     <message>
-        <source>Global (DUT / Environment)</source>
-        <translation type="vanished">全局（DUT / 环境）</translation>
-    </message>
-    <message>
-        <source>Special Params (by Case Type)</source>
-        <translation type="vanished">特殊参数（按用例类型）</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/page/T_TestConfig.qml" line="874"/>
         <source>Env</source>
         <translation>陪测</translation>
@@ -4658,14 +3781,6 @@ Some contents...</source>
         <source>Timeline</source>
         <translation type="unfinished">时间轴</translation>
     </message>
-    <message>
-        <source>Append</source>
-        <translation type="obsolete">追加</translation>
-    </message>
-    <message>
-        <source>clear</source>
-        <translation type="obsolete">清空</translation>
-    </message>
 </context>
 <context>
     <name>T_ToggleSwitch</name>
@@ -4731,18 +3846,6 @@ Some contents...</source>
 </context>
 <context>
     <name>T_Tour</name>
-    <message>
-        <source>Finish</source>
-        <translation type="obsolete">完成</translation>
-    </message>
-    <message>
-        <source>Next</source>
-        <translation type="obsolete">下一步</translation>
-    </message>
-    <message>
-        <source>Previous</source>
-        <translation type="obsolete">上一步</translation>
-    </message>
     <message>
         <location filename="imports/example/qml/page/T_Tour.qml" line="15"/>
         <source>Upload File</source>
@@ -4824,14 +3927,6 @@ Some contents...</source>
         <source>Address</source>
         <translation type="unfinished">地址</translation>
     </message>
-    <message>
-        <source>Total %1 data, %2 data currently displayed</source>
-        <translation type="obsolete">共计%1条数据，当前显示的%2条数据</translation>
-    </message>
-    <message>
-        <source>A total of %1 data items are selected</source>
-        <translation type="obsolete">共计选中%1条数据</translation>
-    </message>
 </context>
 <context>
     <name>T_Typography</name>
@@ -4852,341 +3947,57 @@ Some contents...</source>
 <context>
     <name>TestPageBridge</name>
     <message>
-        <source>test.schema.global_context.title</source>
-        <translation type="vanished">全局</translation>
-    </message>
-    <message>
-        <source>test.schema.case_type_default.title</source>
-        <translation type="vanished">默认</translation>
-    </message>
-    <message>
-        <source>test.param.scope.global_context</source>
-        <translation type="vanished">全局</translation>
-    </message>
-    <message>
-        <source>test.param.scope.case_type_shared</source>
-        <translation type="vanished">用例类型</translation>
-    </message>
-    <message>
-        <source>test.param.scope.case</source>
-        <translation type="vanished">每个用例独立</translation>
-    </message>
-    <message>
-        <source>test.param.dut.label</source>
-        <translation type="vanished">DUT</translation>
-    </message>
-    <message>
-        <source>test.param.dut.description</source>
-        <translation type="vanished">当前选择的待测设备。</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.cycle_count.label</source>
-        <translation type="vanished">循环次数</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.cycle_count.description</source>
-        <translation type="vanished">继电器上下电循环次数。</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_off_sec.label</source>
-        <translation type="vanished">下电时长（秒）</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_off_sec.description</source>
-        <translation type="vanished">每次循环中继电器保持下电的秒数。</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_off_step_sec.label</source>
-        <translation type="vanished">下电步长（秒）</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_off_step_sec.description</source>
-        <translation type="vanished">每次循环后追加到下电时长的秒数。可使用负数递减。</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_on_wait_sec.label</source>
-        <translation type="vanished">上电等待时长（秒）</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_on_wait_sec.description</source>
-        <translation type="vanished">继电器上电后，执行检查点前等待的秒数。</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_on_wait_step_sec.label</source>
-        <translation type="vanished">上电等待步长（秒）</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_on_wait_step_sec.description</source>
-        <translation type="vanished">每次循环后追加到上电等待时长的秒数。可使用负数递减。</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.ping_target.label</source>
-        <translation type="vanished">Ping 目标</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.ping_target.description</source>
-        <translation type="vanished">DUT 侧用于 Wi-Fi 回连检查的 ping 目标。</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.bt_target.label</source>
-        <translation type="vanished">蓝牙目标</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.bt_target.description</source>
-        <translation type="vanished">用于蓝牙回连检查的目标设备。</translation>
-    </message>
-    <message>
-        <source>test.param.cpu_frequency.frequencies.label</source>
-        <translation type="vanished">CPU 频点</translation>
-    </message>
-    <message>
-        <source>test.param.cpu_frequency.frequencies.description</source>
-        <translation type="vanished">选择要切换测试的 CPU 频点。</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.bt_target.label</source>
-        <translation type="vanished">蓝牙目标</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.bt_target.description</source>
-        <translation type="vanished">可选目标 MAC；不检查时填 None 或留空。</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.cycle_count.label</source>
-        <translation type="vanished">循环次数</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.cycle_count.description</source>
-        <translation type="vanished">默认 20</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.interval_sec.label</source>
-        <translation type="vanished">间隔（秒）</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.interval_sec.description</source>
-        <translation type="vanished">默认 100</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.ping_target.label</source>
-        <translation type="vanished">Ping 目标</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.ping_target.description</source>
-        <translation type="vanished">可选 ping 目标。</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.bt_target.label</source>
-        <translation type="vanished">蓝牙目标</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.bt_target.description</source>
-        <translation type="vanished">可选目标 MAC；不检查时填 None 或留空。</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.cycle_count.label</source>
-        <translation type="vanished">循环次数</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.cycle_count.description</source>
-        <translation type="vanished">默认 20</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.interval_sec.label</source>
-        <translation type="vanished">间隔（秒）</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.interval_sec.description</source>
-        <translation type="vanished">默认 100</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.ping_target.label</source>
-        <translation type="vanished">Ping 目标</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.ping_target.description</source>
-        <translation type="vanished">可选 ping 目标。</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.bt_target.label</source>
-        <translation type="vanished">蓝牙目标</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.bt_target.description</source>
-        <translation type="vanished">必填目标 MAC；不检查时填 None 或留空。</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.cycle_count.label</source>
-        <translation type="vanished">循环次数</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.cycle_count.description</source>
-        <translation type="vanished">默认 2</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.loop_count.label</source>
-        <translation type="vanished">循环次数</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.loop_count.description</source>
-        <translation type="vanished">默认 180</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.min_free_kb.label</source>
-        <translation type="vanished">最小剩余空间（KB）</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.min_free_kb.description</source>
-        <translation type="vanished">默认 307200</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.source_profile.label</source>
-        <translation type="vanished">数据源配置</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.source_profile.description</source>
-        <translation type="vanished">random1 / random2</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.source_size_kb.label</source>
-        <translation type="vanished">数据源大小（KB）</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.source_size_kb.description</source>
-        <translation type="vanished">默认 51200</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.work_dir.label</source>
-        <translation type="vanished">工作目录</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.work_dir.description</source>
-        <translation type="vanished">默认 /data/local/tmp/smarttest/emmc_rw</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.media_dir.label</source>
-        <translation type="vanished">媒体目录</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.media_dir.description</source>
-        <translation type="vanished">未选择文件时运行期扫描的 DUT 目录。默认 /storage/*/Movies /storage/*/Video。</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.media_files.label</source>
-        <translation type="vanished">播放文件</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.media_files.description</source>
-        <translation type="vanished">从 DUT 内置 Movies 和 U 盘 Movies 目录发现的文件。启动前至少选择一个文件。</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.actions.label</source>
-        <translation type="vanished">压测动作</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.actions.description</source>
-        <translation type="vanished">通过 Android 媒体按键事件发送给 ExoPlayer 的播放操作。</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.loop_count.label</source>
-        <translation type="vanished">循环次数</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.loop_count.description</source>
-        <translation type="vanished">重复执行所选文件和动作配置的次数。</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.random_playback.label</source>
-        <translation type="vanished">随机播放</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.random_playback.description</source>
-        <translation type="vanished">每轮循环内打乱所选文件顺序。</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.action_interval_sec.label</source>
-        <translation type="vanished">动作间隔（秒）</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.action_interval_sec.description</source>
-        <translation type="vanished">每个播放动作执行后的等待时间。</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.start_wait_sec.label</source>
-        <translation type="vanished">起播等待（秒）</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.start_wait_sec.description</source>
-        <translation type="vanished">每个媒体文件起播后，发送压测动作前的等待时间。</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.cycle_count.label</source>
-        <translation type="vanished">循环次数</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.cycle_count.description</source>
-        <translation type="vanished">默认 2</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.ping_target.label</source>
-        <translation type="vanished">Ping 目标</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.ping_target.description</source>
-        <translation type="vanished">用于回连检查，必填。</translation>
-    </message>
-    <message>
-        <location filename="bridge/TestPageBridge.py" line="1107"/>
+        <location filename="bridge/TestPageBridge.py" line="1109"/>
         <source>test.env.relay.label</source>
         <translation>继电器</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1111"/>
+        <location filename="bridge/TestPageBridge.py" line="1113"/>
         <source>test.env.equipment.type.label</source>
         <translation>类型</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1019"/>
+        <location filename="bridge/TestPageBridge.py" line="1021"/>
         <source>test.env.relay.type.snmp_pdu</source>
         <translation>SNMP PDU</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1020"/>
+        <location filename="bridge/TestPageBridge.py" line="1022"/>
         <source>test.env.relay.type.usb_relay</source>
         <translation>USB 继电器</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1061"/>
+        <location filename="bridge/TestPageBridge.py" line="1063"/>
         <source>test.env.relay.snmp_pdu.ip.label</source>
         <translation>IP 地址</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1065"/>
+        <location filename="bridge/TestPageBridge.py" line="1067"/>
         <source>test.env.relay.snmp_pdu.ip.description</source>
         <translation>SNMP PDU 地址。</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1070"/>
+        <location filename="bridge/TestPageBridge.py" line="1072"/>
         <source>test.env.relay.snmp_pdu.port.label</source>
         <translation>插口端口</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1029"/>
+        <location filename="bridge/TestPageBridge.py" line="1031"/>
         <source>test.env.relay.usb_relay.port.label</source>
         <translation>串口</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1033"/>
+        <location filename="bridge/TestPageBridge.py" line="1035"/>
         <source>test.env.relay.usb_relay.port.description</source>
         <translation>USB 继电器串口，例如 COM4。</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1038"/>
+        <location filename="bridge/TestPageBridge.py" line="1040"/>
         <source>test.env.relay.usb_relay.mode.label</source>
         <translation>接线模式</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1049"/>
+        <location filename="bridge/TestPageBridge.py" line="1051"/>
         <source>test.env.relay.usb_relay.press_seconds.label</source>
         <translation>按压秒数</translation>
     </message>
