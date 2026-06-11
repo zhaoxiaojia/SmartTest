@@ -9,7 +9,13 @@ import pytest
 
 from testing.cases.metadata import build_case_metadata
 from testing.params.registry import default_registry
-from testing.runtime.events import emit_event, reset_current_case_nodeid, set_current_case_nodeid
+from testing.runtime.events import (
+    emit_event,
+    reset_current_case_nodeid,
+    reset_current_case_stress_tolerant,
+    set_current_case_nodeid,
+    set_current_case_stress_tolerant,
+)
 
 
 _REGISTRY = default_registry()
@@ -30,6 +36,13 @@ def pytest_collection_modifyitems(session, config, items):
     session._smarttest_collected_items = items  # noqa: SLF001
 
 
+def _is_stress_item(item) -> bool:
+    case_type = item.get_closest_marker("case_type")
+    if case_type and any(str(arg).strip().lower() == "stress" for arg in case_type.args):
+        return True
+    return item.get_closest_marker("stress") is not None
+
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_setup(item):
     nodeid = item.nodeid
@@ -42,27 +55,33 @@ def pytest_runtest_setup(item):
         file=nodeid.split("::", 1)[0],
     )
     token = set_current_case_nodeid(nodeid)
+    stress_token = set_current_case_stress_tolerant(_is_stress_item(item))
     try:
         yield
     finally:
+        reset_current_case_stress_tolerant(stress_token)
         reset_current_case_nodeid(token)
 
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_call(item):
     token = set_current_case_nodeid(item.nodeid)
+    stress_token = set_current_case_stress_tolerant(_is_stress_item(item))
     try:
         yield
     finally:
+        reset_current_case_stress_tolerant(stress_token)
         reset_current_case_nodeid(token)
 
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_teardown(item):
     token = set_current_case_nodeid(item.nodeid)
+    stress_token = set_current_case_stress_tolerant(_is_stress_item(item))
     try:
         yield
     finally:
+        reset_current_case_stress_tolerant(stress_token)
         reset_current_case_nodeid(token)
 
 

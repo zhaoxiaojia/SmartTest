@@ -4904,57 +4904,57 @@ Some contents...</translation>
         <translation type="vanished">Required for reconnect check</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1008"/>
+        <location filename="bridge/TestPageBridge.py" line="1107"/>
         <source>test.env.relay.label</source>
         <translation>Relay</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1012"/>
+        <location filename="bridge/TestPageBridge.py" line="1111"/>
         <source>test.env.equipment.type.label</source>
         <translation>Type</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="920"/>
+        <location filename="bridge/TestPageBridge.py" line="1019"/>
         <source>test.env.relay.type.snmp_pdu</source>
         <translation>SNMP PDU</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="921"/>
+        <location filename="bridge/TestPageBridge.py" line="1020"/>
         <source>test.env.relay.type.usb_relay</source>
         <translation>USB Relay</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="962"/>
+        <location filename="bridge/TestPageBridge.py" line="1061"/>
         <source>test.env.relay.snmp_pdu.ip.label</source>
         <translation>IP Address</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="966"/>
+        <location filename="bridge/TestPageBridge.py" line="1065"/>
         <source>test.env.relay.snmp_pdu.ip.description</source>
         <translation>SNMP PDU address.</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="971"/>
+        <location filename="bridge/TestPageBridge.py" line="1070"/>
         <source>test.env.relay.snmp_pdu.port.label</source>
         <translation>Outlet Port</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="930"/>
+        <location filename="bridge/TestPageBridge.py" line="1029"/>
         <source>test.env.relay.usb_relay.port.label</source>
         <translation>Serial Port</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="934"/>
+        <location filename="bridge/TestPageBridge.py" line="1033"/>
         <source>test.env.relay.usb_relay.port.description</source>
         <translation>USB relay serial port, for example COM4.</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="939"/>
+        <location filename="bridge/TestPageBridge.py" line="1038"/>
         <source>test.env.relay.usb_relay.mode.label</source>
         <translation>Wiring Mode</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="950"/>
+        <location filename="bridge/TestPageBridge.py" line="1049"/>
         <source>test.env.relay.usb_relay.press_seconds.label</source>
         <translation>Press Seconds</translation>
     </message>

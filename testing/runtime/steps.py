@@ -6,10 +6,16 @@ from contextlib import contextmanager
 import re
 from typing import Any, Iterator
 
-from .events import current_case_nodeid, current_step, emit_event, pop_step, push_step
+import pytest
+
+from .events import current_case_nodeid, current_case_stress_tolerant, current_step, emit_event, pop_step, push_step
 
 
 _DEFINITION_ID_RE = re.compile(r"^[a-z0-9]+(?:[._][a-z0-9]+)*$")
+
+
+class StressCheckFailure(AssertionError):
+    """Detection failure that stress cases should log and continue past."""
 
 
 def _normalize_definition_id(definition_id: str | None) -> str | None:
@@ -112,6 +118,7 @@ def step(
     expected: Any = None,
     actual: Any = None,
     step_id: str | None = None,
+    stress_tolerant: bool | None = None,
 ) -> Iterator[dict[str, Any]]:
     payload = _new_step_payload(
         title,
@@ -152,7 +159,51 @@ def step(
     )
     try:
         yield payload
-    except Exception as exc:  # noqa: BLE001
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except BaseException as exc:  # noqa: BLE001
+        if _should_soft_fail_stress_step(exc, stress_tolerant=stress_tolerant):
+            formatted_traceback = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+            message = (
+                "[stress.soft_failure] "
+                f"step_id={payload['id']} definition_id={payload['definition_id']} "
+                f"exception={type(exc).__name__}: {exc}"
+            )
+            soft_actual = {
+                "stress_soft_failure": True,
+                "exception_type": type(exc).__name__,
+                "error": str(exc),
+                "actual": actual,
+            }
+            print(message)
+            step_log(
+                message,
+                level="warning",
+                extra={
+                    "step_id": payload["id"],
+                    "definition_id": payload["definition_id"],
+                    "exception_type": type(exc).__name__,
+                },
+            )
+            step_evidence(
+                "Stress soft failure traceback",
+                formatted_traceback,
+                evidence_type="traceback",
+                level="warning",
+                meta={
+                    "step_id": payload["id"],
+                    "definition_id": payload["definition_id"],
+                    "exception_type": type(exc).__name__,
+                },
+            )
+            emit_event(
+                "step_finished",
+                step_id=payload["id"],
+                case_nodeid=payload["case_nodeid"],
+                status="passed",
+                actual=soft_actual,
+            )
+            return
         emit_event(
             "step_finished",
             step_id=payload["id"],
@@ -173,6 +224,14 @@ def step(
         )
     finally:
         pop_step(token)
+
+
+def _should_soft_fail_stress_step(exc: BaseException, *, stress_tolerant: bool | None) -> bool:
+    if stress_tolerant is False:
+        return False
+    if stress_tolerant is not True and not current_case_stress_tolerant():
+        return False
+    return isinstance(exc, (AssertionError, StressCheckFailure, pytest.fail.Exception))
 
 
 def step_evidence(
@@ -215,12 +274,38 @@ def step_log(message: str, *, level: str = "info", extra: dict[str, Any] | None 
     step_evidence("Log", str(message), evidence_type="log", level=level, meta=extra)
 
 
-def setup_step(title: str, *, definition_id: str | None = None, meta: dict[str, Any] | None = None):
-    return step(title, phase="setup", kind="setup", definition_id=definition_id, meta=meta)
+def setup_step(
+    title: str,
+    *,
+    definition_id: str | None = None,
+    meta: dict[str, Any] | None = None,
+    stress_tolerant: bool | None = None,
+):
+    return step(
+        title,
+        phase="setup",
+        kind="setup",
+        definition_id=definition_id,
+        meta=meta,
+        stress_tolerant=stress_tolerant,
+    )
 
 
-def teardown_step(title: str, *, definition_id: str | None = None, meta: dict[str, Any] | None = None):
-    return step(title, phase="teardown", kind="teardown", definition_id=definition_id, meta=meta)
+def teardown_step(
+    title: str,
+    *,
+    definition_id: str | None = None,
+    meta: dict[str, Any] | None = None,
+    stress_tolerant: bool | None = None,
+):
+    return step(
+        title,
+        phase="teardown",
+        kind="teardown",
+        definition_id=definition_id,
+        meta=meta,
+        stress_tolerant=stress_tolerant,
+    )
 
 
 def case_step(
@@ -230,6 +315,7 @@ def case_step(
     meta: dict[str, Any] | None = None,
     params: dict[str, Any] | None = None,
     expected: Any = None,
+    stress_tolerant: bool | None = None,
 ):
     return step(
         title,
@@ -239,6 +325,7 @@ def case_step(
         meta=meta,
         params=params,
         expected=expected,
+        stress_tolerant=stress_tolerant,
     )
 
 
@@ -250,6 +337,7 @@ def action_step(
     meta: dict[str, Any] | None = None,
     params: dict[str, Any] | None = None,
     expected: Any = None,
+    stress_tolerant: bool | None = None,
 ):
     return step(
         title,
@@ -259,6 +347,7 @@ def action_step(
         meta=meta,
         params=params,
         expected=expected,
+        stress_tolerant=stress_tolerant,
     )
 
 
@@ -270,6 +359,7 @@ def loop_step(
     phase: str = "call",
     definition_id: str | None = None,
     meta: dict[str, Any] | None = None,
+    stress_tolerant: bool | None = None,
 ):
     payload = dict(meta or {})
     payload.update({"index": index, "total": total})
@@ -279,4 +369,5 @@ def loop_step(
         kind="loop",
         definition_id=definition_id,
         meta=payload,
+        stress_tolerant=stress_tolerant,
     )

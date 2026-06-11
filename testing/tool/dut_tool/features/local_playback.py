@@ -8,7 +8,6 @@ import subprocess
 import tempfile
 import time
 from typing import Any, Iterable
-import xml.etree.ElementTree as ET
 
 import cv2
 import numpy as np
@@ -35,7 +34,6 @@ MEDIA_MIME_TYPES = {
 }
 DEFAULT_MEDIA_SCAN_COMMAND = "find /storage/*/Movies /storage/*/Video -maxdepth 1 -type f 2>/dev/null"
 MEDIA_DIR_SCAN_COMMAND = "find /storage -maxdepth 2 -type d \\( -name Movies -o -name Video \\) 2>/dev/null"
-UI_DUMP_REMOTE_PATH = "/sdcard/window_dump.xml"
 SCREENSHOT_REMOTE_PATH = "/sdcard/smarttest_playback_screen.png"
 
 PLAY_KEYEVENT = "KEYCODE_MEDIA_PLAY"
@@ -49,6 +47,8 @@ DIRECT_ACTION_KEYEVENTS = {
 CONTROLLED_ACTIONS = {"back_to_start", "seek_to_end"}
 SUPPORTED_ACTIONS = set(DIRECT_ACTION_KEYEVENTS) | CONTROLLED_ACTIONS
 SEEK_TO_END_PROGRESS_RATIO = 0.75
+SHORT_VIDEO_SEEK_TO_END_PROGRESS_RATIO = 0.50
+SHORT_VIDEO_SEEK_TO_END_DURATION_SEC = 120
 SEEK_TO_START_PROGRESS_RATIO = 0.05
 PROGRESS_SCREENSHOT_RETRIES = 3
 PROGRESS_SCREENSHOT_RETRY_INTERVAL_SEC = 0.5
@@ -56,6 +56,13 @@ PROGRESS_TAP_Y_RATIO = 0.20
 PROGRESS_SCREENSHOT_DELAY_SEC = 0.3
 ACTION_VERIFY_SETTLE_SEC = 1.0
 SEEK_FORWARD_MIN_REMAINING_SEC = 5
+SEEK_FORWARD_MIN_DURATION_SEC = 30
+POST_ACTION_STATE_RETRIES = 20
+POST_ACTION_STATE_RETRY_INTERVAL_SEC = 1.0
+START_READY_STATE_RETRIES = 10
+START_READY_STATE_RETRY_INTERVAL_SEC = 1.0
+PLAYBACK_FINISH_EXTRA_SEC = 30.0
+PLAYBACK_FINISH_POLL_SEC = 2.0
 
 
 @dataclass(frozen=True)
@@ -111,6 +118,7 @@ class LocalPlaybackFeature(FeatureBase):
         stop_exoplayer(self.dut)
 
     def exit_player(self) -> None:
+        step_log("local_playback_exit_player keyevent=KEYCODE_BACK")
         self.dut.keyevent(BACK_KEYEVENT)
 
     def resume_playback(self) -> None:
@@ -211,19 +219,18 @@ def stop_exoplayer(dut) -> None:
 def dismiss_resume_dialog(dut) -> None:
     device = _ensure_dut(dut)
     for _ in range(5):
-        dump_text = dump_ui_xml(device)
-        node = _find_resume_dialog_cancel_node(dump_text)
-        if node is not None:
-            bounds = _node_bounds(node)
-            if bounds is not None:
-                x1, y1, x2, y2 = bounds
-                step_log(
-                    "local_playback_resume_dialog_dismiss "
-                    f"target={_node_label(node)!r} bounds=[{x1},{y1}][{x2},{y2}]"
-                )
-                device.tap((x1 + x2) // 2, (y1 + y2) // 2)
-                time.sleep(0.5)
-                return
+        image = capture_screen_image(device)
+        target = _resume_dialog_cancel_target_from_image(image)
+        if target is not None:
+            x, y, dialog = target
+            x1, y1, x2, y2 = dialog
+            step_log(
+                "local_playback_resume_dialog_dismiss "
+                f"method=screenshot dialog=[{x1},{y1}][{x2},{y2}] cancel=[{x},{y}]"
+            )
+            device.tap(x, y)
+            time.sleep(0.5)
+            return
         time.sleep(0.3)
 
 
@@ -291,6 +298,7 @@ def run_local_playback_stress(
                     break
                 if executed and action_interval_sec:
                     time.sleep(action_interval_sec)
+            _wait_for_playback_finished_after_actions(playback.dut, file_path)
             playback.exit_player()
 
 
@@ -310,6 +318,16 @@ def verify_stress_action(*, dut, file_path: str, action: str, action_interval_se
             f"detail={str(exc).splitlines()[0]}"
         )
         return False if still_playing else None
+    state_ok, state_reason, state_summary = _preflight_media_session_ready(device, file_path)
+    if not state_ok:
+        step_log(
+            "local_playback_action_skipped "
+            f"action={action} file={file_path} "
+            f"current={before.current_seconds} duration={before.duration_seconds} "
+            f"remaining={_playback_remaining_seconds(before)} "
+            f"reason={state_reason} media={state_summary}"
+        )
+        return None
     safe, reason = _stress_action_safety(action, before, action_interval_sec=action_interval_sec)
     if not safe:
         step_log(
@@ -325,6 +343,14 @@ def verify_stress_action(*, dut, file_path: str, action: str, action_interval_se
         time.sleep(ACTION_VERIFY_SETTLE_SEC)
         device.keyevent(PLAY_KEYEVENT)
         time.sleep(ACTION_VERIFY_SETTLE_SEC)
+        post_ok, post_reason, post_summary = _wait_for_post_action_playing(device, file_path)
+        if not post_ok:
+            step_log(
+                "local_playback_action_skipped "
+                f"action={action} file={file_path} before={_format_progress(before)} "
+                f"reason={post_reason} media={post_summary}"
+            )
+            return None
         step_log(
             "local_playback_action_executed "
             f"action={action} file={file_path} before={_format_progress(before)}"
@@ -332,7 +358,10 @@ def verify_stress_action(*, dut, file_path: str, action: str, action_interval_se
         return True
 
     try:
-        run_action(action, device)
+        if action == "seek_to_end":
+            seek_progress_to_ratio(device, _seek_to_end_target_ratio(before), action)
+        else:
+            run_action(action, device)
     except (AssertionError, RuntimeError) as exc:
         media_session = str(device.run_device_shell("dumpsys media_session") or "")
         still_playing = _media_session_state(media_session) == "PLAYING" and _media_session_matches_file(media_session, file_path)
@@ -343,6 +372,14 @@ def verify_stress_action(*, dut, file_path: str, action: str, action_interval_se
         )
         return False if still_playing else None
     time.sleep(ACTION_VERIFY_SETTLE_SEC)
+    post_ok, post_reason, post_summary = _wait_for_post_action_playing(device, file_path)
+    if not post_ok:
+        step_log(
+            "local_playback_action_skipped "
+            f"action={action} file={file_path} before={_format_progress(before)} "
+            f"reason={post_reason} media={post_summary}"
+        )
+        return None
     step_log(
         "local_playback_action_executed "
         f"action={action} file={file_path} before={_format_progress(before)}"
@@ -351,19 +388,33 @@ def verify_stress_action(*, dut, file_path: str, action: str, action_interval_se
 
 
 def assert_media_session_state(dut, *, file_path: str, expected_state: str) -> None:
-    text = str(_ensure_dut(dut).run_device_shell("dumpsys media_session") or "")
-    state = _media_session_state(text)
-    if state == expected_state and _media_session_matches_file(text, file_path):
+    device = _ensure_dut(dut)
+    last_text = ""
+    for attempt in range(1, START_READY_STATE_RETRIES + 1):
+        text = str(device.run_device_shell("dumpsys media_session") or "")
+        last_text = text
+        state = _media_session_state(text)
+        matches_file = _media_session_matches_file(text, file_path)
+        if state == expected_state and matches_file:
+            step_log(
+                "local_playback_media_session_ready "
+                f"file={file_path} expected={expected_state} state={_media_session_state_summary(text)}"
+            )
+            return
+        if not (expected_state == "PLAYING" and state == "BUFFERING" and matches_file):
+            break
         step_log(
-            "local_playback_media_session_ready "
-            f"file={file_path} expected={expected_state} state={_media_session_state_summary(text)}"
+            "local_playback_media_session_waiting "
+            f"file={file_path} expected={expected_state} attempt={attempt} "
+            f"state={_media_session_state_summary(text)}"
         )
-        return
+        if attempt < START_READY_STATE_RETRIES:
+            time.sleep(START_READY_STATE_RETRY_INTERVAL_SEC)
     raise AssertionError(
         "Local playback media session state mismatch.\n"
         f"file={file_path}\n"
         f"expected_state={expected_state}\n"
-        f"state={_media_session_state_summary(text)}"
+        f"state={_media_session_state_summary(last_text)}"
     )
 
 
@@ -403,28 +454,14 @@ def seek_progress_to_ratio(dut, ratio: float, action_name: str) -> None:
     device = _ensure_dut(dut)
     controls = read_playback_controls(device)
     target_x = controls.bar_x1 + int((controls.bar_x2 - controls.bar_x1) * max(0.0, min(float(ratio), 1.0)))
-    if controls.thumb_x is not None:
-        start_x = controls.thumb_x
-    elif controls.progress is not None and controls.progress.duration_seconds > 0:
-        start_x = controls.bar_x1 + int((controls.bar_x2 - controls.bar_x1) * max(0.0, min(controls.progress.ratio, 1.0)))
-    elif ratio <= 0.1:
-        start_x = controls.bar_x2 - max(48, int((controls.bar_x2 - controls.bar_x1) * 0.05))
-    else:
-        start_x = controls.bar_x1 + max(48, int((controls.bar_x2 - controls.bar_x1) * 0.05))
     step_log(
-        "local_playback_progress_seek_swipe "
+        "local_playback_progress_seek_tap "
         f"action={action_name} ratio={ratio:.2f} "
         f"bounds=[{controls.bar_x1},{controls.bar_y}][{controls.bar_x2},{controls.bar_y}] "
         f"thumb_x={controls.thumb_x if controls.thumb_x is not None else 'unknown'} "
         f"target=({target_x},{controls.bar_y})"
     )
-    device.swipe(start_x, controls.bar_y, target_x, controls.bar_y, 700)
-
-
-def dump_ui_xml(dut) -> str:
-    device = _ensure_dut(dut)
-    device.run_device_shell(f"uiautomator dump {UI_DUMP_REMOTE_PATH} --compressed")
-    return str(device.run_device_shell(f"cat {UI_DUMP_REMOTE_PATH}") or "")
+    device.tap(target_x, controls.bar_y)
 
 
 def capture_screen_image(dut) -> Image.Image:
@@ -464,7 +501,18 @@ def _playback_progress_from_image(image: Image.Image) -> PlaybackProgress | None
     current_seconds, duration_seconds = pair
     if duration_seconds <= 0:
         return None
+    if current_seconds < 0:
+        return None
+    overshoot_tolerance = _ocr_current_overshoot_tolerance_seconds(duration_seconds)
+    if current_seconds > duration_seconds + overshoot_tolerance:
+        return None
+    if current_seconds > duration_seconds:
+        current_seconds = duration_seconds
     return PlaybackProgress(current_seconds=current_seconds, duration_seconds=duration_seconds)
+
+
+def _ocr_current_overshoot_tolerance_seconds(duration_seconds: int) -> int:
+    return max(1, min(3, int(round(duration_seconds * 0.005))))
 
 
 def read_playback_controls(
@@ -574,17 +622,91 @@ def _stress_action_safety(
     remaining_seconds = _playback_remaining_seconds(progress)
 
     if normalized == "seek_to_end":
-        if progress.ratio >= SEEK_TO_END_PROGRESS_RATIO:
+        if progress.ratio >= _seek_to_end_target_ratio(progress):
             return False, "seek_to_end_already_near_target"
     elif normalized == "seek_forward":
+        if progress.duration_seconds < SEEK_FORWARD_MIN_DURATION_SEC:
+            return False, "video_too_short_for_seek_forward"
         if remaining_seconds <= SEEK_FORWARD_MIN_REMAINING_SEC:
             return False, "remaining_time_too_short"
 
     return True, "safe"
 
 
+def _seek_to_end_target_ratio(progress: PlaybackProgress) -> float:
+    if progress.duration_seconds < SHORT_VIDEO_SEEK_TO_END_DURATION_SEC:
+        return SHORT_VIDEO_SEEK_TO_END_PROGRESS_RATIO
+    return SEEK_TO_END_PROGRESS_RATIO
+
+
 def _playback_remaining_seconds(progress: PlaybackProgress) -> int:
     return max(progress.duration_seconds - progress.current_seconds, 0)
+
+
+def _preflight_media_session_ready(dut, file_path: str) -> tuple[bool, str, str]:
+    text = str(_ensure_dut(dut).run_device_shell("dumpsys media_session") or "")
+    summary = _media_session_state_summary(text)
+    if not _media_session_matches_file(text, file_path):
+        return False, "media_session_not_current_file", summary
+    state = _media_session_state(text)
+    if state != "PLAYING":
+        return False, "media_session_not_playing", summary
+    return True, "safe", summary
+
+
+def _wait_for_post_action_playing(dut, file_path: str) -> tuple[bool, str, str]:
+    device = _ensure_dut(dut)
+    last_summary = "pkg=False active=unknown state=unknown"
+    last_state: str | None = None
+    for attempt in range(1, POST_ACTION_STATE_RETRIES + 1):
+        text = str(device.run_device_shell("dumpsys media_session") or "")
+        last_summary = _media_session_state_summary(text)
+        if not _media_session_matches_file(text, file_path):
+            return False, "media_session_not_current_file", last_summary
+        last_state = _media_session_state(text)
+        if last_state == "PLAYING":
+            return True, "safe", last_summary
+        if last_state == "PAUSED":
+            step_log(
+                "local_playback_post_action_resume "
+                f"file={file_path} attempt={attempt} state={last_summary}"
+            )
+            device.keyevent(PLAY_KEYEVENT)
+            if attempt < POST_ACTION_STATE_RETRIES:
+                time.sleep(POST_ACTION_STATE_RETRY_INTERVAL_SEC)
+            continue
+        if last_state != "BUFFERING":
+            return False, "media_session_not_playing", last_summary
+        if attempt == 3:
+            step_log(
+                "local_playback_post_action_buffering_resume "
+                f"file={file_path} attempt={attempt} state={last_summary}"
+            )
+            device.keyevent(PLAY_KEYEVENT)
+        if attempt < POST_ACTION_STATE_RETRIES:
+            time.sleep(POST_ACTION_STATE_RETRY_INTERVAL_SEC)
+    return False, "media_session_still_buffering", last_summary
+
+
+def _wait_for_playback_finished_after_actions(dut, file_path: str) -> bool:
+    device = _ensure_dut(dut)
+    try:
+        progress = read_playback_progress(device)
+    except AssertionError as exc:
+        step_log(f"local_playback_wait_finish_skipped file={file_path} reason=progress_unreadable detail={str(exc).splitlines()[0]}")
+        return False
+    timeout_sec = _playback_remaining_seconds(progress) + PLAYBACK_FINISH_EXTRA_SEC
+    step_log(f"local_playback_wait_finish_start file={file_path} progress={_format_progress(progress)} timeout={timeout_sec:.1f}")
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        text = str(device.run_device_shell("dumpsys media_session") or "")
+        state = _media_session_state(text)
+        if not _media_session_matches_file(text, file_path) or state == "STOPPED":
+            step_log(f"local_playback_wait_finish_done file={file_path} state={_media_session_state_summary(text)}")
+            return True
+        time.sleep(min(PLAYBACK_FINISH_POLL_SEC, max(deadline - time.monotonic(), 0.0)))
+    step_log(f"local_playback_wait_finish_timeout file={file_path} state={_media_session_state_summary(str(device.run_device_shell('dumpsys media_session') or ''))}")
+    return False
 
 
 def _time_ratio_matches(progress: PlaybackProgress, expected_ratio: float) -> bool:
@@ -607,6 +729,75 @@ def _cluster_sorted_points(values: list[int]) -> list[tuple[int, int]]:
         start = previous = value
     clusters.append((start, previous))
     return clusters
+
+
+def _resume_dialog_cancel_target_from_image(image: Image.Image) -> tuple[int, int, tuple[int, int, int, int]] | None:
+    width, height = image.size
+    arr = np.array(image.convert("RGB"))
+    channel_delta = arr.max(axis=2) - arr.min(axis=2)
+    gray_mask = (
+        (arr[:, :, 0] >= 35)
+        & (arr[:, :, 0] <= 105)
+        & (arr[:, :, 1] >= 35)
+        & (arr[:, :, 1] <= 105)
+        & (arr[:, :, 2] >= 35)
+        & (arr[:, :, 2] <= 105)
+        & (channel_delta <= 12)
+    ).astype(np.uint8) * 255
+    gray_mask = cv2.morphologyEx(gray_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25)))
+    contours, _ = cv2.findContours(gray_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    dialog_candidates: list[tuple[int, int, int, int]] = []
+    for contour in contours:
+        x, y, dialog_width, dialog_height = cv2.boundingRect(contour)
+        if not (int(width * 0.25) <= dialog_width <= int(width * 0.6)):
+            continue
+        if not (int(height * 0.12) <= dialog_height <= int(height * 0.35)):
+            continue
+        center_x = x + dialog_width / 2
+        center_y = y + dialog_height / 2
+        if abs(center_x - width / 2) > width * 0.18:
+            continue
+        if not (height * 0.35 <= center_y <= height * 0.65):
+            continue
+        dialog_candidates.append((x, y, x + dialog_width, y + dialog_height))
+    if not dialog_candidates:
+        return None
+
+    dialog = max(dialog_candidates, key=lambda item: (item[2] - item[0]) * (item[3] - item[1]))
+    x1, y1, x2, y2 = dialog
+    lower_y1 = y1 + int((y2 - y1) * 0.55)
+    button_area = arr[lower_y1:y2, x1:x2, :]
+    cyan_mask = (
+        (button_area[:, :, 0] <= 80)
+        & (button_area[:, :, 1] >= 110)
+        & (button_area[:, :, 2] >= 100)
+        & ((button_area[:, :, 1].astype(np.int16) - button_area[:, :, 0].astype(np.int16)) >= 60)
+    )
+    local_xs = np.where(np.any(cyan_mask, axis=0))[0]
+    clusters: list[tuple[int, int]] = []
+    if len(local_xs) > 0:
+        max_button_text_gap = max(24, int(width * 0.018))
+        start = previous = int(local_xs[0])
+        for value in [int(item) for item in local_xs[1:]]:
+            if value <= previous + max_button_text_gap:
+                previous = value
+                continue
+            clusters.append((start, previous))
+            start = previous = value
+        clusters.append((start, previous))
+    clusters = [(start, end) for start, end in clusters if end - start + 1 >= max(8, int(width * 0.004))]
+    if len(clusters) < 2:
+        return None
+
+    first_start, first_end = clusters[0]
+    first_mask = cyan_mask[:, first_start : first_end + 1]
+    local_ys = np.where(np.any(first_mask, axis=1))[0]
+    if len(local_ys) == 0:
+        return None
+    target_x = x1 + (first_start + first_end) // 2
+    target_y = lower_y1 + (int(local_ys.min()) + int(local_ys.max())) // 2
+    return target_x, target_y, dialog
 
 
 def _ocr_playback_time_pair(image: Image.Image) -> tuple[int, int] | None:
@@ -724,19 +915,19 @@ def _ocr_font_path() -> str:
 
 
 def _media_session_state(text: str) -> str | None:
-    raw = str(text or "")
-    if EXOPLAYER_PACKAGE not in raw:
+    block = _movieplayer_media_session_block(text)
+    if not block:
         return None
-    match = re.search(r"state=([A-Z_]+)\(\d+\)", raw)
+    match = re.search(r"state=([A-Z_]+)\(\d+\)", block)
     return match.group(1) if match else None
 
 
 def _media_session_matches_file(text: str, file_path: str) -> bool:
-    raw = str(text or "")
-    if EXOPLAYER_PACKAGE not in raw:
+    block = _movieplayer_media_session_block(text)
+    if not block:
         return False
     file_name = str(file_path or "").replace("\\", "/").rsplit("/", 1)[-1].strip()
-    return bool(file_name) and file_name in raw
+    return bool(file_name) and file_name in block
 
 
 def playback_state_summary(dut) -> str:
@@ -744,13 +935,25 @@ def playback_state_summary(dut) -> str:
 
 
 def _media_session_state_summary(text: str) -> str:
-    raw = str(text or "")
-    package_seen = EXOPLAYER_PACKAGE in raw
-    state_match = re.search(r"state=([A-Z_]+)\((\d+)\)", raw)
-    active_match = re.search(r"active=(true|false)", raw)
+    block = _movieplayer_media_session_block(text)
+    package_seen = bool(block)
+    state_match = re.search(r"state=([A-Z_]+)\((\d+)\)", block) if block else None
+    active_match = re.search(r"active=(true|false)", block) if block else None
     state = f"{state_match.group(1)}({state_match.group(2)})" if state_match else "unknown"
     active = active_match.group(1) if active_match else "unknown"
     return f"pkg={package_seen} active={active} state={state}"
+
+
+def _movieplayer_media_session_block(text: str) -> str:
+    raw = str(text or "")
+    marker = f"MoviePlayer {EXOPLAYER_PACKAGE}/MoviePlayer"
+    start = raw.find(marker)
+    if start < 0:
+        return ""
+    next_session = re.search(r"\n\s{4}\S.*?\(userId=\d+\)", raw[start + len(marker) :])
+    if next_session:
+        return raw[start : start + len(marker) + next_session.start()]
+    return raw[start:]
 
 
 def _media_scan_command(media_dir: str | None) -> str:
@@ -837,53 +1040,11 @@ def _media_mime_type(file_path: str) -> str:
     return "video/*"
 
 
-def _find_resume_dialog_cancel_node(xml_text: str) -> ET.Element | None:
-    try:
-        root = ET.fromstring(str(xml_text or ""))
-    except ET.ParseError:
-        return None
-    labels = [_node_label(node) for node in root.iter("node")]
-    has_resume_prompt = any(
-        any(token in label for token in ("resume", "breakpoint", "断点", "续播"))
-        for label in labels
-    )
-    if not has_resume_prompt:
-        return None
-    preferred_tokens = (
-        "cancel",
-        "restart",
-        "start over",
-        "取消",
-        "从头",
-        "重新",
-    )
-    for node in root.iter("node"):
-        label = _node_label(node)
-        if any(token in label for token in preferred_tokens):
-            return node
-    return None
-
-
-def _node_label(node: ET.Element) -> str:
-    return " ".join(
-        str(node.attrib.get(name, "") or "").strip().lower()
-        for name in ("text", "content-desc", "resource-id")
-        if str(node.attrib.get(name, "") or "").strip()
-    )
-
-
 def _action_keyevent(action: str) -> str:
     keyevent = DIRECT_ACTION_KEYEVENTS.get(str(action or "").strip())
     if not keyevent:
         raise ValueError(f"Unsupported local playback stress action: {action}")
     return keyevent
-
-
-def _node_bounds(node: ET.Element) -> tuple[int, int, int, int] | None:
-    match = re.match(r"^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$", str(node.attrib.get("bounds", "") or "").strip())
-    if not match:
-        return None
-    return tuple(int(item) for item in match.groups())
 
 
 def _format_progress(progress: PlaybackProgress | None) -> str:

@@ -118,6 +118,16 @@ Use this workflow when debugging or changing APK-backed cases:
 4. Keep unmatched runtime updates diagnostic-rich: nodeid, step id, definition id, status/event type, and parameters.
 5. Failed cases must be recorded and the run must continue unless stop-on-failure is explicitly enabled.
 
+## Stress Case Step Tolerance
+
+1. Stress cases are identified by `@pytest.mark.case_type("stress")` or `@pytest.mark.stress`.
+2. Functional cases remain strict: assertion/check failures inside `testing.runtime.steps.step()` must fail the step and case.
+3. Stress cases use step-level soft failure for detection/checkpoint failures only. `AssertionError`, `pytest.fail()`, and `StressCheckFailure` inside a stress step must be logged as `[stress.soft_failure]`, emitted as warning evidence, and allow the case to continue.
+4. Do not globally swallow all exceptions. Unexpected code errors such as `TypeError`, `AttributeError`, `NameError`, device setup errors, cancellation, `KeyboardInterrupt`, and `SystemExit` must still stop/fail normally unless a reusable, explicit detection exception is introduced.
+5. Keep stress loops split into small `step(...)` blocks around each repeat/action/check. A single large step around an entire loop cannot resume the next loop item after an exception.
+6. Use `stress_tolerant=False` for critical stress setup or teardown steps that must remain strict.
+7. Do not convert stress failures to hidden success without diagnostics; logs must include step id, definition id, exception type, and message.
+
 ## Local Playback Stress Action Safety
 
 1. Local playback stress actions must be scheduled from the current playback time and media duration read from the action-preflight screenshot, not blindly executed from the selected action list.

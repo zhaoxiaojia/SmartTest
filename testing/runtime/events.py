@@ -13,11 +13,16 @@ _EVENT_PATH_ENV = "SMARTTEST_STEP_EVENTS_OUT"
 _WRITE_LOCK = threading.Lock()
 
 _CURRENT_CASE_NODEID: ContextVar[str | None] = ContextVar("smarttest_current_case_nodeid", default=None)
+_CURRENT_CASE_STRESS_TOLERANT: ContextVar[bool] = ContextVar("smarttest_current_case_stress_tolerant", default=False)
 _STEP_STACK: ContextVar[list[dict[str, Any]]] = ContextVar("smarttest_step_stack", default=[])
 
 
 def current_case_nodeid() -> str | None:
     return _CURRENT_CASE_NODEID.get()
+
+
+def current_case_stress_tolerant() -> bool:
+    return bool(_CURRENT_CASE_STRESS_TOLERANT.get())
 
 
 def current_step() -> dict[str, Any] | None:
@@ -31,6 +36,14 @@ def set_current_case_nodeid(nodeid: str | None):
 
 def reset_current_case_nodeid(token) -> None:
     _CURRENT_CASE_NODEID.reset(token)
+
+
+def set_current_case_stress_tolerant(enabled: bool):
+    return _CURRENT_CASE_STRESS_TOLERANT.set(bool(enabled))
+
+
+def reset_current_case_stress_tolerant(token) -> None:
+    _CURRENT_CASE_STRESS_TOLERANT.reset(token)
 
 
 def push_step(step_payload: dict[str, Any]):
