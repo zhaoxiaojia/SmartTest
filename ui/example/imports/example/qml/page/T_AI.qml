@@ -27,6 +27,14 @@ FluPage {
         Qt.openUrlExternally(aiUrl)
     }
 
+    WebEngineProfile {
+        id: ai_web_profile
+        storageName: "smarttest_ai_web"
+        offTheRecord: false
+        httpCacheType: WebEngineProfile.DiskHttpCache
+        persistentCookiesPolicy: WebEngineProfile.ForcePersistentCookies
+    }
+
     Rectangle {
         anchors.fill: parent
         color: pageBg
@@ -88,6 +96,7 @@ FluPage {
                 id: web_view
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                profile: ai_web_profile
                 url: page.aiUrl
 
                 onLoadingChanged: function(loadRequest) {
