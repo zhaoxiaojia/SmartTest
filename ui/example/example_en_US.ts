@@ -37,6 +37,39 @@
     </message>
 </context>
 <context>
+    <name>AboutWindow</name>
+    <message>
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="8"/>
+        <source>About</source>
+        <translation type="unfinished">About</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="25"/>
+        <source>Version: %1</source>
+        <translation>Version: %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="30"/>
+        <source>Build time: %1</source>
+        <translation>Build time: %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="30"/>
+        <source>Build time: unavailable</source>
+        <translation>Build time: unavailable</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="35"/>
+        <source>Update checks and external links are disabled by default.</source>
+        <translation>Update checks and external links are disabled by default.</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="47"/>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+</context>
+<context>
     <name>App</name>
     <message>
         <location filename="imports/example/qml/App.qml" line="60"/>

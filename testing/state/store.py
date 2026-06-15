@@ -7,6 +7,14 @@ from ui import jsonTool
 from .models import TestPageState, from_jsonable, to_jsonable
 
 
+def ensure_state(path: Path) -> TestPageState:
+    if path.exists():
+        return load_state(path)
+    state = TestPageState()
+    save_state(path, state)
+    return state
+
+
 def load_state(path: Path) -> TestPageState:
     data = jsonTool.read_json(path, {})
     if not isinstance(data, dict):

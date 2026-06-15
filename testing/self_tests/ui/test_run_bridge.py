@@ -143,8 +143,8 @@ def test_run_bridge_start_blocks_missing_required_case_parameter(monkeypatch, tm
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
-    state_path = tmp_path / "test_page_state.json"
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    state_path = tmp_path / "Amlogic" / "SmartTest" / "test_page_state.json"
     nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
     save_state(
         state_path,
@@ -218,8 +218,8 @@ def test_run_bridge_start_inserts_initial_plan_before_background_start(monkeypat
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
-    state_path = tmp_path / "test_page_state.json"
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    state_path = tmp_path / "Amlogic" / "SmartTest" / "test_page_state.json"
     nodeid = "android://auto_reboot"
     mapped_nodeid = "testing/tests/android/common/system/test_auto_reboot.py::test_auto_reboot_via_android_client"
     save_state(
@@ -227,7 +227,7 @@ def test_run_bridge_start_inserts_initial_plan_before_background_start(monkeypat
         SmartTestPageState(
             selected=[SelectedCase(nodeid=nodeid)],
             case_parameters={
-                nodeid: {
+                mapped_nodeid: {
                     "auto_reboot:cycle_count": 1.0,
                     "auto_reboot:interval_sec": 30.0,
                     "auto_reboot:ping_target": "192.168.50.1",
@@ -266,8 +266,8 @@ def test_run_bridge_start_expands_android_step_templates(monkeypatch, tmp_path) 
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
-    state_path = tmp_path / "test_page_state.json"
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    state_path = tmp_path / "Amlogic" / "SmartTest" / "test_page_state.json"
     nodeid = "android://emmc_rw"
     mapped_nodeid = "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client"
     save_state(
@@ -275,7 +275,7 @@ def test_run_bridge_start_expands_android_step_templates(monkeypatch, tmp_path) 
         SmartTestPageState(
             selected=[SelectedCase(nodeid=nodeid)],
             case_parameters={
-                nodeid: {
+                mapped_nodeid: {
                     "emmc_rw:loop_count": 1.0,
                     "emmc_rw:source_profile": "random1",
                 }
@@ -314,10 +314,10 @@ def test_run_bridge_emmc_runtime_steps_match_initial_plan_without_additions(monk
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client"
     save_state(
-        tmp_path / "test_page_state.json",
+        tmp_path / "Amlogic" / "SmartTest" / "test_page_state.json",
         SmartTestPageState(
             selected=[SelectedCase(nodeid=nodeid)],
             case_parameters={nodeid: {"emmc_rw:loop_count": 1.0}},
@@ -381,10 +381,10 @@ def test_run_bridge_execute_summary_step_is_hidden(monkeypatch, tmp_path) -> Non
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client"
     save_state(
-        tmp_path / "test_page_state.json",
+        tmp_path / "Amlogic" / "SmartTest" / "test_page_state.json",
         SmartTestPageState(
             selected=[SelectedCase(nodeid=nodeid)],
             case_parameters={nodeid: {"emmc_rw:loop_count": 1.0}},
@@ -419,10 +419,10 @@ def test_run_bridge_runtime_steps_update_initial_plan_without_duplicates(monkeyp
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/common/system/test_auto_reboot.py::test_auto_reboot_via_android_client"
     save_state(
-        tmp_path / "test_page_state.json",
+        tmp_path / "Amlogic" / "SmartTest" / "test_page_state.json",
         SmartTestPageState(
             selected=[SelectedCase(nodeid=nodeid)],
             case_parameters={

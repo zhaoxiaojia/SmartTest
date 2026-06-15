@@ -1,7 +1,8 @@
 [Setup]
+#include "..\..\..\build\generated\installer_version.iss"
 AppId={{9E4F9F2A-7A9B-4D4D-9E1A-2C5EF80B0D7A}
 AppName=SmartTest
-AppVersion=0.1.0
+AppVersion={#SmartTestAppVersion}
 AppPublisher=SmartTest
 DefaultDirName={autopf}\SmartTest
 DefaultGroupName=SmartTest

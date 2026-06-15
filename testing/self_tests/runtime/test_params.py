@@ -5,7 +5,7 @@ from ui import jsonTool
 
 
 def test_case_parameters_are_plain_json_values(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client"
     jsonTool.write_json(
         "test_page_state.json",

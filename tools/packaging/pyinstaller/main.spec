@@ -21,6 +21,7 @@ mainPath = os.path.join(repo_root, "main.py")
 ui_root = os.path.join(repo_root, "ui")
 test_catalog = os.path.join(repo_root, "build", "generated", "testing", "cases", "test_catalog.json")
 testing_root = os.path.join(repo_root, "testing")
+tools_root = os.path.join(repo_root, "tools")
 ai_root = os.path.join(repo_root, "AI")
 jira_tool_root = os.path.join(repo_root, "jira_tool")
 build_manifest = os.path.join(repo_root, "build", "generated", "build_manifest.json")
@@ -68,6 +69,10 @@ a = Analysis(
         (
             testing_root,
             "testing",
+        ),
+        (
+            tools_root,
+            "tools",
         ),
         (
             ai_root,

@@ -54,9 +54,9 @@ def main() -> None:
     case_ids = _android_case_ids_by_function()
     cases = discover_pytest_cases(root_dir=ROOT, python_executable=sys.executable)
     payload = []
-    original_app_data = os.environ.get("SMARTTEST_APP_DATA_DIR")
+    original_app_data = os.environ.get("LOCALAPPDATA")
     with tempfile.TemporaryDirectory(prefix="smarttest-catalog-") as app_data_dir:
-        os.environ["SMARTTEST_APP_DATA_DIR"] = app_data_dir
+        os.environ["LOCALAPPDATA"] = app_data_dir
         try:
             for case in cases:
                 initial_step_plan = build_step_plan(
@@ -123,9 +123,9 @@ def main() -> None:
                 raise SystemExit("Step plan parity check failed:\n" + "\n".join(mismatches))
         finally:
             if original_app_data is None:
-                os.environ.pop("SMARTTEST_APP_DATA_DIR", None)
+                os.environ.pop("LOCALAPPDATA", None)
             else:
-                os.environ["SMARTTEST_APP_DATA_DIR"] = original_app_data
+                os.environ["LOCALAPPDATA"] = original_app_data
 
     missing = [
         row["nodeid"]

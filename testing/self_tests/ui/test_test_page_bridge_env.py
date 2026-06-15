@@ -220,7 +220,7 @@ def test_case_param_fields_does_not_schedule_empty_dynamic_options(tmp_path, mon
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
     bridge = TestPageBridge(Path.cwd())
     bridge._state_path = tmp_path / "test_page_state.json"
@@ -256,7 +256,7 @@ def test_dut_change_refreshes_dynamic_options_for_selected_cases_only(tmp_path, 
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     playback_nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
     ac_nodeid = "testing/tests/android/stress/test_ac_onoff.py::test_ac_onoff_via_relay"
     source = "testing.tool.dut_tool.features.local_playback:list_media_dirs"
@@ -307,7 +307,7 @@ def test_case_parameter_dependency_change_refreshes_affected_dynamic_options(tmp
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
     source = "testing.tool.dut_tool.features.local_playback:list_media_files"
     bridge = TestPageBridge(Path.cwd())
@@ -343,7 +343,7 @@ def test_dut_change_refreshes_dynamic_options_for_each_selected_node(tmp_path, m
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     first_nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
     second_nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress_variant"
     source = "testing.tool.dut_tool.features.local_playback:list_media_files"
@@ -397,7 +397,7 @@ def test_media_dir_refresh_writes_directory_and_schedules_playback_files(tmp_pat
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
     source = "testing.tool.dut_tool.features.local_playback:list_media_dirs"
     dependent_source = "testing.tool.dut_tool.features.local_playback:list_media_files"
@@ -451,7 +451,7 @@ def test_dynamic_options_refresh_preserves_selected_multi_enum_values(tmp_path, 
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
     source = "testing.tool.dut_tool.features.local_playback:list_media_files"
     bridge = TestPageBridge(Path.cwd())
@@ -504,7 +504,7 @@ def test_dynamic_options_refresh_keeps_case_parameters_when_list_is_unchanged(tm
     app = QGuiApplication.instance() or QGuiApplication([])
     assert app is not None
 
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
     source = "testing.tool.dut_tool.features.local_playback:list_media_files"
     existing = ["/storage/A4F1-6FB4/Movies/demo.mp4"]

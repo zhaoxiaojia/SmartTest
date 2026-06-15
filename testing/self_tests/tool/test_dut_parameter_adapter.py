@@ -71,7 +71,7 @@ def test_adapter_refresh_duts_keeps_devices_when_apk_ensure_fails() -> None:
 
 
 def test_adapter_routes_local_playback_options_from_persisted_case_parameters(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
     jsonTool.write_json(
         "test_page_state.json",

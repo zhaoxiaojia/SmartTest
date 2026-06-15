@@ -5,7 +5,7 @@ from ui import jsonTool
 
 
 def test_runtime_params_reads_case_values_with_schema_types(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
     jsonTool.write_json(
         "test_page_state.json",
@@ -30,7 +30,7 @@ def test_runtime_params_reads_case_values_with_schema_types(monkeypatch, tmp_pat
 
 
 def test_apk_params_serializes_int_values_without_decimal_suffix(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/common/system/test_auto_reboot.py::test_auto_reboot_via_android_client"
     jsonTool.write_json(
         "test_page_state.json",

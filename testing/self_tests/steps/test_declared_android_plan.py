@@ -11,7 +11,7 @@ from testing.tests.android.stress.test_ac_onoff import _cycle_seconds, _relay_po
 
 
 def _write_case_parameters(monkeypatch, tmp_path, nodeid: str, parameters: dict[str, object]) -> None:
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     jsonTool.write_json("test_page_state.json", {"case_parameters": {nodeid: dict(parameters)}})
 
 

@@ -1,16 +1,61 @@
 import os
+from pathlib import Path
 import shutil
 import subprocess
 import sys
-import typing as _t
 
 
-def _repo_root():
-    return os.path.abspath(".")
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
 
 
 def _run(cmd, **kwargs):
     subprocess.run(cmd, check=True, **kwargs)
+
+
+def _python(repo_root: Path) -> str:
+    if sys.platform.startswith("win"):
+        venv_python = repo_root / ".venv" / "Scripts" / "python.exe"
+    else:
+        venv_python = repo_root / ".venv" / "bin" / "python"
+    if venv_python.exists():
+        return str(venv_python)
+    return sys.executable
+
+
+def _run_packaging_preflight(repo_root: Path) -> None:
+    python = _python(repo_root)
+    checks = [
+        [python, "-m", "pytest", "testing\\self_tests\\packaging", "-q"],
+        [python, "-m", "pytest", "testing\\self_tests\\params", "-q"],
+        [python, "-m", "compileall", "testing", "tools", "ui\\example\\bridge"],
+    ]
+    for cmd in checks:
+        _run(cmd, cwd=str(repo_root))
+
+
+def _verify_dist_runtime(repo_root: Path) -> None:
+    required_paths = [
+        repo_root / "dist" / "SmartTest.exe",
+        repo_root / "dist" / "python" / "python.exe",
+        repo_root / "dist" / "testing",
+        repo_root / "dist" / "tools",
+        repo_root / "dist" / "tools" / "param_conversion.py",
+        repo_root / "dist" / "ui",
+    ]
+    missing = [str(path) for path in required_paths if not path.exists()]
+    if missing:
+        raise SystemExit("Packaged runtime is missing required files:\n" + "\n".join(missing))
+
+    runtime_python = repo_root / "dist" / "python" / "python.exe"
+    _run(
+        [
+            str(runtime_python),
+            "-c",
+            "import sys; sys.path.insert(0, r'dist'); import tools.param_conversion; import testing.params.options",
+        ],
+        cwd=str(repo_root),
+    )
 
 
 def _find_iscc():
@@ -91,16 +136,22 @@ if __name__ == "__main__":
     scripts_dir = os.path.dirname(os.path.abspath(__file__))
 
     if sys.platform.startswith("win"):
-        # 1) Build app (PyInstaller) -> dist/
-        _run([os.path.join(repo_root, ".venv", "Scripts", "python.exe"), os.path.join(scripts_dir, "script-build-pyinstaller.py")])
+        # 0) Fail fast on checks that protect the installed runtime from import/resource drift.
+        _run_packaging_preflight(repo_root)
 
-        # 2) Wrap dist/ into an installer (Inno Setup) -> dist_installer/
+        # 1) Build app (PyInstaller) -> dist/
+        _run([_python(repo_root), os.path.join(scripts_dir, "script-build-pyinstaller.py")])
+
+        # 2) Verify the packaged runtime contains the Python subprocess dependencies.
+        _verify_dist_runtime(repo_root)
+
+        # 3) Wrap dist/ into an installer (Inno Setup) -> dist_installer/
         iscc = _find_iscc()
         if not iscc:
             raise SystemExit(
                 "Inno Setup not found (iscc.exe). Install it first, then re-run this script."
             )
-        iss = os.path.join(repo_root, "tools", "packaging", "innosetup", "SmartTest.iss")
+        iss = os.path.join(str(repo_root), "tools", "packaging", "innosetup", "SmartTest.iss")
         _run([iscc, iss], cwd=os.path.dirname(iss))
         raise SystemExit(0)
 

@@ -134,7 +134,7 @@ def test_list_media_dirs_queries_dut_storage_media_directories() -> None:
 
 
 def test_list_media_files_queries_selected_media_directory(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
     jsonTool.write_json(
         "test_page_state.json",
@@ -146,8 +146,8 @@ def test_list_media_files_queries_selected_media_directory(tmp_path, monkeypatch
     assert dut.shell_commands == ["find '/storage/0E9D-A5F9/Video' -maxdepth 1 -type f 2>/dev/null"]
 
 
-def test_list_media_files_falls_back_to_default_scan_when_selected_directory_is_stale(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+def test_list_media_files_does_not_fall_back_when_selected_directory_is_stale(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
     jsonTool.write_json(
         "test_page_state.json",
@@ -155,11 +155,12 @@ def test_list_media_files_falls_back_to_default_scan_when_selected_directory_is_
     )
     dut = DummyDut(["", "/storage/A4F1-6FB4/Movies/demo.mp4\n"])
 
-    assert local_playback.list_media_files(dut, nodeid=nodeid) == ["/storage/A4F1-6FB4/Movies/demo.mp4"]
+    assert local_playback.list_media_files(dut, nodeid=nodeid) == []
+    assert dut.shell_commands == ["find '/storage/0E9D-A5F9/Movies' -maxdepth 1 -type f 2>/dev/null"]
 
 
 def test_legacy_media_rw_directory_uses_storage_default_scan(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/stress/test_local_playback_stress.py::test_local_playback_stress"
     jsonTool.write_json(
         "test_page_state.json",

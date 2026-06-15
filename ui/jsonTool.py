@@ -6,15 +6,11 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-APP_DATA_ENV = "SMARTTEST_APP_DATA_DIR"
 APP_DATA_ORG = "Amlogic"
 APP_DATA_NAME = "SmartTest"
 
 
 def app_data_dir() -> Path:
-    override = str(os.environ.get(APP_DATA_ENV, "") or "").strip()
-    if override:
-        return Path(override).expanduser().resolve()
     local_app_data = str(os.environ.get("LOCALAPPDATA", "") or "").strip()
     if local_app_data:
         return Path(local_app_data) / APP_DATA_ORG / APP_DATA_NAME

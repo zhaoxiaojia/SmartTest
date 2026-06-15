@@ -38,6 +38,7 @@ def test_pyinstaller_datas_include_project_runtime_packages(monkeypatch) -> None
     expected = {
         repo_root / "ui": "ui",
         repo_root / "testing": "testing",
+        repo_root / "tools": "tools",
         repo_root / "AI": "AI",
         repo_root / "jira_tool": "jira_tool",
     }

@@ -4,7 +4,8 @@ from ui import jsonTool
 
 
 def test_json_tool_reads_writes_and_updates_app_data_json(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("SMARTTEST_APP_DATA_DIR", raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
 
     jsonTool.write_json("test_page_state.json", {"case_parameters": {"case::one": {"loop": 2}}})
     assert jsonTool.read_json("test_page_state.json") == {"case_parameters": {"case::one": {"loop": 2}}}

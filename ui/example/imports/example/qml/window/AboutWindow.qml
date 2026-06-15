@@ -5,7 +5,7 @@ import FluentUI 1.0
 
 FluWindow {
     id: window
-    title: "About"
+    title: qsTr("About")
     width: 520
     height: 260
     fixSize: true
@@ -22,12 +22,17 @@ FluWindow {
         }
 
         FluText {
-            text: "Version: %1".arg(AppInfo.version)
+            text: qsTr("Version: %1").arg(AppInfo.version)
             font: FluTextStyle.Body
         }
 
         FluText {
-            text: "Update checks and external links are disabled by default."
+            text: AppInfo.buildTime ? qsTr("Build time: %1").arg(AppInfo.buildTime) : qsTr("Build time: unavailable")
+            font: FluTextStyle.Body
+        }
+
+        FluText {
+            text: qsTr("Update checks and external links are disabled by default.")
             wrapMode: Text.WordWrap
             color: FluColors.Grey120
         }
@@ -39,7 +44,7 @@ FluWindow {
             spacing: 8
             Item { Layout.fillWidth: true }
             FluFilledButton {
-                text: "OK"
+                text: qsTr("OK")
                 onClicked: window.close()
             }
         }

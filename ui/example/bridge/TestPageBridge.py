@@ -17,9 +17,8 @@ from testing.params.registry import SchemaRegistry, default_registry
 from testing.params.runtime import runtime_params
 from testing.params.requirements import required_params_for_case
 from testing.params.schema import ParamField, ParamSchema, ParamScope, ParamValueType, defaults_for_schema
-from testing.state.local_store import load_pref, save_pref
 from testing.state.models import SelectedCase, TestPageState
-from testing.state.store import load_state, save_state
+from testing.state.store import ensure_state, load_state, save_state
 from testing.tool.dut_tool.parameter_adapter import DutParameterAdapter
 
 try:
@@ -50,12 +49,11 @@ class TestPageBridge(QObject):
         self._cases_by_file: dict[str, list[dict[str, Any]]] = {}
         self._state_path = self._default_state_path()
         self._trace_log_path = self._state_path.parent / "test_page_trace.log"
-        self._frontend_pref_path = self._state_path.parent / "frontend_prefs.json"
         self._text_catalog = TsTextCatalog(self._root_dir, trace=self._trace)
         self._dut_parameter_adapter = DutParameterAdapter()
-        self._state = load_state(self._state_path)
-        self._adb_devices = self._load_cached_adb_devices()
-        self._param_options = self._load_cached_param_options()
+        self._state = ensure_state(self._state_path)
+        self._adb_devices: list[str] = []
+        self._param_options: dict[str, list[str]] = {}
         self._adb_refresh_running = False
         self._adb_refresh_started = False
         self._param_options_refreshing: set[str] = set()
@@ -172,36 +170,10 @@ class TestPageBridge(QObject):
         self._adb_devices = self._dut_parameter_adapter.refresh_duts()
 
     def _load_cached_adb_devices(self) -> list[str]:
-        cached = load_pref(self._frontend_pref_path, "test.dut.devices", [])
-        if not isinstance(cached, list):
-            return []
-        devices: list[str] = []
-        for value in cached:
-            serial = str(value or "").strip()
-            if serial and serial not in devices:
-                devices.append(serial)
-        return devices
+        return []
 
     def _save_cached_adb_devices(self, devices: list[str]) -> None:
-        normalized: list[str] = []
-        for value in devices:
-            serial = str(value or "").strip()
-            if serial and serial not in normalized:
-                normalized.append(serial)
-        save_pref(self._frontend_pref_path, "test.dut.devices", normalized)
-
-    def _load_cached_param_options(self) -> dict[str, list[str]]:
-        cached = load_pref(self._frontend_pref_path, "test.param_options", {})
-        if not isinstance(cached, dict):
-            return {}
-        return {
-            str(key): _storage_playback_options(normalize_option_values(value))
-            for key, value in cached.items()
-            if str(key).strip()
-        }
-
-    def _save_cached_param_options(self) -> None:
-        save_pref(self._frontend_pref_path, "test.param_options", self._param_options)
+        return
 
     def _handle_language_changed(self) -> None:
         self.stateChanged.emit()
@@ -313,7 +285,6 @@ class TestPageBridge(QObject):
             )
             if cache_key and self._param_options.get(cache_key):
                 self._param_options[cache_key] = []
-                self._save_cached_param_options()
             self.stateChanged.emit()
             return
 
@@ -327,7 +298,6 @@ class TestPageBridge(QObject):
         changed = cache_key not in self._param_options or self._param_options.get(cache_key, []) != options
         if changed:
             self._param_options[cache_key] = options
-            self._save_cached_param_options()
         state_synced = self._sync_dynamic_values_from_options(
             source=source,
             nodeid=str(payload.get("nodeid", "") or "").strip(),

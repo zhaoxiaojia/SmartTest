@@ -4,6 +4,7 @@ from PySide6.QtCore import QCoreApplication
 from PySide6.QtGui import QGuiApplication
 
 from ui.example.bridge.RunBridge import RunBridge
+from ui.example.bridge.TestPageBridge import TestPageBridge
 from ui.example.helper.AppPaths import app_data_dir
 
 
@@ -30,3 +31,15 @@ def test_run_bridge_paths_use_app_data_root_without_extra_smarttest(tmp_path) ->
     assert bridge._default_state_path() == app_data_dir() / "test_page_state.json"
     assert bridge._default_reports_dir() == app_data_dir() / "reports"
     assert bridge._default_run_logs_dir() == app_data_dir() / "run_logs"
+
+
+def test_test_page_bridge_creates_standard_state_json(tmp_path, monkeypatch) -> None:
+    app = QGuiApplication.instance() or QGuiApplication([])
+    assert app is not None
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+
+    bridge = TestPageBridge(tmp_path)
+    state_path = tmp_path / "Amlogic" / "SmartTest" / "test_page_state.json"
+
+    assert bridge._default_state_path() == state_path
+    assert state_path.exists()

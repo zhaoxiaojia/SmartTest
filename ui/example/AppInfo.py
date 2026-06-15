@@ -1,3 +1,7 @@
+import json
+from pathlib import Path
+import sys
+
 from PySide6.QtCore import QObject, Signal, Property
 from PySide6.QtGui import QGuiApplication
 from qasync import asyncSlot
@@ -11,6 +15,7 @@ from example.component.Callback import Callback
 @Singleton
 class AppInfo(QObject):
     versionChanged = Signal()
+    buildTimeChanged = Signal()
     updateCheckUrlChanged = Signal()
     updateDownloadUrlChanged = Signal()
 
@@ -23,13 +28,36 @@ class AppInfo(QObject):
         self._version = value
         self.versionChanged.emit()
 
+    @Property(str, notify=buildTimeChanged)
+    def buildTime(self):
+        return self._buildTime
+
+    @buildTime.setter
+    def buildTime(self, value):
+        self._buildTime = value
+        self.buildTimeChanged.emit()
+
     def __init__(self):
         super().__init__(QGuiApplication.instance())
-        # App semantic version. Keep this in sync with your release process.
-        self._version = "0.1.0"
+        manifest = self._load_build_manifest()
+        self._version = str(manifest.get("version", "") or "1.0.0")
+        self._buildTime = str(manifest.get("built_at", "") or "")
         # OTA endpoints. Leave empty to disable any network access by default.
         self._updateCheckUrl = ""
         self._updateDownloadUrl = ""
+
+    def _load_build_manifest(self):
+        root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+        path = root / "build" / "generated" / "build_manifest.json"
+        if not path.exists():
+            return {}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return {}
+        if not isinstance(payload, dict):
+            return {}
+        return payload
 
     @Property(str, notify=updateCheckUrlChanged)
     def updateCheckUrl(self):

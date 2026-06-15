@@ -20,12 +20,6 @@ class RuntimeParamResolver:
         values = raw_parameters.get(requested_nodeid)
         if isinstance(values, dict):
             return dict(values)
-        state = jsonTool.read_json("test_page_state.json", {})
-        selected = state.get("selected", []) if isinstance(state, dict) else []
-        if isinstance(selected, list) and len(selected) == 1 and len(raw_parameters) == 1:
-            only_values = next(iter(raw_parameters.values()))
-            if isinstance(only_values, dict):
-                return dict(only_values)
         return {}
 
     def case_values(self, nodeid: str) -> dict[str, Any]:

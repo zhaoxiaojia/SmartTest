@@ -132,10 +132,7 @@ def list_media_files(dut=None, *, nodeid: str | None = None) -> list[str]:
     resolved_dut = _ensure_dut(dut)
     command = _media_scan_command(_normalize_media_dir(_media_dir_from_state(nodeid)))
     output = resolved_dut.run_device_shell(command)
-    files = parse_media_file_listing(output)
-    if not files and command != DEFAULT_MEDIA_SCAN_COMMAND:
-        files = parse_media_file_listing(resolved_dut.run_device_shell(DEFAULT_MEDIA_SCAN_COMMAND))
-    return files
+    return parse_media_file_listing(output)
 
 
 def list_media_dirs(selected_serial: str | None = None, dut=None) -> list[str]:
@@ -256,9 +253,7 @@ def run_local_playback_stress(
     media_dir = _normalize_media_dir(params.get("local_playback_stress:media_dir", DEFAULT_MEDIA_DIR))
     selected_files = to_string_list(params.get("local_playback_stress:media_files", []))
     if not selected_files:
-        selected_files = playback.discover_media_files(media_dir)
-    if not selected_files:
-        raise AssertionError(f"No supported media files found in {media_dir}.")
+        raise AssertionError("Select at least one local playback media file before starting the run.")
 
     actions = [action for action in to_string_list(params.get("local_playback_stress:actions", [])) if action in SUPPORTED_ACTIONS]
     if not actions:

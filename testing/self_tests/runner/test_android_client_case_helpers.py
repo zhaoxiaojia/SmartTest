@@ -22,7 +22,7 @@ def test_android_client_case_plan_builds_steps_from_step_definitions() -> None:
 
 
 def test_run_android_client_case_loads_params_from_json_and_triggers_runner(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("SMARTTEST_APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     nodeid = "testing/tests/android/common/system/test_emmc_rw.py::test_emmc_rw_via_android_client"
     jsonTool.write_json(
         "test_page_state.json",
