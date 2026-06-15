@@ -120,6 +120,8 @@ a = Analysis(
         # Ensure UI packages are discoverable even if imports are indirect.
         "example.main",
         "FluentUI.FluentUI",
+        "PySide6.QtWebEngineCore",
+        "PySide6.QtWebEngineQuick",
     ],
     hookspath=[],
     hooksconfig={},
@@ -131,10 +133,6 @@ a = Analysis(
 if sys.platform.startswith("darwin"):
     excludes_binaries = [
         'QtLocation',
-        'QtWebChannel',
-        'QtWebEngineQuick',
-        'QtWebEngineQuickDelegatesQml',
-        'QtWebSockets',
         'QtVirtualKeyboard',
         'QtPdfQuick',
         'QtPdf',
@@ -143,7 +141,6 @@ if sys.platform.startswith("darwin"):
         'QtDataVisualization',
         'QtCharts',
         'QtChartsQml',
-        'QtWebEngineCore',
         'QtQuick3D',
         'QtQuick3DAssetImport',
         'QtQuick3D',
@@ -159,10 +156,6 @@ if sys.platform.startswith("darwin"):
 else:
     excludes_binaries = [
         'Qt6Location',
-        'Qt6WebChannel',
-        'Qt6WebEngineQuick',
-        'Qt6WebEngineQuickDelegatesQml',
-        'Qt6WebSockets',
         'Qt6VirtualKeyboard',
         'Qt6PdfQuick',
         'Qt6Pdf',
@@ -171,7 +164,6 @@ else:
         'Qt6DataVisualization',
         'Qt6Charts',
         'Qt6ChartsQml',
-        'Qt6WebEngineCore',
         'Qt6Quick3D',
         'Qt6Quick3DAssetImport',
         'Qt6Quick3D',
