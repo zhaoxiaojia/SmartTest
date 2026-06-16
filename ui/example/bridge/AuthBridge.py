@@ -17,6 +17,11 @@ from PySide6.QtGui import QGuiApplication
 from ui import jsonTool
 
 try:
+    import keyring
+except ImportError:  # pragma: no cover - optional runtime dependency for non-Windows secret storage
+    keyring = None
+
+try:
     from example.helper.AppPaths import app_data_dir
 except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
     from ui.example.helper.AppPaths import app_data_dir
@@ -39,6 +44,7 @@ LDAP_HOST = os.getenv("AMLOGIC_LDAP_HOST", "ldap.amlogic.com")
 LDAP_DOMAIN = os.getenv("AMLOGIC_LDAP_DOMAIN", "AMLOGIC")
 AUTH_STATE_FILENAME = "auth_state.json"
 AUTH_SECRET_FILENAME = "auth_secret.json"
+AUTH_KEYRING_SERVICE = "SmartTest"
 _AUTH_SECRET_ENTROPY = b"SmartTest.Auth.SecretStore.v1"
 
 
@@ -90,7 +96,7 @@ class AuthBridge(QObject):
 
         username = str(data.get("username", "") or "").strip()
         authenticated = bool(data.get("authenticated", False))
-        stored_password = self._load_password_secret() if authenticated else ""
+        stored_password = self._load_password_secret(username) if authenticated else ""
         self._username = username if authenticated and stored_password else ""
         self._authenticated = authenticated and bool(username) and bool(stored_password)
         self._password = stored_password if self._authenticated else ""
@@ -116,7 +122,21 @@ class AuthBridge(QObject):
         except Exception as exc:  # noqa: BLE001
             logging.warning("Failed to clear auth state file %s: %s", path, exc)
 
-    def _load_password_secret(self) -> str:
+
+    def _load_password_secret(self, username: str = "") -> str:
+        if platform != "win32":
+            if keyring is None:
+                logging.warning("keyring is not installed; auth secret cannot be loaded on %s", platform)
+                return ""
+            clean_username = (username or "").strip()
+            if not clean_username:
+                return ""
+            try:
+                return keyring.get_password(AUTH_KEYRING_SERVICE, clean_username) or ""
+            except Exception as exc:  # noqa: BLE001
+                logging.warning("Failed to load auth secret from keyring for %s: %s", clean_username, exc)
+                return ""
+
         path = self._auth_secret_path()
         if not path.exists():
             return ""
@@ -131,7 +151,20 @@ class AuthBridge(QObject):
             logging.warning("Failed to load auth secret file %s: %s", path, exc)
             return ""
 
-    def _save_password_secret(self, password: str) -> None:
+    def _save_password_secret(self, password: str, username: str = "") -> None:
+        if platform != "win32":
+            if keyring is None:
+                logging.warning("keyring is not installed; auth secret cannot be saved on %s", platform)
+                return
+            clean_username = (username or self._username or "").strip()
+            if not clean_username or not password:
+                return
+            try:
+                keyring.set_password(AUTH_KEYRING_SERVICE, clean_username, password)
+            except Exception as exc:  # noqa: BLE001
+                logging.warning("Failed to save auth secret to keyring for %s: %s", clean_username, exc)
+            return
+
         path = self._auth_secret_path()
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -144,7 +177,21 @@ class AuthBridge(QObject):
         except Exception as exc:  # noqa: BLE001
             logging.warning("Failed to save auth secret file %s: %s", path, exc)
 
-    def _clear_password_secret(self) -> None:
+    def _clear_password_secret(self, username: str = "") -> None:
+        if platform != "win32":
+            if keyring is None:
+                return
+            clean_username = (username or self._username or "").strip()
+            if not clean_username:
+                return
+            try:
+                keyring.delete_password(AUTH_KEYRING_SERVICE, clean_username)
+            except keyring.errors.PasswordDeleteError:
+                pass
+            except Exception as exc:  # noqa: BLE001
+                logging.warning("Failed to clear auth secret from keyring for %s: %s", clean_username, exc)
+            return
+
         path = self._auth_secret_path()
         try:
             if path.exists():
@@ -214,6 +261,7 @@ class AuthBridge(QObject):
             return b""
 
     def _set_auth_state(self, *, username: str, authenticated: bool, password: str = "") -> None:
+        previous_username = self._username
         next_username = (username or "").strip() if authenticated else ""
         next_password = password if authenticated else ""
         changed = self._username != next_username or self._authenticated != authenticated
@@ -224,10 +272,10 @@ class AuthBridge(QObject):
         if self._authenticated:
             self._save_auth_state()
             if next_password:
-                self._save_password_secret(next_password)
+                self._save_password_secret(next_password, next_username)
         else:
             self._clear_auth_state()
-            self._clear_password_secret()
+            self._clear_password_secret(previous_username)
         if changed:
             self.authChanged.emit()
 

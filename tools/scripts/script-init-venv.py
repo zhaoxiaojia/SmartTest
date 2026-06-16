@@ -17,3 +17,4 @@ if __name__ == "__main__":
     subprocess.run([env.pip(), "install", "keyboard==0.13.5"])
     subprocess.run([env.pip(), "install", "PyOpenGL==3.1.7"])
     subprocess.run([env.pip(), "install", "py7zr==0.22.0"])
+subprocess.run([env.pip(), "install", "keyring==25.5.0"])
