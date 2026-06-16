@@ -2,22 +2,40 @@
 import os
 import re
 import time
-import random
+from pathlib import Path
 import pytest
 import threading
 def load_config(refresh: bool = False) -> dict:
     return {}
-from testing.tool.dut_tool.features.device_ui import DeviceUiFeature
-from testing.tool.dut_tool.features.iperf import IperfFeature
-from testing.tool.dut_tool.features.local_playback import LocalPlaybackFeature
-from testing.tool.dut_tool.features.online_playback import OnlinePlaybackFeature
-from testing.tool.dut_tool.features.settings import SettingsFeature
-from testing.tool.dut_tool.features.stability import StabilityFeature
-from testing.tool.dut_tool.features.system import SystemFeature
-from testing.tool.dut_tool.features.wifi import WifiFeature
-from testing.tool.dut_tool.features.youtube import YoutubeFeature
+from testing.tool.dut_tool.features.device_ui import launch_youtube_tv_and_search
+from testing.tool.dut_tool.features.iperf import (
+    _calculate_iperf_wait_time,
+    _is_udp_command,
+    _parse_iperf_params,
+    get_dut_ip,
+    get_pc_ip,
+    get_rx_rate as iperf_get_rx_rate,
+    get_tx_rate as iperf_get_tx_rate,
+)
+from testing.tool.dut_tool.features.local_playback import (
+    discover_media_files,
+    dismiss_resume_dialog,
+    exit_player,
+    list_media_dirs,
+    list_media_files,
+    run_action,
+    start_file,
+    stop_exoplayer,
+)
+from testing.tool.dut_tool.features.system import (
+    CpuFrequencySnapshot,
+    parse_frequency_list,
+    safe_frequency,
+    safe_governor,
+)
+from testing.tool.dut_tool.features.wifi import WifiConnectParams
 from testing.tool.wifi_lab_tool.ixchariot import ix
-from testing.tool.dut_tool.command_batch import CommandBatch, CommandRunner, CommandExecutionError, CommandTimeoutError
+from testing.tool.dut_tool.command_batch import CommandRunner, CommandTimeoutError
 from testing.params.adb_devices import resolve_adb_serial_for_command
 
 
@@ -138,9 +156,8 @@ class BaseDut:
         iperf_cfg = rvr_cfg.get('iperf', {})
         self.iperf_server_cmd = iperf_cfg.get('server_cmd', 'iperf -s -w 2m -i 1')
         self.iperf_client_cmd = iperf_cfg.get('client_cmd', 'iperf -c {ip} -w 2m -i 1 -t 30 -P 5')
-        self.iperf = IperfFeature(self)
-        self.iperf_test_time, self.pair = self.iperf._parse_iperf_params(self.iperf_client_cmd)
-        self.iperf_wait_time = self.iperf._calculate_iperf_wait_time(self.iperf_test_time)
+        self.iperf_test_time, self.pair = _parse_iperf_params(self.iperf_client_cmd)
+        self.iperf_wait_time = _calculate_iperf_wait_time(self.iperf_test_time)
         self.repest_times = int(rvr_cfg.get('repeat') or 0)
         self._dut_ip = ''
         self._pc_ip = ''
@@ -158,21 +175,11 @@ class BaseDut:
         self._mcs_tx_result = None
         self._mcs_rx_result = None
         self._rssi_sampled_event = threading.Event()
-        self.ui = DeviceUiFeature(self)
-        self.wifi = WifiFeature(self)
-        self.system = SystemFeature(self)
-        self.local_playback = LocalPlaybackFeature(self)
-        self.settings = SettingsFeature(self)
-        self.online_playback = OnlinePlaybackFeature(self)
-        self.youtube = YoutubeFeature(self)
-        self.stability = StabilityFeature(self)
         if self.rvr_tool == 'iperf':
             cmds = f"{self.iperf_server_cmd} {self.iperf_client_cmd}"
             self.test_tool = 'iperf3' if 'iperf3' in cmds else 'iperf'
             self.tool_path = iperf_cfg.get('path', '')
-            self._current_udp_mode = self.iperf._is_udp_command(self.iperf_client_cmd) or self.iperf._is_udp_command(
-                self.iperf_server_cmd
-            )
+            self._current_udp_mode = _is_udp_command(self.iperf_client_cmd) or _is_udp_command(self.iperf_server_cmd)
             logging.info(f'test_tool {self.test_tool}')
 
         if self.rvr_tool == 'ixchariot':
@@ -186,15 +193,6 @@ class BaseDut:
                 "set ixchariot_installation_dir ",
                 f"set ixchariot_installation_dir \"{self.script_path}\"\n",
             )
-
-    def __getattr__(self, name: str):
-        ui = self.__dict__.get("ui")
-        if ui is not None:
-            try:
-                return object.__getattribute__(ui, name)
-            except AttributeError:
-                pass
-        raise AttributeError(f"{self.__class__.__name__!s} object has no attribute {name!r}")
 
     # Capability methods owned by DUT.
 
@@ -258,6 +256,108 @@ class BaseDut:
     def _reboot_impl(self):
         self.checkoutput("reboot")
         return None
+
+    def u(self, type="u2"):
+        return self._u_impl(type=type)
+
+    def uiautomator_dump(self, filepath="", uiautomator_type="u2"):
+        return self._uiautomator_dump_impl(filepath=filepath, uiautomator_type=uiautomator_type)
+
+    def list_media_files(self, nodeid: str | None = None) -> list[str]:
+        return list_media_files(self, nodeid=nodeid)
+
+    def list_media_dirs(self) -> list[str]:
+        return list_media_dirs(dut=self)
+
+    def discover_media_files(self, media_dir: str) -> list[str]:
+        return discover_media_files(media_dir, self)
+
+    def start_file(self, file_path: str) -> None:
+        start_file(file_path, self)
+        dismiss_resume_dialog(self)
+
+    def stop_player(self) -> None:
+        stop_exoplayer(self)
+
+    def exit_player(self) -> None:
+        exit_player(self)
+
+    def resume_playback(self) -> None:
+        self.keyevent("KEYCODE_MEDIA_PLAY")
+
+    def run_media_action(self, action: str) -> None:
+        run_action(action, self)
+
+    def connect(
+        self,
+        ssid: str,
+        password: str = "",
+        security: str = "",
+        hidden: bool = False,
+        lan: bool = True,
+        *,
+        timeout_s: int = 90,
+    ) -> bool:
+        return self._wifi_connect_impl(
+            WifiConnectParams(
+                ssid=ssid,
+                password=password,
+                security=security,
+                hidden=hidden,
+                lan=lan,
+                timeout_s=timeout_s,
+            )
+        )
+
+    def scan(
+        self,
+        ssid: str,
+        *,
+        attempts: int = 10,
+        scan_wait: int = 10,
+        interval: float = 1,
+    ) -> bool:
+        return self._wifi_scan_impl(
+            ssid,
+            attempts=attempts,
+            scan_wait=scan_wait,
+            interval=interval,
+        )
+
+    def wait_ip(self, cmd: str = "", target=".", lan: bool = True, timeout_s: int = 60):
+        if lan and not target:
+            if not self.ip_target:
+                _ = self.pc_ip
+            target = self.ip_target
+
+        start_time = time.time()
+        step = 0
+        while True:
+            elapsed = time.time() - start_time
+            if elapsed > timeout_s:
+                last_info = self.run_device_shell("ifconfig wlan0")
+                raise RuntimeError(
+                    f"Timeout ({timeout_s}s) waiting for DUT IP. "
+                    f"Target: '{target}'. Last ifconfig output:\n{last_info}"
+                )
+
+            time.sleep(3)
+            step += 1
+            info = self.run_device_shell("ifconfig wlan0")
+            ip_address_matches = re.findall(r"inet addr:(\d+\.\d+\.\d+\.\d+)", info, re.S)
+            if not ip_address_matches:
+                ip_address_matches = re.findall(r"\binet\s+(\d+\.\d+\.\d+\.\d+)\b", info, re.S)
+            ip_address = ip_address_matches[0] if ip_address_matches else ""
+
+            if target in ip_address:
+                self.dut_ip = ip_address
+                return True, ip_address
+
+            if step % 3 == 0 and cmd:
+                _ = self.run_device_shell(cmd)
+
+    def forget(self):
+        return self._wifi_forget_impl()
 
     def expand_logcat_capacity(self):
         return self._expand_logcat_capacity_impl()
@@ -324,6 +424,85 @@ class BaseDut:
 
     def run_host_shell(self, command: str):
         return self.checkoutput_term(command)
+
+    def ensure_root(self) -> None:
+        if hasattr(self, "root"):
+            self.root()
+        if hasattr(self, "wait_devices"):
+            self.wait_devices()
+
+    def available_cpu_frequencies(self) -> list[str]:
+        return parse_frequency_list(
+            self.run_device_shell("cat /sys/devices/system/cpu/cpufreq/policy0/scaling_available_frequencies")
+        )
+
+    def _read_first_frequency(self, path: str) -> str:
+        values = parse_frequency_list(self.run_device_shell(f"cat {path}"))
+        if not values:
+            raise RuntimeError(f"No CPU frequency value returned by {path}.")
+        return values[0]
+
+    def read_current_cpu_frequency(self) -> str:
+        return self._read_first_frequency("/sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq")
+
+    def read_cpu_governor(self) -> str:
+        return safe_governor(
+            self.run_device_shell("cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")
+        )
+
+    def cpu_frequency_snapshot(self) -> CpuFrequencySnapshot:
+        return CpuFrequencySnapshot(
+            governor=self.read_cpu_governor(),
+            current_frequency=self.read_current_cpu_frequency(),
+            min_frequency=self._read_first_frequency("/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq"),
+            max_frequency=self._read_first_frequency("/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq"),
+        )
+
+    def _set_frequency_bounds(self, min_frequency: str, max_frequency: str) -> None:
+        minimum = safe_frequency(min_frequency)
+        maximum = safe_frequency(max_frequency)
+        if int(minimum) > int(maximum):
+            raise ValueError(f"Invalid CPU frequency bounds: min={minimum}, max={maximum}")
+        current_max = self._read_first_frequency("/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq")
+        if int(minimum) > int(current_max):
+            self.run_device_shell(f"echo {maximum} > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq")
+            self.run_device_shell(f"echo {minimum} > /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq")
+            return
+        self.run_device_shell(f"echo {minimum} > /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq")
+        self.run_device_shell(f"echo {maximum} > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq")
+
+    def set_cpu_frequency(self, frequency: str, *, governor: str = "performance") -> None:
+        target = safe_frequency(frequency)
+        safe_governor(governor)
+        self._set_frequency_bounds(target, target)
+
+    def wait_current_cpu_frequency(self, expected_frequency: str, *, timeout_s: float = 3.0) -> str:
+        expected = safe_frequency(expected_frequency)
+        deadline = time.monotonic() + timeout_s
+        observed = ""
+        while time.monotonic() <= deadline:
+            observed = self.read_current_cpu_frequency()
+            if observed == expected:
+                return observed
+            time.sleep(0.2)
+        return observed
+
+    def restore_cpu_frequency(self, snapshot: CpuFrequencySnapshot) -> str:
+        first_error: RuntimeError | None = None
+        try:
+            self.set_cpu_frequency(snapshot.current_frequency, governor=snapshot.governor)
+            observed = self.wait_current_cpu_frequency(snapshot.current_frequency)
+        except RuntimeError as exc:
+            first_error = exc
+
+        self._set_frequency_bounds(snapshot.min_frequency, snapshot.max_frequency)
+        self.run_device_shell(f"echo {snapshot.governor} > /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")
+        observed = self.wait_current_cpu_frequency(snapshot.current_frequency)
+        if observed == snapshot.current_frequency:
+            return observed
+        if first_error is not None:
+            raise first_error
+        return observed
 
     def adb_command_prefix(self) -> str:
         serial = resolve_adb_serial_for_command(getattr(self, "serialnumber", ""))
@@ -411,7 +590,7 @@ class BaseDut:
         Any
             The result produced by the function.
         """
-        if self._dut_ip == '': self._dut_ip = self.iperf.get_dut_ip()
+        if self._dut_ip == '': self._dut_ip = get_dut_ip(self)
         return self._dut_ip
 
     @dut_ip.setter
@@ -444,7 +623,7 @@ class BaseDut:
         Any
             The result produced by the function.
         """
-        if self._pc_ip == '': self._pc_ip = self.iperf.get_pc_ip()
+        if self._pc_ip == '': self._pc_ip = get_pc_ip(self)
         self.ip_target = '.'.join(self._pc_ip.split('.')[:3])
         return self._pc_ip
 
@@ -581,7 +760,7 @@ class BaseDut:
             self._last_command_returncode = -1
             return None
     @step
-    def get_rx_rate(self, router_info, type='TCP', corner_tool=None, db_set='', debug=False):
+    def get_rx_rate(self, router_info, type='TCP', corner_tool=None):
         # 銆愭柊澧炪€戦噸缃姸鎬佸苟鍚姩鍚庡彴 RSSI 閲囨牱
         self._extended_rssi_result = None
         self._mcs_tx_result = None
@@ -593,22 +772,15 @@ class BaseDut:
             daemon=True
         )
         rssi_thread.start()
-        logging.info(f"[DEBUG] About to call perf.get_rx_rate with:")
-        logging.info(f"  - router_info: {router_info}")
-        logging.info(f"  - type: {type}")
-        logging.info(f"  - self.iperf_client_cmd: {getattr(self, 'iperf_client_cmd', 'N/A')}")
-        logging.info(f"  - self.dut_ip: {getattr(self, 'dut_ip', 'N/A')}")
-
-        return self.iperf.get_rx_rate(
+        return iperf_get_rx_rate(
+            self,
             router_info,
             type=type,
             corner_tool=corner_tool,
-            db_set=db_set,
-            debug=debug,
         )
 
     @step
-    def get_tx_rate(self, router_info, type='TCP', corner_tool=None, db_set='', debug=False):
+    def get_tx_rate(self, router_info, type='TCP', corner_tool=None):
         # 銆愭柊澧炪€戦噸缃姸鎬佸苟鍚姩鍚庡彴 RSSI 閲囨牱
         self._extended_rssi_result = None
         self._mcs_tx_result = None
@@ -620,12 +792,11 @@ class BaseDut:
             daemon=True  # 涓荤嚎绋嬬粨鏉燂紝瀛愮嚎绋嬭嚜鍔ㄩ攢姣?
         )
         rssi_thread.start()
-        return self.iperf.get_tx_rate(
+        return iperf_get_tx_rate(
+            self,
             router_info,
             type=type,
             corner_tool=corner_tool,
-            db_set=db_set,
-            debug=debug,
         )
 
     @step
@@ -644,15 +815,6 @@ class BaseDut:
         Any
             The result produced by the function.
         """
-        if self.iperf._is_performance_debug_enabled():
-            simulated_rssi = -random.randint(40, 80)
-            self.rssi_num = simulated_rssi
-            self.freq_num = 0
-            logging.info(
-                "Database debug mode enabled, skip real RSSI query and return simulated %s dBm",
-                simulated_rssi,
-            )
-            return self.rssi_num
         for i in range(3):
             time.sleep(3)
             rssi_info = self.checkoutput(self.IW_LINNK_COMMAND)
@@ -740,16 +902,6 @@ class BaseDut:
         self.bcn_rssi = -1
         self.wf0_rssi = -1
         self.wf1_rssi = -1
-
-        if self.iperf._is_performance_debug_enabled():
-            # 妯℃嫙璋冭瘯妯″紡
-            import random
-            self.bcn_rssi = -random.randint(30, 80)
-            self.wf0_rssi = self.bcn_rssi + random.randint(0, 3)
-            self.wf1_rssi = self.bcn_rssi + random.randint(0, 3)
-            logging.info("Debug mode: simulated extended RSSI = bcn:%d, wf0:%d, wf1:%d",
-                         self.bcn_rssi, self.wf0_rssi, self.wf1_rssi)
-            return (self.bcn_rssi, self.wf0_rssi, self.wf1_rssi)
 
         try:
             # Step 1: 娓呴櫎涓婁竴娆℃帴鏀惰褰?
@@ -842,6 +994,69 @@ class BaseDut:
             self._mcs_tx_result = "N/A"
             self._mcs_rx_result = "N/A"
             self._rssi_sampled_event.set()
+
+    def accept_mobile_terms_keep_wlan_enabled(self):
+        for x, y in self.MOBILE_TERMS_KEEP_WLAN_TAPS:
+            self.tap(x, y)
+        return None
+
+    def open_mobile_settings(self):
+        return self.run_device_shell(f"am start -n {self.CMCC_MOBILE_SETTINGS_COMPONENT}")
+
+    def open_android_tv_settings(self):
+        return self.run_device_shell(f"am start -n {self.ANDROID_TV_SETTINGS_COMPONENT}")
+
+    def open_more_settings(self):
+        return self.run_device_shell(f"am start -n {self.DROIDLOGIC_MORE_SETTINGS_COMPONENT}")
+
+    def play_exoplayer_demo_video(self, url: str = ""):
+        video_url = url or self.DEFAULT_EXOPLAYER_DEMO_VIDEO_URL
+        command = (
+            "input keyevent 4;"
+            "am start -a android.intent.action.VIEW "
+            f"-n {self.EXOPLAYER_DEMO_COMPONENT} "
+            f'-d "{video_url}"'
+        )
+        return self.run_device_shell(command)
+
+    def playback(self, sleep_time: int = 60, seek: bool = False, seek_time: int = 3, video_id: str = ""):
+        selected_video_id = video_id or self.VIDEO_TAG_LIST[0]["link"]
+        self.run_device_shell(self.PLAYERACTIVITY_REGU.format(selected_video_id))
+        time.sleep(10)
+        if seek:
+            for _ in range(60 * 24):
+                self.keyevent(23)
+                self.send_event(106, seek_time)
+                self.keyevent(23)
+                time.sleep(30)
+                self.keyevent(23)
+                self.send_event(105, seek_time)
+                self.keyevent(23)
+                time.sleep(30)
+        else:
+            time.sleep(sleep_time)
+        self.home()
+        return None
+
+    def launch_and_search(self, query: str = "NASA", logdir: str | Path | None = None):
+        target_logdir = Path(logdir) if logdir else Path.cwd()
+        return launch_youtube_tv_and_search(
+            serial=self.serialnumber,
+            logdir=target_logdir,
+            query=query,
+        )
+
+    def get_stability_apk_download_url(self) -> str:
+        return self.STABILITY_APK_DOWNLOAD_URL
+
+    def list_stability_apk_packages(self) -> list[str]:
+        return list(self.STABILITY_APK_PACKAGES)
+
+    def disable_remote_control(self):
+        return self.run_device_shell(self.DISABLE_REMOTE_CONTROL_COMMAND)
+
+    def enable_bluetooth_hci_logging(self) -> list[str]:
+        return [self.run_device_shell(command) for command in self.ENABLE_BLUETOOTH_HCI_LOGGING_COMMANDS]
 
     step = staticmethod(step)
 

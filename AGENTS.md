@@ -10,12 +10,12 @@ This file defines repository-wide hard rules. Detailed task workflows live in pr
 ## 1. Default Priorities
 
 1. Prefer existing FluentUI components/styles/effects from the codebase.
-2. Preserve known-good behavior: if the user says "this used to work", treat it as a regression and fix root cause.
+2. Preserve known-good behavior: if the user says "this used to work", treat it as a regression. Default to reading existing prints/logs and explaining the suspected root cause first; do not modify code until the user approves the analysis logic.
 3. Keep architecture layered: UI (FluentUI/QML) + test runner (pytest) + reserved integrations (debug/Jira).
 4. Make changes intentionally: discuss large modules and design first, then implement.
 5. Design and verify toward the installed/packaged runtime first. `python main.py` debug runs are useful for development, but final behavior must match the normal installed app.
 6. During development/debugging, do not rebuild the packaged app/installer after every change. Rebuild packaged artifacts only when the user explicitly asks, when preparing a release handoff, or when the change specifically targets packaged-runtime behavior.
-7. After modifying Android APK source under `android_client/`, actively compile the APK module before handoff, at minimum with `.\android_client\gradlew.bat -p android_client :app:compileDebugKotlin` or a stricter relevant Gradle task. Test execution may compare and install a newer APK later, but code changes to APK sources must still be locally compiled to catch Kotlin/Android build errors.
+7. Package Python and Android separately: the desktop app produces an `.exe`, and `android_client/` produces an `.apk`. APK packaging may use a dedicated script, but its output must be copied under `dist/`. After modifying Android APK source under `android_client/`, build/package the APK once before handoff, at minimum with a Gradle APK task such as `.\android_client\gradlew.bat -p android_client :app:assembleDebug` or a stricter relevant task; do not treat an `.exe` package build as APK validation.
 
 ## 2. Frontend Hard Rules
 
@@ -81,8 +81,10 @@ When the user says a feature "was working before":
 
 - Do not bypass it with a new implementation.
 - Do not paper over it with a different code path.
-- Find the root cause and fix it where it belongs.
-- Keep the fix scoped to the bug; do not refactor unrelated areas.
+- First inspect existing prints/logs from the broken flow and explain the suspected root cause.
+- Do not modify code until the user approves the analysis logic.
+- After approval, fix the root cause where it belongs.
+- Keep any approved fix scoped to the bug; do not refactor unrelated areas.
 
 For bug investigations:
 
@@ -99,6 +101,7 @@ For bug investigations:
 - Do not add speculative guard checks that merely avoid crashes without addressing the cause.
 - Use concise value normalization where appropriate.
 - Handle errors at external I/O boundaries and user-input boundaries to produce clear, actionable messages.
+- Temporary self tests created for debugging must be removed after the debugging/validation cycle. Recreate focused self tests next time they are needed; do not keep debug-only tests in the repository.
 
 ## 8. Collaboration Workflow For Large Modules
 

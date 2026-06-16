@@ -31,10 +31,7 @@ def runtime_config() -> RuntimeConfig:
 
 
 def current_dut_serial() -> str:
-    value = runtime_config().dut_serial
-    if value:
-        return value
-    return str(os.environ.get("SMARTTEST_ADB_SERIAL", "") or "").strip()
+    return runtime_config().dut_serial
 
 
 def equipment_config() -> dict[str, Any]:

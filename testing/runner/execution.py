@@ -65,20 +65,10 @@ class TestRunSession:
 def start_pytest_run(
     *,
     root_dir: Path,
-    nodeids: list[str],
-    adb_serial: str | None = None,
-    equipment_config: dict[str, object] | None = None,
-    run_config: RunConfig | None = None,
+    run_config: RunConfig,
 ) -> TestRunSession:
-    if run_config is None:
-        run_config = RunConfig(
-            nodeids=list(nodeids),
-            dut_serial=adb_serial,
-            equipment=dict(equipment_config or {}),
-        )
-    else:
-        nodeids = list(run_config.nodeids)
-        adb_serial = run_config.dut_serial
+    nodeids = list(run_config.nodeids)
+    adb_serial = run_config.dut_serial
     packaged = is_packaged_runtime()
     root_dir = Path(getattr(sys, "_MEIPASS", root_dir)).resolve() if packaged else root_dir.resolve()
     tempdir = tempfile.TemporaryDirectory(prefix="smarttest_pytest_run_")
@@ -88,8 +78,6 @@ def start_pytest_run(
     env["PYTHONUNBUFFERED"] = "1"
     env["SMARTTEST_STEP_EVENTS_OUT"] = str(event_file)
     env[RUN_CONFIG_ENV] = run_config_to_json(run_config)
-    if adb_serial:
-        env["SMARTTEST_ADB_SERIAL"] = str(adb_serial)
     python_executable = Path(sys.executable)
     if packaged:
         python_executable = _bundled_python_executable(root_dir)

@@ -16,7 +16,6 @@ from PIL import Image, ImageDraw, ImageFont
 from tools.param_conversion import to_float, to_int, to_string_list
 from testing.params.runtime import runtime_params
 from testing.runtime.steps import step_log
-from testing.tool.dut_tool.features.base import FeatureBase
 
 
 DEFAULT_MEDIA_DIR = "/storage/*/Movies /storage/*/Video"
@@ -93,41 +92,6 @@ class PlaybackControls:
     thumb_x: int | None
 
 
-class LocalPlaybackFeature(FeatureBase):
-    def __init__(self, dut) -> None:
-        super().__init__(dut)
-
-    @classmethod
-    def for_selected_serial(cls, selected_serial: str | None) -> "LocalPlaybackFeature":
-        return cls(_android_dut(selected_serial))
-
-    def list_media_files(self, nodeid: str | None = None) -> list[str]:
-        return list_media_files(self.dut, nodeid=nodeid)
-
-    def list_media_dirs(self) -> list[str]:
-        return list_media_dirs(dut=self.dut)
-
-    def discover_media_files(self, media_dir: str) -> list[str]:
-        return discover_media_files(media_dir, self.dut)
-
-    def start_file(self, file_path: str) -> None:
-        start_playback(file_path, self.dut)
-        dismiss_resume_dialog(self.dut)
-
-    def stop_player(self) -> None:
-        stop_exoplayer(self.dut)
-
-    def exit_player(self) -> None:
-        step_log("local_playback_exit_player keyevent=KEYCODE_BACK")
-        self.dut.keyevent(BACK_KEYEVENT)
-
-    def resume_playback(self) -> None:
-        self.dut.keyevent(PLAY_KEYEVENT)
-
-    def run_media_action(self, action: str) -> None:
-        run_action(action, self.dut)
-
-
 def list_media_files(dut=None, *, nodeid: str | None = None) -> list[str]:
     resolved_dut = _ensure_dut(dut)
     command = _media_scan_command(_normalize_media_dir(_media_dir_from_state(nodeid)))
@@ -170,6 +134,28 @@ def parse_media_file_listing(output: str) -> list[str]:
 
 def discover_media_files(media_dir: str, dut) -> list[str]:
     return parse_media_file_listing(_ensure_dut(dut).run_device_shell(_media_scan_command(_normalize_media_dir(media_dir))))
+
+
+def start_file(file_path: str, dut) -> None:
+    start_playback(file_path, dut)
+    dismiss_resume_dialog(dut)
+
+
+def stop_player(dut) -> None:
+    stop_exoplayer(dut)
+
+
+def exit_player(dut) -> None:
+    step_log("local_playback_exit_player keyevent=KEYCODE_BACK")
+    _ensure_dut(dut).keyevent(BACK_KEYEVENT)
+
+
+def resume_playback(dut) -> None:
+    _ensure_dut(dut).keyevent(PLAY_KEYEVENT)
+
+
+def run_media_action(action: str, dut) -> None:
+    run_action(action, dut)
 
 
 def build_stress_plan(
@@ -248,8 +234,8 @@ def run_local_playback_stress(
     selected_serial: str | None,
     trigger: str,
 ) -> None:
-    params = _case_params_from_state(nodeid)
-    playback = LocalPlaybackFeature.for_selected_serial(selected_serial)
+    params = runtime_params().case_values(nodeid)
+    playback = _android_dut(selected_serial)
     media_dir = _normalize_media_dir(params.get("local_playback_stress:media_dir", DEFAULT_MEDIA_DIR))
     selected_files = to_string_list(params.get("local_playback_stress:media_files", []))
     if not selected_files:
@@ -277,7 +263,7 @@ def run_local_playback_stress(
             action_plan = [action for action in actions for _ in range(2)]
             random.shuffle(action_plan)
             step_log(f"loop={loop_index}/{loop_count} start file={file_path}")
-            playback.start_file(file_path)
+            start_file(file_path, playback)
             assert_media_session_state(playback.dut, file_path=file_path, expected_state="PLAYING")
             if start_wait_sec:
                 time.sleep(start_wait_sec)
@@ -294,7 +280,7 @@ def run_local_playback_stress(
                 if executed and action_interval_sec:
                     time.sleep(action_interval_sec)
             _wait_for_playback_finished_after_actions(playback.dut, file_path)
-            playback.exit_player()
+            exit_player(playback)
 
 
 def verify_stress_action(*, dut, file_path: str, action: str, action_interval_sec: float = 0.0) -> bool | None:
@@ -971,10 +957,6 @@ def _media_dir_from_state(nodeid: str | None) -> str | None:
         return None
     value = runtime_params().get_str(normalized_nodeid, "local_playback_stress:media_dir", "")
     return str(value or "").strip() or None
-
-
-def _case_params_from_state(nodeid: str) -> dict[str, Any]:
-    return runtime_params().case_values(nodeid)
 
 
 def _normalize_media_dir(value: Any) -> str:

@@ -991,20 +991,10 @@ class AsusTelnetNvramControl(AsusBaseControl):
         upper_lookup_cc = lookup_country.upper()
 
         # === Step 1: 璁剧疆鍥藉鐮?===
-        try:
-            # 浣跨敤 router 瀵硅薄鐨?API 璁剧疆鍥藉鐮?
-            # router.telnet_write(f"nvram set wl_country_code={country_code}")
-            # if country_code == "US":
-            #     router.telnet_write(f"nvram set wl0_country_code={country_code}")
-            #     router.telnet_write(f"nvram set wl1_country_code={country_code}")
-            # router.commit() # nvram commit & restart_wireless
-            router.change_country_v2(country_code)
-            logging.info(f"Country code set to '{country_code}' via UI setting")
-            time.sleep(180) # 绛夊緟鏃犵嚎鏈嶅姟瀹屽叏鍚姩
-            router.close_browser()
-        except Exception as e:
-            logging.error(f"Failed to set country code '{country_code}': {e}")
-            return result
+        raise NotImplementedError(
+            "Router browser country-code configuration was removed with Selenium. "
+            "Rebuild this path with Playwright before using configure_and_verify_country_code()."
+        )
 
         session = None
 

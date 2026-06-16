@@ -48,16 +48,6 @@ class SSHSession:
         self._conn: Optional[SSHClientConnection] = None
         self.sock = None
 
-        # 鈫撯啌鈫?鍒犻櫎杩欒锛佷笉瑕佸垱寤哄彟涓€涓猄SHSession
-        # self._session = SSHSession(...)
-
-        # 鈫撯啌鈫?濡傛灉鏈夛紝涔熷垹闄よ繖浜涘浣欑殑鍒濆鍖栦唬鐮?
-        # try:
-        #     self._session.open()
-        #     ...
-        # except Exception as e:
-        #     ...
-
     @contextmanager
     def _use_loop(self):
         previous_loop = None

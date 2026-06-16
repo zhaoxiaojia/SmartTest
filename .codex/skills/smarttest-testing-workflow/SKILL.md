@@ -25,6 +25,14 @@ Keep each layer narrow:
 
 Do not add pass-through wrappers or package-level re-export facades in `testing/`. Import from the module that owns the behavior unless an external/stable API boundary is explicitly required.
 
+Treat framework slimming as a standing requirement, not a separate cleanup phase:
+
+- When a module only forwards arguments, renames a call, or wraps a single existing implementation without adding business value, delete that layer and call the owner directly.
+- Prefer removing code over moving code. Splitting one large redundant path into several smaller redundant files is not an optimization.
+- Before adding a helper, search whether the same behavior already exists in `testing/`, especially under `testing/params/`, `testing/runtime/`, `testing/steps/`, `testing/tool/`, and existing DUT features.
+- If two modules implement the same business action with slightly different local helpers, consolidate them into one owner instead of keeping parallel versions.
+- Large refactors should reduce net code size unless there is a clear product requirement that justifies growth.
+
 Do not import UI modules from `testing/`, except `ui/jsonTool.py` when business code needs persisted frontend configuration and `ui/yamlTool.py` when code needs shared YAML loading. UI may call `testing/` through Python bridges, but QML must not import `testing/` directly.
 
 Frontend user configuration and parameter values are persisted as JSON under `%LOCALAPPDATA%\Amlogic\SmartTest` through `ui/jsonTool.py`. When pytest cases, step planning, reports, AI, debug, or other business code need frontend test parameters, read them through `testing/params/runtime.py`. Do not introduce alternate config stores, environment-variable parameter transport, or business-specific helpers that hide the JSON source.
@@ -56,6 +64,14 @@ Frontend user configuration and parameter values are persisted as JSON under `%L
 9. Keep scope explicit: `global_context`, `case_type_shared`, or `case`.
 10. Cases with no mapping must export an empty list, not placeholder fields.
 11. For Android mirrored cases, keep the Android catalog contract aligned with `android_client/app/src/main/java/com/smarttest/mobile/runner/SmartTestCatalog.kt` and use case-scoped keys such as `emmc_rw:loop_count`.
+
+Parameter transport must stay minimal:
+
+- The canonical flow is `ui -> persisted JSON state -> testing/params/runtime.py -> pytest case / step planner / runner consumers`.
+- Do not carry frontend parameter values through extra bridge fields, run-config fields, environment variables, feature constructors, or duplicated case-local caches.
+- Pass stable identity across layers, such as `nodeid`, selected DUT serial, source key, request id, or equipment name; resolve parameter values at the point of business use through shared runtime/schema helpers.
+- Remove stale intermediate assignments and "keep for later" parameter copies when the value can be read once from the shared runtime contract.
+- `requires_params` means "this case exposes these inputs"; required-at-start validation belongs only to `testing/params/required_params.yaml` and `testing/params/validation.py`.
 
 ## Run Flow
 
@@ -111,6 +127,21 @@ Use this workflow when debugging or changing APK-backed cases:
 4. If the installed package is not the latest expected APK, uninstall/reinstall or privileged-provision through the shared install mechanism; do not add case-local install logic.
 5. For new-DUT failures, first add/inspect boundary prints in `android_client.ensure_test_apk_installed`: requested serial, effective command serial, resolved APK path, build check mtimes, installed probe output, package code path, package version, install state key, recorded hash, current hash, and final decision.
 
+## Android APK Packaging
+
+Package Python and Android independently:
+
+1. Desktop packaging produces the SmartTest `.exe`; Android packaging produces the SmartTest mobile `.apk`.
+2. Do not treat an `.exe` package build as Android APK validation.
+3. APK packaging may use a dedicated script, but the packaged APK artifact must be copied under `dist/`.
+4. After modifying source under `android_client/`, build/package the APK once before handoff, at minimum with a Gradle APK task such as:
+
+```powershell
+.\android_client\gradlew.bat -p android_client :app:assembleDebug
+```
+
+5. Use a stricter Gradle task when the change requires it.
+
 ## Steps And Reports
 
 1. Declare visible steps in pytest entry files; do not let the APK synthesize frontend step rows.
@@ -118,6 +149,14 @@ Use this workflow when debugging or changing APK-backed cases:
 3. Runtime events may update existing declared rows; they must not delete planned rows or create replacement rows from APK data.
 4. Keep unmatched runtime updates diagnostic-rich: nodeid, step id, definition id, status/event type, and parameters.
 5. Failed cases must be recorded and the run must continue unless stop-on-failure is explicitly enabled.
+
+Cycle/loop planning is a shared mechanism:
+
+- All repeatable cases should follow the cycle model. Every case is assumed to have `loop_count`/`cycle_count` semantics, with a default of `1` when the case does not override it.
+- Step planning should expand cycle rows through shared planner logic, not ad hoc case-specific UI patches.
+- Frontend-visible step rows should be stable and predeclared as much as possible. Runtime events are expected to update planned rows, not invent an unrelated second step structure.
+- Do not keep one mechanism for explicit `cycle.*` cases and another unrelated mechanism for ordinary looped cases; unify them in shared plan expansion.
+- When a case needs repeated execution, prefer a shared `loop_count` case parameter over custom per-case repeat flags.
 
 ## Stress Case Step Tolerance
 
@@ -142,10 +181,18 @@ Use this workflow when debugging or changing APK-backed cases:
 ## Debugging Flow
 
 1. Gather logs/prints from the relevant handoff before changing behavior.
-2. If logs are insufficient, add temporary boundary prints around UI -> runner -> pytest -> DUT/equipment -> reporting.
-3. Include stable business identity in prints: nodeid, Android case id, request id, step id, definition id, status, selected DUT, and parameter set.
-4. Fix the existing state transition, condition, ordering, or mapping after evidence shows the mismatch.
-5. Remove temporary prints after the user confirms the behavior.
+2. When the user reports that something used to work, default to inspecting prints/logs and explaining the suspected root cause first.
+3. Do not modify code for that regression until the user approves the analysis logic.
+4. If logs are insufficient, propose the minimal temporary boundary prints around UI -> runner -> pytest -> DUT/equipment -> reporting.
+5. Include stable business identity in prints: nodeid, Android case id, request id, step id, definition id, status, selected DUT, and parameter set.
+6. After approval, fix the existing state transition, condition, ordering, or mapping shown by evidence.
+7. Remove temporary prints after the user confirms the behavior.
+
+Temporary validation artifacts must also be removed:
+
+- Self-tests created only to debug a one-off issue must be deleted after they have served their purpose.
+- Do not keep "just in case" debug-only tests, scripts, or probes in `testing/self_tests/` or `testing/tool/`.
+- Recreate focused debug tests next time they are needed instead of letting the repository accumulate temporary scaffolding.
 
 ## Validation
 
@@ -159,6 +206,8 @@ Run focused self-tests for the changed surface. Common targets:
 
 For hardware-dependent tests, prefer unit tests with injected device listers, transports, equipment factories, and subprocess runners.
 
+Temporary self tests created only for debugging must be removed after validation. Recreate focused self tests next time they are needed; do not keep debug-only tests in the repository.
+
 ## Redundancy Checks
 
 - If DUT serial selection appears in more than one layer, keep it only at the run boundary and pass the selected serial down.
@@ -167,3 +216,6 @@ For hardware-dependent tests, prefer unit tests with injected device listers, tr
 - If bridge code understands pytest internals beyond run config and result events, move that detail into `testing/runner/` or `testing/runtime/`.
 - If Android mirrored cases define a second parameter catalog, align them back to the Android catalog and pytest markers.
 - If equipment construction appears in individual cases, move it into `TestEquipment` or a tool adapter used by `TestEquipment`.
+- If a `testing/tool/` module contains multiple copies of adb helpers, shell quoting, UI dumping, transport startup, or router/lab device selection, collapse them into one shared owner instead of re-implementing them inside each feature.
+- If a DUT feature can be expressed as module functions plus a passed-in DUT object, prefer that over creating another feature facade class.
+- If an optimization only changes file layout but leaves the same amount of business branching and argument plumbing, it is incomplete; keep simplifying until coupling and code size both drop.

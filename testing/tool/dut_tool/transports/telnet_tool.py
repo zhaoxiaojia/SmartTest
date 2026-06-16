@@ -10,7 +10,6 @@ import asyncio
 import logging
 import os.path
 import re
-from testing.tool.dut_tool import command_batch as subprocess
 import time
 import weakref
 from contextlib import contextmanager, suppress
@@ -586,49 +585,6 @@ class telnet_tool:
         raise RuntimeError(
             f"Telnet command '{command}' failed without raising expected exception"
         )
-
-    def popen_term(self, command):
-        """
-        Popen term.
-
-        -------------------------
-        It executes external commands via Python's subprocess module.
-
-        -------------------------
-        Parameters
-        -------------------------
-        command : Any
-            The ``command`` parameter.
-
-        -------------------------
-        Returns
-        -------------------------
-        Any
-            The result produced by the function.
-        """
-        return subprocess.Popen(command.split(), stdout=subprocess.Pdut_ipE, stderr=subprocess.Pdut_ipE)
-
-    def subprocess_run(self, cmd):
-        """
-        Subprocess run.
-
-        -------------------------
-        It runs shell commands on the target device using ADB helpers and captures the output.
-        It executes external commands via Python's subprocess module.
-
-        -------------------------
-        Parameters
-        -------------------------
-        cmd : Any
-            Command string to parse or execute.
-
-        -------------------------
-        Returns
-        -------------------------
-        Any
-            The result produced by the function.
-        """
-        return self.checkoutput(cmd)
 
     def root(self):
         """

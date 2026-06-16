@@ -4668,6 +4668,14 @@ Some contents...</translation>
         <translation type="vanished">Bluetooth device target used as the reconnect checkpoint.</translation>
     </message>
     <message>
+        <source>test.param.cpu_frequency.loop_count.label</source>
+        <translation>Loop Count</translation>
+    </message>
+    <message>
+        <source>test.param.cpu_frequency.loop_count.description</source>
+        <translation>How many times to repeat the CPU frequency switching cycle.</translation>
+    </message>
+    <message>
         <source>test.param.cpu_frequency.frequencies.label</source>
         <translation type="vanished">CPU frequencies</translation>
     </message>
@@ -4868,57 +4876,57 @@ Some contents...</translation>
         <translation type="vanished">Required for reconnect check</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1109"/>
+        <location filename="bridge/TestPageBridge.py" line="1079"/>
         <source>test.env.relay.label</source>
         <translation>Relay</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1113"/>
+        <location filename="bridge/TestPageBridge.py" line="1083"/>
         <source>test.env.equipment.type.label</source>
         <translation>Type</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1021"/>
+        <location filename="bridge/TestPageBridge.py" line="991"/>
         <source>test.env.relay.type.snmp_pdu</source>
         <translation>SNMP PDU</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1022"/>
+        <location filename="bridge/TestPageBridge.py" line="992"/>
         <source>test.env.relay.type.usb_relay</source>
         <translation>USB Relay</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1063"/>
+        <location filename="bridge/TestPageBridge.py" line="1033"/>
         <source>test.env.relay.snmp_pdu.ip.label</source>
         <translation>IP Address</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1067"/>
+        <location filename="bridge/TestPageBridge.py" line="1037"/>
         <source>test.env.relay.snmp_pdu.ip.description</source>
         <translation>SNMP PDU address.</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1072"/>
+        <location filename="bridge/TestPageBridge.py" line="1042"/>
         <source>test.env.relay.snmp_pdu.port.label</source>
         <translation>Outlet Port</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1031"/>
+        <location filename="bridge/TestPageBridge.py" line="1001"/>
         <source>test.env.relay.usb_relay.port.label</source>
         <translation>Serial Port</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1035"/>
+        <location filename="bridge/TestPageBridge.py" line="1005"/>
         <source>test.env.relay.usb_relay.port.description</source>
         <translation>USB relay serial port, for example COM4.</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1040"/>
+        <location filename="bridge/TestPageBridge.py" line="1010"/>
         <source>test.env.relay.usb_relay.mode.label</source>
         <translation>Wiring Mode</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1051"/>
+        <location filename="bridge/TestPageBridge.py" line="1021"/>
         <source>test.env.relay.usb_relay.press_seconds.label</source>
         <translation>Press Seconds</translation>
     </message>

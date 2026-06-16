@@ -4,7 +4,8 @@ import pytest
 
 from testing.runtime.config import current_dut_serial
 from testing.runtime.steps import step
-from testing.tool.dut_tool.features.local_playback import LocalPlaybackFeature, run_local_playback_stress
+from testing.tool.dut_tool.duts.android import android
+from testing.tool.dut_tool.features.local_playback import run_local_playback_stress
 
 
 pytestmark = pytest.mark.case_type("stress")
@@ -71,7 +72,7 @@ def test_local_playback_stress(request):
         expected="Any existing ExoPlayer playback page is closed before starting the stress loop.",
         step_id="local_playback_stress.stop_player",
     ):
-        LocalPlaybackFeature.for_selected_serial(selected_serial).stop_player()
+        android(serialnumber=selected_serial).stop_player()
 
     with step(
         "Run local playback stress loop",

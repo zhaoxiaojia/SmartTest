@@ -85,7 +85,6 @@ def test_ac_onoff_via_relay(request):
         phase="setup",
         kind="setup",
         definition_id="relay.prepare",
-        params=params,
         expected="Configured environment relay is available.",
         step_id="ac_onoff.prepare_relay",
     ):
@@ -109,7 +108,6 @@ def test_ac_onoff_via_relay(request):
             f"Cycle {index}/{total}: power off relay",
             kind="step",
             definition_id="relay.power_off",
-            params={**params, "cycle_power_off_sec": power_off_sec},
             expected="Relay powers off the DUT.",
             step_id=f"ac_onoff.cycle.{index}.power_off",
         ):
@@ -120,7 +118,6 @@ def test_ac_onoff_via_relay(request):
             f"Cycle {index}/{total}: power on relay",
             kind="step",
             definition_id="relay.power_on",
-            params=params,
             expected="Relay powers on the DUT.",
             step_id=f"ac_onoff.cycle.{index}.power_on",
         ):
@@ -130,7 +127,6 @@ def test_ac_onoff_via_relay(request):
             f"Cycle {index}/{total}: wait for DUT resume",
             kind="step",
             definition_id="power.wait_resume",
-            params={**params, "cycle_power_on_wait_sec": power_on_wait_sec},
             expected="DUT has enough time to boot before checkpoints.",
             step_id=f"ac_onoff.cycle.{index}.wait_resume",
         ):
@@ -213,7 +209,6 @@ def _run_dut_check(
         f"Cycle {index}/{total}: {title}",
         kind="check",
         definition_id=definition_id,
-        params=params,
         expected=action.expected,
         step_id=f"ac_onoff.cycle.{index}.{definition_id.replace('.', '_')}",
     ):

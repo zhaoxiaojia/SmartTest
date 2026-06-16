@@ -38,7 +38,6 @@ def _new_step_payload(
     kind: str,
     definition_id: str | None,
     meta: dict[str, Any] | None,
-    params: dict[str, Any] | None,
     expected: Any = None,
     parent_id: str | None = None,
     step_id: str | None = None,
@@ -62,7 +61,6 @@ def _new_step_payload(
         "case_nodeid": case_nodeid,
         "parent_id": parent_id if parent_id is not None else (parent["id"] if parent else None),
         "meta": payload_meta,
-        "params": dict(params or {}),
         "expected": expected,
     }
 
@@ -74,7 +72,6 @@ def plan_step(
     kind: str = "action",
     definition_id: str | None = None,
     meta: dict[str, Any] | None = None,
-    params: dict[str, Any] | None = None,
     expected: Any = None,
     parent_id: str | None = None,
     step_id: str | None = None,
@@ -85,7 +82,6 @@ def plan_step(
         kind=kind,
         definition_id=definition_id,
         meta=meta,
-        params=params,
         expected=expected,
         parent_id=parent_id,
         step_id=step_id,
@@ -100,7 +96,6 @@ def plan_step(
         kind=payload["kind"],
         definition_id=payload["definition_id"],
         meta=payload["meta"],
-        params=payload["params"],
         expected=payload["expected"],
     )
     return payload
@@ -114,7 +109,6 @@ def step(
     kind: str = "action",
     definition_id: str | None = None,
     meta: dict[str, Any] | None = None,
-    params: dict[str, Any] | None = None,
     expected: Any = None,
     actual: Any = None,
     step_id: str | None = None,
@@ -126,7 +120,6 @@ def step(
         kind=kind,
         definition_id=definition_id,
         meta=meta,
-        params=params,
         expected=expected,
         step_id=step_id,
     )
@@ -141,7 +134,6 @@ def step(
         kind=payload["kind"],
         definition_id=payload["definition_id"],
         meta=payload["meta"],
-        params=payload["params"],
         expected=payload["expected"],
     )
     emit_event(
@@ -154,7 +146,6 @@ def step(
         kind=payload["kind"],
         definition_id=payload["definition_id"],
         meta=payload["meta"],
-        params=payload["params"],
         expected=payload["expected"],
     )
     try:
@@ -313,7 +304,6 @@ def case_step(
     *,
     definition_id: str | None = None,
     meta: dict[str, Any] | None = None,
-    params: dict[str, Any] | None = None,
     expected: Any = None,
     stress_tolerant: bool | None = None,
 ):
@@ -323,7 +313,6 @@ def case_step(
         kind="step",
         definition_id=definition_id,
         meta=meta,
-        params=params,
         expected=expected,
         stress_tolerant=stress_tolerant,
     )
@@ -335,7 +324,6 @@ def action_step(
     phase: str = "call",
     definition_id: str | None = None,
     meta: dict[str, Any] | None = None,
-    params: dict[str, Any] | None = None,
     expected: Any = None,
     stress_tolerant: bool | None = None,
 ):
@@ -345,7 +333,6 @@ def action_step(
         kind="action",
         definition_id=definition_id,
         meta=meta,
-        params=params,
         expected=expected,
         stress_tolerant=stress_tolerant,
     )

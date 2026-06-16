@@ -131,7 +131,7 @@ class DutParameterAdapter:
             )
             return options
         if source == CPU_FREQUENCY_OPTIONS_SOURCE:
-            options = self._dut_factory(selected_serial).system.available_cpu_frequencies()
+            options = self._dut_factory(selected_serial).available_cpu_frequencies()
             print(
                 "[DutParameterAdapter.cpu_frequency_options] "
                 f"dut={selected_serial or '<default>'} options={len(options)}"

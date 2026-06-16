@@ -87,12 +87,12 @@ def build_run_config_from_state(
     )
     global_context = dict(state.global_context)
     dut_serial = resolve_dut_serial(str(global_context.get("dut", "") or ""), device_lister=device_lister)
-    equipment = _equipment_config(global_context)
+    raw_equipment = global_context.get("equipment", global_context.get("test_equipment", {}))
     return (
         RunConfig(
             nodeids=nodeids,
             dut_serial=dut_serial,
-            equipment=equipment,
+            equipment=dict(raw_equipment) if isinstance(raw_equipment, dict) else {},
             global_context=global_context,
         ),
         diagnostics,
@@ -101,8 +101,3 @@ def build_run_config_from_state(
 
 def run_config_to_json(run_config: RunConfig) -> str:
     return json.dumps(run_config.to_jsonable(), ensure_ascii=False)
-
-
-def _equipment_config(global_context: dict[str, Any]) -> dict[str, Any]:
-    raw = global_context.get("equipment", global_context.get("test_equipment", {}))
-    return dict(raw) if isinstance(raw, dict) else {}

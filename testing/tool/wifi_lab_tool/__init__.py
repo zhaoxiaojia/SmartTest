@@ -4,7 +4,7 @@ Submodules are loaded lazily because some controllers depend on optional lab
 software that is not installed on every SmartTest runtime.
 """
 
-__all__ = ["LabDeviceController", "ix", "rs"]
+__all__ = ["LabDeviceController", "ix"]
 
 
 def __getattr__(name):
@@ -16,8 +16,4 @@ def __getattr__(name):
         from .ixchariot import ix
 
         return ix
-    if name == "rs":
-        from .rs_test import rs
-
-        return rs
     raise AttributeError(name)

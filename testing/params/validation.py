@@ -11,6 +11,7 @@ from testing.params.options import normalize_option_values
 from testing.params.registry import SchemaRegistry, default_registry
 from testing.params.requirements import required_params_for_case
 from testing.params.schema import ParamField, ParamScope, ParamValueType
+from testing.runner.config import resolve_dut_serial
 from testing.state.models import SelectedCase, TestPageState
 
 
@@ -43,7 +44,7 @@ def validate_run_request(
     if any(_case_requires_dut(case, active_registry) for _, case in selected_cases):
         if resolved_dut_serial is _UNSET:
             selected_dut = str(state.global_context.get("dut", "") or "").strip()
-            resolved_dut = _resolve_dut_serial(selected_dut, device_lister or list_adb_devices)
+            resolved_dut = resolve_dut_serial(selected_dut, device_lister=device_lister or list_adb_devices)
         else:
             resolved_dut = str(resolved_dut_serial or "").strip()
         if not resolved_dut:
@@ -116,16 +117,6 @@ def _case_requires_dut(case: Mapping[str, Any], registry: SchemaRegistry) -> boo
         if field is not None and str(field.options_source or "").strip():
             return True
     return False
-
-
-def _resolve_dut_serial(selected_serial: str, device_lister: DeviceLister) -> str | None:
-    current_devices = device_lister()
-    selected = str(selected_serial or "").strip()
-    if selected and selected in current_devices:
-        return selected
-    if len(current_devices) == 1:
-        return current_devices[0]
-    return None
 
 
 def _resolve_param_value(

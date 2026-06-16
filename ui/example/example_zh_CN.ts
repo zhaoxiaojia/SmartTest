@@ -4900,6 +4900,14 @@ Some contents...</source>
         <translation type="vanished">用于蓝牙回连检查的目标设备。</translation>
     </message>
     <message>
+        <source>test.param.cpu_frequency.loop_count.label</source>
+        <translation>循环次数</translation>
+    </message>
+    <message>
+        <source>test.param.cpu_frequency.loop_count.description</source>
+        <translation>重复执行 CPU 频点切换循环的次数。</translation>
+    </message>
+    <message>
         <source>test.param.cpu_frequency.frequencies.label</source>
         <translation type="vanished">CPU 频点</translation>
     </message>

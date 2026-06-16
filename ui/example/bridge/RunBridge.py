@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 import sys
 import threading
 import time
@@ -18,7 +17,7 @@ from testing.reporting.store import ReportStore, build_run_report
 from testing.cases.catalog import is_packaged_runtime, load_runtime_test_catalog
 from testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
 from testing.params.validation import RunValidationIssue, validate_run_request
-from testing.runner.config import RunConfig, build_run_config_from_state, resolve_dut_serial
+from testing.runner.config import RunConfig, build_run_config_from_state
 from testing.runner.execution import TestRunSession, start_pytest_run
 from testing.steps.planner import build_step_plan
 from testing.state.store import load_state
@@ -45,15 +44,6 @@ class RunBridge(QObject):
     _eventSignal = Signal("QVariantMap")
     _finishSignal = Signal(int)
     _MIN_STEP_RUNNING_DISPLAY_SEC = 0.12
-    _LOOP_ID_RE = re.compile(r"^(?P<prefix>.+?)\.(?P<marker>cycle|loop)(?:\.(?P<index>\d+))?\.(?P<tail>.+)$", re.IGNORECASE)
-    _LOOP_TITLE_RE = re.compile(
-        r"^(?P<marker>\s*(?:cycle|loop))(?:\s+(?P<index>\d+)\s*/\s*(?P<total>\d+))?(?P<suffix>\s*:.*)$",
-        re.IGNORECASE,
-    )
-    _LOOP_PAREN_TITLE_RE = re.compile(
-        r"^(?P<head>.*?)(?P<marker>cycle|loop)?\s*\((?P<index>\d+)\s*/\s*(?P<total>\d+)\)\s*$",
-        re.IGNORECASE,
-    )
     def __init__(self, root_dir: Path):
         super().__init__(QGuiApplication.instance())
         self._root_dir = root_dir.resolve()
@@ -67,8 +57,6 @@ class RunBridge(QObject):
         self._steps: list[dict[str, Any]] = []
         self._step_index: dict[str, int] = {}
         self._step_alias_index: dict[tuple[str, str], str | None] = {}
-        self._initial_step_keys: set[tuple[str, str]] = set()
-        self._runtime_added_step_keys: set[tuple[str, str]] = set()
         self._building_initial_plan = False
         self._hidden_step_ids: set[str] = set()
         self._step_started_at: dict[str, float] = {}
@@ -101,19 +89,8 @@ class RunBridge(QObject):
     def _trace_timestamp(self) -> str:
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-    def _resolve_adb_serial(self, saved_dut: str) -> str | None:
-        normalized_saved = str(saved_dut or "").strip()
-        print(f"{self._trace_timestamp()} [RunBridge] saved dut: {normalized_saved or '<empty>'}")
-        return resolve_dut_serial(normalized_saved)
-
     def _selected_run_config(self) -> RunConfig:
         state = load_state(self._default_state_path())
-        for selected in state.selected:
-            params = state.case_parameters.get(str(selected.nodeid or "").strip(), {})
-            print(
-                f"{self._trace_timestamp()} [RunBridge] case_parameters "
-                f"nodeid={selected.nodeid} params={params}"
-            )
         run_config, diagnostics = build_run_config_from_state(root_dir=self._root_dir, state=state)
         for line in diagnostics:
             print(line)
@@ -203,8 +180,6 @@ class RunBridge(QObject):
         self._steps = []
         self._step_index = {}
         self._step_alias_index = {}
-        self._initial_step_keys = set()
-        self._runtime_added_step_keys = set()
         self._building_initial_plan = False
         self._hidden_step_ids = set()
         self._step_started_at = {}
@@ -289,23 +264,12 @@ class RunBridge(QObject):
                             "title": str(item.get("title", "") or raw_step_id),
                             "kind": str(item.get("kind", "action") or "action"),
                             "definition_id": definition_id,
-                            "params": dict(item.get("params", {}) if isinstance(item.get("params", {}), dict) else {}),
                             "expected": item.get("expected", ""),
                         },
                         status="planned",
                     )
         finally:
             self._building_initial_plan = False
-
-    def _start_run_session(
-        self,
-        run_config: RunConfig,
-    ) -> TestRunSession:
-        return start_pytest_run(
-            root_dir=self._root_dir,
-            nodeids=run_config.nodeids,
-            run_config=run_config,
-        )
 
     def _pump_stdout(self, session: TestRunSession) -> None:
         if session.process.stdout is None:
@@ -374,7 +338,10 @@ class RunBridge(QObject):
     ) -> None:
         try:
             self._run_adb_serial = run_config.dut_serial
-            session = self._start_run_session(run_config)
+            session = start_pytest_run(
+                root_dir=self._root_dir,
+                run_config=run_config,
+            )
             self._session = session
             self._logSignal.emit(
                 f"[run] runner session started pid={getattr(session.process, 'pid', '<unknown>')}"
@@ -412,7 +379,6 @@ class RunBridge(QObject):
                 "definition_id": "",
                 "case_nodeid": case_nodeid,
                 "parent_id": "",
-                "params": {},
                 "expected": "",
                 "actual": "",
                 "error": "",
@@ -420,19 +386,8 @@ class RunBridge(QObject):
                 "evidence": [],
             }
         )
-        self._remember_step_row(self._steps[-1])
         self.stepsChanged.emit()
         return row_id
-
-    def _step_key(self, row: dict[str, Any]) -> tuple[str, str]:
-        case_nodeid = str(row.get("case_nodeid", "") or "")
-        raw_id = str(row.get("id", "") or "").rsplit(":", 1)[-1]
-        definition_id = str(row.get("definition_id", "") or "")
-        if ".cycle." in raw_id or ".loop." in raw_id:
-            stable_id = raw_id
-        else:
-            stable_id = definition_id or raw_id or str(row.get("title", "") or "")
-        return case_nodeid, stable_id
 
     def _step_snapshot_for_compare(self) -> list[dict[str, str]]:
         return [
@@ -446,15 +401,6 @@ class RunBridge(QObject):
             }
             for row in self._steps
         ]
-
-    def _remember_step_row(self, row: dict[str, Any]) -> None:
-        key = self._step_key(row)
-        if self._building_initial_plan:
-            self._initial_step_keys.add(key)
-            return
-        if key in self._initial_step_keys or key in self._runtime_added_step_keys:
-            return
-        self._runtime_added_step_keys.add(key)
 
     def _log_unmatched_runtime_step(self, *, event_type: str, payload: dict[str, Any]) -> None:
         self._append_log(
@@ -522,68 +468,6 @@ class RunBridge(QObject):
                 return row_id
         return step_id
 
-    def _sync_loop_group_progress(self, *, row_id: str, payload: dict[str, Any]) -> bool:
-        source_id = str(payload.get("step_id", "") or payload.get("id", ""))
-        source_match = self._LOOP_ID_RE.match(source_id.rsplit(":", 1)[-1])
-        if source_match is None:
-            source_match = self._LOOP_ID_RE.match(row_id.rsplit(":", 1)[-1])
-        title = str(payload.get("title", "") or "").strip()
-        title_match = self._LOOP_TITLE_RE.match(title)
-        paren_title_match = self._LOOP_PAREN_TITLE_RE.match(title)
-        meta = dict(payload.get("meta", {}) if isinstance(payload.get("meta", {}), dict) else {})
-        case_nodeid = str(payload.get("case_nodeid", "") or "")
-        progress_index = ""
-        progress_total = ""
-        if title_match is not None:
-            progress_index = str(title_match.group("index") or "")
-            progress_total = str(title_match.group("total") or "")
-        if (not progress_index or not progress_total) and paren_title_match is not None:
-            progress_index = str(paren_title_match.group("index") or "")
-            progress_total = str(paren_title_match.group("total") or "")
-        if not progress_index or not progress_total:
-            progress_index = str(meta.get("index", "") or "")
-            progress_total = str(meta.get("total", "") or "")
-        if source_match is None or not progress_index or not progress_total:
-            return False
-        group_prefix = source_match.group("prefix")
-        marker = source_match.group("marker").lower()
-        progress = f"{progress_index}/{progress_total}"
-        current_index = self._step_index.get(row_id, -1)
-        updated_count = 0
-        reset_count = 0
-        for item in self._steps:
-            if str(item.get("case_nodeid", "") or "") != case_nodeid:
-                continue
-            item_id = str(item.get("id", "") or "")
-            row_match = self._LOOP_ID_RE.match(str(item.get("id", "") or "").rsplit(":", 1)[-1])
-            title_match = self._LOOP_TITLE_RE.match(str(item.get("title", "") or "").strip())
-            if row_match is None or title_match is None:
-                continue
-            if row_match.group("prefix") != group_prefix or row_match.group("marker").lower() != marker:
-                continue
-            label = title_match.group("marker")
-            new_title = f"{label} {progress}{title_match.group('suffix')}"
-            if new_title == str(item.get("title", "") or ""):
-                pass
-            else:
-                item["title"] = new_title
-                updated_count += 1
-            item_index = self._step_index.get(item_id, -1)
-            if current_index >= 0 and item_index > current_index and str(item.get("status", "") or "") != "planned":
-                item["status"] = "planned"
-                item["actual"] = ""
-                item["error"] = ""
-                item["duration_ms"] = 0
-                reset_count += 1
-        if updated_count == 0 and reset_count == 0:
-            return False
-        self._append_log(
-            "[steps.trace] cycle_progress "
-            f"case={case_nodeid} source={source_id or '<empty>'} progress={progress} "
-            f"updated={updated_count} reset={reset_count}"
-        )
-        return True
-
     def _is_framework_step(self, payload: dict[str, Any]) -> bool:
         definition_id = str(payload.get("definition_id", "") or "")
         return definition_id in {"android_client.run_case", "android_client.stage"}
@@ -621,7 +505,6 @@ class RunBridge(QObject):
             "definition_id": str(payload.get("definition_id", "") or ""),
             "case_nodeid": case_nodeid,
             "parent_id": parent_id,
-            "params": dict(payload.get("params", {}) if isinstance(payload.get("params", {}), dict) else {}),
             "expected": payload.get("expected", ""),
             "actual": payload.get("actual", ""),
             "error": str(payload.get("error", "") or ""),
@@ -638,7 +521,6 @@ class RunBridge(QObject):
             self._step_index[step_id] = len(self._steps)
             self._steps.append(row)
             self._register_step_aliases(step_id, payload)
-            self._remember_step_row(row)
         else:
             if status == "planned":
                 existing = self._steps[index]
@@ -650,10 +532,7 @@ class RunBridge(QObject):
             preserved_depth = existing.get("depth", row["depth"])
             preserved_definition_id = existing.get("definition_id", "")
             update_values = {key: value for key, value in row.items() if value not in ("", {}, [])}
-            matched_by_alias = original_step_id and original_step_id != step_id
-            incoming_loop = self._LOOP_ID_RE.match(original_step_id.rsplit(":", 1)[-1]) is not None
-            existing_loop = self._LOOP_ID_RE.match(str(existing.get("id", "") or "").rsplit(":", 1)[-1]) is not None
-            if matched_by_alias and incoming_loop and existing_loop:
+            if existing.get("title"):
                 update_values.pop("title", None)
             existing.update(update_values)
             if preserved_parent_id and parent_id not in self._step_index:
@@ -756,10 +635,7 @@ class RunBridge(QObject):
             step_id = self._upsert_step_row(payload, status="running", allow_create=False)
             if not step_id:
                 return
-            loop_changed = self._sync_loop_group_progress(row_id=step_id, payload=payload)
             self._step_started_at[step_id] = float(payload.get("timestamp", time.time()) or time.time())
-            if loop_changed:
-                self.stepsChanged.emit()
             return
 
         if event_type == "step_finished":

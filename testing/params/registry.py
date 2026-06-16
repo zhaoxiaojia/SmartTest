@@ -11,6 +11,7 @@ from .schema import ParamCategory, ParamField, ParamSchema, ParamScope, ParamVal
 
 
 CPU_FREQUENCY_PARAM_KEY = "cpu_frequency:frequencies"
+CPU_FREQUENCY_LOOP_COUNT_KEY = "cpu_frequency:loop_count"
 CONNECTED_BLUETOOTH_TARGETS_OPTIONS_SOURCE = "testing.tool.dut_tool.features.bluetooth:list_connected_bluetooth_targets"
 
 
@@ -233,6 +234,12 @@ def _pure_pytest_case_fields() -> list[ParamField]:
             ParamCategory.NETWORK,
             "",
             CONNECTED_BLUETOOTH_TARGETS_OPTIONS_SOURCE,
+        ),
+        _case_param_field(
+            CPU_FREQUENCY_LOOP_COUNT_KEY,
+            ParamValueType.INT,
+            ParamCategory.EXECUTION,
+            1,
         ),
         _case_param_field(
             CPU_FREQUENCY_PARAM_KEY,
