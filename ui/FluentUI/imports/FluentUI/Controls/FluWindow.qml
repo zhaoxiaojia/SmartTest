@@ -98,7 +98,7 @@ Window {
         maximizeButton: appBar.buttonMaximize
         fixSize: window.fixSize
         topmost: window.stayTop
-        disabled: FluApp.useSystemAppBar
+        disabled: Qt.platform.os === "linux" || FluApp.useSystemAppBar
         Component.onCompleted: {
             frameless.setHitTestVisible(appBar.layoutMacosButtons)
             frameless.setHitTestVisible(appBar.layoutStandardbuttons)
