@@ -8,7 +8,6 @@ ignoring errors, and extend the base Roku functionality with additional
 commands, screen capture, infrared navigation and media playback helpers.
 """
 
-import logging
 import os
 import re
 import threading
@@ -21,12 +20,12 @@ from typing import Optional
 import requests
 from roku import Roku
 
-from testing.tool.dut_tool.transports.serial_tool import serial_tool
 from testing.tool.dut_tool.transports.telnet_tool import telnet_tool
 from testing.tool.dut_tool.duts.linux import linux
 from testing.tool.dut_tool.features.wifi import WifiConnectParams
 from testing.tool.network_tool.roku_wpa import roku_wpa
 from typing import Annotated
+from tools.logging import smart_log
 
 
 def load_config(refresh: bool = False) -> dict:
@@ -68,7 +67,7 @@ def _get_roku_ip() -> Optional[str]:
     connect_cfg = cfg.get("connect_type", {})
     linux_cfg = connect_cfg.get("Linux") or {}
     ip = linux_cfg.get("ip")
-    logging.info(f"Read ROKU IP: {ip}")
+    smart_log(f"Read ROKU IP: {ip}", level="info")
     return ip
 
 
@@ -162,7 +161,7 @@ class roku_ctrl(Roku):
         self.logcat_check = False
         self._ser = serial
 
-        logging.info('roku init done')
+        smart_log('roku init done', level="info")
 
     def __setattr__(self, key, value):
         """
@@ -200,10 +199,10 @@ class roku_ctrl(Roku):
                 self.home(time=1)
                 continue
             if 'SGScreen.RMPScene.ComponentController_0.ViewManager_0.ViewStack_0.MediaView_0.Video_' in response:
-                logging.debug("Skip focus lookup on media view stack")
+                smart_log("Skip focus lookup on media view stack", level="debug")
                 break
             if 'SGScreen.RMPScene.ComponentController_0.ViewManager_0.ViewStack_0.GridView_0.RenderableNode_0.ZoomRowList_0.RenderableNode_' in response:
-                logging.debug("Skip focus lookup on zoom row list")
+                smart_log("Skip focus lookup on zoom row list", level="debug")
                 break
             focused = re.findall(r'<text>(.*?)</text>', response)
             if focused:
@@ -286,14 +285,14 @@ class roku_ctrl(Roku):
         else:
             if len(args) > 0 and args[0] in {"keydown", "keyup"}:
                 path = f"/{args[0]}/{RokuConst.COMMANDS[name]}"
-                logging.info("key %s", args[0])
+                smart_log("key %s", args[0], level="info")
             else:
                 path = f"/keypress/{RokuConst.COMMANDS[name]}"
-                logging.info("Press key %s", RokuConst.COMMANDS[name])
+                smart_log("Press key %s", RokuConst.COMMANDS[name], level="info")
             try:
                 self._post(path)
             except Exception:
-                logging.warning("Can't touch roku server")
+                smart_log("Can't touch roku server", level="warning")
         if "time" in kwargs:
             time.sleep(kwargs["time"])
 
@@ -304,7 +303,7 @@ class roku_ctrl(Roku):
         This method encapsulates the logic necessary to perform its function.
         Refer to the implementation for details on parameters and return values.
         """
-        logging.info("\rStart to capture screen ....\r")
+        smart_log("\rStart to capture screen ....\r", level="info")
         para = {'param-image-type': 'jpeg'}
         url = "http://%s:8060/capture-screen/secret" % (self.ip)
         r = requests.get(url, json=para)
@@ -356,8 +355,8 @@ class roku_ctrl(Roku):
             for child_1 in child.iter():
                 if child_1.tag == 'TrickPlayBar' and not child_1.attrib.get('name'):
                     process_index = child_1.find('Label').attrib['text']
-                    logging.info(process_index)
-                    logging.info(int(process_index.split(':')[0]) * 60 + int(process_index.split(":")[1]))
+                    smart_log(process_index, level="info")
+                    smart_log(int(process_index.split(':')[0]) * 60 + int(process_index.split(":")[1]), level="info")
                     return int(process_index.split(':')[0]) * 60 + int(process_index.split(":")[1])
 
     def get_ir_index(self, name, item, fuz_match=False):
@@ -378,7 +377,7 @@ class roku_ctrl(Roku):
                     if name == y:
                         return (target_array.index(i), i.index(y)), len(i)
 
-        logging.debug(f"Can't find such this widget {name}")
+        smart_log(f"Can't find such this widget {name}", level="debug")
         return None, None
 
     def _move_vertical(self, current_row: int, target_row: int, total_rows: int) -> None:
@@ -414,7 +413,7 @@ class roku_ctrl(Roku):
         This method encapsulates the logic necessary to perform its function.
         Refer to the implementation for details on parameters and return values.
         """
-        logging.info(f'navigation {target}')
+        smart_log(f'navigation {target}', level="info")
         self.get_ir_focus(secret=secret)
         array = self.get_launcher_element(item)
         target_idx, _ = self.get_ir_index(target, item, fuz_match)
@@ -426,7 +425,7 @@ class roku_ctrl(Roku):
             x_step = abs(target_index[0] - current_index[0])
             y_step = abs(target_index[1] - current_index[1])
             if x_step == 0 and y_step == 0:
-                logging.info(f'navigation {target} done')
+                smart_log(f'navigation {target} done', level="info")
                 return True
 
             self._move_vertical(current_index[0], target_index[0], len(array))
@@ -498,7 +497,7 @@ class roku_ctrl(Roku):
         while element not in self._get_screen_xml():
             time.sleep(1)
             if time.time() - start > timeout:
-                logging.warning(f"Can't loading {element}")
+                smart_log(f"Can't loading {element}", level="warning")
                 break
 
     def get_u_disk_file_distribution(self, filename='dumpsys.xml'):
@@ -527,7 +526,7 @@ class roku_ctrl(Roku):
         if temp not in node_list:
             node_list.append(temp)
         self.media_player_dumpsys = node_list
-        logging.info(f'layout info {self.media_player_dumpsys}')
+        smart_log(f'layout info {self.media_player_dumpsys}', level="info")
         return node_list
 
     def get_launcher_element(self, target_element):
@@ -561,7 +560,7 @@ class roku_ctrl(Roku):
             'on': 'echo 0xD > /sys/class/remote/amremote/protocol',
             'off': 'echo 0x2 > /sys/class/remote/amremote/protocol'
         }
-        logging.info(f'Set roku ir {status}')
+        smart_log(f'Set roku ir {status}', level="info")
         self.checkoutput(ir_command[status])
 
     def set_display_size(self, size):
@@ -579,8 +578,8 @@ class roku_ctrl(Roku):
             self.down(time=1)
             time.sleep(1)
         else:
-            logging.warning(f"Can't set display size into {size}")
-        logging.info(f'Current size : {size}')
+            smart_log(f"Can't set display size into {size}", level="warning")
+        smart_log(f'Current size : {size}', level="info")
 
     def set_display_mode(self, mode):
         """
@@ -597,8 +596,8 @@ class roku_ctrl(Roku):
             self.down(time=1)
             time.sleep(1)
         else:
-            logging.warning(f"Can't set display mode into {mode}")
-        logging.info(f'Current mode : {mode}')
+            smart_log(f"Can't set display mode into {mode}", level="warning")
+        smart_log(f'Current mode : {mode}', level="info")
 
     def set_picture_mode(self, mode):
         """
@@ -616,7 +615,7 @@ class roku_ctrl(Roku):
         self.select(time=1)
         self.down(time=1)
         for i in mode:
-            logging.info(f'Try to set picture mode into {i}')
+            smart_log(f'Try to set picture mode into {i}', level="info")
             self.select(time=1)
             if self.ptc_mode != i:
                 self.set_display_mode(i)
@@ -643,7 +642,7 @@ class roku_ctrl(Roku):
         for _ in range(6):
             self.down(time=1)
         for i in size:
-            logging.info(f'Try to set picture size into {i}')
+            smart_log(f'Try to set picture size into {i}', level="info")
             self.select(time=1)
             if self.ptc_size != i:
                 self.set_display_size(i)
@@ -672,7 +671,7 @@ class roku_ctrl(Roku):
             self.select(time=1)
             break
         else:
-            logging.warning(f"Can't set caption to {status}")
+            smart_log(f"Can't set caption to {status}", level="warning")
 
     def set_caption(self, language):
         """
@@ -692,14 +691,14 @@ class roku_ctrl(Roku):
         self.select(time=1)
         for _ in range(10):
             index = self.get_ir_focus()
-            logging.info(f'index {index}')
+            smart_log(f'index {index}', level="info")
             if index != language:
                 self.down(time=1)
                 continue
             self.select(time=1)
             break
         else:
-            logging.warning(f"Can't set language {language}")
+            smart_log(f"Can't set language {language}", level="warning")
 
     def get_dmesg_log(self):
         """
@@ -738,7 +737,7 @@ class roku_ctrl(Roku):
                             info = ''
                         f.write(info)
 
-        logging.info('start telnet 8080 to caputre kernel log ')
+        smart_log('start telnet 8080 to caputre kernel log ', level="info")
         tl = telnet_tool(self.ip, 'sandia')
         info = tl.checkoutput(f'telnet {self.ip} 8080', wildcard=b'onn. Roku TV')
         tl.checkoutput('logcast start')
@@ -772,7 +771,7 @@ class roku_ctrl(Roku):
                 if not target_list:
                     return
                 if re.findall(target_list[0], line):
-                    logging.info(line.strip())
+                    smart_log(line.strip(), level="info")
                     target_list.pop(0)
         assert False, "Can't catch target log"
 
@@ -807,14 +806,14 @@ class roku_ctrl(Roku):
         This method encapsulates the logic necessary to perform its function.
         Refer to the implementation for details on parameters and return values.
         """
-        logging.info(f'Start to catch err. Logfile :{filename}')
+        smart_log(f'Start to catch err. Logfile :{filename}', level="info")
         with open(filename, 'r') as f:
             info = f.readlines()
         for i in info:
             res = tag_list.findall(i)
             if res:
-                logging.warning(res)
-        logging.info('Catch done')
+                smart_log(res, level="warning")
+        smart_log('Catch done', level="info")
 
     def shutdown(self):
         """
@@ -837,25 +836,25 @@ class roku_ctrl(Roku):
         This method encapsulates the logic necessary to perform its function.
         Refer to the implementation for details on parameters and return values.
         """
-        logging.info(f'hdmirx for expect : {kwargs}')
+        smart_log(f'hdmirx for expect : {kwargs}', level="info")
 
         snapshot = self._fetch_hdmirx_snapshot()
-        logging.info(snapshot)
+        smart_log(snapshot, level="info")
         info_lines = [line.strip() for line in snapshot.split('\n') if self._is_hdmirx_attribute(line)]
-        logging.info(' ,'.join(info_lines[:5]))
-        logging.info(' ,'.join(info_lines[5:]))
+        smart_log(' ,'.join(info_lines[:5]), level="info")
+        smart_log(' ,'.join(info_lines[5:]), level="info")
         result = {line.split(':')[0].strip(): line.split(':')[1].strip() for line in info_lines}
         for key, value in kwargs.items():
             lookup = {'depth': 'Color Depth', 'space': 'Color Space', 'frame': 'Frame Rate'}.get(key, key)
             if lookup not in result:
-                logging.warning("Missing key %s in HDMI info", lookup)
+                smart_log("Missing key %s in HDMI info", lookup, level="warning")
                 return False
             if lookup == 'Frame Rate':
                 if int(result[lookup]) not in range(*value):
-                    logging.warning('%s not in expect , should in %s', result[lookup], value)
+                    smart_log('%s not in expect , should in %s', result[lookup], value, level="warning")
                     return False
             elif result[lookup] != value:
-                logging.warning('%s not in expect , should be %s', result[lookup], value)
+                smart_log('%s not in expect , should be %s', result[lookup], value, level="warning")
                 return False
         return True
 
@@ -890,11 +889,11 @@ class roku_ctrl(Roku):
         count = 0
         while True:
             if 'Media Type Selection' in self._get_screen_xml():
-                logging.info('enter done')
+                smart_log('enter done', level="info")
                 return
             self.back(time=1)
             if count > 5:
-                logging.warning("Can't open media player")
+                smart_log("Can't open media player", level="warning")
             time.sleep(3)
 
     def check_udisk(self):
@@ -956,14 +955,14 @@ class roku_ctrl(Roku):
         self.ir_enter('Set up connection', 'LabelListItem')
         if self.get_ir_focus() != 'Wireless':
             self.down()
-        logging.info('check wireless')
+        smart_log('check wireless', level="info")
         assert 'Wireless' == self.get_ir_focus(), "Can't found wireless "
         self.select()
         self.select()
         for _ in range(20):
             time.sleep(1)
             if 'Scan again to see all network' in self._get_screen_xml():
-                logging.info('Wi-Fi list catched')
+                smart_log('Wi-Fi list catched', level="info")
                 return
         else:
             assert False, "Can't load wifi scan list"
@@ -994,9 +993,9 @@ class roku_ctrl(Roku):
         time.sleep(2)
         for i in range(5):
             for info in self.get_launcher_element('ArrayGridItem'):
-                logging.info(info[0])
+                smart_log(info[0], level="info")
                 if ssid in info[0]:
-                    logging.info('Find target ssid')
+                    smart_log('Find target ssid', level="info")
                     return True
             try:
                 if i == 0:
@@ -1008,7 +1007,7 @@ class roku_ctrl(Roku):
             except TypeError:
                 ...
         else:
-            logging.info(f"Can't find target ssid {ssid}")
+            smart_log(f"Can't find target ssid {ssid}", level="info")
             return False
 
     @property
@@ -1035,7 +1034,7 @@ class roku_ctrl(Roku):
         """
         found = self.wifi_scan(ssid)
         if not found:
-            logging.error(f"Target SSID {ssid} not found in scan results!")
+            smart_log(f"Target SSID {ssid} not found in scan results!", level="error")
             #return ""
         self.ir_enter(ssid, 'ArrayGridItem', fuz_match=True) #鎵惧埌鐨凷SID閰嶇疆
         time.sleep(5)
@@ -1062,10 +1061,10 @@ class roku_ctrl(Roku):
             if ip:
                 self.ip = ip
                 Roku.__init__(self, ip)
-                logging.info(f'roku ip {self.ip}')
+                smart_log(f'roku ip {self.ip}', level="info")
                 break
         else:
-            logging.error("Failed to obtain IP address after 60 seconds!")
+            smart_log("Failed to obtain IP address after 60 seconds!", level="error")
             return ""
         self.home(time=3)
         self.home(time=3)
@@ -1082,7 +1081,7 @@ class roku_ctrl(Roku):
         self.ip = ip
         # Refresh the HTTP client in the parent Roku class
         Roku.__init__(self, ip)
-        logging.info(f'roku ip refreshed to {self.ip}')
+        smart_log(f'roku ip refreshed to {self.ip}', level="info")
         return ip
 
     def remote(self, button_list, idle=1):
@@ -1098,7 +1097,7 @@ class roku_ctrl(Roku):
             if i in RokuConst.COMMANDS:
                 getattr(self, button_dict[i])(time=idle)
             else:
-                logging.info(f'{i} not in button_dict .pls check again')
+                smart_log(f'{i} not in button_dict .pls check again', level="info")
 
 
 class roku(linux):
@@ -1108,8 +1107,8 @@ class roku(linux):
         # if serial is not None:
         #     self.roku._ser = serial
         self.wpa = roku_wpa(self.roku.ser)
-        logging.info(f"[DUT INIT] DUT created with serial: {'YES' if serial else 'NO'}")
-        logging.info(f"[DUT INIT] roku_ctrl._ser is None: {self.roku._ser is None}")
+        smart_log(f"[DUT INIT] DUT created with serial: {'YES' if serial else 'NO'}", level="info")
+        smart_log(f"[DUT INIT] roku_ctrl._ser is None: {self.roku._ser is None}", level="info")
 
     def _refresh_ip(self, ip: str) -> None:
         """Refresh the internal state with a new IP address."""

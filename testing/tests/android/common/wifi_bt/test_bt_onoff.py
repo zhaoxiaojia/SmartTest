@@ -59,6 +59,8 @@ SMARTTEST_CASE_PLAN = {
 
 @pytest.mark.requires_params(
     "bt_onoff_scan:cycle_count",
+    "bt_onoff_scan:on_wait_sec",
+    "bt_onoff_scan:off_wait_sec",
     "bt_onoff_scan:bt_target",
 )
 def test_bt_onoff_scan_via_android_client(request):

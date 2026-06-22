@@ -21,6 +21,8 @@ from testing.runner.config import RunConfig, build_run_config_from_state
 from testing.runner.execution import TestRunSession, start_pytest_run
 from testing.steps.planner import build_step_plan
 from testing.state.store import load_state
+from tools.logging import default_log_path, log_display_fields, smart_log
+from ui.example.bridge.StepStore import StepStore
 
 try:
     from example.helper.AppPaths import app_data_dir
@@ -44,22 +46,13 @@ class RunBridge(QObject):
     _eventSignal = Signal("QVariantMap")
     _finishSignal = Signal(int)
     _MIN_STEP_RUNNING_DISPLAY_SEC = 0.12
+
     def __init__(self, root_dir: Path):
         super().__init__(QGuiApplication.instance())
         self._root_dir = root_dir.resolve()
-        run_logs_dir = self._default_run_logs_dir()
-        self._stdout_log_path = run_logs_dir / "tmp_main_stdout.log"
-        self._stderr_log_path = run_logs_dir / "tmp_main_stderr.log"
-        self._stdout_mirror_log_path = self._root_dir / "tmp_main_stdout.log"
-        self._stderr_mirror_log_path = self._root_dir / "tmp_main_stderr.log"
         self._running = False
         self._logs: list[dict[str, Any]] = []
-        self._steps: list[dict[str, Any]] = []
-        self._step_index: dict[str, int] = {}
-        self._step_alias_index: dict[tuple[str, str], str | None] = {}
-        self._building_initial_plan = False
-        self._hidden_step_ids: set[str] = set()
-        self._step_started_at: dict[str, float] = {}
+        self._step_store = StepStore(log=self._append_log, on_change=self.stepsChanged.emit)
         self._session: TestRunSession | None = None
         self._stop_requested = False
         self._run_id = ""
@@ -80,21 +73,14 @@ class RunBridge(QObject):
     def _default_reports_dir(self) -> Path:
         return app_data_dir() / "reports"
 
-    def _default_run_logs_dir(self) -> Path:
-        return app_data_dir() / "run_logs"
-
     def _now_iso(self) -> str:
         return datetime.now().astimezone().isoformat(timespec="seconds")
-
-    def _trace_timestamp(self) -> str:
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
     def _selected_run_config(self) -> RunConfig:
         state = load_state(self._default_state_path())
         run_config, diagnostics = build_run_config_from_state(root_dir=self._root_dir, state=state)
         for line in diagnostics:
-            print(line)
-            self._append_log(line)
+            self._append_log(line, domain="runner", source="RunConfig")
         return run_config
 
     def _validation_catalog(self, state) -> list[dict[str, Any]]:
@@ -172,21 +158,11 @@ class RunBridge(QObject):
         if self._running == running:
             return
         self._running = running
-        self._append_log(f"[run.trace] running={self._running}")
         self.runningChanged.emit()
 
     def _reset_run_data(self) -> None:
         self._logs = []
-        self._steps = []
-        self._step_index = {}
-        self._step_alias_index = {}
-        self._building_initial_plan = False
-        self._hidden_step_ids = set()
-        self._step_started_at = {}
-        self._write_local_log(self._stdout_log_path, "", mode="w")
-        self._write_local_log(self._stderr_log_path, "", mode="w")
-        self._write_local_log(self._stdout_mirror_log_path, "", mode="w", required=False)
-        self._write_local_log(self._stderr_mirror_log_path, "", mode="w", required=False)
+        self._step_store.reset()
         self.logsChanged.emit()
         self.stepsChanged.emit()
 
@@ -197,52 +173,32 @@ class RunBridge(QObject):
         self._run_selected_nodeids = list(nodeids)
         self._run_adb_serial = adb_serial
 
-    def _write_local_log(self, path: Path, text: str, *, mode: str = "a", required: bool = True) -> bool:
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with path.open(mode, encoding="utf-8") as fh:
-                fh.write(text)
-                if mode != "w" or text:
-                    fh.write("\n")
-            return True
-        except OSError as exc:
-            if required:
-                print(f"{self._trace_timestamp()} [RunBridge] failed to write log {path}: {exc}")
-            return False
-
-    def _append_local_log(self, path: Path, text: str) -> None:
-        if not self._write_local_log(path, text):
-            return
-        mirror = None
-        if path == self._stdout_log_path:
-            mirror = self._stdout_mirror_log_path
-        elif path == self._stderr_log_path:
-            mirror = self._stderr_mirror_log_path
-        if mirror is not None:
-            self._write_local_log(mirror, text, required=False)
-
-    def _append_traceback_log(self, exc: BaseException) -> None:
-        for line in traceback.format_exception(type(exc), exc, exc.__traceback__):
-            for entry in line.rstrip().splitlines():
-                self._append_local_log(self._stderr_log_path, entry)
+    def _append_exception_log(self, exc: BaseException, *, source: str = "RunBridge") -> None:
+        smart_log(
+            "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
+            domain="runner",
+            level="error",
+            source=source,
+            emit_runtime_event=False,
+        )
 
     def _append_start_diagnostics(self, *, nodeids: list[str], adb_serial: str | None) -> None:
         diagnostics = [
-            f"[run] diagnostics log: {self._stdout_log_path}",
+            f"[run] diagnostics log: {default_log_path()}",
             f"[run] root_dir: {self._root_dir}",
             f"[run] packaged_runtime: {is_packaged_runtime()}",
             f"[run] selected cases: {len(nodeids)}",
             f"[run] adb_serial: {adb_serial or '<auto>'}",
         ]
         for line in diagnostics:
-            self._append_log(line)
+            self._append_log(line, domain="runner", source="RunBridge")
 
     def _append_initial_step_plan(self, *, nodeids: list[str]) -> None:
-        self._building_initial_plan = True
+        self._step_store.begin_initial_plan()
         try:
             for nodeid in nodeids:
                 case_title = nodeid.rsplit("::", 1)[-1] if "::" in nodeid else nodeid
-                case_row_id = self._ensure_case_row(case_nodeid=nodeid, title=case_title)
+                case_row_id = self._step_store.ensure_case_row(case_nodeid=nodeid, title=case_title)
                 plan_items = build_step_plan(root_dir=self._root_dir, nodeid=nodeid)
                 self._append_log(
                     "[steps.trace] initial_plan_loaded "
@@ -256,7 +212,7 @@ class RunBridge(QObject):
                         f"case={nodeid} id={raw_step_id} kind={str(item.get('kind', 'action') or 'action')} "
                         f"definition_id={definition_id}"
                     )
-                    self._upsert_step_row(
+                    self._step_store.upsert_step_row(
                         {
                             "step_id": f"plan:{nodeid}:{raw_step_id}",
                             "case_nodeid": nodeid,
@@ -269,20 +225,13 @@ class RunBridge(QObject):
                         status="planned",
                     )
         finally:
-            self._building_initial_plan = False
+            self._step_store.end_initial_plan()
 
     def _pump_stdout(self, session: TestRunSession) -> None:
         if session.process.stdout is None:
-            self._logSignal.emit("[run.trace] stdout pump skipped: no stdout pipe")
             return
-        self._logSignal.emit(
-            f"[run.trace] stdout pump start pid={getattr(session.process, 'pid', '<unknown>')}"
-        )
         for line in session.process.stdout:
             self._logSignal.emit(line.rstrip())
-        self._logSignal.emit(
-            f"[run.trace] stdout pump ended poll={session.process.poll()}"
-        )
 
     def _pump_events(self, session: TestRunSession) -> None:
         event_path = session.event_file
@@ -323,11 +272,7 @@ class RunBridge(QObject):
             time.sleep(0.1)
 
     def _wait_for_completion(self, session: TestRunSession) -> None:
-        self._logSignal.emit(
-            f"[run.trace] wait_for_completion start pid={getattr(session.process, 'pid', '<unknown>')}"
-        )
         returncode = session.process.wait()
-        self._logSignal.emit(f"[run.trace] process.wait returned {returncode}")
         time.sleep(0.2)
         self._finishSignal.emit(returncode)
 
@@ -350,327 +295,96 @@ class RunBridge(QObject):
             threading.Thread(target=self._pump_events, args=(session,), daemon=True).start()
             threading.Thread(target=self._wait_for_completion, args=(session,), daemon=True).start()
         except Exception as exc:  # noqa: BLE001
-            self._append_local_log(self._stderr_log_path, str(exc))
-            self._append_traceback_log(exc)
+            self._append_exception_log(exc, source="RunBridge.start_background")
             self.errorOccurred.emit(self.tr("Failed to start test run. {detail}").format(detail=str(exc)))
             self._finishSignal.emit(1)
 
-    def _append_log(self, line: str) -> None:
-        text = str(line or "").rstrip()
+    def _append_log(
+        self,
+        line: str,
+        *,
+        domain: str = "runner",
+        level: str = "info",
+        source: str = "stdout",
+        extra: dict[str, Any] | None = None,
+    ) -> None:
+        record = smart_log(
+            line,
+            domain=domain,
+            level=level,
+            source=source,
+            extra=extra,
+            emit_runtime_event=False,
+        )
+        self._append_log_record(record)
+
+    def _append_log_record(self, record: Any) -> None:
+        if isinstance(record, dict):
+            row = dict(record)
+            text = str(row.get("line") or row.get("message") or "").rstrip()
+        else:
+            row = record.to_row()
+            text = str(row.get("line") or "").rstrip()
         if not text:
             return
-        self._logs.append({"line": text})
-        self._append_local_log(self._stdout_log_path, text)
+        row["line"] = text
+        row.update(log_display_fields(domain=row.get("domain"), level=row.get("level")))
+        self._logs.append(row)
         self.logsChanged.emit()
-
-    def _ensure_case_row(self, *, case_nodeid: str, title: str) -> str:
-        row_id = f"case:{case_nodeid}"
-        if row_id in self._step_index:
-            return row_id
-        self._step_index[row_id] = len(self._steps)
-        self._steps.append(
-            {
-                "id": row_id,
-                "title": title,
-                "status": "running",
-                "depth": 0,
-                "phase": "call",
-                "kind": "case",
-                "definition_id": "",
-                "case_nodeid": case_nodeid,
-                "parent_id": "",
-                "expected": "",
-                "actual": "",
-                "error": "",
-                "duration_ms": 0,
-                "evidence": [],
-            }
-        )
-        self.stepsChanged.emit()
-        return row_id
-
-    def _step_snapshot_for_compare(self) -> list[dict[str, str]]:
-        return [
-            {
-                "case_nodeid": str(row.get("case_nodeid", "") or ""),
-                "id": str(row.get("id", "") or ""),
-                "kind": str(row.get("kind", "") or ""),
-                "definition_id": str(row.get("definition_id", "") or ""),
-                "title": str(row.get("title", "") or ""),
-                "status": str(row.get("status", "") or ""),
-            }
-            for row in self._steps
-        ]
-
-    def _log_unmatched_runtime_step(self, *, event_type: str, payload: dict[str, Any]) -> None:
-        self._append_log(
-            "[steps.trace] unmatched_runtime_step "
-            f"event={event_type} case={str(payload.get('case_nodeid', '') or '<empty>')} "
-            f"step_id={str(payload.get('step_id', '') or payload.get('id', '') or '<empty>')} "
-            f"definition_id={str(payload.get('definition_id', '') or '<empty>')} "
-            f"kind={str(payload.get('kind', '') or '<empty>')} "
-            f"title={str(payload.get('title', '') or '<empty>')}"
-        )
-
-    def _step_aliases(self, payload: dict[str, Any]) -> list[str]:
-        aliases: list[str] = []
-        for key in ("step_id", "id", "definition_id", "title"):
-            value = str(payload.get(key, "") or "").strip()
-            if value:
-                aliases.append(value)
-                aliases.append(value.rsplit(":", 1)[-1])
-        raw_id = str(payload.get("step_id", "") or payload.get("id", "") or "").rsplit(":", 1)[-1]
-        segments = [part for part in raw_id.replace("-", ".").replace("_", ".").split(".") if part]
-        for index in range(len(segments)):
-            aliases.append("_".join(segments[index:]))
-        normalized: list[str] = []
-        for value in aliases:
-            item = "".join(ch.lower() if ch.isalnum() else "_" for ch in value).strip("_")
-            if item and item not in normalized:
-                normalized.append(item)
-        return normalized
-
-    def _register_step_aliases(self, row_id: str, payload: dict[str, Any]) -> None:
-        case_nodeid = str(payload.get("case_nodeid", "") or "")
-        for alias in self._step_aliases(payload):
-            key = (case_nodeid, alias)
-            existing = self._step_alias_index.get(key)
-            if existing is None and key in self._step_alias_index:
-                continue
-            if existing is not None and existing != row_id:
-                self._step_alias_index[key] = None
-                continue
-            self._step_alias_index[key] = row_id
-
-    def _rebuild_step_lookup(self) -> None:
-        self._step_index = {}
-        self._step_alias_index = {}
-        for index, row in enumerate(self._steps):
-            row_id = str(row.get("id", "") or "")
-            if not row_id:
-                continue
-            self._step_index[row_id] = index
-            self._register_step_aliases(row_id, {"step_id": row_id, **row})
-
-    def _resolve_step_row_id(self, payload: dict[str, Any]) -> str:
-        step_id = str(payload.get("step_id", "") or payload.get("id", ""))
-        if step_id in self._step_index:
-            index = self._step_index[step_id]
-            row_id = str(self._steps[index].get("id", "") or step_id)
-            self._register_step_aliases(row_id, payload)
-            return row_id
-        case_nodeid = str(payload.get("case_nodeid", "") or "")
-        for alias in self._step_aliases(payload):
-            row_id = self._step_alias_index.get((case_nodeid, alias))
-            if row_id and row_id in self._step_index:
-                self._step_index[step_id] = self._step_index[row_id]
-                self._register_step_aliases(row_id, payload)
-                return row_id
-        return step_id
-
-    def _is_framework_step(self, payload: dict[str, Any]) -> bool:
-        definition_id = str(payload.get("definition_id", "") or "")
-        return definition_id in {"android_client.run_case", "android_client.stage"}
-
-    def _is_case_execute_summary_step(self, payload: dict[str, Any]) -> bool:
-        original_step_id = str(payload.get("step_id", "") or payload.get("id", "") or "")
-        raw_id = original_step_id.rsplit(":", 1)[-1]
-        definition_id = str(payload.get("definition_id", "") or "")
-        title = str(payload.get("title", "") or "").strip().lower()
-        return (
-            title.startswith("execute ")
-            and (raw_id.endswith(".execute") or definition_id.endswith(".execute") or raw_id == "execute_case")
-        )
-
-    def _upsert_step_row(self, payload: dict[str, Any], *, status: str, allow_create: bool = True) -> str:
-        case_nodeid = str(payload.get("case_nodeid", ""))
-        parent_id = str(payload.get("parent_id") or self._ensure_case_row(case_nodeid=case_nodeid, title=case_nodeid))
-        parent_index = self._step_index.get(parent_id)
-        parent_depth = int(self._steps[parent_index].get("depth", 0)) if parent_index is not None else 0
-        original_step_id = str(payload.get("step_id", "") or payload.get("id", ""))
-        if self._is_framework_step(payload) or self._is_case_execute_summary_step(payload):
-            if original_step_id:
-                self._hidden_step_ids.add(original_step_id)
-            return original_step_id
-        step_id = original_step_id if self._building_initial_plan else self._resolve_step_row_id(payload)
-        if not step_id:
-            return ""
-        row = {
-            "id": step_id,
-            "title": str(payload.get("title", "")),
-            "status": status,
-            "depth": parent_depth + 1,
-            "phase": str(payload.get("phase", "call")),
-            "kind": str(payload.get("kind", "action")),
-            "definition_id": str(payload.get("definition_id", "") or ""),
-            "case_nodeid": case_nodeid,
-            "parent_id": parent_id,
-            "expected": payload.get("expected", ""),
-            "actual": payload.get("actual", ""),
-            "error": str(payload.get("error", "") or ""),
-            "duration_ms": int(payload.get("duration_ms", 0) or 0),
-            "evidence": [],
-        }
-        index = self._step_index.get(step_id)
-        if index is None:
-            if not allow_create:
-                self._log_unmatched_runtime_step(event_type=f"step_{status}", payload=payload)
-                if original_step_id:
-                    self._hidden_step_ids.add(original_step_id)
-                return ""
-            self._step_index[step_id] = len(self._steps)
-            self._steps.append(row)
-            self._register_step_aliases(step_id, payload)
-        else:
-            if status == "planned":
-                existing = self._steps[index]
-                self._register_step_aliases(step_id, payload)
-                return step_id
-            existing = self._steps[index]
-            evidence = list(existing.get("evidence", []) or [])
-            preserved_parent_id = existing.get("parent_id", "")
-            preserved_depth = existing.get("depth", row["depth"])
-            preserved_definition_id = existing.get("definition_id", "")
-            update_values = {key: value for key, value in row.items() if value not in ("", {}, [])}
-            if existing.get("title"):
-                update_values.pop("title", None)
-            existing.update(update_values)
-            if preserved_parent_id and parent_id not in self._step_index:
-                existing["parent_id"] = preserved_parent_id
-                existing["depth"] = preserved_depth
-            if preserved_definition_id and row.get("definition_id"):
-                existing["definition_id"] = preserved_definition_id
-            existing["status"] = status
-            existing["evidence"] = evidence
-            self._register_step_aliases(step_id, payload)
-        self.stepsChanged.emit()
-        return step_id
-
-    def _apply_step_finished(self, payload: dict[str, Any]) -> None:
-        original_step_id = str(payload.get("step_id", ""))
-        if original_step_id in self._hidden_step_ids:
-            return
-        step_id = self._resolve_step_row_id(payload)
-        index = self._step_index.get(step_id)
-        if index is None:
-            self._log_unmatched_runtime_step(event_type="step_finished", payload=payload)
-            return
-
-        started_at = self._step_started_at.get(step_id)
-        if started_at is not None and not payload.get("_smarttest_delayed_finish"):
-            now = float(payload.get("timestamp", time.time()) or time.time())
-            remaining_sec = self._MIN_STEP_RUNNING_DISPLAY_SEC - max(0.0, now - started_at)
-            if remaining_sec > 0:
-                delayed_payload = dict(payload)
-                delayed_payload["_smarttest_delayed_finish"] = True
-                delayed_payload["_smarttest_started_at"] = started_at
-                delay_ms = max(1, int(remaining_sec * 1000))
-                self._append_log(
-                    "[steps.trace] defer_finish "
-                    f"case={str(payload.get('case_nodeid', '') or '<empty>')} "
-                    f"step_id={step_id} delay_ms={delay_ms}"
-                )
-                QTimer.singleShot(delay_ms, lambda p=delayed_payload: self._apply_event(p))
-                return
-
-        if payload.get("_smarttest_delayed_finish") and started_at != payload.get("_smarttest_started_at"):
-            self._append_log(
-                "[steps.trace] drop_stale_deferred_finish "
-                f"case={str(payload.get('case_nodeid', '') or '<empty>')} step_id={step_id}"
-            )
-            return
-
-        self._steps[index]["status"] = str(payload.get("status", "passed"))
-        self._steps[index]["actual"] = payload.get("actual", "")
-        self._steps[index]["error"] = str(payload.get("error", "") or "")
-        if "duration_ms" in payload:
-            self._steps[index]["duration_ms"] = int(payload.get("duration_ms", 0) or 0)
-        else:
-            started_at = self._step_started_at.pop(step_id, None)
-            if started_at is not None:
-                self._steps[index]["duration_ms"] = int(
-                    (float(payload.get("timestamp", time.time())) - started_at) * 1000
-                )
-        self.stepsChanged.emit()
-        error = str(payload.get("error", "") or "").strip()
-        if error:
-            self._append_log(f"[step-error] {error}")
 
     def _apply_event(self, payload: dict[str, Any]) -> None:
         event_type = str(payload.get("type", ""))
         if event_type == "case_started":
-            self._ensure_case_row(
+            self._step_store.ensure_case_row(
                 case_nodeid=str(payload.get("case_nodeid", "")),
                 title=str(payload.get("title", "")),
+                status="running",
             )
             return
 
         if event_type == "case_finished":
-            case_nodeid = str(payload.get("case_nodeid", "") or "")
-            planned_count = sum(
-                1
-                for row in self._steps
-                if str(row.get("case_nodeid", "") or "") == case_nodeid
-                and str(row.get("status", "") or "") == "planned"
-                and str(row.get("kind", "") or "") != "case"
-            )
-            if planned_count:
-                self._append_log(
-                    "[steps.trace] case_finished_kept_planned "
-                    f"case={case_nodeid} status={str(payload.get('status', '') or '<empty>')} count={planned_count}"
-                )
-            row_id = f"case:{case_nodeid}"
-            index = self._step_index.get(row_id)
-            if index is not None:
-                self._steps[index]["status"] = str(payload.get("status", "passed"))
-                self._steps[index]["duration_ms"] = int(payload.get("duration_ms", 0) or 0)
-                self.stepsChanged.emit()
+            self._step_store.mark_case_finished(payload)
             return
 
         if event_type == "step_planned":
-            self._upsert_step_row(payload, status="planned", allow_create=False)
+            self._step_store.upsert_step_row(payload, status="planned", allow_create=False)
             return
 
         if event_type == "step_started":
-            step_id = self._upsert_step_row(payload, status="running", allow_create=False)
-            if not step_id:
-                return
-            self._step_started_at[step_id] = float(payload.get("timestamp", time.time()) or time.time())
+            self._step_store.mark_step_started(payload)
             return
 
         if event_type == "step_finished":
-            self._apply_step_finished(payload)
+            applied, delay_ms, delayed_payload = self._step_store.apply_step_finished(
+                payload,
+                min_running_display_sec=self._MIN_STEP_RUNNING_DISPLAY_SEC,
+            )
+            if delay_ms and delayed_payload is not None:
+                QTimer.singleShot(delay_ms, lambda p=delayed_payload: self._apply_event(p))
             return
 
         if event_type == "step_evidence":
-            step_id = str(payload.get("step_id", "") or "")
-            if step_id in self._hidden_step_ids:
-                return
-            step_id = self._resolve_step_row_id(payload)
-            index = self._step_index.get(step_id)
-            evidence = {
-                "title": str(payload.get("title", "") or ""),
-                "type": str(payload.get("evidence_type", "log") or "log"),
-                "level": str(payload.get("level", "info") or "info"),
-                "content": payload.get("content", ""),
-                "meta": dict(payload.get("meta", {}) if isinstance(payload.get("meta", {}), dict) else {}),
-            }
-            if index is not None:
-                items = list(self._steps[index].get("evidence", []) or [])
-                items.append(evidence)
-                self._steps[index]["evidence"] = items
-                self.stepsChanged.emit()
+            self._step_store.apply_step_evidence(payload)
             return
 
         if event_type == "log":
             message = str(payload.get("message", "")).strip()
-            if message:
-                self._append_log(message)
+            line = str(payload.get("line") or "").strip()
+            if message or line:
+                self._append_log_record(
+                    {
+                        "line": line or message,
+                        "message": message or line,
+                        "level": str(payload.get("level", "info") or "info"),
+                        "domain": str(payload.get("domain", "test") or "test"),
+                        "source": str(payload.get("source", "") or ""),
+                        "case_nodeid": str(payload.get("case_nodeid", "") or ""),
+                        "step_id": str(payload.get("step_id", "") or ""),
+                        "extra": dict(payload.get("extra") or {}),
+                    }
+                )
 
     def _finish_run(self, returncode: int) -> None:
-        self._append_log(
-            f"[run.trace] finish_run enter returncode={returncode} stop_requested={self._stop_requested}"
-        )
         if self._stop_requested:
             self._append_log("[run] stopped")
         elif returncode == 0:
@@ -692,7 +406,7 @@ class RunBridge(QObject):
                 stopped=self._stop_requested,
                 adb_serial=self._run_adb_serial,
                 selected_nodeids=self._run_selected_nodeids,
-                steps=self._steps,
+                steps=self._step_store.snapshot(),
                 logs=self._logs,
             )
             try:
@@ -700,23 +414,23 @@ class RunBridge(QObject):
             except OSError as exc:
                 self.errorOccurred.emit(self.tr("Failed to save run report. {detail}").format(detail=str(exc)))
         except Exception as exc:  # noqa: BLE001
-            self._append_traceback_log(exc)
+            self._append_exception_log(exc, source="RunBridge.finish_run")
             self.errorOccurred.emit(self.tr("Failed to finish test run. {detail}").format(detail=str(exc)))
         finally:
             if self._session is not None:
                 try:
                     self._session.cleanup()
                 except Exception as exc:  # noqa: BLE001
-                    self._append_traceback_log(exc)
+                    self._append_exception_log(exc, source="RunBridge.cleanup")
                 self._session = None
             self._set_running(False)
             self.runFinished.emit(
                 {
                     "returncode": int(returncode),
                     "stopped": bool(self._stop_requested),
+                    "run_id": str(self._run_id or ""),
                 }
             )
-            self._append_log(f"[run.trace] finish_run exit running={self._running}")
 
     @Slot(result=bool)
     def hasLogs(self) -> bool:
@@ -724,7 +438,7 @@ class RunBridge(QObject):
 
     @Slot(result=bool)
     def hasSteps(self) -> bool:
-        return bool(self._steps)
+        return bool(self._step_store.rows())
 
     @Slot(result="QVariantList")
     def logRows(self):
@@ -736,7 +450,7 @@ class RunBridge(QObject):
 
     @Slot(result="QVariantList")
     def stepRows(self):
-        return list(self._steps)
+        return list(self._step_store.rows())
 
     @Slot(result=bool)
     def startRun(self) -> bool:
@@ -760,8 +474,7 @@ class RunBridge(QObject):
             self._append_start_diagnostics(nodeids=nodeids, adb_serial=run_config.dut_serial)
             self._append_initial_step_plan(nodeids=nodeids)
         except Exception as exc:  # noqa: BLE001
-            self._append_local_log(self._stderr_log_path, str(exc))
-            self._append_traceback_log(exc)
+            self._append_exception_log(exc, source="RunBridge.startRun")
             self.errorOccurred.emit(self.tr("Failed to start pytest run. {detail}").format(detail=str(exc)))
             return False
 
@@ -780,16 +493,7 @@ class RunBridge(QObject):
     @Slot()
     def stopRun(self) -> None:
         if not self._running or self._session is None:
-            self._append_log(
-                f"[run.trace] stopRun ignored running={self._running} session={self._session is not None}"
-            )
             return
-        process = getattr(self._session, "process", None)
-        poll_value = process.poll() if process is not None else "<unknown>"
-        self._append_log(
-            f"[run.trace] stopRun requested pid={getattr(process, 'pid', '<unknown>')} "
-            f"poll={poll_value}"
-        )
         self._stop_requested = True
         self._session.stop("UI stop button")
 

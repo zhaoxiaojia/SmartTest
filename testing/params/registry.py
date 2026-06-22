@@ -4,17 +4,13 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any, Iterable
 
-from .android_catalog import load_android_catalog_params
 from .binding import CaseParamBinding, ParamGroup
-from .options import static_param_options
+from .contracts import all_param_contracts
 from .schema import ParamCategory, ParamField, ParamSchema, ParamScope, ParamValueType
 
 
 CPU_FREQUENCY_PARAM_KEY = "cpu_frequency:frequencies"
 CPU_FREQUENCY_LOOP_COUNT_KEY = "cpu_frequency:loop_count"
-CONNECTED_BLUETOOTH_TARGETS_OPTIONS_SOURCE = "testing.tool.dut_tool.features.bluetooth:list_connected_bluetooth_targets"
-
-
 @dataclass(frozen=True)
 class SchemaRegistry:
     global_context: ParamSchema
@@ -81,174 +77,22 @@ class SchemaRegistry:
         return self.resolve_param_keys(param_keys=binding.param_keys, group_ids=binding.group_ids)
 
 
-def _case_param_field(
-    key: str,
-    value_type: ParamValueType,
-    category: ParamCategory,
-    default: Any = "",
-    options_source: str = "",
-    refreshes_options_sources: list[str] | None = None,
-) -> ParamField:
-    return ParamField(
-        key=key,
-        type=value_type,
-        category=category,
-        scope=ParamScope.CASE,
-        default=default,
-        enum_values=static_param_options(key),
-        options_source=options_source,
-        refreshes_options_sources=list(refreshes_options_sources or []),
-    )
-
-
-def _android_value_type(param_id: str) -> ParamValueType:
-    if param_id.endswith("_dir"):
-        return ParamValueType.PATH
-    if param_id.endswith("_target") and param_id.startswith("bt"):
-        return ParamValueType.ENUM
-    if param_id.endswith("_count") or param_id.endswith("_sec") or param_id.endswith("_kb"):
-        return ParamValueType.INT
-    return ParamValueType.STRING
-
-
-def _android_category(param_id: str) -> ParamCategory:
-    if "target" in param_id:
-        return ParamCategory.NETWORK
-    return ParamCategory.EXECUTION
-
-
-def _android_default_value(raw_value: str, value_type: ParamValueType) -> Any:
-    if value_type == ParamValueType.INT:
-        try:
-            return int(str(raw_value).strip())
-        except ValueError:
-            return 0
-    return raw_value
-
-
-def _android_catalog_fields() -> list[ParamField]:
+def _contract_fields() -> list[ParamField]:
     fields: list[ParamField] = []
-    for key, param in sorted(load_android_catalog_params().items()):
-        value_type = _android_value_type(param.param_id)
-        options_source = CONNECTED_BLUETOOTH_TARGETS_OPTIONS_SOURCE if param.param_id == "bt_target" else ""
+    for contract in all_param_contracts().values():
         fields.append(
-            _case_param_field(
-                key,
-                value_type,
-                _android_category(param.param_id),
-                _android_default_value(param.default_value, value_type),
-                options_source,
+            ParamField(
+                key=contract.key,
+                type=contract.value_type,
+                category=contract.category,
+                scope=contract.scope,
+                default=contract.default,
+                enum_values=list(contract.enum_values),
+                options_source=contract.options_source,
+                refreshes_options_sources=list(contract.refreshes_options_sources),
             )
         )
     return fields
-
-
-def _pure_pytest_case_fields() -> list[ParamField]:
-    return [
-        _case_param_field(
-            "local_playback_stress:media_dir",
-            ParamValueType.PATH,
-            ParamCategory.EXECUTION,
-            "/storage/*/Movies /storage/*/Video",
-            "testing.tool.dut_tool.features.local_playback:list_media_dirs",
-            refreshes_options_sources=[
-                "testing.tool.dut_tool.features.local_playback:list_media_files",
-            ],
-        ),
-        _case_param_field(
-            "local_playback_stress:media_files",
-            ParamValueType.MULTI_ENUM,
-            ParamCategory.EXECUTION,
-            [],
-            "testing.tool.dut_tool.features.local_playback:list_media_files",
-        ),
-        _case_param_field(
-            "local_playback_stress:actions",
-            ParamValueType.MULTI_ENUM,
-            ParamCategory.EXECUTION,
-            ["pause", "seek_forward", "seek_backward"],
-        ),
-        _case_param_field(
-            "local_playback_stress:loop_count",
-            ParamValueType.INT,
-            ParamCategory.EXECUTION,
-            20,
-        ),
-        _case_param_field(
-            "local_playback_stress:random_playback",
-            ParamValueType.BOOL,
-            ParamCategory.EXECUTION,
-            False,
-        ),
-        _case_param_field(
-            "local_playback_stress:action_interval_sec",
-            ParamValueType.FLOAT,
-            ParamCategory.EXECUTION,
-            3,
-        ),
-        _case_param_field(
-            "local_playback_stress:start_wait_sec",
-            ParamValueType.FLOAT,
-            ParamCategory.EXECUTION,
-            10,
-        ),
-        _case_param_field(
-            "ac_onoff:cycle_count",
-            ParamValueType.INT,
-            ParamCategory.EXECUTION,
-            20,
-        ),
-        _case_param_field(
-            "ac_onoff:power_off_sec",
-            ParamValueType.INT,
-            ParamCategory.EXECUTION,
-            5,
-        ),
-        _case_param_field(
-            "ac_onoff:power_off_step_sec",
-            ParamValueType.FLOAT,
-            ParamCategory.EXECUTION,
-            0,
-        ),
-        _case_param_field(
-            "ac_onoff:power_on_wait_sec",
-            ParamValueType.INT,
-            ParamCategory.EXECUTION,
-            60,
-        ),
-        _case_param_field(
-            "ac_onoff:power_on_wait_step_sec",
-            ParamValueType.FLOAT,
-            ParamCategory.EXECUTION,
-            0,
-        ),
-        _case_param_field(
-            "ac_onoff:ping_target",
-            ParamValueType.STRING,
-            ParamCategory.NETWORK,
-            "",
-        ),
-        _case_param_field(
-            "ac_onoff:bt_target",
-            ParamValueType.ENUM,
-            ParamCategory.NETWORK,
-            "",
-            CONNECTED_BLUETOOTH_TARGETS_OPTIONS_SOURCE,
-        ),
-        _case_param_field(
-            CPU_FREQUENCY_LOOP_COUNT_KEY,
-            ParamValueType.INT,
-            ParamCategory.EXECUTION,
-            1,
-        ),
-        _case_param_field(
-            CPU_FREQUENCY_PARAM_KEY,
-            ParamValueType.MULTI_ENUM,
-            ParamCategory.EXECUTION,
-            [],
-            "testing.tool.dut_tool.features.system:list_cpu_frequency_options",
-        ),
-    ]
 
 
 def default_registry() -> SchemaRegistry:
@@ -274,8 +118,7 @@ def default_registry() -> SchemaRegistry:
         "default": ParamSchema(
             schema_id="case_type_default",
             fields=[
-                *_android_catalog_fields(),
-                *_pure_pytest_case_fields(),
+                *_contract_fields(),
             ],
         ),
     }

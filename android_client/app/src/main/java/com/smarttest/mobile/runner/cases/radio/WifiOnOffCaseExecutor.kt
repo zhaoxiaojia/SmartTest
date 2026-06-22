@@ -11,6 +11,8 @@ class WifiOnOffCaseExecutor : TestCaseExecutor {
 
     override suspend fun execute(context: TestCaseExecutionContext): TestCaseExecutionResult {
         val cycleCount = context.intParameter("cycle_count", 1000).coerceAtLeast(1)
+        val onWaitMs = context.longParameter("on_wait_sec", 5L).coerceAtLeast(0L) * 1000L
+        val offWaitMs = context.longParameter("off_wait_sec", 5L).coerceAtLeast(0L) * 1000L
         val pingTarget = context.parameter("ping_target", "").trim()
         if (pingTarget.isEmpty()) {
             context.log("wifi_onoff reconnect check requires ping_target; no ping check can run with an empty target")
@@ -38,6 +40,8 @@ class WifiOnOffCaseExecutor : TestCaseExecutor {
             ),
             disableSettleTimeoutMs = 20_000L,
             enableSettleTimeoutMs = 30_000L,
+            offHoldMs = offWaitMs,
+            onHoldMs = onWaitMs,
         )
     }
 }

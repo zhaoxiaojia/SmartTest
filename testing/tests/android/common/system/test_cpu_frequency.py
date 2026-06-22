@@ -4,6 +4,7 @@ import pytest
 
 from testing.tool.dut_tool.features.system import (
     CpuFrequencySnapshot,
+    verify_cpu_frequency_samples,
 )
 from testing.params.registry import CPU_FREQUENCY_LOOP_COUNT_KEY, CPU_FREQUENCY_PARAM_KEY
 from testing.params.runtime import runtime_params
@@ -29,7 +30,7 @@ SMARTTEST_CASE_PLAN = {
             "title": "Read original CPU frequency",
             "kind": "setup",
             "definition_id": "cpu.frequency.read_original",
-            "expected": "Original governor and current frequency are captured before switching.",
+            "expected": "Original current frequency is captured before switching.",
         },
         {
             "id": "cpu_frequency.set",
@@ -79,13 +80,13 @@ def test_cpu_frequency_switching(request):
     with case_step(
         "Read original CPU frequency",
         definition_id="cpu.frequency.read_original",
-        expected="Original governor and current frequency are captured before switching.",
+        expected="Original current frequency is captured before switching.",
     ):
         dut.ensure_root()
         original = dut.cpu_frequency_snapshot()
         step_log(
-            "original_governor="
-            f"{original.governor} original_current_frequency={original.current_frequency}"
+            "cat /sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq "
+            f"-> {original.current_frequency} (original)"
         )
 
     try:
@@ -101,17 +102,23 @@ def test_cpu_frequency_switching(request):
                 ):
                     current_before = dut.read_current_cpu_frequency()
                     step_log(
-                        f"before={current_before} target={target_frequency} "
+                        "cat /sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq "
+                        f"-> {current_before} (before set target={target_frequency}) "
                         f"cycle={cycle_index}/{loop_count} step={current_index}/{total}"
                     )
                     dut.set_cpu_frequency(target_frequency)
-                    observed = dut.wait_current_cpu_frequency(target_frequency)
-                    step_log(
-                        f"after={observed} target={target_frequency} "
-                        f"cycle={cycle_index}/{loop_count} step={current_index}/{total}"
-                    )
-                    assert observed == target_frequency, (
-                        f"CPU frequency switch failed: target={target_frequency}, observed={observed}"
+                    def log_frequency_sample(sample_index, sample_count, observed):
+                        step_log(
+                            "cat /sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq "
+                            f"-> {observed} (after set target={target_frequency}, "
+                            f"sample={sample_index}/{sample_count}) "
+                            f"cycle={cycle_index}/{loop_count} step={current_index}/{total}"
+                        )
+
+                    verify_cpu_frequency_samples(
+                        target_frequency,
+                        dut.read_current_cpu_frequency,
+                        on_sample=log_frequency_sample,
                     )
     finally:
         if original is not None:
@@ -122,8 +129,8 @@ def test_cpu_frequency_switching(request):
             ):
                 restored = dut.restore_cpu_frequency(original)
                 step_log(
-                    f"restored={restored} original={original.current_frequency} "
-                    f"governor={original.governor}"
+                    "cat /sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq "
+                    f"-> {restored} (after restore original={original.current_frequency})"
                 )
                 assert restored == original.current_frequency, (
                     "Failed to restore original CPU frequency: "

@@ -4,13 +4,13 @@ import os
 import subprocess
 import sys
 import tempfile
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from testing.cases.catalog import is_packaged_runtime
 from testing.runner.config import RUN_CONFIG_ENV, RunConfig, run_config_to_json
+from tools.logging import smart_log
 
 
 def _subprocess_creationflags() -> int:
@@ -92,21 +92,23 @@ def start_pytest_run(
         "--disable-warnings",
         *nodeids,
     ]
-    print(
-        "[run.execution] "
-        + json.dumps(
-            {
-                "packaged": packaged,
-                "root_dir": str(root_dir),
-                "python": str(python_executable),
-                "cmd": cmd,
-                "event_file": str(event_file),
-            },
-            ensure_ascii=False,
-            sort_keys=True,
-        )
+    smart_log(
+        "pytest command prepared",
+        domain="runner",
+        source="execution",
+        extra={
+            "packaged": packaged,
+            "root_dir": str(root_dir),
+            "python": str(python_executable),
+            "cmd": cmd,
+            "event_file": str(event_file),
+        },
     )
-    print(f"[run.execution] popen start packaged={packaged} cwd={root_dir}")
+    smart_log(
+        f"popen start packaged={packaged} cwd={root_dir}",
+        domain="runner",
+        source="execution",
+    )
     process = subprocess.Popen(
         cmd,
         cwd=str(root_dir),
@@ -117,7 +119,11 @@ def start_pytest_run(
         bufsize=1,
         creationflags=_subprocess_creationflags(),
     )
-    print(f"[run.execution] popen started pid={getattr(process, 'pid', '<unknown>')}")
+    smart_log(
+        f"popen started pid={getattr(process, 'pid', '<unknown>')}",
+        domain="runner",
+        source="execution",
+    )
     return TestRunSession(
         process=process,
         event_file=event_file,

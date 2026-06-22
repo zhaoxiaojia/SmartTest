@@ -28,6 +28,7 @@ def main() -> int:
 
     from example.main import main as ui_main
     from testing.build_manifest import load_build_manifest
+    from tools.logging import smart_log
 
     manifest = load_build_manifest(root_dir=root)
     if manifest:
@@ -35,7 +36,12 @@ def main() -> int:
         test_catalog = files.get("test_catalog", {}) if isinstance(files.get("test_catalog", {}), dict) else {}
         catalog_hash = str(test_catalog.get("sha256", "") or "")
         commit = str(manifest.get("git_commit", "") or "")
-        print(f"[build-manifest] commit={commit} test_catalog_sha256={catalog_hash}")
+        smart_log(
+            "build manifest loaded",
+            domain="framework",
+            source="build_manifest",
+            extra={"commit": commit, "test_catalog_sha256": catalog_hash},
+        )
 
     ui_main()
     return 0

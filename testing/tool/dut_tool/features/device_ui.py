@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-import logging
 import re
 import subprocess
 import tempfile
@@ -12,6 +11,7 @@ from typing import Any, List, Optional, Set, Tuple
 from testing.params.adb_devices import resolve_adb_serial_for_command
 
 import uiautomator2 as u2
+from tools.logging import smart_log
 
 class UiautomatorTool:
     """
@@ -23,7 +23,7 @@ class UiautomatorTool:
             raise ValueError(f"Unsupported type: {type_}. Only 'u2' is supported.")
         self.serial = serialnumber
         self.d2 = u2.connect(serialnumber)
-        logging.info(f"Connected to device: {serialnumber}")
+        smart_log(f"Connected to device: {serialnumber}", level="info")
 
     def wait(
         self,
@@ -43,14 +43,14 @@ class UiautomatorTool:
             selector_kwargs["description"] = description
         selector_kwargs.update(kwargs)
 
-        logging.info(f"Looking for UI element with selector: {selector_kwargs}")
+        smart_log(f"Looking for UI element with selector: {selector_kwargs}", level="info")
 
         selector = self.d2(**selector_kwargs)
         if selector.wait(timeout=timeout):
             selector.click()
             return True
 
-        logging.warning(f"Element NOT found within {timeout}s. Current UI hierarchy:")
+        smart_log(f"Element NOT found within {timeout}s. Current UI hierarchy:", level="warning")
         try:
             hierarchy = self.d2.dump_hierarchy()
             root = ET.fromstring(hierarchy)
@@ -59,9 +59,9 @@ class UiautomatorTool:
                 value = node.attrib.get("text", "").strip()
                 if value:
                     texts.add(value)
-            logging.warning(f"Found text elements on screen: {sorted(texts)}")
+            smart_log(f"Found text elements on screen: {sorted(texts)}", level="warning")
         except Exception as exc:
-            logging.error(f"Failed to dump UI hierarchy: {exc}")
+            smart_log(f"Failed to dump UI hierarchy: {exc}", level="error")
         return False
 
     def click(self, x: int, y: int):
@@ -75,7 +75,7 @@ class UiautomatorTool:
 
     def screenshot(self, filename: str = "screenshot.png"):
         self.d2.screenshot(filename)
-        logging.info(f"Screenshot saved: {filename}")
+        smart_log(f"Screenshot saved: {filename}", level="info")
 
     def dump(self) -> str:
         return self.d2.dump_hierarchy()
@@ -97,13 +97,13 @@ def launch_youtube_tv_and_search(serial: str, logdir: Path, query: str = "NASA")
         time.sleep(1)
         _run_adb(f"adb -s {serial} shell input keyevent KEYCODE_ENTER")
         time.sleep(5)
-        logging.info("YouTube TV search completed.")
+        smart_log("YouTube TV search completed.", level="info")
         for _ in range(3):
             _go_to_home(serial)
             time.sleep(1)
         return True
     except Exception as exc:
-        logging.error("YouTube TV automation failed: %s", exc)
+        smart_log("YouTube TV automation failed: %s", exc, level="error")
         return False
 
 def wifi_is_valid_ssid(text: str) -> bool:
@@ -136,7 +136,7 @@ def _go_to_home(serial: str, timeout: int = 5) -> bool:
         )
         return True
     except Exception as exc:
-        logging.exception("Failed to go home on %s: %s", serial, exc)
+        smart_log("Failed to go home on %s: %s", serial, exc, level="error", exc_info=True)
         return False
 
 def _open_wifi_settings_page(serial: str) -> bool:
@@ -145,7 +145,7 @@ def _open_wifi_settings_page(serial: str) -> bool:
         _run_adb(f"adb -s {serial} shell am start -a android.settings.WIFI_SETTINGS")
         return True
     except Exception as exc:
-        logging.exception("Failed to open Wi-Fi settings on %s: %s", serial, exc)
+        smart_log("Failed to open Wi-Fi settings on %s: %s", serial, exc, level="error", exc_info=True)
         return False
 
 def get_connected_ssid_via_cli_adb(serial):
@@ -179,15 +179,15 @@ def _disconnect_and_prevent_reconnect(serial: str, timeout: int = 10) -> bool:
                     break
 
         if current_net_id is None:
-            logging.info("No current network found, already disconnected.")
+            smart_log("No current network found, already disconnected.", level="info")
             return True
         _run_adb(f"adb -s {serial} shell wpa_cli remove_network {current_net_id}")
-        logging.info("Removed network ID %s on %s to prevent reconnect", current_net_id, serial)
+        smart_log("Removed network ID %s on %s to prevent reconnect", current_net_id, serial, level="info")
         time.sleep(2)
         return True
 
     except Exception as e:
-        logging.error(f"Exception in _disconnect_and_prevent_reconnect on {serial}: {e}")
+        smart_log(f"Exception in _disconnect_and_prevent_reconnect on {serial}: {e}", level="error")
         return False
 
 def _run_adb(cmd: str) -> None:
@@ -205,14 +205,14 @@ def _run_adb(cmd: str) -> None:
             stdin=subprocess.DEVNULL,
         )
         if result.returncode != 0:
-            logging.error(f"ADB command failed: {result.stderr}")
+            smart_log(f"ADB command failed: {result.stderr}", level="error")
         return result.stdout
 
     except subprocess.TimeoutExpired:
-        logging.error("ADB command timed out")
+        smart_log("ADB command timed out", level="error")
         raise
     except Exception as e:
-        logging.error(f"Exception running ADB: {e}")
+        smart_log(f"Exception running ADB: {e}", level="error")
         raise
 
 # 閸?ui_mixin.py 娑擃叏绱滵eviceUiFeature 缁鍞村ǎ璇插閿?
@@ -234,14 +234,14 @@ def _run_adb_capture_output(cmd: str, timeout: int = 10) -> str:
         if result.returncode == 0:
             return result.stdout
         else:
-            logging.warning(f"ADB command failed (exit {result.returncode}): {cmd}")
-            logging.debug(f"STDERR: {result.stderr}")
+            smart_log(f"ADB command failed (exit {result.returncode}): {cmd}", level="warning")
+            smart_log(f"STDERR: {result.stderr}", level="debug")
             return ""
     except subprocess.TimeoutExpired:
-        logging.error(f"ADB command timed out: {cmd}")
+        smart_log(f"ADB command timed out: {cmd}", level="error")
         return ""
     except Exception as e:
-        logging.error(f"Exception running ADB: {e}")
+        smart_log(f"Exception running ADB: {e}", level="error")
         return ""
 
 def _normalize_adb_command(cmd: str) -> str:
@@ -275,11 +275,11 @@ def _dump_ui(serial: str, logdir: Optional[Path] = None) -> Any:
             xml_content = f.read()
         root = ET.fromstring(xml_content)
 
-        logging.debug(f"[DEBUG] UI dumped and parsed from: {local_path}")
+        smart_log(f"[DEBUG] UI dumped and parsed from: {local_path}", level="debug")
         return root
 
     except Exception as e:
-        logging.error(f"Failed to dump or parse UI: {e}")
+        smart_log(f"Failed to dump or parse UI: {e}", level="error")
         raise
 
     finally:
@@ -324,16 +324,16 @@ def _find_clickable_parent_of_text(root, target_texts: List[str]) -> Optional[Tu
                     candidates.sort()
                     x = (candidates[0][1][0] + candidates[0][1][2]) // 2
                     y = (candidates[0][1][1] + candidates[0][1][3]) // 2
-                    logging.info(f"[DEBUG] Found clickable parent for '{item['text']}' at ({x}, {y})")
+                    smart_log(f"[DEBUG] Found clickable parent for '{item['text']}' at ({x}, {y})", level="info")
                     return x, y
 
                 if len(child_rect) == 4:
                     x = (child_rect[0] + child_rect[2]) // 2
                     y = (child_rect[1] + child_rect[3]) // 2
-                    logging.warning(f"[DEBUG] No clickable parent! Fallback to text coords ({x}, {y})")
+                    smart_log(f"[DEBUG] No clickable parent! Fallback to text coords ({x}, {y})", level="warning")
                     return x, y
 
-    logging.info("[DEBUG] No matching text found.")
+    smart_log("[DEBUG] No matching text found.", level="info")
     return None
 
 def _find_ssid_in_list(root, target_ssid: str) -> Optional[Tuple[int, int]]:
@@ -344,7 +344,7 @@ def _find_ssid_in_list(root, target_ssid: str) -> Optional[Tuple[int, int]]:
         return text.strip()
 
     target_clean = clean_text(target_ssid)
-    logging.info(f"[DEBUG] Searching for cleaned SSID: '{target_clean}'")
+    smart_log(f"[DEBUG] Searching for cleaned SSID: '{target_clean}'", level="info")
 
     for node in root.iter("node"):
         if node.attrib.get("clickable") == "true":
@@ -369,10 +369,10 @@ def _find_ssid_in_list(root, target_ssid: str) -> Optional[Tuple[int, int]]:
                 if child_text:
                     clean_candidate = clean_text(child_text)
                     if target_clean in clean_candidate or clean_candidate in target_clean:
-                        logging.info(f"[DEBUG] 閴?Match via child text! Raw: '{child_text}' 閳?Click at ({x}, {y})")
+                        smart_log(f"[DEBUG] 閴?Match via child text! Raw: '{child_text}' 閳?Click at ({x}, {y})", level="info")
                         return x, y
 
-    logging.info(f"[DEBUG] 閴?SSID '{target_ssid}' not found.")
+    smart_log(f"[DEBUG] 閴?SSID '{target_ssid}' not found.", level="info")
     return None
 
 def _connect_to_wifi_via_ui(
@@ -386,32 +386,32 @@ def _connect_to_wifi_via_ui(
     """
     for retry_count in range(2):
         try:
-            logging.info(f"[UI Connect] Attempt {retry_count + 1}/2 to connect to '{ssid}'")
+            smart_log(f"[UI Connect] Attempt {retry_count + 1}/2 to connect to '{ssid}'", level="info")
             # Step 1: Open Wi-Fi Setting
             try:
                 reset_settings_ui(serial)
             except Exception as e:
-                logging.warning(f"[UI Connect] Failed to reset settings UI: {e}")
+                smart_log(f"[UI Connect] Failed to reset settings UI: {e}", level="warning")
             success = _go_to_home(serial)
             _open_wifi_settings_page(serial)
             time.sleep(2)
 
             # Step 2: Click "See all"
             see_all_texts = ["See all", "See all networks", "閸忋劑鍎寸純鎴犵捕", "閺屻儳婀呴崗銊╁劥", "Show all"]
-            logging.info(f"[DEBUG] Looking for 'See all' keywords: {see_all_texts}")
+            smart_log(f"[DEBUG] Looking for 'See all' keywords: {see_all_texts}", level="info")
             for retry in range(5):
-                logging.info(f"\nAttempt {retry + 1}/5 to find 'See all' ---")
+                smart_log(f"\nAttempt {retry + 1}/5 to find 'See all' ---", level="info")
                 root = _dump_ui(serial, logdir)
                 pos = _find_clickable_parent_of_text(root, see_all_texts)
                 if pos:
-                    logging.info(f"[INFO] Clicking 'See all' at ({pos[0]}, {pos[1]})")
+                    smart_log(f"[INFO] Clicking 'See all' at ({pos[0]}, {pos[1]})", level="info")
                     _run_adb(f"adb -s {serial} shell input tap {pos[0]} {pos[1]}")
                     time.sleep(4)
                     break
                 time.sleep(2)
 
             # Step 3: Scroll to bottom
-            logging.info("[INFO] Scrolling to bottom of network list...")
+            smart_log("[INFO] Scrolling to bottom of network list...", level="info")
             for _ in range(15):
                 _run_adb(f"adb -s {serial} shell input keyevent KEYCODE_DPAD_DOWN")
                 time.sleep(0.3)
@@ -420,16 +420,16 @@ def _connect_to_wifi_via_ui(
             for attempt in range(30):
                 root = _dump_ui(serial, logdir)
                 pos = _find_ssid_in_list(root, ssid)
-                logging.info(f"[INFO] Found pos: {pos}")
+                smart_log(f"[INFO] Found pos: {pos}", level="info")
                 if pos:
                     x, y = pos
-                    logging.info(f"[INFO] Found SSID '{ssid}' at screen position ({x}, {y}). Tapping directly.")
+                    smart_log(f"[INFO] Found SSID '{ssid}' at screen position ({x}, {y}). Tapping directly.", level="info")
                     _run_adb(f"adb -s {serial} shell input tap {x} {y}")
                     time.sleep(1.0)
 
                     # Input password
                     if password:
-                        logging.info(f"[INFO] Password required. Entering password.")
+                        smart_log(f"[INFO] Password required. Entering password.", level="info")
                         _run_adb(f"adb -s {serial} shell input text '{password}'")
                         time.sleep(0.5)
 
@@ -445,13 +445,13 @@ def _connect_to_wifi_via_ui(
                                         btn_x = (coords[0] + coords[2]) // 2
                                         btn_y = (coords[1] + coords[3]) // 2
                                         _run_adb(f"adb -s {serial} shell input tap {btn_x} {btn_y}")
-                                        logging.info("[INFO] Clicked 'Connect' button.")
+                                        smart_log("[INFO] Clicked 'Connect' button.", level="info")
                                         break
                             else:
-                                logging.info("[INFO] 'Connect' not found. Sending ENTER.")
+                                smart_log("[INFO] 'Connect' not found. Sending ENTER.", level="info")
                                 _run_adb(f"adb -s {serial} shell input keyevent KEYCODE_ENTER")
                         except Exception as e:
-                            logging.warning(f"[WARN] Failed to click Connect: {e}. Using ENTER fallback.")
+                            smart_log(f"[WARN] Failed to click Connect: {e}. Using ENTER fallback.", level="warning")
                             _run_adb(f"adb -s {serial} shell input keyevent KEYCODE_ENTER")
 
                         time.sleep(2.0)
@@ -467,28 +467,28 @@ def _connect_to_wifi_via_ui(
 
         except Exception as e:
             if retry_count == 0:
-                logging.info("[UI Connect] Retrying in 60 seconds...")
+                smart_log("[UI Connect] Retrying in 60 seconds...", level="info")
                 time.sleep(60)
                 # 缂佈呯敾婢舵牕鐪板顏嗗箚閻ㄥ嫪绗呮稉鈧▎陇鍑禒?
                 continue
             else:
                 # 婵″倹鐏夐弰顖滎儑娴滃本顐肩亸婵婄槸娑旂喎銇戠拹銉ょ啊閿涘矁绻戦崶?False
-                logging.error("[UI Connect] Failed to connect after 2 attempts.")
+                smart_log("[UI Connect] Failed to connect after 2 attempts.", level="error")
                 return False
     return False
 
 def _clear_saved_wifi_networks(serial: str):
     """Clear saved Wi-Fi """
     try:
-        logging.info(f"棣冃?Clearing all saved Wi-Fi networks on {serial}...")
+        smart_log(f"棣冃?Clearing all saved Wi-Fi networks on {serial}...", level="info")
 
         # Step 1: Try CLI commands
         cli_success = _clear_all_wifi_records(serial)
         if cli_success:
-            logging.info("閴?All networks removed via 'cmd wifi'.")
+            smart_log("閴?All networks removed via 'cmd wifi'.", level="info")
         else:
             # Step 2: CLI failed閿涘瘈se wpa_cli command
-            logging.warning("閳跨媴绗?CLI method failed. Falling back to wpa_cli disconnect.")
+            smart_log("閳跨媴绗?CLI method failed. Falling back to wpa_cli disconnect.", level="warning")
             _disconnect_and_prevent_reconnect(serial)
             time.sleep(2)
 
@@ -499,15 +499,15 @@ def _clear_saved_wifi_networks(serial: str):
         # Step 4: Deleted config files
         _run_adb(f"adb -s {serial} shell rm -f /data/misc/wifi/*.conf")
         _run_adb(f"adb -s {serial} shell rm -f /data/misc/wifi/wpa_supplicant.conf")
-        logging.info("閴?Deleted Wi-Fi config files (fallback cleanup).")
+        smart_log("閴?Deleted Wi-Fi config files (fallback cleanup).", level="info")
 
         # Step 5: Enable Wi-Fi
         _run_adb(f"adb -s {serial} shell svc wifi enable")
         time.sleep(5)
 
-        logging.info("閴?Wi-Fi cleanup completed.")
+        smart_log("閴?Wi-Fi cleanup completed.", level="info")
     except Exception as e:
-        logging.error(f"閴?Failed to clear Wi-Fi networks: {e}")
+        smart_log(f"閴?Failed to clear Wi-Fi networks: {e}", level="error")
 
 def _list_saved_networks(serial: str) -> List[int]:
     try:
@@ -523,12 +523,12 @@ def _list_saved_networks(serial: str) -> List[int]:
                 ids.append(int(line))
         return ids
     except Exception as e:
-        logging.warning(f"Failed to list saved networks on {serial}: {e}")
+        smart_log(f"Failed to list saved networks on {serial}: {e}", level="warning")
         return []
 
 def _clear_all_wifi_records(serial: str) -> bool:
     try:
-        logging.info(f"棣冃?Using 'cmd wifi forget-network' on {serial}...")
+        smart_log(f"棣冃?Using 'cmd wifi forget-network' on {serial}...", level="info")
 
         # 1. Disabled Wi-Fi
         _run_adb(f"adb -s {serial} shell svc wifi disable")
@@ -541,17 +541,17 @@ def _clear_all_wifi_records(serial: str) -> bool:
             )
             network_ids = sorted(set(int(line.strip()) for line in output.splitlines() if line.strip().isdigit()))
         except Exception as e:
-            logging.warning(f"Failed to list networks, assuming none: {e}")
+            smart_log(f"Failed to list networks, assuming none: {e}", level="warning")
             network_ids = []
 
         # 3. forget everyone
         if network_ids:
             for nid in network_ids:
                 _run_adb(f"adb -s {serial} shell cmd wifi forget-network {nid}")
-                logging.debug("Forgot network %s", nid)
+                smart_log("Forgot network %s", nid, level="debug")
                 time.sleep(0.3)
         else:
-            logging.info("No saved networks to forget.")
+            smart_log("No saved networks to forget.", level="info")
 
         # 4. Delete config files
         _run_adb(f"adb -s {serial} shell rm -f /data/misc/wifi/*.conf")
@@ -561,15 +561,15 @@ def _clear_all_wifi_records(serial: str) -> bool:
         _run_adb(f"adb -s {serial} shell svc wifi enable")
         time.sleep(5)
 
-        logging.info("閴?Wi-Fi cleanup via 'cmd wifi forget-network' completed.")
+        smart_log("閴?Wi-Fi cleanup via 'cmd wifi forget-network' completed.", level="info")
         return True
 
     except Exception as e:
-        logging.error(f"閴?Cleanup failed: {e}")
+        smart_log(f"閴?Cleanup failed: {e}", level="error")
         return False
 
 def _forget_wifi_via_ui(serial: str, target_ssid: str = "None"):
-    logging.info(f"棣冃?Forgetting Wi-Fi '{target_ssid}' via UI on {serial}...")
+    smart_log(f"棣冃?Forgetting Wi-Fi '{target_ssid}' via UI on {serial}...", level="info")
 
     target_ssid = get_connected_ssid_via_cli_adb(serial)
 
@@ -589,11 +589,11 @@ def _forget_wifi_via_ui(serial: str, target_ssid: str = "None"):
     root = _dump_ui(serial)
     pos = _find_clickable_parent_of_text(root, [target_ssid])
     if not pos:
-        logging.error(f"SSID '{target_ssid}' not found in Wi-Fi list.")
+        smart_log(f"SSID '{target_ssid}' not found in Wi-Fi list.", level="error")
         return False
 
     x, y = pos
-    logging.info(f"閴?Found SSID '{target_ssid}' at ({x}, {y}). Clicking twice...")
+    smart_log(f"閴?Found SSID '{target_ssid}' at ({x}, {y}). Clicking twice...", level="info")
 
     # First click
     _run_adb(f"adb -s {serial} shell input tap {x} {y}")
@@ -610,13 +610,13 @@ def _forget_wifi_via_ui(serial: str, target_ssid: str = "None"):
     )
 
     if not in_detail_page:
-        logging.error("閴?Still in Wi-Fi list or failed to enter network detail page. Exiting.")
+        smart_log("閴?Still in Wi-Fi list or failed to enter network detail page. Exiting.", level="error")
         return False
 
-    logging.info("閴?Confirmed: entered network detail page.")
+    smart_log("閴?Confirmed: entered network detail page.", level="info")
 
     # Step 2: Scroll down to reveal 'Forget' button (STB uses DPAD)
-    logging.info("鐚浄绗?Scrolling down to reveal 'Forget' button...")
+    smart_log("鐚浄绗?Scrolling down to reveal 'Forget' button...", level="info")
     for i in range(8):  # Press DOWN
         _run_adb(f"adb -s {serial} shell input keyevent KEYCODE_DPAD_DOWN")
         time.sleep(0.3)
@@ -628,37 +628,37 @@ def _forget_wifi_via_ui(serial: str, target_ssid: str = "None"):
     forget_pos = _find_clickable_parent_of_text(root2, ["Forget", "Remove"])
     if forget_pos:
         fx, fy = forget_pos
-        logging.info(f"閴?Found 'Forget' at ({fx}, {fy}). Clicking...")
+        smart_log(f"閴?Found 'Forget' at ({fx}, {fy}). Clicking...", level="info")
         _run_adb(f"adb -s {serial} shell input tap {fx} {fy}")
         time.sleep(1)
     else:
-        logging.error("閴?'Forget' button NOT FOUND!")
+        smart_log("閴?'Forget' button NOT FOUND!", level="error")
         return False
 
     # Step 4: Wait for confirmation dialog and click OK
-    logging.info("棣冩敵 Waiting for 'Forget network' confirmation dialog...")
+    smart_log("棣冩敵 Waiting for 'Forget network' confirmation dialog...", level="info")
     for _ in range(5):  # 閺堚偓婢舵氨鐡戝?10 缁?
         root3 = _dump_ui(serial)
         ok_pos = _find_clickable_parent_of_text(root3, ["OK", "Confirm"])
         if ok_pos:
             ox, oy = ok_pos
-            logging.info(f"閴?Found 'OK' at ({ox}, {oy}). Clicking...")
+            smart_log(f"閴?Found 'OK' at ({ox}, {oy}). Clicking...", level="info")
             _run_adb(f"adb -s {serial} shell input tap {ox} {oy}")
-            logging.info("閴?Successfully forgot network via UI.")
+            smart_log("閴?Successfully forgot network via UI.", level="info")
             break
         time.sleep(1)
 
     else:
-        logging.error("閴?'OK' button not found in confirmation dialog!")
+        smart_log("閴?'OK' button not found in confirmation dialog!", level="error")
         return False
 
-    logging.info("鐚拑绗?Exiting Wi-Fi settings UI...")
+    smart_log("鐚拑绗?Exiting Wi-Fi settings UI...", level="info")
     for _ in range(3):
         _run_adb(f"adb -s {serial} shell input keyevent KEYCODE_BACK")
         _go_to_home(serial)
         time.sleep(1)
 
-    logging.info("閴?Exited Wi-Fi settings UI.")
+    smart_log("閴?Exited Wi-Fi settings UI.", level="info")
     return True
 
 def _add_manual_wifi_network(
@@ -704,11 +704,11 @@ def _add_manual_wifi_network(
             _execute_adb_command(f"exec-out screencap -p > '{path}'")
 
     try:
-        logging.info(f"Starting manual connect to hidden SSID: {ssid}, security: {security}")
+        smart_log(f"Starting manual connect to hidden SSID: {ssid}, security: {security}", level="info")
 
         # --- Step 1: Open Wi-Fi settings ---
         if not _open_wifi_settings_page(serial):
-            logging.error("Failed to open Wi-Fi settings page")
+            smart_log("Failed to open Wi-Fi settings page", level="error")
             _take_screenshot("fail_open_wifi")
             return False
         time.sleep(3)
@@ -721,8 +721,8 @@ def _add_manual_wifi_network(
             root = _dump_ui()
             # DEBUG: Log all texts to see what's actually on screen
             all_texts = [node.attrib.get("text", "") for node in root.iter("node") if node.attrib.get("text")]
-            logging.info(
-                f"[DEBUG] Attempt {attempt + 1} - Visible texts: {[t for t in all_texts if t.strip()][:10]}")
+            smart_log(
+                f"[DEBUG] Attempt {attempt + 1} - Visible texts: {[t for t in all_texts if t.strip()][:10]}", level="info")
 
             add_net_keywords = [
                 "Add new network", "Add network", "Add Wi-Fi network",
@@ -731,17 +731,17 @@ def _add_manual_wifi_network(
             ]
 
             if _tap_text(root, add_net_keywords):
-                logging.info("閴?Successfully clicked 'Add new network' button")
+                smart_log("閴?Successfully clicked 'Add new network' button", level="info")
                 add_net_clicked = True
                 break
             else:
-                logging.warning(f"'Add new network' not found on attempt {attempt + 1}")
+                smart_log(f"'Add new network' not found on attempt {attempt + 1}", level="warning")
                 # Try scrolling down in case button is off-screen
                 _execute_adb_command("shell input swipe 500 1000 500 300 300")
                 time.sleep(2)
 
         if not add_net_clicked:
-            logging.error("閴?Failed to find and click 'Add new network' button")
+            smart_log("閴?Failed to find and click 'Add new network' button", level="error")
             _take_screenshot("add_network_not_found")
             return False
 
@@ -753,11 +753,11 @@ def _add_manual_wifi_network(
             all_texts = {node.attrib.get("text", "") for node in root.iter("node")}
             if "Enter name of Wi-Fi network" in all_texts:
                 ssid_input_page = True
-                logging.info("閴?SSID input page loaded")
+                smart_log("閴?SSID input page loaded", level="info")
                 break
 
         if not ssid_input_page:
-            logging.error("閴?SSID input page did not appear after clicking 'Add new network'")
+            smart_log("閴?SSID input page did not appear after clicking 'Add new network'", level="error")
             _take_screenshot("ssid_input_not_loaded")
             return False
 
@@ -773,20 +773,20 @@ def _add_manual_wifi_network(
                 _execute_adb_command(f"shell input tap {x} {y}")
                 time.sleep(0.5)
                 escaped_ssid = _escape_text_for_input(ssid)
-                logging.info(f"Entering SSID: {ssid}")
+                smart_log(f"Entering SSID: {ssid}", level="info")
                 _execute_adb_command(f"shell input text '{escaped_ssid}'")
                 ssid_input_found = True
                 break
 
         if not ssid_input_found:
-            logging.error("SSID input field not found")
+            smart_log("SSID input field not found", level="error")
             _take_screenshot("no_ssid_field")
             return False
 
         # --- Step 5: Click Next/Connect ---
         next_keywords = ["Next", "Connect", "OK", "Continue"]
         if not _tap_text(_dump_ui(), next_keywords):
-            logging.warning("Next button not found, trying ENTER key")
+            smart_log("Next button not found, trying ENTER key", level="warning")
             _execute_adb_command("shell input keyevent KEYCODE_ENTER")
         time.sleep(2)
 
@@ -796,7 +796,7 @@ def _add_manual_wifi_network(
 
         # Check if we are on the security selection page
         if any("Type of security" in txt for txt in all_texts):
-            logging.info("閴?Found 'Type of security' page")
+            smart_log("閴?Found 'Type of security' page", level="info")
 
             # Define mapping from test case security to UI text
             security_mapping = {
@@ -808,16 +808,16 @@ def _add_manual_wifi_network(
             }
 
             target_options = security_mapping.get(security, [security])
-            logging.info(f"Trying to select security: {target_options}")
+            smart_log(f"Trying to select security: {target_options}", level="info")
 
             if _tap_text(root, target_options):
-                logging.info(f"閴?Successfully selected security: {security}")
+                smart_log(f"閴?Successfully selected security: {security}", level="info")
             else:
-                logging.warning(f"閳跨媴绗?Could not find security option: {target_options}")
+                smart_log(f"閳跨媴绗?Could not find security option: {target_options}", level="warning")
 
         # --- Step 7: Input Password if needed ---
         if password and password.strip():
-            logging.info(f"Inputting password: {password}")
+            smart_log(f"Inputting password: {password}", level="info")
 
             # Wait for password page
             password_page_found = False
@@ -830,7 +830,7 @@ def _add_manual_wifi_network(
                     break
 
             if not password_page_found:
-                logging.warning("Password page not detected, proceeding anyway...")
+                smart_log("Password page not detected, proceeding anyway...", level="warning")
 
             password_input_found = False
 
@@ -851,12 +851,12 @@ def _add_manual_wifi_network(
                         escaped_pwd = _escape_text_for_input(password)
                         _execute_adb_command(f"shell input text '{escaped_pwd}'")
                         password_input_found = True
-                        logging.info("閴?Password input field found by class properties")
+                        smart_log("閴?Password input field found by class properties", level="info")
                         break
 
             # Method 2: Fallback to fixed position if not found
             if not password_input_found:
-                logging.info("Using fallback: clicking fixed password position")
+                smart_log("Using fallback: clicking fixed password position", level="info")
                 _execute_adb_command("shell input tap 540 650")  # Middle of screen, adjust as needed
                 time.sleep(0.5)
                 escaped_pwd = _escape_text_for_input(password)
@@ -869,10 +869,9 @@ def _add_manual_wifi_network(
                     Works across different devices, resolutions, and IMEs.
                     """
                     import time
-                    import logging
-
+                    
                     # Strategy 1: Try KEYCODE_ENTER (most universal)
-                    logging.info("棣冩敿 [Strategy 1] Submitting via KEYCODE_ENTER")
+                    smart_log("棣冩敿 [Strategy 1] Submitting via KEYCODE_ENTER", level="info")
                     execute_adb_func("shell input keyevent KEYCODE_ENTER")
                     time.sleep(2)
 
@@ -880,11 +879,11 @@ def _add_manual_wifi_network(
                     root = dump_ui_func()
                     all_texts = [node.attrib.get("text", "") for node in root.iter("node")]
                     if not any("Enter password" in t or "password" in t.lower() for t in all_texts):
-                        logging.info("閴?Password submitted successfully via KEYCODE_ENTER")
+                        smart_log("閴?Password submitted successfully via KEYCODE_ENTER", level="info")
                         return True
 
                     # Strategy 2: Dynamic coordinate click (bottom-right area)
-                    logging.info("棣冩敿 [Strategy 2] Trying dynamic coordinate click")
+                    smart_log("棣冩敿 [Strategy 2] Trying dynamic coordinate click", level="info")
 
                     # Get logical screen size safely
                     try:
@@ -896,15 +895,15 @@ def _add_manual_wifi_network(
                         else:
                             w, h = 1080, 2340
                     except Exception as e:
-                        logging.warning(f"Failed to parse screen size, using default: {e}")
+                        smart_log(f"Failed to parse screen size, using default: {e}", level="warning")
                         w, h = 1080, 2340
 
-                    logging.info(f"Screen logical size: {w}x{h}")
+                    smart_log(f"Screen logical size: {w}x{h}", level="info")
 
                     # Click bottom-right corner (where IME confirm button usually is)
                     confirm_x = int(w * 0.90)  # 90% from left
                     confirm_y = int(h * 0.95)  # 95% from top
-                    logging.info(f"Clicking IME confirm at ({confirm_x}, {confirm_y})")
+                    smart_log(f"Clicking IME confirm at ({confirm_x}, {confirm_y})", level="info")
                     execute_adb_func(f"shell input tap {confirm_x} {confirm_y}")
                     time.sleep(2)
 
@@ -912,11 +911,11 @@ def _add_manual_wifi_network(
                     root = dump_ui_func()
                     all_texts = [node.attrib.get("text", "") for node in root.iter("node")]
                     if not any("Enter password" in t or "password" in t.lower() for t in all_texts):
-                        logging.info("閴?Password submitted successfully via coordinate click")
+                        smart_log("閴?Password submitted successfully via coordinate click", level="info")
                         return True
 
                     # Strategy 3: Try common IME button texts
-                    logging.info("棣冩敿 [Strategy 3] Trying IME button text match")
+                    smart_log("棣冩敿 [Strategy 3] Trying IME button text match", level="info")
                     ime_keywords = ["Go", "Next", "Done", "Continue", "Enter"]
                     for keyword in ime_keywords:
                         for node in root.iter("node"):
@@ -929,21 +928,21 @@ def _add_manual_wifi_network(
                                     y = (coords[1] + coords[3]) // 2
                                     execute_adb_func(f"shell input tap {x} {y}")
                                     time.sleep(2)
-                                    logging.info(f"Clicked IME button: '{keyword}'")
+                                    smart_log(f"Clicked IME button: '{keyword}'", level="info")
 
                                     # Final check
                                     root = dump_ui_func()
                                     all_texts = [n.attrib.get("text", "") for n in root.iter("node")]
                                     if not any("Enter password" in t for t in all_texts):
-                                        logging.info("閴?Password submitted via IME text button")
+                                        smart_log("閴?Password submitted via IME text button", level="info")
                                         return True
                                     break
 
-                    logging.error("閴?All password submission strategies failed")
+                    smart_log("閴?All password submission strategies failed", level="error")
                     return False
 
                 # --- Call the robust submit function ---
-                logging.info("棣冩敿 Submitting password with multi-strategy approach")
+                smart_log("棣冩敿 Submitting password with multi-strategy approach", level="info")
                 password_submitted = _submit_password_input(
                     serial=serial,
                     execute_adb_func=_execute_adb_command,
@@ -951,13 +950,13 @@ def _add_manual_wifi_network(
                 )
 
                 if not password_submitted:
-                    logging.warning("Password submission may have failed. Continuing anyway...")
+                    smart_log("Password submission may have failed. Continuing anyway...", level="warning")
 
         time.sleep(30)
         return True
 
     except Exception as e:
-        logging.exception(f"Error in _add_manual_wifi_network: {e}")
+        smart_log(f"Error in _add_manual_wifi_network: {e}", level="error", exc_info=True)
         _take_screenshot("exception")
         return False
 
@@ -984,12 +983,12 @@ def _check_network_ping(serial: str):
             ) #8.8.8.8 111.45.11.5
             # 濡偓閺屻儲妲搁崥锔芥暪閸掓澘娲栨径宥忕礄閸忕鐎烽幋鎰鏉堟挸鍤崠鍛儓 "bytes from 8.8.8.8"閿?
             if "bytes from 8.8.8.8" in output or "64 bytes from" in output:
-                logging.info(f"Ping succeeded, {output}")
+                smart_log(f"Ping succeeded, {output}", level="info")
                 return True
             else:
-                logging.warning(f"Ping failed (attempt {attempt + 1}), output:\n{output}")
+                smart_log(f"Ping failed (attempt {attempt + 1}), output:\n{output}", level="warning")
         except Exception as e:
-            logging.warning(f"Ping command failed (attempt {attempt + 1}): {e}")
+            smart_log(f"Ping command failed (attempt {attempt + 1}): {e}", level="warning")
 
         if attempt == 0:
             time.sleep(30)
@@ -1021,7 +1020,7 @@ def reset_settings_ui(serial: str, timeout: int = 5) -> bool:
             f"adb -s {serial} shell pm list packages", timeout=timeout + 5
         )
         if not output:
-            logging.warning(f"[UI Reset] Failed to list packages on {serial}")
+            smart_log(f"[UI Reset] Failed to list packages on {serial}", level="warning")
             installed_packages = set()
         else:
             installed_packages = {
@@ -1030,7 +1029,7 @@ def reset_settings_ui(serial: str, timeout: int = 5) -> bool:
                 if line.strip().startswith("package:")
             }
     except Exception as e:
-        logging.error(f"[UI Reset] Exception while listing packages: {e}")
+        smart_log(f"[UI Reset] Exception while listing packages: {e}", level="error")
         installed_packages = set()
 
     # Step 2: 鐎规矮绠熼崐娆撯偓澶屾畱 (package, activity) 閸掓銆冮敍灞惧瘻娴兼ê鍘涚痪褎甯撴惔?
@@ -1072,16 +1071,16 @@ def reset_settings_ui(serial: str, timeout: int = 5) -> bool:
             _run_adb(f"adb -s {serial} shell am start -n {package}{activity}")
             time.sleep(timeout)
 
-            logging.info(f"[UI Reset] Successfully restarted {package}{activity} on {serial}")
+            smart_log(f"[UI Reset] Successfully restarted {package}{activity} on {serial}", level="info")
             return True
 
         except Exception as e:
-            logging.debug(f"[UI Reset] Failed to restart {package}{activity}: {e}")
+            smart_log(f"[UI Reset] Failed to restart {package}{activity}: {e}", level="debug")
             continue
 
     # Step 4: 閹碘偓閺?Settings 闁插秴鎯庨柈钘夈亼鐠?閳?閸ョ偤鈧偓閸?Home Screen閿涘牅绻氭惔鏇熸煙濡楀牞绱?
     # 閻╁瓨甯存径宥囨暏瀹稿弶婀侀惃?_go_to_home 闂堟瑦鈧焦鏌熷▔鏇磼
-    logging.warning("[UI Reset] All Settings restart attempts failed. Falling back to Home.")
+    smart_log("[UI Reset] All Settings restart attempts failed. Falling back to Home.", level="warning")
     return _go_to_home(serial, timeout=timeout)
 
 

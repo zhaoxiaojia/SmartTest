@@ -685,7 +685,17 @@ def _contains_searchable_token(text: str) -> bool:
 
 def _trace_workspace(stage: str, **values: Any) -> None:
     details = " ".join(f"{key}={values[key]}" for key in sorted(values))
-    print(f"{_trace_timestamp()} [JIRA_WORKSPACE] {stage} {details}".rstrip())
+    from tools.logging import smart_log
+
+    smart_log(
+        "%s %s",
+        stage,
+        details,
+        level="debug",
+        domain="jira",
+        source="jira.services.workspace",
+        extra={"stage": stage, **values},
+    )
 
 
 def _trace_timestamp() -> str:

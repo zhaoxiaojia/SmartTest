@@ -9,6 +9,7 @@ from typing import Any, Iterator
 import pytest
 
 from .events import current_case_nodeid, current_case_stress_tolerant, current_step, emit_event, pop_step, push_step
+from tools.logging import smart_log
 
 
 _DEFINITION_ID_RE = re.compile(r"^[a-z0-9]+(?:[._][a-z0-9]+)*$")
@@ -166,7 +167,6 @@ def step(
                 "error": str(exc),
                 "actual": actual,
             }
-            print(message)
             step_log(
                 message,
                 level="warning",
@@ -254,12 +254,13 @@ def step_log(message: str, *, level: str = "info", extra: dict[str, Any] | None 
     if not case_nodeid:
         return
     current = current_step()
-    emit_event(
-        "log",
+    smart_log(
+        str(message),
+        domain="test",
+        level=level,
+        source="step",
         case_nodeid=case_nodeid,
         step_id=current["id"] if current else None,
-        level=str(level),
-        message=str(message),
         extra=dict(extra or {}),
     )
     step_evidence("Log", str(message), evidence_type="log", level=level, meta=extra)

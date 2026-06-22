@@ -1,6 +1,5 @@
 ﻿from __future__ import annotations
 
-import logging
 import os
 from pathlib import Path
 from threading import Lock, Thread
@@ -20,6 +19,7 @@ from jira_tool.services.workspace import JiraWorkspaceService
 from example.bridge.AuthBridge import AuthBridge
 from example.helper.TranslateHelper import TranslateHelper
 from example.helper.UiText import raw_text, render_template, render_text, translated_text
+from tools.logging import smart_log
 
 try:
     from example.helper.AppPaths import app_data_dir
@@ -608,7 +608,7 @@ class JiraBridge(QObject):
             )
             self._applyFiltersResult.emit({"worker_id": worker_id, "filters": filters})
         except Exception:  # noqa: BLE001
-            logging.exception("JiraBridge favourite filters load failed")
+            smart_log("JiraBridge favourite filters load failed", level="error", exc_info=True)
             self._applyFiltersResult.emit({"worker_id": worker_id, "filters": []})
 
     def _browse_scope(
@@ -675,7 +675,7 @@ class JiraBridge(QObject):
             )
             self._applyResult.emit(result)
         except Exception as exc:  # noqa: BLE001
-            logging.exception("JiraBridge browse failed")
+            smart_log("JiraBridge browse failed", level="error", exc_info=True)
             self._applyError.emit({"worker_id": worker_id, "message": f"{exc}"})
 
     def _fetch_issue_detail(
@@ -709,7 +709,7 @@ class JiraBridge(QObject):
             )
             self._applyDetailResult.emit(result)
         except Exception as exc:  # noqa: BLE001
-            logging.exception("JiraBridge issue detail failed")
+            smart_log("JiraBridge issue detail failed", level="error", exc_info=True)
             self._applyError.emit({"worker_id": self._worker_seq, "message": f"{exc}"})
 
     def _search_and_analyze(
@@ -785,7 +785,7 @@ class JiraBridge(QObject):
                 elapsed_ms=int((time.monotonic() - started_at) * 1000),
                 error=str(exc),
             )
-            logging.exception("JiraBridge query failed")
+            smart_log("JiraBridge query failed", level="error", exc_info=True)
             self._applyError.emit({"worker_id": worker_id, "message": f"{exc}"})
 
     @Slot()

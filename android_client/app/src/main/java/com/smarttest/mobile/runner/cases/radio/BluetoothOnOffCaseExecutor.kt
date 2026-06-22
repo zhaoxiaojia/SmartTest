@@ -11,6 +11,8 @@ class BluetoothOnOffCaseExecutor : TestCaseExecutor {
 
     override suspend fun execute(context: TestCaseExecutionContext): TestCaseExecutionResult {
         val cycleCount = context.intParameter("cycle_count", 1000).coerceAtLeast(1)
+        val onWaitMs = context.longParameter("on_wait_sec", 5L).coerceAtLeast(0L) * 1000L
+        val offWaitMs = context.longParameter("off_wait_sec", 5L).coerceAtLeast(0L) * 1000L
         val bluetoothTarget = context.parameter("bt_target", "").trim()
         if (bluetoothTarget.isEmpty() || bluetoothTarget.equals("none", ignoreCase = true)) {
             context.log("bt_onoff reconnect check requires bt_target; no Bluetooth reconnect check can run without a target")
@@ -38,6 +40,8 @@ class BluetoothOnOffCaseExecutor : TestCaseExecutor {
             ),
             disableSettleTimeoutMs = 20_000L,
             enableSettleTimeoutMs = 30_000L,
+            offHoldMs = offWaitMs,
+            onHoldMs = onWaitMs,
         )
     }
 }

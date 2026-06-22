@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 from pathlib import Path
 from threading import Lock, Thread
 from typing import Any
@@ -11,6 +10,7 @@ from PySide6.QtCore import QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
 from ui import jsonTool
+from tools.logging import smart_log
 
 try:
     from example.helper.AppPaths import app_data_dir
@@ -54,7 +54,7 @@ class HomeBridge(QObject):
         try:
             jsonTool.write_json(path, data)
         except OSError as exc:
-            logging.getLogger(__name__).warning("Failed to cache home wallpaper: %s", exc)
+            smart_log("Failed to cache home wallpaper: %s", exc, level="warning")
 
     def _fetch_bing_wallpaper(self) -> dict[str, str]:
         request = Request(_BING_ARCHIVE_URL, headers={"User-Agent": "SmartTest"})
@@ -82,7 +82,7 @@ class HomeBridge(QObject):
         try:
             self._wallpaperReady.emit(self._fetch_bing_wallpaper())
         except Exception as exc:
-            logging.getLogger(__name__).warning("Failed to refresh home wallpaper: %s", exc)
+            smart_log("Failed to refresh home wallpaper: %s", exc, level="warning")
             with self._lock:
                 self._refreshing_wallpaper = False
 

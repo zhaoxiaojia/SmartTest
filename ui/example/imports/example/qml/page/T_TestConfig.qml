@@ -559,14 +559,11 @@ FluPage {
                                                         Layout.fillWidth: true
                                                         wrapMode: Text.WordWrap
                                                     }
-                                                    FluIconButton{
-                                                        visible: fieldData.options_source !== undefined && fieldData.options_source !== ""
-                                                        iconSource: FluentIcons.Sync
-                                                        iconSize: 12
-                                                        width: 28
-                                                        height: 28
-                                                        text: qsTr("Refresh")
-                                                        onClicked: TestPageBridge.refreshCaseParamOptions(caseNodeId, fieldData.key)
+                                                    FluProgressRing{
+                                                        visible: fieldData.loading === true
+                                                        Layout.preferredWidth: 16
+                                                        Layout.preferredHeight: 16
+                                                        indeterminate: true
                                                     }
                                                 }
 
@@ -934,6 +931,18 @@ FluPage {
                                                 property var fieldData: modelData
                                                 property bool compactTextField: fieldData.type === "string" || fieldData.type === "int"
 
+                                                function terminalRows(){
+                                                    var rows = fieldData.value || []
+                                                    if(!rows || rows.length === undefined){
+                                                        return []
+                                                    }
+                                                    var nextRows = []
+                                                    for(var i = 0; i < rows.length; i++){
+                                                        nextRows.push(rows[i])
+                                                    }
+                                                    return nextRows
+                                                }
+
                                                 RowLayout{
                                                     visible: compactTextField
                                                     Layout.fillWidth: true
@@ -942,11 +951,21 @@ FluPage {
                                                     ColumnLayout{
                                                         Layout.fillWidth: true
                                                         spacing: 2
-                                                        FluText{
-                                                            text: fieldData.label
-                                                            font: FluTextStyle.BodyStrong
+                                                        RowLayout{
                                                             Layout.fillWidth: true
-                                                            wrapMode: Text.WordWrap
+                                                            spacing: 6
+                                                            FluText{
+                                                                text: fieldData.label
+                                                                font: FluTextStyle.BodyStrong
+                                                                Layout.fillWidth: true
+                                                                wrapMode: Text.WordWrap
+                                                            }
+                                                            FluProgressRing{
+                                                                visible: fieldData.loading === true
+                                                                Layout.preferredWidth: 16
+                                                                Layout.preferredHeight: 16
+                                                                indeterminate: true
+                                                            }
                                                         }
                                                         FluText{
                                                             visible: !!fieldData.description
@@ -960,6 +979,7 @@ FluPage {
 
                                                     FluTextBox{
                                                         id: text_env_equipment_compact
+                                                        visible: fieldData.type === "string" || fieldData.type === "int"
                                                         Layout.preferredWidth: 180
                                                         Layout.maximumWidth: 180
                                                         cleanEnabled: false
@@ -1009,18 +1029,31 @@ FluPage {
                                                             }
                                                         }
                                                     }
+
                                                 }
 
-                                                FluText{
+                                                RowLayout{
                                                     visible: !compactTextField
-                                                    text: fieldData.label
-                                                    font: FluTextStyle.BodyStrong
                                                     Layout.fillWidth: true
-                                                    wrapMode: Text.WordWrap
+                                                    spacing: 6
+
+                                                    FluText{
+                                                        text: fieldData.label
+                                                        font: FluTextStyle.BodyStrong
+                                                        Layout.fillWidth: true
+                                                        wrapMode: Text.WordWrap
+                                                    }
+
+                                                    FluProgressRing{
+                                                        visible: fieldData.loading === true
+                                                        Layout.preferredWidth: 16
+                                                        Layout.preferredHeight: 16
+                                                        indeterminate: true
+                                                    }
                                                 }
 
                                                 FluText{
-                                                    visible: !compactTextField && !!fieldData.description
+                                                    visible: !compactTextField && fieldData.type !== "terminal_list" && !!fieldData.description
                                                     Layout.fillWidth: true
                                                     text: fieldData.description || ""
                                                     font: FluTextStyle.Caption
@@ -1032,15 +1065,136 @@ FluPage {
                                                     id: combo_env_equipment_field
                                                     visible: fieldData.type === "enum"
                                                     Layout.fillWidth: true
+                                                    textRole: "label"
                                                     model: fieldData.enum_values || []
                                                     currentIndex: {
                                                         var options = fieldData.enum_values || []
                                                         var currentValue = fieldData.value === undefined || fieldData.value === null ? "" : (fieldData.value + "")
-                                                        return options.indexOf(currentValue)
+                                                        for(var i = 0; i < options.length; i++){
+                                                            var option = options[i]
+                                                            var optionValue = (option && option.value !== undefined) ? (option.value + "") : (option + "")
+                                                            if(optionValue === currentValue){
+                                                                return i
+                                                            }
+                                                        }
+                                                        return -1
                                                     }
                                                     onActivated: {
                                                         if(currentIndex >= 0){
-                                                            TestPageBridge.setEnvEquipmentValue(env_equipment_expander.equipmentKind, fieldData.key, currentText)
+                                                            var option = (fieldData.enum_values || [])[currentIndex]
+                                                            var optionValue = (option && option.value !== undefined) ? option.value : currentText
+                                                            TestPageBridge.setEnvEquipmentValue(env_equipment_expander.equipmentKind, fieldData.key, optionValue)
+                                                        }
+                                                    }
+                                                }
+
+                                                ColumnLayout{
+                                                    visible: fieldData.type === "terminal_list"
+                                                    Layout.fillWidth: true
+                                                    spacing: 6
+
+                                                    RowLayout{
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+                                                        FluText{
+                                                            text: fieldData.description || ""
+                                                            visible: !!fieldData.description
+                                                            font: FluTextStyle.Caption
+                                                            color: FluTheme.fontSecondaryColor
+                                                            Layout.fillWidth: true
+                                                            wrapMode: Text.WordWrap
+                                                        }
+                                                        FluIconButton{
+                                                            iconSource: FluentIcons.Add
+                                                            iconSize: 14
+                                                            width: 30
+                                                            height: 30
+                                                            text: qsTr("Add terminal")
+                                                            onClicked: {
+                                                                console.debug("[TEST_QML] env terminal add click kind=" + env_equipment_expander.equipmentKind)
+                                                                TestPageBridge.addEnvRelayTerminal(env_equipment_expander.equipmentKind)
+                                                            }
+                                                        }
+                                                    }
+
+                                                    Repeater{
+                                                        model: terminalRows()
+                                                        RowLayout{
+                                                            Layout.fillWidth: true
+                                                            spacing: 8
+                                                            property var terminalData: modelData || {}
+                                                            property int rowIndex: index
+
+                                                            FluText{
+                                                                text: qsTr("Terminal")
+                                                                font: FluTextStyle.Caption
+                                                                color: FluTheme.fontSecondaryColor
+                                                            }
+
+                                                            FluTextBox{
+                                                                Layout.preferredWidth: 54
+                                                                Layout.maximumWidth: 54
+                                                                cleanEnabled: false
+                                                                text: terminalData.terminal === undefined ? "1" : (terminalData.terminal + "")
+                                                                onEditingFinished: {
+                                                                    var parsed = parseInt(text, 10)
+                                                                    if(!isNaN(parsed)){
+                                                                        TestPageBridge.setEnvRelayTerminalValue(env_equipment_expander.equipmentKind, rowIndex, "terminal", parsed)
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            FluText{
+                                                                text: qsTr("Wiring mode")
+                                                                font: FluTextStyle.Caption
+                                                                color: FluTheme.fontSecondaryColor
+                                                            }
+
+                                                            FluComboBox{
+                                                                Layout.preferredWidth: 82
+                                                                Layout.maximumWidth: 82
+                                                                model: fieldData.enum_values || ["NO", "NC"]
+                                                                currentIndex: {
+                                                                    var options = fieldData.enum_values || ["NO", "NC"]
+                                                                    return options.indexOf(terminalData.mode || "NO")
+                                                                }
+                                                                onActivated: {
+                                                                    TestPageBridge.setEnvRelayTerminalValue(env_equipment_expander.equipmentKind, rowIndex, "mode", currentText)
+                                                                }
+                                                            }
+
+                                                            FluText{
+                                                                text: qsTr("Press seconds")
+                                                                font: FluTextStyle.Caption
+                                                                color: FluTheme.fontSecondaryColor
+                                                            }
+
+                                                            FluTextBox{
+                                                                Layout.preferredWidth: 72
+                                                                Layout.maximumWidth: 72
+                                                                cleanEnabled: false
+                                                                text: terminalData.press_seconds === undefined ? "1" : (terminalData.press_seconds + "")
+                                                                onEditingFinished: {
+                                                                    var parsed = parseFloat(text)
+                                                                    if(!isNaN(parsed)){
+                                                                        TestPageBridge.setEnvRelayTerminalValue(env_equipment_expander.equipmentKind, rowIndex, "press_seconds", parsed)
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            FluIconButton{
+                                                                iconSource: FluentIcons.Delete
+                                                                iconSize: 14
+                                                                width: 30
+                                                                height: 30
+                                                                enabled: terminalRows().length > 1
+                                                                text: qsTr("Remove terminal")
+                                                                onClicked: {
+                                                                    console.debug("[TEST_QML] env terminal remove click kind=" + env_equipment_expander.equipmentKind
+                                                                                  + " index=" + rowIndex)
+                                                                    TestPageBridge.removeEnvRelayTerminal(env_equipment_expander.equipmentKind, rowIndex)
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }

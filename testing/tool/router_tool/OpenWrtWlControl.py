@@ -1,10 +1,10 @@
-"""openwrt uci wl controlThis module is part of the arrisRouter package."""
+﻿"""openwrt uci wl controlThis module is part of the arrisRouter package."""
 from __future__ import annotations
-import logging
 import re, time
 from typing import Optional, Union, Dict, Any, List
 from .RouterControl import ConfigError
 from testing.tool.dut_tool.transports.ssh_tool import ssh_tool
+from tools.logging import smart_log
 
 
 class OpenWrtWlControl:
@@ -257,7 +257,7 @@ class OpenWrtWlControl:
 
         # 鍏抽敭淇敼锛氱Щ闄ょ珛鍗崇殑璁惧鍙戠幇锛屼絾淇濈暀鍘熸湁璁捐鍘熷垯
         # 涓嶅啀鍦╛_init__涓珛鍗宠Е鍙慡SH杩炴帴
-        logging.info(f"OpenWrtWlControl initialized for router at {self.router_ip}")
+        smart_log(f"OpenWrtWlControl initialized for router at {self.router_ip}", level="info")
 
     @property
     def ssh(self) -> ssh_tool:
@@ -273,17 +273,17 @@ class OpenWrtWlControl:
     def quit(self) -> None:
         """Close the SSH session."""
         if self._ssh is not None:
-            logging.info("SSH session for %s closed.", self.router_ip)
+            smart_log("SSH session for %s closed.", self.router_ip, level="info")
             self._ssh = None
 
     def _execute_command(self, cmd: str, timeout: int = 30) -> str:
         """Execute a command using the cached SSH session."""
-        logging.info("Executing via SSH on %s: %r", self.router_ip, cmd)
+        smart_log("Executing via SSH on %s: %r", self.router_ip, cmd, level="info")
         try:
             output = self.ssh.checkoutput(cmd)
             return output.strip()
         except Exception as exc:
-            logging.error("SSH command %r failed on %s: %s", cmd, self.router_ip, exc, exc_info=True)
+            smart_log("SSH command %r failed on %s: %s", cmd, self.router_ip, exc, exc_info=True, level="error")
             raise RuntimeError(f"SSH command failed on {self.router_ip}: {exc}") from exc
 
     # --- 鏂板锛氫繚鎸佸師鏈夎璁″師鍒欑殑杈呭姪鏂规硶 ---
@@ -310,15 +310,15 @@ class OpenWrtWlControl:
                 OpenWrtWlControl.RADIO_2G = devices[0]
                 OpenWrtWlControl.RADIO_5G = devices[1]
                 OpenWrtWlControl._initialized = True
-                logging.info(f"Successfully discovered and initialized global radios: {devices}")
+                smart_log(f"Successfully discovered and initialized global radios: {devices}", level="info")
                 return devices
             else:
                 error_msg = f"Failed to discover at least 2 WiFi radios. Found: {devices}"
-                logging.error(error_msg)
+                smart_log(error_msg, level="error")
                 raise RuntimeError(error_msg)
 
         except Exception as e:
-            logging.error(f"Failed to discover WiFi devices: {e}")
+            smart_log(f"Failed to discover WiFi devices: {e}", level="error")
             return []
 
     def _ensure_globals_initialized(self):
@@ -409,14 +409,14 @@ class OpenWrtWlControl:
         For 'auto', we assume it's already handled by the default config.
         """
         self._ensure_globals_initialized()
-        logging.info(f"Ignoring set_2g_wireless('{mode}') on OpenWrt (not applicable).")
+        smart_log(f"Ignoring set_2g_wireless('{mode}') on OpenWrt (not applicable).", level="info")
         # 濡傛灉鏈潵闇€瑕佹洿绮剧粏鐨勬帶鍒讹紝鍙互鍦ㄨ繖閲屽疄鐜?
         pass
 
     def set_5g_wireless(self, mode: str) -> None:
         """Same as above for 5G."""
         self._ensure_globals_initialized()
-        logging.info(f"Ignoring set_5g_wireless('{mode}') on OpenWrt (not applicable).")
+        smart_log(f"Ignoring set_5g_wireless('{mode}') on OpenWrt (not applicable).", level="info")
         pass
 
     def set_country(self, region: str) -> None:
@@ -457,7 +457,7 @@ class OpenWrtWlControl:
             chlists = self.extract_latest_chlist_from_log(channel_log)
             return chlists
         except Exception as e:
-            logging.error(f"Failed to set country code '{country}': {e}")
+            smart_log(f"Failed to set country code '{country}': {e}", level="error")
             return False
 
     def get_country_code(self, device_name: str) -> str:
@@ -467,7 +467,7 @@ class OpenWrtWlControl:
                 output = self._execute_command(f"uci get wireless.{device_name}.country")
                 return output.strip()
         except Exception as e:
-            logging.debug(f"Failed to get country code for {device_name}: {e}")
+            smart_log(f"Failed to get country code for {device_name}: {e}", level="debug")
             return ""
 
     def configure_and_verify_country_code(self, country_code: str, dut_country_code: str | None = None) -> dict:
@@ -505,16 +505,17 @@ class OpenWrtWlControl:
                 chan_map = self.REGION_CHANNEL_MAP[upper_lookup_cc]
                 result['2g_channels'] = chan_map['2g']
                 result['5g_channels'] = chan_map['5g']
-                logging.info(
+                smart_log(
                     f"鉁?Country code '{country_code}' set. "
                     f"Channel lists based on DUT country '{lookup_country}': "
-                    f"2.4G: {result['2g_channels']}, 5G: {result['5g_channels']}"
+                    f"2.4G: {result['2g_channels']}, 5G: {result['5g_channels']}",
+                    level="info",
                 )
             else:
-                logging.warning(f"DUT country '{lookup_country}' not in channel map. Using empty lists.")
+                smart_log(f"DUT country '{lookup_country}' not in channel map. Using empty lists.", level="warning")
 
         except Exception as e:
-            logging.error(f"OpenWrt country code config failed on {self.router_ip}: {e}", exc_info=True)
+            smart_log(f"OpenWrt country code config failed on {self.router_ip}: {e}", exc_info=True, level="error")
             raise
 
         return result
@@ -536,13 +537,13 @@ class OpenWrtWlControl:
         try:
             output = self._execute_command("uci show wireless")
             if not output:
-                logging.warning("No output from 'uci show wireless'.")
+                smart_log("No output from 'uci show wireless'.", level="warning")
                 return []
             device_names = re.findall(r"wireless\.([^.]+)=wifi-device", output)
-            logging.info(f"Discovered WiFi device names: {device_names}")
+            smart_log(f"Discovered WiFi device names: {device_names}", level="info")
             return device_names
         except Exception as e:
-            logging.error(f"Failed to discover WiFi devices: {e}")
+            smart_log(f"Failed to discover WiFi devices: {e}", level="error")
             return []  # 鎴?raise ConfigError(...)
 
     @staticmethod
@@ -556,7 +557,7 @@ class OpenWrtWlControl:
         pattern = r'BuildChannelList\(\).*BandIdx\s*=\s*(\d+),.*ChListNum\s*=\s*(\d+)'
         found_entries = []
         for line in log_text.strip().splitlines():
-            # logging.info(f"region change log: {line}")
+            # smart_log(f"region change log: {line}", level="info")
             match = re.search(pattern, line)
             if match:
                 band_idx = int(match.group(1))
@@ -578,7 +579,7 @@ class OpenWrtWlControl:
         # 鎵撳嵃缁撴灉
         for band, num in unique_entries:
             band_name = "2.4G" if band == 0 else "5G/6G" if band == 1 else f"Band{band}"
-            logging.info(f"[Channel List Detected] {band_name} (BandIdx={band}): {num} channels")
+            smart_log(f"[Channel List Detected] {band_name} (BandIdx={band}): {num} channels", level="info")
 
         return True
 
@@ -588,5 +589,5 @@ class OpenWrtWlControl:
         cls.RADIO_2G = None
         cls.RADIO_5G = None
         cls._initialized = False
-        logging.info("Global WiFi device state reset")
+        smart_log("Global WiFi device state reset", level="info")
 

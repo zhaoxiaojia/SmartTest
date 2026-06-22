@@ -70,6 +70,8 @@ object SmartTestCatalog {
                     checks = listOf("Disable Wi-Fi", "Enable Wi-Fi", "Ping target"),
                     parameters = listOf(
                         TestParameterDefinition("cycle_count", "Cycle Count", "Default 2", "2"),
+                        TestParameterDefinition("on_wait_sec", "On Wait (s)", "Wait after Wi-Fi is enabled", "5"),
+                        TestParameterDefinition("off_wait_sec", "Off Wait (s)", "Wait after Wi-Fi is disabled", "5"),
                         TestParameterDefinition("ping_target", "Ping Target", "Required for reconnect check", ""),
                     ),
                 ),
@@ -80,6 +82,8 @@ object SmartTestCatalog {
                     checks = listOf("Disable Bluetooth", "Enable Bluetooth", "Verify target"),
                     parameters = listOf(
                         TestParameterDefinition("cycle_count", "Cycle Count", "Default 2", "2"),
+                        TestParameterDefinition("on_wait_sec", "On Wait (s)", "Wait after Bluetooth is enabled", "5"),
+                        TestParameterDefinition("off_wait_sec", "Off Wait (s)", "Wait after Bluetooth is disabled", "5"),
                         TestParameterDefinition("bt_target", "Bluetooth Target", "Required connected Bluetooth target or None", ""),
                     ),
                 ),

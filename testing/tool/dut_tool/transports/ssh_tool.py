@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import time
 from contextlib import contextmanager
 from typing import Optional
 
-logging.getLogger("asyncssh").setLevel(logging.WARNING)
 import asyncssh
 from asyncssh.connection import SSHClientConnection
 from asyncssh.process import SSHClientProcess
+from tools.logging import set_external_logger_level, smart_log
+
+set_external_logger_level("asyncssh", "warning")
 
 def get_telnet_connect_window() -> tuple[float, float]:
     return 0.05, 0.2
@@ -106,7 +107,7 @@ class SSHSession:
             try:
                 self._loop.close()
             except Exception:
-                logging.debug("Error closing SSHSession event loop", exc_info=True)
+                smart_log("Error closing SSHSession event loop", level="debug", exc_info=True)
 
     def is_connected(self) -> bool:
         if self._conn is None or self.sock is None:
@@ -176,7 +177,7 @@ class ssh_tool:
         )
 
         # 涓嶇珛鍗宠繛鎺ワ紝寤惰繜鍒扮湡姝ｉ渶瑕佹椂
-        logging.info('SSH target: %s@%s:%s (delayed connection)', self.username, self.dut_ip, self.port)
+        smart_log('SSH target: %s@%s:%s (delayed connection)', self.username, self.dut_ip, self.port, level="info")
 
     def checkoutput(self, cmd: str, wildcard: str = '') -> str:
         """Execute a command and return its output using the persistent session."""
@@ -196,9 +197,9 @@ class ssh_tool:
             try:
                 self._session.open()
                 self._connected = True
-                logging.info('SSH connected for command execution: %s@%s', self.username, self.dut_ip)
+                smart_log('SSH connected for command execution: %s@%s', self.username, self.dut_ip, level="info")
             except Exception as e:
-                logging.error('SSH connection failed: %s', e)
+                smart_log('SSH connection failed: %s', e, level="error")
                 return ""  # 杩斿洖绌哄瓧绗︿覆鑰屼笉鏄姏鍑哄紓甯?
 
         # 鎵ц鍛戒护
@@ -208,7 +209,7 @@ class ssh_tool:
             self._last_output = output
             return output
         except connection_errors as e:
-            logging.warning("SSH connection lost during command execution: %s", e)
+            smart_log("SSH connection lost during command execution: %s", e, level="warning")
             # 灏濊瘯閲嶆柊杩炴帴
             self._connected = False
             if not self.wait_reconnect_sync():

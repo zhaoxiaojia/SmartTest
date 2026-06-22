@@ -1,5 +1,4 @@
 ﻿
-import logging
 import re
 import time
 from collections.abc import Iterable
@@ -8,6 +7,7 @@ from urllib.parse import urlencode
 from urllib.request import urlopen
 
 import pytest
+from tools.logging import smart_log
 
 ATTENUATOR_SWD_RC4DAT_8G_95 = "SWD-RC4DAT-8G-95"
 ATTENUATOR_VAUNIX_LDA_908V_8 = "Vaunix-LDA-908V-8"
@@ -80,7 +80,7 @@ class LabDeviceController:
             This method does not return a value.
         """
         self.angle = 0
-        logging.info('Current angle: %s', self.angle)
+        smart_log('Current angle: %s', self.angle, level="info")
 
     def execute_rf_cmd(self, value):
         """
@@ -106,8 +106,8 @@ class LabDeviceController:
             value = str(value)
         if int(value) < RF_ATTENUATION_MIN_DB or int(value) > RF_ATTENUATION_MAX_DB:
             assert 0, f'value must be in range {RF_ATTENUATION_MIN_DB}-{RF_ATTENUATION_MAX_DB}'
-        logging.info(f'Set rf value to {value}')
-        print(f"[DEBUG_RF] execute_rf_cmd model={self.model} value={value}")
+        smart_log(f'Set rf value to {value}', level="info")
+        smart_log(f"execute_rf_cmd model={self.model} value={value}", domain="equipment", source="LabDeviceController")
         action = self._schedule_action(value)
         action()
         self._perform_cleanup()
@@ -132,14 +132,15 @@ class LabDeviceController:
                 params = {'chnl': channel}
                 if self._last_set_value is not None:
                     params['attn'] = self._last_set_value
-                logging.debug(
+                smart_log(
                     'Query attenuation for channel %s with params %s',
                     channel,
                     params,
+                    level="debug",
                 )
                 response = self._run_curl_command('status.shtm', params)
                 if response is None:
-                    logging.warning('No response received for channel %s', channel)
+                    smart_log('No response received for channel %s', channel, level="warning")
                     results[channel] = None
                     continue
                 match = re.search(r'(\d+)', response)
@@ -150,18 +151,18 @@ class LabDeviceController:
         if self.model == ATTENUATOR_SWD_RC4DAT_8G_95:
             self.tn.write("ATT?;".encode('ascii') + b'\r')
             res = self.tn.read_some().decode('ascii')
-            print(f"[DEBUG_RF] RC4DAT ATT? raw={res!r}")
+            smart_log(f"RC4DAT ATT? raw={res!r}", domain="equipment", source="LabDeviceController")
             parsed = res.split()[0] if res.split() else ""
-            print(f"[DEBUG_RF] RC4DAT ATT? parsed={parsed!r}")
+            smart_log(f"RC4DAT ATT? parsed={parsed!r}", domain="equipment", source="LabDeviceController")
             return parsed
         else:
             if not self.tn:
                 raise RuntimeError('Telnet connection not initialized')
             self.tn.write("ATT".encode('ascii') + b'\r\n')
             res = self.tn.read_some().decode('utf-8')
-            print(f"[DEBUG_RF] ATT raw={res!r}")
+            smart_log(f"ATT raw={res!r}", domain="equipment", source="LabDeviceController")
             parsed = list(map(int, re.findall(r'\s(\d+);', res)))
-            print(f"[DEBUG_RF] ATT parsed={parsed!r}")
+            smart_log(f"ATT parsed={parsed!r}", domain="equipment", source="LabDeviceController")
             return parsed
 
     def _run_curl_command(self, endpoint, params):
@@ -188,14 +189,14 @@ class LabDeviceController:
         url = f"http://{self.ip}/{endpoint}"
         query = urlencode(params)
         full_url = f"{url}?{query}" if query else url
-        logging.info('Send HTTP request to %s', full_url)
+        smart_log('Send HTTP request to %s', full_url, level="info")
         try:
             with urlopen(full_url, timeout=5) as resp:
                 content = resp.read().decode('utf-8', errors='ignore')
-                logging.debug('Response from %s: %s', endpoint, content)
+                smart_log('Response from %s: %s', endpoint, content, level="debug")
                 return content
         except URLError as exc:
-            logging.error('Failed to request %s: %s', full_url, exc)
+            smart_log('Failed to request %s: %s', full_url, exc, level="error")
             raise
 
     @staticmethod
@@ -264,28 +265,29 @@ class LabDeviceController:
             lda_config = self._rf_solution_config().get(ATTENUATOR_VAUNIX_LDA_908V_8, {})
             raw_channels = self._configured_channels if self._configured_channels is not None else lda_config.get('channels')
             if raw_channels is None and 'ports' in lda_config:
-                logging.warning(
+                smart_log(
                     'Deprecated configuration key "ports" detected for %s; please rename it to "channels"',
                     self.model,
+                    level="warning",
                 )
                 raw_channels = lda_config.get('ports')
             self.lda_channels = self._parse_channels(raw_channels)
-            logging.info(
+            smart_log(
                 'Initialize HTTP attenuator controller %s at %s with channels %s',
                 self.model,
                 self.ip,
                 self.lda_channels,
-            )
+            level="info")
             return
         from testing.tool.dut_tool.transports.telnet_tool import TelnetSession
 
         try:
-            logging.info('Try to connect %s', self.ip)
+            smart_log('Try to connect %s', self.ip, level="info")
             self.tn = TelnetSession(self.ip, port=23)
             self.tn.open()
-            logging.info('Telnet connection established to %s:23', self.ip)
+            smart_log('Telnet connection established to %s:23', self.ip, level="info")
         except Exception as exc:
-            logging.error("Failed to connect to lab controller %s: %s", self.ip, exc)
+            smart_log("Failed to connect to lab controller %s: %s", self.ip, exc, level="error")
             self.tn = None
 
     def _rf_solution_config(self):
@@ -306,14 +308,13 @@ class LabDeviceController:
         self._last_used_channels = list(self.lda_channels)
         for channel in self._last_used_channels:
             params = {'chnl': channel, 'attn': self._last_set_value}
-            logging.debug('Set attenuation for channel %s with params %s', channel, params)
+            smart_log('Set attenuation for channel %s with params %s', channel, params, level="debug")
             self._run_curl_command('setup.cgi', params)
 
     def _write_telnet(self, command: str, *, read_response: bool = False) -> None:
         """Write a command over telnet, ensuring the connection exists."""
         if not self.tn:
             raise RuntimeError('Telnet connection not initialized')
-        logging.info(command)
         self.tn.write(command.encode('ascii') + (b'\r\n' if read_response else b'\r'))
         if read_response:
             self.tn.read_some()
@@ -387,7 +388,7 @@ class LabDeviceController:
         """
         self.tn.write('rt 0'.encode('ascii') + b'\r\n')
         time.sleep(2)
-        logging.info('try to wait ')
+        smart_log('try to wait ', level="info")
         self.wait_standyby()
 
     def wait_standyby(self):
@@ -430,7 +431,7 @@ class LabDeviceController:
         self.tn.write('gcp'.encode('ascii') + b'\r\n')
         current_angle = int(self.tn.read_some().decode('utf-8'))
         self.angle = int(current_angle)
-        logging.info(f'Current angle {self.angle}')
+        smart_log(f'Current angle {self.angle}', level="info")
         return self.angle
 
 

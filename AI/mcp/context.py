@@ -317,7 +317,17 @@ def _extract_jira_issues(payload: Any) -> list[dict[str, Any]]:
 
 def _trace_mcp_context(stage: str, **values: Any) -> None:
     details = " ".join(f"{key}={values[key]}" for key in sorted(values))
-    print(f"{_trace_timestamp()} [MCP_CTX] {stage} {details}".rstrip())
+    from tools.logging import smart_log
+
+    smart_log(
+        "%s %s",
+        stage,
+        details,
+        level="debug",
+        domain="framework",
+        source="AI.mcp.context",
+        extra={"stage": stage, **values},
+    )
 
 
 def _trace_timestamp() -> str:

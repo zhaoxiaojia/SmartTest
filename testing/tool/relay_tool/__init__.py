@@ -10,8 +10,8 @@
 '''
 
 from abc import ABC, abstractmethod
-import logging
 from typing import Any, Sequence
+from tools.logging import smart_log
 
 __all__ = ["Relay", "get_relay_controller"]
 
@@ -56,9 +56,12 @@ def get_relay_controller(
         port = kwargs.get("port")
         if not port:
             return None
-        mode = str(kwargs.get("mode", "NO") or "NO").strip() or "NO"
-        press_seconds = kwargs.get("press_seconds")
-        return UsbRelayController(str(port), mode=mode, press_seconds=press_seconds)
+        return UsbRelayController(
+            str(port),
+            terminals=kwargs.get("terminals"),
+            mode=kwargs.get("mode"),
+            press_seconds=kwargs.get("press_seconds"),
+        )
 
     if relay_key in {"gwgj-xc3012", "snmp_pdu", "snmp-pdu", "pdusnmp", "pdu_snmp"}:
         from .pdusnmp import power_ctrl
@@ -76,5 +79,5 @@ def get_relay_controller(
         default_port = (ip, relay_port) if ip and relay_port is not None else None
         return power_ctrl(default_port)
 
-    logging.warning("Unknown relay type: %s", relay_type)
+    smart_log("Unknown relay type: %s", relay_type, level="warning")
     return None

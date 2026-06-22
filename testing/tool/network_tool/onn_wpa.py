@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import logging
 import re
 import time
 
 from testing.tool.network_tool.wpa import WpaSupplicantManager
+from tools.logging import smart_log
 
 
 class onn_wpa(WpaSupplicantManager):
@@ -16,7 +16,7 @@ class onn_wpa(WpaSupplicantManager):
         self.executor.write(f"wpa_cli -i {iface} {cmd}")
         out = self.executor.recv()
         output = out.strip()
-        logging.info("wpa_cli output: %s", output)
+        smart_log("wpa_cli output: %s", output, level="info")
         return out
 
     def kill_by_type(self, proc_type):
@@ -64,14 +64,14 @@ class onn_wpa(WpaSupplicantManager):
     ):
         self._forget_all_networks_cli(iface)
 
-        logging.info("[DBG_ONN_WPA] reboot after forget")
+        smart_log("[DBG_ONN_WPA] reboot after forget", level="info")
         self.executor.write("reboot")
         time.sleep(5)
         if not self.executor.wait_for_device(timeout=state_timeout):
             raise RuntimeError("ADB device did not come back after reboot")
         time.sleep(20)
         self.executor.write("setenforce 0")
-        logging.info(self._wpa_cli(iface, "list_networks", ctrl_dir=""))
+        smart_log(self._wpa_cli(iface, "list_networks", ctrl_dir=""), level="info")
         self._wpa_cli(iface, "scan", ctrl_dir="")
         time.sleep(scan_wait)
         self._wpa_cli(iface, "scan_results", ctrl_dir="")
@@ -95,8 +95,8 @@ class onn_wpa(WpaSupplicantManager):
         if dhcp:
             self.executor.write(f"udhcpc -i {iface} -n -t 20 -T 3")
             udhcpc_out = self.executor.recv()
-            logging.info("[DBG_ONN_WPA] udhcpc output:\n%s", udhcpc_out.strip())
+            smart_log("[DBG_ONN_WPA] udhcpc output:\n%s", udhcpc_out.strip(), level="info")
 
         ip = self.status_check(iface=iface)
-        logging.info("[DBG_ONN_WPA] status_check ip=%s", ip or "")
+        smart_log("[DBG_ONN_WPA] status_check ip=%s", ip or "", level="info")
         return ip

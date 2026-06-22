@@ -55,14 +55,21 @@ class AutoSuspendCaseExecutor : TestCaseExecutor {
             val cycle = session.completedCycles + 1
             val deepSleep = measureDeepSleep(session)
             launchSmartTestUiAndWait(context, cycle, session.totalCycles, session.requestId)
+            SmartTestRunStore.finishStep(
+                stepId("cycle.$cycle.suspend"),
+                passed = true,
+                actual = "DUT entered suspend and SmartTest resumed.",
+            )
             SmartTestRunStore.updateProgress(
                 currentLoop = cycle,
                 totalLoops = session.totalCycles,
                 stage = "loop $cycle/${session.totalCycles} resumed from deep suspend",
+                stepId = stepId("cycle.$cycle.resume"),
             )
             context.log(
                 "resume after deep suspend for cycle $cycle/${session.totalCycles} requestId=${session.requestId}",
             )
+            SmartTestRunStore.finishStep(stepId("cycle.$cycle.resume"), passed = true)
             AutoSuspendDebugLogger.append(
                 context.appContext,
                 "resume after deep suspend cycle=$cycle totalCycles=${session.totalCycles} requestId=${session.requestId}",
@@ -96,6 +103,7 @@ class AutoSuspendCaseExecutor : TestCaseExecutor {
                 currentLoop = cycle,
                 totalLoops = session.totalCycles,
                 stage = "loop $cycle/${session.totalCycles} waiting ${session.intervalSec}s after deep suspend",
+                stepId = stepId("cycle.$cycle.wait_interval"),
             )
             context.log(
                 "wait ${session.intervalSec}s after deep suspend for cycle $cycle/${session.totalCycles} requestId=${session.requestId}; " +
@@ -106,6 +114,7 @@ class AutoSuspendCaseExecutor : TestCaseExecutor {
                 "wait after deep suspend cycle=$cycle intervalSec=${session.intervalSec} requestId=${session.requestId}",
             )
             delay(session.intervalSec * 1000L)
+            SmartTestRunStore.finishStep(stepId("cycle.$cycle.wait_interval"), passed = true)
             val recovered = PowerCycleRecoveryChecks.verifyRecoveredState(
                 context = context,
                 stage = "cycle $cycle/${session.totalCycles} after deep suspend",
@@ -113,6 +122,7 @@ class AutoSuspendCaseExecutor : TestCaseExecutor {
                     pingTarget = session.pingTarget,
                     bluetoothTarget = session.bluetoothTarget,
                 ),
+                stepIdPrefix = stepId("cycle.$cycle"),
             )
             if (!recovered) {
                 sessionStore.clear()
@@ -142,6 +152,7 @@ class AutoSuspendCaseExecutor : TestCaseExecutor {
             currentLoop = nextCycle,
             totalLoops = session.totalCycles,
             stage = "loop $nextCycle/${session.totalCycles} entering deep suspend",
+            stepId = stepId("cycle.$nextCycle.suspend"),
         )
         context.log(
             "request dut self deep suspend cycle $nextCycle/${session.totalCycles} requestId=${session.requestId}",
@@ -185,6 +196,11 @@ class AutoSuspendCaseExecutor : TestCaseExecutor {
         } catch (error: Throwable) {
             sessionStore.clear()
             AutoSuspendPowerController.cancelResumeAlarm(context.appContext)
+            SmartTestRunStore.finishStep(
+                stepId("cycle.$nextCycle.suspend"),
+                passed = false,
+                error = error.message ?: error.javaClass.simpleName,
+            )
             AutoSuspendDebugLogger.append(
                 context.appContext,
                 "deep suspend request failed cycle=$nextCycle totalCycles=${session.totalCycles} " +
@@ -294,6 +310,8 @@ class AutoSuspendCaseExecutor : TestCaseExecutor {
         private const val MAX_AWAITING_RESUME_AGE_MS = 300_000L
         private const val UI_READY_SETTLE_MS = 3_000L
     }
+
+    private fun stepId(suffix: String): String = "$caseId.$suffix"
 
     private data class DeepSleepMeasurement(
         val requestElapsedMs: Long,

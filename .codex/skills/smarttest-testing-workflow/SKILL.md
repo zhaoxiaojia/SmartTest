@@ -49,9 +49,9 @@ Frontend user configuration and parameter values are persisted as JSON under `%L
 
 1. Define parameter schemas in `testing/params/schema.py` and `testing/params/registry.py`.
 2. Keep parameter schemas UI-neutral. `testing/` defines machine contracts only: keys, value types, defaults, scopes, option sources, groups, and runtime values. It must not provide frontend labels, descriptions, hints, titles, locale strings, or bilingual display text.
-3. Use `testing/params/required_params.yaml` to centrally define run-blocking required case inputs. `requires_params` means "show these parameters for the case"; it does not make every parameter mandatory.
+3. Use `testing/params/contracts.py` to centrally define case parameter exposure, `required_at_start`, env requirements, and dynamic option sources. `requires_params` means "show these parameters for the case"; it does not make every parameter mandatory.
 4. Validate required parameters through `testing/params/validation.py` before starting a run. Missing required values must block execution before pytest starts.
-5. DUT-backed dynamic option loading must go through `testing/tool/dut_tool/parameter_adapter.py`. Do not call DUT feature option providers directly from UI bridge getter methods or QML bindings.
+5. DUT-backed dynamic option loading and env refresh must go through `testing/tool/dut_tool/parameter_helper.py` using the contracts declared in `testing/params/contracts.py`. Do not call DUT feature option providers directly from UI bridge getter methods or QML bindings.
 6. Parameter type conversion is globally owned by `tools/param_conversion.py`. Runtime frontend parameter access is owned by `testing/params/runtime.py`. Do not add private `_int_param`, `_float_param`, `int(float(...))`, or equivalent parameter-conversion helpers in runner, pytest cases, feature modules, step planners, or UI bridges.
 7. Bind case requirements close to the pytest case with markers:
 
@@ -71,7 +71,8 @@ Parameter transport must stay minimal:
 - Do not carry frontend parameter values through extra bridge fields, run-config fields, environment variables, feature constructors, or duplicated case-local caches.
 - Pass stable identity across layers, such as `nodeid`, selected DUT serial, source key, request id, or equipment name; resolve parameter values at the point of business use through shared runtime/schema helpers.
 - Remove stale intermediate assignments and "keep for later" parameter copies when the value can be read once from the shared runtime contract.
-- `requires_params` means "this case exposes these inputs"; required-at-start validation belongs only to `testing/params/required_params.yaml` and `testing/params/validation.py`.
+- `requires_params` means "this case exposes these inputs"; required-at-start validation belongs only to `testing/params/contracts.py` and `testing/params/validation.py`.
+- For APK-backed checkpoint parameters, frontend-selected `None` means "skip this checkpoint". Do not include those values in the APK request payload. Android-side parameter readers must also treat `"None"` / `"none"` as not configured so future checkpoint additions follow the same rule automatically.
 
 ## Run Flow
 
@@ -90,6 +91,12 @@ UI/TestPage state
 
 Do not pass frontend parameter values through run-config fields or environment variables. Business code that needs frontend test parameters must use `testing/params/runtime.py`, which reads the persisted JSON and applies schema-backed conversion.
 
+For step updates, `testing/` is a producer, not the frontend model owner:
+
+- `testing/` may emit runtime step events and APK snapshot-derived step updates.
+- `testing/` must not maintain a second UI-facing step list or report-only step structure.
+- APK snapshot translation should emit enough identity for the UI bridge owner to update the single visible step model, but it should not own frontend row coloring, ordering, or a duplicate visible list.
+
 ## DUT And Lab Equipment
 
 1. Resolve the DUT serial once at the run boundary and carry it through `RunConfig`.
@@ -97,7 +104,15 @@ Do not pass frontend parameter values through run-config fields or environment v
 3. Access lab equipment through `testing.runtime.test_equipment()` or `testing.tool.equipment.TestEquipment`.
 4. Extend `TestEquipment` for shared relay, attenuator, router, or future lab devices instead of adding case-local construction.
 5. Keep `testing/tool/` hardware wrappers free of UI cache, QML, and report presentation logic.
-6. `testing/tool/dut_tool/duts/` owns DUT transport/session interaction; `testing/tool/dut_tool/features/` owns concrete DUT commands. UI-triggered DUT discovery and DUT-backed CaseParameters option refresh are owned by `testing/tool/dut_tool/parameter_adapter.py`.
+6. `testing/tool/dut_tool/duts/` owns DUT transport/session interaction; `testing/tool/dut_tool/features/` owns concrete DUT commands. UI-triggered DUT discovery, dynamic CaseParameters option refresh, and env dynamic refresh are owned by `testing/tool/dut_tool/parameter_helper.py`.
+
+DUT structure rules:
+
+- Keep `BaseDut` narrow. Only place truly cross-platform device capabilities there.
+- Keep Android-only logic in `duts/android.py` and Linux-only logic in `duts/linux.py`; do not force platform-specific behavior into `BaseDut` for symmetry.
+- Prefer pure feature functions that accept `dut` as an argument over mounted feature facade objects attached to the DUT instance.
+- If a helper like `_android_dut(...)` returns an `android` object, use that object directly. Do not expect stale wrapper fields such as `.dut`.
+- When slimming DUT code, remove compatibility leftovers at call sites in the same change. Do not leave old wrapper-style access patterns behind after deleting the wrapper.
 
 ## ADB Command Serial Policy
 
@@ -126,6 +141,7 @@ Use this workflow when debugging or changing APK-backed cases:
 3. In source runs, rebuild the debug APK when Android source files or manifest are newer than the APK so the next run installs the latest build.
 4. If the installed package is not the latest expected APK, uninstall/reinstall or privileged-provision through the shared install mechanism; do not add case-local install logic.
 5. For new-DUT failures, first add/inspect boundary prints in `android_client.ensure_test_apk_installed`: requested serial, effective command serial, resolved APK path, build check mtimes, installed probe output, package code path, package version, install state key, recorded hash, current hash, and final decision.
+6. `com.smarttest.mobile` may be a system priv-app with `sharedUserId`. Do not default to raw `adb install -r` for that package. Use `android_client.sign_privileged_apk(...)` and `android_client.ensure_test_apk_installed(..., require_privileged=True)` or the equivalent shared priv-app installation script.
 
 ## Android APK Packaging
 
@@ -157,6 +173,8 @@ Cycle/loop planning is a shared mechanism:
 - Frontend-visible step rows should be stable and predeclared as much as possible. Runtime events are expected to update planned rows, not invent an unrelated second step structure.
 - Do not keep one mechanism for explicit `cycle.*` cases and another unrelated mechanism for ordinary looped cases; unify them in shared plan expansion.
 - When a case needs repeated execution, prefer a shared `loop_count` case parameter over custom per-case repeat flags.
+- For repeated cases whose cycle structure is the same each round, the Run page should show one visible set of cycle rows and refresh that same set for the current cycle. Do not pre-expand every cycle into the visible UI when it only creates duplicated rows.
+- When a new loop/cycle begins, testing-side updates must provide enough information for the UI-owned step model to refresh the whole visible repeat group to the new `x/x` title immediately, not only the currently running row.
 
 ## Stress Case Step Tolerance
 
@@ -211,7 +229,7 @@ Temporary self tests created only for debugging must be removed after validation
 ## Redundancy Checks
 
 - If DUT serial selection appears in more than one layer, keep it only at the run boundary and pass the selected serial down.
-- If dynamic CaseParameters options are fetched from a DUT outside `DutParameterAdapter`, move that code into the adapter instead of adding another refresh path.
+- If dynamic CaseParameters options or env options are fetched outside `ParameterHelper`, move that code into `testing/tool/dut_tool/parameter_helper.py` instead of adding another refresh path.
 - If pytest cases call low-level DUT/APK APIs directly while a shared step definition, runner helper, or DUT feature exists, route through that shared mechanism.
 - If bridge code understands pytest internals beyond run config and result events, move that detail into `testing/runner/` or `testing/runtime/`.
 - If Android mirrored cases define a second parameter catalog, align them back to the Android catalog and pytest markers.

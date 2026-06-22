@@ -10,6 +10,7 @@ import time
 import sys
 
 from testing.params.adb_devices import resolve_adb_serial_for_command
+from tools.logging import smart_log
 
 
 PACKAGE_NAME = "com.smarttest.mobile"
@@ -38,6 +39,8 @@ RAW_DEBUG_APK_PATH = _resource_path(RAW_DEBUG_APK_RELATIVE_PATH)
 DEFAULT_APK_PATH = _resource_path(SIGNED_APK_RELATIVE_PATH)
 INSTALL_STATE_PATH = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "SmartTest" / "android_client_install_state.json"
 DEFAULT_PRIVAPP_DIR = "/system/priv-app/SmartTestMobile"
+
+
 DEFAULT_PRIVAPP_APK = f"{DEFAULT_PRIVAPP_DIR}/SmartTestMobile.apk"
 DEFAULT_PRIVAPP_PERMISSIONS = "/system/etc/permissions/privapp-permissions-com.smarttest.mobile.xml"
 LOCAL_PRIVAPP_PERMISSIONS = Path(__file__).resolve().parent / "system_app" / "privapp-permissions-com.smarttest.mobile.xml"
@@ -83,7 +86,7 @@ def _ensure_debug_apk_built(apk_path: Path) -> None:
     project_dir = Path(__file__).resolve().parent
     gradlew = project_dir / ("gradlew.bat" if os.name == "nt" else "gradlew")
     if not gradlew.exists():
-        print(f"[android_client] build check skipped: gradlew missing at {gradlew}")
+        smart_log(f"build check skipped: gradlew missing at {gradlew}", level="warning", domain="android", source="android_client.install")
         return
     source_roots = [
         project_dir / "app" / "src" / "main" / "java",
@@ -98,15 +101,15 @@ def _ensure_debug_apk_built(apk_path: Path) -> None:
         source_files.append(manifest)
     newest_source_mtime = max((path.stat().st_mtime for path in source_files), default=0.0)
     apk_mtime = apk_path.stat().st_mtime if apk_path.exists() else 0.0
-    print(
-        "[android_client] build check "
+    smart_log(
+        "build check "
         f"apk={apk_path} exists={apk_path.exists()} apk_mtime={apk_mtime:.3f} "
-        f"newest_source_mtime={newest_source_mtime:.3f} source_files={len(source_files)}"
-    )
+        f"newest_source_mtime={newest_source_mtime:.3f} source_files={len(source_files)}",
+        domain="android", source="android_client.install")
     if apk_path.exists() and apk_path.stat().st_mtime >= newest_source_mtime:
-        print("[android_client] build check result: existing debug APK is up to date")
+        smart_log("build check result: existing debug APK is up to date", domain="android", source="android_client.install")
         return
-    print("[android_client] local APK is missing or stale; build :app:assembleDebug")
+    smart_log("local APK is missing or stale; build :app:assembleDebug", domain="android", source="android_client.install")
     result = subprocess.run(
         [str(gradlew), ":app:assembleDebug"],
         cwd=str(project_dir),
@@ -115,8 +118,8 @@ def _ensure_debug_apk_built(apk_path: Path) -> None:
         check=False,
         creationflags=_subprocess_creationflags(),
     )
-    print(f"[android_client] build stdout: {result.stdout.strip()}")
-    print(f"[android_client] build stderr: {result.stderr.strip()}")
+    smart_log(f"build stdout: {result.stdout.strip()}", domain="android", source="android_client.install")
+    smart_log(f"build stderr: {result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
     if result.returncode != 0 or not apk_path.exists():
         raise RuntimeError(
             "Failed to build android_client debug APK.\n"
@@ -169,7 +172,7 @@ def sign_privileged_apk(
         if not needs_resign:
             return target_apk
         if not _platform_signing_available():
-            print("[android_client] use existing platform-signed APK; signing files are unavailable")
+            smart_log("use existing platform-signed APK; signing files are unavailable", level="warning", domain="android", source="android_client.install")
             return target_apk
 
     if not source_apk.exists():
@@ -203,7 +206,7 @@ def sign_privileged_apk(
             str(target_apk),
             str(source_apk),
         ]
-        print(f"[android_client] platform sign command: {' '.join(cmd)}")
+        smart_log(f"platform sign command: {' '.join(cmd)}", domain="android", source="android_client.install")
         result = subprocess.run(
             cmd,
             capture_output=True,
@@ -211,8 +214,8 @@ def sign_privileged_apk(
             check=False,
             creationflags=_subprocess_creationflags(),
         )
-        print(f"[android_client] platform sign stdout: {result.stdout.strip()}")
-        print(f"[android_client] platform sign stderr: {result.stderr.strip()}")
+        smart_log(f"platform sign stdout: {result.stdout.strip()}", domain="android", source="android_client.install")
+        smart_log(f"platform sign stderr: {result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
         if result.returncode == 0 and target_apk.exists():
             return target_apk
         sign_errors = [
@@ -234,7 +237,7 @@ def sign_privileged_apk(
             str(source_apk),
             str(target_apk),
         ]
-        print(f"[android_client] fallback sign command: {' '.join(fallback_cmd)}")
+        smart_log(f"fallback sign command: {' '.join(fallback_cmd)}", domain="android", source="android_client.install")
         fallback_result = subprocess.run(
             fallback_cmd,
             capture_output=True,
@@ -242,8 +245,8 @@ def sign_privileged_apk(
             check=False,
             creationflags=_subprocess_creationflags(),
         )
-        print(f"[android_client] fallback sign stdout: {fallback_result.stdout.strip()}")
-        print(f"[android_client] fallback sign stderr: {fallback_result.stderr.strip()}")
+        smart_log(f"fallback sign stdout: {fallback_result.stdout.strip()}", domain="android", source="android_client.install")
+        smart_log(f"fallback sign stderr: {fallback_result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
         if fallback_result.returncode == 0 and target_apk.exists():
             return target_apk
         sign_errors.extend(
@@ -332,8 +335,8 @@ def _detect_adb_root_mode(*, adb_executable: str, adb_serial: str | None = None)
     )
     root_stdout = str(root_result.stdout or "").strip().lower()
     root_stderr = str(root_result.stderr or "").strip().lower()
-    print(f"[android_client] root probe mode=adb_root stdout: {root_stdout}")
-    print(f"[android_client] root probe mode=adb_root stderr: {root_stderr}")
+    smart_log(f"root probe mode=adb_root stdout: {root_stdout}", domain="android", source="android_client.install")
+    smart_log(f"root probe mode=adb_root stderr: {root_stderr}", level="warning", domain="android", source="android_client.install")
     if root_result.returncode == 0:
         _wait_for_device_ready(adb_executable=adb_executable, adb_serial=adb_serial)
         verify = _shell(
@@ -341,8 +344,8 @@ def _detect_adb_root_mode(*, adb_executable: str, adb_serial: str | None = None)
             adb_serial=adb_serial,
             command="id",
         )
-        print(f"[android_client] root verify stdout: {str(verify.stdout or '').strip().lower()}")
-        print(f"[android_client] root verify stderr: {str(verify.stderr or '').strip().lower()}")
+        smart_log(f"root verify stdout: {str(verify.stdout or '').strip().lower()}", domain="android", source="android_client.install")
+        smart_log(f"root verify stderr: {str(verify.stderr or '').strip().lower()}", level="warning", domain="android", source="android_client.install")
         if verify.returncode == 0 and "uid=0" in str(verify.stdout or "").strip().lower():
             return True
     return False
@@ -480,8 +483,8 @@ def _run_checked_adb(
         adb_serial=adb_serial,
         args=args,
     )
-    print(f"[android_client] {label} stdout: {result.stdout.strip()}")
-    print(f"[android_client] {label} stderr: {result.stderr.strip()}")
+    smart_log(f"{label} stdout: {result.stdout.strip()}", domain="android", source="android_client.install")
+    smart_log(f"{label} stderr: {result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
     if result.returncode != 0:
         raise RuntimeError(
             f"android_client provisioning failed during {label}.\n"
@@ -518,8 +521,8 @@ def _provision_to_partition(
             adb_serial=adb_serial,
             args=["push", str(local_path), remote_path],
         )
-        print(f"[android_client] push {local_path.name} stdout: {result.stdout.strip()}")
-        print(f"[android_client] push {local_path.name} stderr: {result.stderr.strip()}")
+        smart_log(f"push {local_path.name} stdout: {result.stdout.strip()}", domain="android", source="android_client.install")
+        smart_log(f"push {local_path.name} stderr: {result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
         if result.returncode != 0:
             raise RuntimeError(
                 "Failed to push android_client provisioning artifact.\n"
@@ -542,9 +545,9 @@ def _provision_to_partition(
             adb_serial=adb_serial,
             command=command,
         )
-        print(f"[android_client] provision command: {command}")
-        print(f"[android_client] provision stdout: {result.stdout.strip()}")
-        print(f"[android_client] provision stderr: {result.stderr.strip()}")
+        smart_log(f"provision command: {command}", domain="android", source="android_client.install")
+        smart_log(f"provision stdout: {result.stdout.strip()}", domain="android", source="android_client.install")
+        smart_log(f"provision stderr: {result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
         if result.returncode != 0 and "|| true" not in command:
             error_text = str(result.stderr or result.stdout or "").lower()
             if "read-only file system" in error_text or "not in /proc/mounts" in error_text:
@@ -578,7 +581,7 @@ def _install_privileged_test_apk(
 
     provisioned_partition = ""
     for partition_root in PRIVILEGED_PARTITIONS:
-        print(f"[android_client] try privileged partition: {partition_root}")
+        smart_log(f"try privileged partition: {partition_root}", domain="android", source="android_client.install")
         if _provision_to_partition(
             adb_executable=adb_executable,
             adb_serial=adb_serial,
@@ -601,8 +604,8 @@ def _install_privileged_test_apk(
         adb_serial=adb_serial,
         args=["reboot"],
     )
-    print(f"[android_client] priv-app reboot stdout: {reboot_result.stdout.strip()}")
-    print(f"[android_client] priv-app reboot stderr: {reboot_result.stderr.strip()}")
+    smart_log(f"priv-app reboot stdout: {reboot_result.stdout.strip()}", domain="android", source="android_client.install")
+    smart_log(f"priv-app reboot stderr: {reboot_result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
     if reboot_result.returncode != 0:
         raise RuntimeError(
             "Failed to reboot DUT after priv-app install.\n"
@@ -625,31 +628,31 @@ def _ensure_privileged_install(
     recorded_hash: str,
 ) -> bool:
     privileged = _is_privileged_code_path(code_path)
-    print(
-        "[android_client] priv-app decision input "
+    smart_log(
+        "priv-app decision input "
         f"installed={installed} privileged={privileged} code_path={code_path or '<missing>'} "
         f"recorded_mode={recorded_mode or '<none>'} "
-        f"recorded_hash={recorded_hash or '<none>'} current_hash={current_hash}"
-    )
+        f"recorded_hash={recorded_hash or '<none>'} current_hash={current_hash}",
+        domain="android", source="android_client.install")
     if installed and privileged:
         device_hash = _device_file_hash(
             adb_executable=adb_executable,
             adb_serial=adb_serial,
             path=code_path,
         )
-        print(f"[android_client] device priv-app hash: {device_hash or '<unavailable>'}")
+        smart_log(f"device priv-app hash: {device_hash or '<unavailable>'}", domain="android", source="android_client.install")
         if device_hash == current_hash:
             if recorded_mode != "privapp" or recorded_hash != current_hash:
                 install_state[state_key] = _install_state_value(mode="privapp", apk_hash=current_hash)
                 _save_install_state(install_state)
-                print("[android_client] repaired priv-app install state from device hash")
-            print("[android_client] priv-app already installed with matching device hash, skip install")
+                smart_log("repaired priv-app install state from device hash", domain="android", source="android_client.install")
+            smart_log("priv-app already installed with matching device hash, skip install", domain="android", source="android_client.install")
             return False
         if not device_hash and recorded_mode == "privapp" and recorded_hash == current_hash:
-            print("[android_client] priv-app already installed with matching recorded hash, skip install")
+            smart_log("priv-app already installed with matching recorded hash, skip install", domain="android", source="android_client.install")
             return False
 
-    print("[android_client] privileged provisioning required; start official adb root/remount flow")
+    smart_log("privileged provisioning required; start official adb root/remount flow", domain="android", source="android_client.install")
     _install_privileged_test_apk(
         adb_executable=adb_executable,
         apk_path=resolved_apk_path,
@@ -665,7 +668,7 @@ def _ensure_privileged_install(
         )
     install_state[state_key] = _install_state_value(mode="privapp", apk_hash=current_hash)
     _save_install_state(install_state)
-    print("[android_client] priv-app install finished")
+    smart_log("priv-app install finished", domain="android", source="android_client.install")
     return True
 
 
@@ -676,7 +679,7 @@ def is_test_apk_installed(*, adb_serial: str | None = None, package_name: str = 
 
     cmd = _adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
     cmd.extend(["shell", "pm", "path", package_name])
-    print(f"[android_client] probe install status: {' '.join(cmd)}")
+    smart_log(f"probe install status: {' '.join(cmd)}", domain="android", source="android_client.install")
     result = subprocess.run(
         cmd,
         capture_output=True,
@@ -684,25 +687,25 @@ def is_test_apk_installed(*, adb_serial: str | None = None, package_name: str = 
         check=False,
         creationflags=_subprocess_creationflags(),
     )
-    print(f"[android_client] probe stdout: {result.stdout.strip()}")
-    print(f"[android_client] probe stderr: {result.stderr.strip()}")
+    smart_log(f"probe stdout: {result.stdout.strip()}", domain="android", source="android_client.install")
+    smart_log(f"probe stderr: {result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
     return result.returncode == 0 and "package:" in str(result.stdout or "")
 
 
 def install_test_apk(*, apk_path: str | Path | None = None, adb_serial: str | None = None) -> subprocess.CompletedProcess[str]:
     adb_executable = shutil.which("adb")
     if not adb_executable:
-        print("[android_client] adb is not available in PATH during install")
+        smart_log("adb is not available in PATH during install", level="error", domain="android", source="android_client.install")
         raise RuntimeError("adb is not available in PATH.")
 
     resolved_apk_path = Path(apk_path or DEFAULT_APK_PATH).resolve()
     if not resolved_apk_path.exists():
-        print(f"[android_client] test APK not found: {resolved_apk_path}")
+        smart_log(f"test APK not found: {resolved_apk_path}", level="error", domain="android", source="android_client.install")
         raise RuntimeError(f"android_client test APK was not found: {resolved_apk_path}")
 
     cmd = _adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
     cmd.extend(["install", "-r", "-g", "-t", str(resolved_apk_path)])
-    print(f"[android_client] install APK: {' '.join(cmd)}")
+    smart_log(f"install APK: {' '.join(cmd)}", domain="android", source="android_client.install")
 
     result = subprocess.run(
         cmd,
@@ -711,8 +714,8 @@ def install_test_apk(*, apk_path: str | Path | None = None, adb_serial: str | No
         check=False,
         creationflags=_subprocess_creationflags(),
     )
-    print(f"[android_client] install stdout: {result.stdout.strip()}")
-    print(f"[android_client] install stderr: {result.stderr.strip()}")
+    smart_log(f"install stdout: {result.stdout.strip()}", domain="android", source="android_client.install")
+    smart_log(f"install stderr: {result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
     combined_output = "\n".join(part for part in (result.stdout, result.stderr) if part).strip()
     if result.returncode != 0 or "Failure" in combined_output:
         raise RuntimeError(
@@ -735,21 +738,21 @@ def ensure_test_apk_installed(
         raise RuntimeError("adb is not available in PATH.")
     requested_serial = str(adb_serial or "").strip()
     effective_serial = resolve_adb_serial_for_command(requested_serial)
-    print(
-        "[android_client] ensure install start "
+    smart_log(
+        "ensure install start "
         f"adb={adb_executable} requested_serial={_serial_for_log(requested_serial)} "
         f"effective_serial={_serial_for_log(effective_serial)} "
-        f"require_privileged={require_privileged} explicit_apk={apk_path is not None} frozen={getattr(sys, 'frozen', False)}"
-    )
+        f"require_privileged={require_privileged} explicit_apk={apk_path is not None} frozen={getattr(sys, 'frozen', False)}",
+        domain="android", source="android_client.install")
     _ensure_device_ready_before_install(adb_executable=adb_executable, adb_serial=requested_serial)
 
     resolved_apk_path = Path(apk_path or DEFAULT_APK_PATH).resolve()
-    print(f"[android_client] resolved APK path before build/sign: {resolved_apk_path}")
+    smart_log(f"resolved APK path before build/sign: {resolved_apk_path}", domain="android", source="android_client.install")
     if apk_path is None and not getattr(sys, "frozen", False):
         _ensure_debug_apk_built(RAW_DEBUG_APK_PATH)
         resolved_apk_path = sign_privileged_apk(input_apk_path=RAW_DEBUG_APK_PATH, output_apk_path=DEFAULT_APK_PATH)
     if not resolved_apk_path.exists():
-        print(f"[android_client] ensure install failed, APK missing: {resolved_apk_path}")
+        smart_log(f"ensure install failed, APK missing: {resolved_apk_path}", level="error", domain="android", source="android_client.install")
         raise RuntimeError(f"android_client test APK was not found: {resolved_apk_path}")
 
     installed = is_test_apk_installed(adb_serial=requested_serial)
@@ -760,23 +763,23 @@ def ensure_test_apk_installed(
     recorded_mode, recorded_hash = _parse_install_state_value(install_state.get(state_key, ""))
     code_path = _package_code_path(adb_executable=adb_executable, adb_serial=requested_serial)
     version_info = _package_version_info(adb_executable=adb_executable, adb_serial=requested_serial)
-    print(f"[android_client] final APK path for install decision: {resolved_apk_path}")
-    print(f"[android_client] current apk hash: {current_hash}")
-    print(f"[android_client] installed on device: {installed}")
-    print(f"[android_client] device package code_path: {code_path or '<missing>'}")
-    print(
-        "[android_client] device package version "
+    smart_log(f"final APK path for install decision: {resolved_apk_path}", domain="android", source="android_client.install")
+    smart_log(f"current apk hash: {current_hash}", domain="android", source="android_client.install")
+    smart_log(f"installed on device: {installed}", domain="android", source="android_client.install")
+    smart_log(f"device package code_path: {code_path or '<missing>'}", domain="android", source="android_client.install")
+    smart_log(
+        "device package version "
         f"versionCode={version_info.get('version_code') or '<missing>'} "
         f"versionName={version_info.get('version_name') or '<missing>'} "
-        f"error={version_info.get('error') or '<none>'}"
-    )
-    print(f"[android_client] install state path: {INSTALL_STATE_PATH}")
-    print(f"[android_client] install state key: {state_key}")
-    print(
-        "[android_client] install state recorded "
+        f"error={version_info.get('error') or '<none>'}",
+        domain="android", source="android_client.install")
+    smart_log(f"install state path: {INSTALL_STATE_PATH}", domain="android", source="android_client.install")
+    smart_log(f"install state key: {state_key}", domain="android", source="android_client.install")
+    smart_log(
+        "install state recorded "
         f"mode={recorded_mode or '<none>'} hash={recorded_hash or '<none>'} "
-        f"state_entries={len(install_state)}"
-    )
+        f"state_entries={len(install_state)}",
+        domain="android", source="android_client.install")
 
     if require_privileged:
         return _ensure_privileged_install(
@@ -793,7 +796,7 @@ def ensure_test_apk_installed(
         )
 
     if installed and "/system/priv-app/" in code_path:
-        print("[android_client] existing package is priv-app; verify/reinstall signed APK")
+        smart_log("existing package is priv-app; verify/reinstall signed APK", domain="android", source="android_client.install")
         return _ensure_privileged_install(
             adb_executable=adb_executable,
             resolved_apk_path=resolved_apk_path,
@@ -808,19 +811,19 @@ def ensure_test_apk_installed(
         )
 
     if installed and recorded_mode == "user" and recorded_hash == current_hash:
-        print("[android_client] decision: signed APK already installed with matching recorded hash, skip install")
+        smart_log("decision: signed APK already installed with matching recorded hash, skip install", domain="android", source="android_client.install")
         return False
 
     if not installed:
-        print("[android_client] decision: package missing on DUT, start install")
+        smart_log("decision: package missing on DUT, start install", domain="android", source="android_client.install")
     else:
-        print("[android_client] decision: installed package is stale or unrecorded, start install")
+        smart_log("decision: installed package is stale or unrecorded, start install", domain="android", source="android_client.install")
     install_test_apk(apk_path=resolved_apk_path, adb_serial=requested_serial)
     if not is_test_apk_installed(adb_serial=requested_serial):
         raise RuntimeError("android_client test APK install completed but package is still missing on DUT.")
     install_state[state_key] = _install_state_value(mode="user", apk_hash=current_hash)
     _save_install_state(install_state)
-    print("[android_client] signed APK install finished")
+    smart_log("signed APK install finished", domain="android", source="android_client.install")
     return True
 
 

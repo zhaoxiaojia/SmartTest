@@ -1,20 +1,8 @@
 import os
-import shutil
 import subprocess
 from pathlib import Path
 
 import env
-
-
-def _build_android_client(repo_root: Path) -> None:
-    android_dir = repo_root / "android_client"
-    gradlew = android_dir / ("gradlew.bat" if os.name == "nt" else "gradlew")
-    subprocess.run([str(gradlew), ":app:assembleDebug"], cwd=android_dir, check=True)
-    subprocess.run(
-        [env.python(), "-c", "import android_client; android_client.sign_privileged_apk()"],
-        cwd=repo_root,
-        check=True,
-    )
 
 
 if __name__ == "__main__":
@@ -22,17 +10,13 @@ if __name__ == "__main__":
     repo_root = scripts_dir.parents[1]
     os.chdir(repo_root)
 
-    build_dir = repo_root / "build"
     dist_dir = repo_root / "dist"
-    for path in (build_dir, dist_dir):
-        shutil.rmtree(path, ignore_errors=True)
 
     # Keep build deterministic and local: refresh i18n and QRC outputs, then package.
     subprocess.run([env.python(), str(scripts_dir / "script-update-translations.py")], check=True)
     subprocess.run([env.python(), str(scripts_dir / "script-update-resource.py")], check=True)
     subprocess.run([env.python(), str(scripts_dir / "script-build-test-catalog.py")], check=True)
     subprocess.run([env.python(), str(scripts_dir / "script-build-manifest.py")], check=True)
-    _build_android_client(repo_root)
 
     build_env = env.environment()
     build_env["SMARTTEST_REPO_ROOT"] = str(repo_root)

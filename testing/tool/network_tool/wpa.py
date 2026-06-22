@@ -8,9 +8,9 @@ control flows.
 
 from __future__ import annotations
 
-import logging
 import re
 import time
+from tools.logging import smart_log
 
 
 class WpaSupplicantManager:
@@ -48,10 +48,10 @@ class WpaSupplicantManager:
                 continue
             self.executor.write(f"kill {proc['pid']}")
             killed.append(proc)
-            logging.info("[KILL] %s: PID=%s CMD=%s", proc_type, proc["pid"], proc["cmdline"])
+            smart_log("[KILL] %s: PID=%s CMD=%s", proc_type, proc["pid"], proc["cmdline"], level="info")
             time.sleep(0.5)
         if not killed:
-            logging.info("No %s wpa_supplicant to kill", proc_type)
+            smart_log("No %s wpa_supplicant to kill", proc_type, level="info")
 
     def restart_ui_wpa(self, proc_type):
         self.kill_by_type("script")
@@ -60,7 +60,7 @@ class WpaSupplicantManager:
                 continue
             cmd = proc["cmdline"]
             self.executor.write(cmd + " &")
-            logging.info("[RESTART] %s: %s", proc_type, cmd)
+            smart_log("[RESTART] %s: %s", proc_type, cmd, level="info")
             time.sleep(1)
 
     def restart_interface(self, iface="wlan0"):
@@ -249,7 +249,7 @@ class WpaSupplicantManager:
     def _forget_all_networks_cli(self, iface: str) -> None:
         _ = self._wpa_cli(iface, "disconnect", ctrl_dir="")
         out = self._wpa_cli(iface, "remove_network all", ctrl_dir="")
-        logging.info(self._wpa_cli(iface, "list_networks", ctrl_dir=""))
+        smart_log(self._wpa_cli(iface, "list_networks", ctrl_dir=""), level="info")
         self._wpa_cli(iface, "save_config", ctrl_dir="")
 
 
@@ -284,9 +284,9 @@ class WpaSupplicantManager:
 
         _ = self._wpa_cli(iface, f"enable_network {net_id}", ctrl_dir="")
         status_out = self._wpa_cli(iface, "status", ctrl_dir="")
-        logging.info("[DBG_ONN_WPA] status after enable:\n%s", status_out.strip())
+        smart_log("[DBG_ONN_WPA] status after enable:\n%s", status_out.strip(), level="info")
         list_out = self._wpa_cli(iface, "list_networks", ctrl_dir="")
-        logging.info("[DBG_ONN_WPA] list_networks:\n%s", list_out.strip())
+        smart_log("[DBG_ONN_WPA] list_networks:\n%s", list_out.strip(), level="info")
         # _ = self._wpa_cli(iface, "reassociate", ctrl_dir="")
         # ok = self.wait_for_state(iface=iface, target_state="COMPLETED", timeout=state_timeout, ctrl_dir="")
         # if not ok:
@@ -295,10 +295,10 @@ class WpaSupplicantManager:
         if dhcp:
             self.executor.write(f"udhcpc -i {iface} -n -t 20 -T 3")
             udhcpc_out = self.executor.recv()
-            logging.info("[DBG_ONN_WPA] udhcpc output:\n%s", udhcpc_out.strip())
+            smart_log("[DBG_ONN_WPA] udhcpc output:\n%s", udhcpc_out.strip(), level="info")
 
         ip = self.status_check(iface=iface)
-        logging.info("[DBG_ONN_WPA] status_check ip=%s", ip or "")
+        smart_log("[DBG_ONN_WPA] status_check ip=%s", ip or "", level="info")
         return ip
 
     def _connect_via_conf(
@@ -325,7 +325,7 @@ class WpaSupplicantManager:
         state_timeout: int,
     ):
         for attempt in range(1, max_retry + 1):
-            logging.info("Attempt %d to connect %s", attempt, ssid)
+            smart_log("Attempt %d to connect %s", attempt, ssid, level="info")
             try:
                 self.kill_by_type("ui")
                 self.kill_by_type("unknown")
@@ -351,10 +351,11 @@ class WpaSupplicantManager:
                 self.executor.write(f"test -s {conf_path} && echo OK || echo FAIL")
                 verify_out = self.executor.recv().strip()
                 if "OK" not in verify_out:
-                    logging.error(
+                    smart_log(
                         "wpa conf write failed: %s (verify=%s)",
                         conf_path,
                         verify_out,
+                        level="error",
                     )
                     continue
 
@@ -363,9 +364,9 @@ class WpaSupplicantManager:
                 reconn_out = self._wpa_cli(iface, "reconnect", ctrl_dir=ctrl_dir).strip()
                 status_out = self._wpa_cli(iface, "status", ctrl_dir=ctrl_dir).strip()
                 if reconn_out:
-                    logging.info("wpa_cli reconnect: %s", reconn_out)
+                    smart_log("wpa_cli reconnect: %s", reconn_out, level="info")
                 if status_out:
-                    logging.info("wpa_cli status: %s", status_out.replace("\n", " | "))
+                    smart_log("wpa_cli status: %s", status_out.replace("\n", " | "), level="info")
                 ok = self.wait_for_state(
                     iface=iface,
                     target_state="COMPLETED",
@@ -375,24 +376,25 @@ class WpaSupplicantManager:
                 if ok:
                     if dhcp:
                         self.run_udhcpc(iface=iface)
-                    logging.info("Attempt %d connection succeeded", attempt)
+                    smart_log("Attempt %d connection succeeded", attempt, level="info")
                     time.sleep(3)
                     self.restart_ui_wpa("ui")
                     return self.status_check(iface=iface)
                 status_out = self._wpa_cli(iface, "status", ctrl_dir=ctrl_dir).strip()
                 if status_out:
-                    logging.info("wpa_cli status (timeout): %s", status_out.replace("\n", " | "))
-                logging.warning(
+                    smart_log("wpa_cli status (timeout): %s", status_out.replace("\n", " | "), level="info")
+                smart_log(
                     "Attempt %d connection failed, retrying in %d seconds...",
                     attempt,
                     retry_interval,
+                    level="warning",
                 )
                 time.sleep(retry_interval)
                 self.kill_by_type("script")
             except Exception as exc:
-                logging.error("Attempt %d raised error: %s", attempt, exc)
+                smart_log("Attempt %d raised error: %s", attempt, exc, level="error")
                 time.sleep(retry_interval)
-        logging.error("Connection to %s failed after multiple attempts", ssid)
+        smart_log("Connection to %s failed after multiple attempts", ssid, level="error")
         time.sleep(3)
         self.restart_ui_wpa("ui")
         return None

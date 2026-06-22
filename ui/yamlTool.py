@@ -5,9 +5,10 @@ relative to the configuration base directory and provides methods for
 loading and accessing its contents.  Errors during loading are logged,
 and multiple encodings are attempted to support different file origins.
 """
-import logging
 from pathlib import Path
 from typing import Union
+
+from tools.logging import smart_log
 
 try:
     import yaml
@@ -65,7 +66,7 @@ class yamlTool:
             except UnicodeDecodeError:
                 continue
             except Exception as exc:  # pragma: no cover - I/O depends on environment
-                logging.error("Failed to load yaml %s: %s", self.path, exc)
+                smart_log("Failed to load yaml %s: %s", self.path, exc, level="error", domain="ui", source="yamlTool")
                 break
         return {}
 

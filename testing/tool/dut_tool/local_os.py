@@ -1,11 +1,11 @@
-﻿import logging
-import os
+﻿import os
 import re
 from testing.tool.dut_tool import command_batch as subprocess
 import time
 import locale
 
 from ui.yamlTool import yamlTool
+from tools.logging import smart_log
 
 
 class LocalOS:
@@ -25,11 +25,14 @@ class LocalOS:
             encoding=locale.getpreferredencoding(False),
             errors='ignore',
         )
-        logging.info("Local os cmd: %s", cmd)
-        logging.info("Local os stdout: %s", result.stdout)
-        logging.info("Local os stderr: %s", result.stderr)
         if result.returncode != 0:
-            logging.error("Local os exit code: %s", result.returncode)
+            smart_log(
+                "Local os command failed rc=%s cmd=%s stderr=%s",
+                result.returncode,
+                cmd,
+                str(result.stderr or "").strip(),
+                level="error",
+            )
             return None
         return result.stdout
 
@@ -98,7 +101,11 @@ class LocalOS:
     def dynamic_flush_network_card(self, net_card='', max_retries=3):
         #Try interface down max 3 times, and wait max 30 seconds after down/up
         for retry in range(max_retries):
-            print(f"[Retry {retry + 1}/{max_retries}] Disabling/enabling NIC '{net_card}'...")
+            smart_log(
+                f"Retry {retry + 1}/{max_retries}: disabling/enabling NIC '{net_card}'",
+                domain="dut",
+                source="LocalOS",
+            )
 
             #self.checkoutput(f'netsh interface set interface "{net_card}" disable')
             self.checkoutput(f'ipconfig /release "{net_card}"')
@@ -115,5 +122,5 @@ class LocalOS:
                     return ip
 
         self.ip = None
-        logging.error(f"Failed to renew IP for '{net_card}' after {max_retries} retries")
+        smart_log(f"Failed to renew IP for '{net_card}' after {max_retries} retries", level="error")
         return None

@@ -120,27 +120,27 @@
 <context>
     <name>AuthBridge</name>
     <message>
-        <location filename="bridge/AuthBridge.py" line="332"/>
+        <location filename="bridge/AuthBridge.py" line="336"/>
         <source>Account or password cannot be empty.</source>
         <translation>Account or password cannot be empty.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="339"/>
+        <location filename="bridge/AuthBridge.py" line="343"/>
         <source>ldap3 is not installed in the current Python environment.</source>
         <translation>ldap3 is not installed in the current Python environment.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="350"/>
+        <location filename="bridge/AuthBridge.py" line="354"/>
         <source>LDAP sign-in failed. {detail}</source>
         <translation>LDAP sign-in failed. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="353"/>
+        <location filename="bridge/AuthBridge.py" line="357"/>
         <source>LDAP sign-in failed. Please check your account or password.</source>
         <translation>LDAP sign-in failed. Please check your account or password.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="368"/>
+        <location filename="bridge/AuthBridge.py" line="372"/>
         <source>Sign-in successful. Welcome, {username}</source>
         <translation>Sign-in successful. Welcome, {username}</translation>
     </message>
@@ -1279,42 +1279,42 @@ Updated content:
 <context>
     <name>RunBridge</name>
     <message>
-        <location filename="bridge/RunBridge.py" line="388"/>
+        <location filename="bridge/RunBridge.py" line="299"/>
         <source>Failed to start test run. {detail}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="825"/>
+        <location filename="bridge/RunBridge.py" line="414"/>
         <source>Failed to save run report. {detail}</source>
         <translation>Failed to save run report. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="828"/>
+        <location filename="bridge/RunBridge.py" line="417"/>
         <source>Failed to finish test run. {detail}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="873"/>
+        <location filename="bridge/RunBridge.py" line="462"/>
         <source>No selected test cases to run.</source>
         <translation>No selected test cases to run.</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="889"/>
+        <location filename="bridge/RunBridge.py" line="477"/>
         <source>Failed to start pytest run. {detail}</source>
         <translation>Failed to start pytest run. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="166"/>
+        <location filename="bridge/RunBridge.py" line="129"/>
         <source>Select a DUT before starting the selected test cases.</source>
         <translation>Select a DUT before starting the selected test cases.</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="170"/>
+        <location filename="bridge/RunBridge.py" line="133"/>
         <source>Missing required parameter: {param} ({case})</source>
         <translation>Missing required parameter: {param} ({case})</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="178"/>
+        <location filename="bridge/RunBridge.py" line="141"/>
         <source>Fix required test parameters before starting.</source>
         <translation>Fix required test parameters before starting.</translation>
     </message>
@@ -3700,17 +3700,17 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Report</name>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="8"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="9"/>
         <source>Report</source>
         <translation>Report</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="180"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="205"/>
         <source>Runs</source>
         <translation>Runs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="190"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="215"/>
         <source>Refresh</source>
         <translation>Refresh</translation>
     </message>
@@ -3719,57 +3719,115 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">No reports yet.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="223"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="248"/>
         <source>Unknown time</source>
         <translation>Unknown time</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="238"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="263"/>
         <source>Total %1  Passed %2  Failed %3</source>
         <translation>Total %1  Passed %2  Failed %3</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="246"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="144"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="271"/>
         <source>No DUT</source>
         <translation>No DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="277"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="144"/>
+        <source>DUT</source>
+        <translation>DUT</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="145"/>
+        <source>Run Status</source>
+        <translation>Run Status</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="146"/>
+        <source>Return Code</source>
+        <translation>Return Code</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="147"/>
+        <source>Stopped</source>
+        <translation>Stopped</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="147"/>
+        <source>Yes</source>
+        <translation>Yes</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="147"/>
+        <source>No</source>
+        <translation>No</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="150"/>
+        <source>Step Status</source>
+        <translation>Step Status</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="151"/>
+        <source>Kind</source>
+        <translation>Kind</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="153"/>
+        <source>Definition</source>
+        <translation>Definition</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="154"/>
+        <source>Case</source>
+        <translation>Case</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="156"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="516"/>
+        <source>Error</source>
+        <translation>Error</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="302"/>
         <source>Run a test to generate the first report.</source>
         <translation>Run a test to generate the first report.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="312"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="337"/>
         <source>Total</source>
         <translation>Total</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="313"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="338"/>
         <source>Passed</source>
         <translation>Passed</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="314"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="339"/>
         <source>Failed</source>
         <translation>Failed</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="315"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="340"/>
         <source>Skipped</source>
         <translation>Skipped</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="316"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="152"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="341"/>
         <source>Duration</source>
         <translation>Duration</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="361"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="386"/>
         <source>Steps</source>
         <translation>Steps</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="456"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="481"/>
         <source>Step Detail</source>
         <translation>Step Detail</translation>
     </message>
@@ -3778,8 +3836,9 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">Cases</translation>
     </message>
     <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="528"/>
         <source>Logs</source>
-        <translation type="vanished">Logs</translation>
+        <translation>Logs</translation>
     </message>
     <message>
         <source>Reports</source>
@@ -3793,7 +3852,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Run</name>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="9"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="10"/>
         <source>Run</source>
         <translation>Run</translation>
     </message>
@@ -3802,37 +3861,37 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">Run Tests</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="167"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="168"/>
         <source>Steps</source>
         <translation>Steps</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="267"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="268"/>
         <source>Logs</source>
         <translation>Logs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="333"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="303"/>
         <source>Follow Latest</source>
         <translation>Follow Latest</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="360"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="330"/>
         <source>Start</source>
         <translation>Start</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="360"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="330"/>
         <source>Stop</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="366"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="336"/>
         <source>Required Parameters</source>
         <translation>Required Parameters</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="368"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="338"/>
         <source>OK</source>
         <translation>OK</translation>
     </message>
@@ -4195,58 +4254,82 @@ Some contents...</translation>
         <translation>No configurable parameters are required for this case.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="681"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="678"/>
         <source>No connected Bluetooth devices found on the current DUT.</source>
         <translation>No connected Bluetooth devices found on the current DUT.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="712"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="709"/>
         <source>Enabled</source>
         <translation>Enabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="712"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="709"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="772"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="769"/>
         <source>DUT</source>
         <translation>DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="568"/>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="781"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="778"/>
         <source>Refresh</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="827"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="824"/>
         <source>No DUT</source>
         <translation>No DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1068"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1112"/>
+        <source>Add terminal</source>
+        <translation type="unfinished">Add terminal</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1129"/>
+        <source>Terminal</source>
+        <translation type="unfinished">Terminal</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1148"/>
+        <source>Wiring mode</source>
+        <translation type="unfinished">Wiring mode</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1167"/>
+        <source>Press seconds</source>
+        <translation type="unfinished">Press seconds</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1191"/>
+        <source>Remove terminal</source>
+        <translation type="unfinished">Remove terminal</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1222"/>
         <source>Stop</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1068"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1222"/>
         <source>Start</source>
         <translation>Start</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1076"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1230"/>
         <source>Run</source>
         <translation>Run</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1083"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1237"/>
         <source>Required Parameters</source>
         <translation>Required Parameters</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1085"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1239"/>
         <source>OK</source>
         <translation>OK</translation>
     </message>
@@ -4259,12 +4342,12 @@ Some contents...</translation>
         <translation type="vanished">Special Params (by Case Type)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="874"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="871"/>
         <source>Env</source>
         <translation>Env</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="902"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="899"/>
         <source>Type</source>
         <translation>Type</translation>
     </message>
@@ -4669,11 +4752,11 @@ Some contents...</translation>
     </message>
     <message>
         <source>test.param.cpu_frequency.loop_count.label</source>
-        <translation>Loop Count</translation>
+        <translation type="vanished">Loop Count</translation>
     </message>
     <message>
         <source>test.param.cpu_frequency.loop_count.description</source>
-        <translation>How many times to repeat the CPU frequency switching cycle.</translation>
+        <translation type="vanished">How many times to repeat the CPU frequency switching cycle.</translation>
     </message>
     <message>
         <source>test.param.cpu_frequency.frequencies.label</source>
@@ -4762,6 +4845,22 @@ Some contents...</translation>
     <message>
         <source>test.param.bt_onoff_scan.cycle_count.description</source>
         <translation type="vanished">Default 2</translation>
+    </message>
+    <message>
+        <source>test.param.bt_onoff_scan.on_wait_sec.label</source>
+        <translation type="vanished">On wait seconds</translation>
+    </message>
+    <message>
+        <source>test.param.bt_onoff_scan.on_wait_sec.description</source>
+        <translation type="vanished">Seconds to wait after Bluetooth turns on before reconnect checks or the next off step.</translation>
+    </message>
+    <message>
+        <source>test.param.bt_onoff_scan.off_wait_sec.label</source>
+        <translation type="vanished">Off wait seconds</translation>
+    </message>
+    <message>
+        <source>test.param.bt_onoff_scan.off_wait_sec.description</source>
+        <translation type="vanished">Seconds to wait after Bluetooth turns off before the next on step.</translation>
     </message>
     <message>
         <source>test.param.emmc_rw.loop_count.label</source>
@@ -4868,6 +4967,22 @@ Some contents...</translation>
         <translation type="vanished">Default 2</translation>
     </message>
     <message>
+        <source>test.param.wifi_onoff_scan.on_wait_sec.label</source>
+        <translation type="vanished">On wait seconds</translation>
+    </message>
+    <message>
+        <source>test.param.wifi_onoff_scan.on_wait_sec.description</source>
+        <translation type="vanished">Seconds to wait after Wi-Fi turns on before reconnect checks or the next off step.</translation>
+    </message>
+    <message>
+        <source>test.param.wifi_onoff_scan.off_wait_sec.label</source>
+        <translation type="vanished">Off wait seconds</translation>
+    </message>
+    <message>
+        <source>test.param.wifi_onoff_scan.off_wait_sec.description</source>
+        <translation type="vanished">Seconds to wait after Wi-Fi turns off before the next on step.</translation>
+    </message>
+    <message>
         <source>test.param.wifi_onoff_scan.ping_target.label</source>
         <translation type="vanished">Ping Target</translation>
     </message>
@@ -4876,59 +4991,88 @@ Some contents...</translation>
         <translation type="vanished">Required for reconnect check</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1079"/>
         <source>test.env.relay.label</source>
-        <translation>Relay</translation>
+        <translation type="vanished">Relay</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1083"/>
         <source>test.env.equipment.type.label</source>
-        <translation>Type</translation>
+        <translation type="vanished">Type</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="991"/>
         <source>test.env.relay.type.snmp_pdu</source>
-        <translation>SNMP PDU</translation>
+        <translation type="vanished">SNMP PDU</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="992"/>
         <source>test.env.relay.type.usb_relay</source>
-        <translation>USB Relay</translation>
+        <translation type="vanished">USB Relay</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1033"/>
         <source>test.env.relay.snmp_pdu.ip.label</source>
-        <translation>IP Address</translation>
+        <translation type="vanished">IP Address</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1037"/>
         <source>test.env.relay.snmp_pdu.ip.description</source>
-        <translation>SNMP PDU address.</translation>
+        <translation type="vanished">SNMP PDU address.</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1042"/>
         <source>test.env.relay.snmp_pdu.port.label</source>
-        <translation>Outlet Port</translation>
+        <translation type="vanished">Outlet Port</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1001"/>
         <source>test.env.relay.usb_relay.port.label</source>
-        <translation>Serial Port</translation>
+        <translation type="vanished">Serial Port</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1005"/>
         <source>test.env.relay.usb_relay.port.description</source>
-        <translation>USB relay serial port, for example COM4.</translation>
+        <translation type="vanished">USB relay serial port, for example COM4.</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1010"/>
-        <source>test.env.relay.usb_relay.mode.label</source>
-        <translation>Wiring Mode</translation>
+        <source>test.env.relay.usb_relay.terminals.label</source>
+        <translation type="vanished">Terminals</translation>
     </message>
     <message>
-        <location filename="bridge/TestPageBridge.py" line="1021"/>
-        <source>test.env.relay.usb_relay.press_seconds.label</source>
-        <translation>Press Seconds</translation>
+        <source>test.env.relay.usb_relay.terminals.description</source>
+        <translation type="vanished">Add one row for each relay terminal on the selected serial port.</translation>
+    </message>
+    <message>
+        <source>Add terminal</source>
+        <translation type="vanished">Add terminal</translation>
+    </message>
+    <message>
+        <source>Terminal</source>
+        <translation type="vanished">Terminal</translation>
+    </message>
+    <message>
+        <source>Wiring mode</source>
+        <translation type="vanished">Wiring mode</translation>
+    </message>
+    <message>
+        <source>Press seconds</source>
+        <translation type="vanished">Press seconds</translation>
+    </message>
+    <message>
+        <source>Remove terminal</source>
+        <translation type="vanished">Remove terminal</translation>
+    </message>
+    <message>
+        <source>test.env.serial.label</source>
+        <translation type="vanished">Serial</translation>
+    </message>
+    <message>
+        <source>test.env.serial.type.uart</source>
+        <translation type="vanished">UART</translation>
+    </message>
+    <message>
+        <source>test.env.serial.port.label</source>
+        <translation type="vanished">Serial Tool</translation>
+    </message>
+    <message>
+        <source>test.env.serial.port.description</source>
+        <translation type="vanished">Select a mounted serial port, for example COM3.</translation>
+    </message>
+    <message>
+        <source>test.env.serial.baud.label</source>
+        <translation type="vanished">Baud Rate</translation>
     </message>
 </context>
 </TS>

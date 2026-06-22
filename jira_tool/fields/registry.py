@@ -1,13 +1,13 @@
 ﻿from __future__ import annotations
 
 from dataclasses import dataclass
-import logging
 import re
 from typing import Iterable
 
 from jira_tool.cache.metadata_cache import JiraFieldMetadataCache
 from jira_tool.core.models import JiraFieldMetadata
 from jira_tool.fields.specs import FieldSpec
+from tools.logging import smart_log
 
 
 @dataclass(frozen=True)
@@ -164,11 +164,14 @@ class FieldRegistry:
             if self._normalize_name(alias) == self._normalize_name(canonical_spec.name):
                 continue
             if self._alias_conflicts(alias, canonical_spec):
-                logging.debug(
+                smart_log(
                     "Skipping conflicting Jira field alias '%s' for field_id=%s name=%s",
                     alias,
                     metadata.field_id,
                     metadata.name,
+                    level="debug",
+                    domain="jira",
+                    source="jira.fields.registry",
                 )
                 continue
             accepted_aliases.append(alias)

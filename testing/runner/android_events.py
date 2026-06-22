@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import re
 from dataclasses import dataclass, field
 import uuid
@@ -9,6 +8,7 @@ from testing.runtime.events import current_case_nodeid, current_step, emit_event
 
 
 _DYNAMIC_STEP_ID_RE = re.compile(r"^(?P<prefix>.+?)\.(?P<marker>cycle|loop)\.(?P<index>\d+)\.(?P<tail>.+)$", re.IGNORECASE)
+_PLANNED_REPEAT_STEP_ID_RE = re.compile(r"^(?P<prefix>.+?)\.(?P<marker>cycle|loop)\.(?P<tail>.+)$", re.IGNORECASE)
 _STAGE_LOOP_RE = re.compile(r"\b(?P<marker>cycle|loop)\s+(?P<index>\d+)\s*/\s*(?P<total>\d+)\b", re.IGNORECASE)
 _TERMINAL_STATUSES = {"passed", "failed", "skipped", "stopped"}
 
@@ -59,6 +59,9 @@ class _Step:
                 step_id=self.step_id,
                 case_nodeid=case_nodeid,
                 status=status,
+                title=self.title,
+                kind=self.kind,
+                definition_id=self.definition_id,
                 error=error,
                 actual=actual,
             )
@@ -107,6 +110,12 @@ class AndroidClientStageTracker:
     def observe_snapshot(self, snapshot: Mapping[str, object]) -> None:
         if not self._parent.enabled:
             return
+        self.evidence(
+            "android snapshot",
+            "",
+            evidence_type="status",
+            level="info",
+        )
         self._sync_planned_steps(snapshot)
         self._sync_step_states(snapshot)
         if self._planned_steps:
@@ -157,7 +166,24 @@ class AndroidClientStageTracker:
             raw_id = str(item.get("id", "") or "").strip()
             step = self._planned_steps.get(raw_id) or self._dynamic_step(raw_id=raw_id, snapshot=snapshot)
             if step is None:
+                self._parent.evidence(
+                    "[steps.debug.android_unresolved]",
+                    {
+                        "raw_id": raw_id,
+                        "status": str(item.get("status", "") or ""),
+                        "currentStage": str(snapshot.get("currentStage", "") or ""),
+                        "currentLoop": snapshot.get("currentLoop", ""),
+                        "totalLoops": snapshot.get("totalLoops", ""),
+                        "known_planned_ids": sorted(self._planned_steps.keys()),
+                        "known_dynamic_ids": sorted(self._dynamic_steps.keys()),
+                    },
+                    evidence_type="log",
+                    level="warning",
+                )
                 continue
+            runtime_title = self._runtime_step_title(raw_id=raw_id, step=step, snapshot=snapshot)
+            if runtime_title:
+                step.title = runtime_title
             status = str(item.get("status", "") or "").strip()
             if status == "running":
                 step.start()
@@ -188,11 +214,34 @@ class AndroidClientStageTracker:
         match = _DYNAMIC_STEP_ID_RE.match(raw_id)
         if match is None:
             return raw_id
-        stage_match = _STAGE_LOOP_RE.search(str(snapshot.get("currentStage", "") or ""))
-        total = stage_match.group("total") if stage_match else str(snapshot.get("totalLoops", "") or "")
+        marker, index, total = self._snapshot_loop_marker(snapshot)
         label = f"{match.group('marker').capitalize()} {match.group('index')}"
+        if marker:
+            label = f"{marker.capitalize()} {match.group('index')}"
         tail = match.group("tail").replace("_", " ")
         return f"{label}/{total}: {tail}" if total else f"{label}: {tail}"
+
+    def _runtime_step_title(self, *, raw_id: str, step: _Step, snapshot: Mapping[str, object]) -> str:
+        dynamic_match = _DYNAMIC_STEP_ID_RE.match(raw_id)
+        if dynamic_match is not None:
+            return self._dynamic_step_title(raw_id=raw_id, snapshot=snapshot)
+        planned_match = _PLANNED_REPEAT_STEP_ID_RE.match(raw_id)
+        if planned_match is None:
+            return step.title
+        marker, index, total = self._snapshot_loop_marker(snapshot)
+        if not index or not total:
+            return step.title
+        title = str(step.title or raw_id)
+        suffix = re.sub(r"^(Cycle|Loop)\s*(\d+\s*/\s*\d+)?\s*:\s*", "", title, count=1, flags=re.IGNORECASE).strip()
+        prefix = marker.capitalize() if marker else planned_match.group("marker").capitalize()
+        return f"{prefix} {index}/{total}: {suffix or planned_match.group('tail').replace('_', ' ')}"
+
+    def _snapshot_loop_marker(self, snapshot: Mapping[str, object]) -> tuple[str, str, str]:
+        stage_match = _STAGE_LOOP_RE.search(str(snapshot.get("currentStage", "") or ""))
+        marker = stage_match.group("marker") if stage_match else ""
+        index = stage_match.group("index") if stage_match else str(snapshot.get("currentLoop", "") or "")
+        total = stage_match.group("total") if stage_match else str(snapshot.get("totalLoops", "") or "")
+        return marker, index, total
 
     def _dynamic_step_kind(self, tail: str) -> str:
         normalized = str(tail or "").lower()

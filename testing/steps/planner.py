@@ -144,16 +144,30 @@ def _fallback_plan() -> list[dict[str, Any]]:
 
 
 def _trace_plan(source: str, *, nodeid: str, steps: list[dict[str, Any]], case_parameters: dict[str, Any]) -> None:
-    print(
-        "[steps.plan] "
-        f"source={source} nodeid={nodeid} count={len(steps)} "
-        f"config_keys={','.join(sorted(str(key) for key in case_parameters)) or '<none>'}"
+    from tools.logging import smart_log
+
+    smart_log(
+        "steps.plan source=%s nodeid=%s count=%s config_keys=%s",
+        source,
+        nodeid,
+        len(steps),
+        ",".join(sorted(str(key) for key in case_parameters)) or "<none>",
+        level="debug",
+        domain="test",
+        source="testing.steps.planner",
+        case_nodeid=nodeid,
     )
     for index, step in enumerate(steps, start=1):
-        print(
-            "[steps.plan.item] "
-            f"index={index} id={str(step.get('id', '') or '<empty>')} "
-            f"kind={str(step.get('kind', '') or '<empty>')} "
-            f"definition_id={str(step.get('definition_id', '') or '<empty>')} "
-            f"title={str(step.get('title', '') or '<empty>')}"
+        smart_log(
+            "steps.plan.item index=%s id=%s kind=%s definition_id=%s title=%s",
+            index,
+            str(step.get("id", "") or "<empty>"),
+            str(step.get("kind", "") or "<empty>"),
+            str(step.get("definition_id", "") or "<empty>"),
+            str(step.get("title", "") or "<empty>"),
+            level="debug",
+            domain="test",
+            source="testing.steps.planner",
+            case_nodeid=nodeid,
+            step_id=str(step.get("id", "") or ""),
         )

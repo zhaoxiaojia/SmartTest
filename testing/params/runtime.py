@@ -65,16 +65,23 @@ class RuntimeParamResolver:
         for field in self._registry.fields_by_key.values():
             key = str(field.key or "").strip()
             if key.startswith(prefix) and field.default not in (None, ""):
-                resolved[key] = wire_string(field.default, value_type=field.type)
+                rendered_default = wire_string(field.default, value_type=field.type)
+                if _omit_apk_param_value(rendered_default):
+                    continue
+                resolved[key] = rendered_default
         for key, value in self.raw_case_values(nodeid).items():
             normalized_key = str(key or "").strip()
             if not normalized_key.startswith(prefix):
                 continue
             field = self._registry.get_param(normalized_key)
-            resolved[normalized_key] = wire_string(
+            rendered_value = wire_string(
                 self.normalize_for_key(normalized_key, value),
                 value_type=field.type if field is not None else None,
             )
+            if _omit_apk_param_value(rendered_value):
+                resolved.pop(normalized_key, None)
+                continue
+            resolved[normalized_key] = rendered_value
         return resolved
 
 
@@ -83,3 +90,8 @@ _RUNTIME_PARAMS = RuntimeParamResolver()
 
 def runtime_params() -> RuntimeParamResolver:
     return _RUNTIME_PARAMS
+
+
+def _omit_apk_param_value(value: Any) -> bool:
+    text = str(value or "").strip()
+    return text.lower() == "none"

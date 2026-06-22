@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 import signal
@@ -15,6 +14,7 @@ import pytest
 from testing.tool.dut_tool.duts.base import BaseDut
 from testing.tool.dut_tool.features.device_ui import UiautomatorTool
 from testing.tool.dut_tool.features.wifi import WifiConnectParams
+from tools.logging import smart_log
 
 
 def connect_again(func):
@@ -132,7 +132,7 @@ class android(BaseDut):
         cmd = f"cmd wifi start-scan;sleep {scan_wait};cmd wifi list-scan-results"
         for _ in range(attempts):
             info = self.checkoutput(cmd)
-            logging.info(info)
+            smart_log(info, level="info")
             if ssid in info:
                 return True
             time.sleep(interval)
@@ -142,7 +142,7 @@ class android(BaseDut):
         list_networks_cmd = "cmd wifi list-networks"
         output = self.checkoutput(list_networks_cmd)
         if "No networks" in output:
-            logging.debug("has no wifi connect")
+            smart_log("has no wifi connect", level="debug")
             return None
 
         network_ids = re.findall(r"\n(\d+)\s", output)
@@ -150,7 +150,7 @@ class android(BaseDut):
             forget_wifi_cmd = "cmd wifi forget-network {}".format(int(net_id))
             output1 = self.checkoutput(forget_wifi_cmd)
             if "successful" in output1:
-                logging.info(f"Network id {net_id} closed")
+                smart_log(f"Network id {net_id} closed", level="info")
         return None
 
     def push_iperf(self):
@@ -190,7 +190,7 @@ class android(BaseDut):
             if self.live:
                 return
             self.live = True
-            logging.debug('Adb status is on')
+            smart_log('Adb status is on', level="debug")
 
     def set_status_off(self):
         """
@@ -209,7 +209,7 @@ class android(BaseDut):
             if not self.live:
                 return
             self.live = False
-            logging.debug('Adb status is Off')
+            smart_log('Adb status is Off', level="debug")
 
     def _u_impl(self, *, type="u2"):
         """
@@ -412,7 +412,7 @@ class android(BaseDut):
         None
             This method does not return a value.
         """
-        logging.info("Stop app(%s)" % app_name)
+        smart_log("Stop app(%s)" % app_name, level="info")
         self.checkoutput("am force-stop %s" % app_name)
 
     def clear_app_data(self, app_name):
@@ -690,7 +690,6 @@ class android(BaseDut):
         except Exception as e:
             ...
         command = self.adb_command("shell am start -a", intentname, "-n", packageName + "/" + activityName)
-        logging.info(command)
         self.checkoutput_term(command)
 
     def pull(self, filepath, destination):
@@ -739,7 +738,6 @@ class android(BaseDut):
             This method does not return a value.
         """
         command = self.adb_command("push", filepath, destination)
-        logging.info(command)
         self.checkoutput_term(command)
 
     def shell(self, cmd):
@@ -806,7 +804,6 @@ class android(BaseDut):
         """
         apk_path = os.path.join(os.getcwd(), 'res\\' + apk_path)
         cmd = f'install -r -t {apk_path}'
-        logging.info(cmd)
         return self.checkoutput_shell(cmd)
 
     def uninstall_apk(self, apk_name):
@@ -831,15 +828,13 @@ class android(BaseDut):
             The result produced by the function.
         """
         cmd = f'uninstall {apk_name}'
-        logging.info(cmd)
         output = self.checkoutput_shell(cmd)
         time.sleep(5)
-        logging.info(output)
         if 'Success' in output:
-            logging.info('APK uninstall successful')
+            smart_log('APK uninstall successful', level="info")
             return True
         else:
-            logging.info('APK uninstall failed')
+            smart_log('APK uninstall failed', level="info")
             return False
 
     def get_time(self, time=None):
@@ -935,7 +930,7 @@ class android(BaseDut):
         """
         if not filepath:
             filepath = self.logdir
-        logging.debug('doing uiautomator dump')
+        smart_log('doing uiautomator dump', level="debug")
         if uiautomator_type == 'u2':
             xml = self.u().d2.dump_hierarchy()
         else:
@@ -943,10 +938,10 @@ class android(BaseDut):
             xml = self.u(type=uiautomator_type).d1.dump()
         if not filepath.endswith('view.xml'):
             filepath += self.DUMP_FILE
-        logging.debug(filepath)
+        smart_log(filepath, level="debug")
         with open(filepath, 'w+', encoding='utf-8') as f:
             f.write(xml)
-        logging.debug('uiautomator dump done')
+        smart_log('uiautomator dump done', level="debug")
 
     def get_dump_info(self):
         """
@@ -1016,7 +1011,7 @@ class android(BaseDut):
                     cmd = "pngtest " + str(png_type)
                     self.checkoutput(cmd)
             else:
-                logging.info("please check the set screen layer arg")
+                smart_log("please check the set screen layer arg", level="info")
 
     def screenshot(self, destination, layer="osd", app_level=28):
         """
@@ -1094,12 +1089,12 @@ class android(BaseDut):
             for i in range(screenshot_counter):
                 i = i + 1
                 devicePath = dirs + "/" + str(i) + ".bmp"
-                logging.info(devicePath)
+                smart_log(devicePath, level="info")
                 destination_temp = self.logdir + "/" + "screencatch_" + destination + "_" + str(i) + ".bmp"
                 self.pull(devicePath, destination_temp)
                 time.sleep(2)
         else:
-            logging.info('you can use screenshot cmd')
+            smart_log('you can use screenshot cmd', level="info")
         self.rm("-r", dirs)
 
     def screencatch(self, layer="osd+video", counter=1):
@@ -1128,7 +1123,6 @@ class android(BaseDut):
         else:
             capture_type = "0"
         cmd = "screencatch -m " + " -t " + capture_type + " -c " + str(counter)
-        logging.info(cmd)
         self.run_shell_cmd(cmd)
 
     def video_record(self, destination, app_level=28, record_time=30, sleep_time=30,
@@ -1172,7 +1166,6 @@ class android(BaseDut):
             os.kill(video_record.pid, signal.SIGTERM)
         else:
             cmd = "tspacktest -f " + str(frame) + " -b " + str(bits) + " -t " + str(type) + " -s " + str(record_time)
-            logging.info(cmd)
             self.run_shell_cmd(cmd)
         time.sleep(2)
         video = dirs + "/video.ts"
@@ -1236,7 +1229,7 @@ class android(BaseDut):
                 return True
             i = i + 1
             time.sleep(5)
-            logging.debug("Still waiting..")
+            smart_log("Still waiting..", level="debug")
         return False
 
     def wait_and_tap(self, searchKey, attribute, times=5):
@@ -1317,15 +1310,15 @@ class android(BaseDut):
         Any
             The result produced by the function.
         """
-        logging.info(f'find {searchKey}')
+        smart_log(f'find {searchKey}', level="info")
         filepath = os.path.join(self.logdir, self.DUMP_FILE)
         self.uiautomator_dump(filepath)
         xml_file = minidom.parse(filepath)
         itemlist = xml_file.getElementsByTagName('node')
         for item in itemlist:
             if searchKey == item.attributes[attribute].value:
-                logging.info(
-                    item.attributes[attribute].value if extractKey is None else item.attributes[extractKey].value)
+                smart_log(
+                    item.attributes[attribute].value if extractKey is None else item.attributes[extractKey].value, level="info")
                 return item.attributes[attribute].value if extractKey is None else item.attributes[extractKey].value
         return None
 
@@ -1350,25 +1343,25 @@ class android(BaseDut):
         Any
             The result produced by the function.
         """
-        logging.info('find_pos')
+        smart_log('find_pos', level="info")
         filepath = self.logdir + self.DUMP_FILE
         self.uiautomator_dump(filepath)
         xml_file = minidom.parse(filepath)
         itemlist = xml_file.getElementsByTagName('node')
         bounds = None
         for item in itemlist:
-            logging.debug(f'try to find {searchKey} - {item.attributes[attribute].value}')
+            smart_log(f'try to find {searchKey} - {item.attributes[attribute].value}', level="debug")
             if searchKey == item.attributes[attribute].value:
                 bounds = item.attributes['bounds'].value
                 break
         if bounds is None:
-            logging.error("attr: %s not found" % attribute)
+            smart_log("attr: %s not found" % attribute, level="error")
             return -1, -1
         bounds = re.findall(r'\[(\d+)\,(\d+)\]', bounds)
         x_start, y_start = bounds[0]
         x_end, y_end = bounds[1]
         x_midpoint, y_midpoint = (int(x_start) + int(x_end)) / 2, (int(y_start) + int(y_end)) / 2
-        logging.info(f'{x_midpoint} {y_midpoint}')
+        smart_log(f'{x_midpoint} {y_midpoint}', level="info")
         return (x_midpoint, y_midpoint)
 
     def find_and_tap(self, searchKey, attribute):
@@ -1394,7 +1387,7 @@ class android(BaseDut):
         Any
             The result produced by the function.
         """
-        logging.info(f'find_and_tap {searchKey}')
+        smart_log(f'find_and_tap {searchKey}', level="info")
         x_midpoint, y_midpoint = self.find_pos(searchKey, attribute)
         if (x_midpoint, y_midpoint) != (-1, -1):
             self.tap(x_midpoint, y_midpoint)
@@ -1527,7 +1520,6 @@ class android(BaseDut):
             The result produced by the function.
         """
         cmd = self.adb_command(command)
-        logging.debug(f"command:{cmd}")
         return self.command_runner.popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def checkoutput(self, command):
@@ -1625,7 +1617,7 @@ class android(BaseDut):
                     connect_status = True
                     break
             except Exception as exc:  # pragma: no cover - hardware dependent
-                logging.info(exc)
+                smart_log(exc, level="info")
                 connect_status = False
         return connect_status
 
@@ -1646,10 +1638,10 @@ class android(BaseDut):
         self.clear_logcat()
         file_list = self.checkoutput("ls /vendor/lib/modules")
         if 'vlsicomm.ko' in file_list:
-            logging.info('Wifi driver is exists')
+            smart_log('Wifi driver is exists', level="info")
             return True
         else:
-            logging.info('Wifi driver is not exists')
+            smart_log('Wifi driver is not exists', level="info")
             return False
 
     def get_mcs_rx(self):
@@ -1670,10 +1662,10 @@ class android(BaseDut):
             self.checkoutput(self.CLEAR_DMESG_COMMAND)
             self.checkoutput(self.MCS_RX_GET_COMMAND)
             mcs_info = self.checkoutput(self.DMESG_COMMAND)
-            logging.info("mcs_rx all result: %s", mcs_info)
+            smart_log("mcs_rx all result: %s", mcs_info, level="info")
             result = re.findall(r'RX rate info for \w\w:\w\w:\w\w:\w\w:\w\w:\w\w:(.*?)Last received rate', mcs_info,
                                 re.S)
-            #logging.info("mcs_rx rate result: %s", result)
+            #smart_log("mcs_rx rate result: %s", result, level="info")
             result_list = []
             for i in result[0].split('\n'):
                 if ':' in i:
@@ -1682,7 +1674,7 @@ class android(BaseDut):
             result_list = [(i[0], float(i[1][:-1].strip())) for i in result_list]
 
             result_list.sort(key=lambda x: x[1], reverse=True)
-            logging.info(result_list)
+            smart_log(result_list, level="info")
             return '|'.join(['{}:{}%'.format(i[0], i[1]) for i in result_list[:3]])
         except Exception as e:
             return 'mcs_rx'
@@ -1705,7 +1697,7 @@ class android(BaseDut):
             self.checkoutput(self.CLEAR_DMESG_COMMAND)
             self.checkoutput(self.MCS_TX_GET_COMMAND)
             mcs_info = self.checkoutput(self.DMESG_COMMAND)
-            logging.info("mcs_tx all result: %s", mcs_info)
+            smart_log("mcs_tx all result: %s", mcs_info, level="info")
             result = re.findall(
                 #r'TX rate info for [\w:]+:\s*\n(.*?MPDUs AMPDUs AvLen trialP)',
                 r'(TX rate info for [\w:]+:\s*\n(?:\s*\[.*?\]\s*\[.*?\]\s*.*\n)+?)'
@@ -1742,7 +1734,7 @@ class android(BaseDut):
         # 鎻愬彇姣忚鐨?MCS 鍜?skipped
         for line in data_lines:
             line = line.strip()
-            #logging.info(f"tx_MCS_data_line: {line}")
+            #smart_log(f"tx_MCS_data_line: {line}", level="info")
             if not line:
                 continue
             # 鍖归厤 MCSx/y skipped
@@ -1817,7 +1809,7 @@ class android(BaseDut):
         count = 0
         while True:
             info = self.checkoutput(f'ifconfig {type}')
-            logging.info(info)
+            smart_log(info, level="info")
             if recv in info:
                 break
             time.sleep(10)
@@ -1847,7 +1839,7 @@ class android(BaseDut):
                 ...
             if 'Displayed com.google.android.tvlauncher/.MainActivity' in line:
                 time.sleep(1)
-                logging.info('wait for launcher')
+                smart_log('wait for launcher', level="info")
                 break
         log.terminate()
         log.send_signal(signal.SIGINT)
@@ -1866,7 +1858,7 @@ class android(BaseDut):
             A value of type ``None``.
         """
         self.app_stop(self.SETTING_ACTIVITY_TUPLE[0])
-        logging.info('Enter wifi activity')
+        smart_log('Enter wifi activity', level="info")
         self.start_activity(*self.SETTING_ACTIVITY_TUPLE)
         self.wait_element('Network & Internet', 'text')
         self.wait_and_tap('Network & Internet', 'text')
@@ -2010,7 +2002,7 @@ class android(BaseDut):
         time.sleep(5)
         assert self.serialnumber not in self.checkoutput_term('adb devices'), 'Factory reset fail'
         self.wait_devices()
-        logging.info('device done')
+        smart_log('device done', level="info")
 
     def get_wifi_cmd(self, router_info):
         """
@@ -2042,6 +2034,6 @@ class android(BaseDut):
         # Hide SSID if the flag is set to a truthy value
         if router_info.hide_ssid in ('yes', 'true', True):
             cmd += self.CMD_WIFI_HIDE
-        logging.info(f'conn wifi cmd :{cmd}')
+        smart_log(f'conn wifi cmd :{cmd}', level="info")
         return cmd
 

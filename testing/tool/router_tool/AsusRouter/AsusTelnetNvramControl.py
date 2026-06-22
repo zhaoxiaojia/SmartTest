@@ -6,7 +6,7 @@ This module is part of the AsusRouter package.
 
 from __future__ import annotations
 
-import logging,re
+import re
 import time
 from typing import List, Optional, Union
 
@@ -15,6 +15,7 @@ from .AsusBaseControl import AsusBaseControl
 from testing.tool.dut_tool.transports.telnet_tool import TelnetSession
 from ..router_telnet_control import TelnetVerifier
 from ..RouterControl import REGION_CHANNEL_MAP, RouterTools
+from tools.logging import smart_log
 
 
 class AsusTelnetNvramControl(AsusBaseControl):
@@ -105,11 +106,12 @@ class AsusTelnetNvramControl(AsusBaseControl):
         self._wl1_chanspec_suffix: str | None = '80'
         self._last_wl1_chanspec: str | None = None
         self._wl1_bandwidth_map = dict(self.WL1_BANDWIDTH_MAP)
-        logging.info(
+        smart_log(
             "AsusTelnetNvramControl init: router=%s host=%s prompt=%s",
             self.router_info,
             self.host,
             self.prompt,
+            level="info",
         )
         if self.router_info in {'asus_88u', 'asus_88u_pro', 'asus_86u',}:
             self._wl1_bandwidth_map.update({
@@ -134,7 +136,7 @@ class AsusTelnetNvramControl(AsusBaseControl):
                     This function does not return a value.
         """
         self._is_logged_in = False
-        logging.info("Telnet login start: host=%s port=%s", self.host, self.port)
+        smart_log("Telnet login start: host=%s port=%s", self.host, self.port, level="info")
 
         if self.telnet is not None:
             try:
@@ -181,7 +183,7 @@ class AsusTelnetNvramControl(AsusBaseControl):
             raise
 
         self._is_logged_in = True
-        logging.info("Telnet login success")
+        smart_log("Telnet login success", level="info")
 
     def _ensure_connection(self) -> None:
         """
@@ -200,7 +202,7 @@ class AsusTelnetNvramControl(AsusBaseControl):
             or self.telnet is None
             or not getattr(self.telnet, "is_connected", lambda: False)()
         ):
-            logging.info("Telnet reconnect required (logged_in=%s)", self._is_logged_in)
+            smart_log("Telnet reconnect required (logged_in=%s)", self._is_logged_in, level="info")
             self._login()
 
     def telnet_write(
@@ -234,7 +236,7 @@ class AsusTelnetNvramControl(AsusBaseControl):
         else:
             data = cmd + (b'' if cmd.endswith(b'\n') else b'\n')
 
-        logging.info("Executing: %r", cmd)
+        smart_log("Executing: %r", cmd, level="info")
         try:
             assert self.telnet is not None
             self.telnet.write(data)
@@ -242,9 +244,9 @@ class AsusTelnetNvramControl(AsusBaseControl):
                 self.telnet.read_until(self.prompt, timeout=timeout)
         except Exception as exc:
             self._is_logged_in = False
-            logging.error("Telnet command %r failed: %s", cmd, exc, exc_info=True)
+            smart_log("Telnet command %r failed: %s", cmd, exc, exc_info=True, level="error")
             if retry_once:
-                logging.info("Telnet retry once: %r", cmd)
+                smart_log("Telnet retry once: %r", cmd, level="info")
                 if self.telnet is not None:
                     try:
                         self.telnet.close()
@@ -261,11 +263,11 @@ class AsusTelnetNvramControl(AsusBaseControl):
             Ensure prompt is ready before issuing a new batch of commands.
         """
         try:
-            logging.info("Telnet ensure prompt ready")
+            smart_log("Telnet ensure prompt ready", level="info")
             self.telnet_write('', wait_prompt=True, timeout=5)
         except Exception:
             self._is_logged_in = False
-            logging.info("Telnet prompt ready failed, relogin")
+            smart_log("Telnet prompt ready failed, relogin", level="info")
             self._login()
 
     @staticmethod
@@ -386,10 +388,10 @@ class AsusTelnetNvramControl(AsusBaseControl):
                     try:
                         self.telnet_write('exit')
                     except Exception:
-                        logging.exception('Telnet exit command failed')
+                        smart_log('Telnet exit command failed', level="error", exc_info=True)
                 self.telnet.close()
         except Exception as exc:
-            logging.error("Telnet quit failed: %s", exc)
+            smart_log("Telnet quit failed: %s", exc, level="error")
         finally:
             self.telnet = None
             self._is_logged_in = False
@@ -706,9 +708,10 @@ class AsusTelnetNvramControl(AsusBaseControl):
         self.telnet_write('nvram commit;', wait_prompt=True, timeout=60)
         self.telnet_write('restart_wireless &', wait_prompt=False)
         output = self._wait_restart_wireless_output(timeout=180, idle_window=3)
-        logging.info(
+        smart_log(
             "===== restart_wireless output begin =====\n%s\n===== restart_wireless output end =====",
             output,
+            level="info",
         )
 
     def _wait_restart_wireless_output(self, *, timeout: int, idle_window: int) -> str:
@@ -784,7 +787,7 @@ class AsusTelnetNvramControl(AsusBaseControl):
                 bool
                     Description of the returned value.
         """
-        logging.info("Router change_setting start: band=%s ssid=%s", router.band, router.ssid)
+        smart_log("Router change_setting start: band=%s ssid=%s", router.band, router.ssid, level="info")
         self._ensure_prompt_ready()
         try:
             if router.ssid:
@@ -830,10 +833,10 @@ class AsusTelnetNvramControl(AsusBaseControl):
 
             self.commit()
             time.sleep(3)
-            logging.info('Router setting done')
+            smart_log('Router setting done', level="info")
             return True
         finally:
-            logging.info("Router change_setting cleanup: quit telnet")
+            smart_log("Router change_setting cleanup: quit telnet", level="info")
             self.quit()
     
     def set_hidden_ssid(self, hide_2g: bool = False, hide_5g: bool = False) -> None:
@@ -848,7 +851,7 @@ class AsusTelnetNvramControl(AsusBaseControl):
             True means 5G SSID锛圓X86U_5G锛?
         """
         # hiddle: wlX_closed
-        logging.info(f"set_hidden_ssid called with hide_2g={hide_2g}, hide_5g={hide_5g}")
+        smart_log(f"set_hidden_ssid called with hide_2g={hide_2g}, hide_5g={hide_5g}", level="info")
         self.telnet_write(f"nvram set wl0_closed={'1' if hide_2g else '0'};")
         self.telnet_write(f"nvram set wl1_closed={'1' if hide_5g else '0'};")
 
@@ -860,10 +863,10 @@ class AsusTelnetNvramControl(AsusBaseControl):
 
         # wait restart_wireless
         output = self._wait_restart_wireless_output(timeout=180, idle_window=3)
-        logging.info(
+        smart_log(
             "===== restart_wireless output (hidden SSID applied) begin =====\n%s\n===== end =====",
             output,
-        )
+        level="info")
 
     def set_wep_mode_dual_band(
             self,
@@ -879,7 +882,7 @@ class AsusTelnetNvramControl(AsusBaseControl):
             wep_key: WEP key (10 hex chars for 64-bit, 26 for 128-bit)
             bands: List of bands to configure, e.g., ['2g'], ['5g'], or ['2g', '5g']
         """
-        logging.info(f"馃敡 Setting WEP mode ({key_type}) on bands: {bands}")
+        smart_log(f"馃敡 Setting WEP mode ({key_type}) on bands: {bands}", level="info")
 
         # Validate inputs
         crypto_map = {'64-bit': 'wep64', '128-bit': 'wep128'}
@@ -899,11 +902,11 @@ class AsusTelnetNvramControl(AsusBaseControl):
         # Apply configuration to selected bands
         for band in bands:
             if band not in band_map:
-                logging.warning(f"Skipping unsupported band: {band}")
+                smart_log(f"Skipping unsupported band: {band}", level="warning")
                 continue
 
             prefix = band_map[band]
-            logging.info(f"  鈫?Configuring {band.upper()} ({prefix})")
+            smart_log(f"  鈫?Configuring {band.upper()} ({prefix})", level="info")
 
             self.telnet_write(f'nvram set {prefix}_auth_mode_x=shared;')
             self.telnet_write(f'nvram set {prefix}_wep=enabled;')
@@ -915,7 +918,7 @@ class AsusTelnetNvramControl(AsusBaseControl):
         self.telnet_write('nvram commit;')
         self.telnet_write('service restart_wireless;')
 
-        logging.info("鉁?Dual-band WEP configuration completed")
+        smart_log("鉁?Dual-band WEP configuration completed", level="info")
 
     def set_pmf(self, band: str, mode: str) -> None:
         """
@@ -946,9 +949,9 @@ class AsusTelnetNvramControl(AsusBaseControl):
             self.telnet_write('nvram commit')
             self.telnet_write('restart_wireless')
 
-            logging.info(f"PMF for {band} set to '{mode}' and applied successfully.")
+            smart_log(f"PMF for {band} set to '{mode}' and applied successfully.", level="info")
         except Exception as e:
-            logging.error(f"Failed to set and commit PMF for {band}: {e}")
+            smart_log(f"Failed to set and commit PMF for {band}: {e}", level="error")
             raise
 
         self.telnet.close()
@@ -985,7 +988,7 @@ class AsusTelnetNvramControl(AsusBaseControl):
             host = router.host
             password = str(router.xpath["passwd"])
         except (AttributeError, KeyError) as e:
-            logging.error(f"Failed to extract router credentials: {e}")
+            smart_log(f"Failed to extract router credentials: {e}", level="error")
             return result
         lookup_country = dut_country_code if dut_country_code is not None else country_code
         upper_lookup_cc = lookup_country.upper()
@@ -1013,20 +1016,20 @@ class AsusTelnetNvramControl(AsusBaseControl):
                 else:
                     verified_cc2 = re.sub(r'\s+', '', raw_cc2.split()[0] if raw_cc2.split() else "")
 
-                logging.info(f"Country code set to  {verified_cc2}")
+                smart_log(f"Country code set to  {verified_cc2}", level="info")
                 expected_driver_code = RouterTools.UI_TO_DRIVER_COUNTRY_MAP.get(country_code, country_code)
                 if country_code == 'EU':
                     if verified_cc2 not in ('E0', 'DE'):
                         error_msg = f"EU region expected 'E0' or 'DE', got '{verified_cc2}'"
-                        logging.error(error_msg)
+                        smart_log(error_msg, level="error")
                         raise RuntimeError(error_msg)
                 elif verified_cc2 != expected_driver_code:
                     error_msg = f"Driver country code mismatch: expected '{expected_driver_code}', got '{verified_cc2}'"
-                    logging.error(error_msg)
+                    smart_log(error_msg, level="error")
                     raise RuntimeError(error_msg)
 
                 if verified_cc != country_code:
-                    logging.warning(f"NVRAM country code ('{verified_cc}') differs from driver ('{verified_cc2}')")
+                    smart_log(f"NVRAM country code ('{verified_cc}') differs from driver ('{verified_cc2}')", level="warning")
                 result['verified_country_code'] = verified_cc2
 
                 # Wait some minutes to makesure channel list takes affect, Get channel lists
@@ -1035,17 +1038,17 @@ class AsusTelnetNvramControl(AsusBaseControl):
                     chan_map = REGION_CHANNEL_MAP[upper_lookup_cc]
                     result['2g_channels'] = chan_map['2g']
                     result['5g_channels'] = chan_map['5g']
-                    logging.info(f"鉁?Channel lists loaded from data file: 2.4G={result['2g_channels']}")
+                    smart_log(f"鉁?Channel lists loaded from data file: 2.4G={result['2g_channels']}", level="info")
                 else:
-                    logging.warning(f"鈿狅笍 Country code {upper_lookup_cc} not found in channel data.")
+                    smart_log(f"鈿狅笍 Country code {upper_lookup_cc} not found in channel data.", level="warning")
 
                 result['country_code_set'] = True
-                logging.info(f"鉁?Country code verified as '{verified_cc2}'. "
+                smart_log(f"鉁?Country code verified as '{verified_cc2}'. "
                              f"2.4G Channels: {result['2g_channels']}, "
-                             f"5G Channels: {result['5g_channels']}")
+                             f"5G Channels: {result['5g_channels']}", level="info")
 
         except Exception as e:
-            logging.error(f"Verification failed: {e}", exc_info=True)
+            smart_log(f"Verification failed: {e}", exc_info=True, level="error")
             raise
 
         return result

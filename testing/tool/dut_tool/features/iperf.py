@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import os
 import re
 import shutil
@@ -19,6 +18,7 @@ from testing.tool.dut_tool.command_batch import (
     CommandRunner,
 )
 from testing.tool.wifi_lab_tool.ixchariot import ix
+from tools.logging import smart_log
 
 
 @dataclass
@@ -103,15 +103,14 @@ def kill_iperf(self):
     commands: list[str] = []
     commands.append(IPERF_WIN_KILL.format(self.test_tool))
     dut_kill_cmd = IPERF_KILL.format(self.test_tool)
-    logging.info(f"DUT kill iperf command: {dut_kill_cmd}")
     try:
         _ = self.checkoutput(dut_kill_cmd)
     except Exception as e:
-        logging.warning(e)
+        smart_log(e, level="warning")
     try:
         _run_host_commands(self, commands)
     except Exception as e:
-        logging.warning(e)
+        smart_log(e, level="warning")
 
 def _run_host_commands(self, commands: Sequence[str]) -> None:
     batch = CommandBatch(self.command_runner)
@@ -120,9 +119,9 @@ def _run_host_commands(self, commands: Sequence[str]) -> None:
     try:
         batch.run()
     except CommandExecutionError:
-        logging.debug("Host command batch reported an execution error", exc_info=True)
+        smart_log("Host command batch reported an execution error", exc_info=True, level="debug")
     except CommandTimeoutError:
-        logging.debug("Host command batch reported a timeout", exc_info=True)
+        smart_log("Host command batch reported a timeout", exc_info=True, level="debug")
 
 def push_iperf(self):
     return None
@@ -155,7 +154,7 @@ def run_iperf(self, command, adb):
             if text:
                 target_list.append(text)
                 if label:
-                    logging.info("%s %s", label, text)
+                    smart_log("%s %s", label, text, level="debug")
 
     def _read_output(proc, stream, target_list: list[str], label: str):
         if not stream:
@@ -197,10 +196,11 @@ def run_iperf(self, command, adb):
         )
         stdout, stderr = process.communicate(timeout=self.iperf_wait_time)
         if stderr:
-            logging.warning(stderr.strip())
+            smart_log(stderr.strip(), level="warning")
         if stdout:
-            logging.debug(stdout.strip())
-        logging.info("%s process return code: %s", desc, process.returncode)
+            smart_log(stdout.strip(), level="debug")
+        if process.returncode:
+            smart_log("%s process return code: %s", desc, process.returncode, level="warning")
 
     def _build_cmd_list():
         cmd_parts = command.split()
@@ -340,13 +340,14 @@ def _parse_iperf_log(self, server_lines: list[str]):
     if not server_has_summary:
         if line_count:
             if expected_intervals and line_count < expected_intervals:
-                logging.warning(
+                smart_log(
                     "iperf output only produced %d intervals (expected %d)",
                     line_count,
                     expected_intervals,
+                    level="warning",
                 )
         else:
-            logging.warning("iperf output did not contain interval lines")
+            smart_log("iperf output did not contain interval lines", level="warning")
     throughput_result = preferred_value if preferred_value is not None else None
 
     if preferred_udp:
@@ -392,7 +393,7 @@ def get_logcat(self):
             time.sleep(0.1)
     server_lines = list(self.iperf_server_log_list)
     if not server_lines:
-        logging.warning("iperf server log list is empty; no data captured")
+        smart_log("iperf server log list is empty; no data captured", level="warning")
     result = _parse_iperf_log(self, server_lines)
     self.iperf_server_log_list.clear()
     if result is None:
@@ -455,7 +456,7 @@ def get_rx_rate(self, router_info, type="TCP", corner_tool=None):
                 ix.pair = self.pair
                 rx_result = ix.run_rvr()
         except subprocess.TimeoutExpired:
-            logging.warning("iperf RX timed out; record 0 and continue retry")
+            smart_log("iperf RX timed out; record 0 and continue retry", level="warning")
             rx_result = None
 
         if rx_result is False:
@@ -530,7 +531,7 @@ def get_tx_rate(self, router_info, type="TCP", corner_tool=None):
                 ix.pair = self.pair
                 tx_result = ix.run_rvr()
         except subprocess.TimeoutExpired:
-            logging.warning("iperf TX timed out; record 0 and continue retry")
+            smart_log("iperf TX timed out; record 0 and continue retry", level="warning")
             tx_result = None
 
         if tx_result is False:

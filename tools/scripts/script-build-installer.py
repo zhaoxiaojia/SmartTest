@@ -25,13 +25,14 @@ def _python(repo_root: Path) -> str:
 
 def _run_packaging_preflight(repo_root: Path) -> None:
     python = _python(repo_root)
-    checks = [
-        [python, "-m", "pytest", "testing\\self_tests\\packaging", "-q"],
-        [python, "-m", "pytest", "testing\\self_tests\\params", "-q"],
-        [python, "-m", "compileall", "testing", "tools", "ui\\example\\bridge"],
+    pytest_dirs = [
+        repo_root / "testing" / "self_tests" / "packaging",
+        repo_root / "testing" / "self_tests" / "params",
     ]
-    for cmd in checks:
-        _run(cmd, cwd=str(repo_root))
+    for test_dir in pytest_dirs:
+        if test_dir.exists():
+            _run([python, "-m", "pytest", str(test_dir.relative_to(repo_root)), "-q"], cwd=str(repo_root))
+    _run([python, "-m", "compileall", "testing", "tools", "ui\\example\\bridge"], cwd=str(repo_root))
 
 
 def _verify_dist_runtime(repo_root: Path) -> None:
@@ -153,6 +154,7 @@ if __name__ == "__main__":
             )
         iss = os.path.join(str(repo_root), "tools", "packaging", "innosetup", "SmartTest.iss")
         _run([iscc, iss], cwd=os.path.dirname(iss))
+
         raise SystemExit(0)
 
     if sys.platform.startswith("darwin"):

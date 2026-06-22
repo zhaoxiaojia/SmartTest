@@ -8,6 +8,7 @@ from PySide6.QtCore import QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 
 from testing.reporting.store import ReportStore, filter_report_logs
+from tools.logging import ensure_log_display_fields
 
 try:
     from example.helper.AppPaths import app_data_dir
@@ -82,7 +83,10 @@ class ReportBridge(QObject):
         counts = self._counts(report)
         steps = [dict(row) for row in report.get("steps", []) if isinstance(row, dict)]
         cases = [row for row in steps if row.get("kind") == "case"]
-        logs = filter_report_logs([row for row in report.get("logs", []) if isinstance(row, dict)])
+        logs = [
+            ensure_log_display_fields(row)
+            for row in filter_report_logs([row for row in report.get("logs", []) if isinstance(row, dict)])
+        ]
         return {
             **self._summary_row(report),
             "returncode": int(report.get("returncode", 0) or 0),

@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import FluentUI 1.0
+import "../component"
 import "../global"
 
 FluPage {
@@ -13,7 +14,7 @@ FluPage {
     property string selectedRunId: ""
     property int selectedStepIndex: -1
 
-    function refreshReports(){
+    function refreshReports(preferredRunId){
         ReportBridge.refresh()
         reportRowsModel = ReportBridge.reportRows()
         if(reportRowsModel.length === 0){
@@ -23,6 +24,15 @@ FluPage {
             return
         }
         var keepIndex = 0
+        if(preferredRunId !== undefined && preferredRunId !== ""){
+            for(var preferredIndex = 0; preferredIndex < reportRowsModel.length; preferredIndex++){
+                if(reportRowsModel[preferredIndex].run_id === preferredRunId){
+                    keepIndex = preferredIndex
+                    selectReport(keepIndex)
+                    return
+                }
+            }
+        }
         for(var i = 0; i < reportRowsModel.length; i++){
             if(reportRowsModel[i].run_id === selectedRunId){
                 keepIndex = i
@@ -61,6 +71,10 @@ FluPage {
             return ({})
         }
         return rows[selectedStepIndex]
+    }
+
+    function selectedLogRows(){
+        return selectedReport.logs || []
     }
 
     function statusColor(status){
@@ -124,17 +138,25 @@ FluPage {
         return JSON.stringify(value, null, 2)
     }
 
-    function stepEvidenceText(step){
-        var evidence = step.evidence || []
-        if(evidence.length === 0){
-            return "-"
+    function detailRows(){
+        var step = selectedStep()
+        var rows = [
+            {label: qsTr("DUT"), value: selectedReport.adb_serial || qsTr("No DUT")},
+            {label: qsTr("Run Status"), value: selectedReport.status || "-"},
+            {label: qsTr("Return Code"), value: metricValue("returncode")},
+            {label: qsTr("Stopped"), value: selectedReport.stopped ? qsTr("Yes") : qsTr("No")}
+        ]
+        if(step && step.id){
+            rows.push({label: qsTr("Step Status"), value: step.status || "-"})
+            rows.push({label: qsTr("Kind"), value: step.kind || "-"})
+            rows.push({label: qsTr("Duration"), value: String(step.duration_ms || 0) + " ms"})
+            rows.push({label: qsTr("Definition"), value: step.definition_id || "-"})
+            rows.push({label: qsTr("Case"), value: step.case_nodeid || "-"})
+            if(step.error !== undefined && step.error !== null && step.error !== "" && JSON.stringify(step.error) !== "{}"){
+                rows.push({label: qsTr("Error"), value: objectText(step.error)})
+            }
         }
-        var parts = []
-        for(var i = 0; i < evidence.length; i++){
-            var item = evidence[i]
-            parts.push("[" + (item.type || "evidence") + "] " + (item.title || "Evidence") + "\n" + objectText(item.content))
-        }
-        return parts.join("\n\n")
+        return rows
     }
 
     Connections{
@@ -153,6 +175,9 @@ FluPage {
             if(!RunBridge.isRunning){
                 refreshReports()
             }
+        }
+        function onRunFinished(result){
+            refreshReports((result || {}).run_id || "")
         }
     }
 
@@ -457,41 +482,57 @@ FluPage {
                                 font: FluTextStyle.Subtitle
                             }
 
-                            Flickable{
+                            Flow{
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                Repeater{
+                                    model: detailRows()
+
+                                    delegate: Rectangle{
+                                        width: Math.min(parent.width, Math.max(170, detailValue.implicitWidth + 18))
+                                        height: detailLabel.implicitHeight + detailValue.implicitHeight + 12
+                                        radius: 4
+                                        color: FluTools.withOpacity(FluTheme.fontSecondaryColor, FluTheme.dark ? 0.08 : 0.06)
+
+                                        ColumnLayout{
+                                            anchors.fill: parent
+                                            anchors.margins: 6
+                                            spacing: 2
+
+                                            FluText{
+                                                id: detailLabel
+                                                text: modelData.label
+                                                font: FluTextStyle.Caption
+                                                color: FluTheme.fontSecondaryColor
+                                                elide: Text.ElideRight
+                                                Layout.fillWidth: true
+                                            }
+
+                                            FluText{
+                                                id: detailValue
+                                                text: modelData.value
+                                                font: FluTextStyle.Caption
+                                                color: modelData.label === qsTr("Error") ? statusColor("failed") : FluTheme.fontPrimaryColor
+                                                elide: Text.ElideMiddle
+                                                maximumLineCount: 2
+                                                wrapMode: Text.WrapAnywhere
+                                                Layout.fillWidth: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            FluText{
+                                text: qsTr("Logs")
+                                font: FluTextStyle.Subtitle
+                            }
+
+                            LogListView{
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
-                                clip: true
-                                contentWidth: width
-                                contentHeight: detailText.paintedHeight
-                                boundsBehavior: Flickable.StopAtBounds
-                                ScrollBar.vertical: FluScrollBar{}
-
-                                TextEdit{
-                                    id: detailText
-                                    width: parent.width
-                                    readOnly: true
-                                    selectByMouse: true
-                                    wrapMode: Text.WrapAnywhere
-                                    text: {
-                                        var step = selectedStep()
-                                        if(!step || !step.id){
-                                            return selectedReport.log_text || ""
-                                        }
-                                        return "Status: " + (step.status || "-")
-                                                + "\nKind: " + (step.kind || "-")
-                                                + "\nDefinition: " + (step.definition_id || "-")
-                                                + "\nDuration: " + String(step.duration_ms || 0) + " ms"
-                                                + "\n\nParameters:\n" + objectText(step.params)
-                                                + "\n\nExpected:\n" + objectText(step.expected)
-                                                + "\n\nActual:\n" + objectText(step.actual)
-                                                + "\n\nError:\n" + objectText(step.error)
-                                                + "\n\nEvidence:\n" + stepEvidenceText(step)
-                                                + "\n\nRun Logs:\n" + (selectedReport.log_text || "")
-                                    }
-                                    color: FluTheme.fontPrimaryColor
-                                    font: FluTextStyle.Caption
-                                    renderType: FluTheme.nativeText ? Text.NativeRendering : Text.QtRendering
-                                }
+                                model: selectedLogRows()
                             }
                         }
                     }

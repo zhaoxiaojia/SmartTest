@@ -87,7 +87,7 @@ def build_run_config_from_state(
     )
     global_context = dict(state.global_context)
     dut_serial = resolve_dut_serial(str(global_context.get("dut", "") or ""), device_lister=device_lister)
-    raw_equipment = global_context.get("equipment", global_context.get("test_equipment", {}))
+    raw_equipment = global_context.get("equipment", {})
     return (
         RunConfig(
             nodeids=nodeids,

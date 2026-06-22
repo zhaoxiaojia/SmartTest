@@ -1,6 +1,5 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-import logging
 import os
 import base64
 import ctypes
@@ -15,6 +14,7 @@ from PySide6.QtCore import QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
 from ui import jsonTool
+from tools.logging import smart_log
 
 try:
     from example.helper.AppPaths import app_data_dir
@@ -81,7 +81,7 @@ class AuthBridge(QObject):
         try:
             data = jsonTool.read_json(path, {})
         except Exception as exc:  # noqa: BLE001
-            logging.warning("Failed to read auth state file %s: %s", path, exc)
+            smart_log("Failed to read auth state file %s: %s", path, exc, level="warning")
             self._username = ""
             self._authenticated = False
             self._password = ""
@@ -106,7 +106,7 @@ class AuthBridge(QObject):
         try:
             jsonTool.write_json(path, data)
         except Exception as exc:  # noqa: BLE001
-            logging.warning("Failed to write auth state file %s: %s", path, exc)
+            smart_log("Failed to write auth state file %s: %s", path, exc, level="warning")
 
     def _clear_auth_state(self) -> None:
         path = self._auth_state_path()
@@ -114,7 +114,7 @@ class AuthBridge(QObject):
             if path.exists():
                 path.unlink()
         except Exception as exc:  # noqa: BLE001
-            logging.warning("Failed to clear auth state file %s: %s", path, exc)
+            smart_log("Failed to clear auth state file %s: %s", path, exc, level="warning")
 
     def _load_password_secret(self) -> str:
         path = self._auth_secret_path()
@@ -128,7 +128,7 @@ class AuthBridge(QObject):
             protected_bytes = base64.b64decode(encrypted_value.encode("ascii"))
             return _dpapi_unprotect(protected_bytes).decode("utf-8")
         except Exception as exc:  # noqa: BLE001
-            logging.warning("Failed to load auth secret file %s: %s", path, exc)
+            smart_log("Failed to load auth secret file %s: %s", path, exc, level="warning")
             return ""
 
     def _save_password_secret(self, password: str) -> None:
@@ -142,7 +142,7 @@ class AuthBridge(QObject):
             }
             jsonTool.write_json(path, payload)
         except Exception as exc:  # noqa: BLE001
-            logging.warning("Failed to save auth secret file %s: %s", path, exc)
+            smart_log("Failed to save auth secret file %s: %s", path, exc, level="warning")
 
     def _clear_password_secret(self) -> None:
         path = self._auth_secret_path()
@@ -150,7 +150,7 @@ class AuthBridge(QObject):
             if path.exists():
                 path.unlink()
         except Exception as exc:  # noqa: BLE001
-            logging.warning("Failed to clear auth secret file %s: %s", path, exc)
+            smart_log("Failed to clear auth secret file %s: %s", path, exc, level="warning")
 
     def _avatar_path_for_username(self, username: str) -> Path:
         digest = hashlib.sha256(username.strip().lower().encode("utf-8")).hexdigest()[:24]
@@ -172,7 +172,7 @@ class AuthBridge(QObject):
             path.write_bytes(avatar_bytes)
             return path.as_uri()
         except Exception as exc:  # noqa: BLE001
-            logging.warning("Failed to cache LDAP avatar %s: %s", path, exc)
+            smart_log("Failed to cache LDAP avatar %s: %s", path, exc, level="warning")
             return ""
 
     def _fetch_ldap_avatar(self, connection: Connection, username: str) -> bytes:
@@ -210,7 +210,7 @@ class AuthBridge(QObject):
                     return value[0]
             return b""
         except Exception as exc:  # noqa: BLE001
-            logging.info("LDAP avatar lookup failed for %s: %s", username, exc)
+            smart_log("LDAP avatar lookup failed for %s: %s", username, exc, level="info")
             return b""
 
     def _set_auth_state(self, *, username: str, authenticated: bool, password: str = "") -> None:
@@ -235,10 +235,10 @@ class AuthBridge(QObject):
         clean_username = (username or "").strip()
         clean_password = password or ""
         if not clean_username or not clean_password:
-            logging.info("ldap_authenticate: username or password empty (username=%s)", clean_username)
+            smart_log("ldap_authenticate: username or password empty (username=%s)", clean_username, level="info")
             return {"success": False, "username": "", "detail": "username_or_password_empty"}
         if Connection is None or Server is None or NTLM is None or ALL is None:
-            logging.error("ldap_authenticate: ldap3 dependency is not installed")
+            smart_log("ldap_authenticate: ldap3 dependency is not installed", level="error")
             return {"success": False, "username": "", "detail": "ldap3_not_installed"}
 
         server_host = LDAP_HOST.strip()
@@ -257,42 +257,46 @@ class AuthBridge(QObject):
                 description = str(result.get("description", "") or "").strip()
                 message = str(result.get("message", "") or "").strip()
                 detail = " | ".join(part for part in [description, message] if part)
-                logging.warning(
+                smart_log(
                     "ldap_authenticate: LDAP bind failed (username=%s, server=%s, result=%s)",
                     domain_user,
                     server_host,
                     connection.result,
+                    level="warning",
                 )
                 return {"success": False, "username": "", "detail": detail or "ldap_bind_failed"}
-            logging.info(
+            smart_log(
                 "ldap_authenticate: LDAP bind success (username=%s, server=%s)",
                 domain_user,
                 server_host,
+                level="info",
             )
             avatar_bytes = self._fetch_ldap_avatar(connection, clean_username)
             return {"success": True, "username": clean_username, "detail": "", "avatar_bytes": avatar_bytes}
         except LDAPException as exc:
-            logging.exception(
+            smart_log(
                 "ldap_authenticate: LDAP exception (username=%s, server=%s): %s",
                 clean_username,
                 server_host,
                 exc,
+                level="error",
+                exc_info=True,
             )
             return {"success": False, "username": "", "detail": str(exc)}
         except Exception as exc:  # noqa: BLE001
-            logging.exception(
+            smart_log(
                 "ldap_authenticate: unexpected exception (username=%s, server=%s): %s",
                 clean_username,
                 server_host,
                 exc,
-            )
+            level="error", exc_info=True)
             return {"success": False, "username": "", "detail": str(exc)}
         finally:
             if connection is not None:
                 try:
                     connection.unbind()
                 except Exception:  # noqa: BLE001
-                    logging.debug("ldap_authenticate: ignored unbind exception", exc_info=True)
+                    smart_log("ldap_authenticate: ignored unbind exception", exc_info=True, level="debug")
 
     @Slot(result=bool)
     def isAuthenticated(self) -> bool:

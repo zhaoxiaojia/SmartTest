@@ -29,6 +29,7 @@ from example.bridge.ReportBridge import ReportBridge
 from example.bridge.RunBridge import RunBridge
 from example.bridge.TestPageBridge import TestPageBridge
 from example.bridge.DebugBridge import DebugBridge
+from tools.logging import smart_log
 
 _uri = "example"
 _major = 1
@@ -79,9 +80,9 @@ def main():
     def _on_qml_warnings(warnings):
         for w in warnings:
             try:
-                print(w.toString(), file=sys.stderr)
+                smart_log(w.toString(), level="warning", domain="ui", source="qml")
             except Exception:
-                print(str(w), file=sys.stderr)
+                smart_log(str(w), level="warning", domain="ui", source="qml")
 
     try:
         engine.warnings.connect(_on_qml_warnings)

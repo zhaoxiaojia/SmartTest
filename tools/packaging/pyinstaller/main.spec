@@ -25,17 +25,6 @@ tools_root = os.path.join(repo_root, "tools")
 ai_root = os.path.join(repo_root, "AI")
 jira_tool_root = os.path.join(repo_root, "jira_tool")
 build_manifest = os.path.join(repo_root, "build", "generated", "build_manifest.json")
-android_apk = os.path.join(repo_root, "android_client", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
-android_platform_apk = os.path.join(
-    repo_root,
-    "android_client",
-    "app",
-    "build",
-    "outputs",
-    "apk",
-    "debug",
-    "app-debug-platform.apk",
-)
 android_privapp_permissions = os.path.join(
     repo_root,
     "android_client",
@@ -91,10 +80,6 @@ a = Analysis(
             os.path.join("build", "generated"),
         ),
         (
-            android_apk,
-            os.path.join("android_client", "app", "build", "outputs", "apk", "debug"),
-        ),
-        (
             android_client_init,
             "android_client",
         ),
@@ -113,10 +98,6 @@ a = Analysis(
             ),
         ),
         (
-            android_platform_apk,
-            os.path.join("android_client", "app", "build", "outputs", "apk", "debug"),
-        ),
-        (
             android_privapp_permissions,
             os.path.join("android_client", "system_app"),
         ),
@@ -127,6 +108,8 @@ a = Analysis(
         "FluentUI.FluentUI",
         "PySide6.QtWebEngineCore",
         "PySide6.QtWebEngineQuick",
+        "serial",
+        "serial.tools.list_ports",
     ],
     hookspath=[],
     hooksconfig={},

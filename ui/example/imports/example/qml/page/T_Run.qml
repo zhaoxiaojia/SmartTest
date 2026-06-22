@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import FluentUI 1.0
+import "../component"
 import "../global"
 
 FluPage {
@@ -44,7 +45,7 @@ FluPage {
         }
         programmaticLogScroll = true
         Qt.callLater(function(){
-            logList.positionViewAtIndex(logListModel.count - 1, ListView.End)
+            logList.positionAtEnd()
             Qt.callLater(function(){
                 programmaticLogScroll = false
             })
@@ -273,48 +274,17 @@ FluPage {
                     Layout.fillHeight: true
                     clip: true
 
-                    ListView{
+                    LogListView{
                         id: logList
                         anchors.fill: parent
-                        clip: true
-                        boundsBehavior: Flickable.StopAtBounds
-                        ScrollBar.vertical: logScrollBar
                         model: logListModel
-                        spacing: 2
-                        onMovementStarted: {
+                        onMovementStarted: function(contentY){
                             logMovementStartY = contentY
                         }
-                        onMovementEnded: {
+                        onMovementEnded: function(contentY){
                             if(!programmaticLogScroll && autoFollowLogs && contentY < logMovementStartY){
                                 autoFollowLogs = false
                             }
-                        }
-
-                        delegate: TextEdit{
-                            width: logList.width - 20
-                            readOnly: true
-                            wrapMode: Text.WrapAnywhere
-                            text: line || ""
-                            color: FluTheme.fontPrimaryColor
-                            font: FluTextStyle.Caption
-                            selectByMouse: true
-                            renderType: FluTheme.nativeText ? Text.NativeRendering : Text.QtRendering
-                            leftPadding: 0
-                            rightPadding: 0
-                            topPadding: 0
-                            bottomPadding: 0
-                        }
-                    }
-
-                    FluScrollBar{
-                        id: logScrollBar
-                        anchors{
-                            right: parent.right
-                            rightMargin: 5
-                            top: parent.top
-                            bottom: parent.bottom
-                            topMargin: 3
-                            bottomMargin: 3
                         }
                     }
 

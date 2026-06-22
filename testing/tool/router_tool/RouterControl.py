@@ -4,7 +4,6 @@ Router control shared data and lightweight base types.
 
 from __future__ import annotations
 
-import logging
 import os
 
 from ui.yamlTool import yamlTool

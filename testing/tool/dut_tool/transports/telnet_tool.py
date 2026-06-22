@@ -7,7 +7,6 @@ It defines functions and classes used by the test harness to interface with devi
 from __future__ import annotations
 
 import asyncio
-import logging
 import os.path
 import re
 import time
@@ -19,6 +18,7 @@ import pytest
 import telnetlib3
 from telnetlib3.client import TelnetClient
 from typing import Annotated
+from tools.logging import smart_log
 DEFAULT_CONNECT_MINWAIT = 0.05
 DEFAULT_CONNECT_MAXWAIT = 0.2
 
@@ -159,7 +159,7 @@ class TelnetSession:
             try:
                 self._loop.close()
             except Exception:
-                logging.debug("Error closing TelnetSession event loop", exc_info=True)
+                smart_log("Error closing TelnetSession event loop", exc_info=True, level="debug")
 
     def is_connected(self) -> bool:
         if self._reader is None or self._writer is None or self.sock is None:
@@ -277,12 +277,13 @@ class telnet_tool:
         self.port = 23
         self._connect_minwait, self._connect_maxwait = get_telnet_connect_window()
         self._client_factory = FastNegotiationTelnetClient
-        logging.debug(
+        smart_log(
             "Telnet handshake wait window: min=%ss max=%ss",
             self._connect_minwait,
             self._connect_maxwait,
+            level="debug",
         )
-        logging.info('Telnet target: %s:%s', self.dut_ip, self.port)
+        smart_log('Telnet target: %s:%s', self.dut_ip, self.port, level="info")
         self._last_output = ""
 
     async def wait_reconnect(self, timeout: int = 30, interval: float = 1.0) -> bool:
@@ -307,21 +308,22 @@ class telnet_tool:
             A value of type ``bool``.
         """
         if timeout <= 0:
-            logging.error(
+            smart_log(
                 "Invalid timeout %.2f when waiting for telnet reconnect to %s:%s",
                 timeout,
                 self.dut_ip,
                 self.port,
+                level="error",
             )
             return False
 
-        logging.debug(
+        smart_log(
             "Waiting for telnet reconnect to %s:%s (timeout=%ss, interval=%ss)",
             self.dut_ip,
             self.port,
             timeout,
             interval,
-        )
+        level="debug")
 
         start_time = time.monotonic()
         attempt = 0
@@ -334,25 +336,25 @@ class telnet_tool:
                 break
 
             remaining = timeout - elapsed
-            logging.debug(
+            smart_log(
                 "Telnet reconnect attempt %d to %s:%s (remaining %.2fs)",
                 attempt,
                 self.dut_ip,
                 self.port,
                 remaining,
-            )
+            level="debug")
 
             try:
                 _reader, writer = await asyncio.wait_for(
                     telnetlib3.open_connection(self.dut_ip, self.port),
                     timeout=remaining,
                 )
-                logging.debug(
+                smart_log(
                     "Telnet connection to %s:%s re-established on attempt %d",
                     self.dut_ip,
                     self.port,
                     attempt,
-                )
+                level="debug")
 
                 if writer:
                     writer.close()
@@ -361,55 +363,55 @@ class telnet_tool:
                         try:
                             await wait_closed()
                         except Exception as close_error:
-                            logging.debug(
+                            smart_log(
                                 "Ignored error while closing telnet writer: %s",
                                 close_error,
-                            )
+                            level="debug")
                 return True
             except asyncio.CancelledError:
-                logging.warning(
+                smart_log(
                     "Telnet reconnect wait cancelled for %s:%s on attempt %d",
                     self.dut_ip,
                     self.port,
                     attempt,
-                )
+                level="warning")
                 raise
             except (asyncio.TimeoutError, ConnectionError, OSError) as error:
                 last_error = error
-                logging.warning(
+                smart_log(
                     "Telnet reconnect attempt %d to %s:%s failed: %s",
                     attempt,
                     self.dut_ip,
                     self.port,
                     error,
-                )
+                level="warning")
             except Exception as error:
                 last_error = error
-                logging.exception(
+                smart_log(
                     "Unexpected error when attempting to reconnect telnet to %s:%s",
                     self.dut_ip,
                     self.port,
-                )
+                level="error", exc_info=True)
 
             remaining = timeout - (time.monotonic() - start_time)
             if remaining <= 0:
                 break
 
             sleep_time = min(max(interval, 0), remaining)
-            logging.debug(
+            smart_log(
                 "Sleeping %.2fs before next telnet reconnect attempt (remaining %.2fs)",
                 sleep_time,
                 remaining - sleep_time,
-            )
+            level="debug")
             await asyncio.sleep(sleep_time)
 
-        logging.error(
+        smart_log(
             "Failed to re-establish telnet connection to %s:%s within %.2fs. Last error: %s",
             self.dut_ip,
             self.port,
             timeout,
             last_error,
-        )
+        level="error")
         return False
 
     def wait_reconnect_sync(self, timeout: int = 30, interval: float = 1.0) -> bool:
@@ -433,8 +435,9 @@ class telnet_tool:
         bool
             A value of type ``bool``.
         """
-        logging.debug(
-            "Synchronously waiting for telnet reconnect to %s:%s", self.dut_ip, self.port
+        smart_log(
+            "Synchronously waiting for telnet reconnect to %s:%s", self.dut_ip, self.port,
+            level="debug",
         )
         return asyncio.run(self.wait_reconnect(timeout=timeout, interval=interval))
 
@@ -546,41 +549,41 @@ class telnet_tool:
             except asyncio.CancelledError:
                 raise
             except retryable_exceptions as exc:
-                logging.warning(
+                smart_log(
                     "Telnet attempt %s/%s failed with retryable error %s: %s",
                     attempt,
                     max_attempts,
                     exc.__class__.__name__,
                     exc,
-                )
+                level="warning")
             except Exception as exc:
-                logging.error(
+                smart_log(
                     "Telnet attempt %s/%s failed with non-retryable error %s: %s",
                     attempt,
                     max_attempts,
                     exc.__class__.__name__,
                     exc,
-                )
+                level="error")
                 raise
             finally:
                 if writer is not None:
                     try:
                         writer.close()
                     except Exception as close_exc:
-                        logging.debug(
+                        smart_log(
                             "Error closing telnet writer after attempt %s: %s",
                             attempt,
                             close_exc,
-                        )
+                        level="debug")
                     if hasattr(writer, "wait_closed"):
                         try:
                             await writer.wait_closed()
                         except Exception as close_exc:
-                            logging.debug(
+                            smart_log(
                                 "Error waiting for telnet writer to close after attempt %s: %s",
                                 attempt,
                                 close_exc,
-                            )
+                            level="debug")
 
         raise RuntimeError(
             f"Telnet command '{command}' failed without raising expected exception"

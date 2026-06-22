@@ -1,5 +1,4 @@
-﻿import logging
-import os
+﻿import os
 import re
 import time
 from pathlib import Path
@@ -37,6 +36,7 @@ from testing.tool.dut_tool.features.wifi import WifiConnectParams
 from testing.tool.wifi_lab_tool.ixchariot import ix
 from testing.tool.dut_tool.command_batch import CommandRunner, CommandTimeoutError
 from testing.params.adb_devices import resolve_adb_serial_for_command
+from tools.logging import smart_log
 
 
 class BaseDut:
@@ -180,15 +180,15 @@ class BaseDut:
             self.test_tool = 'iperf3' if 'iperf3' in cmds else 'iperf'
             self.tool_path = iperf_cfg.get('path', '')
             self._current_udp_mode = _is_udp_command(self.iperf_client_cmd) or _is_udp_command(self.iperf_server_cmd)
-            logging.info(f'test_tool {self.test_tool}')
+            smart_log(f'test_tool {self.test_tool}', level="info")
 
         if self.rvr_tool == 'ixchariot':
             self.ix = ix()
             ix_cfg = rvr_cfg.get('ixchariot', {})
             self.test_tool = ix_cfg
             self.script_path = ix_cfg.get('path', '')
-            logging.info(f'path {self.script_path}')
-            logging.info(f'test_tool {self.test_tool}')
+            smart_log(f'path {self.script_path}', level="info")
+            smart_log(f'test_tool {self.test_tool}', level="info")
             self.ix.modify_tcl_script(
                 "set ixchariot_installation_dir ",
                 f"set ixchariot_installation_dir \"{self.script_path}\"\n",
@@ -452,10 +452,7 @@ class BaseDut:
 
     def cpu_frequency_snapshot(self) -> CpuFrequencySnapshot:
         return CpuFrequencySnapshot(
-            governor=self.read_cpu_governor(),
             current_frequency=self.read_current_cpu_frequency(),
-            min_frequency=self._read_first_frequency("/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq"),
-            max_frequency=self._read_first_frequency("/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq"),
         )
 
     def _set_frequency_bounds(self, min_frequency: str, max_frequency: str) -> None:
@@ -488,21 +485,8 @@ class BaseDut:
         return observed
 
     def restore_cpu_frequency(self, snapshot: CpuFrequencySnapshot) -> str:
-        first_error: RuntimeError | None = None
-        try:
-            self.set_cpu_frequency(snapshot.current_frequency, governor=snapshot.governor)
-            observed = self.wait_current_cpu_frequency(snapshot.current_frequency)
-        except RuntimeError as exc:
-            first_error = exc
-
-        self._set_frequency_bounds(snapshot.min_frequency, snapshot.max_frequency)
-        self.run_device_shell(f"echo {snapshot.governor} > /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")
-        observed = self.wait_current_cpu_frequency(snapshot.current_frequency)
-        if observed == snapshot.current_frequency:
-            return observed
-        if first_error is not None:
-            raise first_error
-        return observed
+        self.set_cpu_frequency(snapshot.current_frequency)
+        return self.wait_current_cpu_frequency(snapshot.current_frequency)
 
     def adb_command_prefix(self) -> str:
         serial = resolve_adb_serial_for_command(getattr(self, "serialnumber", ""))
@@ -527,7 +511,7 @@ class BaseDut:
         """Run an ICMP ping on the DUT side and return True when packet loss is acceptable."""
 
         if not hostname or not isinstance(hostname, str):
-            logging.error("Ping checkpoint missing hostname")
+            smart_log("Ping checkpoint missing hostname", level="error")
             return False
         interval = max(float(interval_in_seconds or 1), 0.2)
         duration = max(float(ping_time_in_seconds or 1), interval)
@@ -545,11 +529,10 @@ class BaseDut:
             else:
                 cmd = f"ping -i {interval:.2f} -c {count} {hostname}"
 
-        logging.debug("Ping command: %s", cmd)
         try:
             output = self.checkoutput(cmd)
         except Exception as exc:  # pragma: no cover - transports differ per DUT
-            logging.error("Ping command failed: %s", exc)
+            smart_log("Ping command failed: %s", exc, level="error")
             return False
         if not output:
             return False
@@ -558,25 +541,25 @@ class BaseDut:
         last_code = getattr(self, "_last_command_returncode", 0)
         stderr_output = getattr(self, "_last_command_stderr", "")
         if last_code:
-            logging.debug("Ping exit code %s stderr: %s", last_code, stderr_output.strip())
+            smart_log("Ping exit code %s stderr: %s", last_code, stderr_output.strip(), level="debug")
             return False
 
         lowered = output.lower()
         error_lowered = stderr_output.lower()
         if "unknown host" in lowered or "name or service not known" in lowered:
-            logging.debug("Ping reported unknown host: %s", hostname)
+            smart_log("Ping reported unknown host: %s", hostname, level="debug")
             return False
         if "unknown host" in error_lowered or "name or service not known" in error_lowered:
-            logging.debug("Ping stderr reported unknown host: %s", hostname)
+            smart_log("Ping stderr reported unknown host: %s", hostname, level="debug")
             return False
 
         loss_match = re.search(r"(\d+)% packet loss", output)
         if loss_match:
             packet_loss = int(loss_match.group(1))
-            logging.debug("Ping packet loss = %s%%", packet_loss)
+            smart_log("Ping packet loss = %s%%", packet_loss, level="debug")
             return packet_loss == 0
 
-        logging.debug("Ping output unparsable:\n%s", output)
+        smart_log("Ping output unparsable:\n%s", output, level="debug")
         return False
 
     @property
@@ -712,14 +695,14 @@ class BaseDut:
             Any
                 The result produced by the function.
             """
-            logging.info('-' * 80)
+            smart_log('-' * 80, level="info")
             owner_cls = args[0].__class__ if args else BaseDut
             owner_cls.count += 1
-            logging.info(f"Test Step {owner_cls.count}:")
-            logging.info(func.__name__)
+            smart_log(f"Test Step {owner_cls.count}:", level="info")
+            smart_log(func.__name__, level="info")
             info = func(*args, **kwargs)
 
-            logging.info('-' * 80)
+            smart_log('-' * 80, level="info")
             return info
 
         return wrapper
@@ -745,7 +728,6 @@ class BaseDut:
         Any
             The result produced by the function.
         """
-        logging.debug(f"command:{command}")
         try:
             result = self.command_runner.run(command, shell=True)
             # Track last host command status for later diagnostics.
@@ -754,7 +736,7 @@ class BaseDut:
             self._last_command_returncode = result.returncode
             return result.stdout
         except CommandTimeoutError:
-            logging.info("Command timed out")
+            smart_log("Command timed out", level="info")
             self._last_command_stdout = ''
             self._last_command_stderr = 'Command timed out'
             self._last_command_returncode = -1
@@ -818,7 +800,6 @@ class BaseDut:
         for i in range(3):
             time.sleep(3)
             rssi_info = self.checkoutput(self.IW_LINNK_COMMAND)
-            logging.info(f'Get WiFi link status via command {rssi_info}')
             if 'signal' in rssi_info:
                 break
         else:
@@ -864,7 +845,7 @@ class BaseDut:
             try:
                 value = impl()
             except Exception as exc:
-                logging.debug("Failed to query MCS (%s) attempt=%d: %s", direction, attempt, exc)
+                smart_log("Failed to query MCS (%s) attempt=%d: %s", direction, attempt, exc, level="debug")
                 value = None
             if value is None:
                 time.sleep(0.2)
@@ -906,7 +887,7 @@ class BaseDut:
         try:
             # Step 1: 娓呴櫎涓婁竴娆℃帴鏀惰褰?
             last_rx_info = self.checkoutput("iwpriv clear_last_rx;sleep 1;iwpriv wlan0 get_last_rx")
-            logging.info(f"Last RX Info: {last_rx_info}")
+            smart_log(f"Last RX Info: {last_rx_info}", level="info")
             time.sleep(1)
 
             # Step 2: 鑾峰彇鏈€鍚庝竴娆℃帴鏀剁殑 RSSI锛堝彲閫夛紝鎸夐渶淇濈暀锛?
@@ -917,10 +898,10 @@ class BaseDut:
             dmesg_output = self.checkoutput(self.CMD_WIFI_BEACON_RSSI)
             if not dmesg_output or 'bcn_rssi:' not in dmesg_output:
                 dmesg_output = self.checkoutput(self.CMD_WIFI_BEACON_RSSI2)
-            logging.info(f"BEACON RSSI Info: {dmesg_output}")
+            smart_log(f"BEACON RSSI Info: {dmesg_output}", level="info")
 
             if not dmesg_output.strip():
-                logging.warning("No 'bcn_rssi' found in dmesg output.")
+                smart_log("No 'bcn_rssi' found in dmesg output.", level="warning")
                 return (self.bcn_rssi, self.wf0_rssi, self.wf1_rssi)
 
             # 鏀寔涓ょ鏃ュ織鏍煎紡锛?
@@ -933,13 +914,13 @@ class BaseDut:
                 self.bcn_rssi = int(match.group(1))
                 self.wf0_rssi = int(match.group(2))
                 self.wf1_rssi = int(match.group(3))
-                logging.info("Extended RSSI parsed: bcn=%d, wf0=%d, wf1=%d",
-                             self.bcn_rssi, self.wf0_rssi, self.wf1_rssi)
+                smart_log("Extended RSSI parsed: bcn=%d, wf0=%d, wf1=%d",
+                             self.bcn_rssi, self.wf0_rssi, self.wf1_rssi, level="info")
             else:
-                logging.warning("Failed to parse bcn_rssi from dmesg: %s", dmesg_output)
+                smart_log("Failed to parse bcn_rssi from dmesg: %s", dmesg_output, level="warning")
 
         except Exception as e:
-            logging.error("Error in get_extended_rssi: %s", str(e))
+            smart_log("Error in get_extended_rssi: %s", str(e), level="error")
             # 淇濇寔榛樿鍊?-1
 
         return (self.bcn_rssi, self.wf0_rssi, self.wf1_rssi)
@@ -951,29 +932,29 @@ class BaseDut:
         """
         try:
             time.sleep(delay_seconds)
-            logging.info(f"馃摙 Sampling extended RSSI after {delay_seconds}s...")
+            smart_log(f"馃摙 Sampling extended RSSI after {delay_seconds}s...", level="info")
 
             #Get Beacon RSSI
             rssi_result = self.get_extended_rssi()
             self._extended_rssi_result = rssi_result
-            logging.info(f"鉁?Extended RSSI sampled: {rssi_result}")
+            smart_log(f"鉁?Extended RSSI sampled: {rssi_result}", level="info")
 
             #Get realtime MCS
             try:
                 # 鐩存帴璋冪敤鏂规硶锛屼笉渚濊禆 @step 鎹曡幏
                 mcs_tx = self.get_mcs_tx()
                 self._mcs_tx_result = mcs_tx
-                logging.info(f"鉁?MCS TX: {mcs_tx}")
+                smart_log(f"鉁?MCS TX: {mcs_tx}", level="info")
             except Exception as e:
-                logging.error(f"鉂?MCS TX failed: {e}")
+                smart_log(f"鉂?MCS TX failed: {e}", level="error")
                 self._mcs_tx_result = "N/A"
 
             try:
                 mcs_rx = self.get_mcs_rx()
                 self._mcs_rx_result = mcs_rx
-                logging.info(f"鉁?MCS RX: {mcs_rx}")
+                smart_log(f"鉁?MCS RX: {mcs_rx}", level="info")
             except Exception as e:
-                logging.error(f"鉂?MCS RX failed: {e}")
+                smart_log(f"鉂?MCS RX failed: {e}", level="error")
                 self._mcs_rx_result = "N/A"
 
             self._rssi_sampled_event.set()
@@ -989,7 +970,7 @@ class BaseDut:
             self._rssi_sampled_event.set()
 
         except Exception as e:
-            logging.error(f"鉂?Failed to sample extended RSSI: {e}")
+            smart_log(f"鉂?Failed to sample extended RSSI: {e}", level="error")
             self._extended_rssi_result = ("N/A", "N/A", "N/A")
             self._mcs_tx_result = "N/A"
             self._mcs_rx_result = "N/A"

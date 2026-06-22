@@ -7,7 +7,6 @@ a reference to the ``irsend`` fixture and provides methods to send codes with
 an optional delay.
 """
 
-import logging
 import time
 
 import pytest

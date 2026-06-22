@@ -27,6 +27,11 @@ This file applies to the `android_client/` subtree.
 - Do not embed shell scripts directly in UI code
 - Use `runner/device/log/CommandRecorder` to preserve command history when a case executes shell/system actions
 - When porting an existing shell script into Kotlin, keep the original operational flow clear in logs and note any intentional deviations
+- APK-backed cases must actively respond to the shared step contract used by pytest/UI planning.
+  - If pytest/frontend predeclares visible steps for a case, the executor must drive those same steps through `SmartTestRunStore.updateProgress(...)` and `SmartTestRunStore.finishStep(...)`.
+  - Loop/cycle cases must emit stable cycle step ids such as `case_id.cycle.<index>.<step>` while running, and checkpoint helpers must receive a matching `stepIdPrefix`.
+  - Do not rely on `currentStage` and loop counters alone for visible step refresh. Stage text is supplemental; step state updates are required.
+  - When adding a new APK case, verify that every planned visible step has a corresponding runtime step update path before handoff.
 
 ## APK Build And Install Rules
 

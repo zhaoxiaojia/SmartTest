@@ -1,7 +1,6 @@
 ﻿from __future__ import annotations
 
 import asyncio
-import logging
 import time
 from threading import Thread
 
@@ -9,8 +8,8 @@ from testing.tool.dut_tool.duts.base import BaseDut
 from testing.tool.dut_tool.features.wifi import WifiConnectParams
 from testing.tool.dut_tool.transports.telnet_tool import telnet_tool
 from testing.tool.dut_tool.transports.telnet_tool import TelnetSession
-from testing.tool.dut_tool.transports.serial_tool import SerialShellExecutor
 from testing.tool.network_tool.wpa import WpaSupplicantManager
+from tools.logging import smart_log
 
 
 class linux(BaseDut):
@@ -23,7 +22,7 @@ class linux(BaseDut):
         self.telnet = telnet
         self.wpa = WpaSupplicantManager(self.shell if self.shell is not None else self.telnet)
         self.dut_ip = ""
-        logging.info(f"[LINUX DUT] __init__ called. Received serial={serial}, telnet={telnet}")
+        smart_log(f"[LINUX DUT] __init__ called. Received serial={serial}, telnet={telnet}", level="info")
         if telnet is not None:
             self.dut_ip = telnet.dut_ip
 
@@ -77,7 +76,6 @@ class linux(BaseDut):
 
     def _run_iperf_server_on_device(self, command: str, *, start_background, extend_logs, encoding: str):
         def telnet_iperf():
-            logging.info(f"server telnet command: {command}")
             session = TelnetSession(self.dut_ip, port=23)
             try:
                 session.open()
@@ -91,7 +89,7 @@ class linux(BaseDut):
                         # No output yet; keep polling without killing the thread.
                         continue
                     except Exception as exc:
-                        logging.debug("iperf server telnet read failed: %s", exc)
+                        smart_log("iperf server telnet read failed: %s", exc, level="debug")
                         break
                     if not chunk:
                         continue
@@ -108,15 +106,13 @@ class linux(BaseDut):
         return None
 
     def _run_iperf_client_on_device(self, command: str, *, run_blocking, encoding: str):
-        logging.info(f"client telnet command: {command}")
-
         async def _run_telnet_client():
             await asyncio.wait_for(self.telnet_client(command), timeout=self.iperf_wait_time)
 
         try:
             asyncio.run(_run_telnet_client())
         except asyncio.TimeoutError:
-            logging.warning(f"client telnet command timeout after {self.iperf_wait_time}s")
+            smart_log(f"client telnet command timeout after {self.iperf_wait_time}s", level="warning")
         return None
 
     def _iperf_client_post_delay_seconds(self) -> int:

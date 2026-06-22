@@ -212,7 +212,7 @@ class AutoRebootCaseExecutor : TestCaseExecutor {
         ) {
             context.log(
                 "discard stale auto reboot session: " +
-                    "saved(cycles=${saved.totalCycles}, interval=${saved.intervalSec}, trigger=${saved.trigger}, requestId=${saved.requestId}) " +
+                "saved(cycles=${saved.totalCycles}, interval=${saved.intervalSec}, trigger=${saved.trigger}, requestId=${saved.requestId}) " +
                     "!= request(cycles=${requestSession.totalCycles}, interval=${requestSession.intervalSec}, trigger=${requestSession.trigger}, requestId=${requestSession.requestId})",
             )
             sessionStore.clear()

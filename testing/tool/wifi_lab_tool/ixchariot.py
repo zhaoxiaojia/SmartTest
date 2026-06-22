@@ -8,11 +8,11 @@ instantiate the :class:`ix` class to run the script with different parameters
 and to modify the underlying Tcl script as needed.
 """
 
-import logging
 import os
 import re
 from testing.tool.dut_tool import command_batch as subprocess
 import time
+from tools.logging import smart_log
 
 
 class ix:
@@ -88,7 +88,7 @@ class ix:
         # Wait for the script to produce its output.
         time.sleep(40)
         info = res.stdout.read()
-        logging.info(info)
+        smart_log(info, level="info")
         # Extract the first average value reported by the script, if any.
         date = re.findall(r'avg \d+\.\d+', info, re.S)
         return date[0] if date else False

@@ -20,7 +20,8 @@ class TestCaseExecutionContext(
     }
 
     fun parameter(paramId: String, defaultValue: String): String {
-        return request.parameterOverrides["${runningCase.id}:$paramId"] ?: defaultValue
+        val value = request.parameterOverrides["${runningCase.id}:$paramId"] ?: defaultValue
+        return if (value.equals("none", ignoreCase = true)) "" else value
     }
 
     fun intParameter(paramId: String, defaultValue: Int): Int {

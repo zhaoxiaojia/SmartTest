@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from pathlib import Path
 import sys
-from threading import Thread
 import time
 from typing import Any
 
@@ -12,14 +12,17 @@ from PySide6.QtGui import QGuiApplication
 
 from testing.cases.catalog import is_packaged_runtime, load_packaged_test_catalog
 from testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
-from testing.params.options import normalize_option_values, option_cache_key
+from testing.params.contracts import case_param_keys, default_env_device_type, env_kinds_for_case
+from testing.params.options import normalize_option_values
 from testing.params.registry import SchemaRegistry, default_registry
 from testing.params.runtime import runtime_params
 from testing.params.requirements import required_params_for_case
 from testing.params.schema import ParamField, ParamSchema, ParamScope, ParamValueType, defaults_for_schema
 from testing.state.models import SelectedCase, TestPageState
 from testing.state.store import ensure_state, load_state, save_state
-from testing.tool.dut_tool.parameter_adapter import DutParameterAdapter
+from testing.tool.dut_tool.parameter_helper import ParameterHelper
+from testing.tool.env_tool import build_env_equipment_row, default_env_config
+from tools.logging import smart_log
 
 try:
     from example.helper.AppPaths import app_data_dir
@@ -35,10 +38,6 @@ class TestPageBridge(QObject):
     casesChanged = Signal()
     stateChanged = Signal()
     errorOccurred = Signal(str)
-    _discoveryResult = Signal("QVariantList", int)
-    _discoveryError = Signal(str, int)
-    _adbRefreshResult = Signal("QVariantList", int)
-    _paramOptionsRefreshResult = Signal("QVariantMap")
 
     def __init__(self, root_dir: Path):
         super().__init__(QGuiApplication.instance())
@@ -50,19 +49,16 @@ class TestPageBridge(QObject):
         self._state_path = self._default_state_path()
         self._trace_log_path = self._state_path.parent / "test_page_trace.log"
         self._text_catalog = TsTextCatalog(self._root_dir, trace=self._trace)
-        self._dut_parameter_adapter = DutParameterAdapter()
+        self._parameter_helper = ParameterHelper()
         self._state = ensure_state(self._state_path)
         self._adb_devices: list[str] = []
-        self._param_options: dict[str, list[str]] = {}
+        self._env_options: dict[str, list[Any]] = {}
         self._adb_refresh_running = False
         self._adb_refresh_started = False
-        self._param_options_refreshing: set[str] = set()
+        self._context_refresh_running = False
+        self._dynamic_fields_refreshing: set[str] = set()
         self._discovery_running = False
         self._discovery_loaded = False
-        self._discoveryResult.connect(self._apply_discovery_result)
-        self._discoveryError.connect(self._apply_discovery_error)
-        self._adbRefreshResult.connect(self._apply_adb_refresh_result)
-        self._paramOptionsRefreshResult.connect(self._apply_param_options_refresh_result)
         TranslateHelper().currentChanged.connect(self._handle_language_changed)
         state_changed = self._ensure_state_defaults()
         state_changed = self._sync_dut_selection() or state_changed
@@ -72,7 +68,7 @@ class TestPageBridge(QObject):
     def _trace(self, stage: str, **values: Any) -> None:
         details = " ".join(f"{key}={values[key]}" for key in sorted(values))
         line = f"{_trace_timestamp()} [TEST_UI] {stage} {details}".rstrip()
-        print(line)
+        smart_log(line, domain="ui", source="TestPageBridge", emit_runtime_event=False)
         try:
             self._trace_log_path.parent.mkdir(parents=True, exist_ok=True)
             with self._trace_log_path.open("a", encoding="utf-8") as fh:
@@ -90,7 +86,7 @@ class TestPageBridge(QObject):
         if "dut" not in self._state.global_context and legacy_dut not in (None, ""):
             self._state.global_context["dut"] = legacy_dut
             changed = True
-        preserved_global_keys = {*global_defaults, "equipment", "test_equipment"}
+        preserved_global_keys = {*global_defaults, "equipment"}
         next_global_context = {
             key: value for key, value in self._state.global_context.items() if key in preserved_global_keys
         }
@@ -166,17 +162,20 @@ class TestPageBridge(QObject):
                     changed = True
         return changed
 
-    def _refresh_adb_devices(self) -> None:
-        self._adb_devices = self._dut_parameter_adapter.refresh_duts()
-
-    def _load_cached_adb_devices(self) -> list[str]:
-        return []
-
-    def _save_cached_adb_devices(self, devices: list[str]) -> None:
-        return
-
     def _handle_language_changed(self) -> None:
         self.stateChanged.emit()
+
+    def _create_task(self, coro, *, label: str) -> None:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError as exc:
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                self._trace("async_task_schedule_error", label=label, error=exc)
+                raise
+        loop.create_task(coro)
+        self._trace("async_task_scheduled", label=label)
 
     def _schedule_adb_refresh(self, reason: str) -> None:
         if self._adb_refresh_running:
@@ -185,69 +184,74 @@ class TestPageBridge(QObject):
         self._adb_refresh_running = True
         self._trace("adb_refresh_start", reason=reason)
         selected_serial = self._current_dut_serial() if reason == "user_refresh" else ""
-        Thread(target=self._refresh_adb_devices_worker, args=(selected_serial,), daemon=True).start()
+        self._create_task(self._refresh_adb_devices_task(selected_serial), label="adb_refresh")
 
     def _current_dut_serial(self) -> str:
         return str(self._state.global_context.get("dut", "") or "").strip()
 
-    def _schedule_param_options_refresh(self, source: str, reason: str, *, nodeid: str = "") -> None:
-        normalized_source = str(source or "").strip()
-        if not normalized_source:
-            self._trace("param_options_refresh_skip_empty_source", reason=reason)
+    def _schedule_context_refresh(self, reason: str) -> None:
+        if self._context_refresh_running:
+            self._trace("context_refresh_skip_running", reason=reason)
             return
-        selected_serial = self._current_dut_serial()
-        normalized_nodeid = str(nodeid or "").strip()
-        cache_key = _param_options_cache_key(normalized_source, selected_serial, normalized_nodeid)
-        if cache_key in self._param_options_refreshing:
-            self._trace(
-                "param_options_refresh_skip_running",
-                reason=reason,
-                source=normalized_source,
-                dut=selected_serial or "<default>",
-                cache_key=cache_key,
-                nodeid=normalized_nodeid or "<none>",
-            )
+        param_targets = self._selected_dynamic_param_targets()
+        env_targets = self._selected_dynamic_env_targets()
+        if not param_targets and not env_targets:
+            self._trace("context_refresh_skip_empty", reason=reason)
             return
-        self._param_options_refreshing.add(cache_key)
-        self._trace(
-            "param_options_refresh_start",
-            reason=reason,
-            source=normalized_source,
-            dut=selected_serial or "<default>",
-            cache_key=cache_key,
-            nodeid=normalized_nodeid or "<none>",
-        )
-        Thread(
-            target=self._refresh_param_options_worker,
-            args=(normalized_source, selected_serial, cache_key, normalized_nodeid),
-            daemon=True,
-        ).start()
-
-    def _refresh_adb_devices_worker(self, selected_serial: str = "") -> None:
-        started_at = time.monotonic()
-        devices = self._dut_parameter_adapter.refresh_duts(selected_serial=selected_serial)
-        self._adbRefreshResult.emit(devices, int((time.monotonic() - started_at) * 1000))
-
-    def _refresh_param_options_worker(self, source: str, selected_serial: str, cache_key: str, nodeid: str) -> None:
-        started_at = time.monotonic()
-        payload: dict[str, Any] = {
-            "source": source,
-            "dut": selected_serial,
-            "cache_key": cache_key,
-            "nodeid": nodeid,
-            "options": [],
-            "error": "",
-            "elapsed_ms": 0,
+        self._context_refresh_running = True
+        self._dynamic_fields_refreshing = {
+            *(
+                f"param:{str(target.get('nodeid', '') or '').strip()}:{str(target.get('field_key', '') or '').strip()}"
+                for target in param_targets
+            ),
+            *(
+                f"env:{str(target.get('kind', '') or '').strip()}:{str(target.get('field_key', '') or '').strip()}"
+                for target in env_targets
+            ),
         }
-        result = self._dut_parameter_adapter.refresh_case_parameter_options(
-            source,
-            selected_serial or None,
-            nodeid=nodeid,
+        self._trace(
+            "context_refresh_start",
+            reason=reason,
+            params=len(param_targets),
+            env=len(env_targets),
         )
-        payload["options"] = result.options
-        payload["error"] = result.error
-        payload["elapsed_ms"] = int((time.monotonic() - started_at) * 1000)
-        self._paramOptionsRefreshResult.emit(payload)
+        self.stateChanged.emit()
+        self._create_task(
+            self._refresh_context_task(self._current_dut_serial(), param_targets, env_targets),
+            label="context_refresh",
+        )
+
+    async def _refresh_adb_devices_task(self, selected_serial: str = "") -> None:
+        started_at = time.monotonic()
+        try:
+            devices = await self._parameter_helper.refresh_duts_async(selected_serial=selected_serial)
+        except Exception as exc:  # noqa: BLE001
+            self._trace("adb_refresh_error", error=exc)
+            devices = []
+        self._apply_adb_refresh_result(devices, int((time.monotonic() - started_at) * 1000))
+
+    async def _refresh_context_task(
+        self,
+        selected_serial: str,
+        param_targets: list[dict[str, str]],
+        env_targets: list[dict[str, str]],
+    ) -> None:
+        started_at = time.monotonic()
+        try:
+            result = await self._parameter_helper.refresh_context_async(
+                selected_serial=selected_serial or None,
+                param_targets=param_targets,
+                env_targets=env_targets,
+            )
+            payload = {
+                "param_results": result.param_results,
+                "env_results": result.env_results,
+                "elapsed_ms": int((time.monotonic() - started_at) * 1000),
+            }
+        except Exception as exc:  # noqa: BLE001
+            self._trace("context_refresh_error", error=exc)
+            payload = {"param_results": [], "env_results": [], "elapsed_ms": int((time.monotonic() - started_at) * 1000)}
+        self._apply_context_refresh_result(payload)
 
     @Slot("QVariantList", int)
     def _apply_adb_refresh_result(self, devices: list[Any], elapsed_ms: int) -> None:
@@ -258,66 +262,108 @@ class TestPageBridge(QObject):
             if serial and serial not in normalized:
                 normalized.append(serial)
         self._adb_devices = normalized
-        self._save_cached_adb_devices(self._adb_devices)
         changed = self._sync_dut_selection()
         if changed:
             save_state(self._state_path, self._state)
         self._trace("adb_refresh_done", devices=len(self._adb_devices), elapsed_ms=elapsed_ms)
-        self._refresh_selected_param_options("adb_refresh_done")
+        self._schedule_context_refresh("adb_refresh_done")
         self.stateChanged.emit()
 
     @Slot("QVariantMap")
-    def _apply_param_options_refresh_result(self, payload: dict[str, Any]) -> None:
-        source = str(payload.get("source", "") or "").strip()
-        cache_key = str(payload.get("cache_key", "") or "").strip()
+    def _apply_context_refresh_result(self, payload: dict[str, Any]) -> None:
+        self._context_refresh_running = False
+        self._dynamic_fields_refreshing.clear()
         elapsed_ms = int(payload.get("elapsed_ms", 0) or 0)
-        error = str(payload.get("error", "") or "").strip()
-        if cache_key:
-            self._param_options_refreshing.discard(cache_key)
-        if error:
+        changed = False
+        state_synced = False
+        for result in list(payload.get("param_results", []) or []):
+            source = str(result.get("source", "") or "").strip()
+            nodeid = str(result.get("nodeid", "") or "").strip()
+            field_key = str(result.get("field_key", "") or "").strip()
+            options = _storage_playback_options(normalize_option_values(result.get("options", [])))
+            error = str(result.get("error", "") or "").strip()
+            if error:
+                self._trace(
+                    "param_options_refresh_error",
+                    source=source,
+                    nodeid=nodeid or "<none>",
+                    field=field_key or "<none>",
+                    elapsed_ms=elapsed_ms,
+                    error=error,
+                )
+                continue
+            if self._set_case_param_options(nodeid=nodeid, key=field_key, options=options):
+                changed = True
+                state_synced = True
+            if self._sync_dynamic_values_from_options(source=source, nodeid=nodeid, options=options):
+                state_synced = True
+        for result in list(payload.get("env_results", []) or []):
+            kind = str(result.get("kind", "") or "").strip().lower()
+            field_key = str(result.get("field_key", "") or "").strip()
+            device_type = str(result.get("device_type", "") or "").strip()
+            cache_key = f"{kind}:{device_type}:{field_key}"
+            options = list(result.get("options", []) or [])
+            error = str(result.get("error", "") or "").strip()
+            if error:
+                self._trace(
+                    "env_options_refresh_error",
+                    cache_key=cache_key,
+                    elapsed_ms=elapsed_ms,
+                    error=error,
+                )
+                continue
+            if self._env_options.get(cache_key, []) != options:
+                self._env_options[cache_key] = options
+                changed = True
             self._trace(
-                "param_options_refresh_error",
-                source=source,
-                dut=str(payload.get("dut", "") or "").strip() or "<default>",
+                "env_options_refresh_result",
                 cache_key=cache_key,
-                elapsed_ms=elapsed_ms,
-                error=error,
+                options=len(options),
+                changed=changed,
             )
-            if cache_key and self._param_options.get(cache_key):
-                self._param_options[cache_key] = []
-            self.stateChanged.emit()
-            return
-
-        options = _storage_playback_options(normalize_option_values(payload.get("options", [])))
-        if not cache_key:
-            cache_key = _param_options_cache_key(
-                source,
-                str(payload.get("dut", "") or "").strip(),
-                str(payload.get("nodeid", "") or "").strip(),
-            )
-        changed = cache_key not in self._param_options or self._param_options.get(cache_key, []) != options
-        if changed:
-            self._param_options[cache_key] = options
-        state_synced = self._sync_dynamic_values_from_options(
-            source=source,
-            nodeid=str(payload.get("nodeid", "") or "").strip(),
-            options=options,
-        )
         if state_synced:
             save_state(self._state_path, self._state)
-        self._refresh_options_dependent_on_source(source=source, nodeid=str(payload.get("nodeid", "") or "").strip())
+        self._trace("context_refresh_done", elapsed_ms=elapsed_ms, changed=changed, state_synced=state_synced)
+        self.stateChanged.emit()
+
+    def _set_case_param_options(self, *, nodeid: str, key: str, options: list[str]) -> bool:
+        normalized_nodeid = str(nodeid or "").strip()
+        normalized_key = str(key or "").strip()
+        if not normalized_nodeid or not normalized_key:
+            return False
+        normalized_options = _storage_playback_options(normalize_option_values(options))
+        node_options = self._state.case_parameter_options.setdefault(normalized_nodeid, {})
+        changed = node_options.get(normalized_key, []) != normalized_options
+        if changed:
+            node_options[normalized_key] = normalized_options
+            self._trace(
+                "param_options_saved",
+                nodeid=normalized_nodeid,
+                field=normalized_key,
+                options=len(normalized_options),
+            )
+        if self._prune_case_param_value_to_options(nodeid=normalized_nodeid, key=normalized_key, options=normalized_options):
+            changed = True
+        return changed
+
+    def _prune_case_param_value_to_options(self, *, nodeid: str, key: str, options: list[str]) -> bool:
+        field = self._field_for_key(key)
+        if field is None or not self._is_multi_enum_field(field):
+            return False
+        case_values = self._state.case_parameters.setdefault(nodeid, {})
+        current = normalize_option_values(case_values.get(field.key, []))
+        next_value = [value for value in current if value in options]
+        if next_value == current:
+            return False
+        case_values[field.key] = next_value
         self._trace(
-            "param_options_refresh_done",
-            source=source,
-            dut=str(payload.get("dut", "") or "").strip() or "<default>",
-            cache_key=cache_key,
-            options=len(options),
-            changed=changed,
-            state_synced=state_synced,
-            elapsed_ms=elapsed_ms,
+            "param_multi_enum_pruned_to_options",
+            nodeid=nodeid,
+            field=field.key,
+            previous=len(current),
+            next=len(next_value),
         )
-        if changed or state_synced:
-            self.stateChanged.emit()
+        return True
 
     def _sync_dynamic_values_from_options(self, *, source: str, nodeid: str, options: list[str]) -> bool:
         normalized_source = str(source or "").strip()
@@ -336,7 +382,7 @@ class TestPageBridge(QObject):
             if not case_nodeid:
                 continue
             case_values = self._state.case_parameters.setdefault(case_nodeid, {})
-            for param_key in list(case.get("required_params", [])):
+            for param_key in case_param_keys(case):
                 field = self._field_for_key(str(param_key))
                 if field is None or str(field.options_source or "").strip() != normalized_source:
                     continue
@@ -374,39 +420,60 @@ class TestPageBridge(QObject):
             return True
         return False
 
-    def _selected_option_refresh_targets(self) -> list[tuple[str, str]]:
-        targets: list[tuple[str, str]] = []
-        seen: set[tuple[str, str]] = set()
+    def _selected_dynamic_param_targets(self) -> list[dict[str, str]]:
+        targets: list[dict[str, str]] = []
+        seen: set[tuple[str, str, str]] = set()
         for selected in self._state.selected:
             case = self._case_info(selected.nodeid)
             if case is None:
-                self._trace("param_options_selected_case_missing", nodeid=selected.nodeid)
+                self._trace("dynamic_param_targets_case_missing", nodeid=selected.nodeid)
                 continue
             nodeid = str(selected.nodeid or "").strip()
-            blocked_sources = self._dependent_sources_for_case(case)
-            for param_key in list(case.get("required_params", [])):
+            for param_key in case_param_keys(case):
                 field = self._field_for_key(str(param_key))
                 source = str(field.options_source if field is not None else "").strip()
-                if source in blocked_sources:
-                    continue
-                target = (source, nodeid)
+                target = (nodeid, str(param_key), source)
                 if source and target not in seen:
                     seen.add(target)
-                    targets.append(target)
+                    targets.append({"nodeid": nodeid, "field_key": str(param_key), "source": source})
         self._trace(
-            "param_options_selected_targets",
+            "dynamic_param_targets",
             selected=len(self._state.selected),
-            targets=",".join(f"{source}@{nodeid}" for source, nodeid in targets) or "<none>",
+            targets=",".join(
+                f"{str(item.get('field_key', ''))}@{str(item.get('nodeid', ''))}"
+                for item in targets
+            ) or "<none>",
             dut=self._current_dut_serial() or "<default>",
         )
         return targets
 
-    def _refresh_selected_param_options(self, reason: str) -> None:
-        targets = self._selected_option_refresh_targets()
-        if not targets:
-            self._trace("param_options_refresh_no_sources", reason=reason)
-        for source, nodeid in targets:
-            self._schedule_param_options_refresh(source, reason, nodeid=nodeid)
+    def _selected_dynamic_env_targets(self) -> list[dict[str, str]]:
+        targets: list[dict[str, str]] = []
+        seen: set[tuple[str, str, str]] = set()
+        for kind in self._selected_required_equipment():
+            config = self._equipment_config().get(kind, {})
+            config = dict(config) if isinstance(config, dict) else {}
+            device_type = str(config.get("type") or default_env_device_type(kind)).strip()
+            if not device_type:
+                continue
+            for target in self._parameter_helper.env_targets_for_kind(kind=kind, device_type=device_type):
+                identity = (
+                    str(target.get("kind", "") or ""),
+                    str(target.get("device_type", "") or ""),
+                    str(target.get("field_key", "") or ""),
+                )
+                if identity in seen:
+                    continue
+                seen.add(identity)
+                targets.append(target)
+        self._trace(
+            "dynamic_env_targets",
+            targets=",".join(
+                f"{str(item.get('kind', ''))}:{str(item.get('field_key', ''))}"
+                for item in targets
+            ) or "<none>",
+        )
+        return targets
 
     def _refresh_options_affected_by_param_change(self, *, nodeid: str, key: str) -> None:
         field = self._field_for_key(key)
@@ -425,43 +492,7 @@ class TestPageBridge(QObject):
                 key=key,
             )
             return
-        for source in sources:
-            self._schedule_param_options_refresh(
-                source,
-                f"param_dependency_changed:{key}",
-                nodeid=normalized_nodeid,
-            )
-
-    def _refresh_options_dependent_on_source(self, *, source: str, nodeid: str) -> None:
-        normalized_source = str(source or "").strip()
-        normalized_nodeid = str(nodeid or "").strip()
-        if not normalized_source or not normalized_nodeid:
-            return
-        case = self._case_info(normalized_nodeid)
-        if case is None:
-            return
-        for param_key in list(case.get("required_params", [])):
-            field = self._field_for_key(str(param_key))
-            if field is None or str(field.options_source or "").strip() != normalized_source:
-                continue
-            for dependent_source in field.refreshes_options_sources:
-                normalized_dependent = str(dependent_source or "").strip()
-                if not normalized_dependent:
-                    continue
-                self._schedule_param_options_refresh(
-                    normalized_dependent,
-                    f"param_source_refreshed:{field.key}",
-                    nodeid=normalized_nodeid,
-                )
-
-    def _dependent_sources_for_case(self, case: dict[str, Any]) -> set[str]:
-        sources: set[str] = set()
-        for param_key in list(case.get("required_params", [])):
-            field = self._field_for_key(str(param_key))
-            if field is None or not str(field.options_source or "").strip():
-                continue
-            sources.update(str(source or "").strip() for source in field.refreshes_options_sources)
-        return {source for source in sources if source}
+        self._schedule_context_refresh(f"param_dependency_changed:{key}")
 
     def _param_text_key(self, param_key: str, part: str) -> str:
         normalized = str(param_key or "").strip().replace(":", ".")
@@ -516,21 +547,25 @@ class TestPageBridge(QObject):
             "enum_values_source": "dynamic" if field.options_source else "fixed",
             "options_source": field.options_source,
             "refreshes_options_sources": list(field.refreshes_options_sources),
+            "loading": self._is_dynamic_field_loading(kind="param", owner=nodeid, key=field.key),
         }
+
+    def _is_dynamic_field_loading(self, *, kind: str, owner: str, key: str) -> bool:
+        return f"{kind}:{str(owner or '').strip()}:{str(key or '').strip()}" in self._dynamic_fields_refreshing
 
     def _enum_values_for_field(self, field: ParamField, *, nodeid: str = "") -> list[str]:
         if field.key == "dut":
             return list(self._adb_devices)
         source = str(field.options_source or "").strip()
         if source:
-            cache_key = _param_options_cache_key(source, self._current_dut_serial(), nodeid)
-            values = _storage_playback_options(list(self._param_options.get(cache_key, [])))
+            values = _storage_playback_options(
+                list(self._state.case_parameter_options.get(str(nodeid or "").strip(), {}).get(field.key, []))
+            )
             self._trace(
-                "param_options_read_cache",
+                "param_options_read_state",
                 field=field.key,
                 source=source,
                 dut=self._current_dut_serial() or "<default>",
-                cache_key=cache_key,
                 nodeid=str(nodeid or "").strip() or "<none>",
                 options=len(values),
             )
@@ -794,19 +829,22 @@ class TestPageBridge(QObject):
         if not self._adb_refresh_started:
             self._adb_refresh_started = True
             self._schedule_adb_refresh("page_init_async")
-        Thread(target=self._discover_cases_worker, args=(started_at,), daemon=True).start()
+        self._create_task(self._discover_cases_task(started_at), label="discover_cases")
 
-    def _discover_cases_worker(self, started_at: float) -> None:
+    async def _discover_cases_task(self, started_at: float) -> None:
         if is_packaged_runtime():
             load_started = time.monotonic()
-            cases = load_packaged_test_catalog()
+            cases = await asyncio.to_thread(load_packaged_test_catalog)
             self._trace(
                 "catalog_loaded",
                 cases=len(cases),
                 elapsed_ms=int((time.monotonic() - load_started) * 1000),
             )
             if not cases:
-                self._discoveryError.emit("Packaged test catalog is missing or empty.", int((time.monotonic() - started_at) * 1000))
+                self._apply_discovery_error(
+                    "Packaged test catalog is missing or empty.",
+                    int((time.monotonic() - started_at) * 1000),
+                )
                 return
             rows = [
                 {
@@ -822,21 +860,25 @@ class TestPageBridge(QObject):
                 }
                 for c in cases
             ]
-            self._discoveryResult.emit(rows, int((time.monotonic() - started_at) * 1000))
+            self._apply_discovery_result(rows, int((time.monotonic() - started_at) * 1000))
             return
         try:
             collect_started = time.monotonic()
-            cases = discover_pytest_cases(root_dir=self._root_dir, python_executable=sys.executable)
+            cases = await asyncio.to_thread(
+                discover_pytest_cases,
+                root_dir=self._root_dir,
+                python_executable=sys.executable,
+            )
             self._trace(
                 "pytest_collect_done",
                 cases=len(cases),
                 elapsed_ms=int((time.monotonic() - collect_started) * 1000),
             )
         except PytestDiscoveryError as e:
-            self._discoveryError.emit(str(e), int((time.monotonic() - started_at) * 1000))
+            self._apply_discovery_error(str(e), int((time.monotonic() - started_at) * 1000))
             return
         except Exception as e:  # noqa: BLE001
-            self._discoveryError.emit(f"Pytest discovery failed: {e}", int((time.monotonic() - started_at) * 1000))
+            self._apply_discovery_error(f"Pytest discovery failed: {e}", int((time.monotonic() - started_at) * 1000))
             return
 
         rows = [
@@ -853,7 +895,7 @@ class TestPageBridge(QObject):
             }
             for c in cases
         ]
-        self._discoveryResult.emit(rows, int((time.monotonic() - started_at) * 1000))
+        self._apply_discovery_result(rows, int((time.monotonic() - started_at) * 1000))
 
     @Slot("QVariantList", int)
     def _apply_discovery_result(self, rows: list[dict[str, Any]], elapsed_ms: int) -> None:
@@ -872,7 +914,7 @@ class TestPageBridge(QObject):
             cases=len(self._cases),
             elapsed_ms=elapsed_ms,
         )
-        self._refresh_selected_param_options("discover_done")
+        self._schedule_context_refresh("discover_done")
 
     @Slot(str, int)
     def _apply_discovery_error(self, message: str, elapsed_ms: int) -> None:
@@ -946,9 +988,9 @@ class TestPageBridge(QObject):
                         "name_source": "dynamic",
                         "case_type": str(case.get("case_type", "default")),
                         "case_type_source": "dynamic",
-                        "required_params": list(case.get("required_params", [])),
+                        "required_params": case_param_keys(case),
                         "required_param_groups": list(case.get("required_param_groups", [])),
-                        "required_equipment": list(case.get("required_equipment", [])),
+                        "required_equipment": env_kinds_for_case(case),
                     }
                 )
         return rows
@@ -974,7 +1016,7 @@ class TestPageBridge(QObject):
             case = self._case_info(selected.nodeid)
             if case is None:
                 continue
-            for value in list(case.get("required_equipment", [])):
+            for value in env_kinds_for_case(case):
                 kind = str(value or "").strip().lower()
                 if not kind or kind in seen:
                     continue
@@ -986,106 +1028,31 @@ class TestPageBridge(QObject):
         raw = self._state.global_context.get("equipment", {})
         return dict(raw) if isinstance(raw, dict) else {}
 
-    def _relay_type_rows(self) -> list[dict[str, Any]]:
-        return [
-            {"value": "snmp_pdu", "label": self.tr("test.env.relay.type.snmp_pdu"), "label_source": "fixed"},
-            {"value": "usb_relay", "label": self.tr("test.env.relay.type.usb_relay"), "label_source": "fixed"},
-        ]
-
-    def _relay_fields(self, relay_type: str, config: dict[str, Any]) -> list[dict[str, Any]]:
-        normalized_type = str(relay_type or "").strip() or "snmp_pdu"
-        if normalized_type == "usb_relay":
-            specs = [
-                {
-                    "key": "port",
-                    "label": self.tr("test.env.relay.usb_relay.port.label"),
-                    "label_source": "fixed",
-                    "type": "string",
-                    "default": "",
-                    "description": self.tr("test.env.relay.usb_relay.port.description"),
-                    "description_source": "fixed",
-                },
-                {
-                    "key": "mode",
-                    "label": self.tr("test.env.relay.usb_relay.mode.label"),
-                    "label_source": "fixed",
-                    "type": "enum",
-                    "default": "NO",
-                    "enum_values": ["NO", "NC"],
-                    "enum_values_source": "fixed",
-                    "description": "",
-                    "description_source": "fixed",
-                },
-                {
-                    "key": "press_seconds",
-                    "label": self.tr("test.env.relay.usb_relay.press_seconds.label"),
-                    "label_source": "fixed",
-                    "type": "int",
-                    "default": 1,
-                    "description": "",
-                    "description_source": "fixed",
-                },
-            ]
-        else:
-            specs = [
-                {
-                    "key": "ip",
-                    "label": self.tr("test.env.relay.snmp_pdu.ip.label"),
-                    "label_source": "fixed",
-                    "type": "string",
-                    "default": "",
-                    "description": self.tr("test.env.relay.snmp_pdu.ip.description"),
-                    "description_source": "fixed",
-                },
-                {
-                    "key": "port",
-                    "label": self.tr("test.env.relay.snmp_pdu.port.label"),
-                    "label_source": "fixed",
-                    "type": "int",
-                    "default": 1,
-                    "description": "",
-                    "description_source": "fixed",
-                },
-            ]
-        fields: list[dict[str, Any]] = []
-        for spec in specs:
-            field = dict(spec)
-            field["value"] = config.get(str(field["key"]), field.get("default", ""))
-            field["value_source"] = "user"
-            field.setdefault("enum_values", [])
-            field.setdefault("enum_values_source", "fixed")
-            fields.append(field)
-        return fields
-
     def _env_default_config(self, kind: str, device_type: str | None = None) -> dict[str, Any]:
-        normalized_kind = str(kind or "").strip().lower()
-        if normalized_kind == "relay":
-            relay_type = str(device_type or "").strip() or "snmp_pdu"
-            config: dict[str, Any] = {"type": relay_type}
-            for field in self._relay_fields(relay_type, {}):
-                config[str(field["key"])] = field.get("default", "")
-            return config
-        return {"type": str(device_type or "").strip()}
+        return default_env_config(kind, device_type)
 
     def _env_equipment_row(self, kind: str) -> dict[str, Any] | None:
         normalized_kind = str(kind or "").strip().lower()
         config = self._equipment_config().get(normalized_kind, {})
         config = dict(config) if isinstance(config, dict) else {}
-        if normalized_kind == "relay":
-            relay_type = str(config.get("type") or "snmp_pdu").strip() or "snmp_pdu"
-            return {
-                "kind": "relay",
-                "kind_source": "fixed",
-                "label": self.tr("test.env.relay.label"),
-                "label_source": "fixed",
-                "type": relay_type,
-                "type_source": "user",
-                "typeLabel": self.tr("test.env.equipment.type.label"),
-                "typeLabel_source": "fixed",
-                "typeOptions": self._relay_type_rows(),
-                "fields": self._relay_fields(relay_type, config),
-            }
-        return None
+        device_type = str(config.get("type") or default_env_device_type(normalized_kind)).strip()
+        self._trace(
+            "env_row_build",
+            kind=normalized_kind,
+            type=device_type or "<none>",
+            option_keys=",".join(sorted(self._env_options.keys())) or "<none>",
+        )
+        return build_env_equipment_row(
+            kind=normalized_kind,
+            config=config,
+            env_options=self._env_options,
+            is_loading=lambda kind, owner, key: self._is_dynamic_field_loading(
+                kind=kind,
+                owner=owner,
+                key=key,
+            ),
+            tr=self.tr,
+        )
 
     @Slot(result="QVariantList")
     def envEquipmentRows(self):
@@ -1237,6 +1204,7 @@ class TestPageBridge(QObject):
         equipment[normalized_kind] = next_config
         self._state.global_context["equipment"] = equipment
         self._save_and_emit()
+        self._schedule_context_refresh(f"env_type_changed:{normalized_kind}")
 
     @Slot(str, str, result="QVariant")
     def envEquipmentValue(self, kind: str, key: str) -> Any:
@@ -1258,15 +1226,85 @@ class TestPageBridge(QObject):
         normalized_key = str(key or "").strip()
         if not normalized_kind or not normalized_key:
             return
+        normalized_value = _normalize_env_equipment_value(normalized_key, value)
         equipment = self._equipment_config()
         current = equipment.get(normalized_kind, {})
         config = dict(current) if isinstance(current, dict) else {}
         if "type" not in config:
             config = self._env_default_config(normalized_kind)
-        if config.get(normalized_key) == value:
+        if config.get(normalized_key) == normalized_value:
+            self._trace("env_value_unchanged", kind=normalized_kind, key=normalized_key)
             return
-        config[normalized_key] = value
+        config[normalized_key] = normalized_value
         equipment[normalized_kind] = config
+        self._state.global_context["equipment"] = equipment
+        self._trace(
+            "env_value_changed",
+            kind=normalized_kind,
+            key=normalized_key,
+            value=_value_size(normalized_value),
+        )
+        self._save_and_emit()
+
+    @Slot(str)
+    def addEnvRelayTerminal(self, kind: str) -> None:
+        normalized_kind = str(kind or "").strip().lower()
+        if not normalized_kind:
+            return
+        rows = self._env_relay_terminals(normalized_kind)
+        rows.append({"terminal": len(rows) + 1, "mode": "NO", "press_seconds": 1})
+        self._trace("env_terminal_add", kind=normalized_kind, rows=len(rows))
+        self._set_env_relay_terminals(normalized_kind, rows)
+
+    @Slot(str, int)
+    def removeEnvRelayTerminal(self, kind: str, index: int) -> None:
+        normalized_kind = str(kind or "").strip().lower()
+        if not normalized_kind:
+            return
+        rows = self._env_relay_terminals(normalized_kind)
+        if len(rows) <= 1 or index < 0 or index >= len(rows):
+            self._trace("env_terminal_remove_skip", kind=normalized_kind, index=index, rows=len(rows))
+            return
+        rows.pop(index)
+        self._trace("env_terminal_remove", kind=normalized_kind, index=index, rows=len(rows))
+        self._set_env_relay_terminals(normalized_kind, rows)
+
+    @Slot(str, int, str, "QVariant")
+    def setEnvRelayTerminalValue(self, kind: str, index: int, key: str, value: Any) -> None:
+        normalized_kind = str(kind or "").strip().lower()
+        normalized_key = str(key or "").strip()
+        if not normalized_kind or not normalized_key:
+            return
+        rows = self._env_relay_terminals(normalized_kind)
+        if index < 0 or index >= len(rows):
+            self._trace("env_terminal_update_skip", kind=normalized_kind, index=index, key=normalized_key)
+            return
+        if normalized_key not in {"terminal", "mode", "press_seconds"}:
+            self._trace("env_terminal_update_skip", kind=normalized_kind, index=index, key=normalized_key)
+            return
+        rows[index][normalized_key] = value
+        rows = _normalize_env_equipment_value("terminals", rows)
+        self._trace("env_terminal_update", kind=normalized_kind, index=index, key=normalized_key, rows=len(rows))
+        self._set_env_relay_terminals(normalized_kind, rows)
+
+    def _env_relay_terminals(self, kind: str) -> list[dict[str, Any]]:
+        config = self._equipment_config().get(kind, {})
+        if not isinstance(config, dict):
+            config = self._env_default_config(kind, "usb_relay")
+        return _normalize_env_equipment_value("terminals", config.get("terminals", []))
+
+    def _set_env_relay_terminals(self, kind: str, rows: list[dict[str, Any]]) -> None:
+        normalized_rows = _normalize_env_equipment_value("terminals", rows)
+        equipment = self._equipment_config()
+        current = equipment.get(kind, {})
+        config = dict(current) if isinstance(current, dict) else self._env_default_config(kind, "usb_relay")
+        if "type" not in config:
+            config = self._env_default_config(kind, "usb_relay")
+        if config.get("terminals") == normalized_rows:
+            self._trace("env_terminal_unchanged", kind=kind, rows=len(normalized_rows))
+            return
+        config["terminals"] = normalized_rows
+        equipment[kind] = config
         self._state.global_context["equipment"] = equipment
         self._save_and_emit()
 
@@ -1279,7 +1317,7 @@ class TestPageBridge(QObject):
         case = self._case_info(nodeid)
         if case is None:
             return []
-        required_params = list(case.get("required_params", []))
+        required_params = case_param_keys(case)
         required_param_keys = set(required_params_for_case(case))
         fields: list[dict[str, Any]] = []
         for param_key in required_params:
@@ -1290,23 +1328,6 @@ class TestPageBridge(QObject):
             jsonable["required"] = field.key in required_param_keys
             fields.append(jsonable)
         return fields
-
-    @Slot(str, str)
-    def refreshCaseParamOptions(self, nodeid: str, key: str) -> None:
-        case = self._case_info(nodeid)
-        field = self._field_for_key(key)
-        if case is None or field is None:
-            self._trace("param_options_manual_refresh_missing_field", nodeid=nodeid, key=key)
-            return
-        source = str(field.options_source or "").strip()
-        if not source:
-            self._trace("param_options_manual_refresh_no_source", nodeid=nodeid, key=key)
-            return
-        self._schedule_param_options_refresh(
-            source,
-            f"manual_field_refresh:{key}",
-            nodeid=nodeid,
-        )
 
     @Slot(str, str, result="QVariant")
     def caseParamValue(self, nodeid: str, key: str):
@@ -1323,7 +1344,7 @@ class TestPageBridge(QObject):
             return
         self._save_and_emit()
         if selected:
-            self._refresh_selected_param_options("case_selected")
+            self._schedule_context_refresh("case_selected")
 
     @Slot(str, bool)
     def setFileSelected(self, file_path: str, selected: bool) -> None:
@@ -1348,7 +1369,7 @@ class TestPageBridge(QObject):
         self._reorder_selected_cases_by_file_order()
         self._save_and_emit()
         if selected:
-            self._refresh_selected_param_options("file_selected")
+            self._schedule_context_refresh("file_selected")
 
     @Slot(str, result=bool)
     def isCaseSelected(self, nodeid: str) -> bool:
@@ -1379,7 +1400,7 @@ class TestPageBridge(QObject):
             return
         self._state.global_context[key] = value
         if key == "dut":
-            self._refresh_selected_param_options("dut_changed")
+            self._schedule_context_refresh("dut_changed")
         self._save_and_emit()
 
     @Slot(str, str, "QVariant")
@@ -1446,18 +1467,42 @@ def _storage_playback_options(values: list[str]) -> list[str]:
     return normalized
 
 
-def _param_options_cache_key(source: str, selected_serial: str | None = None, nodeid: str = "") -> str:
-    base_key = option_cache_key(source, selected_serial)
-    normalized_nodeid = str(nodeid or "").strip()
-    if not normalized_nodeid:
-        return base_key
-    return f"{base_key}#{normalized_nodeid}"
-
-
 def _dynamic_value_for_field(field: ParamField, options: list[str]) -> Any:
     if not options:
         return field.default
     return options[0]
+
+
+def _normalize_env_equipment_value(key: str, value: Any) -> Any:
+    if str(key or "").strip() != "terminals":
+        return value
+    try:
+        raw_rows = list(value)
+    except TypeError:
+        raw_rows = []
+    rows: list[dict[str, Any]] = []
+    for item in raw_rows:
+        if not isinstance(item, dict):
+            continue
+        try:
+            terminal = max(1, int(str(item.get("terminal", 1)).strip()))
+        except (TypeError, ValueError):
+            terminal = 1
+        try:
+            press_seconds: int | float = float(str(item.get("press_seconds", 1)).strip())
+        except (TypeError, ValueError):
+            press_seconds = 1
+        if isinstance(press_seconds, float) and press_seconds.is_integer():
+            press_seconds = int(press_seconds)
+        mode = str(item.get("mode", "NO") or "NO").strip().upper()
+        rows.append(
+            {
+                "terminal": terminal,
+                "mode": mode if mode in {"NO", "NC"} else "NO",
+                "press_seconds": press_seconds,
+            }
+        )
+    return rows or [{"terminal": 1, "mode": "NO", "press_seconds": 1}]
 
 
 def _value_size(value: Any) -> int:

@@ -60,6 +60,8 @@ SMARTTEST_CASE_PLAN = {
 @pytest.mark.wifi
 @pytest.mark.requires_params(
     "wifi_onoff_scan:cycle_count",
+    "wifi_onoff_scan:on_wait_sec",
+    "wifi_onoff_scan:off_wait_sec",
     "wifi_onoff_scan:ping_target",
 )
 def test_wifi_onoff_scan_via_android_client(request):

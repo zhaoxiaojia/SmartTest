@@ -36,6 +36,13 @@ SMARTTEST_CASE_PLAN = {
             "definition_id": "local_playback.loop",
             "expected": "ExoPlayer starts each selected local file and receives the selected stress actions.",
         },
+        {
+            "id": "local_playback_stress.stop_player_teardown",
+            "title": "Stop ExoPlayer after local playback stress",
+            "kind": "teardown",
+            "definition_id": "local_playback.stop_player",
+            "expected": "ExoPlayer is closed after the local playback stress run finishes.",
+        },
     ],
 }
 
@@ -74,15 +81,27 @@ def test_local_playback_stress(request):
     ):
         android(serialnumber=selected_serial).stop_player()
 
-    with step(
-        "Run local playback stress loop",
-        kind="step",
-        definition_id="local_playback.loop",
-        expected="ExoPlayer starts each selected local file and receives the selected stress actions.",
-        step_id="local_playback_stress.loop",
-    ):
-        run_local_playback_stress(
-            nodeid=request.node.nodeid,
-            selected_serial=selected_serial,
-            trigger=request.node.nodeid,
-        )
+    try:
+        with step(
+            "Run local playback stress loop",
+            kind="step",
+            definition_id="local_playback.loop",
+            expected="ExoPlayer starts each selected local file and receives the selected stress actions.",
+            step_id="local_playback_stress.loop",
+        ):
+            run_local_playback_stress(
+                nodeid=request.node.nodeid,
+                selected_serial=selected_serial,
+                trigger=request.node.nodeid,
+            )
+    finally:
+        with step(
+            "Stop ExoPlayer after local playback stress",
+            phase="teardown",
+            kind="teardown",
+            definition_id="local_playback.stop_player",
+            expected="ExoPlayer is closed after the local playback stress run finishes.",
+            step_id="local_playback_stress.stop_player_teardown",
+            stress_tolerant=False,
+        ):
+            android(serialnumber=selected_serial).stop_player()

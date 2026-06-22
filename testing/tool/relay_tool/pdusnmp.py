@@ -6,13 +6,13 @@ information, constructs SNMP command strings and executes them using
 ``subprocess``. All function and method arguments are documented in a
 ``Parameters`` section.
 """
-import logging
 from testing.tool.dut_tool import command_batch as subprocess
 import time
 from collections.abc import Mapping
 from typing import Any, Sequence
 
 from testing.tool.relay_tool import Relay
+from tools.logging import smart_log
 
 
 def load_config(refresh: bool = False) -> dict[str, Any]:
@@ -118,14 +118,14 @@ class power_ctrl(Relay):
     def check_output(cmd: str) -> bytes | None:
         for attempt in range(1, 4):
             result = subprocess.run(cmd, shell=True, capture_output=True)
-            logging.info("SNMP cmd[%s]: %s", attempt, cmd)
+            smart_log("SNMP cmd[%s]: %s", attempt, cmd, level="info")
             if result.stdout:
-                logging.info("SNMP stdout[%s]: %s", attempt, result.stdout)
+                smart_log("SNMP stdout[%s]: %s", attempt, result.stdout, level="info")
             if result.stderr:
-                logging.info("SNMP stderr[%s]: %s", attempt, result.stderr)
+                smart_log("SNMP stderr[%s]: %s", attempt, result.stderr, level="info")
             if result.returncode == 0:
                 return result.stdout
-            logging.error("SNMP exit code[%s]: %s", attempt, result.returncode)
+            smart_log("SNMP exit code[%s]: %s", attempt, result.returncode, level="error")
             time.sleep(1)
         return None
 
@@ -142,8 +142,9 @@ class power_ctrl(Relay):
         Returns:
             None
         """
-        logging.info(
-            f'Setting power relay: {ip} port {port} {"on" if status == 1 else "off"}'
+        smart_log(
+            f'Setting power relay: {ip} port {port} {"on" if status == 1 else "off"}',
+            level="info",
         )
         cmd = self.SWITCH_CMD.format(ip, port, status)
         self.check_output(cmd)
@@ -168,35 +169,22 @@ class power_ctrl(Relay):
         Returns:
             None
         """
-        logging.info('Shutting down all relays')
+        smart_log('Shutting down all relays', level="info")
         self.set_all(False)
 
     def pulse(self, direction: str = "power_off", *, port: tuple[str, int] | None = None) -> None:
         """Send a simple SNMP switch for one relay port."""
         target = port or self.port
         if not target:
-            logging.warning("No relay port specified for SNMP pulse")
+            smart_log("No relay port specified for SNMP pulse", level="warning")
             return
         ip, relay_port = target
         action = (direction or "power_off").strip().lower()
         off_alias = {"power_off", "off"}
         on_alias = {"power_on", "on"}
         if action not in off_alias | on_alias:
-            logging.warning("Unknown direction %s; defaulting to power_off", direction)
+            smart_log("Unknown direction %s; defaulting to power_off", direction, level="warning")
             action = "power_off"
         status = 0 if action in off_alias else 1
         self.switch(ip, relay_port, status)
-
-# s = PowerCtrl("192.168.50.230")
-# s.switch(2, True)
-# s.dark()
-# s.survival(1)
-# print(s.get_status(1))
-# time.sleep(1)
-# print("start on")
-# s.switch(1, True)
-# print(s.get_status(2))
-
-# s = power_ctrl()
-# s.switch('192.168.200.4',4,1)
 

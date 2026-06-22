@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import logging
+import os
 import subprocess as _subprocess
 from dataclasses import dataclass
 from typing import Iterable, List, Sequence
+from tools.logging import smart_log
 
 
 @dataclass
@@ -60,7 +61,7 @@ class _NullProcess:
 
 
 class CommandRunner:
-    """Lightweight wrapper around :mod:`subprocess` with consistent logging."""
+    """Lightweight wrapper around :mod:`subprocess` with consistent failure logging."""
 
     def __init__(self, encoding: str = "utf-8") -> None:
         self.default_encoding = encoding
@@ -78,6 +79,7 @@ class CommandRunner:
         """Launch a subprocess and return the raw ``Popen`` handle."""
         try:
             kwargs.setdefault("stdin", _subprocess.DEVNULL)
+            kwargs.update(_hidden_process_kwargs(kwargs))
             process = _subprocess.Popen(
                 cmd,
                 shell=shell,
@@ -89,7 +91,7 @@ class CommandRunner:
             )
             return process
         except Exception as exc:  # noqa: BLE001 - intentional swallow
-            logging.exception("Command popen failed: %s", cmd)
+            smart_log("Command popen failed: %s", cmd, level="error", exc_info=True)
             return _NullProcess(exc, cmd)
 
     def run(
@@ -101,7 +103,6 @@ class CommandRunner:
         **kwargs,
     ) -> CommandResult:
         """Execute a command and capture its stdout/stderr."""
-        logging.info("Executing host command: %s", cmd)
         capture_output = kwargs.pop("capture_output", False)
         kwargs.pop("check", None)
         input_data = kwargs.pop("input", None)
@@ -114,13 +115,27 @@ class CommandRunner:
         except _subprocess.TimeoutExpired:
             process.kill()
             stdout, stderr = process.communicate()
-            logging.error("Command timed out after %ss: %s", timeout, cmd)
+            smart_log("Command timed out after %ss: %s", timeout, cmd, level="error")
         return CommandResult(
             command=" ".join(cmd) if isinstance(cmd, Iterable) and not isinstance(cmd, str) else str(cmd),
             stdout=stdout or "",
             stderr=stderr or "",
             returncode=process.returncode,
         )
+
+
+def _hidden_process_kwargs(existing: dict) -> dict:
+    if os.name != "nt":
+        return {}
+    values = {}
+    if "startupinfo" not in existing:
+        startup_info = _subprocess.STARTUPINFO()
+        startup_info.dwFlags |= _subprocess.STARTF_USESHOWWINDOW
+        startup_info.wShowWindow = 0
+        values["startupinfo"] = startup_info
+    if "creationflags" not in existing:
+        values["creationflags"] = _subprocess.CREATE_NO_WINDOW
+    return values
 
 
 class CommandBatch:
@@ -150,11 +165,12 @@ class CommandBatch:
             command, timeout, shell, ignore_error = self._entries.pop(0)
             result = self._runner.run(command, shell=shell, timeout=timeout)
             if result.returncode != 0:
-                logging.warning(
+                smart_log(
                     "Command exited with %s: %s\nstderr: %s",
                     result.returncode,
                     result.command,
                     result.stderr.strip(),
+                    level="warning",
                 )
             results.append(result)
         return results
@@ -178,5 +194,5 @@ def check_output(*args, **kwargs):
     cmd = args[0] if args else kwargs.get("args")
     result = _DEFAULT_RUNNER.run(cmd, **kwargs)
     if result.returncode != 0:
-        logging.warning("Command exited with %s: %s", result.returncode, result.command)
+        smart_log("Command exited with %s: %s", result.returncode, result.command, level="warning")
     return result.stdout

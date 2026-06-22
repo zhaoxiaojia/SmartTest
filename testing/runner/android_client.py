@@ -17,6 +17,7 @@ from testing.runtime.steps import step as runtime_step, step_log
 from testing.runner.android_events import AndroidClientStageTracker
 from testing.steps.definitions import ActionContext, action_plan, get_action
 from testing.params.adb_devices import resolve_adb_serial_for_command
+from tools.logging import smart_log
 
 
 DEFAULT_COMPONENT = "com.smarttest.mobile/com.smarttest.mobile.command.CommandActivity"
@@ -88,7 +89,6 @@ def _force_stop_android_client(
 ) -> subprocess.CompletedProcess[str]:
     cmd = adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
     cmd.extend(["shell", "am", "force-stop", package_name])
-    print(f"[testing.runner.android_client] force-stop command: {' '.join(cmd)}")
     result = subprocess.run(
         cmd,
         capture_output=True,
@@ -96,8 +96,13 @@ def _force_stop_android_client(
         check=False,
         creationflags=subprocess_creationflags(),
     )
-    print(f"[testing.runner.android_client] force-stop stdout: {result.stdout.strip()}")
-    print(f"[testing.runner.android_client] force-stop stderr: {result.stderr.strip()}")
+    if result.returncode != 0:
+        smart_log(
+            f"force-stop failed rc={result.returncode} stderr={result.stderr.strip()}",
+            level="warning",
+            domain="android",
+            source="android_client",
+        )
     return result
 
 
@@ -171,7 +176,6 @@ def _launch_android_client_main(
     component = f"{package_name}/com.smarttest.mobile.MainActivity"
     cmd = adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
     cmd.extend(["shell", "am", "start", "-n", component])
-    print(f"[testing.runner.android_client] launch-main command: {' '.join(cmd)}")
     result = subprocess.run(
         cmd,
         capture_output=True,
@@ -179,8 +183,13 @@ def _launch_android_client_main(
         check=False,
         creationflags=subprocess_creationflags(),
     )
-    print(f"[testing.runner.android_client] launch-main stdout: {result.stdout.strip()}")
-    print(f"[testing.runner.android_client] launch-main stderr: {result.stderr.strip()}")
+    if result.returncode != 0:
+        smart_log(
+            f"launch-main failed rc={result.returncode} stderr={result.stderr.strip()}",
+            level="warning",
+            domain="android",
+            source="android_client",
+        )
     return result
 
 
@@ -266,7 +275,6 @@ def _start_android_client_run(
             json.dumps(dict(params), ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
         ).decode("ascii").rstrip("=")
         cmd.extend(["--es", "params_b64", encoded_params])
-    print(f"{log_prefix} trigger command: {' '.join(cmd)}")
     result = subprocess.run(
         cmd,
         capture_output=True,
@@ -274,8 +282,13 @@ def _start_android_client_run(
         check=False,
         creationflags=subprocess_creationflags(),
     )
-    print(f"{log_prefix} trigger stdout: {result.stdout.strip()}")
-    print(f"{log_prefix} trigger stderr: {result.stderr.strip()}")
+    if result.returncode != 0:
+        smart_log(
+            f"{log_prefix} trigger failed rc={result.returncode} stderr={result.stderr.strip()}",
+            level="warning",
+            domain="android",
+            source="android_client",
+        )
     return result
 
 
@@ -411,7 +424,7 @@ def read_android_client_snapshot(
             if label == "content":
                 raise
             if verbose:
-                print(f"[android_client.status] {label} fallback: {exc}")
+                smart_log(f"[android_client.status] {label} fallback: {exc}", level="warning", domain="android", source="android_client")
     raise RuntimeError("android_client snapshot read failed without an attempted reader.")
 
 
@@ -501,11 +514,11 @@ def _collect_device_failure_debug(
             adb_serial=adb_serial,
             shell_args=shell_args,
         )
-        print(
+        smart_log(
             "[android_client.power] "
             f"{label} returncode={code} value={stdout or '<empty>'} "
-            f"stderr={stderr or '<empty>'}"
-        )
+            f"stderr={stderr or '<empty>'}",
+            domain="android", source="android_client")
 
 
 def wait_for_android_client_case_completion(
@@ -544,10 +557,10 @@ def wait_for_android_client_case_completion(
         ):
             if not host_quiet_logged:
                 remaining = max(0.0, host_quiet_until - time.monotonic())
-                print(
+                smart_log(
                     "[android_client.power] "
-                    f"host quiet mode: hold adb polling for {remaining:.1f}s"
-                )
+                    f"host quiet mode: hold adb polling for {remaining:.1f}s",
+                    domain="android", source="android_client")
                 host_quiet_logged = True
             time.sleep(poll_interval_sec)
             continue
@@ -556,12 +569,12 @@ def wait_for_android_client_case_completion(
             device_state = _adb_get_state(adb_executable=adb_executable, adb_serial=adb_serial)
             if device_state != last_device_state:
                 status = "dut alive" if device_state == "device" else f"dut lost state={device_state or '<empty>'}"
-                print(f"[android_client.power] {status}")
+                smart_log(f"[android_client.power] {status}", domain="android", source="android_client")
                 last_device_state = device_state
             if device_state == "device":
                 boot_completed = _adb_is_boot_completed(adb_executable=adb_executable, adb_serial=adb_serial)
                 if boot_completed != last_boot_completed:
-                    print(f"[android_client.power] boot_completed={boot_completed}")
+                    smart_log(f"[android_client.power] boot_completed={boot_completed}", domain="android", source="android_client")
                     last_boot_completed = boot_completed
             else:
                 last_boot_completed = None
@@ -577,7 +590,6 @@ def wait_for_android_client_case_completion(
             consecutive_failures = 0
             last_snapshot_failure_key = ""
             if waiting_for_device_resume and not last_snapshot_channel_ready:
-                print("[android_client.power] snapshot channel ready after DUT resume")
                 last_snapshot_channel_ready = True
         except Exception as exc:  # noqa: BLE001
             last_error = str(exc)
@@ -589,7 +601,7 @@ def wait_for_android_client_case_completion(
                 else "[android_client.status] snapshot read failed"
             )
             if failure_key != last_snapshot_failure_key:
-                print(f"{prefix}: {failure_key}")
+                smart_log(f"{prefix}: {failure_key}", level="warning", domain="android", source="android_client")
                 if stage_tracker is not None:
                     stage_tracker.status_waiting(failure_key)
                 last_snapshot_failure_key = failure_key
@@ -613,7 +625,7 @@ def wait_for_android_client_case_completion(
             if len(log_lines) < seen_log_count:
                 seen_log_count = 0
             for line in log_lines[seen_log_count:]:
-                print(f"[android_client.log] {line}")
+                smart_log(f"[android_client.log] {line}", domain="android", source="android_client")
             seen_log_count = len(log_lines)
 
         active_request = snapshot.get("activeRequest", {})
@@ -643,7 +655,7 @@ def wait_for_android_client_case_completion(
             f"trigger={active_trigger or '<empty>'}"
         )
         if status_line != last_status_line:
-            print(status_line)
+            smart_log(status_line, domain="android", source="android_client")
             last_status_line = status_line
 
         next_waiting_for_device_resume = _next_dut_unavailable_wait_state(
@@ -653,11 +665,11 @@ def wait_for_android_client_case_completion(
             waiting_for_device_resume=waiting_for_device_resume,
         )
         if next_waiting_for_device_resume != waiting_for_device_resume:
-            print(
+            smart_log(
                 "[android_client.power] "
                 f"waiting_for_resume={next_waiting_for_device_resume} "
-                f"phase={phase or '<empty>'} stage={current_stage or '<empty>'}"
-            )
+                f"phase={phase or '<empty>'} stage={current_stage or '<empty>'}",
+                domain="android", source="android_client")
             if next_waiting_for_device_resume:
                 last_snapshot_channel_ready = False
                 host_quiet_tokens = _stage_tokens(
@@ -701,10 +713,11 @@ def wait_for_android_client_case_completion(
                 error_text
             )
         if phase in {"Completed", "Failed"} and matches_request and not fresh_run_observed:
-            print(
+            smart_log(
                 "[android_client.status] ignoring stale terminal snapshot "
-                f"phase={phase} request_id={request_id}"
-            )
+                f"phase={phase} request_id={request_id}",
+                level="warning",
+                domain="android", source="android_client")
 
         if phase == "Idle":
             recent_text = _recent_log_text(snapshot, 8)
@@ -740,21 +753,21 @@ def trigger_android_client_case(
 ) -> subprocess.CompletedProcess[str]:
     adb_executable = shutil.which("adb")
     if not adb_executable:
-        print("[testing.runner.android_client] adb executable not found in PATH")
+        smart_log("adb executable not found in PATH", level="error", domain="android", source="android_client")
         raise RuntimeError("adb is not available in PATH.")
 
     component = os.environ.get("SMARTTEST_ANDROID_COMPONENT", DEFAULT_COMPONENT)
     requested_serial = str(adb_serial or current_dut_serial())
-    print(f"[testing.runner.android_client] case_id={case_id}")
-    print(f"[testing.runner.android_client] adb={adb_executable}")
-    print(f"[testing.runner.android_client] requested_serial={_serial_for_log(requested_serial)}")
-    print(f"[testing.runner.android_client] effective_serial={_serial_for_log(resolve_adb_serial_for_command(requested_serial))}")
-    print(f"[testing.runner.android_client] component={component}")
+    smart_log(f"case_id={case_id}", domain="android", source="android_client")
+    smart_log(f"adb={adb_executable}", domain="android", source="android_client")
+    smart_log(f"requested_serial={_serial_for_log(requested_serial)}", domain="android", source="android_client")
+    smart_log(f"effective_serial={_serial_for_log(resolve_adb_serial_for_command(requested_serial))}", domain="android", source="android_client")
+    smart_log(f"component={component}", domain="android", source="android_client")
     request_id = f"{case_id}-{uuid.uuid4().hex[:12]}"
-    print(f"[testing.runner.android_client] request_id={request_id}")
+    smart_log(f"request_id={request_id}", domain="android", source="android_client")
     stage_tracker = AndroidClientStageTracker(case_id=case_id, request_id=request_id)
     require_privileged = case_id in PRIVILEGED_CASE_IDS
-    print(f"[testing.runner.android_client] require_privileged={require_privileged}")
+    smart_log(f"require_privileged={require_privileged}", domain="android", source="android_client")
     if require_privileged and android_client_installed(adb_serial=requested_serial):
         stop_android_client_run(
             adb_serial=requested_serial,
@@ -763,7 +776,7 @@ def trigger_android_client_case(
         time.sleep(1.0)
         _launch_android_client_main(adb_executable=adb_executable, adb_serial=requested_serial)
     installed = android_client_installed(adb_serial=requested_serial)
-    print(f"[testing.runner.android_client] installed_before_run={installed}")
+    smart_log(f"installed_before_run={installed}", domain="android", source="android_client")
     if not installed:
         raise RuntimeError(
             "android_client APK is not installed on DUT. Refresh the DUT list from the Test page before running."
@@ -778,20 +791,21 @@ def trigger_android_client_case(
         baseline_phase = str(baseline_snapshot.get("phase", "") or "")
         baseline_request_id = _snapshot_request_id(baseline_snapshot)
         baseline_case_ids = _snapshot_case_ids(baseline_snapshot)
-        print(
+        smart_log(
             "[testing.runner.android_client] baseline "
             f"phase={baseline_phase or '<empty>'} "
             f"request_id={baseline_request_id or '<empty>'} "
-            f"case_ids={baseline_case_ids}"
-        )
+            f"case_ids={baseline_case_ids}",
+            domain="android", source="android_client")
         if (
             baseline_phase in {"Running", "Stopping"}
             and case_id in baseline_case_ids
         ):
-            print(
+            smart_log(
                 "[testing.runner.android_client] stop stale active run before new request "
-                f"case_id={case_id} baseline_request_id={baseline_request_id or '<empty>'}"
-            )
+                f"case_id={case_id} baseline_request_id={baseline_request_id or '<empty>'}",
+                level="warning",
+                domain="android", source="android_client")
             stop_android_client_run(
                 adb_serial=requested_serial,
                 reason=f"reset stale android_client run before request {request_id}",
@@ -801,7 +815,7 @@ def trigger_android_client_case(
             baseline_signature = None
             baseline_log_count = 0
     except Exception as exc:  # noqa: BLE001
-        print(f"[testing.runner.android_client] baseline snapshot unavailable: {exc}")
+        smart_log(f"baseline snapshot unavailable: {exc}", level="warning", domain="android", source="android_client")
     result = _start_android_client_run(
         adb_executable=adb_executable,
         component=component,
@@ -829,10 +843,10 @@ def trigger_android_client_case(
     if result.stderr:
         stage_tracker.evidence("Trigger stderr", result.stderr.strip(), evidence_type="stderr", level="warning")
     if case_id in _no_poll_case_ids():
-        print(
+        smart_log(
             "[testing.runner.android_client] no-poll mode enabled; "
-            f"skip host status polling for case_id={case_id} request_id={request_id}"
-        )
+            f"skip host status polling for case_id={case_id} request_id={request_id}",
+            domain="android", source="android_client")
         stage_tracker.finish("passed", actual="Triggered without host status polling.")
         return result
     wait_poll_interval_sec = DEFAULT_POLL_INTERVAL_SEC
@@ -840,10 +854,10 @@ def trigger_android_client_case(
         wait_poll_interval_sec = float(
             os.environ.get("SMARTTEST_ANDROID_SLOW_POLL_INTERVAL_SEC", "5.0"),
         )
-        print(
+        smart_log(
             "[testing.runner.android_client] slow-poll mode enabled; "
-            f"poll_interval={wait_poll_interval_sec}s for case_id={case_id}"
-        )
+            f"poll_interval={wait_poll_interval_sec}s for case_id={case_id}",
+            domain="android", source="android_client")
     try:
         snapshot = wait_for_android_client_case_completion(
             adb_executable=adb_executable,
@@ -862,11 +876,11 @@ def trigger_android_client_case(
         raise
     report = snapshot.get("report", {})
     if isinstance(report, dict):
-        print(
+        smart_log(
             "[testing.runner.android_client] final report: "
             f"total={report.get('totalCount')} "
             f"passed={report.get('successCount')} "
             f"failed={report.get('failedCount')} "
-            f"status={report.get('statusText')}"
-        )
+            f"status={report.get('statusText')}",
+            domain="android", source="android_client")
     return result

@@ -264,12 +264,12 @@ def run_local_playback_stress(
             random.shuffle(action_plan)
             step_log(f"loop={loop_index}/{loop_count} start file={file_path}")
             start_file(file_path, playback)
-            assert_media_session_state(playback.dut, file_path=file_path, expected_state="PLAYING")
+            assert_media_session_state(playback, file_path=file_path, expected_state="PLAYING")
             if start_wait_sec:
                 time.sleep(start_wait_sec)
             for action in action_plan:
                 executed = verify_stress_action(
-                    dut=playback.dut,
+                    dut=playback,
                     file_path=file_path,
                     action=action,
                     action_interval_sec=action_interval_sec,
@@ -279,7 +279,7 @@ def run_local_playback_stress(
                     break
                 if executed and action_interval_sec:
                     time.sleep(action_interval_sec)
-            _wait_for_playback_finished_after_actions(playback.dut, file_path)
+            _wait_for_playback_finished_after_actions(playback, file_path)
             exit_player(playback)
 
 
