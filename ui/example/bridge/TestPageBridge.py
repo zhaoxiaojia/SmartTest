@@ -61,6 +61,7 @@ class TestPageBridge(QObject):
         self._discovery_loaded = False
         TranslateHelper().currentChanged.connect(self._handle_language_changed)
         state_changed = self._ensure_state_defaults()
+        state_changed = self._clear_case_param_options() or state_changed
         state_changed = self._sync_dut_selection() or state_changed
         if state_changed:
             save_state(self._state_path, self._state)
@@ -195,9 +196,18 @@ class TestPageBridge(QObject):
             return
         param_targets = self._selected_dynamic_param_targets()
         env_targets = self._selected_dynamic_env_targets()
+        selected_dut = self._current_dut_serial()
+        if param_targets and not selected_dut:
+            if self._clear_case_param_options(param_targets):
+                save_state(self._state_path, self._state)
+                self.stateChanged.emit()
+            self._trace("context_refresh_skip_no_dut", reason=reason, params=len(param_targets))
+            param_targets = []
         if not param_targets and not env_targets:
             self._trace("context_refresh_skip_empty", reason=reason)
             return
+        if param_targets and self._clear_case_param_options(param_targets):
+            save_state(self._state_path, self._state)
         self._context_refresh_running = True
         self._dynamic_fields_refreshing = {
             *(
@@ -217,7 +227,7 @@ class TestPageBridge(QObject):
         )
         self.stateChanged.emit()
         self._create_task(
-            self._refresh_context_task(self._current_dut_serial(), param_targets, env_targets),
+            self._refresh_context_task(selected_dut, param_targets, env_targets),
             label="context_refresh",
         )
 
@@ -283,6 +293,9 @@ class TestPageBridge(QObject):
             options = _storage_playback_options(normalize_option_values(result.get("options", [])))
             error = str(result.get("error", "") or "").strip()
             if error:
+                if self._set_case_param_options(nodeid=nodeid, key=field_key, options=[]):
+                    changed = True
+                    state_synced = True
                 self._trace(
                     "param_options_refresh_error",
                     source=source,
@@ -343,6 +356,30 @@ class TestPageBridge(QObject):
                 options=len(normalized_options),
             )
         if self._prune_case_param_value_to_options(nodeid=normalized_nodeid, key=normalized_key, options=normalized_options):
+            changed = True
+        return changed
+
+    def _clear_case_param_options(self, targets: list[dict[str, str]] | None = None) -> bool:
+        if targets is None:
+            if not self._state.case_parameter_options:
+                return False
+            count = sum(len(values) for values in self._state.case_parameter_options.values() if isinstance(values, dict))
+            self._state.case_parameter_options = {}
+            self._trace("param_options_cleared", fields=count)
+            return True
+        changed = False
+        for target in targets:
+            nodeid = str(target.get("nodeid", "") or "").strip()
+            field_key = str(target.get("field_key", "") or "").strip()
+            if not nodeid or not field_key:
+                continue
+            node_options = self._state.case_parameter_options.get(nodeid)
+            if not isinstance(node_options, dict) or field_key not in node_options:
+                continue
+            node_options.pop(field_key, None)
+            if not node_options:
+                self._state.case_parameter_options.pop(nodeid, None)
+            self._trace("param_options_cleared", nodeid=nodeid, field=field_key)
             changed = True
         return changed
 

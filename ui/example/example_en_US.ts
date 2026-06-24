@@ -120,29 +120,24 @@
 <context>
     <name>AuthBridge</name>
     <message>
-        <location filename="bridge/AuthBridge.py" line="336"/>
         <source>Account or password cannot be empty.</source>
-        <translation>Account or password cannot be empty.</translation>
+        <translation type="vanished">Account or password cannot be empty.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="343"/>
         <source>ldap3 is not installed in the current Python environment.</source>
-        <translation>ldap3 is not installed in the current Python environment.</translation>
+        <translation type="vanished">ldap3 is not installed in the current Python environment.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="354"/>
         <source>LDAP sign-in failed. {detail}</source>
-        <translation>LDAP sign-in failed. {detail}</translation>
+        <translation type="vanished">LDAP sign-in failed. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="357"/>
         <source>LDAP sign-in failed. Please check your account or password.</source>
-        <translation>LDAP sign-in failed. Please check your account or password.</translation>
+        <translation type="vanished">LDAP sign-in failed. Please check your account or password.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="372"/>
         <source>Sign-in successful. Welcome, {username}</source>
-        <translation>Sign-in successful. Welcome, {username}</translation>
+        <translation type="vanished">Sign-in successful. Welcome, {username}</translation>
     </message>
 </context>
 <context>
@@ -184,27 +179,13 @@
 <context>
     <name>DebugBridge</name>
     <message>
-        <location filename="bridge/DebugBridge.py" line="66"/>
-        <location filename="bridge/DebugBridge.py" line="78"/>
-        <location filename="bridge/DebugBridge.py" line="91"/>
-        <source>Load a KPI video first.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="bridge/DebugBridge.py" line="82"/>
-        <source>No frames available in current video.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="bridge/DebugBridge.py" line="105"/>
         <source>Select a video file first.</source>
-        <translation>Select a video file first.</translation>
+        <translation type="vanished">Select a video file first.</translation>
     </message>
     <message>
-        <location filename="bridge/DebugBridge.py" line="39"/>
         <source>KPI video loading is already running.</source>
         <oldsource>KPI video analysis is already running.</oldsource>
-        <translation type="unfinished">KPI video analysis is already running.</translation>
+        <translation type="obsolete">KPI video analysis is already running.</translation>
     </message>
 </context>
 <context>
@@ -265,24 +246,20 @@
 <context>
     <name>InitializrHelper</name>
     <message>
-        <location filename="helper/InitializrHelper.py" line="99"/>
         <source>The name cannot be empty</source>
-        <translation>The name cannot be empty</translation>
+        <translation type="vanished">The name cannot be empty</translation>
     </message>
     <message>
-        <location filename="helper/InitializrHelper.py" line="102"/>
         <source>The creation path cannot be empty</source>
-        <translation>The creation path cannot be empty</translation>
+        <translation type="vanished">The creation path cannot be empty</translation>
     </message>
     <message>
-        <location filename="helper/InitializrHelper.py" line="106"/>
         <source>The path does not exist</source>
-        <translation>The path does not exist</translation>
+        <translation type="vanished">The path does not exist</translation>
     </message>
     <message>
-        <location filename="helper/InitializrHelper.py" line="111"/>
         <source>%1 folder already exists</source>
-        <translation>%1 folder already exists</translation>
+        <translation type="vanished">%1 folder already exists</translation>
     </message>
 </context>
 <context>
@@ -719,379 +696,304 @@
 <context>
     <name>JiraBridge</name>
     <message>
-        <location filename="bridge/JiraBridge.py" line="83"/>
         <source>Ready</source>
-        <translation>Ready</translation>
+        <translation type="vanished">Ready</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="84"/>
         <source>Run a Jira query to get a live AI summary.</source>
-        <translation>Run a Jira query to get a live AI summary.</translation>
+        <translation type="vanished">Run a Jira query to get a live AI summary.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="88"/>
         <source>Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</source>
-        <translation>Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</translation>
+        <translation type="vanished">Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="89"/>
         <source>Workspace ready</source>
-        <translation>Workspace ready</translation>
+        <translation type="vanished">Workspace ready</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="90"/>
         <source>Session cleared. Ask a new Jira question when ready.</source>
-        <translation>Session cleared. Ask a new Jira question when ready.</translation>
+        <translation type="vanished">Session cleared. Ask a new Jira question when ready.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="91"/>
         <source>Reset</source>
-        <translation>Reset</translation>
+        <translation type="vanished">Reset</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="92"/>
         <source>Jira request failed. Check the connection message above and sign in again if needed.</source>
-        <translation>Jira request failed. Check the connection message above and sign in again if needed.</translation>
+        <translation type="vanished">Jira request failed. Check the connection message above and sign in again if needed.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="93"/>
         <source>Error</source>
-        <translation>Error</translation>
+        <translation type="vanished">Error</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="94"/>
         <source>All Supported Projects</source>
-        <translation>All Supported Projects</translation>
+        <translation type="vanished">All Supported Projects</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="95"/>
         <source>Open Work</source>
-        <translation>Open Work</translation>
+        <translation type="vanished">Open Work</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="96"/>
         <source>Ready for Test</source>
-        <translation>Ready for Test</translation>
+        <translation type="vanished">Ready for Test</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="97"/>
         <source>Closed Bugs</source>
-        <translation>Closed Bugs</translation>
+        <translation type="vanished">Closed Bugs</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="98"/>
         <source>Last 7 Days</source>
-        <translation>Last 7 Days</translation>
+        <translation type="vanished">Last 7 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="99"/>
         <source>Last 30 Days</source>
-        <translation>Last 30 Days</translation>
+        <translation type="vanished">Last 30 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="100"/>
         <source>Last 90 Days</source>
-        <translation>Last 90 Days</translation>
+        <translation type="vanished">Last 90 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="101"/>
         <source>This Year</source>
-        <translation>This Year</translation>
+        <translation type="vanished">This Year</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="102"/>
         <source>Open</source>
-        <translation>Open</translation>
+        <translation type="vanished">Open</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="103"/>
         <source>In Progress</source>
-        <translation>In Progress</translation>
+        <translation type="vanished">In Progress</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="104"/>
         <source>Verified</source>
-        <translation>Verified</translation>
+        <translation type="vanished">Verified</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="105"/>
         <source>Resolved</source>
-        <translation>Resolved</translation>
+        <translation type="vanished">Resolved</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="106"/>
         <source>Closed</source>
-        <translation>Closed</translation>
+        <translation type="vanished">Closed</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="107"/>
         <source>Highest</source>
-        <translation>Highest</translation>
+        <translation type="vanished">Highest</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="108"/>
         <source>Critical</source>
-        <translation>Critical</translation>
+        <translation type="vanished">Critical</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="109"/>
         <source>High</source>
-        <translation>High</translation>
+        <translation type="vanished">High</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="110"/>
         <source>Medium</source>
-        <translation>Medium</translation>
+        <translation type="vanished">Medium</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="111"/>
         <source>Low</source>
-        <translation>Low</translation>
+        <translation type="vanished">Low</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="112"/>
         <source>Bug</source>
-        <translation>Bug</translation>
+        <translation type="vanished">Bug</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="113"/>
         <source>Task</source>
-        <translation>Task</translation>
+        <translation type="vanished">Task</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="114"/>
         <source>Story</source>
-        <translation>Story</translation>
+        <translation type="vanished">Story</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="115"/>
         <source>Improvement</source>
-        <translation>Improvement</translation>
+        <translation type="vanished">Improvement</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="116"/>
         <source>Unassigned</source>
-        <translation>Unassigned</translation>
+        <translation type="vanished">Unassigned</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="117"/>
         <source>LDAP session is missing Jira credentials. Please sign in again.</source>
-        <translation>LDAP session is missing Jira credentials. Please sign in again.</translation>
+        <translation type="vanished">LDAP session is missing Jira credentials. Please sign in again.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="118"/>
         <source>Connected to {base_url} | loaded {loaded} of {total}</source>
-        <translation>Connected to {base_url} | loaded {loaded} of {total}</translation>
+        <translation type="vanished">Connected to {base_url} | loaded {loaded} of {total}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="122"/>
         <source>Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</source>
-        <translation>Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</translation>
+        <translation type="vanished">Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="123"/>
         <source>Connected to {base_url} | analyzed {returned} of {total}</source>
-        <translation>Connected to {base_url} | analyzed {returned} of {total}</translation>
+        <translation type="vanished">Connected to {base_url} | analyzed {returned} of {total}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="124"/>
         <source>Just now</source>
-        <translation>Just now</translation>
+        <translation type="vanished">Just now</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="125"/>
         <source>Sign in to load Jira data.</source>
-        <translation>Sign in to load Jira data.</translation>
+        <translation type="vanished">Sign in to load Jira data.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="126"/>
         <source>Sign in with LDAP first, then Jira results and AI analysis will load here.</source>
-        <translation>Sign in with LDAP first, then Jira results and AI analysis will load here.</translation>
+        <translation type="vanished">Sign in with LDAP first, then Jira results and AI analysis will load here.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="127"/>
         <source>Loading Jira results...</source>
-        <translation>Loading Jira results...</translation>
+        <translation type="vanished">Loading Jira results...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="128"/>
         <source>Analyzing Jira request...</source>
-        <translation>Analyzing Jira request...</translation>
+        <translation type="vanished">Analyzing Jira request...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="129"/>
         <source>Sign in again to restore Jira access.</source>
-        <translation>Sign in again to restore Jira access.</translation>
+        <translation type="vanished">Sign in again to restore Jira access.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="130"/>
         <source>Signed out</source>
-        <translation>Signed out</translation>
+        <translation type="vanished">Signed out</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="131"/>
         <source>Unknown Jira error</source>
-        <translation>Unknown Jira error</translation>
+        <translation type="vanished">Unknown Jira error</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="132"/>
         <source>Jira request failed: {message}</source>
-        <translation>Jira request failed: {message}</translation>
+        <translation type="vanished">Jira request failed: {message}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="133"/>
         <source>Matched</source>
-        <translation>Matched</translation>
+        <translation type="vanished">Matched</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="134"/>
         <source>{displayed} displayed in the current view</source>
-        <translation>{displayed} displayed in the current view</translation>
+        <translation type="vanished">{displayed} displayed in the current view</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="135"/>
         <source>High Priority</source>
-        <translation>High Priority</translation>
+        <translation type="vanished">High Priority</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="136"/>
         <source>Highest, critical, or high in the current result set</source>
-        <translation>Highest, critical, or high in the current result set</translation>
+        <translation type="vanished">Highest, critical, or high in the current result set</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="137"/>
         <source>Blocked</source>
-        <translation>Blocked</translation>
+        <translation type="vanished">Blocked</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="138"/>
         <source>Blocked items from the displayed Jira scope</source>
-        <translation>Blocked items from the displayed Jira scope</translation>
+        <translation type="vanished">Blocked items from the displayed Jira scope</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="139"/>
         <source>Projects</source>
-        <translation>Projects</translation>
+        <translation type="vanished">Projects</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="140"/>
         <source>Workflow Preset</source>
-        <translation>Workflow Preset</translation>
+        <translation type="vanished">Workflow Preset</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="141"/>
         <source>Time Window</source>
-        <translation>Time Window</translation>
+        <translation type="vanished">Time Window</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="142"/>
         <source>Statuses</source>
-        <translation>Statuses</translation>
+        <translation type="vanished">Statuses</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="143"/>
         <source>Priorities</source>
-        <translation>Priorities</translation>
+        <translation type="vanished">Priorities</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="144"/>
         <source>Issue Types</source>
-        <translation>Issue Types</translation>
+        <translation type="vanished">Issue Types</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="145"/>
         <source>Keyword text</source>
-        <translation>Keyword text</translation>
+        <translation type="vanished">Keyword text</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="146"/>
         <source>Assignee</source>
-        <translation>Assignee</translation>
+        <translation type="vanished">Assignee</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="147"/>
         <source>Reporter</source>
-        <translation>Reporter</translation>
+        <translation type="vanished">Reporter</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="148"/>
         <source>Labels</source>
-        <translation>Labels</translation>
+        <translation type="vanished">Labels</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="149"/>
         <source>Not limited</source>
-        <translation>Not limited</translation>
+        <translation type="vanished">Not limited</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="150"/>
         <source>Current user</source>
-        <translation>Current user</translation>
+        <translation type="vanished">Current user</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="151"/>
         <source>JQL</source>
-        <translation>JQL</translation>
+        <translation type="vanished">JQL</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="152"/>
         <source>Useful candidates for the next regression batch</source>
-        <translation>Useful candidates for the next regression batch</translation>
+        <translation type="vanished">Useful candidates for the next regression batch</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="153"/>
         <source>My Filters</source>
-        <translation>My Filters</translation>
+        <translation type="vanished">My Filters</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="154"/>
         <source>Loading your Jira filters...</source>
-        <translation>Loading your Jira filters...</translation>
+        <translation type="vanished">Loading your Jira filters...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="155"/>
         <source>No favourite filters were found for this account.</source>
-        <translation>No favourite filters were found for this account.</translation>
+        <translation type="vanished">No favourite filters were found for this account.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="156"/>
         <source>Click to apply this filter to the current JQL box.</source>
-        <translation>Click to apply this filter to the current JQL box.</translation>
+        <translation type="vanished">Click to apply this filter to the current JQL box.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="157"/>
         <source>Comments</source>
-        <translation>Comments</translation>
+        <translation type="vanished">Comments</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="158"/>
         <source>No Jira issues matched the current scope.</source>
-        <translation>No Jira issues matched the current scope.</translation>
+        <translation type="vanished">No Jira issues matched the current scope.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="159"/>
         <source>Jira AI Conversation</source>
-        <translation>Jira AI Conversation</translation>
+        <translation type="vanished">Jira AI Conversation</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="160"/>
         <source>Analyzing request: preparing search scope...</source>
-        <translation>Analyzing request: preparing search scope...</translation>
+        <translation type="vanished">Analyzing request: preparing search scope...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="161"/>
         <source>Analyzing request: retrieving Jira issues...</source>
-        <translation>Analyzing request: retrieving Jira issues...</translation>
+        <translation type="vanished">Analyzing request: retrieving Jira issues...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="162"/>
         <source>Analyzing request: generating response...</source>
-        <translation>Analyzing request: generating response...</translation>
+        <translation type="vanished">Analyzing request: generating response...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="166"/>
         <source>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</source>
-        <translation>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</translation>
+        <translation type="vanished">{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</translation>
     </message>
 </context>
 <context>
@@ -1279,44 +1181,28 @@ Updated content:
 <context>
     <name>RunBridge</name>
     <message>
-        <location filename="bridge/RunBridge.py" line="299"/>
-        <source>Failed to start test run. {detail}</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="bridge/RunBridge.py" line="414"/>
         <source>Failed to save run report. {detail}</source>
-        <translation>Failed to save run report. {detail}</translation>
+        <translation type="vanished">Failed to save run report. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="417"/>
-        <source>Failed to finish test run. {detail}</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="bridge/RunBridge.py" line="462"/>
         <source>No selected test cases to run.</source>
-        <translation>No selected test cases to run.</translation>
+        <translation type="vanished">No selected test cases to run.</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="477"/>
         <source>Failed to start pytest run. {detail}</source>
-        <translation>Failed to start pytest run. {detail}</translation>
+        <translation type="vanished">Failed to start pytest run. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="129"/>
         <source>Select a DUT before starting the selected test cases.</source>
-        <translation>Select a DUT before starting the selected test cases.</translation>
+        <translation type="vanished">Select a DUT before starting the selected test cases.</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="133"/>
         <source>Missing required parameter: {param} ({case})</source>
-        <translation>Missing required parameter: {param} ({case})</translation>
+        <translation type="vanished">Missing required parameter: {param} ({case})</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="141"/>
         <source>Fix required test parameters before starting.</source>
-        <translation>Fix required test parameters before starting.</translation>
+        <translation type="vanished">Fix required test parameters before starting.</translation>
     </message>
 </context>
 <context>
@@ -1434,12 +1320,12 @@ Updated content:
     <message>
         <location filename="imports/example/qml/page/T_AI.qml" line="82"/>
         <source>Reload</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Reload</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_AI.qml" line="89"/>
         <source>Open in browser</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Open in browser</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_AI.qml" line="104"/>
@@ -3700,145 +3586,160 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Report</name>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="9"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="8"/>
         <source>Report</source>
         <translation>Report</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="205"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="52"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="250"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="304"/>
+        <source>Loading...</source>
+        <translation>Loading...</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="134"/>
         <source>Runs</source>
         <translation>Runs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="215"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="144"/>
         <source>Refresh</source>
         <translation>Refresh</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="153"/>
+        <source>Open report folder</source>
+        <translation>Open report folder</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="261"/>
+        <source>Reload</source>
+        <translation>Reload</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="271"/>
+        <source>Export PDF</source>
+        <translation>Export PDF</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="281"/>
+        <source>Open in browser</source>
+        <translation>Open in browser</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="300"/>
+        <source>Ready</source>
+        <translation>Ready</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Report.qml" line="302"/>
+        <source>Failed to load report.</source>
+        <translation>Failed to load report.</translation>
     </message>
     <message>
         <source>No reports yet.</source>
         <translation type="vanished">No reports yet.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="248"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="187"/>
         <source>Unknown time</source>
         <translation>Unknown time</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="263"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="202"/>
         <source>Total %1  Passed %2  Failed %3</source>
         <translation>Total %1  Passed %2  Failed %3</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="144"/>
-        <location filename="imports/example/qml/page/T_Report.qml" line="271"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="210"/>
         <source>No DUT</source>
         <translation>No DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="144"/>
         <source>DUT</source>
-        <translation>DUT</translation>
+        <translation type="vanished">DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="145"/>
         <source>Run Status</source>
-        <translation>Run Status</translation>
+        <translation type="vanished">Run Status</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="146"/>
         <source>Return Code</source>
-        <translation>Return Code</translation>
+        <translation type="vanished">Return Code</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="147"/>
         <source>Stopped</source>
-        <translation>Stopped</translation>
+        <translation type="vanished">Stopped</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="147"/>
         <source>Yes</source>
-        <translation>Yes</translation>
+        <translation type="vanished">Yes</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="147"/>
         <source>No</source>
-        <translation>No</translation>
+        <translation type="vanished">No</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="150"/>
         <source>Step Status</source>
-        <translation>Step Status</translation>
+        <translation type="vanished">Step Status</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="151"/>
         <source>Kind</source>
-        <translation>Kind</translation>
+        <translation type="vanished">Kind</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="153"/>
         <source>Definition</source>
-        <translation>Definition</translation>
+        <translation type="vanished">Definition</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="154"/>
         <source>Case</source>
-        <translation>Case</translation>
+        <translation type="vanished">Case</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="156"/>
-        <location filename="imports/example/qml/page/T_Report.qml" line="516"/>
         <source>Error</source>
-        <translation>Error</translation>
+        <translation type="vanished">Error</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="302"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="23"/>
         <source>Run a test to generate the first report.</source>
         <translation>Run a test to generate the first report.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="337"/>
         <source>Total</source>
-        <translation>Total</translation>
+        <translation type="vanished">Total</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="338"/>
         <source>Passed</source>
-        <translation>Passed</translation>
+        <translation type="vanished">Passed</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="339"/>
         <source>Failed</source>
-        <translation>Failed</translation>
+        <translation type="vanished">Failed</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="340"/>
         <source>Skipped</source>
-        <translation>Skipped</translation>
+        <translation type="vanished">Skipped</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="152"/>
-        <location filename="imports/example/qml/page/T_Report.qml" line="341"/>
         <source>Duration</source>
-        <translation>Duration</translation>
+        <translation type="vanished">Duration</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="386"/>
         <source>Steps</source>
-        <translation>Steps</translation>
+        <translation type="vanished">Steps</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="481"/>
         <source>Step Detail</source>
-        <translation>Step Detail</translation>
+        <translation type="vanished">Step Detail</translation>
     </message>
     <message>
         <source>Cases</source>
         <translation type="vanished">Cases</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="528"/>
         <source>Logs</source>
-        <translation>Logs</translation>
+        <translation type="vanished">Logs</translation>
     </message>
     <message>
         <source>Reports</source>

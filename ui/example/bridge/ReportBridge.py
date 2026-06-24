@@ -7,8 +7,7 @@ from typing import Any
 from PySide6.QtCore import QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 
-from testing.reporting.store import ReportStore, filter_report_logs
-from tools.logging import ensure_log_display_fields
+from tools.report import export_pdf_report, list_reports, report_html_url, report_json_path
 
 try:
     from example.helper.AppPaths import app_data_dir
@@ -22,7 +21,6 @@ class ReportBridge(QObject):
 
     def __init__(self):
         super().__init__(QGuiApplication.instance())
-        self._store = ReportStore(self._default_reports_dir())
         self._reports: list[dict[str, Any]] = []
         self.refresh()
 
@@ -79,46 +77,32 @@ class ReportBridge(QObject):
             **counts,
         }
 
-    def _detail_payload(self, report: dict[str, Any]) -> dict[str, Any]:
-        counts = self._counts(report)
-        steps = [dict(row) for row in report.get("steps", []) if isinstance(row, dict)]
-        cases = [row for row in steps if row.get("kind") == "case"]
-        logs = [
-            ensure_log_display_fields(row)
-            for row in filter_report_logs([row for row in report.get("logs", []) if isinstance(row, dict)])
-        ]
-        return {
-            **self._summary_row(report),
-            "returncode": int(report.get("returncode", 0) or 0),
-            "stopped": bool(report.get("stopped", False)),
-            "selected_nodeids": list(report.get("selected_nodeids", []) or []),
-            "counts": counts,
-            "cases": cases,
-            "steps": steps,
-            "logs": logs,
-            "log_text": "\n".join(str(item.get("line", "")) for item in logs),
-        }
-
     @Slot()
     def refresh(self) -> None:
-        self._reports = self._store.list_reports()
+        self._reports = list_reports(reports_dir=self._default_reports_dir())
         self.reportsChanged.emit()
 
     @Slot(result="QVariantList")
     def reportRows(self):
         return [self._summary_row(report) for report in self._reports]
 
-    @Slot(str, result="QVariantMap")
-    def reportDetail(self, run_id: str):
-        report = self._store.load(run_id)
-        if not report:
-            return {}
-        return self._detail_payload(report)
+    @Slot(str, result=str)
+    def reportHtmlUrl(self, run_id: str) -> str:
+        return report_html_url(run_id, reports_dir=self._default_reports_dir())
 
     @Slot(str, result=bool)
     def openReportFolder(self, run_id: str) -> bool:
-        path = self._store.path_for(run_id)
+        path = report_json_path(run_id, reports_dir=self._default_reports_dir())
         if not path.exists():
             self.errorOccurred.emit(f"Report file not found: {path}")
             return False
         return QDesktopServices.openUrl(QUrl.fromLocalFile(str(path.parent)))
+
+    @Slot(str, result=bool)
+    def exportPdf(self, run_id: str) -> bool:
+        try:
+            pdf_path = export_pdf_report(run_id, reports_dir=self._default_reports_dir())
+        except Exception as exc:  # noqa: BLE001
+            self.errorOccurred.emit(f"Failed to export PDF: {exc}")
+            return False
+        return QDesktopServices.openUrl(QUrl.fromLocalFile(str(pdf_path)))

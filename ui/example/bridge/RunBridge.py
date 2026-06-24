@@ -13,7 +13,6 @@ from uuid import uuid4
 from PySide6.QtCore import QObject, Property, QTimer, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from testing.reporting.store import ReportStore, build_run_report
 from testing.cases.catalog import is_packaged_runtime, load_runtime_test_catalog
 from testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
 from testing.params.validation import RunValidationIssue, validate_run_request
@@ -22,6 +21,7 @@ from testing.runner.execution import TestRunSession, start_pytest_run
 from testing.steps.planner import build_step_plan
 from testing.state.store import load_state
 from tools.logging import default_log_path, log_display_fields, smart_log
+from tools.report import build_run_report, save_run_report
 from ui.example.bridge.StepStore import StepStore
 
 try:
@@ -60,7 +60,6 @@ class RunBridge(QObject):
         self._run_started_monotonic = 0.0
         self._run_selected_nodeids: list[str] = []
         self._run_adb_serial: str | None = None
-        self._report_store = ReportStore(self._default_reports_dir())
         self._text_catalog = TsTextCatalog(self._root_dir)
 
         self._logSignal.connect(self._append_log)
@@ -335,11 +334,7 @@ class RunBridge(QObject):
     def _apply_event(self, payload: dict[str, Any]) -> None:
         event_type = str(payload.get("type", ""))
         if event_type == "case_started":
-            self._step_store.ensure_case_row(
-                case_nodeid=str(payload.get("case_nodeid", "")),
-                title=str(payload.get("title", "")),
-                status="running",
-            )
+            self._step_store.mark_case_started(payload)
             return
 
         if event_type == "case_finished":
@@ -410,7 +405,7 @@ class RunBridge(QObject):
                 logs=self._logs,
             )
             try:
-                self._report_store.save(report)
+                save_run_report(report, reports_dir=self._default_reports_dir())
             except OSError as exc:
                 self.errorOccurred.emit(self.tr("Failed to save run report. {detail}").format(detail=str(exc)))
         except Exception as exc:  # noqa: BLE001

@@ -64,7 +64,13 @@ def validate_run_request(
             if field is None:
                 continue
             value = _resolve_param_value(state=state, selected=selected, case=case, field=field)
-            if _is_missing_required_value(field, value):
+            if _is_missing_required_value(field, value) or _is_invalid_required_dynamic_value(
+                state=state,
+                selected=selected,
+                case=case,
+                field=field,
+                value=value,
+            ):
                 issues.append(
                     RunValidationIssue(
                         code="missing_required_param",
@@ -136,28 +142,35 @@ def _resolve_param_value(
         value = case_type_values.get(field.key, field.default) if isinstance(case_type_values, dict) else field.default
         return normalize_option_values(value) if _is_multi_enum_field(field) else value
 
-    case_values = _case_parameter_values(state=state, selected=selected, case=case, field=field)
+    case_values = _case_scoped_values(
+        bucket=state.case_parameters,
+        selected=selected,
+        case=case,
+        preferred_key=field.key,
+    )
     value = case_values.get(field.key, field.default)
     return normalize_option_values(value) if _is_multi_enum_field(field) else value
 
 
-def _case_parameter_values(
+def _case_scoped_values(
     *,
-    state: TestPageState,
+    bucket: Mapping[str, Any],
     selected: SelectedCase,
     case: Mapping[str, Any],
-    field: ParamField,
+    preferred_key: str = "",
 ) -> dict[str, Any]:
     keys = [
         str(case.get("nodeid", "") or "").strip(),
         str(selected.nodeid or "").strip(),
     ]
+    preferred = str(preferred_key or "").strip()
+    if preferred:
+        for key in keys:
+            values = bucket.get(key, {})
+            if isinstance(values, dict) and preferred in values:
+                return values
     for key in keys:
-        values = state.case_parameters.get(key, {})
-        if isinstance(values, dict) and field.key in values:
-            return values
-    for key in keys:
-        values = state.case_parameters.get(key, {})
+        values = bucket.get(key, {})
         if isinstance(values, dict):
             return values
     return {}
@@ -174,7 +187,32 @@ def _is_missing_required_value(field: ParamField, value: Any) -> bool:
     if value is None:
         return True
     if isinstance(value, str):
-        return not value.strip()
+        normalized = value.strip()
+        return not normalized or normalized.lower() == "none"
     if isinstance(value, (list, tuple, set, dict)):
         return len(value) == 0
     return False
+
+
+def _is_invalid_required_dynamic_value(
+    *,
+    state: TestPageState,
+    selected: SelectedCase,
+    case: Mapping[str, Any],
+    field: ParamField,
+    value: Any,
+) -> bool:
+    if not str(field.options_source or "").strip():
+        return False
+    option_values = _case_scoped_values(
+        bucket=state.case_parameter_options,
+        selected=selected,
+        case=case,
+        preferred_key=field.key,
+    )
+    options = normalize_option_values(option_values.get(field.key, []))
+    if not options:
+        return True
+    if _is_multi_enum_field(field):
+        return any(item not in options for item in normalize_option_values(value))
+    return str(value or "").strip() not in options

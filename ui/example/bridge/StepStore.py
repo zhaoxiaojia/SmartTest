@@ -31,22 +31,17 @@ class StepStore:
     def end_initial_plan(self) -> None:
         self._building_initial_plan = False
 
-    def ensure_case_row(self, *, case_nodeid: str, title: str, status: str = "planned") -> str:
+    def ensure_case_row(self, *, case_nodeid: str, title: str) -> str:
         row_id = f"case:{case_nodeid}"
         index = self._step_index.get(row_id)
         if index is not None:
-            if status and self._steps[index].get("status") != status:
-                self._steps[index]["status"] = status
-                if title:
-                    self._steps[index]["title"] = title
-                self._on_change()
             return row_id
         self._step_index[row_id] = len(self._steps)
         self._steps.append(
             {
                 "id": row_id,
                 "title": title,
-                "status": status or "planned",
+                "status": "planned",
                 "depth": 0,
                 "phase": "call",
                 "kind": "case",
@@ -62,6 +57,12 @@ class StepStore:
         )
         self._on_change()
         return row_id
+
+    def mark_case_started(self, payload: dict[str, Any]) -> None:
+        case_nodeid = str(payload.get("case_nodeid", "") or "")
+        title = str(payload.get("title", "") or case_nodeid)
+        row_id = self.ensure_case_row(case_nodeid=case_nodeid, title=title)
+        self._set_case_status(row_id, status="running", title=title)
 
     def upsert_step_row(self, payload: dict[str, Any], *, status: str, allow_create: bool = True) -> str:
         case_nodeid = str(payload.get("case_nodeid", ""))
@@ -220,8 +221,30 @@ class StepStore:
         row_id = f"case:{case_nodeid}"
         index = self._step_index.get(row_id)
         if index is not None:
-            self._steps[index]["status"] = str(payload.get("status", "passed"))
-            self._steps[index]["duration_ms"] = int(payload.get("duration_ms", 0) or 0)
+            self._set_case_status(
+                row_id,
+                status=str(payload.get("status", "passed")),
+                duration_ms=int(payload.get("duration_ms", 0) or 0),
+            )
+
+    def _set_case_status(self, row_id: str, *, status: str, title: str = "", duration_ms: int | None = None) -> None:
+        index = self._step_index.get(row_id)
+        if index is None:
+            return
+        row = self._steps[index]
+        if str(row.get("kind", "") or "") != "case":
+            return
+        changed = False
+        if row.get("status") != status:
+            row["status"] = status
+            changed = True
+        if title and row.get("title") != title:
+            row["title"] = title
+            changed = True
+        if duration_ms is not None and row.get("duration_ms") != duration_ms:
+            row["duration_ms"] = duration_ms
+            changed = True
+        if changed:
             self._on_change()
 
     def snapshot(self) -> list[dict[str, Any]]:
