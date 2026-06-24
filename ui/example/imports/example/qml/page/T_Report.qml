@@ -14,6 +14,18 @@ FluPage {
     property bool loading: reportView.loading
     property string statusText: ""
 
+    function reportIndex(runId){
+        if(runId === undefined || runId === ""){
+            return -1
+        }
+        for(var i = 0; i < reportRowsModel.length; i++){
+            if(reportRowsModel[i].run_id === runId){
+                return i
+            }
+        }
+        return -1
+    }
+
     function refreshReports(preferredRunId){
         ReportBridge.refresh()
         reportRowsModel = ReportBridge.reportRows()
@@ -23,23 +35,8 @@ FluPage {
             statusText = qsTr("Run a test to generate the first report.")
             return
         }
-        var keepIndex = 0
-        if(preferredRunId !== undefined && preferredRunId !== ""){
-            for(var preferredIndex = 0; preferredIndex < reportRowsModel.length; preferredIndex++){
-                if(reportRowsModel[preferredIndex].run_id === preferredRunId){
-                    keepIndex = preferredIndex
-                    selectReport(keepIndex)
-                    return
-                }
-            }
-        }
-        for(var i = 0; i < reportRowsModel.length; i++){
-            if(reportRowsModel[i].run_id === selectedRunId){
-                keepIndex = i
-                break
-            }
-        }
-        selectReport(keepIndex)
+        var preferredIndex = reportIndex(preferredRunId)
+        selectReport(preferredIndex >= 0 ? preferredIndex : Math.max(0, reportIndex(selectedRunId)))
     }
 
     function selectReport(index){
@@ -53,32 +50,16 @@ FluPage {
     }
 
     function statusColor(status){
-        if(status === "passed"){
-            return "#0F7B0F"
-        }
-        if(status === "failed"){
-            return "#C42B1C"
-        }
-        if(status === "running"){
-            return FluTheme.primaryColor
-        }
-        if(status === "stopped"){
-            return "#8A6A00"
-        }
-        return FluTheme.fontSecondaryColor
+        var colors = {"passed": "#0F7B0F", "failed": "#C42B1C", "running": FluTheme.primaryColor, "stopped": "#8A6A00"}
+        return colors[status] || FluTheme.fontSecondaryColor
     }
 
     function rowBackgroundColor(status, selected){
         if(selected){
             return FluTools.withOpacity(FluTheme.primaryColor, FluTheme.dark ? 0.18 : 0.10)
         }
-        if(status === "failed"){
-            return Qt.rgba(196/255, 43/255, 28/255, 0.08)
-        }
-        if(status === "passed"){
-            return Qt.rgba(15/255, 123/255, 15/255, 0.06)
-        }
-        return "transparent"
+        var colors = {"failed": Qt.rgba(196/255, 43/255, 28/255, 0.08), "passed": Qt.rgba(15/255, 123/255, 15/255, 0.06)}
+        return colors[status] || "transparent"
     }
 
     Connections{
@@ -130,26 +111,16 @@ FluPage {
                     Layout.fillWidth: true
                     spacing: 8
 
-                    FluText{
-                        text: qsTr("Runs")
-                        font: FluTextStyle.Subtitle
-                        Layout.fillWidth: true
-                    }
+                    FluText{ text: qsTr("Runs"); font: FluTextStyle.Subtitle; Layout.fillWidth: true }
 
                     FluIconButton{
-                        width: 34
-                        height: 34
-                        iconSource: FluentIcons.Refresh
-                        iconSize: 16
+                        width: 34; height: 34; iconSource: FluentIcons.Refresh; iconSize: 16
                         text: qsTr("Refresh")
                         onClicked: refreshReports()
                     }
 
                     FluIconButton{
-                        width: 34
-                        height: 34
-                        iconSource: FluentIcons.OpenFolderHorizontal
-                        iconSize: 16
+                        width: 34; height: 34; iconSource: FluentIcons.OpenFolderHorizontal; iconSize: 16
                         text: qsTr("Open report folder")
                         enabled: selectedRunId !== ""
                         onClicked: ReportBridge.openReportFolder(selectedRunId)
@@ -183,12 +154,7 @@ FluPage {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                FluText{
-                                    text: modelData.finished_at || qsTr("Unknown time")
-                                    Layout.fillWidth: true
-                                    font: FluTextStyle.Body
-                                    elide: Text.ElideRight
-                                }
+                                FluText{ text: modelData.finished_at || qsTr("Unknown time"); Layout.fillWidth: true; font: FluTextStyle.Body; elide: Text.ElideRight }
 
                                 FluText{
                                     text: modelData.status || "-"
@@ -200,17 +166,13 @@ FluPage {
                             FluText{
                                 Layout.fillWidth: true
                                 text: qsTr("Total %1  Passed %2  Failed %3").arg(modelData.total || 0).arg(modelData.passed || 0).arg(modelData.failed || 0)
-                                font: FluTextStyle.Caption
-                                color: FluTheme.fontSecondaryColor
-                                elide: Text.ElideRight
+                                font: FluTextStyle.Caption; color: FluTheme.fontSecondaryColor; elide: Text.ElideRight
                             }
 
                             FluText{
                                 Layout.fillWidth: true
                                 text: (modelData.adb_serial || qsTr("No DUT")) + "  |  " + (modelData.duration || "-")
-                                font: FluTextStyle.Caption
-                                color: FluTheme.fontSecondaryColor
-                                elide: Text.ElideMiddle
+                                font: FluTextStyle.Caption; color: FluTheme.fontSecondaryColor; elide: Text.ElideMiddle
                             }
                         }
 
@@ -246,38 +208,24 @@ FluPage {
                         anchors.rightMargin: 12
                         spacing: 8
 
-                        FluText{
-                            text: loading ? qsTr("Loading...") : statusText
-                            Layout.fillWidth: true
-                            color: FluTheme.fontSecondaryColor
-                            elide: Text.ElideRight
-                        }
+                        FluText{ text: loading ? qsTr("Loading...") : statusText; Layout.fillWidth: true; color: FluTheme.fontSecondaryColor; elide: Text.ElideRight }
 
                         FluIconButton{
-                            width: 34
-                            height: 34
-                            iconSource: FluentIcons.Refresh
-                            iconSize: 16
+                            width: 34; height: 34; iconSource: FluentIcons.Refresh; iconSize: 16
                             text: qsTr("Reload")
                             enabled: selectedReportUrl !== ""
                             onClicked: reportView.reload()
                         }
 
                         FluIconButton{
-                            width: 34
-                            height: 34
-                            iconSource: FluentIcons.PDF
-                            iconSize: 16
+                            width: 34; height: 34; iconSource: FluentIcons.PDF; iconSize: 16
                             text: qsTr("Export PDF")
                             enabled: selectedRunId !== ""
                             onClicked: ReportBridge.exportPdf(selectedRunId)
                         }
 
                         FluIconButton{
-                            width: 34
-                            height: 34
-                            iconSource: FluentIcons.OpenInNewWindow
-                            iconSize: 16
+                            width: 34; height: 34; iconSource: FluentIcons.OpenInNewWindow; iconSize: 16
                             text: qsTr("Open in browser")
                             enabled: selectedReportUrl !== ""
                             onClicked: Qt.openUrlExternally(selectedReportUrl)

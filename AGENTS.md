@@ -48,6 +48,17 @@ Guidelines:
 - UI/QML must not import `testing/` directly; use registered Python bridges.
 - When adding new modules, put them into the appropriate layer folder even if the feature is not finished yet.
 
+Report ownership rules:
+
+- `testing/reporting/store.py` owns report persistence only: JSON save/load/list/path resolution. Do not add HTML, PDF, QML, FluentUI, or frontend presentation logic there.
+- `tools/report.py` owns report construction, machine-readable summary/filtering, HTML rendering, PDF export, and report file naming. It must not import QML, bridges, FluentUI, or frontend state.
+- `ui/example/bridge/ReportBridge.py` owns the Report page view model and exposes a narrow UI API for rows, report URLs, folder opening, and PDF export. It must not duplicate report construction or runtime step lifecycle logic.
+- `ui/example/imports/example/qml/page/T_Report.qml` owns visible layout and interaction only. It must not parse report JSON, infer case/step business relationships, or rebuild report summaries that belong in Python.
+- Report HTML/PDF are export views, not business data sources. New features must read the JSON report or runtime/reporting contracts, never scrape generated HTML.
+- Run and Report must share the same structured run result, step, and log contracts. Do not create a second report-only step row model, log model, case summary pipeline, or stdout/ANSI parsing path.
+- Report logs must come from `tools/logging.py` structured records. Do not use root-level stdout mirrors, ANSI color parsing, or temporary prints as primary report data.
+- New report fields must preserve machine identity such as `run_id`, `case_nodeid`, `step_id`, `definition_id`, `status`, `duration`, `domain`, `source`, `level`, and structured `extra` values.
+
 ## 4. Logging / Print Rules
 
 SmartTest runtime logging has one project-owned entrypoint: `tools/logging.py`.

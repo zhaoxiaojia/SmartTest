@@ -12,6 +12,13 @@ from testing.reporting.store import ReportStore
 
 
 REPORT_SCHEMA_VERSION = 1
+_REPEAT_TITLE_RE = re.compile(r"\b(?:cycle|loop)\s+(?P<index>\d+)\s*/\s*(?P<total>\d+)\b", re.IGNORECASE)
+_REPEAT_ID_RE = re.compile(r"\.(?:cycle|loop)\.(?P<index>\d+)\.", re.IGNORECASE)
+_EMMC_FINAL_RE = re.compile(
+    r"(?P<cycles>\d+)\s+cycles,\s+(?P<copies>\d+)\s+copies,\s+"
+    r"copy_err=(?P<copy_failed>\d+),\s+read_err=(?P<read_failed>\d+),\s+check_err=(?P<check_failed>\d+)",
+    re.IGNORECASE,
+)
 _NOISY_REPORT_LOG_PREFIXES = (
     "[step-debug.",
     "[android_client.status]",
@@ -57,6 +64,10 @@ def _safe_text(value: Any) -> str:
     return str(value or "").strip()
 
 
+def _has_text(value: Any) -> bool:
+    return value is not None and str(value).strip() != ""
+
+
 def _safe_int(value: Any) -> int:
     try:
         return int(value or 0)
@@ -92,17 +103,13 @@ def report_file_stem(report: dict[str, Any]) -> str:
     return f"SmartTest_{timestamp}_{status}{suffix}"
 
 
-def _is_noisy_report_log(line: str) -> bool:
-    return any(line.startswith(prefix) for prefix in _NOISY_REPORT_LOG_PREFIXES)
-
-
 def filter_report_logs(logs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     filtered: list[dict[str, Any]] = []
     for row in logs:
         if not isinstance(row, dict):
             continue
         line = _safe_text(row.get("line"))
-        if not line or _is_noisy_report_log(line):
+        if not line or any(line.startswith(prefix) for prefix in _NOISY_REPORT_LOG_PREFIXES):
             continue
         normalized = dict(row)
         normalized["line"] = line
@@ -142,13 +149,13 @@ def case_logs(report: dict[str, Any], case_nodeid: str) -> list[dict[str, Any]]:
 
 
 def _case_log_start_index(logs: list[dict[str, Any]], case_nodeid: str) -> int | None:
+    fallback: int | None = None
     for index, row in enumerate(logs):
         if _log_starts_case_execution(row, case_nodeid):
             return index
-    for index, row in enumerate(logs):
-        if _log_references_case(row, case_nodeid):
-            return index
-    return None
+        if fallback is None and _log_references_case(row, case_nodeid):
+            fallback = index
+    return fallback
 
 
 def _next_case_log_start_index(
@@ -163,9 +170,8 @@ def _next_case_log_start_index(
         if isinstance(row, dict) and _safe_text(row.get("kind")) == "case"
     ]
     for index in range(start_index + 1, len(logs)):
-        for other_nodeid in case_nodeids:
-            if other_nodeid and other_nodeid != case_nodeid and _log_starts_case_execution(logs[index], other_nodeid):
-                return index
+        if any(other_nodeid and other_nodeid != case_nodeid and _log_starts_case_execution(logs[index], other_nodeid) for other_nodeid in case_nodeids):
+            return index
     return None
 
 
@@ -393,16 +399,18 @@ def report_json_path(run_id: str, *, reports_dir: Path) -> Path:
     return ReportStore(reports_dir).path_for(run_id)
 
 
-def report_html_path(run_id: str, *, reports_dir: Path) -> Path:
+def _report_export_path(run_id: str, *, reports_dir: Path, suffix: str) -> Path:
     report = load_report(run_id, reports_dir=reports_dir)
     stem = report_file_stem(report) if report else _safe_filename(run_id)
-    return reports_dir / f"{stem}.html"
+    return reports_dir / f"{stem}.{suffix}"
+
+
+def report_html_path(run_id: str, *, reports_dir: Path) -> Path:
+    return _report_export_path(run_id, reports_dir=reports_dir, suffix="html")
 
 
 def report_pdf_path(run_id: str, *, reports_dir: Path) -> Path:
-    report = load_report(run_id, reports_dir=reports_dir)
-    stem = report_file_stem(report) if report else _safe_filename(run_id)
-    return reports_dir / f"{stem}.pdf"
+    return _report_export_path(run_id, reports_dir=reports_dir, suffix="pdf")
 
 
 def report_html_url(run_id: str, *, reports_dir: Path) -> str:
@@ -488,11 +496,15 @@ def generate_html_report(report: dict[str, Any], *, html_path: Path) -> Path:
 
 def render_html_report(report: dict[str, Any]) -> str:
     counts = report.get("counts") if isinstance(report.get("counts"), dict) else {}
-    analysis = failure_analysis(report)
-    durations = case_duration_ranking(report)
-    distribution = log_distribution(report)
     cases = case_reports(report)
     status = _safe_text(report.get("status")) or "empty"
+    metrics = (
+        '<section class="grid three">'
+        f'<article><h2>Result Chart</h2>{_chart_html(counts)}</article>'
+        f'<article><h2>Case Duration</h2>{_duration_ranking_html(case_duration_ranking(report))}</article>'
+        f'<article><h2>Log Distribution</h2>{_log_distribution_html(log_distribution(report))}</article>'
+        '</section>'
+    )
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -512,36 +524,11 @@ def render_html_report(report: dict[str, Any]) -> str:
     <span class="status" style="--status:{_status_color(status)}">{_esc(status)}</span>
   </header>
   {_summary_html(report, counts)}
-  <section>
-    <h2>Failure Analysis</h2>
-    {_failure_analysis_html(analysis)}
-  </section>
-  <section>
-    <h2>Cases In This Run</h2>
-    {_cases_overview_html(cases)}
-  </section>
-  <section class="grid three">
-    <article>
-      <h2>Result Chart</h2>
-      {_chart_html(counts)}
-    </article>
-    <article>
-      <h2>Case Duration</h2>
-      {_duration_ranking_html(durations)}
-    </article>
-    <article>
-      <h2>Log Distribution</h2>
-      {_log_distribution_html(distribution)}
-    </article>
-  </section>
-  <section>
-    <h2>Run Summary</h2>
-    {_context_html(report)}
-  </section>
-  <section>
-    <h2>Case Reports</h2>
-    {_case_reports_html(report, cases)}
-  </section>
+  {_section_html("Failure Analysis", _failure_analysis_html(failure_analysis(report)))}
+  {_section_html("Cases In This Run", _cases_overview_html(cases))}
+  {metrics}
+  {_section_html("Run Summary", _context_html(report))}
+  {_section_html("Case Reports", _case_reports_html(report, cases))}
 </main>
 </body>
 </html>
@@ -562,7 +549,11 @@ def _status_color(status: str) -> str:
     return _STATUS_COLORS.get(status, "#6b7280")
 
 
-def _duration_text(duration_ms: Any) -> str:
+def _section_html(title: str, body: str) -> str:
+    return f"<section><h2>{_esc(title)}</h2>{body}</section>"
+
+
+def duration_text(duration_ms: Any) -> str:
     total_seconds = max(0, _safe_int(duration_ms) // 1000)
     minutes, seconds = divmod(total_seconds, 60)
     hours, minutes = divmod(minutes, 60)
@@ -579,7 +570,7 @@ def _summary_html(report: dict[str, Any], counts: dict[str, Any]) -> str:
         ("Passed", counts.get("passed", 0)),
         ("Failed", counts.get("failed", 0)),
         ("Skipped", counts.get("skipped", 0)),
-        ("Duration", _duration_text(report.get("duration_ms"))),
+        ("Duration", duration_text(report.get("duration_ms"))),
     ]
     cards = "".join(f"<article><span>{_esc(label)}</span><strong>{_esc(value)}</strong></article>" for label, value in items)
     return f'<section class="summary">{cards}</section>'
@@ -587,15 +578,13 @@ def _summary_html(report: dict[str, Any], counts: dict[str, Any]) -> str:
 
 def _context_html(report: dict[str, Any]) -> str:
     nodeids = report.get("selected_nodeids") if isinstance(report.get("selected_nodeids"), list) else []
-    rows = [
+    return _kv_html([
         ("Run ID", report.get("run_id")),
         ("DUT", report.get("adb_serial") or "No DUT"),
         ("Return Code", report.get("returncode")),
         ("Stopped", "Yes" if report.get("stopped") else "No"),
         ("Selected Cases", len(nodeids)),
-    ]
-    body = "".join(f"<tr><th>{_esc(label)}</th><td>{_esc(value)}</td></tr>" for label, value in rows)
-    return f'<table class="kv"><tbody>{body}</tbody></table>'
+    ])
 
 
 def _cases_overview_html(cases: list[dict[str, Any]]) -> str:
@@ -631,6 +620,8 @@ def _case_report_html(report: dict[str, Any], item: dict[str, Any]) -> str:
     nodeid = _safe_text(case.get("case_nodeid"))
     title = _safe_text(case.get("title") or nodeid)
     detail_open = " open" if status != "passed" else ""
+    all_logs = [row for row in report.get("logs", []) if isinstance(row, dict)]
+    detail_body = _case_loop_summary_html(case, steps, logs, all_logs) + _steps_html(steps)
     return (
         f'<article class="case-report" id="case-{_anchor_id(nodeid)}">'
         '<header>'
@@ -639,24 +630,153 @@ def _case_report_html(report: dict[str, Any], item: dict[str, Any]) -> str:
         '</header>'
         '<div class="grid two">'
         f'<div><h4>Run Context</h4>{_case_context_html(report, case)}</div>'
-        f'<details class="case-detail"{detail_open}><summary>Detail</summary>{_steps_html(steps)}</details>'
+        f'{_details_html("Detail", detail_body, detail_open)}'
         '</div>'
-        f'<details class="case-detail"{detail_open}><summary>Case Key Logs ({len(key_logs)})</summary>{_logs_html(key_logs, include_case=False)}</details>'
-        f'<details class="case-detail"><summary>Case Logs ({len(logs)})</summary>{_logs_html(logs, include_case=False)}</details>'
+        f'{_details_html(f"Case Key Logs ({len(key_logs)})", _logs_html(key_logs, include_case=False), detail_open)}'
+        f'{_details_html(f"Case Logs ({len(logs)})", _logs_html(logs, include_case=False))}'
         '</article>'
     )
 
 
 def _case_context_html(report: dict[str, Any], case: dict[str, Any]) -> str:
-    rows = [
+    return _kv_html([
         ("DUT", report.get("adb_serial") or "No DUT"),
         ("Run ID", report.get("run_id")),
         ("Return Code", report.get("returncode")),
         ("Case Status", case.get("status")),
-        ("Duration", _duration_text(case.get("duration_ms"))),
-    ]
-    body = "".join(f"<tr><th>{_esc(label)}</th><td>{_esc(value)}</td></tr>" for label, value in rows if _safe_text(value))
+        ("Duration", duration_text(case.get("duration_ms"))),
+    ], skip_empty=True)
+
+
+def _kv_html(rows: list[tuple[str, Any]], *, skip_empty: bool = False) -> str:
+    body = "".join(
+        f"<tr><th>{_esc(label)}</th><td>{_esc(value)}</td></tr>"
+        for label, value in rows
+        if not skip_empty or _has_text(value)
+    )
     return f'<table class="kv"><tbody>{body}</tbody></table>'
+
+
+def _details_html(summary: str, body: str, attrs: str = "") -> str:
+    return f'<details class="case-detail"{attrs}><summary>{_esc(summary)}</summary>{body}</details>'
+
+
+def _case_loop_summary_html(
+    case: dict[str, Any],
+    steps: list[dict[str, Any]],
+    logs: list[dict[str, Any]],
+    all_logs: list[dict[str, Any]],
+) -> str:
+    summary = case.get("loop_summary")
+    if isinstance(summary, dict) and summary:
+        return _inferred_loop_summary_html(_normalize_loop_summary(summary))
+    summary = _emmc_loop_summary(logs)
+    if not summary and _is_emmc_case(case, steps):
+        summary = _emmc_loop_summary(all_logs)
+    if summary:
+        return _inferred_loop_summary_html(summary)
+    inferred = _infer_loop_summary(steps)
+    return _inferred_loop_summary_html(inferred) if inferred else ""
+
+
+def _normalize_loop_summary(summary: dict[str, Any]) -> dict[str, Any]:
+    completed = _safe_int(summary.get("completed") or summary.get("observed") or summary.get("expected"))
+    total = _safe_int(summary.get("expected") or summary.get("total") or completed)
+    actions = summary.get("actions")
+    if not isinstance(actions, dict):
+        name = _safe_text(summary.get("name"))
+        actions = {name: {"passed": completed}} if name and _safe_text(summary.get("result")) == "passed" else {}
+    return {"observed": completed, "total": total, "actions": actions}
+
+
+def _infer_loop_summary(steps: list[dict[str, Any]]) -> dict[str, Any]:
+    actions: dict[str, dict[str, int]] = {}
+    observed = 0
+    total = 0
+    for row in steps:
+        repeat = _repeat_position(row)
+        if repeat is None:
+            continue
+        index, expected_total = repeat
+        observed = max(observed, index)
+        total = max(total, expected_total)
+        name = _safe_text(row.get("definition_id") or row.get("title") or row.get("id"))
+        status = _safe_text(row.get("status")) or "unknown"
+        bucket = actions.setdefault(name, {})
+        count = expected_total if status == "passed" and expected_total > 0 else 1
+        bucket[status] = max(bucket.get(status, 0), count)
+    return {"observed": observed, "total": total, "actions": actions} if actions else {}
+
+
+def _emmc_loop_summary(logs: list[dict[str, Any]]) -> dict[str, Any]:
+    for row in reversed(logs):
+        line = _safe_text(row.get("line"))
+        if "emmc" not in line.lower() or "copy_err=" not in line:
+            continue
+        match = _EMMC_FINAL_RE.search(line)
+        if match is None:
+            continue
+        cycles = int(match.group("cycles"))
+        copies = int(match.group("copies"))
+        copy_failed = int(match.group("copy_failed"))
+        read_failed = int(match.group("read_failed"))
+        check_failed = int(match.group("check_failed"))
+        return {
+            "observed": cycles,
+            "total": cycles,
+            "actions": {
+                "storage.emmc.copy_file": _passed_failed_counts(copies, copy_failed),
+                "storage.emmc.read_file": _passed_failed_counts(copies, read_failed),
+                "storage.emmc.cmp_file": _passed_failed_counts(copies, check_failed),
+            },
+        }
+    return {}
+
+
+def _is_emmc_case(case: dict[str, Any], steps: list[dict[str, Any]]) -> bool:
+    text = " ".join(
+        [_safe_text(case.get("case_nodeid")), _safe_text(case.get("title"))]
+        + [_safe_text(row.get("id")) + " " + _safe_text(row.get("definition_id")) for row in steps]
+    ).lower()
+    return "emmc" in text or "storage.emmc" in text
+
+
+def _repeat_position(row: dict[str, Any]) -> tuple[int, int] | None:
+    title_match = _REPEAT_TITLE_RE.search(_safe_text(row.get("title")))
+    if title_match:
+        return int(title_match.group("index")), int(title_match.group("total"))
+    id_match = _REPEAT_ID_RE.search(_safe_text(row.get("id") or row.get("step_id")))
+    if id_match:
+        index = int(id_match.group("index"))
+        return index, index
+    return None
+
+
+def _inferred_loop_summary_html(summary: dict[str, Any]) -> str:
+    rows = _kv_html([("Observed Cycles", f"{summary.get('observed', 0)}/{summary.get('total', 0)}")])
+    return f'<div class="loop-summary"><h4>Loop Summary</h4>{rows}{_loop_actions_html(summary.get("actions", {}))}</div>'
+
+
+def _loop_actions_html(actions: Any) -> str:
+    if not isinstance(actions, dict) or not actions:
+        return ""
+    action_rows = "".join(
+        f"<tr><td>{_esc(name)}</td><td>{_esc(_status_counts_text(counts))}</td></tr>"
+        for name, counts in actions.items()
+        if isinstance(counts, dict)
+    )
+    return f'<table><thead><tr><th>Loop Action</th><th>Result</th></tr></thead><tbody>{action_rows}</tbody></table>' if action_rows else ""
+
+
+def _passed_failed_counts(total: int, failed: int) -> dict[str, int]:
+    counts = {"passed": max(0, total - failed)}
+    if failed:
+        counts["failed"] = failed
+    return counts
+
+
+def _status_counts_text(counts: dict[str, int]) -> str:
+    return ", ".join(f"{key} {value}" for key, value in sorted(counts.items()))
 
 
 def _chart_html(counts: dict[str, Any]) -> str:
@@ -741,11 +861,7 @@ def _failure_first_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _key_logs(logs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [
-        row
-        for row in logs
-        if _safe_text(row.get("level")).lower() in {"warning", "error", "critical"}
-    ]
+    return [row for row in logs if _safe_text(row.get("level")).lower() in {"warning", "error", "critical"}]
 
 
 def _failure_analysis_html(analysis: dict[str, Any]) -> str:
@@ -775,10 +891,10 @@ def _failure_analysis_html(analysis: dict[str, Any]) -> str:
         ("Expected", primary.get("expected")),
         ("Actual", primary.get("actual")),
     ]
-    rows = "".join(f"<tr><th>{_esc(label)}</th><td>{_esc(value)}</td></tr>" for label, value in facts if _safe_text(value))
+    facts_html = _kv_html(facts, skip_empty=True)
     cases_html = f'<div><h3>Affected Cases</h3><ul class="failure-list">{case_items}</ul></div>' if case_items else ""
     logs_html = f'<div><h3>Evidence Logs</h3><ul class="failure-logs">{log_items}</ul></div>' if log_items else '<p class="empty">No related warning/error logs found for the primary failure.</p>'
-    return f'<div class="failure-grid"><table class="kv"><tbody>{rows}</tbody></table>{cases_html}{logs_html}</div>'
+    return f'<div class="failure-grid">{facts_html}{cases_html}{logs_html}</div>'
 
 
 def _steps_html(steps: list[dict[str, Any]]) -> str:
@@ -827,28 +943,17 @@ def _logs_html(logs: list[dict[str, Any]], *, include_case: bool = True) -> str:
 
 def _report_css() -> str:
     return """
-:root{color-scheme:light dark;font-family:"Segoe UI",Arial,sans-serif;background:#f5f7fb;color:#111827}
-body{margin:0;background:#f5f7fb;color:#111827}
-main{max-width:1280px;margin:0 auto;padding:28px}
-.hero{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:18px}
-.eyebrow{margin:0 0 8px;color:#526071;font-size:13px;font-weight:600;text-transform:uppercase}
-h1{margin:0;font-size:28px;font-weight:650;letter-spacing:0}
-h2{margin:0 0 14px;font-size:18px;font-weight:650}
-.meta{margin:8px 0 0;color:#526071}
-.status,.pill{background:color-mix(in srgb,var(--status) 12%,white);border:1px solid color-mix(in srgb,var(--status) 42%,white);color:var(--status);border-radius:999px;padding:5px 10px;font-weight:650}
-section,article{background:#fff;border:1px solid #e5e7eb;border-radius:8px}
-section{margin-top:14px;padding:16px}
-article{padding:16px}
-.summary{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;background:transparent;border:0;padding:0}
-.summary article span{display:block;color:#526071;font-size:12px}.summary article strong{display:block;margin-top:6px;font-size:22px}
-.grid{display:grid;gap:14px}.two{grid-template-columns:1fr 1fr}.three{grid-template-columns:1fr 1fr 1fr}
-table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid #edf0f5;padding:9px;text-align:left;vertical-align:top}th{color:#526071;font-weight:650;background:#fafbfc}
-.kv th{width:160px}.bar{width:100%;height:38px;border-radius:6px;overflow:hidden;background:#eef2f7}.legend{display:flex;gap:14px;list-style:none;padding:0;margin:12px 0 0;flex-wrap:wrap}.legend span{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+:root{color-scheme:light dark;font-family:"Segoe UI",Arial,sans-serif;background:#f5f7fb;color:#111827}body{margin:0;background:#f5f7fb;color:#111827}main{max-width:1280px;margin:0 auto;padding:28px}
+.hero{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:18px}.eyebrow{margin:0 0 8px;color:#526071;font-size:13px;font-weight:600;text-transform:uppercase}h1{margin:0;font-size:28px;font-weight:650;letter-spacing:0}h2{margin:0 0 14px;font-size:18px;font-weight:650}.meta{margin:8px 0 0;color:#526071}
+.status,.pill{background:color-mix(in srgb,var(--status) 12%,white);border:1px solid color-mix(in srgb,var(--status) 42%,white);color:var(--status);border-radius:999px;padding:5px 10px;font-weight:650}section,article{background:#fff;border:1px solid #e5e7eb;border-radius:8px}section{margin-top:14px;padding:16px}article{padding:16px}
+.summary{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;background:transparent;border:0;padding:0}.summary article span{display:block;color:#526071;font-size:12px}.summary article strong{display:block;margin-top:6px;font-size:22px}
+.grid{display:grid;gap:14px}.two{grid-template-columns:1fr 1fr}.three{grid-template-columns:1fr 1fr 1fr}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid #edf0f5;padding:9px;text-align:left;vertical-align:top}th{color:#526071;font-weight:650;background:#fafbfc}.kv th{width:160px}.bar{width:100%;height:38px;border-radius:6px;overflow:hidden;background:#eef2f7}.legend{display:flex;gap:14px;list-style:none;padding:0;margin:12px 0 0;flex-wrap:wrap}.legend span{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
 .metric-bars{list-style:none;margin:0;padding:0}.metric-bars li{position:relative;padding:8px 0 10px;border-bottom:1px solid #edf0f5}.metric-bars li:last-child{border-bottom:0}.metric-bars div{display:flex;flex-direction:column;gap:2px;max-width:72%}.metric-bars strong{font-size:13px}.metric-bars span{font-size:12px;color:#526071;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.metric-bars em{position:absolute;right:0;top:8px;font-style:normal;color:#526071;font-size:12px}.metric-bars i{display:block;height:4px;margin-top:8px;border-radius:999px;background:#2563eb}.metric-bars.compact h3{margin-top:0}.distribution h3{margin:0 0 6px;font-size:13px}.distribution h3:not(:first-child){margin-top:12px}
 .case-overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}.case-chip{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;text-decoration:none;color:inherit;border:1px solid #edf0f5;border-radius:8px;padding:10px}.case-chip strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.case-chip em{grid-column:2;color:#526071;font-size:12px;font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.case-report{margin-top:14px}.case-report header{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:12px}.case-report h3{margin:0;font-size:18px}.case-report h4{margin:0 0 10px;font-size:14px}.case-report p{margin:4px 0 0;color:#526071;word-break:break-all}.case-detail{border:1px solid #edf0f5;border-radius:8px;padding:10px;background:#fff}.case-detail summary{cursor:pointer;font-weight:650}.case-detail table,.case-detail .empty{margin-top:10px}
+.loop-summary{margin:10px 0 12px}.loop-summary .script-result{margin:10px 0 0;padding:9px;border-radius:6px;background:#f8fafc;white-space:pre-wrap;word-break:break-word;font-family:"Cascadia Mono",Consolas,monospace}
 .failure-grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(220px,.7fr);gap:14px}.failure-grid table{grid-column:1/-1}.failure-grid h3{margin:0 0 8px;font-size:14px}.failure-list,.failure-logs{list-style:none;margin:0;padding:0}.failure-list li,.failure-logs li{border:1px solid #edf0f5;border-radius:6px;padding:8px;margin-bottom:8px}.failure-list span{display:block;color:#526071;font-size:12px;margin-top:4px}.failure-logs pre{margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-family:"Cascadia Mono",Consolas,monospace}
 .logs tr{border-left:3px solid var(--accent)}.logs td:first-child{color:var(--text);font-weight:650}.logs pre{margin:0;white-space:pre-wrap;word-break:break-word;font-family:"Cascadia Mono",Consolas,monospace}
 .empty{color:#526071;margin:0}
 @media (max-width:1100px){.three{grid-template-columns:1fr 1fr}}@media (max-width:900px){main{padding:16px}.summary{grid-template-columns:repeat(2,1fr)}.two,.three,.failure-grid{grid-template-columns:1fr}.hero{display:block}.status{display:inline-block;margin-top:12px}}
-@media (prefers-color-scheme:dark){:root,body{background:#111827;color:#f3f4f6}section,article,.case-detail{background:#1f2937;border-color:#374151}th,td{border-color:#374151}th{background:#243041;color:#cbd5e1}.meta,.eyebrow,.empty,.failure-list span,.metric-bars span,.metric-bars em,.case-chip em,.case-report p{color:#cbd5e1}.summary{background:transparent}.status,.pill{background:color-mix(in srgb,var(--status) 24%,#111827);border-color:color-mix(in srgb,var(--status) 56%,#111827)}.bar{background:#374151}.failure-list li,.failure-logs li,.metric-bars li,.case-chip{border-color:#374151}}
+@media (prefers-color-scheme:dark){:root,body{background:#111827;color:#f3f4f6}section,article,.case-detail{background:#1f2937;border-color:#374151}th,td{border-color:#374151}th{background:#243041;color:#cbd5e1}.meta,.eyebrow,.empty,.failure-list span,.metric-bars span,.metric-bars em,.case-chip em,.case-report p{color:#cbd5e1}.summary{background:transparent}.status,.pill{background:color-mix(in srgb,var(--status) 24%,#111827);border-color:color-mix(in srgb,var(--status) 56%,#111827)}.bar{background:#374151}.loop-summary .script-result{background:#111827}.failure-list li,.failure-logs li,.metric-bars li,.case-chip{border-color:#374151}}
 """

@@ -166,6 +166,16 @@ Package Python and Android independently:
 4. Keep unmatched runtime updates diagnostic-rich: nodeid, step id, definition id, status/event type, and parameters.
 5. Failed cases must be recorded and the run must continue unless stop-on-failure is explicitly enabled.
 
+Report boundaries:
+
+- `testing/reporting/store.py` owns JSON persistence only: save, load, list, and path resolution.
+- `tools/report.py` owns report construction, machine-readable summary/filtering, HTML rendering, PDF export, and report file naming.
+- Report storage and generation must stay UI-free. Do not import QML, bridges, FluentUI, or frontend state into report storage/generation code.
+- HTML and PDF reports are export views, not data sources. Do not parse generated HTML to drive later business logic.
+- Report logs must use structured records from `tools/logging.py`; do not depend on ANSI colors, root-level stdout mirror files, or temporary print output.
+- New report fields should preserve stable identities such as `run_id`, `case_nodeid`, `step_id`, `definition_id`, `status`, `duration`, `domain`, `source`, `level`, and structured `extra`.
+- When optimizing report code, prefer deleting duplicate summary, filtering, formatting, or path helpers over moving them to a new wrapper module.
+
 Cycle/loop planning is a shared mechanism:
 
 - All repeatable cases should follow the cycle model. Every case is assumed to have `loop_count`/`cycle_count` semantics, with a default of `1` when the case does not override it.

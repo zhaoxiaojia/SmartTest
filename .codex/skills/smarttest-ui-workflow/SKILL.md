@@ -38,6 +38,8 @@ Use this skill to make SmartTest UI changes without breaking the QML resource pi
 14. Bridge view models that expose display text must identify every displayed text value as `fixed` or `dynamic` with an explicit source marker such as `label_source`, `description_source`, `title_source`, `value_source`, or `enum_values_source`.
 15. The Run/Report steps view must read from one bridge-owned step model only. `ui/example/bridge/` owns the visible `list[dict]` rows, row ordering, row status/color mapping, and repeated-cycle title refresh behavior. QML should only render what the bridge model provides.
 16. For repeated step groups, entering a new loop/cycle must refresh the whole visible group to the new `x/x` title immediately. Do not wait for later rows to individually start before their displayed loop/cycle count updates. Later rows may still remain `planned` while already showing the current loop title.
+17. The Report page bridge owns only the report list view model and narrow actions such as report URL lookup, folder opening, and PDF export. QML must not parse report JSON, infer case/step business relationships, or rebuild report summaries that belong in Python.
+18. Report HTML/PDF are display/export surfaces. UI code must not scrape generated HTML as a data source, and Report-specific UI must not create a second Run-page step/log model.
 
 ## Frontend Text
 

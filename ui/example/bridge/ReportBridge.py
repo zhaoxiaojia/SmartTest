@@ -7,7 +7,7 @@ from typing import Any
 from PySide6.QtCore import QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 
-from tools.report import export_pdf_report, list_reports, report_html_url, report_json_path
+from tools.report import duration_text, export_pdf_report, list_reports, report_html_url, report_json_path
 
 try:
     from example.helper.AppPaths import app_data_dir
@@ -27,16 +27,6 @@ class ReportBridge(QObject):
     def _default_reports_dir(self) -> Path:
         return app_data_dir() / "reports"
 
-    def _format_duration(self, duration_ms: Any) -> str:
-        total_seconds = max(0, int(duration_ms or 0) // 1000)
-        minutes, seconds = divmod(total_seconds, 60)
-        hours, minutes = divmod(minutes, 60)
-        if hours:
-            return f"{hours}h {minutes}m {seconds}s"
-        if minutes:
-            return f"{minutes}m {seconds}s"
-        return f"{seconds}s"
-
     def _format_timestamp(self, value: Any) -> str:
         raw = str(value or "").strip()
         if not raw:
@@ -52,14 +42,8 @@ class ReportBridge(QObject):
     def _counts(self, report: dict[str, Any]) -> dict[str, int]:
         raw = report.get("counts", {})
         if not isinstance(raw, dict):
-            return {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "running": 0}
-        return {
-            "total": int(raw.get("total", 0) or 0),
-            "passed": int(raw.get("passed", 0) or 0),
-            "failed": int(raw.get("failed", 0) or 0),
-            "skipped": int(raw.get("skipped", 0) or 0),
-            "running": int(raw.get("running", 0) or 0),
-        }
+            raw = {}
+        return {key: int(raw.get(key, 0) or 0) for key in ("total", "passed", "failed", "skipped", "running")}
 
     def _summary_row(self, report: dict[str, Any]) -> dict[str, Any]:
         counts = self._counts(report)
@@ -71,7 +55,7 @@ class ReportBridge(QObject):
             "finished_at": self._format_timestamp(report.get("finished_at", "")),
             "started_at_raw": str(report.get("started_at", "") or ""),
             "finished_at_raw": str(report.get("finished_at", "") or ""),
-            "duration": self._format_duration(report.get("duration_ms", 0)),
+            "duration": duration_text(report.get("duration_ms", 0)),
             "duration_ms": int(report.get("duration_ms", 0) or 0),
             "adb_serial": str(report.get("adb_serial", "") or ""),
             **counts,
