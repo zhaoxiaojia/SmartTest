@@ -3902,37 +3902,37 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">Run Tests</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="168"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="175"/>
         <source>Steps</source>
         <translation>Steps</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="268"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="275"/>
         <source>Logs</source>
         <translation>Logs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="303"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="310"/>
         <source>Follow Latest</source>
         <translation>Follow Latest</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="330"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="337"/>
         <source>Start</source>
         <translation>Start</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="330"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="337"/>
         <source>Stop</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="336"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="343"/>
         <source>Required Parameters</source>
         <translation>Required Parameters</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="338"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="345"/>
         <source>OK</source>
         <translation>OK</translation>
     </message>
