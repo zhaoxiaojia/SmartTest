@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from testing.params.runtime import runtime_params
+from testing.test_context import smarttest_context
 from testing.runtime.config import current_dut_serial
 from testing.runtime.equipment import test_equipment as runtime_test_equipment
 from testing.runtime.steps import step, step_log
@@ -153,7 +153,7 @@ def test_ac_onoff_via_relay(request):
 
 
 def _case_params(request) -> dict[str, Any]:
-    params = runtime_params()
+    params = smarttest_context().params
     nodeid = request.node.nodeid
     return {
         "ac_onoff:cycle_count": max(params.get_int(nodeid, "ac_onoff:cycle_count", 20), 1),

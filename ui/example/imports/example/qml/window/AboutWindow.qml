@@ -6,8 +6,8 @@ import FluentUI 1.0
 FluWindow {
     id: window
     title: qsTr("About")
-    width: 520
-    height: 260
+    width: 620
+    height: 560
     fixSize: true
     launchMode: FluWindowType.SingleTask
 
@@ -35,6 +35,32 @@ FluWindow {
             text: qsTr("Update checks and external links are disabled by default.")
             wrapMode: Text.WordWrap
             color: FluColors.Grey120
+        }
+
+        FluText {
+            text: qsTr("about.release.v1_1_0.fixes.title")
+            font: FluTextStyle.Subtitle
+        }
+
+        FluText {
+            Layout.fillWidth: true
+            text: qsTr("about.release.v1_1_0.fixes.body")
+            wrapMode: Text.WordWrap
+            font: FluTextStyle.Body
+            color: FluTheme.fontSecondaryColor
+        }
+
+        FluText {
+            text: qsTr("about.release.v1_1_0.new.title")
+            font: FluTextStyle.Subtitle
+        }
+
+        FluText {
+            Layout.fillWidth: true
+            text: qsTr("about.release.v1_1_0.new.body")
+            wrapMode: Text.WordWrap
+            font: FluTextStyle.Body
+            color: FluTheme.fontSecondaryColor
         }
 
         Item { Layout.fillHeight: true }

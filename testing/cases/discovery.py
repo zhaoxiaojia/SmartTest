@@ -4,13 +4,25 @@ import json
 import os
 import subprocess
 import tempfile
+from dataclasses import dataclass, field
 from pathlib import Path
-
-from .models import TestCaseInfo
 
 
 class PytestDiscoveryError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class TestCaseInfo:
+    nodeid: str
+    file: str
+    name: str
+    markers: list[str]
+    case_type: str
+    required_params: list[str] = field(default_factory=list)
+    required_param_groups: list[str] = field(default_factory=list)
+    required_equipment: list[str] = field(default_factory=list)
+    android_case_id: str = ""
 
 
 def discover_pytest_cases(

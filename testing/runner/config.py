@@ -80,14 +80,17 @@ def build_run_config_from_state(
     state: TestPageState,
     device_lister: Callable[[], list[str]] | None = None,
 ) -> tuple[RunConfig, list[str]]:
+    from testing.test_context import smarttest_context
+
     raw_nodeids = [case.nodeid for case in state.selected if case.nodeid]
     nodeids, diagnostics = normalize_selected_run_inputs(
         root_dir=root_dir,
         nodeids=raw_nodeids,
     )
-    global_context = dict(state.global_context)
-    dut_serial = resolve_dut_serial(str(global_context.get("dut", "") or ""), device_lister=device_lister)
-    raw_equipment = global_context.get("equipment", {})
+    smarttest_context().params.bind_ui_state(state)
+    global_context = smarttest_context().params.global_context_snapshot()
+    dut_serial = resolve_dut_serial(smarttest_context().params.selected_dut(), device_lister=device_lister)
+    raw_equipment = smarttest_context().params.equipment_config()
     return (
         RunConfig(
             nodeids=nodeids,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from testing.runner.android_client import run_android_client_case
+from testing.runner.apk_client import run_apk_case
 
 
 pytestmark = pytest.mark.case_type("wifi_bt")
@@ -64,7 +64,8 @@ SMARTTEST_CASE_PLAN = {
     "bt_onoff_scan:bt_target",
 )
 def test_bt_onoff_scan_via_android_client(request):
-    run_android_client_case(
+    run_apk_case(
         case_id="bt_onoff_scan",
         trigger=request.node.nodeid,
     )
+

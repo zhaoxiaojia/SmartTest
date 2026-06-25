@@ -7,7 +7,7 @@ from typing import Any
 from PySide6.QtCore import QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 
-from tools.report import duration_text, export_pdf_report, list_reports, report_html_url, report_json_path
+from tools.report import duration_text, list_reports, report_html_path, report_html_url, report_json_path
 
 try:
     from example.helper.AppPaths import app_data_dir
@@ -83,10 +83,9 @@ class ReportBridge(QObject):
         return QDesktopServices.openUrl(QUrl.fromLocalFile(str(path.parent)))
 
     @Slot(str, result=bool)
-    def exportPdf(self, run_id: str) -> bool:
-        try:
-            pdf_path = export_pdf_report(run_id, reports_dir=self._default_reports_dir())
-        except Exception as exc:  # noqa: BLE001
-            self.errorOccurred.emit(f"Failed to export PDF: {exc}")
+    def exportHtml(self, run_id: str) -> bool:
+        html_path = report_html_path(run_id, reports_dir=self._default_reports_dir())
+        if not html_path.exists():
+            self.errorOccurred.emit(f"Report HTML not found: {html_path}")
             return False
-        return QDesktopServices.openUrl(QUrl.fromLocalFile(str(pdf_path)))
+        return QDesktopServices.openUrl(QUrl.fromLocalFile(str(html_path)))

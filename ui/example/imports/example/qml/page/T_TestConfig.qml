@@ -52,34 +52,57 @@ FluPage {
         return themePair("#0F172A", "#F3F7FA")
     }
 
-    function caseParamTextValue(nodeid, key){
+    function fieldTextValue(fieldData){
         var _version = stateVersion
-        var value = TestPageBridge.caseParamValue(nodeid, key)
+        var value = fieldData ? fieldData.value : ""
         if(value === undefined || value === null){
             return ""
         }
         return value + ""
     }
 
-    function caseParamIntValue(nodeid, key, fallbackValue){
+    function fieldBoolValue(fieldData){
         var _version = stateVersion
-        var value = TestPageBridge.caseParamValue(nodeid, key)
-        var parsed = parseInt(value, 10)
-        if(!isNaN(parsed)){
-            return parsed
-        }
-        var fallbackParsed = parseInt(fallbackValue, 10)
-        return isNaN(fallbackParsed) ? 0 : fallbackParsed
-    }
-
-    function caseParamBoolValue(nodeid, key){
-        var _version = stateVersion
-        var value = TestPageBridge.caseParamValue(nodeid, key)
+        var value = fieldData ? fieldData.value : ""
         if(value === true || value === false){
             return value
         }
         var text = (value === undefined || value === null) ? "" : (value + "").toLowerCase()
         return text === "true" || text === "1" || text === "yes" || text === "on"
+    }
+
+    function fieldListContains(fieldData, value){
+        var values = fieldData && fieldData.list_values ? fieldData.list_values : []
+        return values.indexOf((value || "").toString().trim()) >= 0
+    }
+
+    function displayText(value, source){
+        var text = (value === undefined || value === null) ? "" : (value + "")
+        if(source === "fixed"){
+            return qsTranslate("TestPageBridge", text)
+        }
+        return text
+    }
+
+    function fieldLabel(fieldData){
+        return displayText(fieldData ? fieldData.label : "", fieldData ? fieldData.label_source : "dynamic")
+    }
+
+    function fieldDescription(fieldData){
+        return displayText(fieldData ? fieldData.description : "", fieldData ? fieldData.description_source : "dynamic")
+    }
+
+    function fieldScopeLabel(fieldData){
+        return displayText(fieldData ? fieldData.scope_label : "", fieldData ? fieldData.scope_label_source : "dynamic")
+    }
+
+    function fieldSummary(fieldData){
+        var summary = fieldScopeLabel(fieldData)
+        var description = fieldDescription(fieldData)
+        if(description){
+            summary += summary ? " - " + description : description
+        }
+        return summary
     }
 
     function isCaseParamExpanded(nodeid, requiredCount){
@@ -401,6 +424,7 @@ FluPage {
                             FluExpander{
                                 id: case_param_expander
                                 property string caseNodeId: modelData.nodeid || ""
+                                property var caseFields: modelData.fields || []
                                 Layout.fillWidth: true
                                 Layout.topMargin: index === 0 ? 0 : 2
                                 headerText: modelData.name + "  (" + modelData.required_params.length + ")"
@@ -451,7 +475,7 @@ FluPage {
                                         Repeater{
                                             model: {
                                                 var _version = stateVersion
-                                                return TestPageBridge.caseParamFields(case_param_expander.caseNodeId)
+                                                return case_param_expander.caseFields
                                             }
                                             ColumnLayout{
                                                 property string caseNodeId: case_param_expander.caseNodeId
@@ -469,7 +493,7 @@ FluPage {
                                                         Layout.fillWidth: true
                                                         spacing: 2
                                                         FluText{
-                                                            text: fieldData.label
+                                                            text: fieldLabel(fieldData)
                                                             font: FluTextStyle.BodyStrong
                                                             Layout.fillWidth: true
                                                             wrapMode: Text.WordWrap
@@ -477,11 +501,7 @@ FluPage {
                                                         FluText{
                                                             Layout.fillWidth: true
                                                             text: {
-                                                                var summary = fieldData.scope_label || ""
-                                                                if(fieldData.description){
-                                                                    summary += " - " + fieldData.description
-                                                                }
-                                                                return summary
+                                                                return fieldSummary(fieldData)
                                                             }
                                                             font: FluTextStyle.Caption
                                                             color: FluTheme.fontSecondaryColor
@@ -497,7 +517,7 @@ FluPage {
                                                         cleanEnabled: false
                                                         property bool persistReady: false
                                                         function stateText(){
-                                                            var value = caseParamTextValue(caseNodeId, fieldData.key)
+                                                            var value = fieldTextValue(fieldData)
                                                             return value === undefined || value === null ? "" : (value + "")
                                                         }
                                                         function syncFromState(){
@@ -554,7 +574,7 @@ FluPage {
                                                     Layout.fillWidth: true
                                                     spacing: 8
                                                     FluText{
-                                                        text: fieldData.label
+                                                        text: fieldLabel(fieldData)
                                                         font: FluTextStyle.BodyStrong
                                                         Layout.fillWidth: true
                                                         wrapMode: Text.WordWrap
@@ -571,11 +591,7 @@ FluPage {
                                                     visible: !compactTextField
                                                     Layout.fillWidth: true
                                                     text: {
-                                                        var summary = fieldData.scope_label || ""
-                                                        if(fieldData.description){
-                                                            summary += " - " + fieldData.description
-                                                        }
-                                                        return summary
+                                                        return fieldSummary(fieldData)
                                                     }
                                                     font: FluTextStyle.Caption
                                                     color: FluTheme.fontSecondaryColor
@@ -589,7 +605,7 @@ FluPage {
                                                     placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
                                                     property bool persistReady: false
                                                     function stateText(){
-                                                        var value = caseParamTextValue(caseNodeId, fieldData.key)
+                                                        var value = fieldTextValue(fieldData)
                                                         return value === undefined || value === null ? "" : (value + "")
                                                     }
                                                     function syncFromState(){
@@ -647,7 +663,7 @@ FluPage {
                                                     model: fieldData.enum_values || []
                                                     enabled: (fieldData.enum_values || []).length > 0
                                                     currentIndex: {
-                                                        var currentValue = caseParamTextValue(caseNodeId, fieldData.key)
+                                                        var currentValue = fieldTextValue(fieldData)
                                                         var options = fieldData.enum_values || []
                                                         if(currentValue === ""){
                                                             return options.indexOf("None")
@@ -696,7 +712,7 @@ FluPage {
                                                             text: modelData
                                                             checked: {
                                                                 var _version = stateVersion
-                                                                return TestPageBridge.caseParamListContains(caseNodeId, fieldData.key, modelData)
+                                                                return fieldListContains(fieldData, modelData)
                                                             }
                                                             onClicked: TestPageBridge.setCaseParamListItemSelected(caseNodeId, fieldData.key, modelData, checked)
                                                         }
@@ -705,7 +721,7 @@ FluPage {
 
                                                 FluToggleSwitch{
                                                     visible: fieldData.type === "bool"
-                                                    checked: caseParamBoolValue(caseNodeId, fieldData.key)
+                                                    checked: fieldBoolValue(fieldData)
                                                     text: checked ? qsTr("Enabled") : qsTr("Disabled")
                                                     onClicked: TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, checked)
                                                 }
@@ -721,7 +737,7 @@ FluPage {
                                                         target: text_case_param_multiline
                                                         property: "text"
                                                         when: text_case_param_multiline.visible && !text_case_param_multiline.activeFocus
-                                                        value: caseParamTextValue(caseNodeId, fieldData.key)
+                                                        value: fieldTextValue(fieldData)
                                                     }
                                                     onTextChanged: TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
                                                     onCommit: TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
@@ -783,7 +799,7 @@ FluPage {
                         Repeater{
                             model: {
                                 var _version = stateVersion
-                                return TestPageBridge.globalSchema().fields
+                                return TestPageBridge.globalParamRows()
                             }
                             ColumnLayout{
                                 Layout.fillWidth: true
@@ -791,7 +807,7 @@ FluPage {
                                 property var fieldData: modelData
                                 property var fieldOptions: fieldData.enum_values || []
                                 FluText{
-                                    text: fieldData.label
+                                    text: fieldLabel(fieldData)
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
                                 }
@@ -804,7 +820,7 @@ FluPage {
                                     currentIndex: {
                                         var _version = stateVersion
                                         var options = fieldOptions
-                                        var currentValue = TestPageBridge.globalContext()[fieldData.key] + ""
+                                        var currentValue = fieldTextValue(fieldData)
                                         return options.indexOf(currentValue)
                                     }
                                     onDownChanged: {
@@ -836,8 +852,7 @@ FluPage {
                                         when: text_global_param.visible && !text_global_param.activeFocus
                                         value: {
                                             var _version = stateVersion
-                                            var value = TestPageBridge.globalContext()[fieldData.key]
-                                            return value === undefined || value === null ? "" : (value + "")
+                                            return fieldTextValue(fieldData)
                                         }
                                     }
                                     onTextChanged: TestPageBridge.setGlobalValue(fieldData.key, text)
@@ -955,7 +970,7 @@ FluPage {
                                                             Layout.fillWidth: true
                                                             spacing: 6
                                                             FluText{
-                                                                text: fieldData.label
+                                                                text: fieldLabel(fieldData)
                                                                 font: FluTextStyle.BodyStrong
                                                                 Layout.fillWidth: true
                                                                 wrapMode: Text.WordWrap
@@ -968,9 +983,9 @@ FluPage {
                                                             }
                                                         }
                                                         FluText{
-                                                            visible: !!fieldData.description
+                                                            visible: !!fieldDescription(fieldData)
                                                             Layout.fillWidth: true
-                                                            text: fieldData.description || ""
+                                                            text: fieldDescription(fieldData)
                                                             font: FluTextStyle.Caption
                                                             color: FluTheme.fontSecondaryColor
                                                             wrapMode: Text.WordWrap
@@ -1038,7 +1053,7 @@ FluPage {
                                                     spacing: 6
 
                                                     FluText{
-                                                        text: fieldData.label
+                                                        text: fieldLabel(fieldData)
                                                         font: FluTextStyle.BodyStrong
                                                         Layout.fillWidth: true
                                                         wrapMode: Text.WordWrap
@@ -1053,9 +1068,9 @@ FluPage {
                                                 }
 
                                                 FluText{
-                                                    visible: !compactTextField && fieldData.type !== "terminal_list" && !!fieldData.description
+                                                    visible: !compactTextField && fieldData.type !== "terminal_list" && !!fieldDescription(fieldData)
                                                     Layout.fillWidth: true
-                                                    text: fieldData.description || ""
+                                                    text: fieldDescription(fieldData)
                                                     font: FluTextStyle.Caption
                                                     color: FluTheme.fontSecondaryColor
                                                     wrapMode: Text.WordWrap
@@ -1097,8 +1112,8 @@ FluPage {
                                                         Layout.fillWidth: true
                                                         spacing: 8
                                                         FluText{
-                                                            text: fieldData.description || ""
-                                                            visible: !!fieldData.description
+                                                            text: fieldDescription(fieldData)
+                                                            visible: !!fieldDescription(fieldData)
                                                             font: FluTextStyle.Caption
                                                             color: FluTheme.fontSecondaryColor
                                                             Layout.fillWidth: true

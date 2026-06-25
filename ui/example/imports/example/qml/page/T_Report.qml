@@ -218,10 +218,10 @@ FluPage {
                         }
 
                         FluIconButton{
-                            width: 34; height: 34; iconSource: FluentIcons.PDF; iconSize: 16
-                            text: qsTr("Export PDF")
+                            width: 34; height: 34; iconSource: FluentIcons.OpenFile; iconSize: 16
+                            text: qsTr("Export HTML")
                             enabled: selectedRunId !== ""
-                            onClicked: ReportBridge.exportPdf(selectedRunId)
+                            onClicked: ReportBridge.exportHtml(selectedRunId)
                         }
 
                         FluIconButton{

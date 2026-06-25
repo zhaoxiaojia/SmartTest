@@ -8,9 +8,8 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
-from PySide6.QtCore import QObject, Property, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
 from testing.cases.catalog import is_packaged_runtime, load_runtime_test_catalog
@@ -18,20 +17,15 @@ from testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
 from testing.params.validation import RunValidationIssue, validate_run_request
 from testing.runner.config import RunConfig, build_run_config_from_state
 from testing.runner.execution import TestRunSession, start_pytest_run
-from testing.steps.planner import build_step_plan
 from testing.state.store import load_state
+from testing.test_context import smarttest_context
 from tools.logging import default_log_path, log_display_fields, smart_log
-from tools.report import build_run_report, save_run_report
-from ui.example.bridge.StepStore import StepStore
+from tools.report import save_run_report
 
 try:
     from example.helper.AppPaths import app_data_dir
-    from example.helper.TranslateHelper import TranslateHelper
-    from example.helper.TsTextCatalog import TsTextCatalog
 except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
     from ui.example.helper.AppPaths import app_data_dir
-    from ui.example.helper.TranslateHelper import TranslateHelper
-    from ui.example.helper.TsTextCatalog import TsTextCatalog
 
 
 class RunBridge(QObject):
@@ -51,16 +45,8 @@ class RunBridge(QObject):
         super().__init__(QGuiApplication.instance())
         self._root_dir = root_dir.resolve()
         self._running = False
-        self._logs: list[dict[str, Any]] = []
-        self._step_store = StepStore(log=self._append_log, on_change=self.stepsChanged.emit)
         self._session: TestRunSession | None = None
         self._stop_requested = False
-        self._run_id = ""
-        self._run_started_at = ""
-        self._run_started_monotonic = 0.0
-        self._run_selected_nodeids: list[str] = []
-        self._run_adb_serial: str | None = None
-        self._text_catalog = TsTextCatalog(self._root_dir)
 
         self._logSignal.connect(self._append_log)
         self._eventSignal.connect(self._apply_event)
@@ -145,13 +131,7 @@ class RunBridge(QObject):
         normalized = str(param_key or "").strip()
         if not normalized:
             return ""
-        text_key = f"test.param.{normalized.replace(':', '.')}.label"
-        label = self._text_catalog.text(
-            locale=TranslateHelper().current,
-            context="TestPageBridge",
-            source=text_key,
-        )
-        return label or normalized
+        return normalized
 
     def _set_running(self, running: bool) -> None:
         if self._running == running:
@@ -160,17 +140,8 @@ class RunBridge(QObject):
         self.runningChanged.emit()
 
     def _reset_run_data(self) -> None:
-        self._logs = []
-        self._step_store.reset()
         self.logsChanged.emit()
         self.stepsChanged.emit()
-
-    def _begin_report_context(self, *, nodeids: list[str], adb_serial: str | None) -> None:
-        self._run_id = uuid4().hex
-        self._run_started_at = self._now_iso()
-        self._run_started_monotonic = time.monotonic()
-        self._run_selected_nodeids = list(nodeids)
-        self._run_adb_serial = adb_serial
 
     def _append_exception_log(self, exc: BaseException, *, source: str = "RunBridge") -> None:
         smart_log(
@@ -191,40 +162,6 @@ class RunBridge(QObject):
         ]
         for line in diagnostics:
             self._append_log(line, domain="runner", source="RunBridge")
-
-    def _append_initial_step_plan(self, *, nodeids: list[str]) -> None:
-        self._step_store.begin_initial_plan()
-        try:
-            for nodeid in nodeids:
-                case_title = nodeid.rsplit("::", 1)[-1] if "::" in nodeid else nodeid
-                case_row_id = self._step_store.ensure_case_row(case_nodeid=nodeid, title=case_title)
-                plan_items = build_step_plan(root_dir=self._root_dir, nodeid=nodeid)
-                self._append_log(
-                    "[steps.trace] initial_plan_loaded "
-                    f"case={nodeid} items={len(plan_items)}"
-                )
-                for item in plan_items:
-                    raw_step_id = str(item.get("id", "") or "step")
-                    definition_id = str(item.get("definition_id", "") or raw_step_id)
-                    self._append_log(
-                        "[steps.trace] initial_step "
-                        f"case={nodeid} id={raw_step_id} kind={str(item.get('kind', 'action') or 'action')} "
-                        f"definition_id={definition_id}"
-                    )
-                    self._step_store.upsert_step_row(
-                        {
-                            "step_id": f"plan:{nodeid}:{raw_step_id}",
-                            "case_nodeid": nodeid,
-                            "parent_id": case_row_id,
-                            "title": str(item.get("title", "") or raw_step_id),
-                            "kind": str(item.get("kind", "action") or "action"),
-                            "definition_id": definition_id,
-                            "expected": item.get("expected", ""),
-                        },
-                        status="planned",
-                    )
-        finally:
-            self._step_store.end_initial_plan()
 
     def _pump_stdout(self, session: TestRunSession) -> None:
         if session.process.stdout is None:
@@ -281,7 +218,6 @@ class RunBridge(QObject):
         run_config: RunConfig,
     ) -> None:
         try:
-            self._run_adb_serial = run_config.dut_serial
             session = start_pytest_run(
                 root_dir=self._root_dir,
                 run_config=run_config,
@@ -328,58 +264,18 @@ class RunBridge(QObject):
             return
         row["line"] = text
         row.update(log_display_fields(domain=row.get("domain"), level=row.get("level")))
-        self._logs.append(row)
+        smarttest_context().append_log(row)
         self.logsChanged.emit()
 
     def _apply_event(self, payload: dict[str, Any]) -> None:
-        event_type = str(payload.get("type", ""))
-        if event_type == "case_started":
-            self._step_store.mark_case_started(payload)
-            return
-
-        if event_type == "case_finished":
-            self._step_store.mark_case_finished(payload)
-            return
-
-        if event_type == "step_planned":
-            self._step_store.upsert_step_row(payload, status="planned", allow_create=False)
-            return
-
-        if event_type == "step_started":
-            self._step_store.mark_step_started(payload)
-            return
-
-        if event_type == "step_finished":
-            applied, delay_ms, delayed_payload = self._step_store.apply_step_finished(
-                payload,
-                min_running_display_sec=self._MIN_STEP_RUNNING_DISPLAY_SEC,
-            )
-            if delay_ms and delayed_payload is not None:
-                QTimer.singleShot(delay_ms, lambda p=delayed_payload: self._apply_event(p))
-            return
-
-        if event_type == "step_evidence":
-            self._step_store.apply_step_evidence(payload)
-            return
-
-        if event_type == "log":
-            message = str(payload.get("message", "")).strip()
-            line = str(payload.get("line") or "").strip()
-            if message or line:
-                self._append_log_record(
-                    {
-                        "line": line or message,
-                        "message": message or line,
-                        "level": str(payload.get("level", "info") or "info"),
-                        "domain": str(payload.get("domain", "test") or "test"),
-                        "source": str(payload.get("source", "") or ""),
-                        "case_nodeid": str(payload.get("case_nodeid", "") or ""),
-                        "step_id": str(payload.get("step_id", "") or ""),
-                        "extra": dict(payload.get("extra") or {}),
-                    }
-                )
+        smarttest_context().apply_event(payload, min_running_display_sec=self._MIN_STEP_RUNNING_DISPLAY_SEC)
+        if str(payload.get("type", "")) == "log":
+            self.logsChanged.emit()
+        else:
+            self.stepsChanged.emit()
 
     def _finish_run(self, returncode: int) -> None:
+        report: dict[str, Any] = {}
         if self._stop_requested:
             self._append_log("[run] stopped")
         elif returncode == 0:
@@ -387,22 +283,10 @@ class RunBridge(QObject):
         else:
             self._append_log(f"[run] failed with exit code {returncode}")
         try:
-            duration_ms = (
-                int((time.monotonic() - self._run_started_monotonic) * 1000)
-                if self._run_started_monotonic
-                else 0
-            )
-            report = build_run_report(
-                run_id=self._run_id,
-                started_at=self._run_started_at or self._now_iso(),
-                finished_at=self._now_iso(),
-                duration_ms=duration_ms,
+            report = smarttest_context().finish_run(
                 returncode=returncode,
                 stopped=self._stop_requested,
-                adb_serial=self._run_adb_serial,
-                selected_nodeids=self._run_selected_nodeids,
-                steps=self._step_store.snapshot(),
-                logs=self._logs,
+                finished_at=self._now_iso(),
             )
             try:
                 save_run_report(report, reports_dir=self._default_reports_dir())
@@ -423,29 +307,29 @@ class RunBridge(QObject):
                 {
                     "returncode": int(returncode),
                     "stopped": bool(self._stop_requested),
-                    "run_id": str(self._run_id or ""),
+                    "run_id": str(report.get("run_id", "") if isinstance(report, dict) else ""),
                 }
             )
 
     @Slot(result=bool)
     def hasLogs(self) -> bool:
-        return bool(self._logs)
+        return smarttest_context().has_logs()
 
     @Slot(result=bool)
     def hasSteps(self) -> bool:
-        return bool(self._step_store.rows())
+        return smarttest_context().has_steps()
 
     @Slot(result="QVariantList")
     def logRows(self):
-        return list(self._logs)
+        return smarttest_context().log_rows()
 
     @Slot(result=str)
     def logText(self) -> str:
-        return "\n".join(str(item.get("line", "")) for item in self._logs)
+        return "\n".join(str(item.get("line", "")) for item in smarttest_context().log_rows())
 
     @Slot(result="QVariantList")
     def stepRows(self):
-        return list(self._step_store.rows())
+        return smarttest_context().step_rows()
 
     @Slot(result=bool)
     def startRun(self) -> bool:
@@ -464,10 +348,10 @@ class RunBridge(QObject):
                 return False
 
             self._reset_run_data()
-            self._begin_report_context(nodeids=nodeids, adb_serial=run_config.dut_serial)
+            smarttest_context().begin_run(root_dir=self._root_dir, run_config=run_config, started_at=self._now_iso())
             self._stop_requested = False
             self._append_start_diagnostics(nodeids=nodeids, adb_serial=run_config.dut_serial)
-            self._append_initial_step_plan(nodeids=nodeids)
+            self.stepsChanged.emit()
         except Exception as exc:  # noqa: BLE001
             self._append_exception_log(exc, source="RunBridge.startRun")
             self.errorOccurred.emit(self.tr("Failed to start pytest run. {detail}").format(detail=str(exc)))

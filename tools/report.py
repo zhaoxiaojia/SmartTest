@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import html
-import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -12,21 +11,7 @@ from testing.reporting.store import ReportStore
 
 
 REPORT_SCHEMA_VERSION = 1
-_REPEAT_TITLE_RE = re.compile(r"\b(?:cycle|loop)\s+(?P<index>\d+)\s*/\s*(?P<total>\d+)\b", re.IGNORECASE)
-_REPEAT_ID_RE = re.compile(r"\.(?:cycle|loop)\.(?P<index>\d+)\.", re.IGNORECASE)
-_EMMC_FINAL_RE = re.compile(
-    r"(?P<cycles>\d+)\s+cycles,\s+(?P<copies>\d+)\s+copies,\s+"
-    r"copy_err=(?P<copy_failed>\d+),\s+read_err=(?P<read_failed>\d+),\s+check_err=(?P<check_failed>\d+)",
-    re.IGNORECASE,
-)
-_NOISY_REPORT_LOG_PREFIXES = (
-    "[step-debug.",
-    "[android_client.status]",
-    "[android_client.power] waiting_for_resume=",
-    "[android_client.power] snapshot channel ready",
-    "[android_client.power] host quiet mode:",
-    "[testing.runner.android_client] baseline phase=",
-)
+
 _STATUS_COLORS = {
     "passed": "#107c10",
     "failed": "#c42b1c",
@@ -64,10 +49,6 @@ def _safe_text(value: Any) -> str:
     return str(value or "").strip()
 
 
-def _has_text(value: Any) -> bool:
-    return value is not None and str(value).strip() != ""
-
-
 def _safe_int(value: Any) -> int:
     try:
         return int(value or 0)
@@ -103,284 +84,32 @@ def report_file_stem(report: dict[str, Any]) -> str:
     return f"SmartTest_{timestamp}_{status}{suffix}"
 
 
-def filter_report_logs(logs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    filtered: list[dict[str, Any]] = []
-    for row in logs:
-        if not isinstance(row, dict):
-            continue
-        line = _safe_text(row.get("line"))
-        if not line or any(line.startswith(prefix) for prefix in _NOISY_REPORT_LOG_PREFIXES):
-            continue
-        normalized = dict(row)
-        normalized["line"] = line
-        filtered.append(normalized)
-    return filtered
-
-
-def logs_for_step(report: dict[str, Any], step: dict[str, Any]) -> list[dict[str, Any]]:
-    logs = filter_report_logs([row for row in report.get("logs", []) if isinstance(row, dict)])
-    case_nodeid = _safe_text(step.get("case_nodeid"))
-    step_id = _safe_text(step.get("id") or step.get("step_id"))
-    related: list[dict[str, Any]] = []
-    for row in logs:
-        row_case = _safe_text(row.get("case_nodeid"))
-        row_step = _safe_text(row.get("step_id"))
-        if step_id and row_step == step_id:
-            related.append(row)
-            continue
-        if case_nodeid and row_case == case_nodeid and _safe_text(row.get("level")).lower() in {"warning", "error", "critical"}:
-            related.append(row)
-    return related
-
-
-def case_logs(report: dict[str, Any], case_nodeid: str) -> list[dict[str, Any]]:
-    nodeid = _safe_text(case_nodeid)
-    if not nodeid:
-        return []
-    logs = filter_report_logs([row for row in report.get("logs", []) if isinstance(row, dict)])
-    start_index = _case_log_start_index(logs, nodeid)
-    if start_index is None:
-        return []
-    next_start = _next_case_log_start_index(report, logs, nodeid, start_index)
-    if next_start is not None:
-        return logs[start_index:next_start]
-    end_index = _last_related_case_log_index(logs, nodeid, start_index)
-    return logs[start_index : end_index + 1]
-
-
-def _case_log_start_index(logs: list[dict[str, Any]], case_nodeid: str) -> int | None:
-    fallback: int | None = None
-    for index, row in enumerate(logs):
-        if _log_starts_case_execution(row, case_nodeid):
-            return index
-        if fallback is None and _log_references_case(row, case_nodeid):
-            fallback = index
-    return fallback
-
-
-def _next_case_log_start_index(
-    report: dict[str, Any],
-    logs: list[dict[str, Any]],
-    case_nodeid: str,
-    start_index: int,
-) -> int | None:
-    case_nodeids = [
-        _safe_text(row.get("case_nodeid"))
-        for row in report.get("steps", [])
-        if isinstance(row, dict) and _safe_text(row.get("kind")) == "case"
-    ]
-    for index in range(start_index + 1, len(logs)):
-        if any(other_nodeid and other_nodeid != case_nodeid and _log_starts_case_execution(logs[index], other_nodeid) for other_nodeid in case_nodeids):
-            return index
-    return None
-
-
-def _last_related_case_log_index(logs: list[dict[str, Any]], case_nodeid: str, start_index: int) -> int:
-    last_index = start_index
-    for index in range(start_index, len(logs)):
-        if _log_references_case(logs[index], case_nodeid):
-            last_index = index
-    return last_index
-
-
-def _log_references_case(row: dict[str, Any], case_nodeid: str) -> bool:
-    nodeid = _safe_text(case_nodeid)
-    line = _safe_text(row.get("line"))
-    return (
-        _safe_text(row.get("case_nodeid")) == nodeid
-        or f"case={nodeid}" in line
-        or f"trigger={nodeid}" in line
-    )
-
-
-def _log_starts_case_execution(row: dict[str, Any], case_nodeid: str) -> bool:
-    nodeid = _safe_text(case_nodeid)
-    line = _safe_text(row.get("line"))
-    return _safe_text(row.get("case_nodeid")) == nodeid or f"trigger={nodeid}" in line
-
-
-def classify_failure(error_text: Any, logs: list[dict[str, Any]]) -> str:
-    text = " ".join([_safe_text(error_text)] + [_safe_text(row.get("line")) for row in logs]).lower()
-    if any(token in text for token in ("timeout", "timed out", "waiting for", "wait ")):
-        return "timeout"
-    if any(token in text for token in ("adb", "device", "serial", "offline", "unauthorized")):
-        return "dut"
-    if any(token in text for token in ("android_client", "apk", "package", "snapshot")):
-        return "android"
-    if any(token in text for token in ("equipment", "relay", "attenuator", "serial port")):
-        return "equipment"
-    if any(token in text for token in ("assert", "expected", "actual", "mismatch", "validation")):
-        return "assertion"
-    if any(token in text for token in ("traceback", "exception", "typeerror", "attributeerror", "runtimeerror")):
-        return "framework"
-    return "unknown"
-
-
-def failure_analysis(report: dict[str, Any]) -> dict[str, Any]:
-    steps = [row for row in report.get("steps", []) if isinstance(row, dict)]
-    failed_steps = [row for row in steps if _safe_text(row.get("status")) == "failed" and _safe_text(row.get("kind")) != "case"]
-    failed_cases = [
-        {"case_nodeid": _safe_text(row.get("case_nodeid")), "title": _safe_text(row.get("title") or row.get("case_nodeid"))}
-        for row in steps
-        if _safe_text(row.get("status")) == "failed" and _safe_text(row.get("kind")) == "case"
-    ]
-    primary = failed_steps[0] if failed_steps else next((row for row in steps if _safe_text(row.get("status")) == "failed"), None)
-    if primary is None:
-        return {
-            "status": "stopped" if report.get("stopped") else "passed",
-            "failed_cases": failed_cases,
-            "failed_steps": [],
-            "primary_failure": {},
-        }
-
-    evidence_logs = logs_for_step(report, primary)
-    error_text = primary.get("error") or primary.get("actual") or primary.get("title")
-    primary_failure = {
-        "id": _safe_text(primary.get("id")),
-        "title": _safe_text(primary.get("title") or primary.get("id")),
-        "case_nodeid": _safe_text(primary.get("case_nodeid")),
-        "kind": _safe_text(primary.get("kind")),
-        "category": classify_failure(error_text, evidence_logs),
-        "error": _safe_text(error_text),
-        "expected": primary.get("expected", ""),
-        "actual": primary.get("actual", ""),
-        "evidence_logs": evidence_logs,
-    }
-    return {
-        "status": "failed",
-        "failed_cases": failed_cases,
-        "failed_steps": failed_steps,
-        "primary_failure": primary_failure,
-    }
-
-
-def case_duration_ranking(report: dict[str, Any], *, limit: int = 8) -> list[dict[str, Any]]:
-    steps = [row for row in report.get("steps", []) if isinstance(row, dict)]
-    cases = [
-        {
-            "title": _safe_text(row.get("title") or row.get("case_nodeid")),
-            "case_nodeid": _safe_text(row.get("case_nodeid")),
-            "duration_ms": _safe_int(row.get("duration_ms")),
-        }
-        for row in steps
-        if _safe_text(row.get("kind")) == "case"
-    ]
-    cases.sort(key=lambda row: int(row.get("duration_ms", 0) or 0), reverse=True)
-    return cases[: max(0, int(limit))]
-
-
-def log_distribution(report: dict[str, Any]) -> dict[str, dict[str, int]]:
-    logs = filter_report_logs([row for row in report.get("logs", []) if isinstance(row, dict)])
-    levels: dict[str, int] = {}
-    domains: dict[str, int] = {}
-    for row in logs:
-        level = _safe_text(row.get("level")).lower() or "info"
-        domain = _safe_text(row.get("domain")).lower() or "framework"
-        levels[level] = levels.get(level, 0) + 1
-        domains[domain] = domains.get(domain, 0) + 1
-    return {"levels": levels, "domains": domains}
-
-
-def case_reports(report: dict[str, Any]) -> list[dict[str, Any]]:
-    steps = [row for row in report.get("steps", []) if isinstance(row, dict)]
-    cases = [row for row in steps if _safe_text(row.get("kind")) == "case"]
-    if not cases:
-        selected = report.get("selected_nodeids") if isinstance(report.get("selected_nodeids"), list) else []
-        cases = [
-            {
-                "id": f"case:{_safe_text(nodeid)}",
-                "kind": "case",
-                "case_nodeid": _safe_text(nodeid),
-                "title": _safe_text(nodeid),
-                "status": "planned",
-                "duration_ms": 0,
-            }
-            for nodeid in selected
-            if _safe_text(nodeid)
-        ]
-    reports: list[dict[str, Any]] = []
-    for case in cases:
-        nodeid = _safe_text(case.get("case_nodeid"))
-        case_steps = [
-            row
-            for row in steps
-            if _safe_text(row.get("case_nodeid")) == nodeid and _safe_text(row.get("kind")) != "case"
-        ]
-        logs = case_logs(report, nodeid)
-        reports.append(
-            {
-                "case": case,
-                "steps": _failure_first_steps(case_steps),
-                "logs": logs,
-                "key_logs": _key_logs(logs),
-            }
-        )
-    reports.sort(key=lambda item: (0 if _safe_text(item["case"].get("status")) == "failed" else 1, _safe_text(item["case"].get("title"))))
-    return reports
-
-
-def _status_counts(steps: list[dict[str, Any]]) -> dict[str, int]:
-    cases = [row for row in steps if row.get("kind") == "case"]
-    return {
-        "total": len(cases),
-        "passed": sum(1 for row in cases if row.get("status") == "passed"),
-        "failed": sum(1 for row in cases if row.get("status") == "failed"),
-        "skipped": sum(1 for row in cases if row.get("status") == "skipped"),
-        "running": sum(1 for row in cases if row.get("status") == "running"),
-    }
-
-
-def _overall_status(*, returncode: int, stopped: bool, counts: dict[str, int]) -> str:
-    if stopped:
-        return "stopped"
-    if counts.get("failed", 0) > 0 or returncode != 0:
-        return "failed"
-    if counts.get("total", 0) == 0:
-        return "empty"
-    return "passed"
-
-
-def build_run_report(
-    *,
-    run_id: str | None,
-    started_at: str,
-    finished_at: str | None,
-    duration_ms: int,
-    returncode: int,
-    stopped: bool,
-    adb_serial: str | None,
-    selected_nodeids: list[str],
-    steps: list[dict[str, Any]],
-    logs: list[dict[str, Any]],
-) -> dict[str, Any]:
-    report_id = _safe_text(run_id) or uuid4().hex
-    finished = _safe_text(finished_at) or _now_iso()
-    normalized_steps = [dict(row) for row in steps if isinstance(row, dict)]
-    normalized_logs = filter_report_logs(logs)
-    counts = _status_counts(normalized_steps)
-    status = _overall_status(returncode=returncode, stopped=stopped, counts=counts)
-    title = f"{finished.replace('T', ' ')[:19]}  {status}"
-    return {
-        "schema_version": REPORT_SCHEMA_VERSION,
-        "run_id": report_id,
-        "title": title,
-        "started_at": started_at,
-        "finished_at": finished,
-        "duration_ms": max(0, int(duration_ms)),
-        "returncode": int(returncode),
-        "stopped": bool(stopped),
-        "status": status,
-        "adb_serial": _safe_text(adb_serial),
-        "selected_nodeids": list(selected_nodeids),
-        "counts": counts,
-        "steps": normalized_steps,
-        "logs": normalized_logs,
-    }
+def build_run_report(**model: Any) -> dict[str, Any]:
+    report = dict(model)
+    report["schema_version"] = int(report.get("schema_version") or REPORT_SCHEMA_VERSION)
+    report["run_id"] = _safe_text(report.get("run_id")) or uuid4().hex
+    report["finished_at"] = _safe_text(report.get("finished_at")) or _now_iso()
+    report["started_at"] = _safe_text(report.get("started_at"))
+    report["duration_ms"] = max(0, _safe_int(report.get("duration_ms")))
+    report["returncode"] = int(report.get("returncode") or 0)
+    report["stopped"] = bool(report.get("stopped"))
+    report["status"] = _safe_text(report.get("status")) or _status_from_summary(report)
+    report["title"] = _safe_text(report.get("title")) or f"{report['finished_at'].replace('T', ' ')[:19]}  {report['status']}"
+    report["adb_serial"] = _safe_text(report.get("adb_serial"))
+    report["selected_nodeids"] = list(report.get("selected_nodeids") or [])
+    report["summary"] = _dict_value(report.get("summary") or report.get("counts"))
+    report["counts"] = dict(report["summary"])
+    report["cases"] = _list_value(report.get("cases"))
+    report["steps"] = _list_value(report.get("steps"))
+    report["logs"] = _list_value(report.get("logs"))
+    report["failure_analysis"] = _dict_value(report.get("failure_analysis"))
+    report["duration_ranking"] = _list_value(report.get("duration_ranking"))
+    report["log_distribution"] = _dict_value(report.get("log_distribution"))
+    return report
 
 
 def save_run_report(report: dict[str, Any], *, reports_dir: Path) -> Path:
-    normalized = dict(report)
-    normalized["run_id"] = _safe_text(normalized.get("run_id")) or uuid4().hex
+    normalized = build_run_report(**dict(report))
     store = ReportStore(reports_dir)
     json_path = store.save(normalized)
     generate_html_report(normalized, html_path=report_html_path(str(normalized.get("run_id", "")), reports_dir=reports_dir))
@@ -495,22 +224,14 @@ def generate_html_report(report: dict[str, Any], *, html_path: Path) -> Path:
 
 
 def render_html_report(report: dict[str, Any]) -> str:
-    counts = report.get("counts") if isinstance(report.get("counts"), dict) else {}
-    cases = case_reports(report)
-    status = _safe_text(report.get("status")) or "empty"
-    metrics = (
-        '<section class="grid three">'
-        f'<article><h2>Result Chart</h2>{_chart_html(counts)}</article>'
-        f'<article><h2>Case Duration</h2>{_duration_ranking_html(case_duration_ranking(report))}</article>'
-        f'<article><h2>Log Distribution</h2>{_log_distribution_html(log_distribution(report))}</article>'
-        '</section>'
-    )
+    model = build_run_report(**dict(report))
+    status = _safe_text(model.get("status")) or "empty"
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{_esc(report.get("title") or "SmartTest Report")}</title>
+<title>{_esc(model.get("title") or "SmartTest Report")}</title>
 <style>{_report_css()}</style>
 </head>
 <body>
@@ -518,21 +239,44 @@ def render_html_report(report: dict[str, Any]) -> str:
   <header class="hero">
     <div>
       <p class="eyebrow">SmartTest Report</p>
-      <h1>{_esc(report.get("title") or report.get("run_id") or "Run Report")}</h1>
-      <p class="meta">{_esc(report.get("started_at"))} - {_esc(report.get("finished_at"))}</p>
+      <h1>{_esc(model.get("title") or model.get("run_id") or "Run Report")}</h1>
+      <p class="meta">{_esc(model.get("started_at"))} - {_esc(model.get("finished_at"))}</p>
     </div>
     <span class="status" style="--status:{_status_color(status)}">{_esc(status)}</span>
   </header>
-  {_summary_html(report, counts)}
-  {_section_html("Failure Analysis", _failure_analysis_html(failure_analysis(report)))}
-  {_section_html("Cases In This Run", _cases_overview_html(cases))}
-  {metrics}
-  {_section_html("Run Summary", _context_html(report))}
-  {_section_html("Case Reports", _case_reports_html(report, cases))}
+  {_summary_html(model)}
+  {_section_html("Failure Analysis", _failure_analysis_html(_dict_value(model.get("failure_analysis"))))}
+  {_section_html("Cases In This Run", _cases_overview_html(_list_value(model.get("cases"))))}
+  <section class="grid three">
+    <article><h2>Result Chart</h2>{_chart_html(_dict_value(model.get("summary")))}</article>
+    <article><h2>Case Duration</h2>{_duration_ranking_html(_list_value(model.get("duration_ranking")))}</article>
+    <article><h2>Log Distribution</h2>{_log_distribution_html(_dict_value(model.get("log_distribution")))}</article>
+  </section>
+  {_section_html("Run Summary", _context_html(model))}
+  {_section_html("Case Reports", _case_reports_html(_list_value(model.get("cases"))))}
 </main>
 </body>
 </html>
 """
+
+
+def _dict_value(value: Any) -> dict[str, Any]:
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def _list_value(value: Any) -> list[Any]:
+    return list(value) if isinstance(value, list) else []
+
+
+def _status_from_summary(report: dict[str, Any]) -> str:
+    summary = _dict_value(report.get("summary") or report.get("counts"))
+    if report.get("stopped"):
+        return "stopped"
+    if _safe_int(summary.get("failed")) > 0 or int(report.get("returncode") or 0) != 0:
+        return "failed"
+    if _safe_int(summary.get("total")) == 0:
+        return "empty"
+    return "passed"
 
 
 def _esc(value: Any) -> str:
@@ -564,12 +308,13 @@ def duration_text(duration_ms: Any) -> str:
     return f"{seconds}s"
 
 
-def _summary_html(report: dict[str, Any], counts: dict[str, Any]) -> str:
+def _summary_html(report: dict[str, Any]) -> str:
+    summary = _dict_value(report.get("summary") or report.get("counts"))
     items = [
-        ("Total", counts.get("total", 0)),
-        ("Passed", counts.get("passed", 0)),
-        ("Failed", counts.get("failed", 0)),
-        ("Skipped", counts.get("skipped", 0)),
+        ("Total", summary.get("total", 0)),
+        ("Passed", summary.get("passed", 0)),
+        ("Failed", summary.get("failed", 0)),
+        ("Skipped", summary.get("skipped", 0)),
         ("Duration", duration_text(report.get("duration_ms"))),
     ]
     cards = "".join(f"<article><span>{_esc(label)}</span><strong>{_esc(value)}</strong></article>" for label, value in items)
@@ -577,7 +322,7 @@ def _summary_html(report: dict[str, Any], counts: dict[str, Any]) -> str:
 
 
 def _context_html(report: dict[str, Any]) -> str:
-    nodeids = report.get("selected_nodeids") if isinstance(report.get("selected_nodeids"), list) else []
+    nodeids = _list_value(report.get("selected_nodeids"))
     return _kv_html([
         ("Run ID", report.get("run_id")),
         ("DUT", report.get("adb_serial") or "No DUT"),
@@ -587,12 +332,12 @@ def _context_html(report: dict[str, Any]) -> str:
     ])
 
 
-def _cases_overview_html(cases: list[dict[str, Any]]) -> str:
+def _cases_overview_html(cases: list[Any]) -> str:
     if not cases:
         return '<p class="empty">No selected cases.</p>'
     items = []
     for item in cases:
-        case = item.get("case", {}) if isinstance(item, dict) else {}
+        case = _dict_value(_dict_value(item).get("case"))
         status = _safe_text(case.get("status")) or "-"
         title = _safe_text(case.get("title") or case.get("case_nodeid"))
         nodeid = _safe_text(case.get("case_nodeid"))
@@ -605,23 +350,28 @@ def _cases_overview_html(cases: list[dict[str, Any]]) -> str:
     return f'<div class="case-overview">{"".join(items)}</div>'
 
 
-def _case_reports_html(report: dict[str, Any], cases: list[dict[str, Any]]) -> str:
+def _case_reports_html(cases: list[Any]) -> str:
     if not cases:
         return '<p class="empty">No case reports.</p>'
-    return "".join(_case_report_html(report, item) for item in cases)
+    return "".join(_case_report_html(_dict_value(item)) for item in cases)
 
 
-def _case_report_html(report: dict[str, Any], item: dict[str, Any]) -> str:
-    case = item.get("case", {}) if isinstance(item, dict) else {}
-    steps = item.get("steps", []) if isinstance(item.get("steps"), list) else []
-    logs = item.get("logs", []) if isinstance(item.get("logs"), list) else []
-    key_logs = item.get("key_logs", []) if isinstance(item.get("key_logs"), list) else []
+def _case_report_html(item: dict[str, Any]) -> str:
+    case = _dict_value(item.get("case"))
+    steps = _list_value(item.get("steps"))
+    logs = _list_value(item.get("logs"))
+    key_logs = _list_value(item.get("key_logs"))
+    artifacts = _list_value(item.get("artifacts"))
     status = _safe_text(case.get("status")) or "-"
     nodeid = _safe_text(case.get("case_nodeid"))
     title = _safe_text(case.get("title") or nodeid)
     detail_open = " open" if status != "passed" else ""
-    all_logs = [row for row in report.get("logs", []) if isinstance(row, dict)]
-    detail_body = _case_loop_summary_html(case, steps, logs, all_logs) + _steps_html(steps)
+    detail_body = (
+        _case_summary_html(_dict_value(item.get("case_summary")))
+        + _loop_summary_html(_dict_value(item.get("loop_summary")))
+        + _steps_html(steps)
+        + _artifacts_html(artifacts)
+    )
     return (
         f'<article class="case-report" id="case-{_anchor_id(nodeid)}">'
         '<header>'
@@ -629,7 +379,7 @@ def _case_report_html(report: dict[str, Any], item: dict[str, Any]) -> str:
         f'<span class="pill" style="--status:{_status_color(status)}">{_esc(status)}</span>'
         '</header>'
         '<div class="grid two">'
-        f'<div><h4>Run Context</h4>{_case_context_html(report, case)}</div>'
+        f'<div><h4>Run Context</h4>{_case_context_html(case)}</div>'
         f'{_details_html("Detail", detail_body, detail_open)}'
         '</div>'
         f'{_details_html(f"Case Key Logs ({len(key_logs)})", _logs_html(key_logs, include_case=False), detail_open)}'
@@ -638,121 +388,28 @@ def _case_report_html(report: dict[str, Any], item: dict[str, Any]) -> str:
     )
 
 
-def _case_context_html(report: dict[str, Any], case: dict[str, Any]) -> str:
+def _case_context_html(case: dict[str, Any]) -> str:
     return _kv_html([
-        ("DUT", report.get("adb_serial") or "No DUT"),
-        ("Run ID", report.get("run_id")),
-        ("Return Code", report.get("returncode")),
         ("Case Status", case.get("status")),
         ("Duration", duration_text(case.get("duration_ms"))),
     ], skip_empty=True)
 
 
-def _kv_html(rows: list[tuple[str, Any]], *, skip_empty: bool = False) -> str:
-    body = "".join(
-        f"<tr><th>{_esc(label)}</th><td>{_esc(value)}</td></tr>"
-        for label, value in rows
-        if not skip_empty or _has_text(value)
-    )
-    return f'<table class="kv"><tbody>{body}</tbody></table>'
+def _case_summary_html(summary: dict[str, Any]) -> str:
+    if not summary:
+        return ""
+    headline = _safe_text(summary.get("headline") or summary.get("title"))
+    body = _safe_text(summary.get("body") or summary.get("message"))
+    rows = [(key, value) for key, value in summary.items() if key not in {"headline", "title", "body", "message"}]
+    content = (f"<p>{_esc(headline)}</p>" if headline else "") + (f"<p>{_esc(body)}</p>" if body else "")
+    if rows:
+        content += _kv_html(rows)
+    return f'<div class="case-summary"><h4>Case Summary</h4>{content}</div>'
 
 
-def _details_html(summary: str, body: str, attrs: str = "") -> str:
-    return f'<details class="case-detail"{attrs}><summary>{_esc(summary)}</summary>{body}</details>'
-
-
-def _case_loop_summary_html(
-    case: dict[str, Any],
-    steps: list[dict[str, Any]],
-    logs: list[dict[str, Any]],
-    all_logs: list[dict[str, Any]],
-) -> str:
-    summary = case.get("loop_summary")
-    if isinstance(summary, dict) and summary:
-        return _inferred_loop_summary_html(_normalize_loop_summary(summary))
-    summary = _emmc_loop_summary(logs)
-    if not summary and _is_emmc_case(case, steps):
-        summary = _emmc_loop_summary(all_logs)
-    if summary:
-        return _inferred_loop_summary_html(summary)
-    inferred = _infer_loop_summary(steps)
-    return _inferred_loop_summary_html(inferred) if inferred else ""
-
-
-def _normalize_loop_summary(summary: dict[str, Any]) -> dict[str, Any]:
-    completed = _safe_int(summary.get("completed") or summary.get("observed") or summary.get("expected"))
-    total = _safe_int(summary.get("expected") or summary.get("total") or completed)
-    actions = summary.get("actions")
-    if not isinstance(actions, dict):
-        name = _safe_text(summary.get("name"))
-        actions = {name: {"passed": completed}} if name and _safe_text(summary.get("result")) == "passed" else {}
-    return {"observed": completed, "total": total, "actions": actions}
-
-
-def _infer_loop_summary(steps: list[dict[str, Any]]) -> dict[str, Any]:
-    actions: dict[str, dict[str, int]] = {}
-    observed = 0
-    total = 0
-    for row in steps:
-        repeat = _repeat_position(row)
-        if repeat is None:
-            continue
-        index, expected_total = repeat
-        observed = max(observed, index)
-        total = max(total, expected_total)
-        name = _safe_text(row.get("definition_id") or row.get("title") or row.get("id"))
-        status = _safe_text(row.get("status")) or "unknown"
-        bucket = actions.setdefault(name, {})
-        count = expected_total if status == "passed" and expected_total > 0 else 1
-        bucket[status] = max(bucket.get(status, 0), count)
-    return {"observed": observed, "total": total, "actions": actions} if actions else {}
-
-
-def _emmc_loop_summary(logs: list[dict[str, Any]]) -> dict[str, Any]:
-    for row in reversed(logs):
-        line = _safe_text(row.get("line"))
-        if "emmc" not in line.lower() or "copy_err=" not in line:
-            continue
-        match = _EMMC_FINAL_RE.search(line)
-        if match is None:
-            continue
-        cycles = int(match.group("cycles"))
-        copies = int(match.group("copies"))
-        copy_failed = int(match.group("copy_failed"))
-        read_failed = int(match.group("read_failed"))
-        check_failed = int(match.group("check_failed"))
-        return {
-            "observed": cycles,
-            "total": cycles,
-            "actions": {
-                "storage.emmc.copy_file": _passed_failed_counts(copies, copy_failed),
-                "storage.emmc.read_file": _passed_failed_counts(copies, read_failed),
-                "storage.emmc.cmp_file": _passed_failed_counts(copies, check_failed),
-            },
-        }
-    return {}
-
-
-def _is_emmc_case(case: dict[str, Any], steps: list[dict[str, Any]]) -> bool:
-    text = " ".join(
-        [_safe_text(case.get("case_nodeid")), _safe_text(case.get("title"))]
-        + [_safe_text(row.get("id")) + " " + _safe_text(row.get("definition_id")) for row in steps]
-    ).lower()
-    return "emmc" in text or "storage.emmc" in text
-
-
-def _repeat_position(row: dict[str, Any]) -> tuple[int, int] | None:
-    title_match = _REPEAT_TITLE_RE.search(_safe_text(row.get("title")))
-    if title_match:
-        return int(title_match.group("index")), int(title_match.group("total"))
-    id_match = _REPEAT_ID_RE.search(_safe_text(row.get("id") or row.get("step_id")))
-    if id_match:
-        index = int(id_match.group("index"))
-        return index, index
-    return None
-
-
-def _inferred_loop_summary_html(summary: dict[str, Any]) -> str:
+def _loop_summary_html(summary: dict[str, Any]) -> str:
+    if not summary:
+        return ""
     rows = _kv_html([("Observed Cycles", f"{summary.get('observed', 0)}/{summary.get('total', 0)}")])
     return f'<div class="loop-summary"><h4>Loop Summary</h4>{rows}{_loop_actions_html(summary.get("actions", {}))}</div>'
 
@@ -768,28 +425,44 @@ def _loop_actions_html(actions: Any) -> str:
     return f'<table><thead><tr><th>Loop Action</th><th>Result</th></tr></thead><tbody>{action_rows}</tbody></table>' if action_rows else ""
 
 
-def _passed_failed_counts(total: int, failed: int) -> dict[str, int]:
-    counts = {"passed": max(0, total - failed)}
-    if failed:
-        counts["failed"] = failed
-    return counts
-
-
 def _status_counts_text(counts: dict[str, int]) -> str:
     return ", ".join(f"{key} {value}" for key, value in sorted(counts.items()))
 
 
-def _chart_html(counts: dict[str, Any]) -> str:
+def _artifacts_html(artifacts: list[Any]) -> str:
+    if not artifacts:
+        return ""
+    rows = "".join(
+        f"<tr><td>{_esc(_dict_value(item).get('title'))}</td><td>{_esc(_dict_value(item).get('path') or _dict_value(item).get('url'))}</td></tr>"
+        for item in artifacts
+    )
+    return f'<div class="artifacts"><h4>Artifacts</h4><table><thead><tr><th>Title</th><th>Location</th></tr></thead><tbody>{rows}</tbody></table></div>'
+
+
+def _kv_html(rows: list[tuple[str, Any]], *, skip_empty: bool = False) -> str:
+    body = "".join(
+        f"<tr><th>{_esc(label)}</th><td>{_esc(value)}</td></tr>"
+        for label, value in rows
+        if not skip_empty or _safe_text(value)
+    )
+    return f'<table class="kv"><tbody>{body}</tbody></table>'
+
+
+def _details_html(summary: str, body: str, attrs: str = "") -> str:
+    return f'<details class="case-detail"{attrs}><summary>{_esc(summary)}</summary>{body}</details>'
+
+
+def _chart_html(summary: dict[str, Any]) -> str:
     chart_items = [
-        ("passed", _safe_int(counts.get("passed"))),
-        ("failed", _safe_int(counts.get("failed"))),
-        ("skipped", _safe_int(counts.get("skipped"))),
-        ("running", _safe_int(counts.get("running"))),
+        ("passed", _safe_int(summary.get("passed"))),
+        ("failed", _safe_int(summary.get("failed"))),
+        ("skipped", _safe_int(summary.get("skipped"))),
+        ("running", _safe_int(summary.get("running"))),
     ]
     total = sum(value for _, value in chart_items)
     if total <= 0:
         return '<p class="empty">No case results.</p>'
-    x = 0
+    x = 0.0
     bars = []
     legend = []
     for status, value in chart_items:
@@ -803,12 +476,13 @@ def _chart_html(counts: dict[str, Any]) -> str:
     return f'<svg class="bar" viewBox="0 0 100 20" preserveAspectRatio="none">{"".join(bars)}</svg><ul class="legend">{"".join(legend)}</ul>'
 
 
-def _duration_ranking_html(rows: list[dict[str, Any]]) -> str:
+def _duration_ranking_html(rows: list[Any]) -> str:
     if not rows:
         return '<p class="empty">No case duration data.</p>'
-    max_duration = max(_safe_int(row.get("duration_ms")) for row in rows) or 1
+    max_duration = max(_safe_int(_dict_value(row).get("duration_ms")) for row in rows) or 1
     items = []
-    for row in rows:
+    for raw in rows:
+        row = _dict_value(raw)
         duration = _safe_int(row.get("duration_ms"))
         width = max(2, duration / max_duration * 100)
         items.append(
@@ -820,9 +494,9 @@ def _duration_ranking_html(rows: list[dict[str, Any]]) -> str:
     return f'<ul class="metric-bars">{"".join(items)}</ul>'
 
 
-def _log_distribution_html(distribution: dict[str, dict[str, int]]) -> str:
-    level_items = _count_bar_items(distribution.get("levels", {}), color_by_level=True)
-    domain_items = _count_bar_items(distribution.get("domains", {}), color_by_level=False)
+def _log_distribution_html(distribution: dict[str, Any]) -> str:
+    level_items = _count_bar_items(_dict_value(distribution.get("levels")), color_by_level=True)
+    domain_items = _count_bar_items(_dict_value(distribution.get("domains")), color_by_level=False)
     if not level_items and not domain_items:
         return '<p class="empty">No log data.</p>'
     return (
@@ -833,13 +507,13 @@ def _log_distribution_html(distribution: dict[str, dict[str, int]]) -> str:
     )
 
 
-def _count_bar_items(counts: dict[str, int], *, color_by_level: bool) -> str:
+def _count_bar_items(counts: dict[str, Any], *, color_by_level: bool) -> str:
     if not counts:
         return ""
-    max_count = max(counts.values()) or 1
+    max_count = max(_safe_int(value) for value in counts.values()) or 1
     items = []
-    for key, value in sorted(counts.items(), key=lambda item: item[1], reverse=True):
-        width = max(2, value / max_count * 100)
+    for key, value in sorted(counts.items(), key=lambda item: _safe_int(item[1]), reverse=True):
+        width = max(2, _safe_int(value) / max_count * 100)
         color = _LEVEL_COLORS.get(key, _DOMAIN_COLORS.get(key, "#616161")) if color_by_level else _DOMAIN_COLORS.get(key, "#616161")
         items.append(
             '<li>'
@@ -850,40 +524,23 @@ def _count_bar_items(counts: dict[str, int], *, color_by_level: bool) -> str:
     return "".join(items)
 
 
-def _failure_first_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return sorted(
-        steps,
-        key=lambda row: (
-            0 if _safe_text(row.get("status")) == "failed" else 1,
-            0 if _safe_text(row.get("kind")) == "case" else 1,
-        ),
-    )
-
-
-def _key_logs(logs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [row for row in logs if _safe_text(row.get("level")).lower() in {"warning", "error", "critical"}]
-
-
 def _failure_analysis_html(analysis: dict[str, Any]) -> str:
-    primary = analysis.get("primary_failure") if isinstance(analysis.get("primary_failure"), dict) else {}
+    primary = _dict_value(analysis.get("primary_failure"))
     if not primary:
         status = _safe_text(analysis.get("status")) or "passed"
         return f'<p class="empty">No failed step detected. Analysis status: {_esc(status)}.</p>'
 
-    failed_cases = analysis.get("failed_cases") if isinstance(analysis.get("failed_cases"), list) else []
-    evidence_logs = primary.get("evidence_logs") if isinstance(primary.get("evidence_logs"), list) else []
+    failed_cases = _list_value(analysis.get("failed_cases"))
+    evidence_logs = _list_value(primary.get("evidence_logs"))
     case_items = "".join(
-        f"<li>{_esc(row.get('title') or row.get('case_nodeid'))}<span>{_esc(row.get('case_nodeid'))}</span></li>"
+        f"<li>{_esc(_dict_value(row).get('title') or _dict_value(row).get('case_nodeid'))}<span>{_esc(_dict_value(row).get('case_nodeid'))}</span></li>"
         for row in failed_cases
-        if isinstance(row, dict)
     )
     log_items = "".join(
-        f"<li><strong>{_esc(row.get('level') or 'info')}</strong><pre>{_esc(row.get('line'))}</pre></li>"
+        f"<li><strong>{_esc(_dict_value(row).get('level') or 'info')}</strong><pre>{_esc(_dict_value(row).get('line'))}</pre></li>"
         for row in evidence_logs[:8]
-        if isinstance(row, dict)
     )
     facts = [
-        ("Category", primary.get("category")),
         ("Case", primary.get("case_nodeid")),
         ("Step", primary.get("title")),
         ("Kind", primary.get("kind")),
@@ -893,18 +550,18 @@ def _failure_analysis_html(analysis: dict[str, Any]) -> str:
     ]
     facts_html = _kv_html(facts, skip_empty=True)
     cases_html = f'<div><h3>Affected Cases</h3><ul class="failure-list">{case_items}</ul></div>' if case_items else ""
-    logs_html = f'<div><h3>Evidence Logs</h3><ul class="failure-logs">{log_items}</ul></div>' if log_items else '<p class="empty">No related warning/error logs found for the primary failure.</p>'
+    logs_html = f'<div><h3>Evidence Logs</h3><ul class="failure-logs">{log_items}</ul></div>' if log_items else '<p class="empty">No related warning/error logs provided for the primary failure.</p>'
     return f'<div class="failure-grid">{facts_html}{cases_html}{logs_html}</div>'
 
 
-def _steps_html(steps: list[dict[str, Any]]) -> str:
+def _steps_html(steps: list[Any]) -> str:
     if not steps:
         return '<p class="empty">No steps recorded.</p>'
     rows = []
-    for row in steps:
+    for raw in steps:
+        row = _dict_value(raw)
         status = _safe_text(row.get("status")) or "-"
         error = row.get("error")
-        error_text = "" if error in (None, "", {}) else json.dumps(error, ensure_ascii=False, sort_keys=True)
         rows.append(
             "<tr>"
             f'<td><span class="pill" style="--status:{_status_color(status)}">{_esc(status)}</span></td>'
@@ -912,17 +569,18 @@ def _steps_html(steps: list[dict[str, Any]]) -> str:
             f"<td>{_esc(row.get('title') or row.get('id'))}</td>"
             f"<td>{_esc(row.get('definition_id') or row.get('id'))}</td>"
             f"<td>{_esc(row.get('duration_ms') or 0)} ms</td>"
-            f"<td>{_esc(error_text)}</td>"
+            f"<td>{_esc(error)}</td>"
             "</tr>"
         )
     return '<table><thead><tr><th>Status</th><th>Kind</th><th>Title</th><th>Definition</th><th>Duration</th><th>Error</th></tr></thead><tbody>' + "".join(rows) + "</tbody></table>"
 
 
-def _logs_html(logs: list[dict[str, Any]], *, include_case: bool = True) -> str:
+def _logs_html(logs: list[Any], *, include_case: bool = True) -> str:
     if not logs:
         return '<p class="empty">No logs recorded.</p>'
     rows = []
-    for row in logs:
+    for raw in logs:
+        row = _dict_value(raw)
         level = _safe_text(row.get("level")) or "info"
         domain = _safe_text(row.get("domain")) or "framework"
         source = _safe_text(row.get("source"))
@@ -950,10 +608,8 @@ def _report_css() -> str:
 .grid{display:grid;gap:14px}.two{grid-template-columns:1fr 1fr}.three{grid-template-columns:1fr 1fr 1fr}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid #edf0f5;padding:9px;text-align:left;vertical-align:top}th{color:#526071;font-weight:650;background:#fafbfc}.kv th{width:160px}.bar{width:100%;height:38px;border-radius:6px;overflow:hidden;background:#eef2f7}.legend{display:flex;gap:14px;list-style:none;padding:0;margin:12px 0 0;flex-wrap:wrap}.legend span{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
 .metric-bars{list-style:none;margin:0;padding:0}.metric-bars li{position:relative;padding:8px 0 10px;border-bottom:1px solid #edf0f5}.metric-bars li:last-child{border-bottom:0}.metric-bars div{display:flex;flex-direction:column;gap:2px;max-width:72%}.metric-bars strong{font-size:13px}.metric-bars span{font-size:12px;color:#526071;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.metric-bars em{position:absolute;right:0;top:8px;font-style:normal;color:#526071;font-size:12px}.metric-bars i{display:block;height:4px;margin-top:8px;border-radius:999px;background:#2563eb}.metric-bars.compact h3{margin-top:0}.distribution h3{margin:0 0 6px;font-size:13px}.distribution h3:not(:first-child){margin-top:12px}
 .case-overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}.case-chip{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;text-decoration:none;color:inherit;border:1px solid #edf0f5;border-radius:8px;padding:10px}.case-chip strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.case-chip em{grid-column:2;color:#526071;font-size:12px;font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.case-report{margin-top:14px}.case-report header{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:12px}.case-report h3{margin:0;font-size:18px}.case-report h4{margin:0 0 10px;font-size:14px}.case-report p{margin:4px 0 0;color:#526071;word-break:break-all}.case-detail{border:1px solid #edf0f5;border-radius:8px;padding:10px;background:#fff}.case-detail summary{cursor:pointer;font-weight:650}.case-detail table,.case-detail .empty{margin-top:10px}
-.loop-summary{margin:10px 0 12px}.loop-summary .script-result{margin:10px 0 0;padding:9px;border-radius:6px;background:#f8fafc;white-space:pre-wrap;word-break:break-word;font-family:"Cascadia Mono",Consolas,monospace}
-.failure-grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(220px,.7fr);gap:14px}.failure-grid table{grid-column:1/-1}.failure-grid h3{margin:0 0 8px;font-size:14px}.failure-list,.failure-logs{list-style:none;margin:0;padding:0}.failure-list li,.failure-logs li{border:1px solid #edf0f5;border-radius:6px;padding:8px;margin-bottom:8px}.failure-list span{display:block;color:#526071;font-size:12px;margin-top:4px}.failure-logs pre{margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-family:"Cascadia Mono",Consolas,monospace}
-.logs tr{border-left:3px solid var(--accent)}.logs td:first-child{color:var(--text);font-weight:650}.logs pre{margin:0;white-space:pre-wrap;word-break:break-word;font-family:"Cascadia Mono",Consolas,monospace}
-.empty{color:#526071;margin:0}
+.case-summary,.loop-summary,.artifacts{margin:10px 0 12px}.failure-grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(220px,.7fr);gap:14px}.failure-grid table{grid-column:1/-1}.failure-grid h3{margin:0 0 8px;font-size:14px}.failure-list,.failure-logs{list-style:none;margin:0;padding:0}.failure-list li,.failure-logs li{border:1px solid #edf0f5;border-radius:6px;padding:8px;margin-bottom:8px}.failure-list span{display:block;color:#526071;font-size:12px;margin-top:4px}.failure-logs pre{margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-family:"Cascadia Mono",Consolas,monospace}
+.logs tr{border-left:3px solid var(--accent)}.logs td:first-child{color:var(--text);font-weight:650}.logs pre{margin:0;white-space:pre-wrap;word-break:break-word;font-family:"Cascadia Mono",Consolas,monospace}.empty{color:#526071;margin:0}
 @media (max-width:1100px){.three{grid-template-columns:1fr 1fr}}@media (max-width:900px){main{padding:16px}.summary{grid-template-columns:repeat(2,1fr)}.two,.three,.failure-grid{grid-template-columns:1fr}.hero{display:block}.status{display:inline-block;margin-top:12px}}
-@media (prefers-color-scheme:dark){:root,body{background:#111827;color:#f3f4f6}section,article,.case-detail{background:#1f2937;border-color:#374151}th,td{border-color:#374151}th{background:#243041;color:#cbd5e1}.meta,.eyebrow,.empty,.failure-list span,.metric-bars span,.metric-bars em,.case-chip em,.case-report p{color:#cbd5e1}.summary{background:transparent}.status,.pill{background:color-mix(in srgb,var(--status) 24%,#111827);border-color:color-mix(in srgb,var(--status) 56%,#111827)}.bar{background:#374151}.loop-summary .script-result{background:#111827}.failure-list li,.failure-logs li,.metric-bars li,.case-chip{border-color:#374151}}
+@media (prefers-color-scheme:dark){:root,body{background:#111827;color:#f3f4f6}section,article,.case-detail{background:#1f2937;border-color:#374151}th,td{border-color:#374151}th{background:#243041;color:#cbd5e1}.meta,.eyebrow,.empty,.failure-list span,.metric-bars span,.metric-bars em,.case-chip em,.case-report p{color:#cbd5e1}.summary{background:transparent}.status,.pill{background:color-mix(in srgb,var(--status) 24%,#111827);border-color:color-mix(in srgb,var(--status) 56%,#111827)}.bar{background:#374151}.failure-list li,.failure-logs li,.metric-bars li,.case-chip{border-color:#374151}}
 """

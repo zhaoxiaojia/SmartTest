@@ -12,12 +12,11 @@ from PySide6.QtGui import QGuiApplication
 
 from testing.cases.catalog import is_packaged_runtime, load_packaged_test_catalog
 from testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
-from testing.params.contracts import case_param_keys, default_env_device_type, env_kinds_for_case
+from testing.params.contracts import case_param_keys, default_env_device_type, env_kinds_for_case, required_param_keys
 from testing.params.options import normalize_option_values
 from testing.params.registry import SchemaRegistry, default_registry
-from testing.params.runtime import runtime_params
-from testing.params.requirements import required_params_for_case
-from testing.params.schema import ParamField, ParamSchema, ParamScope, ParamValueType, defaults_for_schema
+from testing.test_context import smarttest_context
+from testing.params.schema import ParamField, ParamSchema, ParamScope, ParamValueType
 from testing.state.models import SelectedCase, TestPageState
 from testing.state.store import ensure_state, load_state, save_state
 from testing.tool.dut_tool.parameter_helper import ParameterHelper
@@ -26,12 +25,8 @@ from tools.logging import smart_log
 
 try:
     from example.helper.AppPaths import app_data_dir
-    from example.helper.TranslateHelper import TranslateHelper
-    from example.helper.TsTextCatalog import TsTextCatalog
 except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
     from ui.example.helper.AppPaths import app_data_dir
-    from ui.example.helper.TranslateHelper import TranslateHelper
-    from ui.example.helper.TsTextCatalog import TsTextCatalog
 
 
 class TestPageBridge(QObject):
@@ -48,9 +43,9 @@ class TestPageBridge(QObject):
         self._cases_by_file: dict[str, list[dict[str, Any]]] = {}
         self._state_path = self._default_state_path()
         self._trace_log_path = self._state_path.parent / "test_page_trace.log"
-        self._text_catalog = TsTextCatalog(self._root_dir, trace=self._trace)
         self._parameter_helper = ParameterHelper()
         self._state = ensure_state(self._state_path)
+        smarttest_context().params.bind_ui_state(self._state)
         self._adb_devices: list[str] = []
         self._env_options: dict[str, list[Any]] = {}
         self._adb_refresh_running = False
@@ -59,7 +54,6 @@ class TestPageBridge(QObject):
         self._dynamic_fields_refreshing: set[str] = set()
         self._discovery_running = False
         self._discovery_loaded = False
-        TranslateHelper().currentChanged.connect(self._handle_language_changed)
         state_changed = self._ensure_state_defaults()
         state_changed = self._clear_case_param_options() or state_changed
         state_changed = self._sync_dut_selection() or state_changed
@@ -80,24 +74,11 @@ class TestPageBridge(QObject):
     def _default_state_path(self) -> Path:
         return app_data_dir() / "test_page_state.json"
 
+    def _bind_params_state(self) -> None:
+        smarttest_context().params.bind_ui_state(self._state)
+
     def _ensure_state_defaults(self) -> bool:
-        changed = False
-        global_defaults = defaults_for_schema(self._registry.global_context)
-        legacy_dut = self._state.global_context.get("dut_model")
-        if "dut" not in self._state.global_context and legacy_dut not in (None, ""):
-            self._state.global_context["dut"] = legacy_dut
-            changed = True
-        preserved_global_keys = {*global_defaults, "equipment"}
-        next_global_context = {
-            key: value for key, value in self._state.global_context.items() if key in preserved_global_keys
-        }
-        if next_global_context != self._state.global_context:
-            changed = True
-        self._state.global_context = next_global_context
-        for key, value in global_defaults.items():
-            if key not in self._state.global_context:
-                self._state.global_context[key] = value
-                changed = True
+        changed = smarttest_context().params.ensure_persisted_defaults()
         if not hasattr(self._state, "selected_files"):
             self._state.selected_files = []
             changed = True
@@ -110,61 +91,30 @@ class TestPageBridge(QObject):
         legacy_default = "/mnt/media_rw"
         legacy_movies_default = "/mnt/media_rw/*/Movies"
         new_default = "/storage/*/Movies /storage/*/Video"
-        changed = False
-        for params in self._state.case_parameters.values():
-            if not isinstance(params, dict):
-                continue
-            media_dir = params.get("local_playback_stress:media_dir")
-            if media_dir in (old_default, legacy_default, legacy_movies_default):
-                params["local_playback_stress:media_dir"] = new_default
-                changed = True
-            elif isinstance(media_dir, str) and media_dir.startswith("/mnt/media_rw/"):
-                params["local_playback_stress:media_dir"] = _storage_playback_path(media_dir)
-                changed = True
-            media_files = params.get("local_playback_stress:media_files")
-            if isinstance(media_files, list):
-                next_files = [_storage_playback_path(str(value or "").strip()) for value in media_files]
-                if next_files != media_files:
-                    params["local_playback_stress:media_files"] = next_files
-                    changed = True
-        return changed
+
+        def migrate_value(key: str, value: Any) -> tuple[Any, bool]:
+            if key == "local_playback_stress:media_dir":
+                if value in (old_default, legacy_default, legacy_movies_default):
+                    return new_default, True
+                if isinstance(value, str) and value.startswith("/mnt/media_rw/"):
+                    return _storage_playback_path(value), True
+            if key == "local_playback_stress:media_files" and isinstance(value, list):
+                next_files = [_storage_playback_path(str(item or "").strip()) for item in value]
+                return next_files, next_files != value
+            return value, False
+
+        return smarttest_context().params.migrate_case_parameter_values(migrate_value)
 
     def _prune_stored_fixed_enum_values(self) -> bool:
-        changed = False
-        for values in (
-            self._state.global_context,
-            *self._state.case_type_configs.values(),
-            *self._state.case_parameters.values(),
-        ):
-            if not isinstance(values, dict):
-                continue
-            for key in list(values.keys()):
-                field = self._field_for_key(key)
-                if field is None or field.options_source or not field.enum_values:
-                    continue
-                if self._is_multi_enum_field(field):
-                    current = normalize_option_values(values.get(key, []))
-                    next_values = [value for value in current if value in field.enum_values]
-                    if next_values == current:
-                        continue
-                    values[key] = next_values
-                    self._trace(
-                        "param_fixed_enum_pruned",
-                        field=key,
-                        removed=len(current) - len(next_values),
-                        kept=len(next_values),
-                    )
-                    changed = True
-                    continue
-                field_type = field.type.value if hasattr(field.type, "value") else field.type
-                if field_type == ParamValueType.ENUM.value and values.get(key) not in field.enum_values:
-                    values[key] = field.default
-                    self._trace("param_fixed_enum_reset", field=key)
-                    changed = True
-        return changed
-
-    def _handle_language_changed(self) -> None:
-        self.stateChanged.emit()
+        changes = smarttest_context().params.prune_stored_fixed_enum_values()
+        for item in changes:
+            self._trace(
+                "param_fixed_enum_pruned",
+                field=str(item.get("field", "")),
+                removed=item.get("removed", 0),
+                kept=item.get("kept", 0),
+            )
+        return bool(changes)
 
     def _create_task(self, coro, *, label: str) -> None:
         try:
@@ -188,7 +138,7 @@ class TestPageBridge(QObject):
         self._create_task(self._refresh_adb_devices_task(selected_serial), label="adb_refresh")
 
     def _current_dut_serial(self) -> str:
-        return str(self._state.global_context.get("dut", "") or "").strip()
+        return str(smarttest_context().params.global_value("dut", "") or "").strip()
 
     def _schedule_context_refresh(self, reason: str) -> None:
         if self._context_refresh_running:
@@ -281,6 +231,7 @@ class TestPageBridge(QObject):
 
     @Slot("QVariantMap")
     def _apply_context_refresh_result(self, payload: dict[str, Any]) -> None:
+        self._bind_params_state()
         self._context_refresh_running = False
         self._dynamic_fields_refreshing.clear()
         elapsed_ms = int(payload.get("elapsed_ms", 0) or 0)
@@ -384,21 +335,19 @@ class TestPageBridge(QObject):
         return changed
 
     def _prune_case_param_value_to_options(self, *, nodeid: str, key: str, options: list[str]) -> bool:
-        field = self._field_for_key(key)
-        if field is None or not self._is_multi_enum_field(field):
+        changed, previous_count, next_count = smarttest_context().params.prune_multi_enum_to_options(
+            nodeid=nodeid,
+            key=key,
+            options=options,
+        )
+        if not changed:
             return False
-        case_values = self._state.case_parameters.setdefault(nodeid, {})
-        current = normalize_option_values(case_values.get(field.key, []))
-        next_value = [value for value in current if value in options]
-        if next_value == current:
-            return False
-        case_values[field.key] = next_value
         self._trace(
             "param_multi_enum_pruned_to_options",
             nodeid=nodeid,
-            field=field.key,
-            previous=len(current),
-            next=len(next_value),
+            field=key,
+            previous=previous_count,
+            next=next_count,
         )
         return True
 
@@ -418,19 +367,16 @@ class TestPageBridge(QObject):
             case_nodeid = str(case.get("nodeid", "") or "").strip()
             if not case_nodeid:
                 continue
-            case_values = self._state.case_parameters.setdefault(case_nodeid, {})
             for param_key in case_param_keys(case):
                 field = self._field_for_key(str(param_key))
                 if field is None or str(field.options_source or "").strip() != normalized_source:
                     continue
-                if self._is_multi_enum_field(field):
-                    continue
                 next_value = _dynamic_value_for_field(field, next_options)
-                raw_current = normalize_option_values(case_values.get(field.key, []))
-                current = case_values.get(field.key, field.default)
+                current = smarttest_context().params.case_display_value(case, field.key)
                 if next_value == current:
                     continue
-                case_values[field.key] = next_value
+                if not smarttest_context().params.set_case_display_value(case, field.key, next_value):
+                    continue
                 self._trace(
                     "param_options_synced_selected_values",
                     nodeid=case_nodeid,
@@ -443,17 +389,17 @@ class TestPageBridge(QObject):
         return changed
 
     def _sync_dut_selection(self) -> bool:
-        current = str(self._state.global_context.get("dut", "") or "").strip()
+        self._bind_params_state()
+        current = str(smarttest_context().params.global_value("dut", "") or "").strip()
         if current and current in self._adb_devices:
             return False
         if len(self._adb_devices) == 1:
             only_device = self._adb_devices[0]
-            if current != only_device:
-                self._state.global_context["dut"] = only_device
+            if current != only_device and smarttest_context().params.set_global_value("dut", only_device):
                 return True
             return False
         if current:
-            self._state.global_context["dut"] = ""
+            smarttest_context().params.set_global_value("dut", "")
             return True
         return False
 
@@ -535,18 +481,11 @@ class TestPageBridge(QObject):
         normalized = str(param_key or "").strip().replace(":", ".")
         return f"test.param.{normalized}.{part}"
 
-    def _fixed_text(self, key: str) -> str:
-        return self._text_catalog.text(
-            locale=TranslateHelper().current,
-            context="TestPageBridge",
-            source=key,
-        )
-
     def _field_label(self, field: ParamField) -> str:
-        return self._fixed_text(self._param_text_key(field.key, "label"))
+        return self._param_text_key(field.key, "label")
 
     def _field_description(self, field: ParamField) -> str:
-        return self._fixed_text(self._param_text_key(field.key, "description"))
+        return self._param_text_key(field.key, "description")
 
     def _scope_label(self, scope: Any) -> str:
         raw_scope = scope.value if hasattr(scope, "value") else str(scope or "")
@@ -555,17 +494,25 @@ class TestPageBridge(QObject):
             ParamScope.CASE_TYPE_SHARED.value: "test.param.scope.case_type_shared",
             ParamScope.CASE.value: "test.param.scope.case",
         }
-        return self._fixed_text(labels.get(str(raw_scope), labels[ParamScope.CASE.value]))
+        return labels.get(str(raw_scope), labels[ParamScope.CASE.value])
 
     def _schema_to_jsonable(self, schema: ParamSchema) -> dict[str, Any]:
         return {
             "schema_id": schema.schema_id,
-            "title": self._fixed_text(f"test.schema.{schema.schema_id}.title"),
+            "title": f"test.schema.{schema.schema_id}.title",
             "title_source": "fixed",
             "fields": [self._field_to_jsonable(f) for f in schema.fields],
         }
 
     def _field_to_jsonable(self, field: ParamField, *, nodeid: str = "") -> dict[str, Any]:
+        if nodeid:
+            case = self._case_info(nodeid)
+            value = smarttest_context().params.case_display_value(case or {}, field.key)
+        elif field.scope == ParamScope.GLOBAL_CONTEXT:
+            value = smarttest_context().params.global_value(field.key, field.default)
+        else:
+            value = field.default
+        list_values = normalize_option_values(value) if self._is_multi_enum_field(field) else []
         return {
             "key": field.key,
             "label": self._field_label(field),
@@ -585,6 +532,9 @@ class TestPageBridge(QObject):
             "options_source": field.options_source,
             "refreshes_options_sources": list(field.refreshes_options_sources),
             "loading": self._is_dynamic_field_loading(kind="param", owner=nodeid, key=field.key),
+            "value": value,
+            "value_source": "state",
+            "list_values": list_values,
         }
 
     def _is_dynamic_field_loading(self, *, kind: str, owner: str, key: str) -> bool:
@@ -641,8 +591,7 @@ class TestPageBridge(QObject):
                 continue
             selected.nodeid = mapped_nodeid
             selected.case_type = str((self._case_info(mapped_nodeid) or {}).get("case_type", selected.case_type))
-            if raw_nodeid in self._state.case_parameters and mapped_nodeid not in self._state.case_parameters:
-                self._state.case_parameters[mapped_nodeid] = dict(self._state.case_parameters.get(raw_nodeid, {}))
+            smarttest_context().params.migrate_case_nodeid(old_nodeid=raw_nodeid, new_nodeid=mapped_nodeid)
             self._trace("legacy_android_selection_migrated", from_nodeid=raw_nodeid, to_nodeid=mapped_nodeid)
             changed = True
         return changed
@@ -747,58 +696,54 @@ class TestPageBridge(QObject):
 
     def _resolve_case_value(self, *, nodeid: str, key: str) -> Any:
         case = self._case_info(nodeid)
-        field = self._field_for_key(key)
-        if case is None or field is None:
+        if case is None:
             return None
+        return smarttest_context().params.case_display_value(case, key)
 
-        if field.scope == ParamScope.GLOBAL_CONTEXT:
-            value = self._state.global_context.get(field.key, field.default)
-            return normalize_option_values(value) if self._is_multi_enum_field(field) else value
+    def _case_param_display_model(self, nodeid: str) -> dict[str, Any]:
+        case = self._case_info(nodeid)
+        if case is None:
+            return {}
 
-        if field.scope == ParamScope.CASE_TYPE_SHARED:
-            case_type = str(case.get("case_type") or "default")
-            case_type_values = self._state.case_type_configs.get(case_type, {})
-            value = case_type_values.get(field.key, field.default)
-            return normalize_option_values(value) if self._is_multi_enum_field(field) else value
+        required_params = case_param_keys(case)
+        required_param_key_set = set(required_param_keys(case))
+        fields: list[dict[str, Any]] = []
+        for param_key in required_params:
+            field = self._field_for_key(str(param_key))
+            if field is None:
+                continue
+            row = self._field_to_jsonable(field, nodeid=str(case.get("nodeid", "")))
+            row["required"] = field.key in required_param_key_set
+            fields.append(row)
 
-        case_values = self._state.case_parameters.get(str(case.get("nodeid", "")), {})
-        value = case_values.get(field.key, field.default)
-        return normalize_option_values(value) if self._is_multi_enum_field(field) else value
+        return {
+            "nodeid": str(case.get("nodeid", "")),
+            "nodeid_source": "dynamic",
+            "file": str(case.get("file", "")),
+            "file_source": "dynamic",
+            "name": str(case.get("name", "")),
+            "name_source": "dynamic",
+            "case_type": str(case.get("case_type", "default")),
+            "case_type_source": "dynamic",
+            "required_params": required_params,
+            "required_param_groups": list(case.get("required_param_groups", [])),
+            "required_equipment": env_kinds_for_case(case),
+            "fields": fields,
+            "fields_source": "display_model",
+        }
 
     def _set_case_param_value(self, *, nodeid: str, key: str, value: Any) -> bool:
+        self._bind_params_state()
         case = self._case_info(nodeid)
-        field = self._field_for_key(key)
-        if case is None or field is None:
+        if case is None:
             return False
-        next_value = runtime_params().normalize_for_key(field.key, value)
-
-        if field.scope == ParamScope.GLOBAL_CONTEXT:
-            if self._state.global_context.get(field.key) == next_value:
-                return False
-            self._state.global_context[field.key] = next_value
-            return True
-
-        if field.scope == ParamScope.CASE_TYPE_SHARED:
-            case_type = str(case.get("case_type") or "default")
-            self._state.case_type_configs.setdefault(case_type, {})
-            if self._state.case_type_configs[case_type].get(field.key) == next_value:
-                return False
-            self._state.case_type_configs[case_type][field.key] = next_value
-            return True
-
-        case_nodeid = str(case.get("nodeid", "")).strip()
-        if not case_nodeid:
-            return False
-        self._state.case_parameters.setdefault(case_nodeid, {})
-        if self._state.case_parameters[case_nodeid].get(field.key) == next_value:
-            return False
-        self._state.case_parameters[case_nodeid][field.key] = next_value
-        return True
+        return smarttest_context().params.set_case_display_value(case, key, value)
 
     def _selected_nodeids(self) -> list[str]:
         return [c.nodeid for c in self._state.selected]
 
     def _set_case_selected(self, nodeid: str, selected: bool) -> bool:
+        self._bind_params_state()
         normalized = (nodeid or "").strip()
         if not normalized:
             return False
@@ -817,10 +762,7 @@ class TestPageBridge(QObject):
                 file_path = str(case_info.get("file", "")).strip()
                 if file_path and file_path not in self._state.selected_files:
                     self._state.selected_files.append(file_path)
-            self._state.case_parameters.setdefault(normalized, {})
-            schema = self._registry.get_case_type_schema(case_type)
-            if schema:
-                self._state.case_type_configs.setdefault(case_type, defaults_for_schema(schema))
+            smarttest_context().params.ensure_case_defaults(nodeid=normalized, case_type=case_type)
             return True
 
         original_len = len(self._state.selected)
@@ -1015,21 +957,9 @@ class TestPageBridge(QObject):
         rows: list[dict[str, Any]] = []
         for file_path in self._state.selected_files:
             for case in self._cases_for_file(file_path):
-                rows.append(
-                    {
-                        "nodeid": str(case.get("nodeid", "")),
-                        "nodeid_source": "dynamic",
-                        "file": str(case.get("file", "")),
-                        "file_source": "dynamic",
-                        "name": str(case.get("name", "")),
-                        "name_source": "dynamic",
-                        "case_type": str(case.get("case_type", "default")),
-                        "case_type_source": "dynamic",
-                        "required_params": case_param_keys(case),
-                        "required_param_groups": list(case.get("required_param_groups", [])),
-                        "required_equipment": env_kinds_for_case(case),
-                    }
-                )
+                model = self._case_param_display_model(str(case.get("nodeid", "")))
+                if model:
+                    rows.append(model)
         return rows
 
     @Slot(result="QVariantList")
@@ -1062,8 +992,7 @@ class TestPageBridge(QObject):
         return required
 
     def _equipment_config(self) -> dict[str, Any]:
-        raw = self._state.global_context.get("equipment", {})
-        return dict(raw) if isinstance(raw, dict) else {}
+        return smarttest_context().params.equipment_config()
 
     def _env_default_config(self, kind: str, device_type: str | None = None) -> dict[str, Any]:
         return default_env_config(kind, device_type)
@@ -1209,27 +1138,17 @@ class TestPageBridge(QObject):
             }
         ]
 
-    @Slot(str, result="QVariantMap")
-    def caseTypeSchema(self, case_type: str):
-        schema = self._registry.get_case_type_schema(case_type) or self._registry.get_case_type_schema("default")
-        if not schema:
-            return {}
-        return self._schema_to_jsonable(schema)
-
-    @Slot(result="QVariantMap")
-    def globalSchema(self):
-        return self._schema_to_jsonable(self._registry.global_context)
+    @Slot(result="QVariantList")
+    def globalParamRows(self):
+        return list(self._schema_to_jsonable(self._registry.global_context).get("fields", []))
 
     @Slot()
     def refreshGlobalSchema(self) -> None:
         self._schedule_adb_refresh("user_refresh")
 
-    @Slot(result="QVariantMap")
-    def globalContext(self):
-        return dict(self._state.global_context)
-
     @Slot(str, str)
     def setEnvEquipmentType(self, kind: str, device_type: str) -> None:
+        self._bind_params_state()
         normalized_kind = str(kind or "").strip().lower()
         normalized_type = str(device_type or "").strip()
         if not normalized_kind or not normalized_type:
@@ -1239,7 +1158,7 @@ class TestPageBridge(QObject):
         if equipment.get(normalized_kind) == next_config:
             return
         equipment[normalized_kind] = next_config
-        self._state.global_context["equipment"] = equipment
+        smarttest_context().params.set_equipment_config(equipment)
         self._save_and_emit()
         self._schedule_context_refresh(f"env_type_changed:{normalized_kind}")
 
@@ -1259,6 +1178,7 @@ class TestPageBridge(QObject):
 
     @Slot(str, str, "QVariant")
     def setEnvEquipmentValue(self, kind: str, key: str, value: Any) -> None:
+        self._bind_params_state()
         normalized_kind = str(kind or "").strip().lower()
         normalized_key = str(key or "").strip()
         if not normalized_kind or not normalized_key:
@@ -1274,7 +1194,7 @@ class TestPageBridge(QObject):
             return
         config[normalized_key] = normalized_value
         equipment[normalized_kind] = config
-        self._state.global_context["equipment"] = equipment
+        smarttest_context().params.set_equipment_config(equipment)
         self._trace(
             "env_value_changed",
             kind=normalized_kind,
@@ -1331,6 +1251,7 @@ class TestPageBridge(QObject):
         return _normalize_env_equipment_value("terminals", config.get("terminals", []))
 
     def _set_env_relay_terminals(self, kind: str, rows: list[dict[str, Any]]) -> None:
+        self._bind_params_state()
         normalized_rows = _normalize_env_equipment_value("terminals", rows)
         equipment = self._equipment_config()
         current = equipment.get(kind, {})
@@ -1342,38 +1263,8 @@ class TestPageBridge(QObject):
             return
         config["terminals"] = normalized_rows
         equipment[kind] = config
-        self._state.global_context["equipment"] = equipment
+        smarttest_context().params.set_equipment_config(equipment)
         self._save_and_emit()
-
-    @Slot(str, result="QVariantMap")
-    def caseTypeConfig(self, case_type: str):
-        return dict(self._state.case_type_configs.get(case_type, {}))
-
-    @Slot(str, result="QVariantList")
-    def caseParamFields(self, nodeid: str):
-        case = self._case_info(nodeid)
-        if case is None:
-            return []
-        required_params = case_param_keys(case)
-        required_param_keys = set(required_params_for_case(case))
-        fields: list[dict[str, Any]] = []
-        for param_key in required_params:
-            field = self._field_for_key(str(param_key))
-            if field is None:
-                continue
-            jsonable = self._field_to_jsonable(field, nodeid=nodeid)
-            jsonable["required"] = field.key in required_param_keys
-            fields.append(jsonable)
-        return fields
-
-    @Slot(str, str, result="QVariant")
-    def caseParamValue(self, nodeid: str, key: str):
-        return self._resolve_case_value(nodeid=nodeid, key=key)
-
-    @Slot(str, str, str, result=bool)
-    def caseParamListContains(self, nodeid: str, key: str, value: str) -> bool:
-        values = normalize_option_values(self._resolve_case_value(nodeid=nodeid, key=key))
-        return str(value or "").strip() in values
 
     @Slot(str, bool)
     def setCaseSelected(self, nodeid: str, selected: bool) -> None:
@@ -1433,19 +1324,11 @@ class TestPageBridge(QObject):
     def setGlobalValue(self, key: str, value: Any) -> None:
         if not key:
             return
-        if self._state.global_context.get(key) == value:
+        self._bind_params_state()
+        if not smarttest_context().params.set_global_value(key, value):
             return
-        self._state.global_context[key] = value
         if key == "dut":
             self._schedule_context_refresh("dut_changed")
-        self._save_and_emit()
-
-    @Slot(str, str, "QVariant")
-    def setCaseTypeValue(self, case_type: str, key: str, value: Any) -> None:
-        if not case_type or not key:
-            return
-        self._state.case_type_configs.setdefault(case_type, {})
-        self._state.case_type_configs[case_type][key] = value
         self._save_and_emit()
 
     @Slot(str, str, "QVariant")
@@ -1472,6 +1355,7 @@ class TestPageBridge(QObject):
     @Slot()
     def reloadState(self) -> None:
         self._state = load_state(self._state_path)
+        smarttest_context().params.bind_ui_state(self._state)
         changed = self._ensure_state_defaults()
         changed = self._sync_selected_file_order() or changed
         changed = self._reorder_selected_cases_by_file_order() or changed
@@ -1505,6 +1389,9 @@ def _storage_playback_options(values: list[str]) -> list[str]:
 
 
 def _dynamic_value_for_field(field: ParamField, options: list[str]) -> Any:
+    field_type = field.type.value if hasattr(field.type, "value") else field.type
+    if field_type == ParamValueType.MULTI_ENUM.value:
+        return list(options)
     if not options:
         return field.default
     return options[0]

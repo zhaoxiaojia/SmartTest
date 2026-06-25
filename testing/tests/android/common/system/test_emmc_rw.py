@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from testing.runner.android_client import android_client_case_plan, run_android_client_case
+from testing.runner.apk_client import apk_case_plan, run_apk_case
 
 
 pytestmark = pytest.mark.case_type("system")
 
 
-SMARTTEST_CASE_PLAN = android_client_case_plan(
+SMARTTEST_CASE_PLAN = apk_case_plan(
     "emmc_rw",
     [
         "storage.emmc.copy_file",
@@ -28,9 +28,10 @@ SMARTTEST_CASE_PLAN = android_client_case_plan(
     "emmc_rw:work_dir",
 )
 def test_emmc_rw_via_android_client(request):
-    run_android_client_case(
+    run_apk_case(
         case_id="emmc_rw",
         trigger=request.node.nodeid,
         prepare_definition_id="storage.emmc.prepare_request",
         trigger_definition_id="storage.emmc.trigger_execution",
     )
+

@@ -14,7 +14,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from tools.param_conversion import to_float, to_int, to_string_list
-from testing.params.runtime import runtime_params
+from testing.test_context import smarttest_context
 from testing.runtime.steps import step_log
 
 
@@ -228,13 +228,25 @@ def run_action(action: str, dut) -> None:
     _ensure_dut(dut).keyevent(_action_keyevent(normalized))
 
 
+def _emit_loop_step_started(*, nodeid: str, loop_index: int, loop_count: int) -> None:
+    smarttest_context().events.emit(
+        "step_started",
+        step_id="local_playback_stress.loop",
+        case_nodeid=nodeid,
+        title=f"Loop {loop_index}/{loop_count}: Run local playback stress loop",
+        kind="step",
+        definition_id="local_playback.loop",
+        expected="ExoPlayer starts each selected local file and receives the selected stress actions.",
+    )
+
+
 def run_local_playback_stress(
     *,
     nodeid: str,
     selected_serial: str | None,
     trigger: str,
 ) -> None:
-    params = runtime_params().case_values(nodeid)
+    params = smarttest_context().params.case_values(nodeid)
     playback = _android_dut(selected_serial)
     media_dir = _normalize_media_dir(params.get("local_playback_stress:media_dir", DEFAULT_MEDIA_DIR))
     selected_files = to_string_list(params.get("local_playback_stress:media_files", []))
@@ -256,6 +268,7 @@ def run_local_playback_stress(
     )
 
     for loop_index in range(1, loop_count + 1):
+        _emit_loop_step_started(nodeid=nodeid, loop_index=loop_index, loop_count=loop_count)
         loop_files = list(selected_files)
         if random_playback:
             random.shuffle(loop_files)
@@ -955,7 +968,7 @@ def _media_dir_from_state(nodeid: str | None) -> str | None:
     normalized_nodeid = str(nodeid or "").strip()
     if not normalized_nodeid:
         return None
-    value = runtime_params().get_str(normalized_nodeid, "local_playback_stress:media_dir", "")
+    value = smarttest_context().params.get_str(normalized_nodeid, "local_playback_stress:media_dir", "")
     return str(value or "").strip() or None
 
 

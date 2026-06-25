@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from testing.runner.android_client import run_android_client_case
+from testing.runner.apk_client import run_apk_case
 
 
 pytestmark = pytest.mark.case_type("system")
@@ -78,7 +78,8 @@ SMARTTEST_CASE_PLAN = {
     "auto_reboot:bt_target",
 )
 def test_auto_reboot_via_android_client(request):
-    run_android_client_case(
+    run_apk_case(
         case_id="auto_reboot",
         trigger=request.node.nodeid,
     )
+

@@ -3,18 +3,18 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import shutil
 import subprocess
 import time
 import uuid
+from dataclasses import dataclass, field
 from typing import Mapping
 
 from android_client import PACKAGE_NAME, PRIVILEGED_CASE_IDS
-from testing.params.runtime import runtime_params
+from testing.test_context import smarttest_context
 from testing.runtime.config import current_dut_serial
-from testing.runner.android_adb import adb_base_cmd, subprocess_creationflags
 from testing.runtime.steps import step as runtime_step, step_log
-from testing.runner.android_events import AndroidClientStageTracker
 from testing.steps.definitions import ActionContext, action_plan, get_action
 from testing.params.adb_devices import resolve_adb_serial_for_command
 from tools.logging import smart_log
@@ -36,6 +36,270 @@ DEFAULT_DUT_UNAVAILABLE_STAGE_TOKENS = {
 }
 DEFAULT_HOST_QUIET_STAGE_TOKENS = {"entering deep suspend", "waiting for deep suspend resume"}
 DEFAULT_HOST_QUIET_SEC = 25.0
+_DYNAMIC_STEP_ID_RE = re.compile(r"^(?P<prefix>.+?)\.(?P<marker>cycle|loop)\.(?P<index>\d+)\.(?P<tail>.+)$", re.IGNORECASE)
+_PLANNED_REPEAT_STEP_ID_RE = re.compile(r"^(?P<prefix>.+?)\.(?P<marker>cycle|loop)\.(?P<tail>.+)$", re.IGNORECASE)
+_STAGE_LOOP_RE = re.compile(r"\b(?P<marker>cycle|loop)\s+(?P<index>\d+)\s*/\s*(?P<total>\d+)\b", re.IGNORECASE)
+_TERMINAL_STATUSES = {"passed", "failed", "skipped", "stopped"}
+
+
+@dataclass
+class _ApkStep:
+    title: str
+    kind: str
+    definition_id: str
+    step_id: str = field(default_factory=lambda: f"step:{uuid.uuid4().hex}")
+    expected: object = ""
+    parent_id: str | None = None
+    started: bool = False
+    finished: bool = False
+    enabled: bool = False
+
+    def __post_init__(self) -> None:
+        self.enabled = _emit_apk_step("step_planned", self)
+
+    def start(self) -> None:
+        if self.enabled and not self.started:
+            self.started = _emit_apk_step("step_started", self)
+
+    def evidence(self, title: str, content: object, *, evidence_type: str = "log", level: str = "info") -> None:
+        case_nodeid = smarttest_context().current_case_nodeid()
+        if not self.enabled or not case_nodeid:
+            return
+        smarttest_context().events.emit(
+            "step_evidence",
+            case_nodeid=case_nodeid,
+            step_id=self.step_id,
+            title=title,
+            evidence_type=evidence_type,
+            level=level,
+            content=content,
+            meta={},
+        )
+
+    def finish(self, status: str, *, error: str = "", actual: object = "") -> None:
+        if not self.enabled or self.finished:
+            return
+        self.start()
+        self.finished = True
+        case_nodeid = smarttest_context().current_case_nodeid()
+        if case_nodeid:
+            smarttest_context().events.emit(
+                "step_finished",
+                step_id=self.step_id,
+                case_nodeid=case_nodeid,
+                status=status,
+                title=self.title,
+                kind=self.kind,
+                definition_id=self.definition_id,
+                error=error,
+                actual=actual,
+            )
+
+
+def _emit_apk_step(event_type: str, step: _ApkStep) -> bool:
+    case_nodeid = smarttest_context().current_case_nodeid()
+    if not case_nodeid:
+        return False
+    parent = smarttest_context().current_step()
+    smarttest_context().events.emit(
+        event_type,
+        step_id=step.step_id,
+        case_nodeid=case_nodeid,
+        parent_id=step.parent_id if step.parent_id is not None else (parent["id"] if parent else None),
+        title=step.title,
+        phase="call",
+        kind=step.kind,
+        definition_id=step.definition_id,
+        meta={"definition_id": step.definition_id},
+        expected=step.expected,
+    )
+    return True
+
+
+class ApkStageTracker:
+    def __init__(self, *, case_id: str, request_id: str) -> None:
+        self._case_id = case_id
+        self._request_id = request_id
+        self._parent = _ApkStep(
+            title=f"Run APK case: {case_id}",
+            kind="action",
+            definition_id="android_client.run_case",
+            expected="APK reports Completed with zero failed cases.",
+        )
+        self._parent.start()
+        self._current_stage: _ApkStep | None = None
+        self._current_stage_key = ""
+        self._planned_steps: dict[str, _ApkStep] = {}
+        self._dynamic_steps: dict[str, _ApkStep] = {}
+        self._terminal = False
+
+    def evidence(self, title: str, content: object, *, evidence_type: str = "log", level: str = "info") -> None:
+        self._parent.evidence(title, content, evidence_type=evidence_type, level=level)
+
+    def observe_snapshot(self, snapshot: Mapping[str, object]) -> None:
+        if not self._parent.enabled:
+            return
+        self.evidence("APK snapshot", "", evidence_type="status", level="info")
+        self._sync_planned_steps(snapshot)
+        self._sync_step_states(snapshot)
+        if self._planned_steps:
+            return
+        phase = str(snapshot.get("phase", "") or "").strip()
+        stage = str(snapshot.get("currentStage", "") or "").strip() or phase or "waiting for APK status"
+        stage_key = f"{phase}:{stage}"
+        if stage_key == self._current_stage_key:
+            return
+        if self._current_stage is not None:
+            self._current_stage.finish("passed")
+        self._current_stage_key = stage_key
+        self._current_stage = _ApkStep(
+            title=stage,
+            kind="external",
+            definition_id="android_client.stage",
+            expected="APK advances to the next stage or terminal status.",
+            parent_id=self._parent.step_id,
+        )
+        self._current_stage.start()
+
+    def _sync_planned_steps(self, snapshot: Mapping[str, object]) -> None:
+        planned_steps = snapshot.get("plannedSteps", [])
+        if not isinstance(planned_steps, list):
+            return
+        for item in planned_steps:
+            if not isinstance(item, dict):
+                continue
+            raw_id = str(item.get("id", "") or "").strip()
+            if not raw_id or raw_id in self._planned_steps:
+                continue
+            self._planned_steps[raw_id] = _ApkStep(
+                step_id=f"{self._request_id}:{raw_id}",
+                title=str(item.get("title", "") or raw_id),
+                kind=str(item.get("kind", "") or "action"),
+                definition_id=str(item.get("definitionId", "") or raw_id),
+                expected=str(item.get("expected", "") or ""),
+                parent_id=self._parent.step_id,
+            )
+
+    def _sync_step_states(self, snapshot: Mapping[str, object]) -> None:
+        states = snapshot.get("stepStates", [])
+        if not isinstance(states, list):
+            return
+        for item in states:
+            if not isinstance(item, dict):
+                continue
+            raw_id = str(item.get("id", "") or "").strip()
+            step = self._planned_steps.get(raw_id) or self._dynamic_step(raw_id=raw_id, snapshot=snapshot)
+            if step is None:
+                self._parent.evidence(
+                    "[steps.debug.apk_unresolved]",
+                    {
+                        "raw_id": raw_id,
+                        "status": str(item.get("status", "") or ""),
+                        "currentStage": str(snapshot.get("currentStage", "") or ""),
+                        "currentLoop": snapshot.get("currentLoop", ""),
+                        "totalLoops": snapshot.get("totalLoops", ""),
+                        "known_planned_ids": sorted(self._planned_steps.keys()),
+                        "known_dynamic_ids": sorted(self._dynamic_steps.keys()),
+                    },
+                    evidence_type="log",
+                    level="warning",
+                )
+                continue
+            runtime_title = self._runtime_step_title(raw_id=raw_id, step=step, snapshot=snapshot)
+            if runtime_title:
+                step.title = runtime_title
+            status = str(item.get("status", "") or "").strip()
+            if status == "running":
+                step.start()
+            elif status in _TERMINAL_STATUSES:
+                step.finish(status, actual=item.get("actual", ""), error=str(item.get("error", "") or ""))
+
+    def _dynamic_step(self, *, raw_id: str, snapshot: Mapping[str, object]) -> _ApkStep | None:
+        if not raw_id:
+            return None
+        existing = self._dynamic_steps.get(raw_id)
+        if existing is not None:
+            return existing
+        match = _DYNAMIC_STEP_ID_RE.match(raw_id)
+        if match is None:
+            return None
+        step = _ApkStep(
+            step_id=f"{self._request_id}:{raw_id}",
+            title=self._dynamic_step_title(raw_id=raw_id, snapshot=snapshot),
+            kind=self._dynamic_step_kind(match.group("tail")),
+            definition_id=f"{match.group('prefix')}.{match.group('marker')}.{match.group('tail')}",
+            expected="APK reports this cycle step finished.",
+            parent_id=self._parent.step_id,
+        )
+        self._dynamic_steps[raw_id] = step
+        return step
+
+    def _dynamic_step_title(self, *, raw_id: str, snapshot: Mapping[str, object]) -> str:
+        match = _DYNAMIC_STEP_ID_RE.match(raw_id)
+        if match is None:
+            return raw_id
+        marker, _, total = self._snapshot_loop_marker(snapshot)
+        label = f"{match.group('marker').capitalize()} {match.group('index')}"
+        if marker:
+            label = f"{marker.capitalize()} {match.group('index')}"
+        tail = match.group("tail").replace("_", " ")
+        return f"{label}/{total}: {tail}" if total else f"{label}: {tail}"
+
+    def _runtime_step_title(self, *, raw_id: str, step: _ApkStep, snapshot: Mapping[str, object]) -> str:
+        dynamic_match = _DYNAMIC_STEP_ID_RE.match(raw_id)
+        if dynamic_match is not None:
+            return self._dynamic_step_title(raw_id=raw_id, snapshot=snapshot)
+        planned_match = _PLANNED_REPEAT_STEP_ID_RE.match(raw_id)
+        if planned_match is None:
+            return step.title
+        marker, index, total = self._snapshot_loop_marker(snapshot)
+        if not index or not total:
+            return step.title
+        title = str(step.title or raw_id)
+        suffix = re.sub(r"^(Cycle|Loop)\s*(\d+\s*/\s*\d+)?\s*:\s*", "", title, count=1, flags=re.IGNORECASE).strip()
+        prefix = marker.capitalize() if marker else planned_match.group("marker").capitalize()
+        return f"{prefix} {index}/{total}: {suffix or planned_match.group('tail').replace('_', ' ')}"
+
+    def _snapshot_loop_marker(self, snapshot: Mapping[str, object]) -> tuple[str, str, str]:
+        stage_match = _STAGE_LOOP_RE.search(str(snapshot.get("currentStage", "") or ""))
+        marker = stage_match.group("marker") if stage_match else ""
+        index = stage_match.group("index") if stage_match else str(snapshot.get("currentLoop", "") or "")
+        total = stage_match.group("total") if stage_match else str(snapshot.get("totalLoops", "") or "")
+        return marker, index, total
+
+    def _dynamic_step_kind(self, tail: str) -> str:
+        normalized = str(tail or "").lower()
+        return "check" if any(token in normalized for token in ("check", "verify", "capture", "ping", "bluetooth")) else "step"
+
+    def status_waiting(self, reason: str) -> None:
+        target = self._current_stage or self._parent
+        target.evidence("Status channel waiting", reason, evidence_type="status", level="warning")
+
+    def finish(self, status: str, *, error: str = "", actual: object = "") -> None:
+        if self._terminal:
+            return
+        self._terminal = True
+        if self._planned_steps:
+            for step in self._planned_steps.values():
+                if step.started:
+                    step.finish("stopped" if status == "failed" else status)
+        elif self._current_stage is not None:
+            self._current_stage.finish(status, error=error if status == "failed" else "", actual=actual)
+        self._parent.finish(status, error=error, actual=actual)
+
+
+def subprocess_creationflags() -> int:
+    if os.name != "nt":
+        return 0
+    return getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
+def adb_base_cmd(*, adb_executable: str, adb_serial: str | None = None) -> list[str]:
+    command = [adb_executable]
+    serial = resolve_adb_serial_for_command(adb_serial)
+    if serial:
+        command.extend(["-s", serial])
+    return command
 
 
 def _serial_for_log(serial: str | None) -> str:
@@ -81,7 +345,7 @@ def _snapshot_read_failure_key(error_text: str) -> str:
     return first_line[:160]
 
 
-def _force_stop_android_client(
+def _force_stop_apk(
     *,
     adb_executable: str,
     adb_serial: str | None = None,
@@ -106,13 +370,13 @@ def _force_stop_android_client(
     return result
 
 
-def _prepare_android_client_request(context: ActionContext) -> str:
+def _prepare_apk_request(context: ActionContext) -> str:
     summary = f"case_id={context.case_id} parameter_count={len(context.params)}"
     step_log(summary)
     return summary
 
 
-def android_client_case_plan(
+def apk_case_plan(
     case_id: str,
     runtime_definition_ids: list[str] | None = None,
     *,
@@ -128,14 +392,14 @@ def android_client_case_plan(
     }
 
 
-def run_android_client_case(
+def run_apk_case(
     *,
     case_id: str,
     trigger: str,
     prepare_definition_id: str = "android_client.prepare_request",
     trigger_definition_id: str = "android_client.trigger_case",
 ) -> subprocess.CompletedProcess[str]:
-    resolved_params = runtime_params().apk_params(case_id, trigger)
+    resolved_params = smarttest_context().params.apk_params(case_id, trigger)
     context = ActionContext(case_id=case_id, params=resolved_params, trigger=trigger)
     prepare_action = get_action(prepare_definition_id)
     with runtime_step(
@@ -144,7 +408,7 @@ def run_android_client_case(
         definition_id=prepare_action.definition_id,
         expected=prepare_action.expected,
     ):
-        _prepare_android_client_request(context)
+        _prepare_apk_request(context)
 
     trigger_action = get_action(trigger_definition_id)
     with runtime_step(
@@ -153,7 +417,7 @@ def run_android_client_case(
         definition_id=trigger_action.definition_id,
         expected=trigger_action.expected,
     ):
-        result = trigger_android_client_case(
+        result = trigger_apk_case(
             case_id=case_id,
             params=resolved_params,
             trigger=trigger,
@@ -167,7 +431,7 @@ def run_android_client_case(
         return result
 
 
-def _launch_android_client_main(
+def _launch_apk_main(
     *,
     adb_executable: str,
     adb_serial: str | None = None,
@@ -234,7 +498,7 @@ def _adb_is_boot_completed(
     return str(result.stdout or "").strip() == "1"
 
 
-def _start_android_client_run(
+def _start_apk_run(
     *,
     adb_executable: str,
     component: str,
@@ -244,7 +508,7 @@ def _start_android_client_run(
     source: str,
     params: Mapping[str, str] | None = None,
     adb_serial: str | None = None,
-    log_prefix: str = "[testing.runner.android_client]",
+    log_prefix: str = "[testing.runner.apk_client]",
 ) -> subprocess.CompletedProcess[str]:
     cmd = adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
     cmd.extend(
@@ -292,7 +556,7 @@ def _start_android_client_run(
     return result
 
 
-def stop_android_client_run(
+def stop_apk_run(
     *,
     adb_serial: str | None = None,
     reason: str = "host stop",
@@ -327,7 +591,7 @@ def stop_android_client_run(
     return result
 
 
-def android_client_installed(*, adb_serial: str | None = None, package_name: str = PACKAGE_NAME) -> bool:
+def apk_installed(*, adb_serial: str | None = None, package_name: str = PACKAGE_NAME) -> bool:
     adb_executable = shutil.which("adb")
     if not adb_executable:
         raise RuntimeError("adb is not available in PATH.")
@@ -399,7 +663,7 @@ def _read_snapshot_json(
     return json.loads(_extract_json_payload(stdout))
 
 
-def read_android_client_snapshot(
+def read_apk_snapshot(
     *,
     adb_executable: str,
     adb_serial: str | None = None,
@@ -425,7 +689,7 @@ def read_android_client_snapshot(
                 raise
             if verbose:
                 smart_log(f"[android_client.status] {label} fallback: {exc}", level="warning", domain="android", source="android_client")
-    raise RuntimeError("android_client snapshot read failed without an attempted reader.")
+    raise RuntimeError("APK snapshot read failed without an attempted reader.")
 
 
 def _snapshot_signature(snapshot: dict[str, object]) -> str:
@@ -521,7 +785,7 @@ def _collect_device_failure_debug(
             domain="android", source="android_client")
 
 
-def wait_for_android_client_case_completion(
+def wait_for_apk_case_completion(
     *,
     adb_executable: str,
     case_id: str,
@@ -532,7 +796,7 @@ def wait_for_android_client_case_completion(
     timeout_sec: float = DEFAULT_TIMEOUT_SEC,
     baseline_signature: str | None = None,
     baseline_log_count: int = 0,
-    stage_tracker: AndroidClientStageTracker | None = None,
+    stage_tracker: ApkStageTracker | None = None,
 ) -> dict[str, object]:
     started = False
     fresh_run_observed = False
@@ -581,7 +845,7 @@ def wait_for_android_client_case_completion(
             last_snapshot_channel_ready = False
 
         try:
-            snapshot = read_android_client_snapshot(
+            snapshot = read_apk_snapshot(
                 adb_executable=adb_executable,
                 adb_serial=adb_serial,
                 verbose=False,
@@ -611,7 +875,7 @@ def wait_for_android_client_case_completion(
                 continue
             if started and consecutive_failures >= DEFAULT_MAX_CONSECUTIVE_STATUS_FAILURES:
                 raise RuntimeError(
-                    "Lost android_client status channel after DUT run started.\n"
+                    "Lost APK status channel after DUT run started.\n"
                     f"case_id={case_id}\n"
                     f"trigger={trigger}\n"
                     f"last_snapshot={last_snapshot}\n"
@@ -701,7 +965,7 @@ def wait_for_android_client_case_completion(
             if isinstance(report, dict):
                 status_text = str(report.get("statusText", "") or "")
             error_text = (
-                "android_client case failed on DUT.\n"
+                "APK case failed on DUT.\n"
                 f"case_id={case_id}\n"
                 f"trigger={trigger}\n"
                 f"status={status_text or phase}\n"
@@ -723,7 +987,7 @@ def wait_for_android_client_case_completion(
             recent_text = _recent_log_text(snapshot, 8)
             if request_id in recent_text and ("Run cancelled" in recent_text or "Received stop request" in recent_text):
                 raise RuntimeError(
-                    "android_client case cancelled on DUT.\n"
+                    "APK case cancelled on DUT.\n"
                     f"case_id={case_id}\n"
                     f"request_id={request_id}\n"
                     f"trigger={trigger}"
@@ -732,7 +996,7 @@ def wait_for_android_client_case_completion(
         time.sleep(poll_interval_sec)
 
     error_text = (
-        "Timed out while waiting for android_client case completion.\n"
+        "Timed out while waiting for APK case completion.\n"
         f"case_id={case_id}\n"
         f"trigger={trigger}\n"
         f"last_snapshot={last_snapshot}\n"
@@ -743,7 +1007,7 @@ def wait_for_android_client_case_completion(
     raise RuntimeError(error_text)
 
 
-def trigger_android_client_case(
+def trigger_apk_case(
     *,
     case_id: str,
     params: Mapping[str, str] | None = None,
@@ -765,34 +1029,34 @@ def trigger_android_client_case(
     smart_log(f"component={component}", domain="android", source="android_client")
     request_id = f"{case_id}-{uuid.uuid4().hex[:12]}"
     smart_log(f"request_id={request_id}", domain="android", source="android_client")
-    stage_tracker = AndroidClientStageTracker(case_id=case_id, request_id=request_id)
+    stage_tracker = ApkStageTracker(case_id=case_id, request_id=request_id)
     require_privileged = case_id in PRIVILEGED_CASE_IDS
     smart_log(f"require_privileged={require_privileged}", domain="android", source="android_client")
-    if require_privileged and android_client_installed(adb_serial=requested_serial):
-        stop_android_client_run(
+    if require_privileged and apk_installed(adb_serial=requested_serial):
+        stop_apk_run(
             adb_serial=requested_serial,
             reason=f"prepare privileged provisioning for {case_id}",
         )
         time.sleep(1.0)
-        _launch_android_client_main(adb_executable=adb_executable, adb_serial=requested_serial)
-    installed = android_client_installed(adb_serial=requested_serial)
+        _launch_apk_main(adb_executable=adb_executable, adb_serial=requested_serial)
+    installed = apk_installed(adb_serial=requested_serial)
     smart_log(f"installed_before_run={installed}", domain="android", source="android_client")
     if not installed:
         raise RuntimeError(
-            "android_client APK is not installed on DUT. Refresh the DUT list from the Test page before running."
+            "APK is not installed on DUT. Refresh the DUT list from the Test page before running."
         )
-    _force_stop_android_client(adb_executable=adb_executable, adb_serial=requested_serial)
+    _force_stop_apk(adb_executable=adb_executable, adb_serial=requested_serial)
     baseline_signature = None
     baseline_log_count = 0
     try:
-        baseline_snapshot = read_android_client_snapshot(adb_executable=adb_executable, adb_serial=requested_serial)
+        baseline_snapshot = read_apk_snapshot(adb_executable=adb_executable, adb_serial=requested_serial)
         baseline_signature = _snapshot_signature(baseline_snapshot)
         baseline_log_count = _snapshot_log_count(baseline_snapshot)
         baseline_phase = str(baseline_snapshot.get("phase", "") or "")
         baseline_request_id = _snapshot_request_id(baseline_snapshot)
         baseline_case_ids = _snapshot_case_ids(baseline_snapshot)
         smart_log(
-            "[testing.runner.android_client] baseline "
+            "[testing.runner.apk_client] baseline "
             f"phase={baseline_phase or '<empty>'} "
             f"request_id={baseline_request_id or '<empty>'} "
             f"case_ids={baseline_case_ids}",
@@ -802,21 +1066,21 @@ def trigger_android_client_case(
             and case_id in baseline_case_ids
         ):
             smart_log(
-                "[testing.runner.android_client] stop stale active run before new request "
+                "[testing.runner.apk_client] stop stale active run before new request "
                 f"case_id={case_id} baseline_request_id={baseline_request_id or '<empty>'}",
                 level="warning",
                 domain="android", source="android_client")
-            stop_android_client_run(
+            stop_apk_run(
                 adb_serial=requested_serial,
-                reason=f"reset stale android_client run before request {request_id}",
+                reason=f"reset stale APK run before request {request_id}",
             )
             time.sleep(2.0)
-            _force_stop_android_client(adb_executable=adb_executable, adb_serial=requested_serial)
+            _force_stop_apk(adb_executable=adb_executable, adb_serial=requested_serial)
             baseline_signature = None
             baseline_log_count = 0
     except Exception as exc:  # noqa: BLE001
         smart_log(f"baseline snapshot unavailable: {exc}", level="warning", domain="android", source="android_client")
-    result = _start_android_client_run(
+    result = _start_apk_run(
         adb_executable=adb_executable,
         component=component,
         case_id=case_id,
@@ -829,7 +1093,7 @@ def trigger_android_client_case(
     combined_output = "\n".join(part for part in (result.stdout, result.stderr) if part).strip()
     if result.returncode != 0 or "Error:" in combined_output or "Exception occurred" in combined_output:
         error_text = (
-            "Failed to trigger android_client case.\n"
+            "Failed to trigger APK case.\n"
             f"component={component}\n"
             f"case_id={case_id}\n"
             f"trigger={trigger}\n"
@@ -844,7 +1108,7 @@ def trigger_android_client_case(
         stage_tracker.evidence("Trigger stderr", result.stderr.strip(), evidence_type="stderr", level="warning")
     if case_id in _no_poll_case_ids():
         smart_log(
-            "[testing.runner.android_client] no-poll mode enabled; "
+            "[testing.runner.apk_client] no-poll mode enabled; "
             f"skip host status polling for case_id={case_id} request_id={request_id}",
             domain="android", source="android_client")
         stage_tracker.finish("passed", actual="Triggered without host status polling.")
@@ -855,11 +1119,11 @@ def trigger_android_client_case(
             os.environ.get("SMARTTEST_ANDROID_SLOW_POLL_INTERVAL_SEC", "5.0"),
         )
         smart_log(
-            "[testing.runner.android_client] slow-poll mode enabled; "
+            "[testing.runner.apk_client] slow-poll mode enabled; "
             f"poll_interval={wait_poll_interval_sec}s for case_id={case_id}",
             domain="android", source="android_client")
     try:
-        snapshot = wait_for_android_client_case_completion(
+        snapshot = wait_for_apk_case_completion(
             adb_executable=adb_executable,
             case_id=case_id,
             request_id=request_id,
@@ -877,10 +1141,12 @@ def trigger_android_client_case(
     report = snapshot.get("report", {})
     if isinstance(report, dict):
         smart_log(
-            "[testing.runner.android_client] final report: "
+            "[testing.runner.apk_client] final report: "
             f"total={report.get('totalCount')} "
             f"passed={report.get('successCount')} "
             f"failed={report.get('failedCount')} "
             f"status={report.get('statusText')}",
             domain="android", source="android_client")
     return result
+
+

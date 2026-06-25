@@ -18,7 +18,6 @@ from jira_tool.services.query_builder import parse_csv_ids, parse_csv_terms
 from jira_tool.services.workspace import JiraWorkspaceService
 from example.bridge.AuthBridge import AuthBridge
 from example.helper.TranslateHelper import TranslateHelper
-from example.helper.UiText import raw_text, render_template, render_text, translated_text
 from tools.logging import smart_log
 
 try:
@@ -217,14 +216,22 @@ class JiraBridge(QObject):
         return self.tr(text)
 
     def _translated_state(self, template: str, **values: Any) -> dict[str, Any]:
-        return translated_text(template, **values)
+        return {"kind": "translated", "template": template, "values": dict(values)}
 
     @staticmethod
     def _raw_state(text: str) -> dict[str, Any]:
-        return raw_text(text)
+        return {"kind": "raw", "text": text}
 
     def _render_state_text(self, state: dict[str, Any]) -> str:
-        return render_text(self, state)
+        if not state:
+            return ""
+        if state.get("kind") == "translated":
+            template = str(state.get("template", "") or "")
+            return self.tr(template).format(**dict(state.get("values") or {}))
+        return str(state.get("text", "") or "")
+
+    def _render_template(self, template: str, values: dict[str, Any] | None = None) -> str:
+        return self.tr(str(template or "")).format(**dict(values or {}))
 
     def _system_row(
         self,
@@ -246,14 +253,12 @@ class JiraBridge(QObject):
     def _render_conversation_row(self, row: dict[str, Any]) -> dict[str, Any]:
         rendered = dict(row)
         if "message_template" in row:
-            rendered["message"] = render_template(
-                self,
+            rendered["message"] = self._render_template(
                 str(row.get("message_template", "") or ""),
                 row.get("message_values"),
             )
         if "timestamp_template" in row:
-            rendered["timestamp"] = render_template(
-                self,
+            rendered["timestamp"] = self._render_template(
                 str(row.get("timestamp_template", "") or ""),
                 row.get("timestamp_values"),
             )

@@ -7,7 +7,7 @@ from testing.tool.dut_tool.features.system import (
     verify_cpu_frequency_samples,
 )
 from testing.params.registry import CPU_FREQUENCY_LOOP_COUNT_KEY, CPU_FREQUENCY_PARAM_KEY
-from testing.params.runtime import runtime_params
+from testing.test_context import smarttest_context
 from testing.runtime.config import current_dut_serial
 from testing.runtime.steps import case_step, step_log
 
@@ -52,8 +52,8 @@ SMARTTEST_CASE_PLAN = {
 
 @pytest.mark.requires_params(CPU_FREQUENCY_LOOP_COUNT_KEY, CPU_FREQUENCY_PARAM_KEY)
 def test_cpu_frequency_switching(request):
-    selected_frequencies = runtime_params().get_list(request.node.nodeid, CPU_FREQUENCY_PARAM_KEY, [])
-    loop_count = max(runtime_params().get_int(request.node.nodeid, CPU_FREQUENCY_LOOP_COUNT_KEY, 1), 1)
+    selected_frequencies = smarttest_context().params.get_list(request.node.nodeid, CPU_FREQUENCY_PARAM_KEY, [])
+    loop_count = max(smarttest_context().params.get_int(request.node.nodeid, CPU_FREQUENCY_LOOP_COUNT_KEY, 1), 1)
     from testing.tool.dut_tool.duts.android import android
 
     dut = android(serialnumber=current_dut_serial())

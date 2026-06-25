@@ -9,10 +9,11 @@ from testing.cases.catalog import load_runtime_test_catalog
 from testing.params.adb_devices import list_adb_devices
 from testing.params.options import normalize_option_values
 from testing.params.registry import SchemaRegistry, default_registry
-from testing.params.requirements import required_params_for_case
-from testing.params.schema import ParamField, ParamScope, ParamValueType
+from testing.params.contracts import required_param_keys
+from testing.params.schema import ParamField, ParamValueType
 from testing.runner.config import resolve_dut_serial
 from testing.state.models import SelectedCase, TestPageState
+from testing.test_context import smarttest_context
 
 
 DeviceLister = Callable[[], list[str]]
@@ -43,7 +44,8 @@ def validate_run_request(
 
     if any(_case_requires_dut(case, active_registry) for _, case in selected_cases):
         if resolved_dut_serial is _UNSET:
-            selected_dut = str(state.global_context.get("dut", "") or "").strip()
+            smarttest_context().params.bind_ui_state(state)
+            selected_dut = smarttest_context().params.selected_dut()
             resolved_dut = resolve_dut_serial(selected_dut, device_lister=device_lister or list_adb_devices)
         else:
             resolved_dut = str(resolved_dut_serial or "").strip()
@@ -57,13 +59,14 @@ def validate_run_request(
 
     for selected, case in selected_cases:
         case_param_keys = {str(param_key) for param_key in list(case.get("required_params", []))}
-        for param_key in required_params_for_case(case):
+        for param_key in required_param_keys(case):
             if param_key not in case_param_keys:
                 continue
             field = active_registry.get_param(str(param_key))
             if field is None:
                 continue
-            value = _resolve_param_value(state=state, selected=selected, case=case, field=field)
+            smarttest_context().params.bind_ui_state(state)
+            value = smarttest_context().params.case_display_value(case, field.key)
             if _is_missing_required_value(field, value) or _is_invalid_required_dynamic_value(
                 state=state,
                 selected=selected,
@@ -125,57 +128,6 @@ def _case_requires_dut(case: Mapping[str, Any], registry: SchemaRegistry) -> boo
     return False
 
 
-def _resolve_param_value(
-    *,
-    state: TestPageState,
-    selected: SelectedCase,
-    case: Mapping[str, Any],
-    field: ParamField,
-) -> Any:
-    if field.scope == ParamScope.GLOBAL_CONTEXT:
-        value = state.global_context.get(field.key, field.default)
-        return normalize_option_values(value) if _is_multi_enum_field(field) else value
-
-    if field.scope == ParamScope.CASE_TYPE_SHARED:
-        case_type = str(case.get("case_type") or selected.case_type or "default")
-        case_type_values = state.case_type_configs.get(case_type, {})
-        value = case_type_values.get(field.key, field.default) if isinstance(case_type_values, dict) else field.default
-        return normalize_option_values(value) if _is_multi_enum_field(field) else value
-
-    case_values = _case_scoped_values(
-        bucket=state.case_parameters,
-        selected=selected,
-        case=case,
-        preferred_key=field.key,
-    )
-    value = case_values.get(field.key, field.default)
-    return normalize_option_values(value) if _is_multi_enum_field(field) else value
-
-
-def _case_scoped_values(
-    *,
-    bucket: Mapping[str, Any],
-    selected: SelectedCase,
-    case: Mapping[str, Any],
-    preferred_key: str = "",
-) -> dict[str, Any]:
-    keys = [
-        str(case.get("nodeid", "") or "").strip(),
-        str(selected.nodeid or "").strip(),
-    ]
-    preferred = str(preferred_key or "").strip()
-    if preferred:
-        for key in keys:
-            values = bucket.get(key, {})
-            if isinstance(values, dict) and preferred in values:
-                return values
-    for key in keys:
-        values = bucket.get(key, {})
-        if isinstance(values, dict):
-            return values
-    return {}
-
-
 def _is_multi_enum_field(field: ParamField) -> bool:
     field_type = field.type.value if hasattr(field.type, "value") else field.type
     return field_type == ParamValueType.MULTI_ENUM.value
@@ -204,13 +156,14 @@ def _is_invalid_required_dynamic_value(
 ) -> bool:
     if not str(field.options_source or "").strip():
         return False
-    option_values = _case_scoped_values(
-        bucket=state.case_parameter_options,
-        selected=selected,
-        case=case,
-        preferred_key=field.key,
+    smarttest_context().params.bind_ui_state(state)
+    options = normalize_option_values(
+        smarttest_context().params.dynamic_options(
+            selected_nodeid=selected.nodeid,
+            case_nodeid=str(case.get("nodeid", "") or ""),
+            key=field.key,
+        )
     )
-    options = normalize_option_values(option_values.get(field.key, []))
     if not options:
         return True
     if _is_multi_enum_field(field):

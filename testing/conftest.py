@@ -3,24 +3,14 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-import time
-
 import pytest
 
 from testing.cases.metadata import build_case_metadata
 from testing.params.registry import default_registry
-from testing.runtime.events import (
-    emit_event,
-    reset_current_case_nodeid,
-    reset_current_case_stress_tolerant,
-    set_current_case_nodeid,
-    set_current_case_stress_tolerant,
-)
+from testing.test_context import smarttest_context
 
 
 _REGISTRY = default_registry()
-_RUN_START_TIMES: dict[str, float] = {}
-_RUN_STATUSES: dict[str, str] = {}
 
 
 def pytest_configure(config):
@@ -46,67 +36,48 @@ def _is_stress_item(item) -> bool:
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_setup(item):
     nodeid = item.nodeid
-    _RUN_START_TIMES[nodeid] = time.monotonic()
-    _RUN_STATUSES[nodeid] = "running"
-    emit_event(
-        "case_started",
-        case_nodeid=nodeid,
-        title=item.name,
-        file=nodeid.split("::", 1)[0],
-    )
-    token = set_current_case_nodeid(nodeid)
-    stress_token = set_current_case_stress_tolerant(_is_stress_item(item))
+    smarttest_context().start_case_execution(nodeid=nodeid, title=item.name, file=nodeid.split("::", 1)[0])
+    token = smarttest_context().cases.set_current_nodeid(nodeid)
+    stress_token = smarttest_context().cases.set_current_stress_tolerant(_is_stress_item(item))
     try:
         yield
     finally:
-        reset_current_case_stress_tolerant(stress_token)
-        reset_current_case_nodeid(token)
+        smarttest_context().cases.reset_current_stress_tolerant(stress_token)
+        smarttest_context().cases.reset_current_nodeid(token)
 
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_call(item):
-    token = set_current_case_nodeid(item.nodeid)
-    stress_token = set_current_case_stress_tolerant(_is_stress_item(item))
+    token = smarttest_context().cases.set_current_nodeid(item.nodeid)
+    stress_token = smarttest_context().cases.set_current_stress_tolerant(_is_stress_item(item))
     try:
         yield
     finally:
-        reset_current_case_stress_tolerant(stress_token)
-        reset_current_case_nodeid(token)
+        smarttest_context().cases.reset_current_stress_tolerant(stress_token)
+        smarttest_context().cases.reset_current_nodeid(token)
 
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_teardown(item):
-    token = set_current_case_nodeid(item.nodeid)
-    stress_token = set_current_case_stress_tolerant(_is_stress_item(item))
+    token = smarttest_context().cases.set_current_nodeid(item.nodeid)
+    stress_token = smarttest_context().cases.set_current_stress_tolerant(_is_stress_item(item))
     try:
         yield
     finally:
-        reset_current_case_stress_tolerant(stress_token)
-        reset_current_case_nodeid(token)
+        smarttest_context().cases.reset_current_stress_tolerant(stress_token)
+        smarttest_context().cases.reset_current_nodeid(token)
 
 
 def pytest_runtest_logreport(report):
     nodeid = report.nodeid
-    if report.when == "call":
-        if report.failed:
-            _RUN_STATUSES[nodeid] = "failed"
-        elif report.skipped:
-            _RUN_STATUSES[nodeid] = "skipped"
-        else:
-            _RUN_STATUSES[nodeid] = "passed"
-    elif report.when == "setup" and report.failed:
-        _RUN_STATUSES[nodeid] = "failed"
-    elif report.when == "teardown":
-        status = _RUN_STATUSES.get(nodeid, "passed")
-        duration_ms = int((time.monotonic() - _RUN_START_TIMES.get(nodeid, time.monotonic())) * 1000)
-        emit_event(
-            "case_finished",
-            case_nodeid=nodeid,
-            status=status,
-            duration_ms=duration_ms,
-        )
-        _RUN_START_TIMES.pop(nodeid, None)
-        _RUN_STATUSES.pop(nodeid, None)
+    smarttest_context().update_case_execution(
+        nodeid=nodeid,
+        when=str(report.when),
+        failed=bool(report.failed),
+        skipped=bool(report.skipped),
+    )
+    if report.when == "teardown":
+        smarttest_context().finish_case_execution(nodeid=nodeid)
 
 
 def pytest_sessionfinish(session, exitstatus):

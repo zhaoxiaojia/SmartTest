@@ -53,10 +53,17 @@ FluPage {
     }
 
     function refreshRunModels(){
+        var previousStepContentY = stepList ? stepList.contentY : 0
+        var shouldRestoreStepScroll = stepList && stepRowsModel.length > 0
         stepRowsModel = RunBridge.stepRows()
         logRowsModel = RunBridge.logRows()
         logTextModel = RunBridge.logText()
         syncLogListModel(logRowsModel)
+        if(shouldRestoreStepScroll && stepRowsModel.length > 0){
+            Qt.callLater(function(){
+                stepList.contentY = Math.max(0, Math.min(previousStepContentY, stepList.contentHeight - stepList.height))
+            })
+        }
         if(selectedStepIndex >= stepRowsModel.length){
             selectedStepIndex = stepRowsModel.length - 1
         }

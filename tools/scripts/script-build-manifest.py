@@ -78,7 +78,7 @@ def main() -> None:
     catalog = ROOT / "build" / "generated" / "testing" / "cases" / "test_catalog.json"
     android_catalog = ROOT / "android_client" / "app" / "src" / "main" / "java" / "com" / "smarttest" / "mobile" / "runner" / "SmartTestCatalog.kt"
     manifest_path = ROOT / "build" / "generated" / "build_manifest.json"
-    version = _bump_patch(_load_version())
+    version = _load_version()
     built_at = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
     payload = {
         "version": version,

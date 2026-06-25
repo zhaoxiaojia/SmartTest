@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from testing.cases.catalog import load_runtime_test_catalog
-from testing.params.runtime import runtime_params
+from testing.test_context import smarttest_context
 from testing.steps.definitions import ActionPlanContext, get_action
 from testing.tests import build_declared_case_plan, declared_step_enabled, expand_repeated_steps, resolve_title_placeholders
 
@@ -17,7 +17,7 @@ def build_step_plan(
     prefer_catalog: bool = True,
     include_config_disabled: bool = False,
 ) -> list[dict[str, Any]]:
-    case_parameters = runtime_params().case_values(nodeid)
+    case_parameters = smarttest_context().params.case_values(nodeid)
     use_catalog_plan = prefer_catalog
     if use_catalog_plan:
         catalog_plan = _catalog_step_plan(root_dir=root_dir, nodeid=nodeid, case_parameters=case_parameters)

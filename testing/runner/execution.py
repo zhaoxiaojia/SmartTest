@@ -45,14 +45,14 @@ class TestRunSession:
         if self.adb_serial:
             try:
                 import time
-                from testing.runner.android_client import _force_stop_android_client, stop_android_client_run
+                from testing.runner.apk_client import _force_stop_apk, stop_apk_run
                 import shutil
 
-                stop_android_client_run(adb_serial=self.adb_serial, reason=reason)
+                stop_apk_run(adb_serial=self.adb_serial, reason=reason)
                 time.sleep(1.0)
                 adb_executable = shutil.which("adb")
                 if adb_executable:
-                    _force_stop_android_client(adb_executable=adb_executable, adb_serial=self.adb_serial)
+                    _force_stop_apk(adb_executable=adb_executable, adb_serial=self.adb_serial)
             except Exception:
                 pass
         self.process.terminate()
@@ -130,3 +130,4 @@ def start_pytest_run(
         tempdir=tempdir,
         adb_serial=adb_serial,
     )
+

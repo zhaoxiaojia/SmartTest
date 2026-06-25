@@ -8,7 +8,7 @@ from typing import Any, Iterator
 
 import pytest
 
-from .events import current_case_nodeid, current_case_stress_tolerant, current_step, emit_event, pop_step, push_step
+from testing.test_context import smarttest_context
 from tools.logging import smart_log
 
 
@@ -43,7 +43,7 @@ def _new_step_payload(
     parent_id: str | None = None,
     step_id: str | None = None,
 ) -> dict[str, Any]:
-    case_nodeid = current_case_nodeid()
+    case_nodeid = smarttest_context().current_case_nodeid()
     if not case_nodeid:
         raise RuntimeError("SmartTest step used outside of an active pytest test case.")
 
@@ -52,7 +52,7 @@ def _new_step_payload(
     if normalized_definition_id is not None:
         payload_meta.setdefault("definition_id", normalized_definition_id)
 
-    parent = current_step()
+    parent = smarttest_context().current_step()
     return {
         "id": step_id or f"step:{uuid.uuid4().hex}",
         "title": str(title),
@@ -87,7 +87,7 @@ def plan_step(
         parent_id=parent_id,
         step_id=step_id,
     )
-    emit_event(
+    smarttest_context().events.emit(
         "step_planned",
         step_id=payload["id"],
         case_nodeid=payload["case_nodeid"],
@@ -124,8 +124,8 @@ def step(
         expected=expected,
         step_id=step_id,
     )
-    token = push_step(payload)
-    emit_event(
+    token = smarttest_context().push_step(payload)
+    smarttest_context().events.emit(
         "step_planned",
         step_id=payload["id"],
         case_nodeid=payload["case_nodeid"],
@@ -137,7 +137,7 @@ def step(
         meta=payload["meta"],
         expected=payload["expected"],
     )
-    emit_event(
+    smarttest_context().events.emit(
         "step_started",
         step_id=payload["id"],
         case_nodeid=payload["case_nodeid"],
@@ -187,7 +187,7 @@ def step(
                     "exception_type": type(exc).__name__,
                 },
             )
-            emit_event(
+            smarttest_context().events.emit(
                 "step_finished",
                 step_id=payload["id"],
                 case_nodeid=payload["case_nodeid"],
@@ -195,7 +195,7 @@ def step(
                 actual=soft_actual,
             )
             return
-        emit_event(
+        smarttest_context().events.emit(
             "step_finished",
             step_id=payload["id"],
             case_nodeid=payload["case_nodeid"],
@@ -206,7 +206,7 @@ def step(
         )
         raise
     else:
-        emit_event(
+        smarttest_context().events.emit(
             "step_finished",
             step_id=payload["id"],
             case_nodeid=payload["case_nodeid"],
@@ -214,13 +214,13 @@ def step(
             actual=actual,
         )
     finally:
-        pop_step(token)
+        smarttest_context().pop_step(token)
 
 
 def _should_soft_fail_stress_step(exc: BaseException, *, stress_tolerant: bool | None) -> bool:
     if stress_tolerant is False:
         return False
-    if stress_tolerant is not True and not current_case_stress_tolerant():
+    if stress_tolerant is not True and not smarttest_context().current_case_stress_tolerant():
         return False
     return isinstance(exc, (AssertionError, StressCheckFailure, pytest.fail.Exception))
 
@@ -233,11 +233,11 @@ def step_evidence(
     level: str = "info",
     meta: dict[str, Any] | None = None,
 ) -> None:
-    case_nodeid = current_case_nodeid()
+    case_nodeid = smarttest_context().current_case_nodeid()
     if not case_nodeid:
         return
-    current = current_step()
-    emit_event(
+    current = smarttest_context().current_step()
+    smarttest_context().events.emit(
         "step_evidence",
         case_nodeid=case_nodeid,
         step_id=current["id"] if current else None,
@@ -250,10 +250,10 @@ def step_evidence(
 
 
 def step_log(message: str, *, level: str = "info", extra: dict[str, Any] | None = None) -> None:
-    case_nodeid = current_case_nodeid()
+    case_nodeid = smarttest_context().current_case_nodeid()
     if not case_nodeid:
         return
-    current = current_step()
+    current = smarttest_context().current_step()
     smart_log(
         str(message),
         domain="test",
