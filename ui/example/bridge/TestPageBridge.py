@@ -1331,12 +1331,27 @@ class TestPageBridge(QObject):
             self._schedule_context_refresh("dut_changed")
         self._save_and_emit()
 
+    @Slot(str, "QVariant")
+    def saveGlobalValue(self, key: str, value: Any) -> None:
+        if not key:
+            return
+        self._bind_params_state()
+        if not smarttest_context().params.set_global_value(key, value):
+            return
+        save_state(self._state_path, self._state)
+
     @Slot(str, str, "QVariant")
     def setCaseParamValue(self, nodeid: str, key: str, value: Any) -> None:
         if not self._set_case_param_value(nodeid=nodeid, key=key, value=value):
             return
         self._save_and_emit()
         self._refresh_options_affected_by_param_change(nodeid=nodeid, key=key)
+
+    @Slot(str, str, "QVariant")
+    def saveCaseParamValue(self, nodeid: str, key: str, value: Any) -> None:
+        if not self._set_case_param_value(nodeid=nodeid, key=key, value=value):
+            return
+        save_state(self._state_path, self._state)
 
     @Slot(str, str, str, bool)
     def setCaseParamListItemSelected(self, nodeid: str, key: str, value: str, selected: bool) -> None:

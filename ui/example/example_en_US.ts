@@ -4265,112 +4265,112 @@ Some contents...</translation>
         <translation>Test</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="227"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="235"/>
         <source>Test Cases</source>
         <translation>Test Cases</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="232"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="240"/>
         <source>Filter by file...</source>
         <translation>Filter by file...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="281"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="289"/>
         <source>Selected (%1)</source>
         <translation>Selected (%1)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="401"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="409"/>
         <source>Case Parameters (%1)</source>
         <translation>Case Parameters (%1)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="417"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="425"/>
         <source>Select one or more test files to inspect the required parameters for each case.</source>
         <translation>Select one or more test files to inspect the required parameters for each case.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="469"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="477"/>
         <source>No configurable parameters are required for this case.</source>
         <translation>No configurable parameters are required for this case.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="694"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="696"/>
         <source>No connected Bluetooth devices found on the current DUT.</source>
         <translation>No connected Bluetooth devices found on the current DUT.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="725"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="727"/>
         <source>Enabled</source>
         <translation>Enabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="725"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="727"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="785"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="792"/>
         <source>DUT</source>
         <translation>DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="794"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="801"/>
         <source>Refresh</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="840"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="847"/>
         <source>No DUT</source>
         <translation>No DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1127"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1138"/>
         <source>Add terminal</source>
         <translation type="unfinished">Add terminal</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1144"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1155"/>
         <source>Terminal</source>
         <translation type="unfinished">Terminal</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1163"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1174"/>
         <source>Wiring mode</source>
         <translation type="unfinished">Wiring mode</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1182"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1193"/>
         <source>Press seconds</source>
         <translation type="unfinished">Press seconds</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1206"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1217"/>
         <source>Remove terminal</source>
         <translation type="unfinished">Remove terminal</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1237"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1248"/>
         <source>Stop</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1237"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1248"/>
         <source>Start</source>
         <translation>Start</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1245"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1255"/>
         <source>Run</source>
         <translation>Run</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1252"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1262"/>
         <source>Required Parameters</source>
         <translation>Required Parameters</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1254"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1264"/>
         <source>OK</source>
         <translation>OK</translation>
     </message>
@@ -4383,12 +4383,12 @@ Some contents...</translation>
         <translation type="vanished">Special Params (by Case Type)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="886"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="893"/>
         <source>Env</source>
         <translation>Env</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="914"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="921"/>
         <source>Type</source>
         <translation>Type</translation>
     </message>

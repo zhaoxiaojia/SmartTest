@@ -59,6 +59,19 @@ def _verify_dist_runtime(repo_root: Path) -> None:
     )
 
 
+def _verify_signed_apk_artifact(repo_root: Path) -> None:
+    apk_path = repo_root / "dist_installer" / "app-debug-platform.apk"
+    if not apk_path.exists():
+        raise SystemExit(
+            "Signed Android APK is missing:\n"
+            f"{apk_path}\n"
+            "Build it first with:\n"
+            r".\.venv\Scripts\python.exe tools\scripts\script-build-apk.py"
+        )
+    if apk_path.stat().st_size <= 0:
+        raise SystemExit(f"Signed Android APK is empty: {apk_path}")
+
+
 def _find_iscc():
     iscc = shutil.which("iscc") or shutil.which("iscc.exe") or shutil.which("ISCC.exe")
     if iscc:
@@ -139,6 +152,7 @@ if __name__ == "__main__":
     if sys.platform.startswith("win"):
         # 0) Fail fast on checks that protect the installed runtime from import/resource drift.
         _run_packaging_preflight(repo_root)
+        _verify_signed_apk_artifact(repo_root)
 
         # 1) Build app (PyInstaller) -> dist/
         _run([_python(repo_root), os.path.join(scripts_dir, "script-build-pyinstaller.py")])

@@ -52,6 +52,14 @@ FluPage {
         return themePair("#0F172A", "#F3F7FA")
     }
 
+    function compactEditorInline(containerWidth){
+        return containerWidth >= 420
+    }
+
+    function compactEditorWidth(containerWidth){
+        return Math.max(96, Math.min(260, containerWidth * 0.32))
+    }
+
     function fieldTextValue(fieldData){
         var _version = stateVersion
         var value = fieldData ? fieldData.value : ""
@@ -212,7 +220,7 @@ FluPage {
 
         FluSplitLayout{
             SplitView.fillWidth: true
-            SplitView.preferredWidth: layout_main.width/3
+            SplitView.preferredWidth: layout_main.width * 0.30
             SplitView.minimumWidth: 260
             SplitView.fillHeight: true
             orientation: Qt.Vertical
@@ -390,7 +398,7 @@ FluPage {
 
         FluFrame{
             SplitView.fillWidth: true
-            SplitView.preferredWidth: layout_main.width/3
+            SplitView.preferredWidth: layout_main.width * 0.42
             SplitView.minimumWidth: 260
             SplitView.fillHeight: true
             padding: 10
@@ -484,13 +492,16 @@ FluPage {
                                                 Layout.fillWidth: true
                                                 spacing: 2
 
-                                                RowLayout{
+                                                GridLayout{
                                                     visible: compactTextField
                                                     Layout.fillWidth: true
-                                                    spacing: 12
+                                                    columns: compactEditorInline(col_case_form.width) ? 2 : 1
+                                                    columnSpacing: 12
+                                                    rowSpacing: 4
 
                                                     ColumnLayout{
                                                         Layout.fillWidth: true
+                                                        Layout.minimumWidth: 0
                                                         spacing: 2
                                                         FluText{
                                                             text: fieldLabel(fieldData)
@@ -511,8 +522,9 @@ FluPage {
 
                                                     FluTextBox{
                                                         id: text_case_param_compact
-                                                        Layout.preferredWidth: 180
-                                                        Layout.maximumWidth: 180
+                                                        Layout.fillWidth: !compactEditorInline(col_case_form.width)
+                                                        Layout.preferredWidth: compactEditorInline(col_case_form.width) ? compactEditorWidth(col_case_form.width) : -1
+                                                        Layout.maximumWidth: compactEditorInline(col_case_form.width) ? 260 : 16777215
                                                         placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
                                                         cleanEnabled: false
                                                         property bool persistReady: false
@@ -538,22 +550,17 @@ FluPage {
                                                                 if(isNaN(parsed)){
                                                                     return
                                                                 }
-                                                                TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, parsed)
+                                                                TestPageBridge.saveCaseParamValue(caseNodeId, fieldData.key, parsed)
                                                                 return
                                                             }
-                                                            TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
+                                                            TestPageBridge.saveCaseParamValue(caseNodeId, fieldData.key, text)
                                                         }
-                                                        function persistUserEdit(){
-                                                            if(activeFocus){
-                                                                persistValue()
-                                                            }
-                                                        }
+                                                        onTextChanged: persistValue()
                                                         Component.onCompleted: {
                                                             syncFromState()
                                                             persistReady = true
                                                         }
                                                         onVisibleChanged: syncFromState()
-                                                        onTextChanged: persistUserEdit()
                                                         onActiveFocusChanged: {
                                                             if(!activeFocus){
                                                                 persistValue()
@@ -626,22 +633,17 @@ FluPage {
                                                             if(isNaN(parsed)){
                                                                 return
                                                             }
-                                                            TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, parsed)
+                                                            TestPageBridge.saveCaseParamValue(caseNodeId, fieldData.key, parsed)
                                                             return
                                                         }
-                                                        TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
+                                                        TestPageBridge.saveCaseParamValue(caseNodeId, fieldData.key, text)
                                                     }
-                                                    function persistUserEdit(){
-                                                        if(activeFocus){
-                                                            persistValue()
-                                                        }
-                                                    }
+                                                    onTextChanged: persistValue()
                                                     Component.onCompleted: {
                                                         syncFromState()
                                                         persistReady = true
                                                     }
                                                     onVisibleChanged: syncFromState()
-                                                    onTextChanged: persistUserEdit()
                                                     onActiveFocusChanged: {
                                                         if(!activeFocus){
                                                             persistValue()
@@ -739,7 +741,12 @@ FluPage {
                                                         when: text_case_param_multiline.visible && !text_case_param_multiline.activeFocus
                                                         value: fieldTextValue(fieldData)
                                                     }
-                                                    onTextChanged: TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
+                                                    onTextChanged: TestPageBridge.saveCaseParamValue(caseNodeId, fieldData.key, text)
+                                                    onActiveFocusChanged: {
+                                                        if(!activeFocus){
+                                                            TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
+                                                        }
+                                                    }
                                                     onCommit: TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
                                                 }
 
@@ -759,7 +766,7 @@ FluPage {
 
         FluSplitLayout{
             SplitView.fillWidth: true
-            SplitView.preferredWidth: layout_main.width/3
+            SplitView.preferredWidth: layout_main.width * 0.28
             SplitView.minimumWidth: 260
             SplitView.fillHeight: true
             orientation: Qt.Vertical
@@ -855,7 +862,7 @@ FluPage {
                                             return fieldTextValue(fieldData)
                                         }
                                     }
-                                    onTextChanged: TestPageBridge.setGlobalValue(fieldData.key, text)
+                                    onTextChanged: TestPageBridge.saveGlobalValue(fieldData.key, text)
                                     onEditingFinished: TestPageBridge.setGlobalValue(fieldData.key, text)
                                 }
                                 FluDivider{
@@ -958,13 +965,16 @@ FluPage {
                                                     return nextRows
                                                 }
 
-                                                RowLayout{
+                                                GridLayout{
                                                     visible: compactTextField
                                                     Layout.fillWidth: true
-                                                    spacing: 12
+                                                    columns: compactEditorInline(col_env.width) ? 2 : 1
+                                                    columnSpacing: 12
+                                                    rowSpacing: 4
 
                                                     ColumnLayout{
                                                         Layout.fillWidth: true
+                                                        Layout.minimumWidth: 0
                                                         spacing: 2
                                                         RowLayout{
                                                             Layout.fillWidth: true
@@ -995,8 +1005,9 @@ FluPage {
                                                     FluTextBox{
                                                         id: text_env_equipment_compact
                                                         visible: fieldData.type === "string" || fieldData.type === "int"
-                                                        Layout.preferredWidth: 180
-                                                        Layout.maximumWidth: 180
+                                                        Layout.fillWidth: !compactEditorInline(col_env.width)
+                                                        Layout.preferredWidth: compactEditorInline(col_env.width) ? compactEditorWidth(col_env.width) : -1
+                                                        Layout.maximumWidth: compactEditorInline(col_env.width) ? 260 : 16777215
                                                         cleanEnabled: false
                                                         property bool persistReady: false
                                                         function stateText(){
@@ -1240,7 +1251,6 @@ FluPage {
                 RunBridge.stopRun()
                 return
             }
-            page_root.forceActiveFocus(Qt.MouseFocusReason)
             if(RunBridge.startRun()){
                 ItemsOriginal.startPageByItem({ title: qsTr("Run"), url: "qrc:/example/qml/page/T_Run.qml" })
             }

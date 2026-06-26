@@ -27,6 +27,7 @@ Name: "desktopicon"; Description: "Create a desktop icon"; GroupDescription: "Ad
 
 [Files]
 Source: "..\..\..\dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\..\dist_installer\app-debug-platform.apk"; DestDir: "{app}\android_client\app\build\outputs\apk\debug"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\SmartTest"; Filename: "{app}\SmartTest.exe"; WorkingDir: "{app}"

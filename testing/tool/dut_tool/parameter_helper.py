@@ -166,6 +166,8 @@ class ParameterHelper:
 
     def _ensure_apk_for_refresh(self, devices: list[str], *, selected_serial: str | None) -> None:
         target = str(selected_serial or "").strip()
+        if not target and len(devices) == 1:
+            target = devices[0]
         if target and target not in devices:
             smart_log(
                 "apk_ensure_skip "
