@@ -44,10 +44,17 @@ DEFAULT_PRIVAPP_DIR = "/system/priv-app/SmartTestMobile"
 DEFAULT_PRIVAPP_APK = f"{DEFAULT_PRIVAPP_DIR}/SmartTestMobile.apk"
 DEFAULT_PRIVAPP_PERMISSIONS = "/system/etc/permissions/privapp-permissions-com.smarttest.mobile.xml"
 LOCAL_PRIVAPP_PERMISSIONS = Path(__file__).resolve().parent / "system_app" / "privapp-permissions-com.smarttest.mobile.xml"
-SIGNAPK_DIR = Path(__file__).resolve().parent / "signapk" / "mnt" / "fileroot" / "fae.autobuild" / "workdir" / "workspace" / "FAE" / "AutoBuild" / "IPTV" / "daxiong.cao" / "s6" / "u-1"
-SIGNAPK_JAR = SIGNAPK_DIR / "prebuilts" / "sdk" / "tools" / "lib" / "signapk.jar"
-PLATFORM_CERT_PEM = SIGNAPK_DIR / "build" / "target" / "product" / "security" / "platform.x509.pem"
-PLATFORM_CERT_PK8 = SIGNAPK_DIR / "build" / "target" / "product" / "security" / "platform.pk8"
+DEFAULT_SIGNAPK_DIR = Path(__file__).resolve().parent / "signapk" / "mnt" / "fileroot" / "fae.autobuild" / "workdir" / "workspace" / "FAE" / "AutoBuild" / "IPTV" / "daxiong.cao" / "s6" / "u-1"
+SIGNAPK_DIR = Path(os.environ.get("SMARTTEST_SIGNAPK_DIR", DEFAULT_SIGNAPK_DIR)).expanduser()
+SIGNAPK_JAR = Path(
+    os.environ.get("SMARTTEST_SIGNAPK_JAR", SIGNAPK_DIR / "prebuilts" / "sdk" / "tools" / "lib" / "signapk.jar"),
+).expanduser()
+PLATFORM_CERT_PEM = Path(
+    os.environ.get("SMARTTEST_PLATFORM_CERT_PEM", SIGNAPK_DIR / "build" / "target" / "product" / "security" / "platform.x509.pem"),
+).expanduser()
+PLATFORM_CERT_PK8 = Path(
+    os.environ.get("SMARTTEST_PLATFORM_CERT_PK8", SIGNAPK_DIR / "build" / "target" / "product" / "security" / "platform.pk8"),
+).expanduser()
 DEFAULT_ADB_WAIT_TIMEOUT_SEC = 180.0
 PRIVILEGED_CASE_IDS = frozenset({"auto_reboot", "auto_suspend", "wifi_onoff_scan", "bt_onoff_scan"})
 PRIVILEGED_PARTITIONS = ("/system", "/product", "/system_ext")
@@ -149,9 +156,9 @@ def _find_apksigner() -> str | None:
         reverse=True,
     )
     for candidate in candidates:
-        apksigner_bat = candidate / "apksigner.bat"
-        if apksigner_bat.exists():
-            return str(apksigner_bat)
+        apksigner = candidate / ("apksigner.bat" if os.name == "nt" else "apksigner")
+        if apksigner.exists():
+            return str(apksigner)
     return None
 
 

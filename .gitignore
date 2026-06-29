@@ -11,6 +11,7 @@ source.zip
 source_all.zip
 *.qm
 android_client/signapk/
+android_client/signapk.zip
 
 # Local packaged/build output and temporary diagnostics
 _internal/
