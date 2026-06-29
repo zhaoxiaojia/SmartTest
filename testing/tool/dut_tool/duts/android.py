@@ -83,7 +83,7 @@ class android(BaseDut):
     DUMP_FILE = '\\view.xml'
     OSD_VIDEO_LAYER = 'osd+video'
 
-    def __init__(self, serialnumber="", logdir=""):
+    def __init__(self, serialnumber="", logdir="", *, prepare=True):
         """
         Init.
 
@@ -112,7 +112,7 @@ class android(BaseDut):
         self.live = False
         self.lock = threading.Lock()
         self.p_config_wifi = ''
-        if self.serialnumber:
+        if self.serialnumber and prepare:
             self.root()
             self.remount()
 
@@ -1566,6 +1566,12 @@ class android(BaseDut):
         """
         command = self.adb_command(command)
         return self.checkoutput_term(command)
+
+    @connect_again
+    def adb_call(self, *parts: object, timeout: float | None = None):
+        command = self.adb_command_prefix().split()
+        command.extend(str(part) for part in parts if str(part).strip())
+        return self.command_runner.run(command, timeout=timeout)
 
     def _android_connect_wifi(self, ssid: str, pwd: str, security: str, hide: bool, lan=True) -> bool:
         """

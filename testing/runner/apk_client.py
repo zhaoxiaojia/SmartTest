@@ -17,6 +17,7 @@ from testing.runtime.config import current_dut_serial
 from testing.runtime.steps import step as runtime_step, step_log
 from testing.steps.definitions import ActionContext, action_plan, get_action
 from testing.params.adb_devices import resolve_adb_serial_for_command
+from testing.tool.dut_tool.duts.android import android as AndroidDut
 from tools.logging import smart_log
 
 
@@ -36,10 +37,12 @@ DEFAULT_DUT_UNAVAILABLE_STAGE_TOKENS = {
 }
 DEFAULT_HOST_QUIET_STAGE_TOKENS = {"entering deep suspend", "waiting for deep suspend resume"}
 DEFAULT_HOST_QUIET_SEC = 25.0
+DEFAULT_ADB_COMMAND_TIMEOUT_SEC = 10.0
 _DYNAMIC_STEP_ID_RE = re.compile(r"^(?P<prefix>.+?)\.(?P<marker>cycle|loop)\.(?P<index>\d+)\.(?P<tail>.+)$", re.IGNORECASE)
 _PLANNED_REPEAT_STEP_ID_RE = re.compile(r"^(?P<prefix>.+?)\.(?P<marker>cycle|loop)\.(?P<tail>.+)$", re.IGNORECASE)
 _STAGE_LOOP_RE = re.compile(r"\b(?P<marker>cycle|loop)\s+(?P<index>\d+)\s*/\s*(?P<total>\d+)\b", re.IGNORECASE)
 _TERMINAL_STATUSES = {"passed", "failed", "skipped", "stopped"}
+_ADB_DUT_CACHE: dict[str, AndroidDut] = {}
 
 
 @dataclass
@@ -288,18 +291,31 @@ class ApkStageTracker:
         self._parent.finish(status, error=error, actual=actual)
 
 
-def subprocess_creationflags() -> int:
-    if os.name != "nt":
-        return 0
-    return getattr(subprocess, "CREATE_NO_WINDOW", 0)
+def _adb_result_is_offline(result: subprocess.CompletedProcess[str]) -> bool:
+    text = f"{result.stdout or ''}\n{result.stderr or ''}".lower()
+    return (
+        "device offline" in text
+        or "offline" in text and "error:" in text
+        or "device" in text and "not found" in text
+        or "no devices/emulators found" in text
+    )
 
 
-def adb_base_cmd(*, adb_executable: str, adb_serial: str | None = None) -> list[str]:
-    command = [adb_executable]
-    serial = resolve_adb_serial_for_command(adb_serial)
-    if serial:
-        command.extend(["-s", serial])
-    return command
+def _run_adb_command(
+    *,
+    adb_executable: str,
+    adb_serial: str | None,
+    args: list[str],
+    timeout_sec: float = DEFAULT_ADB_COMMAND_TIMEOUT_SEC,
+) -> subprocess.CompletedProcess[str]:
+    serial = resolve_adb_serial_for_command(adb_serial) or ""
+    dut = _ADB_DUT_CACHE.get(serial)
+    if dut is None:
+        dut = AndroidDut(serialnumber=serial, prepare=False)
+        _ADB_DUT_CACHE[serial] = dut
+    result = dut.adb_call(*args, timeout=timeout_sec)
+    command = getattr(result, "command", [adb_executable, *args])
+    return subprocess.CompletedProcess(command, result.returncode, result.stdout, result.stderr)
 
 
 def _serial_for_log(serial: str | None) -> str:
@@ -351,14 +367,10 @@ def _force_stop_apk(
     adb_serial: str | None = None,
     package_name: str = PACKAGE_NAME,
 ) -> subprocess.CompletedProcess[str]:
-    cmd = adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
-    cmd.extend(["shell", "am", "force-stop", package_name])
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        check=False,
-        creationflags=subprocess_creationflags(),
+    result = _run_adb_command(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        args=["shell", "am", "force-stop", package_name],
     )
     if result.returncode != 0:
         smart_log(
@@ -438,14 +450,10 @@ def _launch_apk_main(
     package_name: str = PACKAGE_NAME,
 ) -> subprocess.CompletedProcess[str]:
     component = f"{package_name}/com.smarttest.mobile.MainActivity"
-    cmd = adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
-    cmd.extend(["shell", "am", "start", "-n", component])
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        check=False,
-        creationflags=subprocess_creationflags(),
+    result = _run_adb_command(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        args=["shell", "am", "start", "-n", component],
     )
     if result.returncode != 0:
         smart_log(
@@ -462,14 +470,10 @@ def _adb_get_state(
     adb_executable: str,
     adb_serial: str | None = None,
 ) -> str:
-    cmd = adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
-    cmd.append("get-state")
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        check=False,
-        creationflags=subprocess_creationflags(),
+    result = _run_adb_command(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        args=["get-state"],
     )
     if result.returncode != 0:
         stderr = str(result.stderr or "").strip().lower()
@@ -484,14 +488,10 @@ def _adb_is_boot_completed(
     adb_executable: str,
     adb_serial: str | None = None,
 ) -> bool | None:
-    cmd = adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
-    cmd.extend(["shell", "getprop", "sys.boot_completed"])
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        check=False,
-        creationflags=subprocess_creationflags(),
+    result = _run_adb_command(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        args=["shell", "getprop", "sys.boot_completed"],
     )
     if result.returncode != 0:
         return None
@@ -510,41 +510,36 @@ def _start_apk_run(
     adb_serial: str | None = None,
     log_prefix: str = "[testing.runner.apk_client]",
 ) -> subprocess.CompletedProcess[str]:
-    cmd = adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
-    cmd.extend(
-        [
-            "shell",
-            "am",
-            "start",
-            "-n",
-            component,
-            "-a",
-            DEFAULT_ACTION_RUN,
-            "--es",
-            "case_id",
-            case_id,
-            "--es",
-            "source",
-            source,
-            "--es",
-            "trigger",
-            trigger,
-            "--es",
-            "request_id",
-            request_id,
-        ],
-    )
+    args = [
+        "shell",
+        "am",
+        "start",
+        "-n",
+        component,
+        "-a",
+        DEFAULT_ACTION_RUN,
+        "--es",
+        "case_id",
+        case_id,
+        "--es",
+        "source",
+        source,
+        "--es",
+        "trigger",
+        trigger,
+        "--es",
+        "request_id",
+        request_id,
+    ]
     if params:
         encoded_params = base64.urlsafe_b64encode(
             json.dumps(dict(params), ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
         ).decode("ascii").rstrip("=")
-        cmd.extend(["--es", "params_b64", encoded_params])
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        check=False,
-        creationflags=subprocess_creationflags(),
+        args.extend(["--es", "params_b64", encoded_params])
+    result = _run_adb_command(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        args=args,
     )
     if result.returncode != 0:
         smart_log(
@@ -566,9 +561,10 @@ def stop_apk_run(
         raise RuntimeError("adb is not available in PATH.")
 
     component = os.environ.get("SMARTTEST_ANDROID_COMPONENT", DEFAULT_COMPONENT)
-    cmd = adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
-    cmd.extend(
-        [
+    result = _run_adb_command(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        args=[
             "shell",
             "am",
             "start",
@@ -581,13 +577,6 @@ def stop_apk_run(
             reason,
         ],
     )
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        check=False,
-        creationflags=subprocess_creationflags(),
-    )
     return result
 
 
@@ -596,16 +585,18 @@ def apk_installed(*, adb_serial: str | None = None, package_name: str = PACKAGE_
     if not adb_executable:
         raise RuntimeError("adb is not available in PATH.")
 
-    cmd = adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
-    cmd.extend(["shell", "pm", "path", package_name])
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        check=False,
-        creationflags=subprocess_creationflags(),
+    result = _run_adb_command(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        args=["shell", "pm", "path", package_name],
     )
     if result.returncode != 0:
+        if _adb_result_is_offline(result):
+            raise RuntimeError(
+                "ADB device is unavailable while checking APK install state.\n"
+                f"serial={_serial_for_log(adb_serial)}\n"
+                f"stderr={str(result.stderr or '').strip()}"
+            )
         return False
     return "package:" in str(result.stdout or "")
 
@@ -625,16 +616,10 @@ def _run_snapshot_command(
     adb_serial: str | None,
     shell_args: list[str],
 ) -> subprocess.CompletedProcess[str]:
-    cmd = adb_base_cmd(adb_executable=adb_executable, adb_serial=adb_serial)
-    cmd.extend(["shell", *shell_args])
-    return subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-        creationflags=subprocess_creationflags(),
+    return _run_adb_command(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        args=["shell", *shell_args],
     )
 
 

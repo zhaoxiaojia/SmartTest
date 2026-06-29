@@ -180,15 +180,12 @@ class BaseDut:
             self.test_tool = 'iperf3' if 'iperf3' in cmds else 'iperf'
             self.tool_path = iperf_cfg.get('path', '')
             self._current_udp_mode = _is_udp_command(self.iperf_client_cmd) or _is_udp_command(self.iperf_server_cmd)
-            smart_log(f'test_tool {self.test_tool}', level="info")
 
         if self.rvr_tool == 'ixchariot':
             self.ix = ix()
             ix_cfg = rvr_cfg.get('ixchariot', {})
             self.test_tool = ix_cfg
             self.script_path = ix_cfg.get('path', '')
-            smart_log(f'path {self.script_path}', level="info")
-            smart_log(f'test_tool {self.test_tool}', level="info")
             self.ix.modify_tcl_script(
                 "set ixchariot_installation_dir ",
                 f"set ixchariot_installation_dir \"{self.script_path}\"\n",

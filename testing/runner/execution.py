@@ -39,6 +39,25 @@ class TestRunSession:
     def cleanup(self) -> None:
         self.tempdir.cleanup()
 
+    def cleanup_failed_run(self, reason: str = "pytest run failed") -> None:
+        if not self.adb_serial:
+            return
+        try:
+            from testing.runner.apk_client import _force_stop_apk, stop_apk_run
+            import shutil
+
+            stop_apk_run(adb_serial=self.adb_serial, reason=reason)
+            adb_executable = shutil.which("adb")
+            if adb_executable:
+                _force_stop_apk(adb_executable=adb_executable, adb_serial=self.adb_serial)
+        except Exception as exc:  # noqa: BLE001
+            smart_log(
+                f"failed-run APK cleanup failed: {exc}",
+                level="warning",
+                domain="runner",
+                source="execution",
+            )
+
     def stop(self, reason: str = "UI stop button") -> None:
         if self.process.poll() is not None:
             return

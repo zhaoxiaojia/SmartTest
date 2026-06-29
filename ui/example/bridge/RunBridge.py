@@ -282,6 +282,8 @@ class RunBridge(QObject):
             self._append_log("[run] completed successfully")
         else:
             self._append_log(f"[run] failed with exit code {returncode}")
+            if self._session is not None:
+                self._session.cleanup_failed_run(f"pytest failed with exit code {returncode}")
         try:
             report = smarttest_context().finish_run(
                 returncode=returncode,
