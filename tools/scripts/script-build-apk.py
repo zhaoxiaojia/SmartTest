@@ -10,10 +10,27 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _gradle_command(gradlew: Path) -> list[str]:
+    if os.name == "nt" or os.access(gradlew, os.X_OK):
+        return [str(gradlew)]
+    return ["sh", str(gradlew)]
+
+
+def _build_env() -> dict[str, str]:
+    build_env = os.environ.copy()
+    if build_env.get("JAVA_HOME"):
+        return build_env
+    homebrew_jdk17 = Path("/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home")
+    if homebrew_jdk17.exists():
+        build_env["JAVA_HOME"] = str(homebrew_jdk17)
+        build_env["PATH"] = f"{homebrew_jdk17 / 'bin'}{os.pathsep}{build_env.get('PATH', '')}"
+    return build_env
+
+
 def _build_android_client(repo_root: Path) -> Path:
     android_dir = repo_root / "android_client"
     gradlew = android_dir / ("gradlew.bat" if os.name == "nt" else "gradlew")
-    subprocess.run([str(gradlew), ":app:assembleDebug"], cwd=android_dir, check=True)
+    subprocess.run([*_gradle_command(gradlew), ":app:assembleDebug"], cwd=android_dir, env=_build_env(), check=True)
     subprocess.run(
         [env.python(), "-c", "import android_client; android_client.sign_privileged_apk()"],
         cwd=repo_root,

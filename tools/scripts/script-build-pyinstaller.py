@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import env
@@ -25,5 +26,6 @@ if __name__ == "__main__":
         env=build_env,
         check=True,
     )
-    subprocess.run([env.python(), str(scripts_dir / "script-build-python-runtime.py")], check=True)
+    if sys.platform.startswith("win"):
+        subprocess.run([env.python(), str(scripts_dir / "script-build-python-runtime.py")], check=True)
     print(f"PyInstaller dist folder: {dist_dir}")

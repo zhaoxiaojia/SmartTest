@@ -18,3 +18,5 @@ if __name__ == "__main__":
     subprocess.run([env.pip(), "install", "PyOpenGL==3.1.7"])
     subprocess.run([env.pip(), "install", "py7zr==0.22.0"])
     subprocess.run([env.pip(), "install", "pyserial==3.5"])
+    subprocess.run([env.pip(), "install", "ldap3==2.9.1"])
+    subprocess.run([env.pip(), "install", "pycryptodome==3.23.0"])

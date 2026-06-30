@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 
 APP_NAME = "SmartTest"
 
@@ -25,6 +26,12 @@ tools_root = os.path.join(repo_root, "tools")
 ai_root = os.path.join(repo_root, "AI")
 jira_tool_root = os.path.join(repo_root, "jira_tool")
 build_manifest = os.path.join(repo_root, "build", "generated", "build_manifest.json")
+app_version = "0.0.0"
+try:
+    with open(build_manifest, "r", encoding="utf-8") as fh:
+        app_version = str(json.load(fh).get("version") or app_version)
+except Exception:
+    pass
 android_privapp_permissions = os.path.join(
     repo_root,
     "android_client",
@@ -108,6 +115,11 @@ a = Analysis(
         "FluentUI.FluentUI",
         "PySide6.QtWebEngineCore",
         "PySide6.QtWebEngineQuick",
+        "Crypto.Hash.MD4",
+        "ldap3",
+        "ldap3.core",
+        "ldap3.protocol",
+        "pyasn1",
         "serial",
         "serial.tools.list_ports",
     ],
@@ -185,7 +197,13 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=os.path.join(repo_root, "tools", "packaging", "assets", "SmartTest.ico"),
+    icon=os.path.join(
+        repo_root,
+        "tools",
+        "packaging",
+        "assets",
+        "favicon.icns" if sys.platform.startswith("darwin") else "SmartTest.ico",
+    ),
     contents_directory=".",
 )
 
@@ -203,5 +221,15 @@ app = BUNDLE(
     coll,
     name=APP_NAME + '.app',
     icon=os.path.join(repo_root, "tools", "packaging", "assets", "favicon.icns"),
-    bundle_identifier=None
+    bundle_identifier="com.amlogic.smarttest",
+    version=app_version,
+    info_plist={
+        "CFBundleDisplayName": APP_NAME,
+        "CFBundleName": APP_NAME,
+        "CFBundleShortVersionString": app_version,
+        "CFBundleVersion": app_version,
+        "LSApplicationCategoryType": "public.app-category.developer-tools",
+        "LSMinimumSystemVersion": "11.0",
+        "NSHighResolutionCapable": True,
+    },
 )

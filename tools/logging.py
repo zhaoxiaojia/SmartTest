@@ -169,6 +169,8 @@ def default_log_dir() -> Path:
     local_app_data = _safe_text(os.environ.get("LOCALAPPDATA"))
     if local_app_data:
         return Path(local_app_data) / "Amlogic" / "SmartTest" / "logs"
+    if sys.platform.startswith("darwin"):
+        return Path.home() / "Library" / "Logs" / "Amlogic" / "SmartTest"
     return Path.cwd() / "logs"
 
 

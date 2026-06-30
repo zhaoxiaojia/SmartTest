@@ -67,7 +67,7 @@ import "../global"
         anchors{
             top: parent.top
             right: parent.right
-            rightMargin: FluTools.isMacos() ? 8 : appBar.layoutStandardbuttons.width
+            rightMargin: appBar.layoutStandardbuttons.width
         }
         y: 0
         onClicked: {

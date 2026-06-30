@@ -1,7 +1,10 @@
 build
 dist
+dist_installer/
+logs/
 resource_rc.py
 __pycache__
+.DS_Store
 .idea
 venv
 .venv

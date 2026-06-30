@@ -32,10 +32,16 @@ def _run_packaging_preflight(repo_root: Path) -> None:
     for test_dir in pytest_dirs:
         if test_dir.exists():
             _run([python, "-m", "pytest", str(test_dir.relative_to(repo_root)), "-q"], cwd=str(repo_root))
-    _run([python, "-m", "compileall", "testing", "tools", "ui\\example\\bridge"], cwd=str(repo_root))
+    _run([python, "-m", "compileall", "testing", "tools", str(Path("ui") / "example" / "bridge")], cwd=str(repo_root))
 
 
 def _verify_dist_runtime(repo_root: Path) -> None:
+    if sys.platform.startswith("darwin"):
+        app_path = repo_root / "dist" / "SmartTest.app"
+        if not app_path.exists():
+            raise SystemExit(f"Packaged macOS app is missing: {app_path}")
+        return
+
     required_paths = [
         repo_root / "dist" / "SmartTest.exe",
         repo_root / "dist" / "python" / "python.exe",
@@ -59,6 +65,17 @@ def _verify_dist_runtime(repo_root: Path) -> None:
     )
 
 
+def _create_macos_zip(repo_root: Path) -> Path:
+    app_path = repo_root / "dist" / "SmartTest.app"
+    if not app_path.exists():
+        raise SystemExit(f"Packaged macOS app is missing: {app_path}")
+    output_dir = repo_root / "dist_installer"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    archive_base = output_dir / "SmartTest-macos"
+    archive_path = Path(shutil.make_archive(str(archive_base), "zip", root_dir=app_path.parent, base_dir=app_path.name))
+    return archive_path
+
+
 def _verify_signed_apk_artifact(repo_root: Path) -> None:
     apk_path = repo_root / "dist_installer" / "app-debug-platform.apk"
     if not apk_path.exists():
@@ -66,7 +83,7 @@ def _verify_signed_apk_artifact(repo_root: Path) -> None:
             "Signed Android APK is missing:\n"
             f"{apk_path}\n"
             "Build it first with:\n"
-            r".\.venv\Scripts\python.exe tools\scripts\script-build-apk.py"
+            f"{_python(repo_root)} {repo_root / 'tools' / 'scripts' / 'script-build-apk.py'}"
         )
     if apk_path.stat().st_size <= 0:
         raise SystemExit(f"Signed Android APK is empty: {apk_path}")
@@ -145,34 +162,47 @@ def _find_iscc():
     return None
 
 
+def _build_windows_installer(repo_root: Path, scripts_dir: str) -> None:
+    # 0) Fail fast on checks that protect the installed runtime from import/resource drift.
+    _run_packaging_preflight(repo_root)
+    _verify_signed_apk_artifact(repo_root)
+
+    # 1) Build app (PyInstaller) -> dist/
+    _run([_python(repo_root), os.path.join(scripts_dir, "script-build-pyinstaller.py")])
+
+    # 2) Verify the packaged runtime contains the Python subprocess dependencies.
+    _verify_dist_runtime(repo_root)
+
+    # 3) Wrap dist/ into an installer (Inno Setup) -> dist_installer/
+    iscc = _find_iscc()
+    if not iscc:
+        raise SystemExit(
+            "Inno Setup not found (iscc.exe). Install it first, then re-run this script."
+        )
+    iss = os.path.join(str(repo_root), "tools", "packaging", "innosetup", "SmartTest.iss")
+    _run([iscc, iss], cwd=os.path.dirname(iss))
+
+
+def _build_macos_package(repo_root: Path, scripts_dir: str) -> None:
+    _run_packaging_preflight(repo_root)
+    _verify_signed_apk_artifact(repo_root)
+    _run([_python(repo_root), os.path.join(scripts_dir, "script-build-pyinstaller.py")])
+    _verify_dist_runtime(repo_root)
+    archive_path = _create_macos_zip(repo_root)
+    print(f"macOS package output: {archive_path}")
+
+
 if __name__ == "__main__":
     repo_root = _repo_root()
     scripts_dir = os.path.dirname(os.path.abspath(__file__))
 
     if sys.platform.startswith("win"):
-        # 0) Fail fast on checks that protect the installed runtime from import/resource drift.
-        _run_packaging_preflight(repo_root)
-        _verify_signed_apk_artifact(repo_root)
-
-        # 1) Build app (PyInstaller) -> dist/
-        _run([_python(repo_root), os.path.join(scripts_dir, "script-build-pyinstaller.py")])
-
-        # 2) Verify the packaged runtime contains the Python subprocess dependencies.
-        _verify_dist_runtime(repo_root)
-
-        # 3) Wrap dist/ into an installer (Inno Setup) -> dist_installer/
-        iscc = _find_iscc()
-        if not iscc:
-            raise SystemExit(
-                "Inno Setup not found (iscc.exe). Install it first, then re-run this script."
-            )
-        iss = os.path.join(str(repo_root), "tools", "packaging", "innosetup", "SmartTest.iss")
-        _run([iscc, iss], cwd=os.path.dirname(iss))
-
+        _build_windows_installer(repo_root, scripts_dir)
         raise SystemExit(0)
 
     if sys.platform.startswith("darwin"):
-        raise SystemExit("macOS installer packaging is not wired yet in this repo. Build on macOS with a DMG step.")
+        _build_macos_package(repo_root, scripts_dir)
+        raise SystemExit(0)
 
     if sys.platform.startswith("linux"):
         raise SystemExit("Linux installer packaging is not wired yet in this repo. Build on Linux with AppImage/deb/rpm step.")

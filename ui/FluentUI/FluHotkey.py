@@ -4,7 +4,7 @@ from PySide6.QtCore import Signal, QObject, Property
 
 keyboard = None
 
-if not sys.platform.startswith("linux"):
+if not (sys.platform.startswith("linux") or sys.platform.startswith("darwin")):
     try:
         import keyboard
     except Exception:
@@ -30,12 +30,12 @@ class FluHotkey(QObject):
         self._isRegistered: bool = False
 
         def handleSequenceChanged():
-            if sys.platform.startswith("linux"):
+            if sys.platform.startswith("linux") or sys.platform.startswith("darwin"):
                 self.isRegistered = False
                 if not FluHotkey._warning_printed:
                     FluHotkey._warning_printed = True
                     print(
-                        "[FluHotkey] global hotkeys disabled on linux because keyboard requires elevated permissions",
+                        f"[FluHotkey] global hotkeys disabled on {sys.platform} because keyboard requires elevated permissions",
                         file=sys.stderr,
                     )
                 return

@@ -66,6 +66,17 @@ def _subprocess_creationflags() -> int:
     return getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
+def _build_env() -> dict[str, str]:
+    build_env = os.environ.copy()
+    if build_env.get("JAVA_HOME"):
+        return build_env
+    homebrew_jdk17 = Path("/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home")
+    if homebrew_jdk17.exists():
+        build_env["JAVA_HOME"] = str(homebrew_jdk17)
+        build_env["PATH"] = f"{homebrew_jdk17 / 'bin'}{os.pathsep}{build_env.get('PATH', '')}"
+    return build_env
+
+
 def _adb_base_cmd(*, adb_executable: str, adb_serial: str | None = None) -> list[str]:
     command = [adb_executable]
     serial = resolve_adb_serial_for_command(adb_serial)
@@ -117,9 +128,11 @@ def _ensure_debug_apk_built(apk_path: Path) -> None:
         smart_log("build check result: existing debug APK is up to date", domain="android", source="android_client.install")
         return
     smart_log("local APK is missing or stale; build :app:assembleDebug", domain="android", source="android_client.install")
+    gradle_cmd = [str(gradlew)] if os.name == "nt" or os.access(gradlew, os.X_OK) else ["sh", str(gradlew)]
     result = subprocess.run(
-        [str(gradlew), ":app:assembleDebug"],
+        [*gradle_cmd, ":app:assembleDebug"],
         cwd=str(project_dir),
+        env=_build_env(),
         capture_output=True,
         text=True,
         check=False,
@@ -144,14 +157,30 @@ def _find_apksigner() -> str | None:
     direct = shutil.which("apksigner")
     if direct:
         return direct
-    android_home = os.environ.get("ANDROID_HOME", "").strip()
-    if not android_home:
-        return None
-    build_tools_dir = Path(android_home) / "build-tools"
-    if not build_tools_dir.exists():
-        return None
+    sdk_roots: list[Path] = []
+    for raw in [os.environ.get("ANDROID_HOME", ""), os.environ.get("ANDROID_SDK_ROOT", "")]:
+        text = raw.strip()
+        if text:
+            sdk_roots.append(Path(text))
+    local_properties = Path(__file__).resolve().parent / "local.properties"
+    if local_properties.exists():
+        for line in local_properties.read_text(encoding="utf-8").splitlines():
+            if line.startswith("sdk.dir="):
+                sdk_roots.append(Path(line.split("=", 1)[1].strip()))
+                break
+    sdk_roots.extend(
+        [
+            Path("/opt/homebrew/share/android-commandlinetools"),
+            Path.home() / "Library" / "Android" / "sdk",
+        ],
+    )
     candidates = sorted(
-        [path for path in build_tools_dir.iterdir() if path.is_dir()],
+        [
+            path
+            for sdk_root in sdk_roots
+            for path in ((sdk_root / "build-tools").iterdir() if (sdk_root / "build-tools").exists() else [])
+            if path.is_dir()
+        ],
         key=lambda item: item.name,
         reverse=True,
     )
