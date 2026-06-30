@@ -528,6 +528,7 @@ FluPage {
                                                         placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
                                                         cleanEnabled: false
                                                         property bool persistReady: false
+                                                        property bool syncingFromState: false
                                                         function stateText(){
                                                             var value = fieldTextValue(fieldData)
                                                             return value === undefined || value === null ? "" : (value + "")
@@ -538,11 +539,13 @@ FluPage {
                                                             }
                                                             var nextText = stateText()
                                                             if(text !== nextText){
+                                                                syncingFromState = true
                                                                 text = nextText
+                                                                syncingFromState = false
                                                             }
                                                         }
                                                         function persistValue(){
-                                                            if(!persistReady){
+                                                            if(!persistReady || syncingFromState){
                                                                 return
                                                             }
                                                             if(fieldData.type === "int"){
@@ -611,6 +614,7 @@ FluPage {
                                                     Layout.fillWidth: true
                                                     placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
                                                     property bool persistReady: false
+                                                    property bool syncingFromState: false
                                                     function stateText(){
                                                         var value = fieldTextValue(fieldData)
                                                         return value === undefined || value === null ? "" : (value + "")
@@ -621,11 +625,13 @@ FluPage {
                                                         }
                                                         var nextText = stateText()
                                                         if(text !== nextText){
+                                                            syncingFromState = true
                                                             text = nextText
+                                                            syncingFromState = false
                                                         }
                                                     }
                                                     function persistValue(){
-                                                        if(!persistReady){
+                                                        if(!persistReady || syncingFromState){
                                                             return
                                                         }
                                                         if(fieldData.type === "int"){
@@ -853,16 +859,37 @@ FluPage {
                                     id: text_global_param
                                     visible: fieldData.type !== "enum"
                                     Layout.fillWidth: true
-                                    Binding {
-                                        target: text_global_param
-                                        property: "text"
-                                        when: text_global_param.visible && !text_global_param.activeFocus
-                                        value: {
-                                            var _version = stateVersion
-                                            return fieldTextValue(fieldData)
+                                    property bool persistReady: false
+                                    property bool syncingFromState: false
+                                    function syncFromState(){
+                                        if(!visible || activeFocus){
+                                            return
+                                        }
+                                        var nextText = fieldTextValue(fieldData)
+                                        if(text !== nextText){
+                                            syncingFromState = true
+                                            text = nextText
+                                            syncingFromState = false
                                         }
                                     }
-                                    onTextChanged: TestPageBridge.saveGlobalValue(fieldData.key, text)
+                                    function persistValue(){
+                                        if(!persistReady || syncingFromState){
+                                            return
+                                        }
+                                        TestPageBridge.saveGlobalValue(fieldData.key, text)
+                                    }
+                                    onTextChanged: persistValue()
+                                    Component.onCompleted: {
+                                        syncFromState()
+                                        persistReady = true
+                                    }
+                                    onVisibleChanged: syncFromState()
+                                    Connections {
+                                        target: page_root
+                                        function onStateVersionChanged() {
+                                            text_global_param.syncFromState()
+                                        }
+                                    }
                                     onEditingFinished: TestPageBridge.setGlobalValue(fieldData.key, text)
                                 }
                                 FluDivider{

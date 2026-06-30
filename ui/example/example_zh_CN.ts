@@ -1357,22 +1357,22 @@ Updated content:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="294"/>
+        <location filename="bridge/RunBridge.py" line="296"/>
         <source>Failed to save run report. {detail}</source>
         <translation>保存运行报告失败。{detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="297"/>
+        <location filename="bridge/RunBridge.py" line="299"/>
         <source>Failed to finish test run. {detail}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="342"/>
+        <location filename="bridge/RunBridge.py" line="344"/>
         <source>No selected test cases to run.</source>
         <translation>没有可运行的已选测试用例。</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="357"/>
+        <location filename="bridge/RunBridge.py" line="359"/>
         <source>Failed to start pytest run. {detail}</source>
         <translation>启动 pytest 运行失败。{detail}</translation>
     </message>

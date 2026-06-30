@@ -8,7 +8,7 @@ from testing.tool.dut_tool.duts.android import android
 from testing.tool.dut_tool.features.local_playback import run_local_playback_stress
 
 
-pytestmark = pytest.mark.case_type("stress")
+pytestmark = [pytest.mark.case_type("stress"), pytest.mark.stress]
 
 CASE_ID = "local_playback_stress"
 

@@ -14,6 +14,7 @@ from testing.steps.definitions import ActionContext, get_action
 
 pytestmark = [
     pytest.mark.case_type("stress"),
+    pytest.mark.stress,
     pytest.mark.requires_equipment("relay"),
 ]
 

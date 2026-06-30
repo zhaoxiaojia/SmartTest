@@ -53,7 +53,26 @@ def connect_again(func):
         if ':5555' in self.serialnumber:
             self.command_runner.run(f'adb connect {self.serialnumber}', shell=True)
         self.wait_devices()
-        return func(self, *args, **kwargs)
+        result = func(self, *args, **kwargs)
+        if ':5555' in self.serialnumber:
+            text = f"{getattr(result, 'stdout', '') or ''}\n{getattr(result, 'stderr', '') or ''}".lower()
+            if (
+                "device offline" in text
+                or ("offline" in text and "error:" in text)
+                or ("device" in text and "not found" in text)
+                or "no devices/emulators found" in text
+            ):
+                smart_log(
+                    f"adb offline detected; reconnect serial={self.serialnumber}",
+                    level="warning",
+                    domain="dut",
+                    source="android",
+                )
+                self.command_runner.run(f'adb disconnect {self.serialnumber}', shell=True)
+                self.command_runner.run(f'adb connect {self.serialnumber}', shell=True)
+                self.wait_devices()
+                return func(self, *args, **kwargs)
+        return result
 
     return inner
 

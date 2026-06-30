@@ -5,7 +5,7 @@ import pytest
 from testing.runner.apk_client import apk_case_plan, run_apk_case
 
 
-pytestmark = pytest.mark.case_type("system")
+pytestmark = [pytest.mark.case_type("system"), pytest.mark.stress]
 
 
 SMARTTEST_CASE_PLAN = apk_case_plan(

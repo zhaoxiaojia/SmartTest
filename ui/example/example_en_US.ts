@@ -1310,22 +1310,22 @@ Updated content:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="294"/>
+        <location filename="bridge/RunBridge.py" line="296"/>
         <source>Failed to save run report. {detail}</source>
         <translation>Failed to save run report. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="297"/>
+        <location filename="bridge/RunBridge.py" line="299"/>
         <source>Failed to finish test run. {detail}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="342"/>
+        <location filename="bridge/RunBridge.py" line="344"/>
         <source>No selected test cases to run.</source>
         <translation>No selected test cases to run.</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="357"/>
+        <location filename="bridge/RunBridge.py" line="359"/>
         <source>Failed to start pytest run. {detail}</source>
         <translation>Failed to start pytest run. {detail}</translation>
     </message>

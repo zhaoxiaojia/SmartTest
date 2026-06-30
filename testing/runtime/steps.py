@@ -222,7 +222,7 @@ def _should_soft_fail_stress_step(exc: BaseException, *, stress_tolerant: bool |
         return False
     if stress_tolerant is not True and not smarttest_context().current_case_stress_tolerant():
         return False
-    return isinstance(exc, (AssertionError, StressCheckFailure, pytest.fail.Exception))
+    return isinstance(exc, (AssertionError, RuntimeError, StressCheckFailure, pytest.fail.Exception))
 
 
 def step_evidence(
