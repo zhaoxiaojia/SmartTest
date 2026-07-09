@@ -9,9 +9,9 @@ Button {
     property string contentDescription: ""
     property color disableColor: FluTheme.dark ? Qt.rgba(82/255,82/255,82/255,1) : Qt.rgba(233/255,233/255,233/255,1)
     property color checkColor: FluTheme.primaryColor
-    property color hoverColor: FluTheme.dark ? Qt.rgba(62/255,62/255,62/255,1) : Qt.rgba(240/255,240/255,240/255,1)
-    property color normalColor: FluTheme.dark ? Qt.rgba(50/255,50/255,50/255,1) : Qt.rgba(253/255,253/255,253/255,1)
-    property color borderNormalColor: FluTheme.dark ? Qt.rgba(161/255,161/255,161/255,1) : Qt.rgba(141/255,141/255,141/255,1)
+    property color hoverColor: FluTheme.dark ? Qt.rgba(44/255,58/255,66/255,1) : Qt.rgba(236/255,250/255,255/255,1)
+    property color normalColor: FluTheme.dark ? Qt.rgba(38/255,45/255,52/255,1) : Qt.rgba(250/255,253/255,255/255,1)
+    property color borderNormalColor: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.46) : Qt.rgba(0/255,178/255,255/255,0.50)
     property color borderCheckColor: FluTheme.primaryColor
     property color borderDisableColor: FluTheme.dark ? Qt.rgba(50/255,50/255,50/255,1) : Qt.rgba(200/255,200/255,200/255,1)
     property color dotNormalColor: FluTheme.dark ? Qt.rgba(208/255,208/255,208/255,1) : Qt.rgba(93/255,93/255,93/255,1)
@@ -75,6 +75,19 @@ Button {
                     return borderCheckColor
                 }
                 return borderNormalColor
+            }
+            Rectangle{
+                anchors.fill: parent
+                anchors.margins: -5
+                radius: parent.radius + 5
+                color: "#00000000"
+                border.width: checked && enabled ? 2 : (hovered && enabled ? 1 : 0)
+                border.color: checked ? (FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.50) : Qt.rgba(0/255,178/255,255/255,0.45)) : (FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.25) : Qt.rgba(0/255,178/255,255/255,0.22))
+                opacity: (checked || hovered) && enabled ? 1 : 0
+                Behavior on opacity {
+                    enabled: FluTheme.animationEnabled
+                    NumberAnimation{ duration: 167; easing.type: Easing.OutCubic }
+                }
             }
             FluIcon {
                 width:  parent.height

@@ -1193,28 +1193,28 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="439"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="440"/>
         <source>Dark Mode</source>
         <translation>夜间模式</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="146"/>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="179"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="147"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="180"/>
         <source>Quit</source>
         <translation>退出</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="147"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="148"/>
         <source>Are you sure you want to exit the program?</source>
         <translation>您确定要退出程序吗</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="148"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="149"/>
         <source>Minimize</source>
         <translation>最小化</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="355"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="356"/>
         <source>Friendly Reminder</source>
         <translation>友情提示</translation>
     </message>
@@ -1223,88 +1223,88 @@
         <translation type="obsolete">FluentUI 鍦ㄦ墭鐩樹腑澶勪簬闅愯棌鐘舵€侊紝鍗曞嚮鎵樼洏浠ュ啀娆℃縺娲荤獥鍙</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="180"/>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="453"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="181"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="454"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="65"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="66"/>
         <source>About</source>
         <translation>关于</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="156"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="157"/>
         <source>Remember my choice</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="195"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="196"/>
         <source>Open in Separate Window</source>
         <translation>在独立窗口中打开</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="296"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="297"/>
         <source>Click Time</source>
         <translation>点击次数</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="306"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="307"/>
         <source>Search</source>
         <translation>搜索</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="355"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="356"/>
         <source>SmartTest is hidden from the tray, click on the tray to activate the window again</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="433"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="434"/>
         <source>Finish</source>
         <translation>完成</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="434"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="435"/>
         <source>Next</source>
         <translation>下一步</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="435"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="436"/>
         <source>Previous</source>
         <translation>上一步</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="439"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="440"/>
         <source>Here you can switch to night mode.</source>
         <translation>在这里，您可以切换到夜间模式。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="441"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="442"/>
         <source>Hide Easter eggs</source>
         <translation>隐藏彩蛋</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="441"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="442"/>
         <source>Try a few more clicks!!</source>
         <translation>再试几下！！</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="450"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="451"/>
         <source>Upgrade Tips</source>
         <translation>升级提示</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="451"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="452"/>
         <source>SmartTest update </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="451"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="452"/>
         <source> -- Current version </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="451"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="452"/>
         <source> 
 
 Updated content: 
@@ -1312,7 +1312,7 @@ Updated content:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="490"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="491"/>
         <source>Update service is not configured</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1335,12 +1335,12 @@ Updated content:
 </translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="454"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="455"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="483"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="484"/>
         <source>The current version is already the latest</source>
         <translation>当前版本已经是最新版本</translation>
     </message>
@@ -4470,112 +4470,112 @@ Some contents...</source>
         <translation>测试</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="235"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="231"/>
         <source>Test Cases</source>
         <translation>测试用例</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="240"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="236"/>
         <source>Filter by file...</source>
         <translation>按文件过滤...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="289"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="285"/>
         <source>Selected (%1)</source>
         <translation>已选择（%1）</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="409"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="405"/>
         <source>Case Parameters (%1)</source>
         <translation>用例参数（%1）</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="425"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="421"/>
         <source>Select one or more test files to inspect the required parameters for each case.</source>
         <translation>请选择一个或多个测试文件，以查看每个用例所需的参数。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="477"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="472"/>
         <source>No configurable parameters are required for this case.</source>
         <translation>这个用例不需要可配置参数。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="696"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="697"/>
         <source>No connected Bluetooth devices found on the current DUT.</source>
         <translation>当前 DUT 未找到已配对的蓝牙设备。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="727"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="728"/>
         <source>Enabled</source>
         <translation>启用</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="727"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="728"/>
         <source>Disabled</source>
         <translation>禁用</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="792"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="793"/>
         <source>DUT</source>
         <translation>DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="801"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="802"/>
         <source>Refresh</source>
         <translation>刷新</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="847"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="848"/>
         <source>No DUT</source>
         <translation>无 DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1138"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1160"/>
         <source>Add terminal</source>
         <translation type="unfinished">添加端子</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1155"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1177"/>
         <source>Terminal</source>
         <translation type="unfinished">端子</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1174"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1196"/>
         <source>Wiring mode</source>
         <translation type="unfinished">接线模式</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1193"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1215"/>
         <source>Press seconds</source>
         <translation type="unfinished">按压秒数</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1217"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1239"/>
         <source>Remove terminal</source>
         <translation type="unfinished">删除端子</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1248"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1270"/>
         <source>Stop</source>
         <translation>停止</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1248"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1270"/>
         <source>Start</source>
         <translation>开始</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1255"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1277"/>
         <source>Run</source>
         <translation>运行</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1262"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1284"/>
         <source>Required Parameters</source>
         <translation>必填参数</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1264"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1286"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -4588,12 +4588,12 @@ Some contents...</source>
         <translation type="vanished">鐗规畩鍙傛暟锛堟寜鐢ㄤ緥绫诲瀷锛</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="893"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="915"/>
         <source>Env</source>
         <translation>陪测</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="921"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="943"/>
         <source>Type</source>
         <translation>类型</translation>
     </message>

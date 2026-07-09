@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.update
 import java.io.File
 
 object SmartTestRunStore {
+    private const val MAX_LOG_LINES = 500
+    private const val MAX_STEP_STATES = 120
     private val mutableState = MutableStateFlow(RunnerSnapshot())
     val state: StateFlow<RunnerSnapshot> = mutableState.asStateFlow()
     @Volatile
@@ -22,6 +24,12 @@ object SmartTestRunStore {
     }
 
     fun startRun(request: TestRunRequest, cases: List<RunningCase>, plannedSteps: List<RunnerStepPlan>) {
+        val initialLogs = listOf(
+            timestamped(
+                "Received command from ${request.source}, trigger=${request.trigger}, requestId=${request.requestId}",
+            ),
+            timestamped("Prepared batch with ${cases.size} case(s)"),
+        )
         mutableState.value = RunnerSnapshot(
             phase = RunPhase.Running,
             activeRequest = request,
@@ -30,12 +38,9 @@ object SmartTestRunStore {
             stepStates = plannedSteps.associate { step ->
                 step.id to RunnerStepState(id = step.id, status = "planned")
             },
-            logLines = listOf(
-                timestamped(
-                    "Received command from ${request.source}, trigger=${request.trigger}, requestId=${request.requestId}",
-                ),
-                timestamped("Prepared batch with ${cases.size} case(s)"),
-            ),
+            logLines = initialLogs,
+            logCount = initialLogs.size,
+            logStartIndex = 0,
             report = null,
             lastCommandSummary = "${request.trigger} [${request.requestId}] -> ${request.caseIds.joinToString()}",
             currentLoop = null,
@@ -48,7 +53,7 @@ object SmartTestRunStore {
 
     fun appendLog(message: String) {
         mutableState.update { snapshot ->
-            snapshot.copy(logLines = snapshot.logLines + timestamped(message))
+            snapshot.withAppendedLog(timestamped(message))
         }
         persistSnapshot(mutableState.value)
     }
@@ -77,7 +82,7 @@ object SmartTestRunStore {
                 totalLoops = totalLoops,
                 currentStage = stage,
                 currentStepId = stepId ?: snapshot.currentStepId,
-                stepStates = updatedStates,
+                stepStates = trimStepStates(updatedStates, stepId ?: snapshot.currentStepId),
             )
         }
         persistSnapshot(mutableState.value)
@@ -85,15 +90,16 @@ object SmartTestRunStore {
 
     fun finishStep(stepId: String, passed: Boolean, actual: String = "", error: String = "") {
         mutableState.update { snapshot ->
-            snapshot.copy(
-                stepStates = snapshot.stepStates + (
+            val updatedStates = snapshot.stepStates + (
                     stepId to RunnerStepState(
                         id = stepId,
                         status = if (passed) "passed" else "failed",
                         actual = actual,
                         error = error,
                     )
-                    ),
+                    )
+            snapshot.copy(
+                stepStates = trimStepStates(updatedStates, stepId),
             )
         }
         persistSnapshot(mutableState.value)
@@ -103,10 +109,9 @@ object SmartTestRunStore {
         mutableState.update { snapshot ->
             snapshot.copy(
                 phase = RunPhase.Stopping,
-                logLines = snapshot.logLines + timestamped("Received stop request: $reason"),
                 lastCommandSummary = reason,
                 currentStage = "stopping",
-            )
+            ).withAppendedLog(timestamped("Received stop request: $reason"))
         }
         persistSnapshot(mutableState.value)
     }
@@ -132,11 +137,10 @@ object SmartTestRunStore {
                     failedCount = failedCount,
                     statusText = statusText,
                 ),
-                logLines = snapshot.logLines + timestamped(statusText),
                 currentStage = if (failedCount > 0) "failed" else "completed",
                 currentStepId = "",
-                stepStates = finalStepStates,
-            )
+                stepStates = trimStepStates(finalStepStates, snapshot.currentStepId),
+            ).withAppendedLog(timestamped(statusText))
         }
         persistSnapshot(mutableState.value)
     }
@@ -150,13 +154,12 @@ object SmartTestRunStore {
                 report = null,
                 plannedSteps = emptyList(),
                 stepStates = emptyMap(),
-                logLines = snapshot.logLines + timestamped(statusText),
                 lastCommandSummary = statusText,
                 currentLoop = null,
                 totalLoops = null,
                 currentStage = "idle",
                 currentStepId = "",
-            )
+            ).withAppendedLog(timestamped(statusText))
         }
         persistSnapshot(mutableState.value)
     }
@@ -164,6 +167,35 @@ object SmartTestRunStore {
     private fun timestamped(message: String): String {
         val now = java.time.LocalTime.now()
         return "%02d:%02d:%02d  %s".format(now.hour, now.minute, now.second, message)
+    }
+
+    private fun RunnerSnapshot.withAppendedLog(line: String): RunnerSnapshot {
+        val updatedCount = logCount + 1
+        val updatedLines = (logLines + line).takeLast(MAX_LOG_LINES)
+        val dropped = logLines.size + 1 - updatedLines.size
+        return copy(
+            logLines = updatedLines,
+            logCount = updatedCount,
+            logStartIndex = logStartIndex + dropped.coerceAtLeast(0),
+        )
+    }
+
+    private fun trimStepStates(
+        states: Map<String, RunnerStepState>,
+        currentStepId: String,
+    ): Map<String, RunnerStepState> {
+        if (states.size <= MAX_STEP_STATES) return states
+
+        val current = states[currentStepId]
+        val activeStates = states.filterValues { it.status == "running" || it.status == "failed" }
+        val recentStates = states.entries.toList().takeLast(MAX_STEP_STATES).associate { it.key to it.value }
+        val merged = LinkedHashMap<String, RunnerStepState>()
+        merged.putAll(recentStates)
+        merged.putAll(activeStates)
+        if (current != null) {
+            merged[currentStepId] = current
+        }
+        return merged.entries.toList().takeLast(MAX_STEP_STATES).associate { it.key to it.value }
     }
 
     private fun persistSnapshot(snapshot: RunnerSnapshot) {

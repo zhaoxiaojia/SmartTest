@@ -36,10 +36,6 @@ FluPage {
         return themePair("#F5F9FF", "#202A36")
     }
 
-    function caseParamHeaderActiveColor(){
-        return themePair("#EEF6FF", "#253244")
-    }
-
     function caseParamHeaderBorderColor(){
         return themePair("#CFE3F8", "#3A4D63")
     }
@@ -438,7 +434,6 @@ FluPage {
                                 headerText: modelData.name + "  (" + modelData.required_params.length + ")"
                                 headerCustomStyle: true
                                 headerBackgroundColor: caseParamHeaderColor()
-                                headerActiveBackgroundColor: caseParamHeaderActiveColor()
                                 headerBorderColor: caseParamHeaderBorderColor()
                                 headerTextColor: caseParamHeaderTextColor()
                                 headerAccentColor: caseParamAccentColor()

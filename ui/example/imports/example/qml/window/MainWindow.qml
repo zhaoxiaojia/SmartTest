@@ -18,6 +18,7 @@ import "../global"
     minimumWidth: 668
     minimumHeight: 320
     launchMode: FluWindowType.SingleTask
+    inheritSystemAppBar: false
     fitsAppBarWindows: true
     appBar: FluAppBar {
         width: window.width

@@ -303,7 +303,7 @@
 <context>
     <name>FluWindow</name>
     <message>
-        <location filename="imports/FluentUI/Controls/FluWindow.qml" line="354"/>
+        <location filename="imports/FluentUI/Controls/FluWindow.qml" line="342"/>
         <source>Loading...</source>
         <translation type="unfinished">加载中...</translation>
     </message>

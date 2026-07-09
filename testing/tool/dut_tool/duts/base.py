@@ -6,7 +6,7 @@ import pytest
 import threading
 def load_config(refresh: bool = False) -> dict:
     return {}
-from testing.tool.dut_tool.features.device_ui import launch_youtube_tv_and_search
+from testing.tool.dut_tool.features.android_ui import launch_youtube_tv_and_search
 from testing.tool.dut_tool.features.iperf import (
     _calculate_iperf_wait_time,
     _is_udp_command,
@@ -257,7 +257,7 @@ class BaseDut:
     def u(self, type="u2"):
         return self._u_impl(type=type)
 
-    def uiautomator_dump(self, filepath="", uiautomator_type="u2"):
+    def uiautomator_dump(self, filepath="", uiautomator_type="adb"):
         return self._uiautomator_dump_impl(filepath=filepath, uiautomator_type=uiautomator_type)
 
     def list_media_files(self, nodeid: str | None = None) -> list[str]:
@@ -1019,7 +1019,7 @@ class BaseDut:
     def launch_and_search(self, query: str = "NASA", logdir: str | Path | None = None):
         target_logdir = Path(logdir) if logdir else Path.cwd()
         return launch_youtube_tv_and_search(
-            serial=self.serialnumber,
+            dut=self,
             logdir=target_logdir,
             query=query,
         )

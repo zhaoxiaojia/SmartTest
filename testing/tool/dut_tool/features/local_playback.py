@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from pathlib import Path
 import random
 import re
-import subprocess
 import tempfile
 import time
 from typing import Any, Iterable
@@ -100,7 +99,7 @@ def list_media_files(dut=None, *, nodeid: str | None = None) -> list[str]:
 
 
 def list_media_dirs(selected_serial: str | None = None, dut=None) -> list[str]:
-    resolved_dut = _ensure_dut(dut) if dut is not None else _android_dut(selected_serial)
+    resolved_dut = _ensure_dut(dut) if dut is not None else _default_dut(selected_serial)
     return parse_media_dir_listing(resolved_dut.run_device_shell(MEDIA_DIR_SCAN_COMMAND))
 
 
@@ -247,7 +246,7 @@ def run_local_playback_stress(
     trigger: str,
 ) -> None:
     params = smarttest_context().params.case_values(nodeid)
-    playback = _android_dut(selected_serial)
+    playback = _default_dut(selected_serial)
     media_dir = _normalize_media_dir(params.get("local_playback_stress:media_dir", DEFAULT_MEDIA_DIR))
     selected_files = to_string_list(params.get("local_playback_stress:media_files", []))
     if not selected_files:
@@ -463,15 +462,9 @@ def capture_screen_image(dut) -> Image.Image:
     with tempfile.TemporaryDirectory(prefix="smarttest_playback_") as tmp_dir:
         local_path = Path(tmp_dir) / "screen.png"
         device.run_device_shell(f"screencap -p {SCREENSHOT_REMOTE_PATH}")
-        result = subprocess.run(
-            _adb_args(device, "pull", SCREENSHOT_REMOTE_PATH, str(local_path)),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
-        if result.returncode != 0 or not local_path.exists():
-            stderr = result.stderr.decode("utf-8", "ignore")
-            raise RuntimeError(f"adb pull screenshot failed: {stderr.strip()}")
+        device.pull(SCREENSHOT_REMOTE_PATH, str(local_path))
+        if not local_path.exists():
+            raise RuntimeError("pull screenshot failed: local file was not created")
         return Image.open(local_path).convert("RGB")
 
 
@@ -1027,22 +1020,13 @@ def _shell_quote(value: str) -> str:
     return "'" + str(value).replace("'", "'\"'\"'") + "'"
 
 
-def _adb_args(dut, *parts: object) -> list[str]:
-    serial = str(getattr(dut, "serialnumber", "") or "").strip()
-    args = ["adb"]
-    if serial and re.match(r"^[A-Za-z0-9_.:-]+$", serial):
-        args.extend(["-s", serial])
-    args.extend(str(part) for part in parts)
-    return args
-
-
 def _ensure_dut(dut):
     if dut is not None:
         return dut
-    return _android_dut(None)
+    return _default_dut(None)
 
 
-def _android_dut(selected_serial: str | None):
+def _default_dut(selected_serial: str | None):
     from testing.tool.dut_tool.duts.android import android
 
     return android(serialnumber=str(selected_serial or "").strip())

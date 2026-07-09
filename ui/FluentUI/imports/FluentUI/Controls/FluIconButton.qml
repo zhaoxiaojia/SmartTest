@@ -11,7 +11,7 @@ Button {
     property bool disabled: false
     property int radius:4
     property string contentDescription: ""
-    property color hoverColor: FluTheme.itemHoverColor
+    property color hoverColor: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.16) : Qt.rgba(0/255,178/255,255/255,0.14)
     property color pressedColor: FluTheme.itemPressColor
     property color normalColor: FluTheme.itemNormalColor
     property color disableColor: FluTheme.itemNormalColor
@@ -55,6 +55,21 @@ Button {
         implicitHeight: 30
         radius: control.radius
         color:control.color
+        border.width: control.enabled && (control.hovered || control.activeFocus) ? 1 : 0
+        border.color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.82) : Qt.rgba(0/255,178/255,255/255,0.82)
+        Rectangle{
+            anchors.fill: parent
+            anchors.margins: -4
+            radius: parent.radius + 4
+            color: "#00000000"
+            border.width: control.enabled && (control.hovered || control.activeFocus) ? 1 : 0
+            border.color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.34) : Qt.rgba(0/255,178/255,255/255,0.28)
+            opacity: control.enabled && (control.hovered || control.activeFocus) ? 1 : 0
+            Behavior on opacity {
+                enabled: FluTheme.animationEnabled
+                NumberAnimation{ duration: 167; easing.type: Easing.OutCubic }
+            }
+        }
         FluFocusRectangle{
             visible: control.activeFocus
         }

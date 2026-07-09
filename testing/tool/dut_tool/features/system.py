@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
+import os
+import time
+
+from tools.logging import smart_log
 
 
 _SCALING_AVAILABLE_FREQUENCIES = "/sys/devices/system/cpu/cpufreq/policy0/scaling_available_frequencies"
@@ -13,8 +17,9 @@ class CpuFrequencySnapshot:
     current_frequency: str
 
 
-def list_cpu_frequency_options(selected_serial: str | None = None) -> list[str]:
-    return _android_dut(selected_serial).available_cpu_frequencies()
+def list_cpu_frequency_options(selected_serial: str | None = None, dut=None) -> list[str]:
+    resolved_dut = dut if dut is not None else _default_dut(selected_serial)
+    return resolved_dut.available_cpu_frequencies()
 
 
 def parse_frequency_list(output: str) -> list[str]:
@@ -63,7 +68,34 @@ def verify_cpu_frequency_samples(
     return samples
 
 
-def _android_dut(selected_serial: str | None):
+def clear_app_data(dut, app_name: str):
+    return dut.adb_call("shell", "pm", "clear", app_name)
+
+
+def package_exists(dut, package_name: str) -> bool:
+    return package_name in dut.run_device_shell("pm list packages")
+
+
+def install_apk(dut, apk_path: str):
+    resolved_path = os.path.join(os.getcwd(), "res\\" + apk_path)
+    return dut.checkoutput_shell(f"install -r -t {resolved_path}")
+
+
+def uninstall_apk(dut, package_name: str) -> bool:
+    output = dut.checkoutput_shell(f"uninstall {package_name}")
+    time.sleep(5)
+    if "Success" in output:
+        smart_log("APK uninstall successful", level="info")
+        return True
+    smart_log("APK uninstall failed", level="info")
+    return False
+
+
+def getprop(dut, key: str):
+    return dut.run_device_shell("getprop %s" % key)
+
+
+def _default_dut(selected_serial: str | None):
     from testing.tool.dut_tool.duts.android import android
 
     return android(serialnumber=str(selected_serial or "").strip())

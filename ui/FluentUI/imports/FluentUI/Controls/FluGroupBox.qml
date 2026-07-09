@@ -9,12 +9,7 @@ T.GroupBox {
     id: control
     property int borderWidth : 1
     property color borderColor : FluTheme.dividerColor
-    property color color: {
-        if(Window.active){
-            return FluTheme.frameActiveColor
-        }
-        return FluTheme.frameColor
-    }
+    property color color: FluTheme.frameColor
     property int radius: 4
     implicitWidth: Math.max(implicitBackgroundWidth + leftInset + rightInset,
                             contentWidth + leftPadding + rightPadding,

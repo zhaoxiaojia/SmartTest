@@ -17,11 +17,6 @@ T.Frame {
         id:d
         radius: 4
         border.color: FluTheme.dividerColor
-        color: {
-            if(Window.active){
-                return FluTheme.frameActiveColor
-            }
-            return FluTheme.frameColor
-        }
+        color: FluTheme.frameColor
     }
 }

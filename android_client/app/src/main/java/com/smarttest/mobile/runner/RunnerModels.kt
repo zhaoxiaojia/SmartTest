@@ -56,6 +56,8 @@ data class RunnerSnapshot(
     val plannedSteps: List<RunnerStepPlan> = emptyList(),
     val stepStates: Map<String, RunnerStepState> = emptyMap(),
     val logLines: List<String> = emptyList(),
+    val logCount: Int = logLines.size,
+    val logStartIndex: Int = 0,
     val report: RunReport? = null,
     val lastCommandSummary: String = "",
     val currentLoop: Int? = null,

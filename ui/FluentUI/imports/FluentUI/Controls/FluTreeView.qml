@@ -24,12 +24,7 @@ Rectangle {
     readonly property alias current: d.current
     property alias view: table_view
     id:control
-    color: {
-        if(Window.active){
-            return FluTheme.frameActiveColor
-        }
-        return FluTheme.frameColor
-    }
+    color: FluTheme.frameColor
     onDataSourceChanged: {
         tree_model.setDataSource(dataSource)
     }

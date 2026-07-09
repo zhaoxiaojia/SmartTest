@@ -27,12 +27,24 @@ T.ItemDelegate {
     background: Rectangle {
         implicitWidth: 100
         implicitHeight: 30
+        radius: 6
         color:{
             if(FluTheme.dark){
-                return Qt.rgba(1,1,1,0.05)
+                return Qt.rgba(0/255,229/255,255/255,0.10)
             }else{
-                return Qt.rgba(0,0,0,0.05)
+                return Qt.rgba(0/255,178/255,255/255,0.10)
             }
+        }
+        border.width: control.highlighted || control.visualFocus ? 1 : 0
+        border.color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.72) : Qt.rgba(0/255,178/255,255/255,0.72)
+        Rectangle{
+            anchors.fill: parent
+            anchors.margins: -4
+            radius: parent.radius + 4
+            color: "#00000000"
+            border.width: control.highlighted || control.visualFocus ? 1 : 0
+            border.color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.30) : Qt.rgba(0/255,178/255,255/255,0.24)
+            opacity: control.highlighted || control.visualFocus ? 1 : 0
         }
         visible: control.down || control.highlighted || control.visualFocus
     }

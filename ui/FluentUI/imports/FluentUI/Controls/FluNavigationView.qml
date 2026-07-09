@@ -267,13 +267,15 @@ Item {
                     }
                 }
                 Rectangle{
-                    radius: 4
+                    radius: 6
                     anchors.fill: parent
+                    border.width: item_control.enabled && (item_control.hovered || (nav_list.currentIndex === _idx&&type===0)) ? 1 : 0
+                    border.color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.46) : Qt.rgba(0/255,178/255,255/255,0.40)
                     Rectangle{
-                        width: 3
-                        height: 18
-                        radius: 1.5
-                        color: FluTheme.primaryColor
+                        width: 4
+                        height: 20
+                        radius: 2
+                        color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,1) : Qt.rgba(0/255,178/255,255/255,1)
                         visible: {
                             if(!model){
                                 return false
@@ -294,6 +296,14 @@ Item {
                         }
                         anchors{
                             verticalCenter: parent.verticalCenter
+                        }
+                        Rectangle{
+                            anchors.fill: parent
+                            anchors.margins: -5
+                            radius: parent.radius + 5
+                            color: "#00000000"
+                            border.width: 2
+                            border.color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.45) : Qt.rgba(0/255,178/255,255/255,0.38)
                         }
                     }
                     FluIcon{
@@ -331,10 +341,10 @@ Item {
                             return FluTheme.itemNormalColor
                         }
                         if(nav_list.currentIndex === _idx&&type===0){
-                            return FluTheme.itemCheckColor
+                            return FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.12) : Qt.rgba(0/255,178/255,255/255,0.13)
                         }
                         if(item_control.hovered){
-                            return FluTheme.itemHoverColor
+                            return FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.08) : Qt.rgba(0/255,178/255,255/255,0.09)
                         }
                         return FluTheme.itemNormalColor
                     }
@@ -563,23 +573,25 @@ Item {
                         }
                 }
                 Rectangle{
-                    radius: 4
+                    radius: 6
                     anchors.fill: parent
+                    border.width: item_control.enabled && (item_control.hovered || (type===0 && nav_list.currentIndex === _idx) || (type!==0 && nav_list.currentIndex === (nav_list.count-layout_footer.count+_idx))) ? 1 : 0
+                    border.color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.46) : Qt.rgba(0/255,178/255,255/255,0.40)
                     color: {
                         if(!item_control.enabled){
                             return FluTheme.itemNormalColor
                         }
                         if(type===0){
                             if(nav_list.currentIndex === _idx){
-                                return FluTheme.itemCheckColor
+                                return FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.12) : Qt.rgba(0/255,178/255,255/255,0.13)
                             }
                         }else{
                             if(nav_list.currentIndex === (nav_list.count-layout_footer.count+_idx)){
-                                return FluTheme.itemCheckColor
+                                return FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.12) : Qt.rgba(0/255,178/255,255/255,0.13)
                             }
                         }
                         if(item_control.hovered){
-                            return FluTheme.itemHoverColor
+                            return FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.08) : Qt.rgba(0/255,178/255,255/255,0.09)
                         }
                         return FluTheme.itemNormalColor
                     }
@@ -1126,10 +1138,10 @@ Item {
 
             Rectangle{
                 id:nav_indicator
-                width: 3
-                height: 18
-                radius: 1.5
-                color: FluTheme.primaryColor
+                width: 4
+                height: 20
+                radius: 2
+                color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,1) : Qt.rgba(0/255,178/255,255/255,1)
                 visible: nav_list.currentIndex !== -1
                 x: 6
                 y: {
@@ -1145,6 +1157,14 @@ Item {
                         damping: 0.22
                         epsilon: 0.5
                     }
+                }
+                Rectangle{
+                    anchors.fill: parent
+                    anchors.margins: -6
+                    radius: parent.radius + 6
+                    color: "#00000000"
+                    border.width: 2
+                    border.color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.42) : Qt.rgba(0/255,178/255,255/255,0.34)
                 }
             }
         }
@@ -1181,10 +1201,10 @@ Item {
 
         Rectangle{
             id:footer_indicator
-            width: 3
-            height: 18
-            radius: 1.5
-            color: FluTheme.primaryColor
+            width: 4
+            height: 20
+            radius: 2
+            color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,1) : Qt.rgba(0/255,178/255,255/255,1)
             visible: layout_footer.currentIndex !== -1
             x: 6
             y: {
@@ -1200,6 +1220,14 @@ Item {
                     damping: 0.22
                     epsilon: 0.5
                 }
+            }
+            Rectangle{
+                anchors.fill: parent
+                anchors.margins: -6
+                radius: parent.radius + 6
+                color: "#00000000"
+                border.width: 2
+                border.color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.42) : Qt.rgba(0/255,178/255,255/255,0.34)
             }
         }
     }

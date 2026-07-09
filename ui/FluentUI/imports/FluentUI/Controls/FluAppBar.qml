@@ -163,6 +163,7 @@ Rectangle{
         height: parent.height
         anchors.right: parent.right
         spacing: 0
+        z: 65535
         FluIconButton{
             id:btn_dark
             Layout.preferredWidth: 40

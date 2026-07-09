@@ -1,11 +1,6 @@
 from __future__ import annotations
 
 import re
-import shutil
-import subprocess
-import sys
-
-from testing.params.adb_devices import resolve_adb_serial_for_command
 from testing.runtime.config import current_dut_serial
 
 
@@ -21,39 +16,18 @@ _LEGACY_NAME_PATTERN = re.compile(
 )
 
 
-def list_connected_bluetooth_targets(selected_serial: str | None = None) -> list[str]:
-    return [NO_BLUETOOTH_TARGET, *read_connected_bluetooth_targets(adb_serial=selected_serial)]
+def list_connected_bluetooth_targets(selected_serial: str | None = None, dut=None) -> list[str]:
+    return [NO_BLUETOOTH_TARGET, *read_connected_bluetooth_targets(selected_serial=selected_serial, dut=dut)]
 
 
-def read_connected_bluetooth_targets(*, adb_serial: str | None = None) -> list[str]:
-    raw = read_bluetooth_manager_dump(adb_serial=adb_serial)
+def read_connected_bluetooth_targets(*, selected_serial: str | None = None, dut=None) -> list[str]:
+    raw = read_bluetooth_manager_dump(selected_serial=selected_serial, dut=dut)
     return connected_bluetooth_targets_from_dumpsys(raw)
 
 
-def read_bluetooth_manager_dump(*, adb_serial: str | None = None) -> str:
-    adb_executable = shutil.which("adb")
-    if not adb_executable:
-        raise RuntimeError("adb is not available in PATH.")
-
-    selected_serial = str(adb_serial or current_dut_serial()).strip()
-    command_serial = resolve_adb_serial_for_command(selected_serial)
-    cmd = [adb_executable]
-    if command_serial:
-        cmd.extend(["-s", command_serial])
-    cmd.extend(["shell", "dumpsys", "bluetooth_manager"])
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="ignore",
-        check=False,
-        creationflags=_subprocess_creationflags(),
-    )
-    if result.returncode != 0:
-        message = (result.stderr or result.stdout or "").strip()
-        raise RuntimeError(f"Failed to read bluetooth_manager dumpsys: {message}")
-    return result.stdout or ""
+def read_bluetooth_manager_dump(*, selected_serial: str | None = None, dut=None) -> str:
+    resolved_dut = dut if dut is not None else _default_dut(selected_serial or current_dut_serial())
+    return str(resolved_dut.run_device_shell("dumpsys bluetooth_manager") or "")
 
 
 def connected_bluetooth_targets_from_dumpsys(raw: str) -> list[str]:
@@ -170,7 +144,7 @@ def _is_masked_address(address: str) -> bool:
     return "XX" in _normalize_address(address).split(":")
 
 
-def _subprocess_creationflags() -> int:
-    if sys.platform == "win32" and hasattr(subprocess, "CREATE_NO_WINDOW"):
-        return subprocess.CREATE_NO_WINDOW
-    return 0
+def _default_dut(selected_serial: str | None):
+    from testing.tool.dut_tool.duts.android import android
+
+    return android(serialnumber=str(selected_serial or "").strip())

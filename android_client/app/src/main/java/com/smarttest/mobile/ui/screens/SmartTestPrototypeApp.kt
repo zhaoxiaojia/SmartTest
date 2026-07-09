@@ -76,7 +76,7 @@ fun SmartTestPrototypeApp() {
             )
         }
 
-        LaunchedEffect(runnerSnapshot.phase, runnerSnapshot.logLines.size) {
+        LaunchedEffect(runnerSnapshot.phase, runnerSnapshot.logCount, runnerSnapshot.currentStage) {
             state.onRunnerSnapshotChanged(runnerSnapshot)
         }
 

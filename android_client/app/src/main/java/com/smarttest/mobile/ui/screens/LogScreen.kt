@@ -56,7 +56,7 @@ fun LogScreen(
     currentStage: String,
 ) {
     val logListState = rememberLazyListState()
-    LaunchedEffect(logLines.size) {
+    LaunchedEffect(logLines.lastOrNull()) {
         if (logLines.isNotEmpty()) {
             logListState.animateScrollToItem(logLines.lastIndex)
         }

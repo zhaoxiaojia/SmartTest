@@ -28,8 +28,7 @@ DEFAULT_STATUS_URI = "content://com.smarttest.mobile.status/snapshot"
 DEFAULT_STATUS_FILE = "files/runner_snapshot.json"
 DEFAULT_PUBLIC_STATUS_FILE = "/sdcard/Android/data/com.smarttest.mobile/files/runner_snapshot.json"
 DEFAULT_POLL_INTERVAL_SEC = 1.0
-DEFAULT_TIMEOUT_SEC = 3600.0
-DEFAULT_MAX_CONSECUTIVE_STATUS_FAILURES = 5
+DEFAULT_NO_RESPONSE_TIMEOUT_SEC = 3600.0
 DEFAULT_DUT_UNAVAILABLE_STAGE_TOKENS = {
     "rebooting dut",
     "entering deep suspend",
@@ -428,6 +427,7 @@ def run_apk_case(
         kind=trigger_action.kind,
         definition_id=trigger_action.definition_id,
         expected=trigger_action.expected,
+        stress_tolerant=False,
     ):
         result = trigger_apk_case(
             case_id=case_id,
@@ -724,8 +724,40 @@ def _snapshot_case_ids(snapshot: dict[str, object]) -> list[str]:
 
 
 def _snapshot_log_count(snapshot: dict[str, object]) -> int:
+    try:
+        return int(snapshot.get("logCount", 0) or 0)
+    except (TypeError, ValueError):
+        pass
     log_lines = snapshot.get("logLines", [])
-    return len(log_lines) if isinstance(log_lines, list) else int(snapshot.get("logCount", 0) or 0)
+    return len(log_lines) if isinstance(log_lines, list) else 0
+
+
+def _snapshot_log_start_index(snapshot: dict[str, object]) -> int:
+    try:
+        return int(snapshot.get("logStartIndex", 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _iter_unseen_snapshot_logs(
+    snapshot: dict[str, object],
+    *,
+    seen_log_count: int,
+) -> tuple[list[str], int]:
+    log_lines = snapshot.get("logLines", [])
+    if not isinstance(log_lines, list):
+        return [], max(seen_log_count, _snapshot_log_count(snapshot))
+
+    log_start = _snapshot_log_start_index(snapshot)
+    log_total = _snapshot_log_count(snapshot)
+    if log_total <= 0:
+        log_total = log_start + len(log_lines)
+
+    if seen_log_count > log_total:
+        seen_log_count = log_start
+    first_unseen_offset = max(0, seen_log_count - log_start)
+    new_lines = [str(line) for line in log_lines[first_unseen_offset:]]
+    return new_lines, max(seen_log_count, log_total)
 
 
 def _recent_log_text(snapshot: dict[str, object], limit: int) -> str:
@@ -778,7 +810,7 @@ def wait_for_apk_case_completion(
     trigger: str,
     adb_serial: str | None = None,
     poll_interval_sec: float = DEFAULT_POLL_INTERVAL_SEC,
-    timeout_sec: float = DEFAULT_TIMEOUT_SEC,
+    no_response_timeout_sec: float = DEFAULT_NO_RESPONSE_TIMEOUT_SEC,
     baseline_signature: str | None = None,
     baseline_log_count: int = 0,
     stage_tracker: ApkStageTracker | None = None,
@@ -786,10 +818,9 @@ def wait_for_apk_case_completion(
     started = False
     fresh_run_observed = False
     seen_log_count = max(0, int(baseline_log_count or 0))
-    deadline = time.monotonic() + timeout_sec
+    no_response_deadline = time.monotonic() + no_response_timeout_sec
     last_snapshot: dict[str, object] | None = None
     last_error: str = ""
-    consecutive_failures = 0
     last_status_line = ""
     waiting_for_device_resume = False
     host_quiet_until = 0.0
@@ -799,13 +830,16 @@ def wait_for_apk_case_completion(
     last_snapshot_channel_ready = False
     last_snapshot_failure_key = ""
 
-    while time.monotonic() < deadline:
+    while True:
+        now = time.monotonic()
+        if now >= no_response_deadline:
+            break
         if (
             waiting_for_device_resume
-            and time.monotonic() < host_quiet_until
+            and now < host_quiet_until
         ):
             if not host_quiet_logged:
-                remaining = max(0.0, host_quiet_until - time.monotonic())
+                remaining = max(0.0, host_quiet_until - now)
                 smart_log(
                     "[android_client.power] "
                     f"host quiet mode: hold adb polling for {remaining:.1f}s",
@@ -836,13 +870,11 @@ def wait_for_apk_case_completion(
                 verbose=False,
             )
             last_snapshot = snapshot
-            consecutive_failures = 0
             last_snapshot_failure_key = ""
             if waiting_for_device_resume and not last_snapshot_channel_ready:
                 last_snapshot_channel_ready = True
         except Exception as exc:  # noqa: BLE001
             last_error = str(exc)
-            consecutive_failures += 1
             failure_key = _snapshot_read_failure_key(last_error)
             prefix = (
                 "[android_client.power] status channel waiting"
@@ -858,24 +890,15 @@ def wait_for_apk_case_completion(
                 last_snapshot_channel_ready = False
                 time.sleep(poll_interval_sec)
                 continue
-            if started and consecutive_failures >= DEFAULT_MAX_CONSECUTIVE_STATUS_FAILURES:
-                raise RuntimeError(
-                    "Lost APK status channel after DUT run started.\n"
-                    f"case_id={case_id}\n"
-                    f"trigger={trigger}\n"
-                    f"last_snapshot={last_snapshot}\n"
-                    f"last_error={last_error}"
-                ) from exc
             time.sleep(poll_interval_sec)
             continue
 
-        log_lines = snapshot.get("logLines", [])
-        if isinstance(log_lines, list):
-            if len(log_lines) < seen_log_count:
-                seen_log_count = 0
-            for line in log_lines[seen_log_count:]:
-                smart_log(f"[android_client.log] {line}", domain="android", source="android_client")
-            seen_log_count = len(log_lines)
+        new_log_lines, seen_log_count = _iter_unseen_snapshot_logs(
+            snapshot,
+            seen_log_count=seen_log_count,
+        )
+        for line in new_log_lines:
+            smart_log(f"[android_client.log] {line}", domain="android", source="android_client")
 
         active_request = snapshot.get("activeRequest", {})
         active_trigger = str(active_request.get("trigger", "") or "") if isinstance(active_request, dict) else ""
@@ -887,6 +910,7 @@ def wait_for_apk_case_completion(
         matches_request = _snapshot_matches_request(snapshot, request_id=request_id)
         if matches_request:
             started = True
+            no_response_deadline = time.monotonic() + no_response_timeout_sec
         if snapshot_changed and matches_request:
             fresh_run_observed = True
         if matches_request and stage_tracker is not None:
@@ -981,9 +1005,10 @@ def wait_for_apk_case_completion(
         time.sleep(poll_interval_sec)
 
     error_text = (
-        "Timed out while waiting for APK case completion.\n"
+        "Timed out waiting for APK status feedback.\n"
         f"case_id={case_id}\n"
         f"trigger={trigger}\n"
+        f"no_response_timeout_sec={no_response_timeout_sec}\n"
         f"last_snapshot={last_snapshot}\n"
         f"last_error={last_error}"
     )
@@ -1115,7 +1140,9 @@ def trigger_apk_case(
             trigger=trigger,
             adb_serial=requested_serial,
             poll_interval_sec=wait_poll_interval_sec,
-            timeout_sec=float(os.environ.get("SMARTTEST_ANDROID_CASE_TIMEOUT_SEC", DEFAULT_TIMEOUT_SEC)),
+            no_response_timeout_sec=float(
+                os.environ.get("SMARTTEST_ANDROID_NO_RESPONSE_TIMEOUT_SEC", DEFAULT_NO_RESPONSE_TIMEOUT_SEC),
+            ),
             baseline_signature=baseline_signature,
             baseline_log_count=baseline_log_count,
             stage_tracker=stage_tracker,

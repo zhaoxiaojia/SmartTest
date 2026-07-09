@@ -8,8 +8,8 @@ T.ComboBox {
     id: control
     signal commit(string text)
     property bool disabled: false
-    property color normalColor: FluTheme.dark ? Qt.rgba(62/255,62/255,62/255,1) : Qt.rgba(254/255,254/255,254/255,1)
-    property color hoverColor: FluTheme.dark ? Qt.rgba(68/255,68/255,68/255,1) : Qt.rgba(251/255,251/255,251/255,1)
+    property color normalColor: FluTheme.dark ? Qt.rgba(38/255,45/255,52/255,1) : Qt.rgba(250/255,253/255,255/255,1)
+    property color hoverColor: FluTheme.dark ? Qt.rgba(44/255,58/255,66/255,1) : Qt.rgba(236/255,250/255,255/255,1)
     property color disableColor: FluTheme.dark ? Qt.rgba(59/255,59/255,59/255,1) : Qt.rgba(252/255,252/255,252/255,1)
     property alias textBox: text_field
     implicitWidth: Math.max(implicitBackgroundWidth + leftInset + rightInset,
@@ -84,16 +84,28 @@ T.ComboBox {
             accepted()
         }
     }
-    background: Rectangle {
+    background: FluControlBackground {
         implicitWidth: 140
         implicitHeight: 32
-        border.color: FluTheme.dark ? "#505050" : "#DFDFDF"
+        border.color: {
+            if(control.visualFocus || control.down){
+                return FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,1) : Qt.rgba(0/255,178/255,255/255,1)
+            }
+            if(control.hovered){
+                return FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.60) : Qt.rgba(0/255,178/255,255/255,0.56)
+            }
+            return FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.28) : Qt.rgba(0/255,160/255,255/255,0.38)
+        }
         border.width: 1
         visible: !control.flat || control.down
-        radius: 4
+        radius: 6
+        neon: true
+        neonActive: control.enabled && (control.hovered || control.visualFocus || control.down)
+        neonColor: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,1) : Qt.rgba(0/255,178/255,255/255,1)
+        neonSecondaryColor: FluTheme.dark ? Qt.rgba(124/255,77/255,255/255,1) : Qt.rgba(75/255,111/255,255/255,1)
         FluFocusRectangle{
             visible: control.visualFocus
-            radius:4
+            radius:6
             anchors.margins: -2
         }
         color:{
@@ -137,9 +149,10 @@ T.ComboBox {
         }
         background:Rectangle{
             radius: 5
-            color: FluTheme.dark ? Qt.rgba(43/255,43/255,43/255,1) : Qt.rgba(1,1,1,1)
-            border.color: FluTheme.dark ? Qt.rgba(26/255,26/255,26/255,1) : Qt.rgba(191/255,191/255,191/255,1)
+            color: FluTheme.dark ? Qt.rgba(28/255,34/255,40/255,1) : Qt.rgba(250/255,253/255,255/255,1)
+            border.color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.50) : Qt.rgba(0/255,178/255,255/255,0.42)
             FluShadow{
+                color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,1) : Qt.rgba(0/255,178/255,255/255,1)
                 radius: 5
             }
         }

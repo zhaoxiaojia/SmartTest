@@ -14,11 +14,11 @@ Rectangle {
     }
     property var columnSource: []
     property var dataSource
-    property color borderColor: FluTheme.dark ? Qt.rgba(37/255,37/255,37/255,1) : Qt.rgba(228/255,228/255,228/255,1)
+    property color borderColor: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.16) : Qt.rgba(0/255,178/255,255/255,0.22)
     property bool horizonalHeaderVisible: true
     property bool verticalHeaderVisible: true
-    property color selectedBorderColor: FluTheme.primaryColor
-    property color selectedColor: FluTools.withOpacity(FluTheme.primaryColor,0.3)
+    property color selectedBorderColor: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,1) : Qt.rgba(0/255,178/255,255/255,1)
+    property color selectedColor: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.13) : Qt.rgba(0/255,178/255,255/255,0.13)
     property alias view: table_view
     property var columnWidthProvider: function(column) {
         var columnModel = control.columnSource[column]
@@ -45,12 +45,7 @@ Rectangle {
         return d.defaultItemHeight
     }
     id:control
-    color: {
-        if(Window.active){
-            return FluTheme.frameActiveColor
-        }
-        return FluTheme.frameColor
-    }
+    color: FluTheme.frameColor
     onColumnSourceChanged: {
         if(columnSource.length!==0){
             var columns= []
@@ -321,9 +316,9 @@ Rectangle {
                         return control.selectedColor
                     }
                     if(d.rowHoverIndex === row || item_table_mouse.isRowSelected){
-                        return FluTheme.dark ? Qt.rgba(1,1,1,0.06) : Qt.rgba(0,0,0,0.06)
+                        return FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.08) : Qt.rgba(0/255,178/255,255/255,0.08)
                     }
-                    return (row%2!==0) ? control.color : (FluTheme.dark ? Qt.rgba(1,1,1,0.03) : Qt.rgba(0,0,0,0.03))
+                    return (row%2!==0) ? control.color : (FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.025) : Qt.rgba(0/255,178/255,255/255,0.025))
                 }
                 MouseArea{
                     anchors.fill: parent
@@ -415,14 +410,14 @@ Rectangle {
                     anchors.fill: parent
                     visible: item_table_mouse.isRowSelected
                     Rectangle{
-                        width: 1
+                        width: 2
                         height: parent.height
                         anchors.left: parent.left
                         color: control.selectedBorderColor
                         visible: column === 0
                     }
                     Rectangle{
-                        width: 1
+                        width: 2
                         height: parent.height
                         anchors.right: parent.right
                         color: control.selectedBorderColor
@@ -430,15 +425,22 @@ Rectangle {
                     }
                     Rectangle{
                         width: parent.width
-                        height: 1
+                        height: 2
                         anchors.top: parent.top
                         color: control.selectedBorderColor
                     }
                     Rectangle{
                         width: parent.width
-                        height: 1
+                        height: 2
                         anchors.bottom: parent.bottom
                         color: control.selectedBorderColor
+                    }
+                    Rectangle{
+                        anchors.fill: parent
+                        anchors.margins: -3
+                        color: "#00000000"
+                        border.width: 1
+                        border.color: FluTheme.dark ? Qt.rgba(0/255,229/255,255/255,0.28) : Qt.rgba(0/255,178/255,255/255,0.24)
                     }
                 }
             }
@@ -524,7 +526,7 @@ Rectangle {
                 }
                 return Math.max(TableView.view.height,Number.MIN_VALUE)
             }
-            color: FluTheme.dark ? Qt.rgba(50/255,50/255,50/255,1) : Qt.rgba(247/255,247/255,247/255,1)
+            color: FluTheme.dark ? Qt.rgba(28/255,34/255,40/255,1) : Qt.rgba(244/255,252/255,255/255,1)
             Rectangle{
                 border.color: control.borderColor
                 width: parent.width
@@ -651,7 +653,7 @@ Rectangle {
             property var rowModel: control.getRow(row)
             implicitWidth: Math.max(30, row_text.implicitWidth + (cellPadding * 2))
             implicitHeight: row_text.implicitHeight + (cellPadding * 2)
-            color: FluTheme.dark ? Qt.rgba(50/255,50/255,50/255,1) : Qt.rgba(247/255,247/255,247/255,1)
+            color: FluTheme.dark ? Qt.rgba(28/255,34/255,40/255,1) : Qt.rgba(244/255,252/255,255/255,1)
             Rectangle{
                 border.color: control.borderColor
                 width: parent.width
@@ -874,12 +876,7 @@ Rectangle {
             Rectangle{
                 id: item_layout_frozen
                 anchors.fill: parent
-                color: {
-                    if(Window.active){
-                        return FluTheme.dark ? Qt.rgba(48/255,48/255,48/255,1) :Qt.rgba(1,1,1,1)
-                    }
-                    return FluTheme.dark ? Qt.rgba(56/255,56/255,56/255,1) :Qt.rgba(243/255,243/255,243/255,1)
-                }
+                color: FluTheme.dark ? Qt.rgba(56/255,56/255,56/255,1) :Qt.rgba(243/255,243/255,243/255,1)
                 visible: table_view.rows !== 0
                 Rectangle{
                     z:99

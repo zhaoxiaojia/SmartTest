@@ -9,7 +9,6 @@ Item {
     property int contentHeight : 300
     property bool headerCustomStyle: false
     property color headerBackgroundColor: FluTheme.frameColor
-    property color headerActiveBackgroundColor: FluTheme.frameActiveColor
     property color headerBorderColor: FluTheme.dividerColor
     property color headerTextColor: FluTheme.fontPrimaryColor
     property color headerAccentColor: "transparent"
@@ -37,10 +36,7 @@ Item {
         radius: 4
         color: {
             if(headerCustomStyle){
-                return Window.active ? headerActiveBackgroundColor : headerBackgroundColor
-            }
-            if(Window.active){
-                return FluTheme.frameActiveColor
+                return headerBackgroundColor
             }
             return FluTheme.frameColor
         }
@@ -121,12 +117,7 @@ Item {
             anchors.fill: parent
             radius: 4
             clip: true
-            color: {
-                if(Window.active){
-                    return FluTheme.frameActiveColor
-                }
-                return FluTheme.frameColor
-            }
+            color: FluTheme.frameColor
             border.color: FluTheme.dividerColor
             anchors.topMargin: -contentHeight
             states: [

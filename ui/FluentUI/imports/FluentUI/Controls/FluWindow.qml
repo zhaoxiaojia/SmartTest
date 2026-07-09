@@ -22,12 +22,7 @@ Window {
         showStayTop: window.showStayTop
         icon: window.windowIcon
     }
-    property color backgroundColor: {
-        if(active){
-            return FluTheme.windowActiveBackgroundColor
-        }
-        return FluTheme.windowBackgroundColor
-    }
+    property color backgroundColor: FluTheme.windowBackgroundColor
     property bool stayTop: false
     property bool showDark: false
     property bool showClose: true
@@ -38,14 +33,10 @@ Window {
     property bool autoVisible: true
     property bool autoCenter: true
     property bool autoDestroy: true
+    property bool inheritSystemAppBar: true
     property bool useSystemAppBar
     property int __margins: 0
-    property color resizeBorderColor: {
-        if(window.active){
-            return FluTheme.dark ? Qt.rgba(51/255,51/255,51/255,1) : Qt.rgba(110/255,110/255,110/255,1)
-        }
-        return FluTheme.dark ? Qt.rgba(61/255,61/255,61/255,1) : Qt.rgba(167/255,167/255,167/255,1)
-    }
+    property color resizeBorderColor: FluTheme.frameColor
     property int resizeBorderWidth: 1
     property var closeListener: function(event){
         if(autoDestroy){
@@ -62,9 +53,15 @@ Window {
     property bool _hideShadow: false
     id: window
     color: FluTools.isSoftware() ? window.backgroundColor : "transparent"
+    onWidthChanged: syncAppBarGeometry("window-width")
+    onVisibilityChanged: Qt.callLater(function(){
+        if(window){
+            syncAppBarGeometry("window-visibility")
+        }
+    })
     Component.onCompleted: {
         FluRouter.addWindow(window)
-        useSystemAppBar = FluApp.useSystemAppBar
+        useSystemAppBar = inheritSystemAppBar && FluApp.useSystemAppBar
         if(!useSystemAppBar && autoCenter){
             moveWindowToDesktopCenter()
         }
@@ -98,7 +95,7 @@ Window {
         maximizeButton: appBar.buttonMaximize
         fixSize: window.fixSize
         topmost: window.stayTop
-        disabled: Qt.platform.os === "linux" || FluApp.useSystemAppBar
+        disabled: Qt.platform.os === "linux" || window.useSystemAppBar
         Component.onCompleted: {
             frameless.setHitTestVisible(appBar.layoutMacosButtons)
             frameless.setHitTestVisible(appBar.layoutStandardbuttons)
@@ -163,20 +160,9 @@ Window {
                 target: img_back
                 tintOpacity: FluTheme.dark ? 0.80 : 0.75
                 blurRadius: 64
-                visible: window.active && FluTheme.blurBehindWindowEnabled
+                visible: FluTheme.blurBehindWindowEnabled
                 tintColor: FluTheme.dark ? Qt.rgba(0, 0, 0, 1)  : Qt.rgba(1, 1, 1, 1)
                 targetRect: Qt.rect(window.x-window.screen.virtualX,window.y-window.screen.virtualY,window.width,window.height)
-            }
-        }
-    }
-    Component{
-        id:com_app_bar
-        Item{
-            data: window.appBar
-            Component.onCompleted: {
-                window.appBar.width = Qt.binding(function(){
-                    return this.parent.width
-                })
             }
         }
     }
@@ -258,8 +244,10 @@ Window {
             anchors.fill: parent
             sourceComponent: background
         }
-        FluLoader{
+        Item{
             id:loader_app_bar
+            z: 65535
+            data: window.useSystemAppBar ? [] : [window.appBar]
             anchors {
                 top: parent.top
                 left: parent.left
@@ -269,14 +257,14 @@ Window {
                 if(window.useSystemAppBar){
                     return 0
                 }
-                return window.fitsAppBarWindows ? 0 : window.appBar.height
+                return window.appBar.height
             }
-            sourceComponent: window.useSystemAppBar ? undefined : com_app_bar
+            Component.onCompleted: window.syncAppBarGeometry("slot-completed")
         }
         Item{
             id:layout_content
             anchors{
-                top: loader_app_bar.bottom
+                top: window.fitsAppBarWindows ? parent.top : loader_app_bar.bottom
                 left: parent.left
                 right: parent.right
                 bottom: parent.bottom
@@ -359,6 +347,15 @@ Window {
     }
     function setHitTestVisible(val){
         frameless.setHitTestVisible(val)
+    }
+    function syncAppBarGeometry(reason){
+        if(useSystemAppBar || !window.appBar){
+            return
+        }
+        window.appBar.width = window.width
+        window.appBar.height = 30
+        window.appBar.z = 65535
+        window.appBar.visible = true
     }
     function deleteLater(){
         FluTools.deleteLater(window)
