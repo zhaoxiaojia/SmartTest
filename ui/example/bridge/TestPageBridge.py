@@ -138,7 +138,39 @@ class TestPageBridge(QObject):
         self._create_task(self._refresh_adb_devices_task(selected_serial), label="adb_refresh")
 
     def _current_dut_serial(self) -> str:
+        selected = self._selected_dut_serials()
+        if selected:
+            return selected[0]
         return str(smarttest_context().params.global_value("dut", "") or "").strip()
+
+    def _selected_dut_serials(self) -> list[str]:
+        raw = self._state.global_context.get("duts", [])
+        selected: list[str] = []
+        if isinstance(raw, list):
+            for item in raw:
+                serial = str(item or "").strip()
+                if serial and serial not in selected:
+                    selected.append(serial)
+        legacy = str(self._state.global_context.get("dut", "") or "").strip()
+        if not selected and legacy:
+            selected.append(legacy)
+        return selected
+
+    def _set_selected_dut_serials(self, serials: list[str]) -> bool:
+        normalized: list[str] = []
+        for item in serials:
+            serial = str(item or "").strip()
+            if serial and serial not in normalized:
+                normalized.append(serial)
+        current = self._selected_dut_serials()
+        changed = current != normalized
+        if changed:
+            self._state.global_context["duts"] = normalized
+        first = normalized[0] if normalized else ""
+        if str(self._state.global_context.get("dut", "") or "").strip() != first:
+            self._state.global_context["dut"] = first
+            changed = True
+        return changed
 
     def _schedule_context_refresh(self, reason: str) -> None:
         if self._context_refresh_running:
@@ -390,17 +422,14 @@ class TestPageBridge(QObject):
 
     def _sync_dut_selection(self) -> bool:
         self._bind_params_state()
-        current = str(smarttest_context().params.global_value("dut", "") or "").strip()
-        if current and current in self._adb_devices:
-            return False
+        current_values = [serial for serial in self._selected_dut_serials() if serial in self._adb_devices]
+        if current_values != self._selected_dut_serials():
+            return self._set_selected_dut_serials(current_values)
+        if current_values:
+            return self._set_selected_dut_serials(current_values)
         if len(self._adb_devices) == 1:
             only_device = self._adb_devices[0]
-            if current != only_device and smarttest_context().params.set_global_value("dut", only_device):
-                return True
-            return False
-        if current:
-            smarttest_context().params.set_global_value("dut", "")
-            return True
+            return self._set_selected_dut_serials([only_device])
         return False
 
     def _selected_dynamic_param_targets(self) -> list[dict[str, str]]:
@@ -1328,8 +1357,28 @@ class TestPageBridge(QObject):
         if not smarttest_context().params.set_global_value(key, value):
             return
         if key == "dut":
+            self._set_selected_dut_serials([str(value or "").strip()] if str(value or "").strip() else [])
             self._schedule_context_refresh("dut_changed")
         self._save_and_emit()
+
+    @Slot(str, bool)
+    def setDutSelected(self, serial: str, selected: bool) -> None:
+        normalized = str(serial or "").strip()
+        if not normalized:
+            return
+        values = self._selected_dut_serials()
+        if selected and normalized not in values:
+            values.append(normalized)
+        if not selected:
+            values = [item for item in values if item != normalized]
+        if not self._set_selected_dut_serials(values):
+            return
+        self._schedule_context_refresh("dut_changed")
+        self._save_and_emit()
+
+    @Slot(result="QVariantList")
+    def selectedDuts(self):
+        return self._selected_dut_serials()
 
     @Slot(str, "QVariant")
     def saveGlobalValue(self, key: str, value: Any) -> None:

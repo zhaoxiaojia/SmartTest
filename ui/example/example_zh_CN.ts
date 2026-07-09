@@ -1350,44 +1350,62 @@ Updated content:
     </message>
 </context>
 <context>
+    <name>ReportBridge</name>
+    <message>
+        <location filename="bridge/ReportBridge.py" line="53"/>
+        <source>{count} DUTs: {serials}</source>
+        <translation>{count} 台 DUT：{serials}</translation>
+    </message>
+    <message>
+        <location filename="bridge/ReportBridge.py" line="54"/>
+        <source>{count} DUTs</source>
+        <translation>{count} 台 DUT</translation>
+    </message>
+    <message>
+        <location filename="bridge/ReportBridge.py" line="63"/>
+        <source>No DUT</source>
+        <translation>无 DUT</translation>
+    </message>
+</context>
+<context>
     <name>RunBridge</name>
     <message>
-        <location filename="bridge/RunBridge.py" line="234"/>
+        <location filename="bridge/RunBridge.py" line="253"/>
         <source>Failed to start test run. {detail}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="296"/>
+        <location filename="bridge/RunBridge.py" line="354"/>
         <source>Failed to save run report. {detail}</source>
         <translation>保存运行报告失败。{detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="299"/>
+        <location filename="bridge/RunBridge.py" line="357"/>
         <source>Failed to finish test run. {detail}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="344"/>
+        <location filename="bridge/RunBridge.py" line="499"/>
         <source>No selected test cases to run.</source>
         <translation>没有可运行的已选测试用例。</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="359"/>
+        <location filename="bridge/RunBridge.py" line="524"/>
         <source>Failed to start pytest run. {detail}</source>
         <translation>启动 pytest 运行失败。{detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="114"/>
+        <location filename="bridge/RunBridge.py" line="122"/>
         <source>Select a DUT before starting the selected test cases.</source>
         <translation>启动所选测试用例前请选择 DUT。</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="118"/>
+        <location filename="bridge/RunBridge.py" line="126"/>
         <source>Missing required parameter: {param} ({case})</source>
         <translation>缺少必填参数：{param}（{case}）</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="126"/>
+        <location filename="bridge/RunBridge.py" line="134"/>
         <source>Fix required test parameters before starting.</source>
         <translation>请先补齐必填测试参数再启动。</translation>
     </message>
@@ -4062,7 +4080,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Run</name>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="10"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="9"/>
         <source>Run</source>
         <translation>运行</translation>
     </message>
@@ -4071,37 +4089,103 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">杩愯娴嬭瘯</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="175"/>
         <source>Steps</source>
-        <translation>步骤</translation>
+        <translation type="vanished">步骤</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="275"/>
         <source>Logs</source>
-        <translation>日志</translation>
+        <translation type="vanished">日志</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="310"/>
         <source>Follow Latest</source>
-        <translation>跟随最新</translation>
+        <translation type="vanished">跟随最新</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="337"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="272"/>
         <source>Start</source>
         <translation>开始</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="337"/>
         <source>Stop</source>
-        <translation>停止</translation>
+        <translation type="vanished">停止</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="343"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="84"/>
+        <source>DUT Progress</source>
+        <translation>DUT 进度</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="89"/>
+        <source>Total %1</source>
+        <translation>总数 %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="93"/>
+        <source>Running %1</source>
+        <translation>运行中 %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="97"/>
+        <source>Failed %1</source>
+        <translation>失败 %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="101"/>
+        <source>Passed %1</source>
+        <translation>通过 %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="152"/>
+        <source>No DUT</source>
+        <translation type="unfinished">无 DUT</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="170"/>
+        <source>Collapse</source>
+        <translation>收起</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="170"/>
+        <source>Expand</source>
+        <translation>展开</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="205"/>
+        <source>case</source>
+        <translation>用例</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="205"/>
+        <source>step</source>
+        <translation>步骤</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="236"/>
+        <source>Logs (%1)</source>
+        <translation>日志（%1）</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="245"/>
+        <source>Hide logs</source>
+        <translation>隐藏日志</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="245"/>
+        <source>Show logs</source>
+        <translation>显示日志</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="272"/>
+        <source>Stop All</source>
+        <translation>全部停止</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Run.qml" line="278"/>
         <source>Required Parameters</source>
         <translation>必填参数</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="345"/>
+        <location filename="imports/example/qml/page/T_Run.qml" line="280"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -4525,57 +4609,57 @@ Some contents...</source>
         <translation>刷新</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="848"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="882"/>
         <source>No DUT</source>
         <translation>无 DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1160"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1194"/>
         <source>Add terminal</source>
         <translation type="unfinished">添加端子</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1177"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1211"/>
         <source>Terminal</source>
         <translation type="unfinished">端子</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1196"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1230"/>
         <source>Wiring mode</source>
         <translation type="unfinished">接线模式</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1215"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1249"/>
         <source>Press seconds</source>
         <translation type="unfinished">按压秒数</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1239"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1273"/>
         <source>Remove terminal</source>
         <translation type="unfinished">删除端子</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1270"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1304"/>
         <source>Stop</source>
         <translation>停止</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1270"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1304"/>
         <source>Start</source>
         <translation>开始</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1277"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1311"/>
         <source>Run</source>
         <translation>运行</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1284"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1318"/>
         <source>Required Parameters</source>
         <translation>必填参数</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1286"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1320"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -4588,12 +4672,12 @@ Some contents...</source>
         <translation type="vanished">鐗规畩鍙傛暟锛堟寜鐢ㄤ緥绫诲瀷锛</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="915"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="949"/>
         <source>Env</source>
         <translation>陪测</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="943"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="977"/>
         <source>Type</source>
         <translation>类型</translation>
     </message>

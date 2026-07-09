@@ -96,6 +96,8 @@ def build_run_report(**model: Any) -> dict[str, Any]:
     report["status"] = _safe_text(report.get("status")) or _status_from_summary(report)
     report["title"] = _safe_text(report.get("title")) or f"{report['finished_at'].replace('T', ' ')[:19]}  {report['status']}"
     report["adb_serial"] = _safe_text(report.get("adb_serial"))
+    report["kind"] = _safe_text(report.get("kind")) or "run"
+    report["dut_results"] = _normalized_dut_results(report)
     report["selected_nodeids"] = list(report.get("selected_nodeids") or [])
     report["summary"] = _dict_value(report.get("summary") or report.get("counts"))
     report["counts"] = dict(report["summary"])
@@ -144,10 +146,9 @@ def report_pdf_path(run_id: str, *, reports_dir: Path) -> Path:
 
 def report_html_url(run_id: str, *, reports_dir: Path) -> str:
     path = report_html_path(run_id, reports_dir=reports_dir)
-    if not path.exists():
-        report = load_report(run_id, reports_dir=reports_dir)
-        if report:
-            generate_html_report(report, html_path=path)
+    report = load_report(run_id, reports_dir=reports_dir)
+    if report:
+        generate_html_report(report, html_path=path)
     return path.resolve().as_uri()
 
 
@@ -238,22 +239,21 @@ def render_html_report(report: dict[str, Any]) -> str:
 <main>
   <header class="hero">
     <div>
-      <p class="eyebrow">SmartTest Report</p>
+      <p class="eyebrow">SmartTest DUT Report</p>
       <h1>{_esc(model.get("title") or model.get("run_id") or "Run Report")}</h1>
       <p class="meta">{_esc(model.get("started_at"))} - {_esc(model.get("finished_at"))}</p>
     </div>
     <span class="status" style="--status:{_status_color(status)}">{_esc(status)}</span>
   </header>
   {_summary_html(model)}
+  {_section_html("DUT Overview", _dut_overview_html(model))}
   {_section_html("Failure Analysis", _failure_analysis_html(_dict_value(model.get("failure_analysis"))))}
-  {_section_html("Cases In This Run", _cases_overview_html(_list_value(model.get("cases"))))}
   <section class="grid three">
     <article><h2>Result Chart</h2>{_chart_html(_dict_value(model.get("summary")))}</article>
     <article><h2>Case Duration</h2>{_duration_ranking_html(_list_value(model.get("duration_ranking")))}</article>
     <article><h2>Log Distribution</h2>{_log_distribution_html(_dict_value(model.get("log_distribution")))}</article>
   </section>
-  {_section_html("Run Summary", _context_html(model))}
-  {_section_html("Case Reports", _case_reports_html(_list_value(model.get("cases"))))}
+  {_section_html("DUT Details", _dut_details_html(model))}
 </main>
 </body>
 </html>
@@ -266,6 +266,21 @@ def _dict_value(value: Any) -> dict[str, Any]:
 
 def _list_value(value: Any) -> list[Any]:
     return list(value) if isinstance(value, list) else []
+
+
+def _normalized_dut_results(report: dict[str, Any]) -> list[dict[str, Any]]:
+    raw = _list_value(report.get("dut_results"))
+    if raw:
+        return [_dict_value(item) for item in raw if isinstance(item, dict)]
+    summary = _dict_value(report.get("summary") or report.get("counts"))
+    return [{
+        "dut_serial": _safe_text(report.get("adb_serial")) or "No DUT",
+        "run_id": report.get("run_id"),
+        "status": report.get("status"),
+        "returncode": report.get("returncode"),
+        "duration_ms": report.get("duration_ms"),
+        "counts": summary,
+    }]
 
 
 def _status_from_summary(report: dict[str, Any]) -> str:
@@ -311,25 +326,78 @@ def duration_text(duration_ms: Any) -> str:
 def _summary_html(report: dict[str, Any]) -> str:
     summary = _dict_value(report.get("summary") or report.get("counts"))
     items = [
+        ("DUTs", len(_list_value(report.get("dut_results")))),
         ("Total", summary.get("total", 0)),
         ("Passed", summary.get("passed", 0)),
         ("Failed", summary.get("failed", 0)),
-        ("Skipped", summary.get("skipped", 0)),
         ("Duration", duration_text(report.get("duration_ms"))),
     ]
-    cards = "".join(f"<article><span>{_esc(label)}</span><strong>{_esc(value)}</strong></article>" for label, value in items)
+    cards = "".join(f"<article><span>{_esc(label)}</span><strong>{html.escape(str(value), quote=True)}</strong></article>" for label, value in items)
     return f'<section class="summary">{cards}</section>'
 
 
-def _context_html(report: dict[str, Any]) -> str:
-    nodeids = _list_value(report.get("selected_nodeids"))
-    return _kv_html([
-        ("Run ID", report.get("run_id")),
-        ("DUT", report.get("adb_serial") or "No DUT"),
-        ("Return Code", report.get("returncode")),
-        ("Stopped", "Yes" if report.get("stopped") else "No"),
-        ("Selected Cases", len(nodeids)),
-    ])
+def _dut_overview_html(report: dict[str, Any]) -> str:
+    rows = []
+    for raw in _list_value(report.get("dut_results")):
+        row = _dict_value(raw)
+        counts = _dict_value(row.get("counts"))
+        status = _safe_text(row.get("status")) or "-"
+        rows.append(
+            "<tr>"
+            f"<td>{_esc(row.get('dut_serial') or 'No DUT')}</td>"
+            f"<td><span class=\"status\" style=\"--status:{_status_color(status)}\">{_esc(status)}</span></td>"
+            f"<td>{html.escape(str(counts.get('total', 0)), quote=True)}</td>"
+            f"<td>{html.escape(str(counts.get('passed', 0)), quote=True)}</td>"
+            f"<td>{html.escape(str(counts.get('failed', 0)), quote=True)}</td>"
+            f"<td>{duration_text(row.get('duration_ms'))}</td>"
+            f"<td>{_esc(row.get('run_id'))}</td>"
+            "</tr>"
+        )
+    if not rows:
+        return '<p class="empty">No DUT results.</p>'
+    return (
+        "<table><thead><tr><th>DUT</th><th>Status</th><th>Total</th><th>Passed</th>"
+        "<th>Failed</th><th>Duration</th><th>Run ID</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody></table>"
+    )
+
+
+def _dut_details_html(report: dict[str, Any]) -> str:
+    dut_results = _list_value(report.get("dut_results"))
+    if not dut_results:
+        return '<p class="empty">No DUT details.</p>'
+    details = []
+    all_cases = _list_value(report.get("cases"))
+    all_logs = _list_value(report.get("logs"))
+    for index, raw in enumerate(dut_results):
+        row = _dict_value(raw)
+        serial = _safe_text(row.get("dut_serial")) or "No DUT"
+        counts = _dict_value(row.get("counts"))
+        summary = (
+            f"{serial} | {_safe_text(row.get('status')) or '-'} | "
+            f"total {counts.get('total', 0)} passed {counts.get('passed', 0)} failed {counts.get('failed', 0)}"
+        )
+        body = _kv_html([
+            ("DUT", serial),
+            ("Run ID", row.get("run_id")),
+            ("Status", row.get("status")),
+            ("Return Code", row.get("returncode")),
+            ("Duration", duration_text(row.get("duration_ms"))),
+            ("Total", counts.get("total", 0)),
+            ("Passed", counts.get("passed", 0)),
+            ("Failed", counts.get("failed", 0)),
+        ])
+        if len(dut_results) == 1 and all_cases:
+            body += _section_inline_html("Cases", _cases_overview_html(all_cases))
+            body += _section_inline_html("Case Reports", _case_reports_html(all_cases))
+        if len(dut_results) == 1 and all_logs:
+            body += _details_html(f"Logs ({len(all_logs)})", _logs_html(all_logs))
+        details.append(_details_html(summary, body, " open" if index == 0 else ""))
+    return "".join(details)
+
+
+def _section_inline_html(title: str, body: str) -> str:
+    return f'<div class="inline-section"><h3>{_esc(title)}</h3>{body}</div>'
 
 
 def _cases_overview_html(cases: list[Any]) -> str:

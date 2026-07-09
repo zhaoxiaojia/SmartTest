@@ -814,14 +814,48 @@ FluPage {
                                 spacing: 6
                                 property var fieldData: modelData
                                 property var fieldOptions: fieldData.enum_values || []
+                                property var selectedDuts: fieldData.key === "dut" ? TestPageBridge.selectedDuts() : []
+                                function dutChecked(serial){
+                                    return selectedDuts.indexOf(serial) >= 0
+                                }
                                 FluText{
                                     text: fieldLabel(fieldData)
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
                                 }
+                                ColumnLayout{
+                                    visible: fieldData.key === "dut"
+                                    Layout.fillWidth: true
+                                    spacing: 4
+                                    Repeater{
+                                        model: fieldOptions
+                                        delegate: Rectangle{
+                                            Layout.fillWidth: true
+                                            implicitHeight: 34
+                                            radius: 4
+                                            color: "transparent"
+                                            RowLayout{
+                                                anchors.fill: parent
+                                                anchors.leftMargin: 4
+                                                anchors.rightMargin: 4
+                                                spacing: 8
+                                                FluCheckBox{
+                                                    id: dut_check
+                                                    checked: dutChecked(modelData)
+                                                    onClicked: TestPageBridge.setDutSelected(modelData, checked)
+                                                }
+                                                FluText{
+                                                    Layout.fillWidth: true
+                                                    text: modelData
+                                                    elide: Text.ElideMiddle
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                                 FluComboBox{
                                     id: combo_global_param
-                                    visible: fieldData.type === "enum"
+                                    visible: fieldData.type === "enum" && fieldData.key !== "dut"
                                     Layout.fillWidth: true
                                     enabled: fieldOptions.length > 0
                                     model: fieldOptions
@@ -873,7 +907,7 @@ FluPage {
                                         }
                                         TestPageBridge.saveGlobalValue(fieldData.key, text)
                                     }
-                                    onTextChanged: persistValue()
+                                    onTextChanged: TestPageBridge.saveGlobalValue(fieldData.key, text)
                                     Component.onCompleted: {
                                         syncFromState()
                                         persistReady = true

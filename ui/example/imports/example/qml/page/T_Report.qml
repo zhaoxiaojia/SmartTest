@@ -171,7 +171,7 @@ FluPage {
 
                             FluText{
                                 Layout.fillWidth: true
-                                text: (modelData.adb_serial || qsTr("No DUT")) + "  |  " + (modelData.duration || "-")
+                                text: (modelData.dut_summary || qsTr("No DUT")) + "  |  " + (modelData.duration || "-")
                                 font: FluTextStyle.Caption; color: FluTheme.fontSecondaryColor; elide: Text.ElideMiddle
                             }
                         }

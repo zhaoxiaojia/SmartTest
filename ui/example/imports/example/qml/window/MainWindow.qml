@@ -22,7 +22,7 @@ import "../global"
     fitsAppBarWindows: true
     appBar: FluAppBar {
         width: window.width
-        height: 30
+        height: 36
         showDark: true
         darkClickListener:(button)=>handleDarkChanged(button)
         closeClickListener: function(){ handleCloseRequest() }
@@ -59,7 +59,7 @@ import "../global"
     FluIconButton{
         id: button_about
         width: 40
-        height: 30
+        height: appBar.height
         z: 8
         iconSource: FluentIcons.Important
         iconSize: 16

@@ -3,128 +3,38 @@ import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import FluentUI 1.0
 import "../component"
-import "../global"
 
 FluPage {
     id: page_root
     title: qsTr("Run")
     launchMode: FluPageType.SingleInstance
+
     property int footerHeight: 30
     property int runVersion: 0
-    property var stepRowsModel: []
-    property var logRowsModel: []
-    property string logTextModel: ""
-    property int selectedStepIndex: -1
-    property bool autoFollowLogs: true
-    property int previousLogLineCount: 0
-    property bool programmaticLogScroll: false
-    property real logMovementStartY: 0
+    property var dutRowsModel: []
     property string validationDialogMessage: ""
 
-    ListModel{
-        id: logListModel
-    }
-
-    function syncLogListModel(rows){
-        if(rows.length < logListModel.count){
-            logListModel.clear()
-            for(var resetIndex = 0; resetIndex < rows.length; resetIndex++){
-                logListModel.append(rows[resetIndex])
-            }
-            return
-        }
-        for(var appendIndex = logListModel.count; appendIndex < rows.length; appendIndex++){
-            logListModel.append(rows[appendIndex])
-        }
-    }
-
-    function followLatestLogs(reason){
-        autoFollowLogs = true
-        if(!logList || logListModel.count === 0){
-            return
-        }
-        programmaticLogScroll = true
-        Qt.callLater(function(){
-            logList.positionAtEnd()
-            Qt.callLater(function(){
-                programmaticLogScroll = false
-            })
-        })
-    }
-
     function refreshRunModels(){
-        var previousStepContentY = stepList ? stepList.contentY : 0
-        var shouldRestoreStepScroll = stepList && stepRowsModel.length > 0
-        stepRowsModel = RunBridge.stepRows()
-        logRowsModel = RunBridge.logRows()
-        logTextModel = RunBridge.logText()
-        syncLogListModel(logRowsModel)
-        if(shouldRestoreStepScroll && stepRowsModel.length > 0){
-            Qt.callLater(function(){
-                stepList.contentY = Math.max(0, Math.min(previousStepContentY, stepList.contentHeight - stepList.height))
-            })
-        }
-        if(selectedStepIndex >= stepRowsModel.length){
-            selectedStepIndex = stepRowsModel.length - 1
-        }
-        if(selectedStepIndex < 0 && stepRowsModel.length > 0){
-            selectedStepIndex = stepRowsModel.length - 1
-        }
-        if(autoFollowLogs && logRowsModel.length !== previousLogLineCount){
-            followLatestLogs("new-log-line")
-        }
-        previousLogLineCount = logRowsModel.length
-    }
-
-    function kindLabel(kind){
-        if(kind === "case"){
-            return "case"
-        }
-        if(kind === "setup"){
-            return "setup"
-        }
-        if(kind === "teardown"){
-            return "teardown"
-        }
-        if(kind === "check"){
-            return "check"
-        }
-        return "step"
+        dutRowsModel = RunBridge.dutRunRows()
     }
 
     function statusColor(status){
-        if(status === "running"){
-            return FluTheme.primaryColor
-        }
-        if(status === "failed"){
-            return "#C42B1C"
-        }
-        if(status === "passed"){
-            return "#0F7B0F"
-        }
-        if(status === "skipped"){
-            return FluTheme.fontSecondaryColor
-        }
+        if(status === "running") return FluTheme.primaryColor
+        if(status === "failed") return "#C42B1C"
+        if(status === "passed") return "#0F7B0F"
+        if(status === "stopped") return "#8A6A00"
         return FluTheme.fontSecondaryColor
     }
 
-    function rowBackgroundColor(status, selected){
-        if(selected){
-            return FluTools.withOpacity(FluTheme.primaryColor, FluTheme.dark ? 0.18 : 0.10)
-        }
-        if(status === "running"){
-            return FluTools.withOpacity(FluTheme.primaryColor, FluTheme.dark ? 0.14 : 0.08)
-        }
-        if(status === "failed"){
-            return Qt.rgba(196/255, 43/255, 28/255, 0.10)
-        }
-        if(status === "passed"){
-            return Qt.rgba(15/255, 123/255, 15/255, 0.08)
-        }
-        if(status === "planned"){
-            return FluTools.withOpacity(FluTheme.fontSecondaryColor, FluTheme.dark ? 0.10 : 0.06)
-        }
+    function rowBackgroundColor(status){
+        if(status === "running") return FluTools.withOpacity(FluTheme.primaryColor, FluTheme.dark ? 0.12 : 0.06)
+        if(status === "failed") return Qt.rgba(196/255, 43/255, 28/255, 0.08)
+        if(status === "passed") return Qt.rgba(15/255, 123/255, 15/255, 0.06)
         return "transparent"
+    }
+
+    function stepIndent(depth){
+        return 12 + (Math.max(0, depth || 0) * 16)
     }
 
     Connections{
@@ -150,178 +60,203 @@ FluPage {
         }
     }
 
-    Component.onCompleted: {
-        refreshRunModels()
-    }
+    Component.onCompleted: refreshRunModels()
 
-    FluSplitLayout{
-        id: runSplit
+    ColumnLayout{
         anchors.fill: parent
         anchors.bottomMargin: footerHeight
-        orientation: Qt.Horizontal
+        spacing: 0
 
-        FluFrame{
-            SplitView.fillWidth: true
-            SplitView.preferredWidth: runSplit.width * 0.28
-            SplitView.minimumWidth: 280
-            SplitView.fillHeight: true
-            padding: 10
+        Rectangle{
+            Layout.fillWidth: true
+            Layout.preferredHeight: 48
+            color: FluTheme.dark ? "#202020" : "#ffffff"
+            border.width: 1
+            border.color: FluTheme.dark ? "#3c3c3c" : "#e5e7eb"
 
-            ColumnLayout{
+            RowLayout{
                 anchors.fill: parent
-                spacing: 8
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                spacing: 12
 
                 FluText{
-                    text: qsTr("Steps")
+                    text: qsTr("DUT Progress")
                     font: FluTextStyle.Subtitle
-                }
-
-                ListView{
-                    id: stepList
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
-                    model: stepRowsModel
-                    boundsBehavior: Flickable.StopAtBounds
-                    ScrollBar.vertical: FluScrollBar{}
-                    currentIndex: selectedStepIndex
-                    onCurrentIndexChanged: selectedStepIndex = currentIndex
-
-                    delegate: Rectangle{
-                        width: ListView.view.width
-                        height: contentLayout.implicitHeight + 12
-                        radius: 6
-                        color: rowBackgroundColor(modelData.status || "", ListView.isCurrentItem)
-                        border.width: ListView.isCurrentItem ? 1 : 0
-                        border.color: ListView.isCurrentItem ? FluTheme.primaryColor : "transparent"
-
-                        ColumnLayout{
-                            id: contentLayout
-                            anchors.fill: parent
-                            anchors.leftMargin: 10 + (Math.max(0, modelData.depth || 0) * 16)
-                            anchors.rightMargin: 8
-                            anchors.topMargin: 6
-                            anchors.bottomMargin: 6
-                            spacing: 8
-
-                            RowLayout{
-                                Layout.fillWidth: true
-                                spacing: 8
-
-                                Rectangle{
-                                    Layout.alignment: Qt.AlignTop
-                                    implicitWidth: kindText.implicitWidth + 12
-                                    implicitHeight: kindText.implicitHeight + 4
-                                    radius: height/2
-                                    color: FluTools.withOpacity(statusColor(modelData.status || ""), 0.12)
-
-                                    FluText{
-                                        id: kindText
-                                        anchors.centerIn: parent
-                                        text: kindLabel(modelData.kind || "")
-                                        font: FluTextStyle.Caption
-                                        color: statusColor(modelData.status || "")
-                                    }
-                                }
-
-                                FluText{
-                                    text: modelData.title || ""
-                                    Layout.fillWidth: true
-                                    wrapMode: Text.Wrap
-                                    maximumLineCount: 2
-                                    elide: Text.ElideRight
-                                }
-
-                                FluText{
-                                    text: modelData.status || ""
-                                    font: FluTextStyle.Caption
-                                    color: statusColor(modelData.status || "")
-                                }
-                            }
-
-                            FluText{
-                                Layout.fillWidth: true
-                                visible: (modelData.definition_id || "") !== "" || (modelData.case_nodeid || "") !== ""
-                                text: (modelData.definition_id || "") !== ""
-                                      ? (modelData.definition_id + "  |  " + (modelData.case_nodeid || ""))
-                                      : (modelData.case_nodeid || "")
-                                font: FluTextStyle.Caption
-                                color: FluTheme.fontSecondaryColor
-                                elide: Text.ElideMiddle
-                            }
-                        }
-
-                        MouseArea{
-                            anchors.fill: parent
-                            onClicked: stepList.currentIndex = index
-                        }
-                    }
+                }
+                FluText{
+                    text: qsTr("Total %1").arg(dutRowsModel.length)
+                    color: FluTheme.fontSecondaryColor
+                }
+                FluText{
+                    text: qsTr("Running %1").arg(dutRowsModel.filter(function(row){ return row.status === "running" }).length)
+                    color: statusColor("running")
+                }
+                FluText{
+                    text: qsTr("Failed %1").arg(dutRowsModel.filter(function(row){ return row.status === "failed" }).length)
+                    color: statusColor("failed")
+                }
+                FluText{
+                    text: qsTr("Passed %1").arg(dutRowsModel.filter(function(row){ return row.status === "passed" }).length)
+                    color: statusColor("passed")
                 }
             }
         }
 
-        FluFrame{
-            SplitView.fillWidth: true
-            SplitView.preferredWidth: runSplit.width * 0.72
-            SplitView.minimumWidth: 360
-            SplitView.fillHeight: true
-            padding: 10
+        ListView{
+            id: dutList
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            model: dutRowsModel
+            spacing: 8
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: FluScrollBar{}
+            leftMargin: 10
+            rightMargin: 10
+            topMargin: 10
+            bottomMargin: 10
 
-            ColumnLayout{
-                anchors.fill: parent
-                spacing: 8
+            delegate: Rectangle{
+                id: dutPanel
+                width: ListView.view.width - 20
+                height: panelLayout.implicitHeight + 2
+                radius: 6
+                color: rowBackgroundColor(modelData.status || "")
+                border.width: 1
+                border.color: FluTheme.dark ? "#3c3c3c" : "#e5e7eb"
 
-                FluText{
-                    text: qsTr("Logs")
-                    font: FluTextStyle.Subtitle
-                }
+                property bool expanded: index === 0
+                property bool logsExpanded: false
 
-                Item{
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
+                ColumnLayout{
+                    id: panelLayout
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: 10
+                    spacing: 8
 
-                    LogListView{
-                        id: logList
-                        anchors.fill: parent
-                        model: logListModel
-                        onMovementStarted: function(contentY){
-                            logMovementStartY = contentY
+                    RowLayout{
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Rectangle{
+                            width: 10
+                            height: 10
+                            radius: 5
+                            color: statusColor(modelData.status || "")
                         }
-                        onMovementEnded: function(contentY){
-                            if(!programmaticLogScroll && autoFollowLogs && contentY < logMovementStartY){
-                                autoFollowLogs = false
+                        FluText{
+                            text: modelData.dut_serial || qsTr("No DUT")
+                            font: FluTextStyle.BodyStrong
+                            Layout.fillWidth: true
+                            elide: Text.ElideMiddle
+                        }
+                        FluText{
+                            text: modelData.progress_text || "0/0"
+                            color: FluTheme.fontSecondaryColor
+                        }
+                        FluText{
+                            text: modelData.status || "-"
+                            color: statusColor(modelData.status || "")
+                        }
+                        FluIconButton{
+                            width: 30
+                            height: 30
+                            iconSource: dutPanel.expanded ? FluentIcons.ChevronUp : FluentIcons.ChevronDown
+                            iconSize: 13
+                            text: dutPanel.expanded ? qsTr("Collapse") : qsTr("Expand")
+                            onClicked: dutPanel.expanded = !dutPanel.expanded
+                        }
+                    }
+
+                    ProgressBar{
+                        Layout.fillWidth: true
+                        from: 0
+                        to: Math.max(1, modelData.total || 0)
+                        value: modelData.completed || 0
+                    }
+
+                    ColumnLayout{
+                        visible: dutPanel.expanded
+                        Layout.fillWidth: true
+                        spacing: 4
+
+                        Repeater{
+                            model: modelData.steps || []
+                            delegate: Rectangle{
+                                Layout.fillWidth: true
+                                implicitHeight: stepRow.implicitHeight + 8
+                                radius: 4
+                                color: "transparent"
+
+                                RowLayout{
+                                    id: stepRow
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.leftMargin: stepIndent(modelData.depth)
+                                    anchors.rightMargin: 8
+                                    spacing: 8
+
+                                    FluText{
+                                        text: modelData.kind === "case" ? qsTr("case") : qsTr("step")
+                                        font: FluTextStyle.Caption
+                                        color: statusColor(modelData.status || "")
+                                    }
+                                    FluText{
+                                        Layout.fillWidth: true
+                                        text: modelData.title || ""
+                                        wrapMode: Text.Wrap
+                                        maximumLineCount: 2
+                                        elide: Text.ElideRight
+                                    }
+                                    FluText{
+                                        text: modelData.status || ""
+                                        font: FluTextStyle.Caption
+                                        color: statusColor(modelData.status || "")
+                                    }
+                                }
                             }
                         }
-                    }
 
-                    FluIconButton{
-                        id: followLatestButton
-                        visible: !autoFollowLogs
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        anchors.rightMargin: 18
-                        anchors.bottomMargin: 18
-                        width: 40
-                        height: 40
-                        radius: 20
-                        iconSource: FluentIcons.Down
-                        iconSize: 18
-                        text: qsTr("Follow Latest")
-                        z: 10
-                        normalColor: FluTheme.primaryColor
-                        hoverColor: Qt.darker(FluTheme.primaryColor, 1.08)
-                        pressedColor: Qt.darker(FluTheme.primaryColor, 1.16)
-                        iconColor: "#FFFFFF"
-                        onClicked: {
-                            followLatestLogs("floating-button")
+                        Rectangle{
+                            Layout.fillWidth: true
+                            implicitHeight: logHeader.implicitHeight + 8
+                            radius: 4
+                            color: FluTools.withOpacity(FluTheme.fontSecondaryColor, FluTheme.dark ? 0.08 : 0.04)
+                            RowLayout{
+                                id: logHeader
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                FluText{
+                                    text: qsTr("Logs (%1)").arg(modelData.log_count || 0)
+                                    Layout.fillWidth: true
+                                    color: FluTheme.fontSecondaryColor
+                                }
+                                FluIconButton{
+                                    width: 28
+                                    height: 28
+                                    iconSource: dutPanel.logsExpanded ? FluentIcons.ChevronUp : FluentIcons.ChevronDown
+                                    iconSize: 12
+                                    text: dutPanel.logsExpanded ? qsTr("Hide logs") : qsTr("Show logs")
+                                    onClicked: dutPanel.logsExpanded = !dutPanel.logsExpanded
+                                }
+                            }
+                            MouseArea{
+                                anchors.fill: parent
+                                onClicked: dutPanel.logsExpanded = !dutPanel.logsExpanded
+                            }
                         }
-                    }
 
-                    WheelHandler{
-                        target: null
-                        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                        onWheel: function(event){
+                        LogListView{
+                            visible: dutPanel.logsExpanded
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 220
+                            model: modelData.logs || []
                         }
                     }
                 }
@@ -334,7 +269,7 @@ FluPage {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         height: footerHeight
-        text: RunBridge.isRunning ? qsTr("Stop") : qsTr("Start")
+        text: RunBridge.isRunning ? qsTr("Stop All") : qsTr("Start")
         onClicked: RunBridge.toggleRun()
     }
 

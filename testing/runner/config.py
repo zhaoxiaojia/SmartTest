@@ -17,6 +17,7 @@ RUN_CONFIG_ENV = "SMARTTEST_RUN_CONFIG_JSON"
 class RunConfig:
     nodeids: list[str] = field(default_factory=list)
     dut_serial: str | None = None
+    dut_serials: list[str] = field(default_factory=list)
     equipment: dict[str, Any] = field(default_factory=dict)
     global_context: dict[str, Any] = field(default_factory=dict)
 
@@ -24,6 +25,7 @@ class RunConfig:
         return {
             "nodeids": list(self.nodeids),
             "dut_serial": str(self.dut_serial or ""),
+            "dut_serials": list(self.dut_serials),
             "equipment": dict(self.equipment),
             "global_context": dict(self.global_context),
         }
@@ -42,6 +44,31 @@ def resolve_dut_serial(
     if len(current_devices) == 1:
         return current_devices[0]
     return None
+
+
+def selected_dut_serials(
+    state: TestPageState,
+    *,
+    devices: list[str] | None = None,
+    device_lister: Callable[[], list[str]] | None = None,
+) -> list[str]:
+    current_devices = devices if devices is not None else (device_lister or list_adb_devices)()
+    online = [str(item or "").strip() for item in current_devices if str(item or "").strip()]
+    online_set = set(online)
+    raw_context = dict(getattr(state, "global_context", {}) or {})
+    raw_selected = raw_context.get("duts", [])
+    selected: list[str] = []
+    if isinstance(raw_selected, list):
+        for item in raw_selected:
+            serial = str(item or "").strip()
+            if serial and serial in online_set and serial not in selected:
+                selected.append(serial)
+    legacy = str(raw_context.get("dut", "") or "").strip()
+    if not selected and legacy and legacy in online_set:
+        selected.append(legacy)
+    if not selected and len(online) == 1:
+        selected.append(online[0])
+    return selected
 
 
 def normalize_selected_run_inputs(
@@ -89,12 +116,17 @@ def build_run_config_from_state(
     )
     smarttest_context().params.bind_ui_state(state)
     global_context = smarttest_context().params.global_context_snapshot()
-    dut_serial = resolve_dut_serial(smarttest_context().params.selected_dut(), device_lister=device_lister)
+    dut_serials = selected_dut_serials(state, device_lister=device_lister)
+    dut_serial = dut_serials[0] if dut_serials else resolve_dut_serial(
+        smarttest_context().params.selected_dut(),
+        device_lister=device_lister,
+    )
     raw_equipment = smarttest_context().params.equipment_config()
     return (
         RunConfig(
             nodeids=nodeids,
             dut_serial=dut_serial,
+            dut_serials=dut_serials,
             equipment=dict(raw_equipment) if isinstance(raw_equipment, dict) else {},
             global_context=global_context,
         ),

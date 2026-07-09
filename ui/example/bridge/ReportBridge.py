@@ -45,6 +45,21 @@ class ReportBridge(QObject):
             raw = {}
         return {key: int(raw.get(key, 0) or 0) for key in ("total", "passed", "failed", "skipped", "running")}
 
+    def _dut_summary(self, report: dict[str, Any]) -> str:
+        dut_results = self._dut_results(report)
+        serials = [str(item.get("dut_serial", "") or "").strip() for item in dut_results if isinstance(item, dict)]
+        serials = [serial for serial in serials if serial]
+        if serials:
+            return self.tr("{count} DUTs: {serials}").format(count=len(serials), serials=", ".join(serials))
+        return self.tr("{count} DUTs").format(count=len(dut_results))
+
+    def _dut_results(self, report: dict[str, Any]) -> list[dict[str, Any]]:
+        raw = report.get("dut_results", [])
+        if isinstance(raw, list) and raw:
+            return [dict(item) for item in raw if isinstance(item, dict)]
+        adb_serial = str(report.get("adb_serial", "") or "").strip()
+        return [{"dut_serial": adb_serial or self.tr("No DUT")}]
+
     def _summary_row(self, report: dict[str, Any]) -> dict[str, Any]:
         counts = self._counts(report)
         return {
@@ -58,6 +73,7 @@ class ReportBridge(QObject):
             "duration": duration_text(report.get("duration_ms", 0)),
             "duration_ms": int(report.get("duration_ms", 0) or 0),
             "adb_serial": str(report.get("adb_serial", "") or ""),
+            "dut_summary": self._dut_summary(report),
             **counts,
         }
 
