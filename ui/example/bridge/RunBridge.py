@@ -507,9 +507,20 @@ class RunBridge(QObject):
             self._reset_run_data()
             started_at = self._now_iso()
             for serial in dut_serials:
-                per_dut_config = replace(run_config, dut_serial=serial, dut_serials=[serial])
+                per_dut_context = dict(run_config.global_context)
+                per_dut_context["dut"] = serial
+                per_dut_context["duts"] = [serial]
+                per_dut_config = replace(
+                    run_config,
+                    dut_serial=serial,
+                    dut_serials=[serial],
+                    global_context=per_dut_context,
+                )
                 context = TestContext()
-                context.params.bind_ui_state(load_state(self._default_state_path()))
+                per_dut_state = load_state(self._default_state_path())
+                per_dut_state.global_context["dut"] = serial
+                per_dut_state.global_context["duts"] = [serial]
+                context.params.bind_ui_state(per_dut_state)
                 context.begin_run(root_dir=self._root_dir, run_config=per_dut_config, started_at=started_at)
                 self._contexts[serial] = context
                 self._run_configs[serial] = per_dut_config

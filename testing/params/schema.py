@@ -43,6 +43,7 @@ class ParamField:
     default: Any = ""
     group: str = ""
     enum_values: list[str] = field(default_factory=list)
+    source_kind: str = "user_input"
     options_source: str = ""
     refreshes_options_sources: list[str] = field(default_factory=list)
 

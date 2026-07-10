@@ -1,8 +1,31 @@
 import os
 import shutil
 import subprocess
+import xml.etree.ElementTree as ET
 
 import env
+
+
+def preserve_dynamic_bridge_translations(ts_file_path: str):
+    tree = ET.parse(ts_file_path)
+    root = tree.getroot()
+    changed = False
+    for message in root.findall(".//message"):
+        source = message.find("source")
+        translation = message.find("translation")
+        if source is None or translation is None:
+            continue
+        text = source.text or ""
+        if not (text.startswith("test.param.") or text.startswith("test.schema.")):
+            continue
+        if message.get("type") == "vanished":
+            message.attrib.pop("type", None)
+            changed = True
+        if translation.get("type") == "vanished":
+            translation.attrib.pop("type", None)
+            changed = True
+    if changed:
+        tree.write(ts_file_path, encoding="utf-8", xml_declaration=True)
 
 
 # noinspection PyPep8Naming
@@ -22,6 +45,7 @@ def generateTranslations(projectName: str, localeDatas, files=None):
         commands.append("-ts")
         commands.append(tsFilePath)
         subprocess.run(commands, check=True)
+        preserve_dynamic_bridge_translations(tsFilePath)
         subprocess.run([env.pyside6_lrelease(), tsFilePath], check=True)
         os.makedirs(targetFolder, exist_ok=True)
         shutil.copy(qmFilePath, os.path.join(targetFolder, qmFileName))

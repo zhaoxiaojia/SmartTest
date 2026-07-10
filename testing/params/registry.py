@@ -88,6 +88,7 @@ def _contract_fields() -> list[ParamField]:
                 scope=contract.scope,
                 default=contract.default,
                 enum_values=list(contract.enum_values),
+                source_kind=contract.source_kind,
                 options_source=contract.options_source,
                 refreshes_options_sources=list(contract.refreshes_options_sources),
             )

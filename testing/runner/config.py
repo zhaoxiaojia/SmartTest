@@ -117,15 +117,11 @@ def build_run_config_from_state(
     smarttest_context().params.bind_ui_state(state)
     global_context = smarttest_context().params.global_context_snapshot()
     dut_serials = selected_dut_serials(state, device_lister=device_lister)
-    dut_serial = dut_serials[0] if dut_serials else resolve_dut_serial(
-        smarttest_context().params.selected_dut(),
-        device_lister=device_lister,
-    )
     raw_equipment = smarttest_context().params.equipment_config()
     return (
         RunConfig(
             nodeids=nodeids,
-            dut_serial=dut_serial,
+            dut_serial=dut_serials[0] if dut_serials else None,
             dut_serials=dut_serials,
             equipment=dict(raw_equipment) if isinstance(raw_equipment, dict) else {},
             global_context=global_context,

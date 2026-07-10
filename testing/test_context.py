@@ -525,7 +525,12 @@ class ParameterStore:
             values = getattr(self._ui_state, "global_context", {})
             return values if isinstance(values, dict) else {}
         raw_context = jsonTool.get_json_value("test_page_state.json", ["global_context"], {})
-        return raw_context if isinstance(raw_context, dict) else {}
+        context = dict(raw_context) if isinstance(raw_context, dict) else {}
+        payload = _json_env(RUN_CONFIG_ENV)
+        run_context = payload.get("global_context", {}) if isinstance(payload, dict) else {}
+        if isinstance(run_context, dict):
+            context.update(run_context)
+        return context
 
     def _case_type_configs(self) -> dict[str, dict[str, Any]]:
         if self._ui_state is not None:
@@ -541,6 +546,16 @@ class ParameterStore:
         raw_options = jsonTool.get_json_value("test_page_state.json", ["case_parameter_options"], {})
         return raw_options if isinstance(raw_options, dict) else {}
 
+    def _dynamic_params_by_dut(self) -> dict[str, dict[str, Any]]:
+        global_context = self._global_context()
+        values = global_context.get("dynamic_params_by_dut")
+        if values is None:
+            global_context["dynamic_params_by_dut"] = {}
+            return global_context["dynamic_params_by_dut"]
+        if not isinstance(values, dict):
+            raise TypeError("global_context.dynamic_params_by_dut must be a dict")
+        return values
+
     def ensure_persisted_defaults(self) -> bool:
         if self._ui_state is None:
             return False
@@ -551,7 +566,7 @@ class ParameterStore:
         if "dut" not in global_context and legacy_dut not in (None, ""):
             global_context["dut"] = legacy_dut
             changed = True
-        preserved_global_keys = {*global_defaults, "equipment"}
+        preserved_global_keys = {*global_defaults, "equipment", "duts", "dynamic_params_by_dut"}
         next_global_context = {key: value for key, value in global_context.items() if key in preserved_global_keys}
         if next_global_context != global_context:
             global_context.clear()
@@ -636,9 +651,9 @@ class ParameterStore:
     def raw_case_values(self, nodeid: str) -> dict[str, Any]:
         requested_nodeid = str(nodeid)
         values = self._case_parameters().get(requested_nodeid)
-        if isinstance(values, dict):
-            return dict(values)
-        return {}
+        result = dict(values) if isinstance(values, dict) else {}
+        result.update(self._selected_dut_dynamic_values())
+        return result
 
     def global_value(self, key: str, default: Any = None) -> Any:
         field = self._registry.get_param(str(key or "").strip())
@@ -656,13 +671,17 @@ class ParameterStore:
             value = self._case_type_configs().get(case_type, {}).get(field.key, field.default)
         else:
             case_nodeid = str(case.get("nodeid", "") or "").strip()
-            value = self._case_parameters().get(case_nodeid, {}).get(field.key, field.default)
+            value = self._dynamic_value_for_field(field)
+            if value is None:
+                value = self._case_parameters().get(case_nodeid, {}).get(field.key, field.default)
         return self.normalize_for_key(field.key, value)
 
     def set_case_display_value(self, case: dict[str, Any], key: str, value: Any) -> bool:
         field = self._registry.get_param(str(key or "").strip())
         if field is None:
             return False
+        if str(getattr(field, "source_kind", "") or "").strip() == "dut_dynamic":
+            return self.set_selected_dut_dynamic_value(field.key, value)
         next_value = self.normalize_for_key(field.key, value)
         if field.scope == ParamScope.GLOBAL_CONTEXT:
             context = self._global_context()
@@ -686,6 +705,55 @@ class ParameterStore:
         if parameters[case_nodeid].get(field.key) == next_value:
             return False
         parameters[case_nodeid][field.key] = next_value
+        return True
+
+    def _selected_dut_dynamic_values(self) -> dict[str, Any]:
+        dut = self.selected_dut()
+        if not dut:
+            return {}
+        return self.dut_dynamic_values(dut)
+
+    def _dynamic_value_for_field(self, field: Any) -> Any:
+        if str(getattr(field, "source_kind", "") or "").strip() != "dut_dynamic":
+            return None
+        values = self._selected_dut_dynamic_values()
+        if field.key not in values:
+            return None
+        return values.get(field.key)
+
+    def set_selected_dut_dynamic_value(self, key: str, value: Any) -> bool:
+        return self.set_dut_dynamic_value(self.selected_dut(), key, value)
+
+    def dut_dynamic_values(self, dut: str) -> dict[str, Any]:
+        normalized_dut = str(dut or "").strip()
+        if not normalized_dut:
+            return {}
+        values = self._dynamic_params_by_dut().get(normalized_dut, {})
+        if values is None:
+            return {}
+        if not isinstance(values, dict):
+            raise TypeError(f"dynamic params for DUT {normalized_dut!r} must be a dict")
+        return dict(values)
+
+    def dut_dynamic_value(self, dut: str, key: str, default: Any = None) -> Any:
+        values = self.dut_dynamic_values(dut)
+        return values.get(str(key or "").strip(), default)
+
+    def set_dut_dynamic_value(self, dut: str, key: str, value: Any) -> bool:
+        field = self._registry.get_param(str(key or "").strip())
+        if field is None:
+            return False
+        normalized_dut = str(dut or "").strip()
+        if not normalized_dut:
+            return False
+        next_value = self.normalize_for_key(field.key, value)
+        by_dut = self._dynamic_params_by_dut()
+        values = by_dut.setdefault(normalized_dut, {})
+        if not isinstance(values, dict):
+            raise TypeError(f"dynamic params for DUT {normalized_dut!r} must be a dict")
+        if values.get(field.key) == next_value:
+            return False
+        values[field.key] = next_value
         return True
 
     def set_global_value(self, key: str, value: Any) -> bool:

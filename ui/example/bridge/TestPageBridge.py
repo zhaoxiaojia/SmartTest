@@ -178,8 +178,8 @@ class TestPageBridge(QObject):
             return
         param_targets = self._selected_dynamic_param_targets()
         env_targets = self._selected_dynamic_env_targets()
-        selected_dut = self._current_dut_serial()
-        if param_targets and not selected_dut:
+        selected_duts = self._selected_dut_serials()
+        if param_targets and not selected_duts:
             if self._clear_case_param_options(param_targets):
                 save_state(self._state_path, self._state)
                 self.stateChanged.emit()
@@ -197,6 +197,10 @@ class TestPageBridge(QObject):
                 for target in param_targets
             ),
             *(
+                f"param:*:{str(target.get('field_key', '') or '').strip()}"
+                for target in param_targets
+            ),
+            *(
                 f"env:{str(target.get('kind', '') or '').strip()}:{str(target.get('field_key', '') or '').strip()}"
                 for target in env_targets
             ),
@@ -209,7 +213,7 @@ class TestPageBridge(QObject):
         )
         self.stateChanged.emit()
         self._create_task(
-            self._refresh_context_task(selected_dut, param_targets, env_targets),
+            self._refresh_context_task(selected_duts, param_targets, env_targets),
             label="context_refresh",
         )
 
@@ -224,20 +228,25 @@ class TestPageBridge(QObject):
 
     async def _refresh_context_task(
         self,
-        selected_serial: str,
+        selected_serials: list[str],
         param_targets: list[dict[str, str]],
         env_targets: list[dict[str, str]],
     ) -> None:
         started_at = time.monotonic()
         try:
-            result = await self._parameter_helper.refresh_context_async(
-                selected_serial=selected_serial or None,
-                param_targets=param_targets,
-                env_targets=env_targets,
-            )
+            param_results: list[dict[str, Any]] = []
+            env_results: list[dict[str, Any]] = []
+            for index, selected_serial in enumerate(selected_serials or [""]):
+                result = await self._parameter_helper.refresh_context_async(
+                    selected_serial=selected_serial or None,
+                    param_targets=param_targets,
+                    env_targets=env_targets if index == 0 else [],
+                )
+                param_results.extend(result.param_results)
+                env_results.extend(result.env_results)
             payload = {
-                "param_results": result.param_results,
-                "env_results": result.env_results,
+                "param_results": param_results,
+                "env_results": env_results,
                 "elapsed_ms": int((time.monotonic() - started_at) * 1000),
             }
         except Exception as exc:  # noqa: BLE001
@@ -273,6 +282,7 @@ class TestPageBridge(QObject):
             source = str(result.get("source", "") or "").strip()
             nodeid = str(result.get("nodeid", "") or "").strip()
             field_key = str(result.get("field_key", "") or "").strip()
+            dut_serial = str(result.get("dut_serial", "") or "").strip()
             options = _storage_playback_options(normalize_option_values(result.get("options", [])))
             error = str(result.get("error", "") or "").strip()
             if error:
@@ -291,7 +301,7 @@ class TestPageBridge(QObject):
             if self._set_case_param_options(nodeid=nodeid, key=field_key, options=options):
                 changed = True
                 state_synced = True
-            if self._sync_dynamic_values_from_options(source=source, nodeid=nodeid, options=options):
+            if self._sync_dynamic_values_from_options(source=source, nodeid=nodeid, options=options, dut=dut_serial):
                 state_synced = True
         for result in list(payload.get("env_results", []) or []):
             kind = str(result.get("kind", "") or "").strip().lower()
@@ -383,7 +393,7 @@ class TestPageBridge(QObject):
         )
         return True
 
-    def _sync_dynamic_values_from_options(self, *, source: str, nodeid: str, options: list[str]) -> bool:
+    def _sync_dynamic_values_from_options(self, *, source: str, nodeid: str, options: list[str], dut: str = "") -> bool:
         normalized_source = str(source or "").strip()
         if not normalized_source:
             return False
@@ -404,14 +414,19 @@ class TestPageBridge(QObject):
                 if field is None or str(field.options_source or "").strip() != normalized_source:
                     continue
                 next_value = _dynamic_value_for_field(field, next_options)
-                current = smarttest_context().params.case_display_value(case, field.key)
+                current = smarttest_context().params.dut_dynamic_value(
+                    dut,
+                    field.key,
+                    smarttest_context().params.case_display_value(case, field.key),
+                )
                 if next_value == current:
                     continue
-                if not smarttest_context().params.set_case_display_value(case, field.key, next_value):
+                if not self._set_dut_dynamic_param_value(dut=dut, key=field.key, value=next_value):
                     continue
                 self._trace(
                     "param_options_synced_selected_values",
                     nodeid=case_nodeid,
+                    dut=dut or "<none>",
                     field=field.key,
                     source=normalized_source,
                     previous=_value_size(current),
@@ -533,15 +548,29 @@ class TestPageBridge(QObject):
             "fields": [self._field_to_jsonable(f) for f in schema.fields],
         }
 
-    def _field_to_jsonable(self, field: ParamField, *, nodeid: str = "") -> dict[str, Any]:
-        if nodeid:
+    def _field_to_jsonable(
+        self,
+        field: ParamField,
+        *,
+        nodeid: str = "",
+        value: Any = None,
+        has_value: bool = False,
+        readonly: bool | None = None,
+        dut_serial: str = "",
+        loading_owner: str | None = None,
+    ) -> dict[str, Any]:
+        if has_value:
+            resolved_value = value
+        elif nodeid:
             case = self._case_info(nodeid)
-            value = smarttest_context().params.case_display_value(case or {}, field.key)
+            resolved_value = smarttest_context().params.case_display_value(case or {}, field.key)
         elif field.scope == ParamScope.GLOBAL_CONTEXT:
-            value = smarttest_context().params.global_value(field.key, field.default)
+            resolved_value = smarttest_context().params.global_value(field.key, field.default)
         else:
-            value = field.default
-        list_values = normalize_option_values(value) if self._is_multi_enum_field(field) else []
+            resolved_value = field.default
+        if readonly is None:
+            readonly = str(getattr(field, "source_kind", "") or "").strip() == "dut_dynamic"
+        owner = nodeid if loading_owner is None else loading_owner
         return {
             "key": field.key,
             "label": self._field_label(field),
@@ -558,13 +587,59 @@ class TestPageBridge(QObject):
             "required": False,
             "enum_values": self._enum_values_for_field(field, nodeid=nodeid),
             "enum_values_source": "dynamic" if field.options_source else "fixed",
+            "source_kind": str(getattr(field, "source_kind", "") or "user_input"),
             "options_source": field.options_source,
             "refreshes_options_sources": list(field.refreshes_options_sources),
-            "loading": self._is_dynamic_field_loading(kind="param", owner=nodeid, key=field.key),
-            "value": value,
             "value_source": "state",
-            "list_values": list_values,
+            "dut_serial": dut_serial,
+            "value": resolved_value,
+            "list_values": normalize_option_values(resolved_value) if self._is_multi_enum_field(field) else [],
+            "readonly": readonly,
+            "loading": self._is_dynamic_field_loading(kind="param", owner=owner, key=field.key),
         }
+
+    def _set_dut_dynamic_param_value(self, *, dut: str, key: str, value: Any) -> bool:
+        field = self._field_for_key(key)
+        if field is None:
+            self._trace("dut_dynamic_value_skip_unknown_field", dut=str(dut or "").strip() or "<none>", field=key)
+            return False
+        normalized_dut = str(dut or "").strip()
+        if not normalized_dut:
+            self._trace("dut_dynamic_value_skip_no_dut", field=field.key)
+            return False
+        current = smarttest_context().params.dut_dynamic_value(normalized_dut, field.key)
+        changed = smarttest_context().params.set_dut_dynamic_value(normalized_dut, field.key, value)
+        next_value = smarttest_context().params.dut_dynamic_value(normalized_dut, field.key)
+        if not changed:
+            self._trace("dut_dynamic_value_unchanged", dut=normalized_dut, field=field.key, value=_value_size(next_value))
+            return False
+        self._trace(
+            "dut_dynamic_value_changed",
+            dut=normalized_dut,
+            field=field.key,
+            previous=_value_size(current),
+            value=_value_size(next_value),
+        )
+        return True
+
+    def _selected_dut_dynamic_fields(self) -> list[ParamField]:
+        fields: list[ParamField] = []
+        seen: set[str] = set()
+        for selected in self._state.selected:
+            case = self._case_info(selected.nodeid)
+            if case is None:
+                continue
+            for param_key in case_param_keys(case):
+                field = self._field_for_key(str(param_key))
+                if field is None:
+                    continue
+                if str(getattr(field, "source_kind", "") or "").strip() != "dut_dynamic":
+                    continue
+                if field.key in seen:
+                    continue
+                seen.add(field.key)
+                fields.append(field)
+        return fields
 
     def _is_dynamic_field_loading(self, *, kind: str, owner: str, key: str) -> bool:
         return f"{kind}:{str(owner or '').strip()}:{str(key or '').strip()}" in self._dynamic_fields_refreshing
@@ -1379,6 +1454,70 @@ class TestPageBridge(QObject):
     @Slot(result="QVariantList")
     def selectedDuts(self):
         return self._selected_dut_serials()
+
+    @Slot(result="QVariantList")
+    def dutDynamicParamRows(self):
+        fields = self._selected_dut_dynamic_fields()
+        if not fields:
+            return []
+        nodeid = self._selected_nodeids()[0] if self._selected_nodeids() else ""
+        rows: list[dict[str, Any]] = []
+        for dut in self._selected_dut_serials():
+            rows.append(
+                {
+                    "dut_serial": dut,
+                    "fields": [
+                        self._field_to_jsonable(
+                            field,
+                            nodeid=nodeid,
+                            value=smarttest_context().params.dut_dynamic_value(dut, field.key, field.default),
+                            has_value=True,
+                            readonly=False,
+                            dut_serial=dut,
+                            loading_owner="*",
+                        )
+                        for field in fields
+                    ],
+                }
+            )
+        return rows
+
+    @Slot(str, str, "QVariant")
+    def setDutDynamicParamValue(self, dut: str, key: str, value: Any) -> None:
+        self._trace("dut_dynamic_set_value_request", dut=str(dut or "").strip() or "<none>", field=str(key or "").strip(), value=_value_size(value))
+        if not self._set_dut_dynamic_param_value(dut=dut, key=key, value=value):
+            return
+        self._save_and_emit()
+        self._refresh_options_affected_by_param_change(nodeid=self._selected_nodeids()[0] if self._selected_nodeids() else "", key=key)
+
+    @Slot(str, str, "QVariant")
+    def saveDutDynamicParamValue(self, dut: str, key: str, value: Any) -> None:
+        self._trace("dut_dynamic_save_value_request", dut=str(dut or "").strip() or "<none>", field=str(key or "").strip(), value=_value_size(value))
+        if not self._set_dut_dynamic_param_value(dut=dut, key=key, value=value):
+            return
+        save_state(self._state_path, self._state)
+
+    @Slot(str, str, str, bool)
+    def setDutDynamicParamListItemSelected(self, dut: str, key: str, value: str, selected: bool) -> None:
+        option = str(value or "").strip()
+        if not option:
+            self._trace("dut_dynamic_list_toggle_skip_empty", dut=str(dut or "").strip() or "<none>", field=str(key or "").strip())
+            return
+        self._trace(
+            "dut_dynamic_list_toggle_request",
+            dut=str(dut or "").strip() or "<none>",
+            field=str(key or "").strip(),
+            option=option,
+            selected=selected,
+        )
+        current = normalize_option_values(smarttest_context().params.dut_dynamic_value(dut, key, []))
+        if selected and option not in current:
+            current.append(option)
+        if not selected:
+            current = [item for item in current if item != option]
+        if not self._set_dut_dynamic_param_value(dut=dut, key=key, value=current):
+            return
+        self._save_and_emit()
 
     @Slot(str, "QVariant")
     def saveGlobalValue(self, key: str, value: Any) -> None:

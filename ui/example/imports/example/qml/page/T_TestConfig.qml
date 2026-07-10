@@ -14,6 +14,7 @@ FluPage {
     property int stateVersion: 0
     property var selectedModel: []
     property var selectedCaseParamsModel: []
+    property var dutDynamicParamsModel: []
     property var envEquipmentModel: []
     property var caseTreeDataSource: []
     property var caseExpandState: ({})
@@ -101,6 +102,9 @@ FluPage {
     }
 
     function fieldSummary(fieldData){
+        if(fieldData && fieldData.readonly === true){
+            return qsTr("Configured under DUT.")
+        }
         var summary = fieldScopeLabel(fieldData)
         var description = fieldDescription(fieldData)
         if(description){
@@ -133,6 +137,300 @@ FluPage {
         return keys
     }
 
+    Component{
+        id: paramFieldEditorComponent
+        ColumnLayout{
+            property var fieldData: ({})
+            property string caseNodeId: ""
+            property string dutSerial: ""
+            property string editMode: "case"
+            property real editorWidth: width
+            property bool readonlyField: fieldData.readonly === true
+            property bool compactTextField: fieldData.type === "string" || fieldData.type === "float" || fieldData.type === "int"
+            Layout.fillWidth: true
+            spacing: 2
+
+            function saveValue(value){
+                if(editMode === "dut"){
+                    TestPageBridge.saveDutDynamicParamValue(dutSerial, fieldData.key, value)
+                }else{
+                    TestPageBridge.saveCaseParamValue(caseNodeId, fieldData.key, value)
+                }
+            }
+
+            function setValue(value){
+                if(editMode === "dut"){
+                    TestPageBridge.setDutDynamicParamValue(dutSerial, fieldData.key, value)
+                }else{
+                    TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, value)
+                }
+            }
+
+            function setListItemSelected(option, checked){
+                if(editMode === "dut"){
+                    TestPageBridge.setDutDynamicParamListItemSelected(dutSerial, fieldData.key, option, checked)
+                }else{
+                    TestPageBridge.setCaseParamListItemSelected(caseNodeId, fieldData.key, option, checked)
+                }
+            }
+
+            GridLayout{
+                visible: !readonlyField && compactTextField
+                Layout.fillWidth: true
+                columns: compactEditorInline(editorWidth) ? 2 : 1
+                columnSpacing: 12
+                rowSpacing: 4
+                ColumnLayout{
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    spacing: 2
+                    FluText{
+                        text: fieldLabel(fieldData)
+                        font: FluTextStyle.BodyStrong
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                    }
+                    FluText{
+                        Layout.fillWidth: true
+                        text: fieldSummary(fieldData)
+                        font: FluTextStyle.Caption
+                        color: FluTheme.fontSecondaryColor
+                        wrapMode: Text.WordWrap
+                    }
+                }
+                FluTextBox{
+                    id: compact_text_param
+                    enabled: fieldData.readonly !== true
+                    Layout.fillWidth: !compactEditorInline(editorWidth)
+                    Layout.preferredWidth: compactEditorInline(editorWidth) ? compactEditorWidth(editorWidth) : -1
+                    Layout.maximumWidth: compactEditorInline(editorWidth) ? 260 : 16777215
+                    placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
+                    cleanEnabled: false
+                    property bool persistReady: false
+                    property bool syncingFromState: false
+                    function syncFromState(){
+                        if(!visible || activeFocus){
+                            return
+                        }
+                        var nextText = fieldTextValue(fieldData)
+                        if(text !== nextText){
+                            syncingFromState = true
+                            text = nextText
+                            syncingFromState = false
+                        }
+                    }
+                    function persistValue(){
+                        if(!persistReady || syncingFromState){
+                            return
+                        }
+                        if(fieldData.type === "int"){
+                            var parsed = parseInt(text, 10)
+                            if(isNaN(parsed)){
+                                return
+                            }
+                            saveValue(parsed)
+                            return
+                        }
+                        saveValue(text)
+                    }
+                    onTextChanged: persistValue()
+                    Component.onCompleted: {
+                        syncFromState()
+                        persistReady = true
+                    }
+                    onVisibleChanged: syncFromState()
+                    onActiveFocusChanged: {
+                        if(!activeFocus){
+                            persistValue()
+                        }
+                    }
+                    onEditingFinished: persistValue()
+                    Connections {
+                        target: page_root
+                        function onStateVersionChanged() {
+                            compact_text_param.syncFromState()
+                        }
+                    }
+                }
+            }
+
+            RowLayout{
+                visible: !readonlyField && !compactTextField
+                Layout.fillWidth: true
+                spacing: 8
+                FluText{
+                    text: fieldLabel(fieldData)
+                    font: FluTextStyle.BodyStrong
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    elide: editMode === "dut" ? Text.ElideRight : Text.ElideNone
+                }
+                FluProgressRing{
+                    visible: fieldData.loading === true
+                    Layout.preferredWidth: editMode === "dut" ? 14 : 16
+                    Layout.preferredHeight: editMode === "dut" ? 14 : 16
+                    indeterminate: true
+                }
+            }
+
+            FluText{
+                visible: !readonlyField && !compactTextField && editMode !== "dut"
+                Layout.fillWidth: true
+                text: fieldSummary(fieldData)
+                font: FluTextStyle.Caption
+                color: FluTheme.fontSecondaryColor
+                wrapMode: Text.WordWrap
+            }
+
+            FluTextBox{
+                id: text_param
+                visible: !readonlyField && fieldData.type === "path"
+                enabled: fieldData.readonly !== true
+                Layout.fillWidth: true
+                cleanEnabled: editMode === "dut" ? false : true
+                placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
+                property bool persistReady: false
+                property bool syncingFromState: false
+                function syncFromState(){
+                    if(!visible || activeFocus){
+                        return
+                    }
+                    var nextText = fieldTextValue(fieldData)
+                    if(text !== nextText){
+                        syncingFromState = true
+                        text = nextText
+                        syncingFromState = false
+                    }
+                }
+                function persistValue(){
+                    if(!persistReady || syncingFromState){
+                        return
+                    }
+                    saveValue(text)
+                }
+                onTextChanged: persistValue()
+                Component.onCompleted: {
+                    syncFromState()
+                    persistReady = true
+                }
+                onVisibleChanged: syncFromState()
+                onActiveFocusChanged: {
+                    if(!activeFocus){
+                        persistValue()
+                    }
+                }
+                onEditingFinished: persistValue()
+                Connections {
+                    target: page_root
+                    function onStateVersionChanged() {
+                        text_param.syncFromState()
+                    }
+                }
+            }
+
+            FluComboBox{
+                visible: !readonlyField && fieldData.type === "enum"
+                Layout.fillWidth: true
+                model: fieldData.enum_values || []
+                enabled: fieldData.readonly !== true && (fieldData.enum_values || []).length > 0
+                currentIndex: {
+                    var currentValue = fieldTextValue(fieldData)
+                    var options = fieldData.enum_values || []
+                    if(currentValue === ""){
+                        return options.indexOf("None")
+                    }
+                    return options.indexOf(currentValue)
+                }
+                onActivated: (activatedIndex)=> {
+                    var options = fieldData.enum_values || []
+                    var indexToUse = activatedIndex === undefined ? currentIndex : activatedIndex
+                    if(indexToUse >= 0 && indexToUse < options.length){
+                        var nextValue = options[indexToUse]
+                        if(nextValue === "None"){
+                            nextValue = ""
+                        }
+                        setValue(nextValue)
+                    }
+                }
+            }
+
+            ColumnLayout{
+                visible: !readonlyField && fieldData.type === "multi_enum"
+                Layout.fillWidth: true
+                spacing: 2
+                Repeater{
+                    model: fieldData.enum_values || []
+                    FluCheckBox{
+                        Layout.alignment: Qt.AlignLeft
+                        Layout.preferredHeight: 24
+                        size: 16
+                        textSpacing: 4
+                        font: FluTextStyle.Caption
+                        enabled: fieldData.readonly !== true
+                        text: modelData
+                        checked: {
+                            var _version = stateVersion
+                            return fieldListContains(fieldData, modelData)
+                        }
+                        onClicked: setListItemSelected(modelData, checked)
+                    }
+                }
+            }
+
+            FluToggleSwitch{
+                visible: !readonlyField && fieldData.type === "bool"
+                enabled: fieldData.readonly !== true
+                checked: fieldBoolValue(fieldData)
+                text: checked ? qsTr("Enabled") : qsTr("Disabled")
+                onClicked: setValue(checked)
+            }
+
+            FluMultilineTextBox{
+                id: multiline_text_param
+                visible: !readonlyField && fieldData.type === "multiline"
+                enabled: fieldData.readonly !== true
+                Layout.fillWidth: true
+                Layout.preferredHeight: 76
+                placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
+                isCtrlEnterForNewline: true
+                Binding {
+                    target: multiline_text_param
+                    property: "text"
+                    when: multiline_text_param.visible && !multiline_text_param.activeFocus
+                    value: fieldTextValue(fieldData)
+                }
+                onTextChanged: saveValue(text)
+                onActiveFocusChanged: {
+                    if(!activeFocus){
+                        setValue(text)
+                    }
+                }
+                onCommit: setValue(text)
+            }
+
+            RowLayout{
+                visible: readonlyField
+                Layout.fillWidth: true
+                spacing: 8
+                FluText{
+                    text: fieldLabel(fieldData)
+                    font: FluTextStyle.BodyStrong
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                }
+                FluText{
+                    text: qsTr("Configured under DUT.")
+                    font: FluTextStyle.Caption
+                    color: FluTheme.fontSecondaryColor
+                }
+            }
+
+            FluDivider{
+                Layout.fillWidth: true
+            }
+        }
+    }
+
     function decorateTreeNodes(nodes){
         var source = nodes || []
         var decorated = []
@@ -163,16 +461,11 @@ FluPage {
     }
 
     function refreshViewModels(){
-        console.debug("[TEST_QML] refreshViewModels start " + Date.now())
         caseTreeDataSource = decorateTreeNodes(TestPageBridge.caseTree((txt_filter.text || "").toString(), expandedKeys()))
         selectedModel = TestPageBridge.selectedFileRows()
         selectedCaseParamsModel = TestPageBridge.selectedCaseParamRows()
+        dutDynamicParamsModel = TestPageBridge.dutDynamicParamRows()
         envEquipmentModel = TestPageBridge.envEquipmentRows()
-        console.debug("[TEST_QML] refreshViewModels done " + Date.now()
-                      + " tree=" + caseTreeDataSource.length
-                      + " selected=" + selectedModel.length
-                      + " params=" + selectedCaseParamsModel.length
-                      + " env=" + envEquipmentModel.length)
     }
 
     Connections{
@@ -201,11 +494,8 @@ FluPage {
     }
 
     Component.onCompleted: {
-        console.debug("[TEST_QML] completed start " + Date.now())
         TestPageBridge.discoverCases()
-        console.debug("[TEST_QML] discoverCases returned " + Date.now())
         refreshViewModels()
-        console.debug("[TEST_QML] completed done " + Date.now())
     }
 
     FluSplitLayout{
@@ -480,279 +770,14 @@ FluPage {
                                                 var _version = stateVersion
                                                 return case_param_expander.caseFields
                                             }
-                                            ColumnLayout{
-                                                property string caseNodeId: case_param_expander.caseNodeId
-                                                property var fieldData: modelData
-                                                property bool compactTextField: fieldData.type === "string" || fieldData.type === "float" || fieldData.type === "int"
+                                            Loader{
                                                 Layout.fillWidth: true
-                                                spacing: 2
-
-                                                GridLayout{
-                                                    visible: compactTextField
-                                                    Layout.fillWidth: true
-                                                    columns: compactEditorInline(col_case_form.width) ? 2 : 1
-                                                    columnSpacing: 12
-                                                    rowSpacing: 4
-
-                                                    ColumnLayout{
-                                                        Layout.fillWidth: true
-                                                        Layout.minimumWidth: 0
-                                                        spacing: 2
-                                                        FluText{
-                                                            text: fieldLabel(fieldData)
-                                                            font: FluTextStyle.BodyStrong
-                                                            Layout.fillWidth: true
-                                                            wrapMode: Text.WordWrap
-                                                        }
-                                                        FluText{
-                                                            Layout.fillWidth: true
-                                                            text: {
-                                                                return fieldSummary(fieldData)
-                                                            }
-                                                            font: FluTextStyle.Caption
-                                                            color: FluTheme.fontSecondaryColor
-                                                            wrapMode: Text.WordWrap
-                                                        }
-                                                    }
-
-                                                    FluTextBox{
-                                                        id: text_case_param_compact
-                                                        Layout.fillWidth: !compactEditorInline(col_case_form.width)
-                                                        Layout.preferredWidth: compactEditorInline(col_case_form.width) ? compactEditorWidth(col_case_form.width) : -1
-                                                        Layout.maximumWidth: compactEditorInline(col_case_form.width) ? 260 : 16777215
-                                                        placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
-                                                        cleanEnabled: false
-                                                        property bool persistReady: false
-                                                        property bool syncingFromState: false
-                                                        function stateText(){
-                                                            var value = fieldTextValue(fieldData)
-                                                            return value === undefined || value === null ? "" : (value + "")
-                                                        }
-                                                        function syncFromState(){
-                                                            if(!visible || activeFocus){
-                                                                return
-                                                            }
-                                                            var nextText = stateText()
-                                                            if(text !== nextText){
-                                                                syncingFromState = true
-                                                                text = nextText
-                                                                syncingFromState = false
-                                                            }
-                                                        }
-                                                        function persistValue(){
-                                                            if(!persistReady || syncingFromState){
-                                                                return
-                                                            }
-                                                            if(fieldData.type === "int"){
-                                                                var parsed = parseInt(text, 10)
-                                                                if(isNaN(parsed)){
-                                                                    return
-                                                                }
-                                                                TestPageBridge.saveCaseParamValue(caseNodeId, fieldData.key, parsed)
-                                                                return
-                                                            }
-                                                            TestPageBridge.saveCaseParamValue(caseNodeId, fieldData.key, text)
-                                                        }
-                                                        onTextChanged: persistValue()
-                                                        Component.onCompleted: {
-                                                            syncFromState()
-                                                            persistReady = true
-                                                        }
-                                                        onVisibleChanged: syncFromState()
-                                                        onActiveFocusChanged: {
-                                                            if(!activeFocus){
-                                                                persistValue()
-                                                            }
-                                                        }
-                                                        onEditingFinished: persistValue()
-                                                        Connections {
-                                                            target: page_root
-                                                            function onStateVersionChanged() {
-                                                                text_case_param_compact.syncFromState()
-                                                            }
-                                                        }
-                                                    }
-                                                }
-
-                                                RowLayout{
-                                                    visible: !compactTextField
-                                                    Layout.fillWidth: true
-                                                    spacing: 8
-                                                    FluText{
-                                                        text: fieldLabel(fieldData)
-                                                        font: FluTextStyle.BodyStrong
-                                                        Layout.fillWidth: true
-                                                        wrapMode: Text.WordWrap
-                                                    }
-                                                    FluProgressRing{
-                                                        visible: fieldData.loading === true
-                                                        Layout.preferredWidth: 16
-                                                        Layout.preferredHeight: 16
-                                                        indeterminate: true
-                                                    }
-                                                }
-
-                                                FluText{
-                                                    visible: !compactTextField
-                                                    Layout.fillWidth: true
-                                                    text: {
-                                                        return fieldSummary(fieldData)
-                                                    }
-                                                    font: FluTextStyle.Caption
-                                                    color: FluTheme.fontSecondaryColor
-                                                    wrapMode: Text.WordWrap
-                                                }
-
-                                                FluTextBox{
-                                                    id: text_case_param
-                                                    visible: fieldData.type === "path"
-                                                    Layout.fillWidth: true
-                                                    placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
-                                                    property bool persistReady: false
-                                                    property bool syncingFromState: false
-                                                    function stateText(){
-                                                        var value = fieldTextValue(fieldData)
-                                                        return value === undefined || value === null ? "" : (value + "")
-                                                    }
-                                                    function syncFromState(){
-                                                        if(!visible || activeFocus){
-                                                            return
-                                                        }
-                                                        var nextText = stateText()
-                                                        if(text !== nextText){
-                                                            syncingFromState = true
-                                                            text = nextText
-                                                            syncingFromState = false
-                                                        }
-                                                    }
-                                                    function persistValue(){
-                                                        if(!persistReady || syncingFromState){
-                                                            return
-                                                        }
-                                                        if(fieldData.type === "int"){
-                                                            var parsed = parseInt(text, 10)
-                                                            if(isNaN(parsed)){
-                                                                return
-                                                            }
-                                                            TestPageBridge.saveCaseParamValue(caseNodeId, fieldData.key, parsed)
-                                                            return
-                                                        }
-                                                        TestPageBridge.saveCaseParamValue(caseNodeId, fieldData.key, text)
-                                                    }
-                                                    onTextChanged: persistValue()
-                                                    Component.onCompleted: {
-                                                        syncFromState()
-                                                        persistReady = true
-                                                    }
-                                                    onVisibleChanged: syncFromState()
-                                                    onActiveFocusChanged: {
-                                                        if(!activeFocus){
-                                                            persistValue()
-                                                        }
-                                                    }
-                                                    onEditingFinished: persistValue()
-                                                    Connections {
-                                                        target: page_root
-                                                        function onStateVersionChanged() {
-                                                            text_case_param.syncFromState()
-                                                        }
-                                                    }
-                                                }
-
-                                                FluComboBox{
-                                                    id: combo_case_param
-                                                    visible: fieldData.type === "enum"
-                                                    Layout.fillWidth: true
-                                                    model: fieldData.enum_values || []
-                                                    enabled: (fieldData.enum_values || []).length > 0
-                                                    currentIndex: {
-                                                        var currentValue = fieldTextValue(fieldData)
-                                                        var options = fieldData.enum_values || []
-                                                        if(currentValue === ""){
-                                                            return options.indexOf("None")
-                                                        }
-                                                        return options.indexOf(currentValue)
-                                                    }
-                                                    onDownChanged: {
-                                                        if(down && fieldData.key.indexOf(":bt_target") >= 0){
-                                                            TestPageBridge.reloadState()
-                                                        }
-                                                    }
-                                                    onActivated: {
-                                                        if(currentIndex >= 0){
-                                                            var nextValue = currentText
-                                                            if(currentText === "None"){
-                                                                nextValue = ""
-                                                            }
-                                                            TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, nextValue)
-                                                        }
-                                                    }
-                                                }
-
-                                                FluText{
-                                                    visible: fieldData.type === "enum"
-                                                             && fieldData.key.indexOf(":bt_target") >= 0
-                                                             && (fieldData.enum_values || []).length === 0
-                                                    Layout.fillWidth: true
-                                                    text: qsTr("No connected Bluetooth devices found on the current DUT.")
-                                                    font: FluTextStyle.Caption
-                                                    color: FluTheme.fontSecondaryColor
-                                                    wrapMode: Text.WordWrap
-                                                }
-
-                                                ColumnLayout{
-                                                    visible: fieldData.type === "multi_enum"
-                                                    Layout.fillWidth: true
-                                                    spacing: 2
-                                                    Repeater{
-                                                        model: fieldData.enum_values || []
-                                                        FluCheckBox{
-                                                            Layout.alignment: Qt.AlignLeft
-                                                            Layout.preferredHeight: 24
-                                                            size: 16
-                                                            textSpacing: 4
-                                                            font: FluTextStyle.Caption
-                                                            text: modelData
-                                                            checked: {
-                                                                var _version = stateVersion
-                                                                return fieldListContains(fieldData, modelData)
-                                                            }
-                                                            onClicked: TestPageBridge.setCaseParamListItemSelected(caseNodeId, fieldData.key, modelData, checked)
-                                                        }
-                                                    }
-                                                }
-
-                                                FluToggleSwitch{
-                                                    visible: fieldData.type === "bool"
-                                                    checked: fieldBoolValue(fieldData)
-                                                    text: checked ? qsTr("Enabled") : qsTr("Disabled")
-                                                    onClicked: TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, checked)
-                                                }
-
-                                                FluMultilineTextBox{
-                                                    id: text_case_param_multiline
-                                                    visible: fieldData.type === "multiline"
-                                                    Layout.fillWidth: true
-                                                    Layout.preferredHeight: 76
-                                                    placeholderText: fieldData.default !== undefined && fieldData.default !== null ? (fieldData.default + "") : ""
-                                                    isCtrlEnterForNewline: true
-                                                    Binding {
-                                                        target: text_case_param_multiline
-                                                        property: "text"
-                                                        when: text_case_param_multiline.visible && !text_case_param_multiline.activeFocus
-                                                        value: fieldTextValue(fieldData)
-                                                    }
-                                                    onTextChanged: TestPageBridge.saveCaseParamValue(caseNodeId, fieldData.key, text)
-                                                    onActiveFocusChanged: {
-                                                        if(!activeFocus){
-                                                            TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
-                                                        }
-                                                    }
-                                                    onCommit: TestPageBridge.setCaseParamValue(caseNodeId, fieldData.key, text)
-                                                }
-
-                                                FluDivider{
-                                                    Layout.fillWidth: true
+                                                sourceComponent: paramFieldEditorComponent
+                                                onLoaded: {
+                                                    item.fieldData = modelData
+                                                    item.caseNodeId = case_param_expander.caseNodeId
+                                                    item.editMode = "case"
+                                                    item.editorWidth = col_case_form.width
                                                 }
                                             }
                                         }
@@ -923,6 +948,72 @@ FluPage {
                                 }
                                 FluDivider{
                                     Layout.fillWidth: true
+                                }
+                            }
+                        }
+
+                        ColumnLayout{
+                            visible: dutDynamicParamsModel.length > 0
+                            Layout.fillWidth: true
+                            spacing: 6
+
+                            FluDivider{
+                                Layout.fillWidth: true
+                            }
+
+                            RowLayout{
+                                Layout.fillWidth: true
+                                spacing: 8
+                                FluText{
+                                    text: qsTr("Dynamic")
+                                    font: FluTextStyle.Subtitle
+                                    Layout.fillWidth: true
+                                }
+                                FluText{
+                                    text: qsTr("DUT scoped")
+                                    font: FluTextStyle.Caption
+                                    color: FluTheme.fontSecondaryColor
+                                }
+                            }
+
+                            Repeater{
+                                model: dutDynamicParamsModel
+                                FluExpander{
+                                    id: dut_dynamic_expander
+                                    property string dutSerial: modelData.dut_serial || ""
+                                    property var dutFields: modelData.fields || []
+                                    Layout.fillWidth: true
+                                    headerText: dutSerial + "  (" + dutFields.length + ")"
+                                    expand: index === 0
+                                    contentHeight: dut_dynamic_content.implicitHeight
+
+                                    Item{
+                                        id: dut_dynamic_content
+                                        width: parent.width
+                                        implicitHeight: col_dut_dynamic_fields.implicitHeight + 20
+
+                                        ColumnLayout{
+                                            id: col_dut_dynamic_fields
+                                            x: 10
+                                            y: 10
+                                            width: parent.width - 20
+                                            spacing: 8
+
+                                            Repeater{
+                                                model: dut_dynamic_expander.dutFields
+                                                Loader{
+                                                    Layout.fillWidth: true
+                                                    sourceComponent: paramFieldEditorComponent
+                                                    onLoaded: {
+                                                        item.fieldData = modelData
+                                                        item.dutSerial = dut_dynamic_expander.dutSerial
+                                                        item.editMode = "dut"
+                                                        item.editorWidth = col_dut_dynamic_fields.width
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1193,7 +1284,6 @@ FluPage {
                                                             height: 30
                                                             text: qsTr("Add terminal")
                                                             onClicked: {
-                                                                console.debug("[TEST_QML] env terminal add click kind=" + env_equipment_expander.equipmentKind)
                                                                 TestPageBridge.addEnvRelayTerminal(env_equipment_expander.equipmentKind)
                                                             }
                                                         }
@@ -1272,8 +1362,6 @@ FluPage {
                                                                 enabled: terminalRows().length > 1
                                                                 text: qsTr("Remove terminal")
                                                                 onClicked: {
-                                                                    console.debug("[TEST_QML] env terminal remove click kind=" + env_equipment_expander.equipmentKind
-                                                                                  + " index=" + rowIndex)
                                                                     TestPageBridge.removeEnvRelayTerminal(env_equipment_expander.equipmentKind, rowIndex)
                                                                 }
                                                             }

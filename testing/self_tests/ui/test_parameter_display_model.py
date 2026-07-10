@@ -32,7 +32,7 @@ def test_text_parameter_edits_save_without_refreshing_view_model():
     bridge_source = (ROOT / "ui/example/bridge/TestPageBridge.py").read_text(encoding="utf-8")
 
     assert "onTextChanged: persistValue()" in qml_source
-    assert "TestPageBridge.saveCaseParamValue(caseNodeId, fieldData.key" in qml_source
+    assert "TestPageBridge.saveCaseParamValue(caseNodeId, fieldData.key, value)" in qml_source
     assert "onTextChanged: TestPageBridge.saveGlobalValue(fieldData.key, text)" in qml_source
 
     save_case_body = bridge_source.split("def saveCaseParamValue", 1)[1].split("@Slot", 1)[0]
@@ -52,3 +52,27 @@ def test_start_button_does_not_force_parameter_save():
     assert "forceActiveFocus" not in start_button_body
     assert "TestPageBridge.save" not in start_button_body
     assert "TestPageBridge.set" not in start_button_body
+
+
+def test_case_parameter_dynamic_fields_render_readonly_summary_only():
+    qml_source = (ROOT / "ui/example/imports/example/qml/page/T_TestConfig.qml").read_text(encoding="utf-8")
+
+    assert "property bool readonlyField: fieldData.readonly === true" in qml_source
+    assert "visible: readonlyField" in qml_source
+    assert "visible: !readonlyField && fieldData.type === \"enum\"" in qml_source
+    assert "visible: !readonlyField && fieldData.type === \"multi_enum\"" in qml_source
+    assert "visible: !readonlyField && fieldData.type === \"path\"" in qml_source
+
+
+def test_dut_dynamic_controls_use_existing_control_commit_patterns():
+    qml_source = (ROOT / "ui/example/imports/example/qml/page/T_TestConfig.qml").read_text(encoding="utf-8")
+    editor_block = qml_source.split("id: paramFieldEditorComponent", 1)[1].split("function decorateTreeNodes", 1)[0]
+    dut_dynamic_block = qml_source.split("id: dut_dynamic_expander", 1)[1].split("FluFrame{", 1)[0]
+
+    assert "sourceComponent: paramFieldEditorComponent" in dut_dynamic_block
+    assert "item.editMode = \"dut\"" in dut_dynamic_block
+    assert "onActivated: (activatedIndex)=>" in editor_block
+    assert "var nextValue = options[indexToUse]" in editor_block
+    assert "currentText" not in editor_block
+    assert "selected," not in editor_block
+    assert "checked" in editor_block
