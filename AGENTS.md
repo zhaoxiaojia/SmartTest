@@ -13,7 +13,7 @@ This file defines repository-wide hard rules. Detailed task workflows live in pr
 ## 1. Default Priorities
 
 1. Prefer existing FluentUI components/styles/effects from the codebase.
-2. Preserve known-good behavior: if the user says "this used to work", treat it as a regression. Default to reading existing `smart_log(...)` records/runtime logs and explaining the suspected root cause first; do not modify code until the user approves the analysis logic.
+2. Preserve known-good behavior: if the user says "this used to work", treat it as a regression. Default to reading existing `smart_log(...)` records/runtime logs and explaining the suspected root cause first; do not modify code until the analysis logic is approved. During dual-Codex delivery, the main Codex's confirmation of the root-cause analysis counts as delegated user approval and it may directly instruct `codex-worker` to fix; otherwise, user approval remains required.
 3. Keep architecture layered: UI (FluentUI/QML) + test runner (pytest) + reserved integrations (debug/Jira).
 4. Make changes intentionally: discuss large modules and design first, then implement.
 5. Design and verify toward the installed/packaged runtime first. `python main.py` debug runs are useful for development, but final behavior must match the normal installed app.
@@ -136,7 +136,7 @@ For every bug, regression, unexpected behavior, or "not working as expected" rep
 - Do not modify business code first.
 - First inspect existing `smart_log(...)` records/runtime logs and the relevant persisted state/config files.
 - Explain the observed evidence, expected data flow, suspected mismatch, and proposed fix location.
-- Wait for the user to confirm the analysis process before changing code.
+- Before changing code, obtain approval of the analysis process. During dual-Codex delivery, the main Codex must first review the evidence and root cause, then may approve the worker's fix on the user's behalf. Without dual delivery, user approval remains required. Major product ambiguity, scope expansion, destructive operations, and external blockers still require asking the user.
 - If logs are missing, ask to add minimal diagnostic `smart_log(...)` calls or add only explicitly approved temporary boundary logs before implementing a fix.
 
 When the user says a feature "was working before":
@@ -144,7 +144,7 @@ When the user says a feature "was working before":
 - Do not bypass it with a new implementation.
 - Do not paper over it with a different code path.
 - First inspect existing `smart_log(...)` records/runtime logs from the broken flow and explain the suspected root cause.
-- Do not modify code until the user approves the analysis logic.
+- Do not modify code until the analysis logic is approved. During dual-Codex delivery, the main Codex must first review the evidence and root cause, then may approve the worker's fix on the user's behalf; without dual delivery, user approval remains required. Major product ambiguity, scope expansion, destructive operations, and external blockers still require asking the user.
 - After approval, fix the root cause where it belongs.
 - Keep any approved fix scoped to the bug; do not refactor unrelated areas.
 
@@ -174,7 +174,7 @@ For any large business module request (new subsystem, cross-layer changes, new d
 - public interfaces (signals/slots, Python APIs)
 - expected flows (UI -> controller -> runner -> results)
 
-Only implement after the user confirms the approach.
+Only implement after the approach is approved. During dual-Codex delivery, the main Codex may approve the design on the user's behalf when it remains within the original request; scope expansion requires asking the user. Without dual delivery, user confirmation remains required.
 
 ## 10. External Links / Upstream Coupling
 
