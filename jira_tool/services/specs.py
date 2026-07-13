@@ -32,6 +32,7 @@ def detail_specs(*, include_comments: bool, include_links: bool) -> list[str | F
         FieldSpec(name="resolution", path="fields.resolution.name", jira_fields=("resolution",)),
         FieldSpec(name="components", path="fields.components[].name", jira_fields=("components",)),
         FieldSpec(name="description", path="fields.description", jira_fields=("description",)),
+        FieldSpec(name="attachments", path="fields.attachment[]", jira_fields=("attachment",)),
     ]
     if include_comments:
         specs.append(

@@ -1,6 +1,8 @@
 ﻿from __future__ import annotations
 
 import os
+import sys
+from datetime import datetime
 from pathlib import Path
 from threading import Lock, Thread
 import time
@@ -19,6 +21,7 @@ from jira_tool.services.workspace import JiraWorkspaceService
 from example.bridge.AuthBridge import AuthBridge
 from example.helper.TranslateHelper import TranslateHelper
 from tools.logging import smart_log
+import jira_handler
 
 try:
     from example.helper.AppPaths import app_data_dir
@@ -159,6 +162,16 @@ _JIRA_BRIDGE_TRANSLATION_MARKERS = (
     QT_TRANSLATE_NOOP("JiraBridge", "Analyzing request: preparing search scope..."),
     QT_TRANSLATE_NOOP("JiraBridge", "Analyzing request: retrieving Jira issues..."),
     QT_TRANSLATE_NOOP("JiraBridge", "Analyzing request: generating response..."),
+    QT_TRANSLATE_NOOP("JiraBridge", "Jira format audit is ready."),
+    QT_TRANSLATE_NOOP("JiraBridge", "Only Jira managers can run or export format audits."),
+    QT_TRANSLATE_NOOP("JiraBridge", "Load Jira issues before running a format audit."),
+    QT_TRANSLATE_NOOP("JiraBridge", "The Jira format specification jira规范.md is missing. Restore it at the SmartTest application root and try again."),
+    QT_TRANSLATE_NOOP("JiraBridge", "Audit complete: {issues} issues, {violations} violations."),
+    QT_TRANSLATE_NOOP("JiraBridge", "Run an audit before exporting the report."),
+    QT_TRANSLATE_NOOP("JiraBridge", "Audit report exported to {path}"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Issues"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Passed"),
+    QT_TRANSLATE_NOOP("JiraBridge", "Violations"),
     QT_TRANSLATE_NOOP(
         "JiraBridge",
         "{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}",
@@ -185,6 +198,10 @@ class JiraBridge(QObject):
         self._analysis_summary_state = self._translated_state("Run a Jira query to get a live AI summary.")
         self._analysis_actions: list[str] = []
         self._issues: list[dict[str, Any]] = []
+        self._audit_results: list[dict[str, Any]] = []
+        self._audit_summary_rows: list[dict[str, Any]] = []
+        self._audit_detail_rows: list[dict[str, Any]] = []
+        self._audit_status_state = self._translated_state("Jira format audit is ready.")
         self._saved_filters: list[dict[str, str]] = []
         self._filters_loading = False
         self._conversation = [self._workspace_ready_row()]
@@ -278,6 +295,88 @@ class JiraBridge(QObject):
 
     def _history_path(self) -> Path:
         return app_data_dir() / "Jira" / "ai_conversation_history.json"
+
+    def _audit_spec_path(self) -> Path:
+        base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[3]))
+        return base / "jira规范.md"
+
+    def _require_audit_manager(self) -> bool:
+        allowed = jira_handler.is_manager(self._auth_bridge.currentUsername())
+        if not allowed:
+            self._audit_status_state = self._translated_state("Only Jira managers can run or export format audits.")
+            self.stateChanged.emit()
+        return allowed
+
+    def _audit_issue_rows(self) -> list[dict[str, Any]]:
+        service = self._ensure_workspace_service()
+        rows = []
+        for issue in self._issues:
+            key = str(issue.get("keyId", "") or "").strip()
+            detail = service.fetch_issue_detail(
+                worker_id=0, issue_key=key, include_comments=False, include_links=False
+            )
+            rows.append(dict(detail.get("issue") or issue))
+        return rows
+
+    @Slot(result=bool)
+    def isAuditManager(self) -> bool:
+        return jira_handler.is_manager(self._auth_bridge.currentUsername())
+
+    @Slot(result=bool)
+    def runFormatAudit(self) -> bool:
+        if not self._require_audit_manager():
+            return False
+        if not self._issues:
+            self._audit_status_state = self._translated_state("Load Jira issues before running a format audit.")
+            self.stateChanged.emit()
+            return False
+        spec_path = self._audit_spec_path()
+        if not spec_path.is_file():
+            self._audit_status_state = self._translated_state("The Jira format specification jira规范.md is missing. Restore it at the SmartTest application root and try again.")
+            self.stateChanged.emit()
+            return False
+        rules = jira_handler.load_markdown_rules(spec_path)
+        issues = self._audit_issue_rows()
+        self._audit_results = jira_handler.validate_issues(issues, rules=rules, base_url=JIRA_BASE_URL)
+        violations = [item for result in self._audit_results for item in result["violations"]]
+        passed = sum(result["overall_result"] == "PASS" for result in self._audit_results)
+        self._audit_summary_rows = [
+            {"label": self._t("Issues"), "value": str(len(self._audit_results)), "label_source": "fixed", "value_source": "dynamic"},
+            {"label": self._t("Passed"), "value": str(passed), "label_source": "fixed", "value_source": "dynamic"},
+            {"label": self._t("Violations"), "value": str(len(violations)), "label_source": "fixed", "value_source": "dynamic"},
+        ]
+        self._audit_detail_rows = [dict(item, issueKey=result["key"], issueUrl=result["url"])
+                                   for result in self._audit_results for item in result["violations"]]
+        self._audit_status_state = self._translated_state("Audit complete: {issues} issues, {violations} violations.", issues=len(self._audit_results), violations=len(violations))
+        self.stateChanged.emit()
+        return True
+
+    @Slot(result=str)
+    def exportFormatAudit(self) -> str:
+        if not self._require_audit_manager():
+            return ""
+        if not self._audit_results:
+            self._audit_status_state = self._translated_state("Run an audit before exporting the report.")
+            self.stateChanged.emit()
+            return ""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        path = app_data_dir() / "Jira" / f"jira_format_audit_{timestamp}.xlsx"
+        jira_handler.export_xlsx(self._audit_results, path, jql=str(self._active_scope.get("raw_jql_text", "") or ""))
+        self._audit_status_state = self._translated_state("Audit report exported to {path}", path=str(path))
+        self.stateChanged.emit()
+        return str(path)
+
+    @Slot(result=str)
+    def auditStatusText(self) -> str:
+        return self._render_state_text(self._audit_status_state)
+
+    @Slot(result="QVariantList")
+    def auditSummaryRows(self):
+        return list(self._audit_summary_rows)
+
+    @Slot(result="QVariantList")
+    def auditDetailRows(self):
+        return list(self._audit_detail_rows)
 
     def _load_conversation_history(self) -> list[dict[str, Any]]:
         path = self._history_path()

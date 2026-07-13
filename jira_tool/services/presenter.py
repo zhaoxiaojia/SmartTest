@@ -24,6 +24,8 @@ def record_to_issue_row(record: IssueRecord) -> dict[str, Any]:
         "project": str(record.fields.get("project", "") or ""),
         "updatedAt": str(record.fields.get("updated", "") or ""),
         "detail": description.strip(),
+        "description": normalize_text(record.fields.get("description")),
+        "attachments": list(record.fields.get("attachments") or []),
         "comments": normalized_comments,
         "commentCount": len(normalized_comments),
         "linkCount": len(links) if isinstance(links, list) else 0,
