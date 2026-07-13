@@ -36,6 +36,7 @@ The main Codex is the user's only interaction entrypoint. It must:
 6. Decide `PASS`, rework, or a genuine stop condition.
 7. Use `codex-reply` with the original `threadId` for every rework round.
 8. Deliver only the final result or a blocker the system cannot resolve autonomously.
+9. Review every new abstraction and require both functional and code-quality acceptance before authorizing a commit.
 
 The main Codex operates read-only by default. It may inspect source, rules, logs, diffs, and test output, and may run safe read-only commands and acceptance tests. It must not:
 
@@ -58,6 +59,7 @@ Invoke the worker through `codex-worker` with the repository or task workspace a
 6. Run the minimum sufficient test set.
 7. Fix its own implementation or test failures while remaining within scope.
 8. Return the structured development report defined below.
+9. Complete a cleanup pass after functional tests pass.
 
 The worker must not:
 
@@ -88,6 +90,7 @@ The first worker prompt must contain only task-relevant information:
 - Verifiable acceptance criteria.
 - Required or prohibited test and Git actions.
 - Required structured report fields.
+- Existing owners to inspect and the required reuse decision.
 
 Do not delegate ordinary branch checks, directory listings, or other trivial operations. Do not make both Codex instances read the entire repository.
 
@@ -109,6 +112,14 @@ Tests:
 Acceptance evidence:
 - criterion-by-criterion evidence
 
+Reuse and abstractions:
+- reused or extended owners
+- every new file/class/function, responsibility, caller count, and why existing code could not own it
+
+Cleanup:
+- rejected attempts and temporary diagnostics removed
+- duplication, unused code, thin wrappers, and unrelated changes checked
+
 Git/workspace:
 - starting and ending relevant status
 - branch or local commit, if any
@@ -126,7 +137,7 @@ threadId:
 1. The main Codex writes the task contract and acceptance criteria.
 2. The main Codex invokes the worker once for implementation and self-testing.
 3. The main Codex inspects the actual scoped diff, relevant workspace status, and test evidence.
-4. If every acceptance criterion passes, finish with `PASS`.
+4. Atlas records separate `Functional Acceptance` and `Code Quality` results. Finish with `PASS` only when both pass.
 5. If the failure is autonomously repairable, call `codex-reply` using the same `threadId`.
 6. Send only failed criteria, concrete evidence, and requirements that must remain unchanged.
 7. Re-run acceptance after each reply.
@@ -170,6 +181,12 @@ Use `BLOCKED` for an external dependency the AI cannot resolve. Use `FAILED` whe
 - `FAILED`: A stop condition was reached while acceptance still fails; preserve and report current code state and failure evidence.
 
 These are the only final task states.
+
+## Code-Quality Acceptance
+
+Atlas rejects delivery when functionality passes but the diff contains unexplained new abstractions, duplicated existing behavior, single-case mechanisms, accumulated debug attempts, temporary diagnostics, weakened tests, misplaced ownership, or unrelated changes. Mason must simplify the same implementation; this is required rework, not optional polish.
+
+Before accepting, Atlas checks the scoped diff and evidence for reuse before extension, necessity and caller count of every new abstraction, removal of abandoned attempts, concise data flow without duplicate state transport, applicable real DUT execution, `git diff --check`, atomic commit scope, and preservation of user-owned changes.
 
 ## Final Response Contract
 

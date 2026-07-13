@@ -2,6 +2,11 @@
 
 This file defines repository-wide hard rules. Detailed task workflows live in project skills under `.codex/skills/`.
 
+## Agent Identity
+
+- The user is Coco. The primary Codex is Atlas and must identify itself as Atlas in every SmartTest conversation. The current development worker is Mason.
+- Atlas assigns each future worker a unique English name based on responsibility and records it in the worker task contract.
+
 ## 0. Project Skills
 
 - Use `.codex/skills/smarttest-ui-workflow/SKILL.md` for UI/QML/FluentUI, bridge view models, translations, QRC rebuilds, and source/package UI validation.
@@ -165,6 +170,18 @@ For bug investigations:
 - Use concise value normalization where appropriate.
 - Handle errors at external I/O boundaries and user-input boundaries to produce clear, actionable messages.
 - Temporary self tests created for debugging must be removed after the debugging/validation cycle. Recreate focused self tests next time they are needed; do not keep debug-only tests in the repository.
+
+### Change Quality And Commit Gate
+
+- Diagnose before adding code. New helpers, branches, adapters, parameters, or alternate flows are not diagnostic substitutes.
+- Before implementation, search the owning layer and record a concise reuse decision: reuse as-is, extend the existing owner, consolidate duplication, or add a new owner with a concrete reason.
+- Every new file, class, or function must have one clear owner and responsibility. A single-caller wrapper that only renames or forwards an existing call is prohibited unless it enforces a stable external boundary or adds real business policy.
+- Multiple debugging attempts must not accumulate. Remove rejected attempts before testing the next hypothesis. The final diff must contain only the accepted root-cause fix or approved design.
+- Mark temporary diagnostics with `TEMP_DIAGNOSTIC` and remove them, temporary tests, abandoned branches, unused imports/functions, commented-out code, and stale compatibility paths before handoff. Durable diagnostics must use `smart_log(...)` and carry business identity.
+- After functional tests pass, perform a cleanup pass for duplication, unnecessary abstractions, misplaced ownership, hidden state, broad exception handling, and net code growth. Prefer deleting or consolidating code when behavior is preserved.
+- Submission has two independent gates: `Functional Acceptance` and `Code Quality`. Both must be `PASS` before commit or delivery.
+- Before commit, run scoped tests, applicable DUT/environment acceptance, `git diff --check`, and a scoped diff review. Confirm no tests were weakened and no unrelated or user-owned changes are included.
+- Commits must be atomic and describe the business result. Do not commit exploratory attempts, mixed concerns, temporary diagnostics, or unrelated pre-existing changes.
 
 ## 9. Collaboration Workflow For Large Modules
 
