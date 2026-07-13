@@ -9,6 +9,8 @@ description: Use when a user asks to implement, fix, refactor, optimize, or comp
 
 Use a main Codex as the user's single product-management and acceptance interface, and a worker Codex as the development engineer. The main Codex owns scope and evidence-based acceptance; the worker owns implementation and self-testing.
 
+Working names: the user is **Coco**, the main Codex is **Atlas**, and the current worker is **Mason**. Atlas assigns every future worker a unique English name based on its responsibility and records that name in the task contract.
+
 This skill controls delivery collaboration only. It does not replace repository or layer rules.
 
 ## Required Rules
@@ -146,12 +148,20 @@ Use `BLOCKED` for an external dependency the AI cannot resolve. Use `FAILED` whe
 
 ## Token Discipline
 
-- The main Codex reads the request, applicable rules, relevant module boundaries, final diff, and test evidence.
-- Delegate deep search, implementation, and debugging to the worker.
+- Default to a single Codex for explanations, read-only analysis, mechanical extraction, simple checks, and small edits. Dual delivery spends additional context and is justified only for a bounded implementation task.
+- Apply the single-reader rule: raw source material and broad repository context must have one model owner. Do not make Atlas and Mason independently read the same workbook, long document, logs, or module tree.
+- Use deterministic local scripts for mechanical extraction. Save a compact local manifest or batch contract and give Mason its path; do not paste or reread the raw source when the manifest is sufficient.
+- Atlas owns user intent, the compact requirement manifest, scope, and acceptance. Mason owns target-code investigation, implementation, and developer tests. Atlas must not repeat Mason's full code investigation, and Mason must not repeat Atlas's source analysis.
+- Limit one worker task to one shared capability and normally 3-5 related cases. The task must be small enough to finish within one worker tool window.
+- Give Mason paths, exact scope, and acceptance commands. Reference repository rules by path instead of copying their full contents into the task prompt.
+- Mason's report must be compact: changed files, commands with exit codes, failed criteria, blockers, and `threadId`. Do not repeat source code, full logs, or background narrative.
+- Atlas validates with `git diff --stat`, scoped diffs, concise test output, and DUT evidence. Open whole generated files only when a focused failure requires it.
 - Every rework uses the original `threadId` through `codex-reply`.
 - A rework prompt contains only failed items, evidence, and unchanged constraints.
 - Do not repeat the full original request in rework prompts.
-- Keep simple tasks direct and avoid ceremonial discussion.
+- If a worker call times out without returning `threadId`, inspect shared-workspace changes first. Never resend the same full task. If no usable result exists, shrink the batch before starting a new worker.
+- After one normal development round and one targeted rework, stop and reassess before spending another worker session.
+- Keep simple tasks direct and avoid ceremonial progress messages or repeated unchanged polling.
 
 ## Acceptance States
 

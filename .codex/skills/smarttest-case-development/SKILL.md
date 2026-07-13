@@ -21,6 +21,8 @@ Complete the phases in order. Do not start implementation until the source extra
 
 ### 1. Extract a Case Requirement Card
 
+Use a deterministic local extractor for spreadsheets and other structured sources. Write the normalized cards to a compact local manifest. Atlas reviews that manifest once; Mason receives only the approved batch manifest and must not reread the complete source workbook unless a cited source cell is genuinely ambiguous.
+
 For every source case, record:
 
 - identity: source file, sheet/range, original case id, title, module, priority, plan milestone;
@@ -127,6 +129,8 @@ For each development batch provide:
 7. changed files and exact tests;
 8. main-Codex environment acceptance level;
 9. final state and remaining user action.
+
+Keep one batch to one shared mechanism and normally 3-5 cases. Store the approved batch contract locally so main and worker exchange a path instead of duplicating raw source content in model prompts.
 
 ## Red Flags
 
