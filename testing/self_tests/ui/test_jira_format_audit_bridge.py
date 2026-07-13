@@ -99,8 +99,8 @@ SW info: build
     assert output
     with ZipFile(output) as archive:
         workbook = archive.read("xl/workbook.xml").decode()
-    assert 'name="Summary"' in workbook
-    assert 'name="Details"' in workbook
+    assert 'name="汇总"' in workbook
+    assert 'name="违规明细"' in workbook
 
 
 def test_missing_spec_is_actionable(bridge, monkeypatch, tmp_path):
