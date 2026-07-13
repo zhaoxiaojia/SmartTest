@@ -1,0 +1,4 @@
+interface:
+  display_name: "SmartTest Dual Codex Delivery"
+  short_description: "主Codex验收、从Codex开发的自动交付流程"
+  default_prompt: "Use this skill to complete a SmartTest development task through the main Codex and codex-worker, including implementation, self-testing, review, and final acceptance."

@@ -33,3 +33,8 @@ movies_stress_screenshot_check/
 ocr_debug/
 seek_forward_debug_current/
 screen.png
+
+# Boot video test outputs and local camera diagnostics
+results/
+tmp_boot_video_debug/
+testing/self_tests/

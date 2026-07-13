@@ -6,6 +6,9 @@ This file defines repository-wide hard rules. Detailed task workflows live in pr
 
 - Use `.codex/skills/smarttest-ui-workflow/SKILL.md` for UI/QML/FluentUI, bridge view models, translations, QRC rebuilds, and source/package UI validation.
 - Use `.codex/skills/smarttest-testing-workflow/SKILL.md` for pytest discovery/run flow, parameters, DUT serial handling, lab equipment, steps, reports, and Android mirrored cases.
+- SmartTest implementation, bug-fix, refactoring, and optimization tasks default to `.codex/skills/smarttest-dual-codex-delivery/SKILL.md`: the main Codex owns requirements and acceptance, while `codex-worker` owns development and self-testing.
+- Pure analysis, explanation, design discussion, and read-only queries do not trigger dual-Codex delivery.
+- Dual-Codex delivery must still follow every `AGENTS.md` governing the target paths and all applicable UI/testing skills.
 
 ## 1. Default Priorities
 
