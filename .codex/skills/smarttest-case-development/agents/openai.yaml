@@ -1,0 +1,4 @@
+interface:
+  display_name: "SmartTest Case Development"
+  short_description: "Extract, assess, implement, and validate SmartTest cases"
+  default_prompt: "Analyze source test cases, map them to existing SmartTest capabilities, implement without inventing parallel flows, and validate through dual-Codex delivery."
