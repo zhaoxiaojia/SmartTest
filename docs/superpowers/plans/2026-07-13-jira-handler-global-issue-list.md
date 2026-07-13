@@ -1,71 +1,47 @@
-# Jira Handler Global Issue List Implementation Plan
+# Jira 全局问题列表实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+## 修改文件
 
-**Goal:** Run `jira_handler.py` from an in-file configuration and expose one reusable global Jira issue list for every business operation.
+- `jira_handler.py`
+- `testing/self_tests/jira/test_jira_handler.py`
 
-**Architecture:** Extend the existing standalone module rather than creating another client. Source resolution produces either issue keys or JQL, one loader populates `ISSUE_LIST` in place, and the existing validator/exporter consumes that list.
+## 实施步骤
 
-**Tech Stack:** Python 3 standard library, pytest, Jira REST API v2, XLSX ZIP/XML writer already in `jira_handler.py`.
+### 1. 增加脚本配置
 
-## Global Constraints
+在 `jira_handler.py` 顶部增加 `JIRA_CONFIG`，用于填写账户、密码、JQL、网页链接、Issue Key 列表和报告路径。
 
-- Do not require command-line business arguments.
-- Do not add third-party dependencies.
-- Never print or return the configured password.
-- Preserve existing embedded-rule, Markdown-rule, validation, and XLSX behavior.
-- Preserve unrelated staged and unstaged workspace changes; do not commit or push.
+### 2. 统一解析查询来源
 
----
+支持以下输入：
 
-### Task 1: Configured Jira Source Resolution
+- Issue Key 列表
+- 单个 `/browse/KEY-123` 链接
+- 带 JQL 的搜索链接
+- 带 `filter` 的过滤器链接
+- 直接填写 JQL
 
-**Files:**
-- Modify: `jira_handler.py`
-- Test: `testing/self_tests/jira/test_jira_handler.py`
+### 3. 建立全局 Issue 列表
 
-**Interfaces:**
-- Consumes: `JIRA_CONFIG: dict[str, Any]` with `jql`, `jira_url`, and `issue_keys`.
-- Produces: `resolve_issue_source(config: dict[str, Any]) -> dict[str, Any]` containing either `issue_keys` or `jql`.
+增加全局 `ISSUE_LIST`。查询完成后原地更新该列表，格式审计和后续业务都使用它，不再各自请求 Jira。
 
-- [ ] **Step 1: Write failing tests** for `/browse/TV-123`, encoded `jql`, `filter=12345`, explicit key lists, empty configuration, and unsupported URLs.
-- [ ] **Step 2: Run** `.venv\Scripts\python.exe -m pytest testing/self_tests/jira/test_jira_handler.py -q` and confirm the new tests fail because the resolver does not exist.
-- [ ] **Step 3: Implement minimal source parsing** with `urllib.parse.urlparse`, `parse_qs`, URL decoding, issue-key validation, and a REST filter resolver using the existing authenticated request boundary.
-- [ ] **Step 4: Re-run the focused tests** and confirm all source-resolution tests pass.
+### 4. 改为直接运行
 
-### Task 2: One Global Issue List
+执行：
 
-**Files:**
-- Modify: `jira_handler.py`
-- Test: `testing/self_tests/jira/test_jira_handler.py`
+```powershell
+python .\jira_handler.py
+```
 
-**Interfaces:**
-- Produces: `ISSUE_LIST: list[dict[str, Any]]` and `load_global_issues(config: dict[str, Any] | None = None) -> list[dict[str, Any]]`.
-- Consumes: `resolve_issue_source`, existing Jira request logic, and the full audit field set.
+脚本读取顶部配置，查询 Jira，执行格式审计并生成 Excel 报告。
 
-- [ ] **Step 1: Write failing tests** proving `ISSUE_LIST` keeps its object identity, is replaced in place, and only one Jira search is performed for all configured business operations.
-- [ ] **Step 2: Run the focused tests** and confirm failure because the global loader is absent.
-- [ ] **Step 3: Implement the loader** with `ISSUE_LIST.clear()` plus `ISSUE_LIST.extend(...)`; add an issue-key JQL query path and reuse the existing paginated search.
-- [ ] **Step 4: Re-run the focused tests** and confirm the global-list tests pass.
+### 5. 自测
 
-### Task 3: Direct Execution And Business Dispatch
+验证以下内容：
 
-**Files:**
-- Modify: `jira_handler.py`
-- Test: `testing/self_tests/jira/test_jira_handler.py`
-
-**Interfaces:**
-- Consumes: `JIRA_CONFIG`, `ISSUE_LIST`, `validate_issues`, and `export_xlsx`.
-- Produces: `run_format_audit(issues: list[dict[str, Any]], config: dict[str, Any]) -> Path` and `main() -> int`.
-
-- [ ] **Step 1: Write a failing direct-execution test** that invokes `main()` with patched in-file configuration and request boundaries, supplies no CLI arguments, and verifies the audit receives the exact global list object.
-- [ ] **Step 2: Run the test** and confirm the current argument parser prevents direct execution.
-- [ ] **Step 3: Replace CLI dispatch with configuration dispatch** while leaving reusable validation/export functions public. Keep `if __name__ == "__main__": sys.exit(main())`.
-- [ ] **Step 4: Run** `.venv\Scripts\python.exe -m pytest testing/self_tests/jira -q` and confirm the full standalone suite passes.
-- [ ] **Step 5: Run** `.venv\Scripts\python.exe -m compileall -q jira_handler.py testing/self_tests/jira` and `git diff --check`.
-
-## Self-Review
-
-- All design requirements map to Tasks 1-3.
-- Function names and data types are consistent across tasks.
-- No new file or abstraction is introduced beyond the module-level configuration, source resolver, global loader, and business entrypoint required by the request.
+- 各类查询来源解析正确。
+- Jira 只查询一次。
+- 全局列表被所有业务共用。
+- 密码不会输出。
+- 原有格式校验和 Excel 报告功能正常。
+- Python 编译和代码格式检查通过。

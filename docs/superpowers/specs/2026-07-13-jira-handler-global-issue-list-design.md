@@ -1,25 +1,48 @@
-# Jira Handler Global Issue List Design
+# Jira 全局问题列表设计
 
-## Goal
+## 目标
 
-Make `jira_handler.py` runnable without command-line business arguments. A user edits a configuration block at the top of the script, runs the file, and obtains one reusable global Jira issue list for format auditing and future business functions.
+用户直接修改 `jira_handler.py` 顶部配置，然后运行脚本，不再通过命令行传入账号、密码和查询条件。
 
-## Configuration
+## 配置内容
 
-`JIRA_CONFIG` contains `base_url`, `username`, `password`, `jql`, `jira_url`, `issue_keys`, and `output`. Credentials are read only from this in-file configuration. Exactly one issue source is selected in priority order: explicit `issue_keys`, `jira_url`, then `jql`.
+脚本顶部提供以下配置：
 
-Supported URLs are a single `/browse/KEY-123` issue URL, a Jira issue-search URL containing a URL-encoded `jql` query parameter, and a search URL containing `filter=12345`. A filter URL is resolved through Jira REST to obtain its JQL before the issue search.
+- Jira 地址
+- 用户名
+- 密码或 Token
+- JQL 查询语句
+- Jira 网页链接
+- Issue Key 列表
+- 报告保存路径
 
-## Shared Data Flow
+查询来源支持：
 
-`load_global_issues()` resolves the configured source, requests complete issue fields once, and replaces the contents of the module-level `ISSUE_LIST`. Format auditing consumes `ISSUE_LIST`; future business functions receive or consume that same list and must not independently query Jira.
+1. Issue Key 列表，例如 `TV-123`、`TV-456`。
+2. 单个 Jira 地址，例如 `/browse/TV-123`。
+3. 带 JQL 的 Jira 搜索地址。
+4. 带 `filter=12345` 的 Jira过滤器地址。
+5. 直接填写 JQL。
 
-The script's `main()` performs: validate configuration, load `ISSUE_LIST`, run the enabled business operations, and export the audit workbook. Format auditing is the first enabled operation. The existing validation and XLSX implementation remain the single owners of those responsibilities.
+## 执行流程
 
-## Error Handling And Security
+1. 读取脚本顶部配置。
+2. 根据配置查询完整 Jira 数据。
+3. 将查询结果写入全局 `ISSUE_LIST`。
+4. 格式审计和后续其他业务共用 `ISSUE_LIST`，不重复查询 Jira。
+5. 当前默认执行格式审计并生成 Excel 报告。
 
-Missing credentials, an unsupported URL, conflicting or empty source configuration, an unresolved filter, and Jira HTTP errors produce actionable messages. The password must never appear in logs, reports, exceptions, or test output. The script remains portable and standard-library-only.
+## 约束
 
-## Verification
+- 保持单文件运行，不增加第三方依赖。
+- 密码不能出现在日志、异常或报告中。
+- 保留现有格式校验、Markdown 规则和 Excel 导出能力。
+- 配置错误或链接无法识别时，应给出明确提示。
 
-Tests cover source precedence, browse URL extraction, encoded JQL extraction, filter-to-JQL resolution, one shared fetch per run, global list replacement without rebinding, audit consumption of that global list, and direct no-argument execution with patched configuration/network boundaries.
+## 验收
+
+- 不传命令行参数即可运行。
+- 支持 JQL、Issue Key、Issue 链接、搜索链接和过滤器链接。
+- 所有业务使用同一个全局 Issue 列表。
+- Jira 数据只查询一次。
+- 原有 Jira 格式校验测试继续通过。
