@@ -1,227 +1,96 @@
 ---
 name: smarttest-dual-codex-delivery
-description: Use when a user asks to implement, fix, refactor, optimize, or complete a concrete SmartTest development task and expects finished code plus acceptance results. Do not use for pure explanation, read-only analysis, design discussion, or code lookup.
+description: Use when a bounded SmartTest implementation is medium/high risk, crosses layers, changes shared contracts, performs substantial refactoring, investigates an unclear regression, or explicitly requires a development worker.
 ---
 
 # SmartTest Dual Codex Delivery
 
-## Purpose
+## Core Contract
 
-Use a main Codex as the user's single product-management and acceptance interface, and a worker Codex as the development engineer. The main Codex owns scope and evidence-based acceptance; the worker owns implementation and self-testing.
+Coco is the user, Atlas is the primary Codex, and Mason is the current worker. Atlas owns requirements and diff-led acceptance; Mason owns target-code investigation, implementation, cleanup, and self-test. Assign every future worker a unique responsibility-based English name.
 
-Working names: the user is **Coco**, the main Codex is **Atlas**, and the current worker is **Mason**. Atlas assigns every future worker a unique English name based on its responsibility and records that name in the task contract.
+This skill applies Scheme B. Small low-risk edits stay with Atlas. Delegation buys independent implementation only when its quality value exceeds its context cost.
 
-This skill controls delivery collaboration only. It does not replace repository or layer rules.
+## Route The Task
 
-## Required Rules
+Use Atlas only for read-only work, mechanical extraction, simple checks, and small edits with obvious ownership and focused validation. Use Mason for bounded medium/high-risk work, cross-layer changes, shared mechanisms, substantial refactors, unclear regressions, or explicit user requests.
 
-- Root and path-scoped `AGENTS.md` files always apply.
-- **REQUIRED SUB-SKILL:** Use `smarttest-ui-workflow` for changes under `ui/**`.
-- **REQUIRED SUB-SKILL:** Use `smarttest-testing-workflow` for changes under `testing/**`.
-- Use both project skills when work crosses `ui/**` and `testing/**`.
-- User activation of dual-Codex delivery delegates routine implementation and rework decisions within the approved scope to the main Codex.
-- Ask the user only for a major scope change, key product ambiguity, destructive operation, or external blocker described below.
+Before work, load every matching owner skill:
 
-## Roles
+- `ui/**`: `smarttest-ui-workflow`
+- `testing/**`: `smarttest-testing-workflow`
+- case extraction/development: `smarttest-case-development`
+- `android_client/**`: `smarttest-android-workflow`
 
-### Main Codex: Product Manager And Test Lead
+## Role Boundaries
 
-The main Codex is the user's only interaction entrypoint. It must:
+Atlas:
 
-1. Understand the original request.
-2. Read relevant code plus every applicable `AGENTS.md` and project skill.
-3. Define scope, constraints, and verifiable acceptance criteria.
-4. Invoke the worker through the `codex-worker` Codex tool with the correct `cwd`.
-5. Inspect the real Git diff and test evidence after the worker returns.
-6. Decide `PASS`, rework, or a genuine stop condition.
-7. Use `codex-reply` with the original `threadId` for every rework round.
-8. Deliver only the final result or a blocker the system cannot resolve autonomously.
-9. Review every new abstraction and require both functional and code-quality acceptance before authorizing a commit.
+1. Defines intent, scope, exclusions, acceptance, and risk.
+2. Gives Mason a compact contract and correct workspace.
+3. Reviews actual status, scoped diff, tests, and quality evidence.
+4. Sends focused rework to the same worker thread.
+5. Reports `PASS`, `BLOCKED`, or `FAILED`.
 
-The main Codex operates read-only by default. It may inspect source, rules, logs, diffs, and test output, and may run safe read-only commands and acceptance tests. It must not:
+Mason:
 
-- Edit business files directly.
-- Repeat the worker's complete code investigation.
-- Accept the worker's prose summary without checking diff and test evidence.
-- Lower acceptance criteria without user authorization.
-- Ask the user to decide after every normal implementation round.
-- Push or merge `main` automatically.
+1. Records starting `git status` and preserves all user changes.
+2. Reads root `AGENTS.md` and routed skills.
+3. Investigates the target owners, records `reuse / extend / consolidate / new owner`, and implements only approved scope.
+4. Adds necessary tests, runs the minimum sufficient set, and cleans rejected attempts and temporary diagnostics.
+5. Returns compact evidence; never pushes, merges, resets, weakens tests, or exposes secrets.
 
-### Worker Codex: Development Engineer
+Apply the single-reader rule: Atlas owns source requirements and the acceptance view; Mason owns implementation context. Neither repeats the other's full workbook, logs, repository, or module-tree investigation.
 
-Invoke the worker through `codex-worker` with the repository or task workspace as `cwd`. During development use `workspace-write`. The worker must:
-
-1. Record `git status` before editing and preserve all existing uncommitted changes.
-2. Read every `AGENTS.md` governing each target file.
-3. Use every matching project skill.
-4. Analyze the relevant code and implement the approved task.
-5. Add or update necessary tests.
-6. Run the minimum sufficient test set.
-7. Fix its own implementation or test failures while remaining within scope.
-8. Return the structured development report defined below.
-9. Complete a cleanup pass after functional tests pass.
-
-The worker must not:
-
-- Change requirements or reduce acceptance criteria.
-- Bypass applicable `AGENTS.md` files or project skills.
-- Delete, skip, or weaken tests to manufacture a pass.
-- Modify unrelated pre-existing user changes.
-- Push, merge, reset, or use checkout/restore operations that overwrite work.
-- Read or output secrets, tokens, credentials, or `.env` contents.
-
-## Workspace And Git Safety
-
-- The worker may modify only files inside the task scope.
-- Existing uncommitted changes are user-owned and must remain intact.
-- If a worktree would hide uncommitted code required by the task, use the current workspace after recording `git status`, then enforce the file scope strictly.
-- If the workspace is clean and the task is independent, prefer an isolated branch or worktree.
-- Do not push or merge `main`.
-- Do not perform destructive Git operations without explicit user approval.
-
-## Main-to-Worker Task Contract
-
-The first worker prompt must contain only task-relevant information:
-
-- Objective and expected product behavior.
-- In-scope and out-of-scope paths.
-- Applicable `AGENTS.md` and required project skills.
-- Existing uncommitted-work preservation requirements.
-- Verifiable acceptance criteria.
-- Required or prohibited test and Git actions.
-- Required structured report fields.
-- Existing owners to inspect and the required reuse decision.
-
-Do not delegate ordinary branch checks, directory listings, or other trivial operations. Do not make both Codex instances read the entire repository.
-
-## Worker Development Report
-
-The worker response must include:
+## Compact Task Contract
 
 ```text
-Implementation:
-- completed behavior
+Worker:
+Objective:
+Scope / out of scope:
+Required skills:
+Acceptance criteria and tests:
+Preserve:
+Report fields:
+```
 
-Files changed:
-- exact paths
+Use paths instead of pasted rules/code/raw artifacts. One task owns one shared capability and normally 3–5 related cases. Deterministic extraction should produce a compact manifest that only one model reads from source.
 
-Tests:
-- exact command
-- exit status and concise result
+## Acceptance And Rework
 
-Acceptance evidence:
-- criterion-by-criterion evidence
+Atlas starts with:
 
-Reuse and abstractions:
-- reused or extended owners
-- every new file/class/function, responsibility, caller count, and why existing code could not own it
+1. relevant `git status` and `git diff --stat`;
+2. scoped `git diff`;
+3. concise commands, exit codes, and environment evidence;
+4. `git diff --check`;
+5. functional and code-quality verdicts.
 
-Cleanup:
-- rejected attempts and temporary diagnostics removed
-- duplication, unused code, thin wrappers, and unrelated changes checked
+Read surrounding source only when the diff cannot prove the flow, a changed interface needs verification, evidence conflicts, or duplication/ownership is uncertain. Reject unnecessary abstractions, parallel flows, case-specific mechanisms, temporary diagnostics, abandoned attempts, weakened tests, and unrelated changes.
 
-Git/workspace:
-- starting and ending relevant status
-- branch or local commit, if any
-- confirmation that no push or main merge occurred
+Rounds are bounded:
 
+- Round 1: implementation and worker self-test.
+- Round 2: same-thread rework containing only failed criteria, evidence, and unchanged constraints.
+- Round 3: allowed only when the root cause is clear and the repair path stable.
+
+After three unsuccessful rounds, or two failed fixes for the same root cause, stop. Ask Coco only for product ambiguity, scope expansion, destructive action, or missing external access/hardware/information.
+
+## Worker Report
+
+```text
+Files changed/deleted:
+Tests (command, exit code, concise result):
+Acceptance / quality:
+Relevant git status:
 Limitations or blockers:
-- real limitations only
-
-threadId:
-- returned codex-worker thread id
+thread/task identity:
 ```
 
-## Automatic Acceptance Loop
+Add a one-line reuse decision and list a new abstraction only when one was introduced. Do not restate the task, narrate implementation, paste code, or return full logs.
 
-1. The main Codex writes the task contract and acceptance criteria.
-2. The main Codex invokes the worker once for implementation and self-testing.
-3. The main Codex inspects the actual scoped diff, relevant workspace status, and test evidence.
-4. Atlas records separate `Functional Acceptance` and `Code Quality` results. Finish with `PASS` only when both pass.
-5. If the failure is autonomously repairable, call `codex-reply` using the same `threadId`.
-6. Send only failed criteria, concrete evidence, and requirements that must remain unchanged.
-7. Re-run acceptance after each reply.
+## Final States
 
-One round is sufficient when it passes. Continue automatically when more rounds are needed; do not pause for routine decisions.
-
-## Stop Conditions
-
-Pause and ask the user only when:
-
-- A key ambiguity would significantly change product behavior.
-- Credentials, hardware, external permission, or unavailable information is required.
-- A destructive Git operation is required.
-- Work must expand beyond the user's explicit scope.
-- Two consecutive fixes for the same root cause still fail.
-- Three total development/rework rounds finish without acceptance.
-
-Use `BLOCKED` for an external dependency the AI cannot resolve. Use `FAILED` when a retry stop condition is reached and evidence still fails.
-
-## Token Discipline
-
-- Default to a single Codex for explanations, read-only analysis, mechanical extraction, simple checks, and small edits. Dual delivery spends additional context and is justified only for a bounded implementation task.
-- Apply the single-reader rule: raw source material and broad repository context must have one model owner. Do not make Atlas and Mason independently read the same workbook, long document, logs, or module tree.
-- Use deterministic local scripts for mechanical extraction. Save a compact local manifest or batch contract and give Mason its path; do not paste or reread the raw source when the manifest is sufficient.
-- Atlas owns user intent, the compact requirement manifest, scope, and acceptance. Mason owns target-code investigation, implementation, and developer tests. Atlas must not repeat Mason's full code investigation, and Mason must not repeat Atlas's source analysis.
-- Limit one worker task to one shared capability and normally 3-5 related cases. The task must be small enough to finish within one worker tool window.
-- Give Mason paths, exact scope, and acceptance commands. Reference repository rules by path instead of copying their full contents into the task prompt.
-- Mason's report must be compact: changed files, commands with exit codes, failed criteria, blockers, and `threadId`. Do not repeat source code, full logs, or background narrative.
-- Atlas validates with `git diff --stat`, scoped diffs, concise test output, and DUT evidence. Open whole generated files only when a focused failure requires it.
-- Every rework uses the original `threadId` through `codex-reply`.
-- A rework prompt contains only failed items, evidence, and unchanged constraints.
-- Do not repeat the full original request in rework prompts.
-- If a worker call times out without returning `threadId`, inspect shared-workspace changes first. Never resend the same full task. If no usable result exists, shrink the batch before starting a new worker.
-- After one normal development round and one targeted rework, stop and reassess before spending another worker session.
-- Keep simple tasks direct and avoid ceremonial progress messages or repeated unchanged polling.
-
-## Acceptance States
-
-- `PASS`: Implementation is complete and all acceptance criteria pass.
-- `BLOCKED`: An external blocker cannot be resolved autonomously; state only what the user must do.
-- `FAILED`: A stop condition was reached while acceptance still fails; preserve and report current code state and failure evidence.
-
-These are the only final task states.
-
-## Code-Quality Acceptance
-
-Atlas rejects delivery when functionality passes but the diff contains unexplained new abstractions, duplicated existing behavior, single-case mechanisms, accumulated debug attempts, temporary diagnostics, weakened tests, misplaced ownership, or unrelated changes. Mason must simplify the same implementation; this is required rework, not optional polish.
-
-Before accepting, Atlas checks the scoped diff and evidence for reuse before extension, necessity and caller count of every new abstraction, removal of abandoned attempts, concise data flow without duplicate state transport, applicable real DUT execution, `git diff --check`, atomic commit scope, and preservation of user-owned changes.
-
-## Final Response Contract
-
-```text
-任务状态：PASS / BLOCKED / FAILED
-
-实现结果：
-- 简洁列出完成内容
-
-验收结果：
-- 验收标准逐项结果
-- 实际执行的测试命令和结果
-
-代码变化：
-- 修改文件
-- 是否创建分支或本地提交
-- 明确没有push或合并main
-
-已知限制：
-- 只列真实存在的限制
-
-用户需要处理：
-- PASS且无人工硬件验证时写“无”
-- 否则只给最小必要操作
-```
-
-## Common Failure Signals
-
-Stop and correct the workflow when any of these occurs:
-
-- The main Codex edits business code.
-- The worker starts without a scoped task contract or correct `cwd`.
-- Existing uncommitted changes are not recorded before worker edits.
-- Acceptance relies only on the worker's summary.
-- Rework starts a new worker thread instead of using `codex-reply`.
-- The user is asked to decide a routine implementation detail.
-- Tests are weakened, omitted without evidence, or represented as passing without output.
-- A push or merge is attempted as part of automatic delivery.
+- `PASS`: Functional Acceptance and Code Quality both pass.
+- `BLOCKED`: an external dependency prevents completion; state the smallest user action.
+- `FAILED`: the bounded retry policy ended without acceptance; preserve and report evidence.
