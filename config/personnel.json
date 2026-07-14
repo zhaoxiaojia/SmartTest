@@ -1,0 +1,1520 @@
+{
+  "schema_version": 1,
+  "career_levels": [
+    {
+      "grade": "I2",
+      "career_track": "individual_contributor",
+      "job_title": "QA Engineer"
+    },
+    {
+      "grade": "I3",
+      "career_track": "individual_contributor",
+      "job_title": "Sr. QA Engineer"
+    },
+    {
+      "grade": "I4",
+      "career_track": "individual_contributor",
+      "job_title": "Staff QA Engineer"
+    },
+    {
+      "grade": "M1",
+      "career_track": "management",
+      "job_title": "QA Leader"
+    },
+    {
+      "grade": "M2",
+      "career_track": "management",
+      "job_title": "QA Supervisor"
+    },
+    {
+      "grade": "M3",
+      "career_track": "management",
+      "job_title": "QA Manager"
+    },
+    {
+      "grade": "M4",
+      "career_track": "management",
+      "job_title": "Sr. QA Manager"
+    },
+    {
+      "grade": "M5",
+      "career_track": "management",
+      "job_title": "QA Director"
+    }
+  ],
+  "employees": [
+    {
+      "display_name": "Xiuyue Zhang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "M5",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Junjie Li",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "M3",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [
+        {
+          "product_line_id": "STB",
+          "primary": true,
+          "responsibilities": []
+        }
+      ],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Mao Ma",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Changwen Dai",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Xiangqun Li",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Leping Lei",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Jianfan Ai",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "M3",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [
+        {
+          "product_line_id": "TV",
+          "primary": true,
+          "responsibilities": []
+        }
+      ],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Jinbo Du",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Shaojun Chen",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Kai Ni",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Shuangxiao Hu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Chunyan Liu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Xinying Yang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Bo Ren",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Zhangxian Chen",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Zhenhua Xiao",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Zanbo Huang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Lingguo Bu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Haolin Li",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Chenghua Liu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Yongqi Liang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Menghui Liu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Jianhua Huang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Maoguo Xie",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Cong Zhang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Jie Xiong",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Jianhui Peng",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Ling Chen",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Zhewu Tao",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Meng Wang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Binbin Gao",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Jiajia Mu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Zhendong Zhou",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Yanyan Deng",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Xiaoli Peng",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Xing Fan",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Zhaoqun Wang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Zijie Chen",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "M3",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [
+        "Wi-Fi"
+      ],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Bo Meng",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Yu Zhang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Yonghua Wu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Jian Zhong",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Yan Wu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Ping Xiong",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "M4",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Lingling Yu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [
+        {
+          "product_line_id": "IPTV",
+          "primary": true,
+          "responsibilities": []
+        }
+      ],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Pan Xu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Chen Chen",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [
+        {
+          "product_line_id": "SmartHome",
+          "primary": true,
+          "responsibilities": []
+        }
+      ],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Dan Chen",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Chao Lu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Chao Li",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "I3",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Nannan Meng",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Kang Jiang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Yanqing Tang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Weiting Feng",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Taoqing Miao",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Chuanyang Hu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Qianyi Liu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Zhuhui Zhang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Jinhuan Yi",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Yifeng Xu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Shouneng Chou",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Mennan Hu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Hanpeng Su",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Haobo Ren",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Meiling Zhu",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "M3",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Xiaofeng Li",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Qin Zhang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Xuejiao Li",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Mingdong Wang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Zongwu Ma",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Yunzhu Zhang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Zhijie Yang",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Tianwei Xie",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Bing Song",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    },
+    {
+      "display_name": "Qiaowei Tian",
+      "active": true,
+      "organization": {
+        "department": "FAE-QA",
+        "team": "",
+        "division": ""
+      },
+      "employment": {
+        "grade": "",
+        "job_title_override": "",
+        "employee_type": ""
+      },
+      "assignments": [],
+      "expertise_domains": [],
+      "system_roles": [
+        "user"
+      ]
+    }
+  ],
+  "product_lines": [
+    {
+      "id": "STB",
+      "name": "STB",
+      "active": true
+    },
+    {
+      "id": "SmartHome",
+      "name": "SmartHome",
+      "active": true
+    },
+    {
+      "id": "TV",
+      "name": "TV",
+      "active": true
+    },
+    {
+      "id": "IPTV",
+      "name": "IPTV",
+      "active": true
+    }
+  ]
+}

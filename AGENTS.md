@@ -57,5 +57,6 @@ Delivery requires two independent results:
 - **Functional Acceptance: PASS** — scoped tests and the highest practical environment validation pass without weakened tests.
 - **Code Quality: PASS** — scoped diff shows correct ownership, no unnecessary abstraction/duplication, no temporary diagnostics or abandoned attempts, no unrelated changes, and `git diff --check` passes.
 - Commits must be atomic and describe the business result; never include exploratory attempts, mixed concerns, temporary diagnostics, or unrelated pre-existing/user-owned changes.
+- When Coco says “提交”, “合并”, or “push” for completed work, treat all three as the same delivery instruction: commit only the approved scoped changes, then push the current branch to its configured remote. Do not include unrelated user-owned changes.
 
 Reports are concise: changed files, commands with exit codes, criterion failures, limitations/blockers, relevant workspace status, and worker thread/task identity. Do not repeat requirements, implementation narrative, source code, or full logs.
