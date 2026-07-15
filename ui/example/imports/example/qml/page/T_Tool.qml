@@ -11,6 +11,40 @@ FluPage {
     property var selectedGroup: ToolBridge.groups.length > selectedGroupIndex ? ToolBridge.groups[selectedGroupIndex] : ({})
     property var selectedTool: selectedGroup.tools && selectedGroup.tools.length > selectedToolIndex ? selectedGroup.tools[selectedToolIndex] : ({})
 
+    Connections {
+        target: RedmineBridge
+        function onCredentialsRequired() { redmine_credentials.open() }
+        function onVerificationRequired() { redmine_verification.open() }
+    }
+
+    FluContentDialog {
+        id: redmine_credentials
+        property string username: ""
+        property string password: ""
+        title: qsTr("Redmine credentials")
+        positiveText: qsTr("Sign in")
+        negativeText: qsTr("Cancel")
+        contentDelegate: Component {
+            ColumnLayout {
+                spacing: 8
+                FluTextBox { Layout.fillWidth: true; placeholderText: qsTr("Username"); onTextChanged: redmine_credentials.username = text }
+                FluPasswordBox { Layout.fillWidth: true; placeholderText: qsTr("Password"); onTextChanged: redmine_credentials.password = text }
+            }
+        }
+        onPositiveClicked: RedmineBridge.submitCredentials(username, password)
+    }
+
+    FluContentDialog {
+        id: redmine_verification
+        property string code: ""
+        title: qsTr("Mobile verification")
+        message: qsTr("Enter the verification code shown on your phone.")
+        positiveText: qsTr("Verify")
+        negativeText: qsTr("Cancel")
+        contentDelegate: Component { FluTextBox { placeholderText: qsTr("Verification code"); onTextChanged: redmine_verification.code = text } }
+        onPositiveClicked: RedmineBridge.submitVerification(code)
+    }
+
     function groupById(groupId) {
         for (var index = 0; index < ToolBridge.groups.length; ++index) {
             if (ToolBridge.groups[index].id === groupId)
@@ -243,9 +277,14 @@ FluPage {
                 }
                 FluText {
                     Layout.fillWidth: true
-                    text: qsTr("This area is reserved for the selected tool. Execution is not available yet.")
+                    text: selectedTool.id === "redmine" ? RedmineBridge.statusText : qsTr("This area is reserved for the selected tool. Execution is not available yet.")
                     color: FluTheme.fontSecondaryColor
                     wrapMode: Text.WordWrap
+                }
+                RowLayout {
+                    visible: selectedTool.id === "redmine"
+                    FluButton { text: qsTr("Sign in"); disabled: RedmineBridge.loading; onClicked: RedmineBridge.startLogin() }
+                    FluButton { text: qsTr("Cancel"); onClicked: RedmineBridge.cancelLogin() }
                 }
                 Item {
                     Layout.fillHeight: true

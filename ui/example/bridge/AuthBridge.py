@@ -547,6 +547,9 @@ class AuthBridge(QObject):
     def currentPassword(self) -> str:
         return self._password
 
+    def transientCredential(self) -> tuple[str, str]:
+        return self._username, self._password
+
     @Slot(result=bool)
     def hasCredential(self) -> bool:
         return bool(self._password)

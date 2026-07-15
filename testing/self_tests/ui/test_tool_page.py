@@ -126,14 +126,14 @@ def test_tool_fixed_text_is_finished_in_both_catalogs():
     for filename in ("example_en_US.ts", "example_zh_CN.ts"):
         root = ET.parse(ROOT / "ui/example" / filename).getroot()
         contexts = {
-            context.findtext("name"): context
-            for context in root.findall("context")
-            if context.findtext("name") in required_contexts
+            name: [context for context in root.findall("context") if context.findtext("name") == name]
+            for name in required_contexts
         }
-        assert set(contexts) == required_contexts
-        for context in contexts.values():
+        assert all(contexts.values())
+        for named_contexts in contexts.values():
             tool_messages = [
                 message
+                for context in named_contexts
                 for message in context.findall("message")
                 if "Tool" in (message.findtext("source") or "")
                 or context.findtext("name") == "ToolBridge"

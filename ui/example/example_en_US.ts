@@ -5571,4 +5571,15 @@ Some contents...</translation>
     <message><source>IPTV</source><translation>IPTV</translation></message>
     <message><source>Wi-Fi</source><translation>Wi-Fi</translation></message>
 </context>
+<context><name>RedmineBridge</name>
+<message><source>Ready to sign in to Redmine.</source><translation>Ready to sign in to Redmine.</translation></message>
+<message><source>Signing in to Redmine...</source><translation>Signing in to Redmine...</translation></message>
+<message><source>Redmine sign-in succeeded.</source><translation>Redmine sign-in succeeded.</translation></message>
+<message><source>Redmine needs a different account or password.</source><translation>Redmine needs a different account or password.</translation></message>
+<message><source>Enter the mobile verification code.</source><translation>Enter the mobile verification code.</translation></message>
+<message><source>Redmine sign-in failed.</source><translation>Redmine sign-in failed.</translation></message>
+<message><source>Redmine sign-in cancelled.</source><translation>Redmine sign-in cancelled.</translation></message></context>
+<context><name>T_Tool</name>
+<message><source>Redmine credentials</source><translation>Redmine credentials</translation></message><message><source>Sign in</source><translation>Sign in</translation></message><message><source>Username</source><translation>Username</translation></message><message><source>Password</source><translation>Password</translation></message><message><source>Mobile verification</source><translation>Mobile verification</translation></message><message><source>Enter the verification code shown on your phone.</source><translation>Enter the verification code shown on your phone.</translation></message><message><source>Verify</source><translation>Verify</translation></message><message><source>Verification code</source><translation>Verification code</translation></message></context>
+<context><name>ToolBridge</name><message><source>Redmine Bug Clone</source><translation>Redmine Bug Clone</translation></message><message><source>Browse and sign in to SmartHome Redmine.</source><translation>Browse and sign in to SmartHome Redmine.</translation></message></context>
 </TS>

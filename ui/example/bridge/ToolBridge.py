@@ -38,11 +38,12 @@ def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str,
         if isinstance(item, dict) and item.get("active", True)
     }
     for group_id in ("STB", "TV", "SmartHome", "IPTV"):
+        tools = [{"id": "redmine"}] if group_id == "SmartHome" else []
         groups.append(
             {
                 "id": group_id,
                 "available": group_id in product_lines and group_id in assigned_ids,
-                "tools": [],
+                "tools": tools,
             }
         )
 
@@ -89,6 +90,10 @@ class ToolBridge(QObject):
                 "Wi-Fi": self.tr("Wi-Fi"),
             }
             row["title"] = titles[group["id"]]
+            row["tools"] = [
+                {**tool, "title": self.tr("Redmine Bug Clone"), "description": self.tr("Browse and sign in to SmartHome Redmine.")}
+                for tool in row["tools"]
+            ]
             localized.append(row)
         return localized
 

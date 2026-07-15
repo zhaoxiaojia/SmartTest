@@ -5772,4 +5772,15 @@ Some contents...</source>
     <message><source>IPTV</source><translation>IPTV</translation></message>
     <message><source>Wi-Fi</source><translation>Wi-Fi</translation></message>
 </context>
+<context><name>RedmineBridge</name>
+<message><source>Ready to sign in to Redmine.</source><translation>准备登录 Redmine。</translation></message>
+<message><source>Signing in to Redmine...</source><translation>正在登录 Redmine...</translation></message>
+<message><source>Redmine sign-in succeeded.</source><translation>Redmine 登录成功。</translation></message>
+<message><source>Redmine needs a different account or password.</source><translation>Redmine 需要其他账号或密码。</translation></message>
+<message><source>Enter the mobile verification code.</source><translation>请输入手机验证码。</translation></message>
+<message><source>Redmine sign-in failed.</source><translation>Redmine 登录失败。</translation></message>
+<message><source>Redmine sign-in cancelled.</source><translation>已取消 Redmine 登录。</translation></message></context>
+<context><name>T_Tool</name>
+<message><source>Redmine credentials</source><translation>Redmine 登录凭据</translation></message><message><source>Sign in</source><translation>登录</translation></message><message><source>Username</source><translation>用户名</translation></message><message><source>Password</source><translation>密码</translation></message><message><source>Mobile verification</source><translation>手机验证</translation></message><message><source>Enter the verification code shown on your phone.</source><translation>请输入手机上显示的验证码。</translation></message><message><source>Verify</source><translation>验证</translation></message><message><source>Verification code</source><translation>验证码</translation></message></context>
+<context><name>ToolBridge</name><message><source>Redmine Bug Clone</source><translation>Redmine 缺陷克隆</translation></message><message><source>Browse and sign in to SmartHome Redmine.</source><translation>浏览并登录 SmartHome Redmine。</translation></message></context>
 </TS>

@@ -29,6 +29,7 @@ from example.bridge.ReportBridge import ReportBridge
 from example.bridge.RunBridge import RunBridge
 from example.bridge.TestPageBridge import TestPageBridge
 from example.bridge.ToolBridge import ToolBridge
+from example.bridge.RedmineBridge import RedmineBridge
 from example.bridge.DebugBridge import DebugBridge
 from example.bridge.BootVideoBridge import BootVideoBridge
 from support.logging import smart_log
@@ -111,6 +112,7 @@ def main():
     auth_bridge = AuthBridge()
     context.setContextProperty("AuthBridge", auth_bridge)
     context.setContextProperty("ToolBridge", ToolBridge(runtime_root, auth_bridge))
+    context.setContextProperty("RedmineBridge", RedmineBridge(auth_bridge))
     context.setContextProperty("HomeBridge", HomeBridge())
     context.setContextProperty("TestPageBridge", TestPageBridge(runtime_root))
     context.setContextProperty("RunBridge", RunBridge(runtime_root))

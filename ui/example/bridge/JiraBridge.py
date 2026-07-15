@@ -578,7 +578,7 @@ class JiraBridge(QObject):
         if self._workspace_service_injected:
             return self._workspace_service
         username = self._auth_bridge.currentUsername()
-        password = self._auth_bridge.currentPassword()
+        _username, password = self._auth_bridge.transientCredential()
         if not username or not password:
             raise RuntimeError(self._t("LDAP session is missing Jira credentials. Please sign in again."))
         identity = (username, password)

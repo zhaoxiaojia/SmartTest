@@ -20,3 +20,5 @@ if __name__ == "__main__":
     subprocess.run([env.pip(), "install", "pyserial==3.5"])
     subprocess.run([env.pip(), "install", "ldap3==2.9.1"])
     subprocess.run([env.pip(), "install", "pycryptodome==3.23.0"])
+    subprocess.run([env.pip(), "install", "playwright==1.54.0"], check=True)
+    subprocess.run([env.python(), "-m", "playwright", "install", "chromium"], check=True)
