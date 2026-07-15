@@ -18,7 +18,7 @@ from testing.runtime.steps import step as runtime_step, step_log
 from testing.steps.definitions import ActionContext, action_plan, get_action
 from testing.params.adb_devices import resolve_adb_serial_for_command
 from testing.tool.dut_tool.duts.android import android as AndroidDut
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 DEFAULT_COMPONENT = "com.smarttest.mobile/com.smarttest.mobile.command.CommandActivity"

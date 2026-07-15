@@ -5,7 +5,7 @@ import sys
 
 from testing.test_context import smarttest_context
 from testing.runtime.steps import step_log
-from tools.logging import SMARTTEST_LOG_DIR_ENV, SMARTTEST_STEP_EVENTS_OUT_ENV, smart_log
+from support.logging import SMARTTEST_LOG_DIR_ENV, SMARTTEST_STEP_EVENTS_OUT_ENV, smart_log
 
 
 def test_smart_log_writes_static_jsonl(tmp_path, monkeypatch):

@@ -1,11 +1,11 @@
-﻿import os
+import os
 import re
 from testing.tool.dut_tool import command_batch as subprocess
 import time
 import locale
 
 from ui.yamlTool import yamlTool
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 class LocalOS:

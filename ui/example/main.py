@@ -31,7 +31,7 @@ from example.bridge.TestPageBridge import TestPageBridge
 from example.bridge.ToolBridge import ToolBridge
 from example.bridge.DebugBridge import DebugBridge
 from example.bridge.BootVideoBridge import BootVideoBridge
-from tools.logging import smart_log
+from support.logging import smart_log
 
 _uri = "example"
 _major = 1

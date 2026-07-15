@@ -59,7 +59,7 @@ def _verify_dist_runtime(repo_root: Path) -> None:
         [
             str(runtime_python),
             "-c",
-            "import sys; sys.path.insert(0, r'dist'); import tools.param_conversion; import testing.params.options; import cv2; import testing.tool.boot_video.service; import ui.example.bridge.BootVideoBridge",
+            "import sys; sys.path.insert(0, r'dist'); import support.param_conversion; import testing.params.options; import cv2; import testing.tool.boot_video.service; import ui.example.bridge.BootVideoBridge",
         ],
         cwd=str(repo_root),
     )

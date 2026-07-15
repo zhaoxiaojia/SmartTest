@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import time
@@ -9,7 +9,7 @@ from testing.tool.dut_tool.features.wifi import WifiConnectParams
 from testing.tool.dut_tool.transports.telnet_tool import telnet_tool
 from testing.tool.dut_tool.transports.telnet_tool import TelnetSession
 from testing.tool.network_tool.wpa import WpaSupplicantManager
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 class linux(BaseDut):

@@ -21,8 +21,8 @@ from testing.runner.config import RunConfig, build_run_config_from_state
 from testing.runner.execution import TestRunSession, start_pytest_run
 from testing.state.store import load_state
 from testing.test_context import TestContext, smarttest_context
-from tools.logging import default_log_path, log_display_fields, smart_log
-from tools.report import save_run_report
+from support.logging import default_log_path, log_display_fields, smart_log
+from support.report import save_run_report
 
 try:
     from example.helper.AppPaths import app_data_dir

@@ -1,10 +1,10 @@
-﻿"""openwrt uci wl controlThis module is part of the arrisRouter package."""
+"""openwrt uci wl controlThis module is part of the arrisRouter package."""
 from __future__ import annotations
 import re, time
 from typing import Optional, Union, Dict, Any, List
 from .RouterControl import ConfigError
 from testing.tool.dut_tool.transports.ssh_tool import ssh_tool
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 class OpenWrtWlControl:

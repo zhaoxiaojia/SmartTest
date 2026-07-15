@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tools.report import (
+from support.report import (
     build_run_report,
     export_pdf_report,
     report_file_stem,
@@ -118,7 +118,7 @@ def test_render_html_uses_model_without_rebuilding_business_meaning():
 
 
 def test_report_source_has_no_case_specific_or_log_inference_logic():
-    source = Path("tools/report.py").read_text(encoding="utf-8").lower()
+    source = Path("support/report.py").read_text(encoding="utf-8").lower()
 
     forbidden = [
         "emmc",
@@ -149,7 +149,7 @@ def test_export_pdf_report_regenerates_html_and_uses_default_pdf_path(tmp_path, 
         calls.append((html_path, pdf_path))
         pdf_path.write_bytes(b"%PDF-1.4\n% fake\n")
 
-    monkeypatch.setattr("tools.report._render_html_to_pdf", fake_renderer)
+    monkeypatch.setattr("support.report._render_html_to_pdf", fake_renderer)
 
     pdf_path = export_pdf_report("run-pdf", reports_dir=tmp_path)
 

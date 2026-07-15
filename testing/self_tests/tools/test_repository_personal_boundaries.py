@@ -50,7 +50,7 @@ def test_jira_bridge_and_page_have_no_personal_format_audit_contract():
 
 
 def test_desktop_package_does_not_bundle_personal_jira_specification():
-    package_spec = (ROOT / "tools/packaging/pyinstaller/main.spec").read_text(encoding="utf-8")
+    package_spec = (ROOT / "support/packaging/pyinstaller/main.spec").read_text(encoding="utf-8")
 
     assert "jira规范" not in package_spec
     assert "jira_format_spec" not in package_spec

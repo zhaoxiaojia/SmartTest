@@ -38,13 +38,13 @@ From the repository root:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python tools/scripts/script-init-venv.py
+python support/scripts/script-init-venv.py
 
 cd android_client
 ./gradlew :app:assembleDebug
 cd ..
 python -c "import android_client; android_client.sign_privileged_apk()"
-python tools/scripts/script-build-apk.py
+python support/scripts/script-build-apk.py
 ```
 
 The signed APK is written to:
@@ -54,4 +54,4 @@ android_client/app/build/outputs/apk/debug/app-debug-platform.apk
 dist_installer/app-debug-platform.apk
 ```
 
-Desktop packaging entrypoints are under `tools/scripts/`. macOS installer packaging is not wired in this repository yet; `script-build-installer.py` currently supports the Windows installer flow and exits with a macOS-specific message.
+Desktop packaging entrypoints are under `support/scripts/`. macOS installer packaging is not wired in this repository yet; `script-build-installer.py` currently supports the Windows installer flow and exits with a macOS-specific message.

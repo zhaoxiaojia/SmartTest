@@ -7,7 +7,7 @@ from typing import Any
 from PySide6.QtCore import QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 
-from tools.report import duration_text, list_reports, report_html_path, report_html_url, report_json_path
+from support.report import duration_text, list_reports, report_html_path, report_html_url, report_json_path
 
 try:
     from example.helper.AppPaths import app_data_dir

@@ -4,7 +4,7 @@ import threading
 
 from PySide6.QtCore import QDateTime, QSysInfo, QtMsgType, qInstallMessageHandler
 
-from tools.logging import default_log_path, smart_log
+from support.logging import default_log_path, smart_log
 
 
 _logging = None

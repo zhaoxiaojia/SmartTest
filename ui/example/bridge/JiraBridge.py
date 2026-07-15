@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import os
 import sys
@@ -18,7 +18,7 @@ from ui import jsonTool
 from jira_tool.services import JiraWorkspaceService, create_jira_workspace_service
 from example.bridge.AuthBridge import AuthBridge
 from example.helper.TranslateHelper import TranslateHelper
-from tools.logging import smart_log
+from support.logging import smart_log
 
 try:
     from example.helper.AppPaths import app_data_dir

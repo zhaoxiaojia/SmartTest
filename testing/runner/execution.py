@@ -10,7 +10,7 @@ from typing import Any
 
 from testing.cases.catalog import is_packaged_runtime
 from testing.runner.config import RUN_CONFIG_ENV, RunConfig, run_config_to_json
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 def _subprocess_creationflags() -> int:

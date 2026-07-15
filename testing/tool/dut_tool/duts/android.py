@@ -1,4 +1,4 @@
-﻿import os
+import os
 import re
 from testing.tool.dut_tool import command_batch as subprocess
 import threading
@@ -39,7 +39,7 @@ from testing.tool.dut_tool.features.wifi import (
     scan as wifi_scan,
     wait_for_service as wifi_wait_for_service,
 )
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 def connect_again(func):

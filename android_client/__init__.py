@@ -10,7 +10,7 @@ import time
 import sys
 
 from testing.params.adb_devices import resolve_adb_serial_for_command
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 PACKAGE_NAME = "com.smarttest.mobile"

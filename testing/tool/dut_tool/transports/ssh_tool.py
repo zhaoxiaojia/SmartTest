@@ -1,4 +1,4 @@
-﻿"""This module implements SSH tool functionality for the dut_tool package."""
+"""This module implements SSH tool functionality for the dut_tool package."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from typing import Optional
 import asyncssh
 from asyncssh.connection import SSHClientConnection
 from asyncssh.process import SSHClientProcess
-from tools.logging import set_external_logger_level, smart_log
+from support.logging import set_external_logger_level, smart_log
 
 set_external_logger_level("asyncssh", "warning")
 

@@ -1,4 +1,4 @@
-﻿"""High-level control interfaces for SNMP-based power distribution units.
+"""High-level control interfaces for SNMP-based power distribution units.
 
 This module provides a simple wrapper around SNMP commands to control power
 relays. It exposes a :class:`power_ctrl` class that reads configuration
@@ -12,7 +12,7 @@ from collections.abc import Mapping
 from typing import Any, Sequence
 
 from testing.tool.relay_tool import Relay
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 def load_config(refresh: bool = False) -> dict[str, Any]:

@@ -1,4 +1,4 @@
-﻿"""
+"""
 This module implements telnet tool functionality for the dut_tool package.
 
 It defines functions and classes used by the test harness to interface with devices and utilities.
@@ -18,7 +18,7 @@ import pytest
 import telnetlib3
 from telnetlib3.client import TelnetClient
 from typing import Annotated
-from tools.logging import smart_log
+from support.logging import smart_log
 DEFAULT_CONNECT_MINWAIT = 0.05
 DEFAULT_CONNECT_MAXWAIT = 0.2
 

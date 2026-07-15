@@ -21,7 +21,7 @@ from testing.state.models import SelectedCase, TestPageState
 from testing.state.store import ensure_state, load_state, save_state
 from testing.tool.dut_tool.parameter_helper import ParameterHelper
 from testing.tool.env_tool import build_env_equipment_row, default_env_config
-from tools.logging import smart_log
+from support.logging import smart_log
 
 try:
     from example.helper.AppPaths import app_data_dir

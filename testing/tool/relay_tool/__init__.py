@@ -11,7 +11,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Any, Sequence
-from tools.logging import smart_log
+from support.logging import smart_log
 
 __all__ = ["Relay", "get_relay_controller"]
 

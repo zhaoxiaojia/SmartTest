@@ -6,7 +6,7 @@ import os
 import subprocess as _subprocess
 from dataclasses import dataclass
 from typing import Iterable, List, Sequence
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 @dataclass

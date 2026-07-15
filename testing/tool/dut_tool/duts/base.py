@@ -1,4 +1,4 @@
-﻿import os
+import os
 import re
 import time
 from pathlib import Path
@@ -36,7 +36,7 @@ from testing.tool.dut_tool.features.wifi import WifiConnectParams
 from testing.tool.wifi_lab_tool.ixchariot import ix
 from testing.tool.dut_tool.command_batch import CommandRunner, CommandTimeoutError
 from testing.params.adb_devices import resolve_adb_serial_for_command
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 class BaseDut:

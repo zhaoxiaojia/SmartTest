@@ -9,7 +9,7 @@ from typing import Any, Iterator
 import pytest
 
 from testing.test_context import smarttest_context
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 _DEFINITION_ID_RE = re.compile(r"^[a-z0-9]+(?:[._][a-z0-9]+)*$")

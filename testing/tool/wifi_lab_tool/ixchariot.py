@@ -1,4 +1,4 @@
-﻿"""Utilities for interacting with Ixia chassis via Tcl scripts.
+"""Utilities for interacting with Ixia chassis via Tcl scripts.
 
 This module defines a simple wrapper around the execution of a Tcl script used
 to measure receiver sensitivity or throughput between pairs of endpoints.  It
@@ -12,7 +12,7 @@ import os
 import re
 from testing.tool.dut_tool import command_batch as subprocess
 import time
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 class ix:

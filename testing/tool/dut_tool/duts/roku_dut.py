@@ -1,4 +1,4 @@
-﻿"""
+"""
 Roku control utilities.
 
 This module provides helper functions and a subclass of the ``roku.Roku`` class
@@ -25,7 +25,7 @@ from testing.tool.dut_tool.duts.linux import linux
 from testing.tool.dut_tool.features.wifi import WifiConnectParams
 from testing.tool.network_tool.roku_wpa import roku_wpa
 from typing import Annotated
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 def load_config(refresh: bool = False) -> dict:

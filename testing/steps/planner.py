@@ -144,7 +144,7 @@ def _fallback_plan() -> list[dict[str, Any]]:
 
 
 def _trace_plan(source: str, *, nodeid: str, steps: list[dict[str, Any]], case_parameters: dict[str, Any]) -> None:
-    from tools.logging import smart_log
+    from support.logging import smart_log
 
     smart_log(
         "steps.plan source=%s nodeid=%s count=%s config_keys=%s",

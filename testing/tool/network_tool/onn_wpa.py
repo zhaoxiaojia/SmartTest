@@ -4,7 +4,7 @@ import re
 import time
 
 from testing.tool.network_tool.wpa import WpaSupplicantManager
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 class onn_wpa(WpaSupplicantManager):

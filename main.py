@@ -28,7 +28,7 @@ def main() -> int:
 
     from example.main import main as ui_main
     from testing.build_manifest import load_build_manifest
-    from tools.logging import smart_log
+    from support.logging import smart_log
 
     manifest = load_build_manifest(root_dir=root)
     if manifest:

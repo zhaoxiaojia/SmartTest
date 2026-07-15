@@ -5,7 +5,7 @@ import time
 
 import cv2
 
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 _BACKENDS = (

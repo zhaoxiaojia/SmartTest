@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from tools.param_conversion import wire_string
+from support.param_conversion import wire_string
 from testing.steps.definitions import action_step_enabled
 
 def build_declared_case_plan(

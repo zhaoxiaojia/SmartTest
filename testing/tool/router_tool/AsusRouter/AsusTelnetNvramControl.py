@@ -1,4 +1,4 @@
-﻿"""
+"""
 Asus telnet nvram control
 
 This module is part of the AsusRouter package.
@@ -15,7 +15,7 @@ from .AsusBaseControl import AsusBaseControl
 from testing.tool.dut_tool.transports.telnet_tool import TelnetSession
 from ..router_telnet_control import TelnetVerifier
 from ..RouterControl import REGION_CHANNEL_MAP, RouterTools
-from tools.logging import smart_log
+from support.logging import smart_log
 
 
 class AsusTelnetNvramControl(AsusBaseControl):

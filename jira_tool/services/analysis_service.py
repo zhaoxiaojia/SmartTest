@@ -570,7 +570,7 @@ def _contains_searchable_token(text: str) -> bool:
 
 def _trace_workspace(stage: str, **values: Any) -> None:
     details = " ".join(f"{key}={values[key]}" for key in sorted(values))
-    from tools.logging import smart_log
+    from support.logging import smart_log
 
     smart_log(
         "%s %s",

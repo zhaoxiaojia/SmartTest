@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Callable
 from uuid import uuid4
 
-from tools.param_conversion import normalize_value, to_bool, to_float, to_int, to_string, to_string_list, wire_string
+from support.param_conversion import normalize_value, to_bool, to_float, to_int, to_string, to_string_list, wire_string
 from ui import jsonTool
 
 from testing.params.registry import SchemaRegistry, default_registry
@@ -1019,7 +1019,7 @@ class TestContext:
         self.append_log({"line": str(line), "domain": "runner", "level": "info", "source": "TestContext"})
 
     def append_log(self, record: dict[str, Any]) -> None:
-        from tools.logging import log_display_fields
+        from support.logging import log_display_fields
 
         row = dict(record)
         text = str(row.get("line") or row.get("message") or "").rstrip()
@@ -1113,7 +1113,7 @@ class TestContext:
         }
 
     def finish_run(self, *, returncode: int, stopped: bool, finished_at: str | None = None) -> dict[str, Any]:
-        from tools.report import build_run_report
+        from support.report import build_run_report
 
         self._returncode = int(returncode)
         self._stopped = bool(stopped)

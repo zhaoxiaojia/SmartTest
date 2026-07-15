@@ -317,7 +317,7 @@ def _extract_jira_issues(payload: Any) -> list[dict[str, Any]]:
 
 def _trace_mcp_context(stage: str, **values: Any) -> None:
     details = " ".join(f"{key}={values[key]}" for key in sorted(values))
-    from tools.logging import smart_log
+    from support.logging import smart_log
 
     smart_log(
         "%s %s",
