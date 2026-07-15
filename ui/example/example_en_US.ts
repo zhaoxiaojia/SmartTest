@@ -776,377 +776,427 @@
 <context>
     <name>JiraBridge</name>
     <message>
-        <location filename="bridge/JiraBridge.py" line="82" />
+        <location filename="bridge/JiraBridge.py" line="85" />
         <source>Ready</source>
         <translation>Ready</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="83" />
+        <location filename="bridge/JiraBridge.py" line="86" />
         <source>Run a Jira query to get a live AI summary.</source>
         <translation>Run a Jira query to get a live AI summary.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="87" />
+        <location filename="bridge/JiraBridge.py" line="90" />
         <source>Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</source>
         <translation>Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="88" />
+        <location filename="bridge/JiraBridge.py" line="91" />
         <source>Workspace ready</source>
         <translation>Workspace ready</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="89" />
+        <location filename="bridge/JiraBridge.py" line="92" />
         <source>Session cleared. Ask a new Jira question when ready.</source>
         <translation>Session cleared. Ask a new Jira question when ready.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="90" />
+        <location filename="bridge/JiraBridge.py" line="93" />
         <source>Reset</source>
         <translation>Reset</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="91" />
+        <location filename="bridge/JiraBridge.py" line="94" />
         <source>Jira request failed. Check the connection message above and sign in again if needed.</source>
         <translation>Jira request failed. Check the connection message above and sign in again if needed.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="92" />
+        <location filename="bridge/JiraBridge.py" line="95" />
         <source>Error</source>
         <translation>Error</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="93" />
+        <location filename="bridge/JiraBridge.py" line="96" />
         <source>All Supported Projects</source>
         <translation>All Supported Projects</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="94" />
+        <location filename="bridge/JiraBridge.py" line="97" />
         <source>Open Work</source>
         <translation>Open Work</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="95" />
+        <location filename="bridge/JiraBridge.py" line="98" />
         <source>Ready for Test</source>
         <translation>Ready for Test</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="96" />
+        <location filename="bridge/JiraBridge.py" line="99" />
         <source>Closed Bugs</source>
         <translation>Closed Bugs</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="97" />
+        <location filename="bridge/JiraBridge.py" line="100" />
         <source>Last 7 Days</source>
         <translation>Last 7 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="98" />
+        <location filename="bridge/JiraBridge.py" line="101" />
         <source>Last 30 Days</source>
         <translation>Last 30 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="99" />
+        <location filename="bridge/JiraBridge.py" line="102" />
         <source>Last 90 Days</source>
         <translation>Last 90 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="100" />
+        <location filename="bridge/JiraBridge.py" line="103" />
         <source>This Year</source>
         <translation>This Year</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="101" />
+        <location filename="bridge/JiraBridge.py" line="104" />
         <source>Open</source>
         <translation>Open</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="102" />
+        <location filename="bridge/JiraBridge.py" line="105" />
         <source>In Progress</source>
         <translation>In Progress</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="103" />
+        <location filename="bridge/JiraBridge.py" line="106" />
         <source>Verified</source>
         <translation>Verified</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="104" />
+        <location filename="bridge/JiraBridge.py" line="107" />
         <source>Resolved</source>
         <translation>Resolved</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="105" />
+        <location filename="bridge/JiraBridge.py" line="108" />
         <source>Closed</source>
         <translation>Closed</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="106" />
+        <location filename="bridge/JiraBridge.py" line="109" />
         <source>Highest</source>
         <translation>Highest</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="107" />
+        <location filename="bridge/JiraBridge.py" line="110" />
         <source>Critical</source>
         <translation>Critical</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="108" />
+        <location filename="bridge/JiraBridge.py" line="111" />
         <source>High</source>
         <translation>High</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="109" />
+        <location filename="bridge/JiraBridge.py" line="112" />
         <source>Medium</source>
         <translation>Medium</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="110" />
+        <location filename="bridge/JiraBridge.py" line="113" />
         <source>Low</source>
         <translation>Low</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="111" />
+        <location filename="bridge/JiraBridge.py" line="114" />
         <source>Bug</source>
         <translation>Bug</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="112" />
+        <location filename="bridge/JiraBridge.py" line="115" />
         <source>Task</source>
         <translation>Task</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="113" />
+        <location filename="bridge/JiraBridge.py" line="116" />
         <source>Story</source>
         <translation>Story</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="114" />
+        <location filename="bridge/JiraBridge.py" line="117" />
         <source>Improvement</source>
         <translation>Improvement</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="115" />
+        <location filename="bridge/JiraBridge.py" line="118" />
         <source>Unassigned</source>
         <translation>Unassigned</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="116" />
+        <location filename="bridge/JiraBridge.py" line="119" />
         <source>LDAP session is missing Jira credentials. Please sign in again.</source>
         <translation>LDAP session is missing Jira credentials. Please sign in again.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="117" />
+        <location filename="bridge/JiraBridge.py" line="120" />
         <source>Connected to {base_url} | loaded {loaded} of {total}</source>
         <translation>Connected to {base_url} | loaded {loaded} of {total}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="121" />
+        <location filename="bridge/JiraBridge.py" line="124" />
         <source>Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</source>
         <translation>Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="122" />
+        <location filename="bridge/JiraBridge.py" line="125" />
         <source>Connected to {base_url} | analyzed {returned} of {total}</source>
         <translation>Connected to {base_url} | analyzed {returned} of {total}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="123" />
+        <location filename="bridge/JiraBridge.py" line="126" />
         <source>Just now</source>
         <translation>Just now</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="124" />
+        <location filename="bridge/JiraBridge.py" line="127" />
         <source>Sign in to load Jira data.</source>
         <translation>Sign in to load Jira data.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="125" />
+        <location filename="bridge/JiraBridge.py" line="128" />
         <source>Sign in with LDAP first, then Jira results and AI analysis will load here.</source>
         <translation>Sign in with LDAP first, then Jira results and AI analysis will load here.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="126" />
+        <location filename="bridge/JiraBridge.py" line="129" />
         <source>Loading Jira results...</source>
         <translation>Loading Jira results...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="127" />
+        <location filename="bridge/JiraBridge.py" line="130" />
         <source>Analyzing Jira request...</source>
         <translation>Analyzing Jira request...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="128" />
+        <location filename="bridge/JiraBridge.py" line="131" />
         <source>Sign in again to restore Jira access.</source>
         <translation>Sign in again to restore Jira access.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="129" />
+        <location filename="bridge/JiraBridge.py" line="132" />
         <source>Signed out</source>
         <translation>Signed out</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="130" />
+        <location filename="bridge/JiraBridge.py" line="133" />
         <source>Unknown Jira error</source>
         <translation>Unknown Jira error</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="131" />
+        <location filename="bridge/JiraBridge.py" line="134" />
         <source>Jira request failed: {message}</source>
         <translation>Jira request failed: {message}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="132" />
+        <location filename="bridge/JiraBridge.py" line="135" />
         <source>Matched</source>
         <translation>Matched</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="133" />
+        <location filename="bridge/JiraBridge.py" line="136" />
         <source>{displayed} displayed in the current view</source>
         <translation>{displayed} displayed in the current view</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="134" />
+        <location filename="bridge/JiraBridge.py" line="137" />
         <source>High Priority</source>
         <translation>High Priority</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="135" />
+        <location filename="bridge/JiraBridge.py" line="138" />
         <source>Highest, critical, or high in the current result set</source>
         <translation>Highest, critical, or high in the current result set</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="136" />
+        <location filename="bridge/JiraBridge.py" line="139" />
         <source>Blocked</source>
         <translation>Blocked</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="137" />
+        <location filename="bridge/JiraBridge.py" line="140" />
         <source>Blocked items from the displayed Jira scope</source>
         <translation>Blocked items from the displayed Jira scope</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="138" />
+        <location filename="bridge/JiraBridge.py" line="141" />
         <source>Projects</source>
         <translation>Projects</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="139" />
+        <location filename="bridge/JiraBridge.py" line="142" />
         <source>Workflow Preset</source>
         <translation>Workflow Preset</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="140" />
+        <location filename="bridge/JiraBridge.py" line="143" />
         <source>Time Window</source>
         <translation>Time Window</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="141" />
+        <location filename="bridge/JiraBridge.py" line="144" />
         <source>Statuses</source>
         <translation>Statuses</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="142" />
+        <location filename="bridge/JiraBridge.py" line="145" />
         <source>Priorities</source>
         <translation>Priorities</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="143" />
+        <location filename="bridge/JiraBridge.py" line="146" />
         <source>Issue Types</source>
         <translation>Issue Types</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="144" />
+        <location filename="bridge/JiraBridge.py" line="147" />
         <source>Keyword text</source>
         <translation>Keyword text</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="145" />
+        <location filename="bridge/JiraBridge.py" line="148" />
         <source>Assignee</source>
         <translation>Assignee</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="146" />
+        <location filename="bridge/JiraBridge.py" line="149" />
         <source>Reporter</source>
         <translation>Reporter</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="147" />
+        <location filename="bridge/JiraBridge.py" line="150" />
         <source>Labels</source>
         <translation>Labels</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="148" />
+        <location filename="bridge/JiraBridge.py" line="151" />
         <source>Not limited</source>
         <translation>Not limited</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="149" />
+        <location filename="bridge/JiraBridge.py" line="152" />
         <source>Current user</source>
         <translation>Current user</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="150" />
+        <location filename="bridge/JiraBridge.py" line="153" />
         <source>JQL</source>
         <translation>JQL</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="151" />
+        <location filename="bridge/JiraBridge.py" line="154" />
         <source>Useful candidates for the next regression batch</source>
         <translation>Useful candidates for the next regression batch</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="152" />
+        <location filename="bridge/JiraBridge.py" line="155" />
         <source>My Filters</source>
         <translation>My Filters</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="153" />
+        <location filename="bridge/JiraBridge.py" line="156" />
         <source>Loading your Jira filters...</source>
         <translation>Loading your Jira filters...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="154" />
+        <location filename="bridge/JiraBridge.py" line="157" />
         <source>No favourite filters were found for this account.</source>
         <translation>No favourite filters were found for this account.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="155" />
+        <location filename="bridge/JiraBridge.py" line="158" />
         <source>Click to apply this filter to the current JQL box.</source>
         <translation>Click to apply this filter to the current JQL box.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="156" />
+        <location filename="bridge/JiraBridge.py" line="159" />
         <source>Comments</source>
         <translation>Comments</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="157" />
+        <location filename="bridge/JiraBridge.py" line="160" />
         <source>No Jira issues matched the current scope.</source>
         <translation>No Jira issues matched the current scope.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="158" />
+        <location filename="bridge/JiraBridge.py" line="161" />
         <source>Jira AI Conversation</source>
         <translation>Jira AI Conversation</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="159" />
+        <location filename="bridge/JiraBridge.py" line="162" />
         <source>Analyzing request: preparing search scope...</source>
         <translation>Analyzing request: preparing search scope...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="160" />
+        <location filename="bridge/JiraBridge.py" line="163" />
         <source>Analyzing request: retrieving Jira issues...</source>
         <translation>Analyzing request: retrieving Jira issues...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="161" />
+        <location filename="bridge/JiraBridge.py" line="164" />
         <source>Analyzing request: generating response...</source>
         <translation>Analyzing request: generating response...</translation>
     </message>
     <message>
         <location filename="bridge/JiraBridge.py" line="165" />
+        <source>Jira format audit is ready.</source>
+        <translation>Jira format audit is ready.</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="166" />
+        <source>Only Jira managers can run or export format audits.</source>
+        <translation>Only Jira managers can run or export format audits.</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="167" />
+        <source>Load Jira issues before running a format audit.</source>
+        <translation>Load Jira issues before running a format audit.</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="168" />
+        <source>The Jira format specification jira规范.md is missing. Restore it at the SmartTest application root and try again.</source>
+        <translation>The Jira format specification jira规范.md is missing. Restore it at the SmartTest application root and try again.</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="169" />
+        <source>Audit complete: {issues} issues, {violations} violations.</source>
+        <translation>Audit complete: {issues} issues, {violations} violations.</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="170" />
+        <source>Run an audit before exporting the report.</source>
+        <translation>Run an audit before exporting the report.</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="171" />
+        <source>Audit report exported to {path}</source>
+        <translation>Audit report exported to {path}</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="172" />
+        <source>Issues</source>
+        <translation>Issues</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="173" />
+        <source>Passed</source>
+        <translation>Passed</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="174" />
+        <source>Violations</source>
+        <translation>Violations</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="178" />
         <source>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</source>
         <translation>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</translation>
     </message>
@@ -3242,223 +3292,238 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation>Focus on next regression</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="539" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="543" />
         <source>Add Source</source>
         <translation>Add Source</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="568" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1778" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="572" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1782" />
         <source>Sources</source>
         <translation>Sources</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="574" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="578" />
         <source>Jira MCP is enabled by default for Jira AI.</source>
         <translation>Jira MCP is enabled by default for Jira AI.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="673" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="677" />
         <source>Conversation History</source>
         <translation>Conversation History</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="682" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="686" />
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="744" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="748" />
         <source>%1 messages</source>
         <translation>%1 messages</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="766" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="770" />
         <source>No conversation history yet.</source>
         <translation>No conversation history yet.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="796" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="800" />
         <source>Jira AI Workspace</source>
         <translation>Jira AI Workspace</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="802" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="806" />
         <source>Signed in as %1. LDAP credentials are reused directly for Jira access.</source>
         <translation>Signed in as %1. LDAP credentials are reused directly for Jira access.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="828" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="832" />
         <source>Connection</source>
         <translation>Connection</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="846" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="850" />
         <source>Loading</source>
         <translation>Loading</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="847" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="851" />
         <source>Connected</source>
         <translation>Connected</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="847" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="851" />
         <source>Waiting</source>
         <translation>Waiting</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="941" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="945" />
         <source>JQL Filter</source>
         <translation>JQL Filter</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="949" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="953" />
         <source>Paste a Jira filter, for example: project = TV ORDER BY created DESC</source>
         <translation>Paste a Jira filter, for example: project = TV ORDER BY created DESC</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="955" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="959" />
         <source>When this field is filled, SmartTest uses this JQL directly and skips the common Jira filters below.</source>
         <translation>When this field is filled, SmartTest uses this JQL directly and skips the common Jira filters below.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1538" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1542" />
         <source>Jira AI Chat</source>
         <translation>Jira AI Chat</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1544" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1548" />
         <source>Preview</source>
         <translation>Preview</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1571" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1764" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1575" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1768" />
         <source>More</source>
         <translation>More</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1604" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1608" />
         <source>Thinking...</source>
         <translation>Thinking...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1668" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1672" />
         <source>Copy</source>
         <translation>Copy</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1677" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1681" />
         <source>Resend</source>
         <translation>Resend</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1738" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1742" />
         <source>Ask anything</source>
         <translation>Ask anything</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1772" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1776" />
         <source>Quick</source>
         <translation>Quick</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1802" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1806" />
         <source>Voice</source>
         <translation>Voice</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1832" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1836" />
         <source>SmartTest AI can make mistakes. Verify important information.</source>
         <translation>SmartTest AI can make mistakes. Verify important information.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="927" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2239" />
+        <source>Format Audit</source>
+        <translation>Format Audit</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2254" />
+        <source>Audit Loaded Issues</source>
+        <translation>Audit Loaded Issues</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2259" />
+        <source>Export XLSX</source>
+        <translation>Export XLSX</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="931" />
         <source>Search Scope</source>
         <translation>Search Scope</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="932" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="936" />
         <source>Common Jira Filters</source>
         <translation>Common Jira Filters</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="963" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="967" />
         <source>Projects</source>
         <translation>Projects</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="964" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="968" />
         <source>All Supported Projects</source>
         <translation>All Supported Projects</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="964" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1035" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1069" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1103" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1140" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1162" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1203" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1244" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="968" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1039" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1073" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1107" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1144" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1166" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1207" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1248" />
         <source>Not limited</source>
         <translation>Not limited</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="994" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="998" />
         <source>Workflow Preset</source>
         <translation>Workflow Preset</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1014" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1018" />
         <source>Time Window</source>
         <translation>Time Window</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1034" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1038" />
         <source>Statuses</source>
         <translation>Statuses</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1068" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1072" />
         <source>Priorities</source>
         <translation>Priorities</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1102" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1106" />
         <source>Issue Types</source>
         <translation>Issue Types</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1139" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1153" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1143" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1157" />
         <source>Keyword text</source>
         <translation>Keyword text</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1161" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2140" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1165" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2144" />
         <source>Assignee</source>
         <translation>Assignee</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1179" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1220" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1261" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1183" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1224" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1265" />
         <source>No options in current result set</source>
         <translation>No options in current result set</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1202" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2143" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1206" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2147" />
         <source>Reporter</source>
         <translation>Reporter</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1243" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2074" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2146" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1247" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2078" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2150" />
         <source>Labels</source>
         <translation>Labels</translation>
     </message>
@@ -3483,13 +3548,13 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">Components, comma separated</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1284" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1967" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1288" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1971" />
         <source>Loading...</source>
         <translation>Loading...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1284" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1288" />
         <source>Refresh Results</source>
         <translation>Refresh Results</translation>
     </message>
@@ -3510,37 +3575,37 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">Limit to my tickets</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1292" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1296" />
         <source>My Filters</source>
         <translation>My Filters</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1303" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1307" />
         <source>Loading your Jira filters...</source>
         <translation>Loading your Jira filters...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1312" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1316" />
         <source>No favourite filters were found for this account.</source>
         <translation>No favourite filters were found for this account.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1360" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1364" />
         <source>Click to apply this filter to the current JQL box.</source>
         <translation>Click to apply this filter to the current JQL box.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1378" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1382" />
         <source>Suggested Queries</source>
         <translation>Suggested Queries</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1417" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1421" />
         <source>Click to place this prompt into the AI input box.</source>
         <translation>Click to place this prompt into the AI input box.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1435" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1439" />
         <source>Recent Sessions</source>
         <translation>Recent Sessions</translation>
     </message>
@@ -3553,12 +3618,12 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">Use plain language. Jira search and AI analysis are both driven from this workspace.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1559" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1563" />
         <source>History</source>
         <translation>History</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="519" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="523" />
         <source>Clear Session</source>
         <translation>Clear Session</translation>
     </message>
@@ -3567,12 +3632,12 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">Ask Jira in natural language. Example: summarize blocked issues related to WPA this sprint.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="529" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="533" />
         <source>Use Selected Issue</source>
         <translation>Use Selected Issue</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="533" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="537" />
         <source>Analyze %1 and tell me the risk for testing.</source>
         <translation>Analyze %1 and tell me the risk for testing.</translation>
     </message>
@@ -3585,82 +3650,82 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">Send</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1852" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1856" />
         <source>Structured Results</source>
         <translation>Structured Results</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1861" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1865" />
         <source>Issues</source>
         <translation>Issues</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1967" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1971" />
         <source>Load More</source>
         <translation>Load More</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1999" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2003" />
         <source>Selected Issue</source>
         <translation>Selected Issue</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2007" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2011" />
         <source>Click to collapse</source>
         <translation>Click to collapse</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2007" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2011" />
         <source>Click to expand</source>
         <translation>Click to expand</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2024" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2028" />
         <source>No issue selected</source>
         <translation>No issue selected</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2060" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2064" />
         <source>| Updated %1 | %2 comments | %3 links</source>
         <translation>| Updated %1 | %2 comments | %3 links</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2118" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2122" />
         <source>Bug Status</source>
         <translation>Bug Status</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2128" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2132" />
         <source>Type</source>
         <translation>Type</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2131" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2135" />
         <source>Priority</source>
         <translation>Priority</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2134" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2138" />
         <source>Status</source>
         <translation>Status</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2137" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2141" />
         <source>Resolution</source>
         <translation>Resolution</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2153" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2157" />
         <source>Description</source>
         <translation>Description</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2185" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2189" />
         <source>Comments</source>
         <translation>Comments</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2192" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2196" />
         <source>No comments yet.</source>
         <translation>No comments yet.</translation>
     </message>
@@ -3669,17 +3734,17 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">%1 | Updated %2 | %3 comments | %4 links</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2234" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2298" />
         <source>Analysis</source>
         <translation>Analysis</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2259" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2323" />
         <source>AI Summary</source>
         <translation>AI Summary</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2280" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2344" />
         <source>Suggested Next Actions</source>
         <translation>Suggested Next Actions</translation>
     </message>
