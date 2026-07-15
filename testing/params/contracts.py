@@ -55,6 +55,24 @@ class CaseContract:
 
 CASE_CONTRACTS: tuple[CaseContract, ...] = (
     CaseContract(
+        case_keys=("iptv_middle_screen",),
+        params=(
+            ParamContract("iptv_middle_screen:interface", ParamValueType.STRING, ParamCategory.NETWORK, default=""),
+            ParamContract("iptv_middle_screen:expected_speed_mbps", ParamValueType.INT, ParamCategory.NETWORK, default=0),
+            ParamContract("iptv_middle_screen:usb_match", ParamValueType.STRING, ParamCategory.DEVICE, default=""),
+            ParamContract("iptv_middle_screen:hdmi_state_command", ParamValueType.STRING, ParamCategory.DEVICE, default=""),
+            ParamContract("iptv_middle_screen:wifi_2g_ssid", ParamValueType.STRING, ParamCategory.NETWORK, default=""),
+            ParamContract("iptv_middle_screen:wifi_2g_password", ParamValueType.STRING, ParamCategory.NETWORK, default=""),
+            ParamContract("iptv_middle_screen:wifi_5g_ssid", ParamValueType.STRING, ParamCategory.NETWORK, default=""),
+            ParamContract("iptv_middle_screen:wifi_5g_password", ParamValueType.STRING, ParamCategory.NETWORK, default=""),
+            ParamContract("iptv_middle_screen:ipv4_ping_target", ParamValueType.STRING, ParamCategory.NETWORK, default="www.baidu.com"),
+            ParamContract("iptv_middle_screen:ipv6_ping_target", ParamValueType.STRING, ParamCategory.NETWORK, default="www.baidu.com"),
+            ParamContract("iptv_middle_screen:media_source_override", ParamValueType.MULTI_ENUM, ParamCategory.EXECUTION, default=[]),
+            ParamContract("iptv_middle_screen:playback_timeout_s", ParamValueType.FLOAT, ParamCategory.EXECUTION, default=10),
+            ParamContract("iptv_middle_screen:playback_duration_s", ParamValueType.FLOAT, ParamCategory.EXECUTION, default=86400),
+        ),
+    ),
+    CaseContract(
         case_keys=("local_playback_stress",),
         params=(
             ParamContract(

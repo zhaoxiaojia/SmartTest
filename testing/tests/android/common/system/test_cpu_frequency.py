@@ -14,7 +14,6 @@ from testing.runtime.steps import case_step, step_log
 
 pytestmark = pytest.mark.case_type("system")
 
-
 SMARTTEST_CASE_PLAN = {
     "case_id": "cpu_frequency",
     "steps": [
