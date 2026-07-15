@@ -15,10 +15,11 @@ class RedmineAuthService:
             await self._page.click(selectors.LOGIN_SUBMIT)
             return await self._classify()
         except Exception:
-            return AuthResult(AuthState.FAILED, "Redmine sign-in failed unexpectedly.", self._username)
+            return AuthResult(AuthState.FAILED, username=self._username, reason="login_failed")
 
     async def submit_verification(self, code: str) -> AuthResult:
-        if self._page is None: return AuthResult(AuthState.FAILED, "No verification is pending.")
+        if self._page is None:
+            return AuthResult(AuthState.FAILED, reason="verification_not_pending")
         try:
             target = selectors.VERIFICATION_INPUT
             for selector in selectors.VERIFICATION_EVIDENCE:
@@ -29,7 +30,7 @@ class RedmineAuthService:
             await self._page.click(selectors.VERIFICATION_SUBMIT)
             return await self._classify()
         except Exception:
-            return AuthResult(AuthState.FAILED, "Verification failed unexpectedly.", self._username)
+            return AuthResult(AuthState.FAILED, username=self._username, reason="verification_failed")
 
     async def _classify(self):
         if any([await self._page.is_visible(selector) for selector in selectors.AUTHENTICATED_EVIDENCE]):
@@ -41,9 +42,17 @@ class RedmineAuthService:
                 reason="incorrect_verification_code",
             )
         if any([await self._page.is_visible(selector) for selector in selectors.VERIFICATION_EVIDENCE]):
-            return AuthResult(AuthState.VERIFICATION_REQUIRED, "Mobile verification is required.", self._username)
+            return AuthResult(
+                AuthState.VERIFICATION_REQUIRED,
+                username=self._username,
+                reason="verification_required",
+            )
         if any([await self._page.is_visible(selector) for selector in selectors.CREDENTIAL_ERRORS]):
-            return AuthResult(AuthState.CREDENTIALS_REQUIRED, "Redmine rejected the account or password.", self._username)
-        return AuthResult(AuthState.FAILED, "Redmine returned an unsupported sign-in state.", self._username)
+            return AuthResult(
+                AuthState.CREDENTIALS_REQUIRED,
+                username=self._username,
+                reason="credentials_rejected",
+            )
+        return AuthResult(AuthState.FAILED, username=self._username, reason="unsupported_auth_state")
 
     async def close(self): await self._session.close()

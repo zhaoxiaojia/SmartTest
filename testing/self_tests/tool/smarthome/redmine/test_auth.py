@@ -1,5 +1,6 @@
 import asyncio
 import pytest
+from pathlib import Path
 
 from tool.SmartHome.redmine.auth import RedmineAuthService
 from tool.SmartHome.redmine.models import AuthState, Credential
@@ -30,7 +31,7 @@ def test_login_classifies_only_explicit_evidence(outcome, state):
     async def scenario():
         service = RedmineAuthService(FakeSession(FakePage(outcome)))
         result = await service.login(Credential("alice", "secret"))
-        assert result.state is state and "secret" not in result.message
+        assert result.state is state and result.message == "" and "secret" not in repr(result)
     asyncio.run(scenario())
 
 
@@ -59,7 +60,21 @@ def test_incorrect_verification_code_stays_in_verification_without_secret_echo()
         page.outcome = "incorrect_otp"
         rejected = await service.submit_verification("654321")
         assert initial.state is AuthState.VERIFICATION_REQUIRED
+        assert initial.reason == "verification_required" and initial.message == ""
         assert rejected.state is AuthState.VERIFICATION_REQUIRED
         assert rejected.reason == "incorrect_verification_code"
         assert rejected.message == "" and "654321" not in repr(rejected)
     asyncio.run(scenario())
+
+
+def test_auth_service_contains_no_smarttest_authored_ui_sentences():
+    source = Path("tool/SmartHome/redmine/auth.py").read_text(encoding="utf-8")
+    forbidden = {
+        "Mobile verification is required.",
+        "Redmine rejected the account or password.",
+        "Redmine sign-in failed unexpectedly.",
+        "Verification failed unexpectedly.",
+        "Redmine returned an unsupported sign-in state.",
+        "No verification is pending.",
+    }
+    assert all(text not in source for text in forbidden)

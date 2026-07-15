@@ -122,3 +122,23 @@ def test_incorrect_verification_text_is_finished_in_both_catalogs():
         translated = match.find("translation")
         assert translated is not None and translated.get("type") != "unfinished"
         assert translated.text == translation
+
+
+def test_ordinary_verification_text_is_finished_in_both_catalogs():
+    source = "Enter the mobile verification code."
+    expected = {"example_en_US.ts": source, "example_zh_CN.ts": "请输入手机验证码。"}
+    for filename, translation in expected.items():
+        root = ET.parse(Path("ui/example") / filename).getroot()
+        messages = [message for context in root.findall("context") if context.findtext("name") == "RedmineBridge" for message in context.findall("message")]
+        match = next(message for message in messages if message.findtext("source") == source)
+        translated = match.find("translation")
+        assert translated is not None and translated.get("type") != "unfinished"
+        assert translated.text == translation
+
+
+def test_dynamic_external_status_text_remains_raw():
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._generation = 3
+    bridge._apply(3, AuthResult(AuthState.FAILED, message="External Redmine maintenance notice"))
+    assert bridge.statusText == "External Redmine maintenance notice"
+    bridge.close()
