@@ -1216,10 +1216,24 @@
         <source>Signed out</source>
         <translation>已退出登录</translation>
     </message>
+    <message><source>Upload Avatar</source><translation>上传头像</translation></message>
+    <message><source>Image files (*.png *.jpg *.jpeg)</source><translation>图片文件 (*.png *.jpg *.jpeg)</translation></message>
+    <message><source>Avatar upload failed</source><translation>头像上传失败</translation></message>
+    <message><source>Grade</source><translation>职级</translation></message>
+    <message><source>Department</source><translation>部门</translation></message>
+    <message><source>Team</source><translation>团队</translation></message>
+    <message><source>Product Line</source><translation>产品线</translation></message>
+    <message><source>Reports To</source><translation>直属上级</translation></message>
     <message>
         <source>Please feel free to enter a password</source>
         <translation type="obsolete">璇烽殢鎰忚緭鍏ヤ竴涓瘑鐮</translation>
     </message>
+</context>
+<context>
+    <name>AvatarCropDialog</name>
+    <message><source>Crop Avatar</source><translation>裁剪头像</translation></message>
+    <message><source>Cancel</source><translation>取消</translation></message>
+    <message><source>Apply</source><translation>应用</translation></message>
 </context>
 <context>
     <name>MainWindow</name>

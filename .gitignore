@@ -43,3 +43,10 @@ screen.png
 results/
 tmp_boot_video_debug/
 testing/self_tests/
+!testing/self_tests/
+testing/self_tests/*
+!testing/self_tests/ui/
+testing/self_tests/ui/*
+!testing/self_tests/ui/test_auth_bridge_profile.py
+config/avatars/*
+!config/avatars/.gitkeep

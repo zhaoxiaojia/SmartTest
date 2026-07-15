@@ -292,6 +292,7 @@ import "../global"
                 onCollapseRequested: (collapsed)=>{
                     GlobalModel.displayMode = collapsed ? FluNavigationViewType.Compact : FluNavigationViewType.Open
                 }
+                onDisplayModeChanged: ItemsFooter.compact = displayMode === FluNavigationViewType.Compact
                 onLogoClicked:{
                     clickCount += 1
                     showSuccess("%1:%2".arg(qsTr("Click Time")).arg(clickCount))
@@ -317,6 +318,7 @@ import "../global"
                     ItemsFooter.navigationView = nav_view
                     ItemsFooter.paneItemMenu = nav_item_right_menu
                     ItemsFooter.accountLoginHandler = launchAccountLogin
+                    ItemsFooter.compact = nav_view.displayMode === FluNavigationViewType.Compact
                     window.setHitTestVisible(nav_view.buttonMenu)
                     window.setHitTestVisible(nav_view.buttonBack)
                     window.setHitTestVisible(nav_view.imageLogo)

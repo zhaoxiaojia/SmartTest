@@ -45,6 +45,8 @@
   "employees": [
     {
       "display_name": "Xiuyue Zhang",
+      "account": "xiuyue.zhang",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -64,6 +66,8 @@
     },
     {
       "display_name": "Junjie Li",
+      "account": "junjie.li",
+      "reports_to": "Xiuyue Zhang",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -89,6 +93,8 @@
     },
     {
       "display_name": "Mao Ma",
+      "account": "mao.ma",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -108,6 +114,8 @@
     },
     {
       "display_name": "Changwen Dai",
+      "account": "changwen.dai",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -127,6 +135,8 @@
     },
     {
       "display_name": "Xiangqun Li",
+      "account": "xiangqun.li",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -146,6 +156,8 @@
     },
     {
       "display_name": "Leping Lei",
+      "account": "leping.lei",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -165,6 +177,8 @@
     },
     {
       "display_name": "Jianfan Ai",
+      "account": "jianfan.ai",
+      "reports_to": "Xiuyue Zhang",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -190,6 +204,8 @@
     },
     {
       "display_name": "Jinbo Du",
+      "account": "jinbo.du",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -209,6 +225,8 @@
     },
     {
       "display_name": "Shaojun Chen",
+      "account": "shaojun.chen",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -228,6 +246,8 @@
     },
     {
       "display_name": "Kai Ni",
+      "account": "kai.ni",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -247,6 +267,8 @@
     },
     {
       "display_name": "Shuangxiao Hu",
+      "account": "shuangxiao.hu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -266,6 +288,8 @@
     },
     {
       "display_name": "Chunyan Liu",
+      "account": "chunyan.liu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -285,6 +309,8 @@
     },
     {
       "display_name": "Xinying Yang",
+      "account": "xinying.yang",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -304,6 +330,8 @@
     },
     {
       "display_name": "Bo Ren",
+      "account": "bo.ren",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -323,6 +351,8 @@
     },
     {
       "display_name": "Zhangxian Chen",
+      "account": "zhangxian.chen",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -342,6 +372,8 @@
     },
     {
       "display_name": "Zhenhua Xiao",
+      "account": "zhenhua.xiao",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -361,6 +393,8 @@
     },
     {
       "display_name": "Zanbo Huang",
+      "account": "zanbo.huang",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -380,6 +414,8 @@
     },
     {
       "display_name": "Lingguo Bu",
+      "account": "lingguo.bu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -399,6 +435,8 @@
     },
     {
       "display_name": "Haolin Li",
+      "account": "haolin.li",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -418,6 +456,8 @@
     },
     {
       "display_name": "Chenghua Liu",
+      "account": "chenghua.liu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -437,6 +477,8 @@
     },
     {
       "display_name": "Yongqi Liang",
+      "account": "yongqi.liang",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -456,6 +498,8 @@
     },
     {
       "display_name": "Menghui Liu",
+      "account": "menghui.liu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -475,6 +519,8 @@
     },
     {
       "display_name": "Jianhua Huang",
+      "account": "jianhua.huang",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -494,6 +540,8 @@
     },
     {
       "display_name": "Maoguo Xie",
+      "account": "maoguo.xie",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -513,6 +561,8 @@
     },
     {
       "display_name": "Cong Zhang",
+      "account": "cong.zhang",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -532,6 +582,8 @@
     },
     {
       "display_name": "Jie Xiong",
+      "account": "jie.xiong",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -551,6 +603,8 @@
     },
     {
       "display_name": "Jianhui Peng",
+      "account": "jianhui.peng",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -570,6 +624,8 @@
     },
     {
       "display_name": "Ling Chen",
+      "account": "ling.chen",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -589,6 +645,8 @@
     },
     {
       "display_name": "Zhewu Tao",
+      "account": "zhewu.tao",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -608,6 +666,8 @@
     },
     {
       "display_name": "Meng Wang",
+      "account": "meng.wang",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -627,6 +687,8 @@
     },
     {
       "display_name": "Binbin Gao",
+      "account": "binbin.gao",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -646,6 +708,8 @@
     },
     {
       "display_name": "Jiajia Mu",
+      "account": "jiajia.mu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -665,6 +729,8 @@
     },
     {
       "display_name": "Zhendong Zhou",
+      "account": "zhendong.zhou",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -684,6 +750,8 @@
     },
     {
       "display_name": "Yanyan Deng",
+      "account": "yanyan.deng",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -703,6 +771,8 @@
     },
     {
       "display_name": "Xiaoli Peng",
+      "account": "xiaoli.peng",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -722,6 +792,8 @@
     },
     {
       "display_name": "Xing Fan",
+      "account": "xing.fan",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -741,6 +813,8 @@
     },
     {
       "display_name": "Zhaoqun Wang",
+      "account": "zhaoqun.wang",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -760,6 +834,8 @@
     },
     {
       "display_name": "Zijie Chen",
+      "account": "zijie.chen",
+      "reports_to": "Xiuyue Zhang",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -781,6 +857,8 @@
     },
     {
       "display_name": "Bo Meng",
+      "account": "bo.meng",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -800,6 +878,8 @@
     },
     {
       "display_name": "Yu Zhang",
+      "account": "yu.zhang",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -819,6 +899,8 @@
     },
     {
       "display_name": "Yonghua Wu",
+      "account": "yonghua.wu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -838,6 +920,8 @@
     },
     {
       "display_name": "Jian Zhong",
+      "account": "jian.zhong",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -857,6 +941,8 @@
     },
     {
       "display_name": "Yan Wu",
+      "account": "yan.wu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -876,6 +962,8 @@
     },
     {
       "display_name": "Ping Xiong",
+      "account": "ping.xiong",
+      "reports_to": "Xiuyue Zhang",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -895,6 +983,8 @@
     },
     {
       "display_name": "Lingling Yu",
+      "account": "lingling.yu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -920,6 +1010,8 @@
     },
     {
       "display_name": "Pan Xu",
+      "account": "pan.xu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -939,6 +1031,8 @@
     },
     {
       "display_name": "Chen Chen",
+      "account": "chen.chen",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -947,7 +1041,7 @@
       },
       "employment": {
         "grade": "",
-        "job_title_override": "",
+        "job_title_override": "Product Line Lead",
         "employee_type": ""
       },
       "assignments": [
@@ -964,6 +1058,8 @@
     },
     {
       "display_name": "Dan Chen",
+      "account": "dan.chen",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -983,6 +1079,8 @@
     },
     {
       "display_name": "Chao Lu",
+      "account": "chao.lu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1002,6 +1100,8 @@
     },
     {
       "display_name": "Chao Li",
+      "account": "chao.li",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1021,6 +1121,8 @@
     },
     {
       "display_name": "Nannan Meng",
+      "account": "nannan.meng",
+      "reports_to": "Chen Chen",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1028,7 +1130,7 @@
         "division": ""
       },
       "employment": {
-        "grade": "",
+        "grade": "I3",
         "job_title_override": "",
         "employee_type": ""
       },
@@ -1040,6 +1142,8 @@
     },
     {
       "display_name": "Kang Jiang",
+      "account": "kang.jiang",
+      "reports_to": "Chen Chen",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1047,7 +1151,7 @@
         "division": ""
       },
       "employment": {
-        "grade": "",
+        "grade": "I3",
         "job_title_override": "",
         "employee_type": ""
       },
@@ -1059,6 +1163,8 @@
     },
     {
       "display_name": "Yanqing Tang",
+      "account": "yanqing.tang",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1078,6 +1184,8 @@
     },
     {
       "display_name": "Weiting Feng",
+      "account": "weiting.feng",
+      "reports_to": "Chen Chen",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1085,7 +1193,7 @@
         "division": ""
       },
       "employment": {
-        "grade": "",
+        "grade": "I3",
         "job_title_override": "",
         "employee_type": ""
       },
@@ -1097,6 +1205,8 @@
     },
     {
       "display_name": "Taoqing Miao",
+      "account": "taoqing.miao",
+      "reports_to": "Chen Chen",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1104,7 +1214,7 @@
         "division": ""
       },
       "employment": {
-        "grade": "",
+        "grade": "I2",
         "job_title_override": "",
         "employee_type": ""
       },
@@ -1116,6 +1226,8 @@
     },
     {
       "display_name": "Chuanyang Hu",
+      "account": "chuanyang.hu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1135,6 +1247,8 @@
     },
     {
       "display_name": "Qianyi Liu",
+      "account": "qianyi.liu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1154,6 +1268,8 @@
     },
     {
       "display_name": "Zhuhui Zhang",
+      "account": "zhuhui.zhang",
+      "reports_to": "Chen Chen",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1161,7 +1277,7 @@
         "division": ""
       },
       "employment": {
-        "grade": "",
+        "grade": "I2",
         "job_title_override": "",
         "employee_type": ""
       },
@@ -1173,6 +1289,8 @@
     },
     {
       "display_name": "Jinhuan Yi",
+      "account": "jinhuan.yi",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1192,6 +1310,8 @@
     },
     {
       "display_name": "Yifeng Xu",
+      "account": "yifeng.xu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1211,6 +1331,8 @@
     },
     {
       "display_name": "Shouneng Chou",
+      "account": "shouneng.chou",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1230,6 +1352,8 @@
     },
     {
       "display_name": "Mennan Hu",
+      "account": "mennan.hu",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1249,6 +1373,8 @@
     },
     {
       "display_name": "Hanpeng Su",
+      "account": "hanpeng.su",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1268,6 +1394,8 @@
     },
     {
       "display_name": "Haobo Ren",
+      "account": "haobo.ren",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1287,6 +1415,8 @@
     },
     {
       "display_name": "Meiling Zhu",
+      "account": "meiling.zhu",
+      "reports_to": "Xiuyue Zhang",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1306,6 +1436,8 @@
     },
     {
       "display_name": "Xiaofeng Li",
+      "account": "xiaofeng.li",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1325,6 +1457,8 @@
     },
     {
       "display_name": "Qin Zhang",
+      "account": "qin.zhang",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1344,6 +1478,8 @@
     },
     {
       "display_name": "Xuejiao Li",
+      "account": "xuejiao.li",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1363,6 +1499,8 @@
     },
     {
       "display_name": "Mingdong Wang",
+      "account": "mingdong.wang",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1382,6 +1520,8 @@
     },
     {
       "display_name": "Zongwu Ma",
+      "account": "zongwu.ma",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1401,6 +1541,8 @@
     },
     {
       "display_name": "Yunzhu Zhang",
+      "account": "yunzhu.zhang",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1420,6 +1562,8 @@
     },
     {
       "display_name": "Zhijie Yang",
+      "account": "zhijie.yang",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1439,6 +1583,8 @@
     },
     {
       "display_name": "Tianwei Xie",
+      "account": "tianwei.xie",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1458,6 +1604,8 @@
     },
     {
       "display_name": "Bing Song",
+      "account": "bing.song",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",
@@ -1477,6 +1625,8 @@
     },
     {
       "display_name": "Qiaowei Tian",
+      "account": "qiaowei.tian",
+      "reports_to": "",
       "active": true,
       "organization": {
         "department": "FAE-QA",

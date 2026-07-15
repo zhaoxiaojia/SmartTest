@@ -17,6 +17,9 @@ QtObject {
     property int count: 0
     property var onTapListener
     property Component iconDelegate
+    property Component contentDelegate
+    property int itemHeight: 0
+    property int compactItemHeight: 0
     property Component menuDelegate
     property Component editDelegate
     property var extra

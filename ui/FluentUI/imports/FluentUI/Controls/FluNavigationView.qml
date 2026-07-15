@@ -480,9 +480,17 @@ Item {
                 if(model&&model._parent){
                     return model._parent.isExpand ? control.cellHeight : 0
                 }
+                if(model){
+                    if(d.isCompactAndNotPanel && model.compactItemHeight > 0){
+                        return model.compactItemHeight
+                    }
+                    if(!d.isCompactAndNotPanel && model.itemHeight > 0){
+                        return model.itemHeight
+                    }
+                }
                 return control.cellHeight
             }
-            visible: control.cellHeight === Number(height)
+            visible: height > 0
             opacity: visible
             Behavior on opacity {
                 NumberAnimation { duration: 83 }
@@ -618,6 +626,9 @@ Item {
                         height: 30
                         width: visible ? 30 : 8
                         visible: {
+                            if(model&&model.contentDelegate){
+                                return false
+                            }
                             if(model){
                                 return model.iconVisible
                             }
@@ -650,6 +661,9 @@ Item {
                             return ""
                         }
                         visible: {
+                            if(model&&model.contentDelegate){
+                                return false
+                            }
                             if(d.isCompactAndNotPanel){
                                 if(item_icon.visible){
                                     return false
@@ -673,6 +687,10 @@ Item {
                             left:item_icon.right
                             right: item_dot_loader.left
                         }
+                    }
+                    FluLoader{
+                        anchors.fill: parent
+                        sourceComponent: model&&model.contentDelegate ? model.contentDelegate : undefined
                     }
                     FluLoader{
                         id:item_edit_loader

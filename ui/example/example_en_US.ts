@@ -1196,6 +1196,20 @@
         <source>Signed out</source>
         <translation>Signed out</translation>
     </message>
+    <message><source>Upload Avatar</source><translation>Upload Avatar</translation></message>
+    <message><source>Image files (*.png *.jpg *.jpeg)</source><translation>Image files (*.png *.jpg *.jpeg)</translation></message>
+    <message><source>Avatar upload failed</source><translation>Avatar upload failed</translation></message>
+    <message><source>Grade</source><translation>Grade</translation></message>
+    <message><source>Department</source><translation>Department</translation></message>
+    <message><source>Team</source><translation>Team</translation></message>
+    <message><source>Product Line</source><translation>Product Line</translation></message>
+    <message><source>Reports To</source><translation>Reports To</translation></message>
+</context>
+<context>
+    <name>AvatarCropDialog</name>
+    <message><source>Crop Avatar</source><translation>Crop Avatar</translation></message>
+    <message><source>Cancel</source><translation>Cancel</translation></message>
+    <message><source>Apply</source><translation>Apply</translation></message>
 </context>
 <context>
     <name>MainWindow</name>
