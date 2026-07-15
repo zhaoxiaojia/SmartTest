@@ -29,6 +29,7 @@ from example.bridge.ReportBridge import ReportBridge
 from example.bridge.RunBridge import RunBridge
 from example.bridge.TestPageBridge import TestPageBridge
 from example.bridge.DebugBridge import DebugBridge
+from example.bridge.BootVideoBridge import BootVideoBridge
 from tools.logging import smart_log
 
 _uri = "example"
@@ -114,6 +115,7 @@ def main():
     context.setContextProperty("ReportBridge", ReportBridge())
     context.setContextProperty("JiraBridge", JiraBridge(auth_bridge))
     context.setContextProperty("DebugBridge", DebugBridge(runtime_root))
+    context.setContextProperty("BootVideoBridge", BootVideoBridge(runtime_root))
     FluentUI.registerTypes(engine)
     qml_file = QUrl("qrc:/example/qml/App.qml")
     engine.load(qml_file)

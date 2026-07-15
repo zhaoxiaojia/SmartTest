@@ -173,6 +173,15 @@ FluObject{
     }
 
     FluPaneItem{
+        id: item_boot_video
+        title: qsTr("Boot Video")
+        menuDelegate: paneItemMenu
+        icon: FluentIcons.Video
+        url: "qrc:/example/qml/page/T_BootVideo.qml"
+        onTap: { navigationView.push(url) }
+    }
+
+    FluPaneItem{
         id: item_jira
         title: qsTr("Jira")
         menuDelegate: paneItemMenu
