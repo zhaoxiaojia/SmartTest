@@ -37,8 +37,8 @@ class RedmineAuthService:
         if any([await self._page.is_visible(selector) for selector in selectors.INCORRECT_VERIFICATION_EVIDENCE]):
             return AuthResult(
                 AuthState.VERIFICATION_REQUIRED,
-                "The verification code was rejected. Enter the latest code from your phone.",
-                self._username,
+                username=self._username,
+                reason="incorrect_verification_code",
             )
         if any([await self._page.is_visible(selector) for selector in selectors.VERIFICATION_EVIDENCE]):
             return AuthResult(AuthState.VERIFICATION_REQUIRED, "Mobile verification is required.", self._username)

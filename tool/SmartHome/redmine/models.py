@@ -18,3 +18,4 @@ class AuthResult:
     state: AuthState
     message: str = ""
     username: str = ""
+    reason: str = ""

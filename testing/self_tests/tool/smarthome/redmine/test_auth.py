@@ -60,5 +60,6 @@ def test_incorrect_verification_code_stays_in_verification_without_secret_echo()
         rejected = await service.submit_verification("654321")
         assert initial.state is AuthState.VERIFICATION_REQUIRED
         assert rejected.state is AuthState.VERIFICATION_REQUIRED
-        assert "rejected" in rejected.message and "654321" not in rejected.message
+        assert rejected.reason == "incorrect_verification_code"
+        assert rejected.message == "" and "654321" not in repr(rejected)
     asyncio.run(scenario())

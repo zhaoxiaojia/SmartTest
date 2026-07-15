@@ -5773,6 +5773,7 @@ Some contents...</source>
     <message><source>Wi-Fi</source><translation>Wi-Fi</translation></message>
 </context>
 <context><name>RedmineBridge</name>
+<message><source>The verification code was rejected. Enter the latest code from your phone.</source><translation>验证码已被拒绝，请输入手机上最新的验证码。</translation></message>
 <message><source>Ready to sign in to Redmine.</source><translation>准备登录 Redmine。</translation></message>
 <message><source>Signing in to Redmine...</source><translation>正在登录 Redmine...</translation></message>
 <message><source>Redmine sign-in succeeded.</source><translation>Redmine 登录成功。</translation></message>

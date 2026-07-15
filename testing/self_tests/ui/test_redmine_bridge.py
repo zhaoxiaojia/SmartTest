@@ -1,6 +1,7 @@
 import asyncio
 import time
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 from PySide6.QtCore import QCoreApplication, QObject, Signal
 
@@ -98,3 +99,26 @@ def test_worker_does_not_close_loop_while_thread_is_still_alive():
     worker.loop = RecordingLoop(); worker._thread = ThreadStillRunning()
     assert worker.stop(timeout=0.01) is False
     assert worker.loop.closed is False
+
+
+def test_incorrect_verification_reason_is_localized_by_bridge():
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._generation = 7
+    bridge._apply(7, AuthResult(AuthState.VERIFICATION_REQUIRED, reason="incorrect_verification_code"))
+    assert bridge.statusText == "The verification code was rejected. Enter the latest code from your phone."
+    bridge.close()
+
+
+def test_incorrect_verification_text_is_finished_in_both_catalogs():
+    source = "The verification code was rejected. Enter the latest code from your phone."
+    expected = {
+        "example_en_US.ts": source,
+        "example_zh_CN.ts": "验证码已被拒绝，请输入手机上最新的验证码。",
+    }
+    for filename, translation in expected.items():
+        root = ET.parse(Path("ui/example") / filename).getroot()
+        messages = [message for context in root.findall("context") if context.findtext("name") == "RedmineBridge" for message in context.findall("message")]
+        match = next(message for message in messages if message.findtext("source") == source)
+        translated = match.find("translation")
+        assert translated is not None and translated.get("type") != "unfinished"
+        assert translated.text == translation

@@ -95,10 +95,16 @@ class RedmineBridge(QObject):
         self._future = None
         self._state = result.state
         self._account = result.username or self._account
+        if result.reason == "incorrect_verification_code":
+            verification_status = self.tr(
+                "The verification code was rejected. Enter the latest code from your phone."
+            )
+        else:
+            verification_status = result.message or self.tr("Enter the mobile verification code.")
         self._status = {
             AuthState.AUTHENTICATED: self.tr("Redmine sign-in succeeded."),
             AuthState.CREDENTIALS_REQUIRED: self.tr("Redmine needs a different account or password."),
-            AuthState.VERIFICATION_REQUIRED: result.message or self.tr("Enter the mobile verification code."),
+            AuthState.VERIFICATION_REQUIRED: verification_status,
             AuthState.FAILED: self.tr("Redmine sign-in failed."),
         }.get(result.state, result.message)
         self.changed.emit()

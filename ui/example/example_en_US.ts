@@ -5572,6 +5572,7 @@ Some contents...</translation>
     <message><source>Wi-Fi</source><translation>Wi-Fi</translation></message>
 </context>
 <context><name>RedmineBridge</name>
+<message><source>The verification code was rejected. Enter the latest code from your phone.</source><translation>The verification code was rejected. Enter the latest code from your phone.</translation></message>
 <message><source>Ready to sign in to Redmine.</source><translation>Ready to sign in to Redmine.</translation></message>
 <message><source>Signing in to Redmine...</source><translation>Signing in to Redmine...</translation></message>
 <message><source>Redmine sign-in succeeded.</source><translation>Redmine sign-in succeeded.</translation></message>
