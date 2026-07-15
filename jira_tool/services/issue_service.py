@@ -88,6 +88,37 @@ class JiraIssueService:
             )
         return records
 
+    def build_fetch_plan(
+        self,
+        specs: Iterable[str | FieldSpec],
+        *,
+        include_heavy: bool = False,
+    ):
+        return self._registry.build_plan(specs, include_heavy=include_heavy)
+
+    def search_page_records(
+        self,
+        jql: str,
+        *,
+        specs: Iterable[str | FieldSpec],
+        start_at: int,
+        max_results: int,
+        include_heavy: bool = False,
+    ):
+        plan = self.build_fetch_plan(specs, include_heavy=include_heavy)
+        page = self._client.search_page(
+            jql,
+            start_at=start_at,
+            max_results=max_results,
+            fields=list(plan.jira_fields),
+            expand=list(plan.expand) or None,
+        )
+        records = [self._to_record(issue, list(plan.active_specs)) for issue in page.issues]
+        return page, records
+
+    def fetch_favourite_filters(self) -> list[dict[str, Any]]:
+        return self._client.fetch_favourite_filters()
+
     def project_issue(self, issue: dict[str, Any], specs: list[FieldSpec]) -> IssueRecord:
         return self._to_record(issue, specs)
 
