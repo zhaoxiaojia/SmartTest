@@ -20,8 +20,8 @@ from zipfile import ZIP_DEFLATED, ZipFile
 JIRA_CONFIG = {
     "base_url": "https://jira.amlogic.com",
     "username": "chao.li",
-    "password": "",
-    "jql": "assignee = currentUser() AND resolution = Unresolved order by updated DESC",
+    "password": "Xiaojia#1994",
+    "jql": "project = SH AND issuetype = Bug AND priority in (Highest, High) AND created >= 2026-06-01",
     "jira_url": "",
     "issue_keys": [],
     "output": "jira_format_audit.xlsx",
@@ -29,6 +29,87 @@ JIRA_CONFIG = {
 
 # Shared result for the audit and any future business processing in this run.
 ISSUE_LIST: list[dict[str, Any]] = []
+
+QA_REPORTER_NAMES = frozenset(
+    {
+        "Xiuyue Zhang",
+        "Junjie Li",
+        "Mao Ma",
+        "Changwen Dai",
+        "Xiangqun Li",
+        "Leping Lei",
+        "Jianfan Ai",
+        "Jinbo Du",
+        "Shaojun Chen",
+        "Kai Ni",
+        "Shuangxiao Hu",
+        "Chunyan Liu",
+        "Xinying Yang",
+        "Bo Ren",
+        "Zhangxian Chen",
+        "Zhenhua Xiao",
+        "Zanbo Huang",
+        "Lingguo Bu",
+        "Haolin Li",
+        "Chenghua Liu",
+        "Yongqi Liang",
+        "Menghui Liu",
+        "Jianhua Huang",
+        "Maoguo Xie",
+        "Cong Zhang",
+        "Jie Xiong",
+        "Jianhui Peng",
+        "Ling Chen",
+        "Zhewu Tao",
+        "Meng Wang",
+        "Binbin Gao",
+        "Jiajia Mu",
+        "Zhendong Zhou",
+        "Yanyan Deng",
+        "Xiaoli Peng",
+        "Xing Fan",
+        "Zhaoqun Wang",
+        "Zijie Chen",
+        "Bo Meng",
+        "Yu Zhang",
+        "Yonghua Wu",
+        "Jian Zhong",
+        "Yan Wu",
+        "Ping Xiong",
+        "Lingling Yu",
+        "Pan Xu",
+        "Chen Chen",
+        "Dan Chen",
+        "Chao Lu",
+        "Chao Li",
+        "Nannan Meng",
+        "Kang Jiang",
+        "Yanqing Tang",
+        "Weiting Feng",
+        "Taoqing Miao",
+        "Chuanyang Hu",
+        "Qianyi Liu",
+        "Zhuhui Zhang",
+        "Jinhuan Yi",
+        "Yifeng Xu",
+        "Shouneng Chou",
+        "Mennan Hu",
+        "Hanpeng Su",
+        "Haobo Ren",
+        "Meiling Zhu",
+        "Xiaofeng Li",
+        "Qin Zhang",
+        "Xuejiao Li",
+        "Mingdong Wang",
+        "Zongwu Ma",
+        "Yunzhu Zhang",
+        "Zhijie Yang",
+        "Tianwei Xie",
+        "Bing Song",
+        "Qiaowei Tian",
+    }
+)
+_QA_REPORTER_NAME_KEYS = frozenset(name.casefold() for name in QA_REPORTER_NAMES)
 
 ALLOWED_MODULES = [
     "System",
@@ -88,30 +169,122 @@ EMBEDDED_RULES = {
 }
 
 REPORT_RULE_TEXT = {
-    "SPEC.UNSUPPORTED_SECTION": ("规范章节必须有对应的自动校验规则。", "该规范章节暂未被校验器支持。", "补充该章节的共享校验规则。"),
-    "SUMMARY.FORMAT": ("[客户英文名][CHIP][系统版本][Bug模块]: 英文问题描述,复现概率；可选增加公共 Jira ID 或客户 Bug ID。", "Summary 不符合规定的分组和概率格式。", "按标准格式重写 Summary。"),
-    "SUMMARY.CUSTOMER": ("Summary 必须填写客户英文名。", "客户名称为空。", "填写客户英文名或英文项目代号。"),
+    "SPEC.UNSUPPORTED_SECTION": (
+        "规范章节必须有对应的自动校验规则。",
+        "该规范章节暂未被校验器支持。",
+        "补充该章节的共享校验规则。",
+    ),
+    "SUMMARY.FORMAT": (
+        "[客户英文名][CHIP][系统版本][Bug模块]: 英文问题描述,复现概率；可选增加公共 Jira ID 或客户 Bug ID。",
+        "Summary 不符合规定的分组和概率格式。",
+        "按标准格式重写 Summary。",
+    ),
+    "SUMMARY.CUSTOMER": (
+        "Summary 必须填写客户英文名。",
+        "客户名称为空。",
+        "填写客户英文名或英文项目代号。",
+    ),
     "SUMMARY.CHIP": ("Summary 必须填写 CHIP。", "CHIP 为空。", "填写大写 CHIP 名称。"),
-    "SUMMARY.VERSION": ("Summary 必须填写系统版本。", "系统版本为空。", "填写明确的系统版本。"),
-    "SUMMARY.CUSTOMER_ENGLISH": ("客户名称必须使用英文名或英文项目代号。", "客户名称不是有效英文内容。", "改用客户英文名或英文项目代号。"),
-    "SUMMARY.CHIP_UPPERCASE": ("CHIP 必须使用大写字母。", "CHIP 未按要求大写。", "将 CHIP 改为大写。"),
-    "SUMMARY.MODULE": ("Bug 模块必须来自规范允许的模块列表。", "Bug 模块不在允许列表中。", "选择规范中已有的模块名称。"),
-    "SUMMARY.DESCRIPTION_ENGLISH": ("问题描述必须使用英文。", "问题描述不是有效英文内容。", "使用英文描述问题现象。"),
-    "SUMMARY.PROBABILITY": ("复现概率必须是百分比或分数，例如 50% 或 1/2。", "复现概率格式无效。", "改为百分比或分数。"),
-    "COMPONENT.REQUIRED": ("至少填写一个 Component。", "Component 为空。", "填写与问题对应的 Component。"),
-    "COMPONENT.ALLOWED": ("Component 必须来自规范允许的模块列表。", "Component 包含不支持的模块。", "选择规范中已有的模块名称。"),
-    "DESCRIPTION.STEPS_TO_REPRODUCE": ("Description 必须包含非空的 Steps to reproduce。", "复现步骤缺失或为空。", "补充可执行的复现步骤。"),
-    "DESCRIPTION.ACTUAL_RESULTS": ("Description 必须包含非空的 Actual results。", "实际结果缺失或为空。", "补充实际发生的结果。"),
-    "DESCRIPTION.EXPECTED_RESULTS": ("Description 必须包含非空的 Expected results。", "预期结果缺失或为空。", "补充预期结果。"),
-    "DESCRIPTION.REPRODUCIBILITY_RATE": ("Description 必须包含非空复现概率，格式为百分比或分数。", "复现概率缺失或为空。", "补充百分比或分数形式的复现概率。"),
-    "DESCRIPTION.COMPARISION": ("Description 必须包含非空的 Comparision。", "版本对比信息缺失或为空。", "补充版本对比信息。"),
-    "DESCRIPTION.NOTES": ("Description 必须包含非空的 Notes。", "备注缺失或为空。", "补充包含软硬件信息的备注。"),
-    "DESCRIPTION.STEPS_ORDERED": ("复现步骤必须从 1 开始连续编号，且每一步包含可执行动作。", "复现步骤编号不连续或内容为空。", "按顺序重写为完整可执行步骤。"),
-    "DESCRIPTION.RATE_FORMAT": ("复现概率必须是百分比或分数，例如 50% 或 1/2。", "Description 中的复现概率格式无效。", "改为百分比或分数。"),
-    "DESCRIPTION.NOTES_HW": ("Notes 必须包含“HW info: ...”。", "Notes 缺少硬件信息。", "补充 HW info。"),
-    "DESCRIPTION.NOTES_SW": ("Notes 必须包含“SW info: ...”。", "Notes 缺少软件信息。", "补充 SW info。"),
-    "REGRESSION.EVIDENCE": ("Regression 问题必须同时说明旧版本正常和当前版本异常。", "回归版本证据不完整。", "补充旧版本正常与当前版本异常的对照证据。"),
-    "ATTACHMENT.MAX_SIZE": ("单个附件不得超过 10 MB。", "附件大小超过 10 MB。", "压缩、拆分附件或改用链接。"),
+    "SUMMARY.VERSION": (
+        "Summary 必须填写系统版本。",
+        "系统版本为空。",
+        "填写明确的系统版本。",
+    ),
+    "SUMMARY.CUSTOMER_ENGLISH": (
+        "客户名称必须使用英文名或英文项目代号。",
+        "客户名称不是有效英文内容。",
+        "改用客户英文名或英文项目代号。",
+    ),
+    "SUMMARY.CHIP_UPPERCASE": (
+        "CHIP 必须使用大写字母。",
+        "CHIP 未按要求大写。",
+        "将 CHIP 改为大写。",
+    ),
+    "SUMMARY.MODULE": (
+        "Bug 模块必须来自规范允许的模块列表。",
+        "Bug 模块不在允许列表中。",
+        "选择规范中已有的模块名称。",
+    ),
+    "SUMMARY.DESCRIPTION_ENGLISH": (
+        "问题描述必须使用英文。",
+        "问题描述不是有效英文内容。",
+        "使用英文描述问题现象。",
+    ),
+    "SUMMARY.PROBABILITY": (
+        "复现概率必须是百分比或分数，例如 50% 或 1/2。",
+        "复现概率格式无效。",
+        "改为百分比或分数。",
+    ),
+    "COMPONENT.REQUIRED": (
+        "至少填写一个 Component。",
+        "Component 为空。",
+        "填写与问题对应的 Component。",
+    ),
+    "COMPONENT.ALLOWED": (
+        "Component 必须来自规范允许的模块列表。",
+        "Component 包含不支持的模块。",
+        "选择规范中已有的模块名称。",
+    ),
+    "DESCRIPTION.STEPS_TO_REPRODUCE": (
+        "Description 必须包含非空的 Steps to reproduce。",
+        "复现步骤缺失或为空。",
+        "补充可执行的复现步骤。",
+    ),
+    "DESCRIPTION.ACTUAL_RESULTS": (
+        "Description 必须包含非空的 Actual results。",
+        "实际结果缺失或为空。",
+        "补充实际发生的结果。",
+    ),
+    "DESCRIPTION.EXPECTED_RESULTS": (
+        "Description 必须包含非空的 Expected results。",
+        "预期结果缺失或为空。",
+        "补充预期结果。",
+    ),
+    "DESCRIPTION.REPRODUCIBILITY_RATE": (
+        "Description 必须包含非空复现概率，格式为百分比或分数。",
+        "复现概率缺失或为空。",
+        "补充百分比或分数形式的复现概率。",
+    ),
+    "DESCRIPTION.COMPARISION": (
+        "Description 必须包含非空的 Comparision。",
+        "版本对比信息缺失或为空。",
+        "补充版本对比信息。",
+    ),
+    "DESCRIPTION.NOTES": (
+        "Description 必须包含非空的 Notes。",
+        "备注缺失或为空。",
+        "补充包含软硬件信息的备注。",
+    ),
+    "DESCRIPTION.STEPS_ORDERED": (
+        "复现步骤必须从 1 开始连续编号，且每一步包含可执行动作。",
+        "复现步骤编号不连续或内容为空。",
+        "按顺序重写为完整可执行步骤。",
+    ),
+    "DESCRIPTION.RATE_FORMAT": (
+        "复现概率必须是百分比或分数，例如 50% 或 1/2。",
+        "Description 中的复现概率格式无效。",
+        "改为百分比或分数。",
+    ),
+    "DESCRIPTION.NOTES_HW": (
+        "Notes 必须包含“HW info: ...”。",
+        "Notes 缺少硬件信息。",
+        "补充 HW info。",
+    ),
+    "DESCRIPTION.NOTES_SW": (
+        "Notes 必须包含“SW info: ...”。",
+        "Notes 缺少软件信息。",
+        "补充 SW info。",
+    ),
+    "REGRESSION.EVIDENCE": (
+        "Regression 问题必须同时说明旧版本正常和当前版本异常。",
+        "回归版本证据不完整。",
+        "补充旧版本正常与当前版本异常的对照证据。",
+    ),
+    "ATTACHMENT.MAX_SIZE": (
+        "单个附件不得超过 10 MB。",
+        "附件大小超过 10 MB。",
+        "压缩、拆分附件或改用链接。",
+    ),
 }
 REPORT_DEFAULT_TEXT = (
     "请参照对应规范章节。",
@@ -125,6 +298,16 @@ def normalize_username(username: str | None) -> str:
     if "\\" in value:
         value = value.rsplit("\\", 1)[-1]
     return value.split("@", 1)[0]
+
+
+def normalize_reporter_name(value: str | None) -> str:
+    return " ".join(str(value or "").split()).casefold()
+
+
+def reporter_name_from_username(username: str | None) -> str:
+    return " ".join(
+        part.capitalize() for part in normalize_username(username).split(".") if part
+    )
 
 
 def is_manager(username: str | None, managers: Iterable[str] = MANAGERS) -> bool:
@@ -185,14 +368,16 @@ def normalize_issue(
     url = str(issue.get("url") or issue.get("self") or "")
     reporter = fields.get("reporter")
     if isinstance(reporter, dict):
-        reporter_name = str(
-            reporter.get("displayName")
-            or reporter.get("name")
-            or reporter.get("key")
-            or ""
-        ).strip()
+        reporter_username = normalize_username(
+            reporter.get("name") or reporter.get("key") or reporter.get("accountId")
+        )
+        display_name = " ".join(str(reporter.get("displayName") or "").split())
+        reporter_name = display_name or reporter_name_from_username(reporter_username)
+        reporter_match_name = normalize_reporter_name(reporter_name)
     else:
+        reporter_username = ""
         reporter_name = str(reporter or "").strip()
+        reporter_match_name = ""
     if base_url and key:
         url = f"{base_url.rstrip('/')}/browse/{key}"
     return {
@@ -211,6 +396,8 @@ def normalize_issue(
             if isinstance(x, dict)
         ],
         "reporter": reporter_name or "未知报告人",
+        "reporter_username": reporter_username,
+        "reporter_match_name": reporter_match_name,
     }
 
 
@@ -381,9 +568,7 @@ def validate_issue(
             "Steps are not ordered, non-empty executable numbered steps.",
             "Use consecutive steps starting at 1, each with an executable action.",
         )
-    rate = next(
-        iter(sections.get("reproducibility rate", "").splitlines()), ""
-    ).strip()
+    rate = next(iter(sections.get("reproducibility rate", "").splitlines()), "").strip()
     if rate and not _valid_rate(rate):
         fail(
             "DESCRIPTION.RATE_FORMAT",
@@ -438,6 +623,8 @@ def validate_issue(
         "key": data["key"],
         "url": data["url"],
         "reporter": data["reporter"],
+        "reporter_username": data["reporter_username"],
+        "reporter_match_name": data["reporter_match_name"],
         "overall_result": "FAIL" if violations else "PASS",
         "violations": violations,
     }
@@ -614,9 +801,7 @@ def resolve_jql(config: dict[str, Any]) -> str:
         if str(key).strip()
     ]
     if keys:
-        invalid = [
-            key for key in keys if not re.fullmatch(r"[A-Z][A-Z0-9_]*-\d+", key)
-        ]
+        invalid = [key for key in keys if not re.fullmatch(r"[A-Z][A-Z0-9_]*-\d+", key)]
         if invalid:
             raise ValueError(f"Invalid Jira issue key: {invalid[0]}")
         return f"key in ({', '.join(keys)})"
@@ -654,10 +839,19 @@ def run(config: dict[str, Any]) -> int:
     password = str(config.get("password") or "")
     output = str(config.get("output") or "").strip()
     if not base_url or not username or not password or not output:
-        raise ValueError("JIRA_CONFIG requires base_url, username, password, and output")
+        raise ValueError(
+            "JIRA_CONFIG requires base_url, username, password, and output"
+        )
     jql = resolve_jql(config)
-    ISSUE_LIST[:] = fetch_jira_issues(base_url, jql, username, password)
-    results = validate_issues(ISSUE_LIST, rules=deepcopy(EMBEDDED_RULES), base_url=base_url)
+    fetched = fetch_jira_issues(base_url, jql, username, password)
+    ISSUE_LIST[:] = [
+        issue
+        for issue in fetched
+        if normalize_issue(issue)["reporter_match_name"] in _QA_REPORTER_NAME_KEYS
+    ]
+    results = validate_issues(
+        ISSUE_LIST, rules=deepcopy(EMBEDDED_RULES), base_url=base_url
+    )
     export_xlsx(results, output, jql=jql)
     return 0
 

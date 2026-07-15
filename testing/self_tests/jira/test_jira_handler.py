@@ -7,6 +7,82 @@ import jira_handler
 
 
 ROOT = Path(__file__).resolve().parents[3]
+PERSONNEL_PATH = ROOT / "config" / "personnel.json"
+EXPECTED_QA_USERNAMES = """xiuyue.zhang
+junjie.li
+mao.ma
+changwen.dai
+xiangqun.li
+leping.lei
+jianfan.ai
+jinbo.du
+shaojun.chen
+kai.ni
+shuangxiao.hu
+chunyan.liu
+xinying.yang
+bo.ren
+zhangxian.chen
+zhenhua.xiao
+zanbo.huang
+lingguo.bu
+haolin.li
+chenghua.liu
+yongqi.liang
+menghui.liu
+jianhua.huang
+maoguo.xie
+cong.zhang
+jie.xiong
+jianhui.peng
+ling.chen
+zhewu.tao
+meng.wang
+binbin.gao
+jiajia.mu
+zhendong.zhou
+yanyan.deng
+xiaoli.peng
+xing.fan
+zhaoqun.wang
+zijie.chen
+bo.meng
+yu.zhang
+yonghua.wu
+jian.zhong
+yan.wu
+ping.xiong
+lingling.yu
+pan.xu
+chen.chen
+dan.chen
+chao.lu
+chao.li
+nannan.meng
+kang.jiang
+yanqing.tang
+weiting.feng
+taoqing.miao
+chuanyang.hu
+qianyi.liu
+zhuhui.zhang
+jinhuan.yi
+yifeng.xu
+shouneng.chou
+mennan.hu
+hanpeng.su
+haobo.ren
+meiling.zhu
+xiaofeng.li
+qin.zhang
+xuejiao.li
+mingdong.wang
+zongwu.ma
+yunzhu.zhang
+zhijie.yang
+tianwei.xie
+bing.song
+qiaowei.tian""".splitlines()
 
 
 def valid_issue(**field_overrides):
@@ -160,11 +236,211 @@ def test_reporter_normalization_prefers_display_name_and_has_fallbacks():
     )["reporter"] == "张三"
     assert jira_handler.normalize_issue(valid_issue(reporter={"name": "lisi"}))[
         "reporter"
-    ] == "lisi"
+    ] == "Lisi"
     assert jira_handler.normalize_issue(valid_issue(reporter={"key": "wang"}))[
         "reporter"
-    ] == "wang"
+    ] == "Wang"
     assert jira_handler.normalize_issue(valid_issue(reporter=None))["reporter"] == "未知报告人"
+
+
+def test_personnel_json_schema_and_embedded_qa_list_match():
+    personnel = json.loads(PERSONNEL_PATH.read_text(encoding="utf-8"))
+    employees = personnel["employees"]
+    expected_names = [
+        " ".join(part.capitalize() for part in username.split("."))
+        for username in EXPECTED_QA_USERNAMES
+    ]
+    expected_grades = {
+        "Chao Li": "I3",
+        "Xiuyue Zhang": "M5",
+        "Ping Xiong": "M4",
+        "Jianfan Ai": "M3",
+        "Zijie Chen": "M3",
+        "Junjie Li": "M3",
+        "Meiling Zhu": "M3",
+    }
+    expected_assignments = {
+        "Junjie Li": [
+            {"product_line_id": "STB", "primary": True, "responsibilities": []}
+        ],
+        "Chen Chen": [
+            {
+                "product_line_id": "SmartHome",
+                "primary": True,
+                "responsibilities": [],
+            }
+        ],
+        "Jianfan Ai": [
+            {"product_line_id": "TV", "primary": True, "responsibilities": []}
+        ],
+        "Lingling Yu": [
+            {"product_line_id": "IPTV", "primary": True, "responsibilities": []}
+        ],
+    }
+
+    assert len(EXPECTED_QA_USERNAMES) == len(set(EXPECTED_QA_USERNAMES))
+    assert personnel["schema_version"] == 1
+    assert personnel["career_levels"] == [
+        {
+            "grade": "I2",
+            "career_track": "individual_contributor",
+            "job_title": "QA Engineer",
+        },
+        {
+            "grade": "I3",
+            "career_track": "individual_contributor",
+            "job_title": "Sr. QA Engineer",
+        },
+        {
+            "grade": "I4",
+            "career_track": "individual_contributor",
+            "job_title": "Staff QA Engineer",
+        },
+        {"grade": "M1", "career_track": "management", "job_title": "QA Leader"},
+        {
+            "grade": "M2",
+            "career_track": "management",
+            "job_title": "QA Supervisor",
+        },
+        {
+            "grade": "M3",
+            "career_track": "management",
+            "job_title": "QA Manager",
+        },
+        {
+            "grade": "M4",
+            "career_track": "management",
+            "job_title": "Sr. QA Manager",
+        },
+        {
+            "grade": "M5",
+            "career_track": "management",
+            "job_title": "QA Director",
+        },
+    ]
+    assert personnel["product_lines"] == [
+        {"id": "STB", "name": "STB", "active": True},
+        {"id": "SmartHome", "name": "SmartHome", "active": True},
+        {"id": "TV", "name": "TV", "active": True},
+        {"id": "IPTV", "name": "IPTV", "active": True},
+    ]
+    assert [item["display_name"] for item in employees] == expected_names
+    assert {item["display_name"] for item in employees} == jira_handler.QA_REPORTER_NAMES
+    assert all(
+        item == {
+            "display_name": item["display_name"],
+            "active": True,
+            "organization": {
+                "department": "FAE-QA",
+                "team": "",
+                "division": "",
+            },
+            "employment": {
+                "grade": expected_grades.get(item["display_name"], ""),
+                "job_title_override": "",
+                "employee_type": "",
+            },
+            "assignments": expected_assignments.get(item["display_name"], []),
+            "expertise_domains": (
+                ["Wi-Fi"] if item["display_name"] == "Zijie Chen" else []
+            ),
+            "system_roles": ["user"],
+        }
+        for item in employees
+    )
+
+
+def test_reporter_username_prefers_name_and_normalizes_domain_and_email():
+    issue = valid_issue(
+        reporter={
+            "displayName": "QA User",
+            "name": "DOMAIN\\Xiuyue.Zhang@example.com",
+            "key": "wrong.key",
+            "accountId": "wrong-account",
+        }
+    )
+    assert jira_handler.normalize_issue(issue)["reporter_username"] == "xiuyue.zhang"
+    assert jira_handler.normalize_issue(
+        valid_issue(reporter={"key": "JUNJIE.LI@example.com"})
+    )["reporter_username"] == "junjie.li"
+    assert jira_handler.normalize_issue(
+        valid_issue(reporter={"accountId": "MA.CHENG"})
+    )["reporter_username"] == "ma.cheng"
+    assert jira_handler.normalize_issue(valid_issue(reporter=None))[
+        "reporter_username"
+    ] == ""
+
+
+def test_run_filters_to_qa_reporters_before_validation(monkeypatch, tmp_path):
+    qa_issue = valid_issue(reporter={"name": "DOMAIN\\XIUYUE.ZHANG"})
+    non_qa_issue = valid_issue(reporter={"name": "developer.user"})
+    missing_reporter = valid_issue(reporter=None)
+    validated = []
+
+    monkeypatch.setattr(
+        jira_handler,
+        "fetch_jira_issues",
+        lambda *args: [qa_issue, non_qa_issue, missing_reporter],
+    )
+    monkeypatch.setattr(
+        jira_handler,
+        "validate_issues",
+        lambda issues, **kwargs: validated.extend(issues) or [],
+    )
+    monkeypatch.setattr(jira_handler, "export_xlsx", lambda *args, **kwargs: None)
+
+    original = jira_handler.ISSUE_LIST
+    result = jira_handler.run(
+        {
+            "base_url": "https://jira.example",
+            "username": "user",
+            "password": "test-only",
+            "jql": "project = ST",
+            "jira_url": "",
+            "issue_keys": [],
+            "output": str(tmp_path / "audit.xlsx"),
+        }
+    )
+
+    assert result == 0
+    assert jira_handler.ISSUE_LIST is original
+    assert jira_handler.ISSUE_LIST == [qa_issue]
+    assert validated == [qa_issue]
+
+
+def test_run_matches_normalized_display_name_nannan_and_username_fallback(
+    monkeypatch, tmp_path
+):
+    spaced_name = valid_issue(reporter={"displayName": "  XIUYUE   zhang  "})
+    nannan = valid_issue(reporter={"displayName": "Nannan Meng"})
+    username_fallback = valid_issue(reporter={"name": "junjie.li"})
+    non_qa = valid_issue(reporter={"displayName": "Developer User"})
+    validated = []
+    monkeypatch.setattr(
+        jira_handler,
+        "fetch_jira_issues",
+        lambda *args: [spaced_name, nannan, username_fallback, non_qa],
+    )
+    monkeypatch.setattr(
+        jira_handler,
+        "validate_issues",
+        lambda issues, **kwargs: validated.extend(issues) or [],
+    )
+    monkeypatch.setattr(jira_handler, "export_xlsx", lambda *args, **kwargs: None)
+
+    jira_handler.run(
+        {
+            "base_url": "https://jira.example",
+            "username": "user",
+            "password": "test-only",
+            "jql": "project = ST",
+            "jira_url": "",
+            "issue_keys": [],
+            "output": str(tmp_path / "audit.xlsx"),
+        }
+    )
+
+    assert validated == [spaced_name, nannan, username_fallback]
 
 
 def test_summary_groups_failed_jira_by_reporter_with_unique_sorted_keys(tmp_path):
@@ -284,11 +560,16 @@ def test_filter_url_loads_jql_through_rest(monkeypatch):
 def test_run_updates_global_issue_list_in_place_and_fetches_once(monkeypatch, tmp_path):
     original = jira_handler.ISSUE_LIST
     calls = []
-    monkeypatch.setattr(jira_handler, "fetch_jira_issues", lambda *args: calls.append(args) or [valid_issue()])
+    issue = valid_issue(reporter={"name": "xiuyue.zhang"})
+    monkeypatch.setattr(
+        jira_handler,
+        "fetch_jira_issues",
+        lambda *args: calls.append(args) or [issue],
+    )
     monkeypatch.setattr(jira_handler, "export_xlsx", lambda results, output, **kwargs: list(results))
     assert jira_handler.run(configured(issue_keys=["ST-1"], output=str(tmp_path / "audit.xlsx"))) == 0
     assert jira_handler.ISSUE_LIST is original
-    assert jira_handler.ISSUE_LIST == [valid_issue()]
+    assert jira_handler.ISSUE_LIST == [issue]
     assert len(calls) == 1
 
 
