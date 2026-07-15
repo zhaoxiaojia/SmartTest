@@ -1146,56 +1146,6 @@
         <translation>Analyzing request: generating response...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="165" />
-        <source>Jira format audit is ready.</source>
-        <translation>Jira format audit is ready.</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="166" />
-        <source>Only Jira managers can run or export format audits.</source>
-        <translation>Only Jira managers can run or export format audits.</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="167" />
-        <source>Load Jira issues before running a format audit.</source>
-        <translation>Load Jira issues before running a format audit.</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="168" />
-        <source>The Jira format specification jira规范.md is missing. Restore it at the SmartTest application root and try again.</source>
-        <translation>The Jira format specification jira规范.md is missing. Restore it at the SmartTest application root and try again.</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="169" />
-        <source>Audit complete: {issues} issues, {violations} violations.</source>
-        <translation>Audit complete: {issues} issues, {violations} violations.</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="170" />
-        <source>Run an audit before exporting the report.</source>
-        <translation>Run an audit before exporting the report.</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="171" />
-        <source>Audit report exported to {path}</source>
-        <translation>Audit report exported to {path}</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="172" />
-        <source>Issues</source>
-        <translation>Issues</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="173" />
-        <source>Passed</source>
-        <translation>Passed</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="174" />
-        <source>Violations</source>
-        <translation>Violations</translation>
-    </message>
-    <message>
         <location filename="bridge/JiraBridge.py" line="178" />
         <source>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</source>
         <translation>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</translation>
@@ -3422,21 +3372,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_Jira.qml" line="1836" />
         <source>SmartTest AI can make mistakes. Verify important information.</source>
         <translation>SmartTest AI can make mistakes. Verify important information.</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2239" />
-        <source>Format Audit</source>
-        <translation>Format Audit</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2254" />
-        <source>Audit Loaded Issues</source>
-        <translation>Audit Loaded Issues</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2259" />
-        <source>Export XLSX</source>
-        <translation>Export XLSX</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="931" />

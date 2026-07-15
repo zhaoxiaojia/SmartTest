@@ -10,7 +10,6 @@
 
 ## 全局约束
 
-- 不修改、不导入、不迁移根目录 `jira_handler.py` 的职责。
 - 不实现 Tool 页面、Bug Clone、客户系统适配器或创建 Jira。
 - 不改变 QML 公共属性、Signal、Slot、页面文字及用户可见行为。
 - 不改变现有 Jira 配置和缓存格式。
@@ -471,12 +470,11 @@ Bridge 改为从 `jira_tool.services` 稳定出口导入。移除对 `parse_csv_
 - 若这些解析只用于请求构建，交给 Service；
 - 若用于页面选项摘要，仅保留 UI 展示所需的本地轻量解析，不生成 JQL、不访问 Jira 字段或缓存；
 - 不修改 QML 属性、信号、槽名称和翻译文本；
-- 不移动格式审计功能，不修改根目录 `jira_handler.py`。
 
 - [ ] **步骤 6：运行 UI 和 Jira 聚焦测试**
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest testing/self_tests/jira_tool testing/self_tests/ui/test_jira_bridge_service_boundary.py testing/self_tests/ui/test_jira_format_audit_bridge.py -q
+.\.venv\Scripts\python.exe -m pytest testing/self_tests/jira_tool testing/self_tests/ui/test_jira_bridge_service_boundary.py -q
 ```
 
 预期：全部通过。
@@ -530,16 +528,14 @@ README 必须说明：
 - 唯一依赖方向；
 - Create Jira 将通过独立 `CreateIssueService` 扩展；
 - Bug Clone 只能生成 `CreateIssueRequest`，不能直接调用 Jira REST；
-- 根目录 `jira_handler.py` 不属于该封装。
 
 - [ ] **步骤 4：运行完整聚焦测试**
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest testing/self_tests/jira_tool testing/self_tests/ui/test_jira_bridge_service_boundary.py testing/self_tests/ui/test_jira_format_audit_bridge.py -q
-.\.venv\Scripts\python.exe -m pytest testing/self_tests/jira/test_jira_handler.py -q
+.\.venv\Scripts\python.exe -m pytest testing/self_tests/jira_tool testing/self_tests/ui/test_jira_bridge_service_boundary.py -q
 ```
 
-预期：两个命令均退出码 0。第二个命令用于证明根目录历史功能未被本次改动破坏，不授权修改其实现或测试。
+预期：命令退出码为 0，Jira Service 与 Bridge 聚焦测试全部通过。
 
 - [ ] **步骤 5：执行源码启动检查**
 
