@@ -54,6 +54,7 @@ Skill `MUST`/prohibitions, ownership boundaries, and acceptance gates are mandat
 
 Delivery requires two independent results:
 
+- After Coco confirms functional completeness, review the approved code before every delivery; remove redundancy, temporary diagnostics and debug prints, abandoned attempts, and other implementation residue, then verify and commit the cleaned result.
 - **Functional Acceptance: PASS** — scoped tests and the highest practical environment validation pass without weakened tests.
 - **Code Quality: PASS** — scoped diff shows correct ownership, no unnecessary abstraction/duplication, no temporary diagnostics or abandoned attempts, no unrelated changes, and `git diff --check` passes.
 - Commits must be atomic and describe the business result; never include exploratory attempts, mixed concerns, temporary diagnostics, or unrelated pre-existing/user-owned changes.
