@@ -535,7 +535,7 @@ README 必须说明：
 .\.venv\Scripts\python.exe -m pytest testing/self_tests/jira_tool testing/self_tests/ui/test_jira_bridge_service_boundary.py -q
 ```
 
-预期：两个命令均退出码 0。第二个命令用于证明根目录历史功能未被本次改动破坏，不授权修改其实现或测试。
+预期：命令退出码为 0，Jira Service 与 Bridge 聚焦测试全部通过。
 
 - [ ] **步骤 5：执行源码启动检查**
 
