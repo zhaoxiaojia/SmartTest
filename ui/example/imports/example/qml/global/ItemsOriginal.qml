@@ -27,7 +27,7 @@ FluObject{
     }
 
     function isProtectedItem(item){
-        return isProtectedRoute(item, item_test_config) || isProtectedRoute(item, item_jira)
+        return isProtectedRoute(item, item_test_config) || isProtectedRoute(item, item_tool) || isProtectedRoute(item, item_jira)
     }
 
     function openItem(item){
@@ -137,6 +137,15 @@ FluObject{
         icon: FluentIcons.PlaySolid
         url: "qrc:/example/qml/page/T_Run.qml"
         onTap: { navigationView.push(url) }
+    }
+
+    FluPaneItem{
+        id: item_tool
+        title: qsTr("Tool")
+        menuDelegate: paneItemMenu
+        icon: FluentIcons.DeveloperTools
+        url: "qrc:/example/qml/page/T_Tool.qml"
+        onTap: { navigateWithAuth(item_tool) }
     }
 
     FluPaneItem{

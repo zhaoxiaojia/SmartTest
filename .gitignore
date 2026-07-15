@@ -48,5 +48,6 @@ testing/self_tests/*
 !testing/self_tests/ui/
 testing/self_tests/ui/*
 !testing/self_tests/ui/test_auth_bridge_profile.py
+!testing/self_tests/ui/test_tool_page.py
 config/avatars/*
 !config/avatars/.gitkeep

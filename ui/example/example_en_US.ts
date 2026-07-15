@@ -369,6 +369,11 @@
     </message>
     <message>
         <location filename="imports/example/qml/global/ItemsOriginal.qml" line="144" />
+        <source>Tool</source>
+        <translation>Tool</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="144" />
         <source>Report</source>
         <translation>Report</translation>
     </message>
@@ -5508,5 +5513,62 @@ Some contents...</translation>
         <source>test.env.serial.baud.label</source>
         <translation type="vanished">Baud Rate</translation>
     </message>
+</context>
+<context>
+    <name>T_Tool</name>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="7" />
+        <source>Tool</source>
+        <translation>Tool</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="34" />
+        <source>Tools</source>
+        <translation>Tools</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="38" />
+        <source>Common Tools</source>
+        <translation>Common Tools</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="43" />
+        <source>Custom Tools</source>
+        <translation>Custom Tools</translation>
+    </message>
+    <message><source>STB</source><translation>STB</translation></message>
+    <message><source>TV</source><translation>TV</translation></message>
+    <message><source>SmartHome</source><translation>SmartHome</translation></message>
+    <message><source>IPTV</source><translation>IPTV</translation></message>
+    <message><source>Wi-Fi</source><translation>Wi-Fi</translation></message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="104" />
+        <source>Select a tool</source>
+        <translation>Select a tool</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="109" />
+        <source>Tools for this group will appear here.</source>
+        <translation>Tools for this group will appear here.</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="120" />
+        <source>Tool workspace</source>
+        <translation>Tool workspace</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="125" />
+        <source>This area is reserved for the selected tool. Execution is not available yet.</source>
+        <translation>This area is reserved for the selected tool. Execution is not available yet.</translation>
+    </message>
+</context>
+<context>
+    <name>ToolBridge</name>
+    <message><source>Common Tools</source><translation>Common Tools</translation></message>
+    <message><source>STB</source><translation>STB</translation></message>
+    <message><source>TV</source><translation>TV</translation></message>
+    <message><source>SmartHome</source><translation>SmartHome</translation></message>
+    <message><source>IPTV</source><translation>IPTV</translation></message>
+    <message><source>Wi-Fi</source><translation>Wi-Fi</translation></message>
 </context>
 </TS>

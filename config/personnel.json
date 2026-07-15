@@ -1649,21 +1649,33 @@
     {
       "id": "STB",
       "name": "STB",
+      "owner_account": "junjie.li",
       "active": true
     },
     {
       "id": "SmartHome",
       "name": "SmartHome",
+      "owner_account": "chen.chen",
       "active": true
     },
     {
       "id": "TV",
       "name": "TV",
+      "owner_account": "jianfan.ai",
       "active": true
     },
     {
       "id": "IPTV",
       "name": "IPTV",
+      "owner_account": "lingling.yu",
+      "active": true
+    }
+  ],
+  "technical_centers": [
+    {
+      "id": "Wi-Fi",
+      "name": "Wi-Fi",
+      "owner_account": "zijie.chen",
       "active": true
     }
   ]

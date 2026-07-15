@@ -373,6 +373,11 @@
     </message>
     <message>
         <location filename="imports/example/qml/global/ItemsOriginal.qml" line="144" />
+        <source>Tool</source>
+        <translation>工具</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="144" />
         <source>Report</source>
         <translation>报告</translation>
     </message>
@@ -5741,5 +5746,30 @@ Some contents...</source>
         <source>test.env.serial.baud.label</source>
         <translation type="vanished">娉㈢壒鐜</translation>
     </message>
+</context>
+<context>
+    <name>T_Tool</name>
+    <message><source>Tool</source><translation>工具</translation></message>
+    <message><source>Tools</source><translation>工具</translation></message>
+    <message><source>Common Tools</source><translation>通用工具</translation></message>
+    <message><source>Custom Tools</source><translation>定制工具</translation></message>
+    <message><source>STB</source><translation>STB</translation></message>
+    <message><source>TV</source><translation>TV</translation></message>
+    <message><source>SmartHome</source><translation>智能家居</translation></message>
+    <message><source>IPTV</source><translation>IPTV</translation></message>
+    <message><source>Wi-Fi</source><translation>Wi-Fi</translation></message>
+    <message><source>Select a tool</source><translation>选择工具</translation></message>
+    <message><source>Tools for this group will appear here.</source><translation>此处将显示该分组下的工具。</translation></message>
+    <message><source>Tool workspace</source><translation>工具工作区</translation></message>
+    <message><source>This area is reserved for the selected tool. Execution is not available yet.</source><translation>此区域预留给所选工具，暂不支持执行。</translation></message>
+</context>
+<context>
+    <name>ToolBridge</name>
+    <message><source>Common Tools</source><translation>通用工具</translation></message>
+    <message><source>STB</source><translation>STB</translation></message>
+    <message><source>TV</source><translation>TV</translation></message>
+    <message><source>SmartHome</source><translation>智能家居</translation></message>
+    <message><source>IPTV</source><translation>IPTV</translation></message>
+    <message><source>Wi-Fi</source><translation>Wi-Fi</translation></message>
 </context>
 </TS>

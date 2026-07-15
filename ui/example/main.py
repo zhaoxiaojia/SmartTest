@@ -28,6 +28,7 @@ from example.bridge.JiraBridge import JiraBridge
 from example.bridge.ReportBridge import ReportBridge
 from example.bridge.RunBridge import RunBridge
 from example.bridge.TestPageBridge import TestPageBridge
+from example.bridge.ToolBridge import ToolBridge
 from example.bridge.DebugBridge import DebugBridge
 from example.bridge.BootVideoBridge import BootVideoBridge
 from tools.logging import smart_log
@@ -106,10 +107,11 @@ def main():
     context.setContextProperty("InitializrHelper", InitializrHelper())
     context.setContextProperty("SettingsHelper", SettingsHelper())
     context.setContextProperty("TranslateHelper", TranslateHelper())
+    runtime_root = _runtime_root()
     auth_bridge = AuthBridge()
     context.setContextProperty("AuthBridge", auth_bridge)
+    context.setContextProperty("ToolBridge", ToolBridge(runtime_root, auth_bridge))
     context.setContextProperty("HomeBridge", HomeBridge())
-    runtime_root = _runtime_root()
     context.setContextProperty("TestPageBridge", TestPageBridge(runtime_root))
     context.setContextProperty("RunBridge", RunBridge(runtime_root))
     context.setContextProperty("ReportBridge", ReportBridge())

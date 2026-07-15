@@ -39,6 +39,7 @@
         <file>example/qml/page/T_Pivot.qml</file>
         <file>example/qml/page/T_Progress.qml</file>
         <file>example/qml/page/T_TestConfig.qml</file>
+        <file>example/qml/page/T_Tool.qml</file>
         <file>example/qml/page/T_Run.qml</file>
         <file>example/qml/page/T_Report.qml</file>
         <file>example/qml/page/T_Debug.qml</file>
