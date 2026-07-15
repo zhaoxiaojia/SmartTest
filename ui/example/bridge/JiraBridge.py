@@ -200,7 +200,12 @@ class JiraBridge(QObject):
     _applyFiltersResult = Signal(object)
     _applyProgress = Signal(object)
 
-    def __init__(self, auth_bridge: AuthBridge):
+    def __init__(
+        self,
+        auth_bridge: AuthBridge,
+        *,
+        workspace_service: JiraWorkspaceService | None = None,
+    ):
         super().__init__(QGuiApplication.instance())
         self._auth_bridge = auth_bridge
         self._loading = False
@@ -226,7 +231,8 @@ class JiraBridge(QObject):
         self._can_load_more = False
         self._next_start_at = 0
         self._active_scope: dict[str, Any] = {}
-        self._workspace_service: JiraWorkspaceService | None = None
+        self._workspace_service = workspace_service
+        self._workspace_service_injected = workspace_service is not None
         self._service_identity: tuple[str, str] | None = None
         self._state_lock = Lock()
         self._auth_bridge.authChanged.connect(self._handle_auth_changed)
@@ -666,6 +672,8 @@ class JiraBridge(QObject):
             self.connectionChanged.emit()
 
     def _ensure_workspace_service(self) -> JiraWorkspaceService:
+        if self._workspace_service_injected:
+            return self._workspace_service
         username = self._auth_bridge.currentUsername()
         password = self._auth_bridge.currentPassword()
         if not username or not password:
@@ -857,7 +865,6 @@ class JiraBridge(QObject):
                 projects=project_ids_csv,
                 board=board_label,
                 timeframe=timeframe_label,
-                full_dataset=self._ensure_workspace_service().requires_full_dataset(prompt),
             )
             self._applyProgress.emit({"worker_id": worker_id, "message": self._t("Analyzing request: retrieving Jira issues...")})
             result = self._ensure_workspace_service().analyze(

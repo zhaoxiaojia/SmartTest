@@ -3,7 +3,8 @@ from dataclasses import fields
 from jira_tool.core.models import IssueRecord, SearchPage
 from jira_tool.fields.registry import build_default_registry
 from jira_tool.services.browse_service import JiraBrowseService
-from jira_tool.services.requests import JiraBrowseRequest
+from jira_tool.services.analysis_service import JiraAnalysisService
+from jira_tool.services.requests import JiraAnalysisRequest, JiraBrowseRequest
 from jira_tool.services.workspace import JiraWorkspaceService
 
 
@@ -125,3 +126,85 @@ def test_workspace_facade_delegates_analysis_without_rebuilding_business_logic()
     assert result == {"mode": "analyze", "worker_id": 9}
     assert analysis.requests[0].prompt == "summarize blockers"
     assert analysis.requests[0].project_ids_csv == "TV"
+
+
+class RecordingAnalysisIssueService:
+    def __init__(self):
+        self.page_calls = []
+        self.all_calls = []
+        self.records = [
+            IssueRecord(
+                key="TV-1",
+                id="1",
+                raw={"key": "TV-1"},
+                fields={"summary": "Black screen", "status": "Open", "priority": "High"},
+            ),
+            IssueRecord(
+                key="TV-2",
+                id="2",
+                raw={"key": "TV-2"},
+                fields={"summary": "No audio", "status": "Open", "priority": "Medium"},
+            ),
+        ]
+
+    def search_page_records(self, jql, *, specs, start_at, max_results, include_heavy=False):
+        self.page_calls.append(
+            {
+                "jql": jql,
+                "specs": specs,
+                "start_at": start_at,
+                "max_results": max_results,
+                "include_heavy": include_heavy,
+            }
+        )
+        page_records = self.records if max_results != 1 else self.records[:1]
+        return SearchPage([], start_at, max_results, 4), page_records
+
+    def search_records(self, jql, **kwargs):
+        self.all_calls.append({"jql": jql, **kwargs})
+        return self.records
+
+
+def make_analysis_request(prompt):
+    values = analysis_arguments()
+    values["prompt"] = prompt
+    return JiraAnalysisRequest(**values)
+
+
+def test_analysis_service_standard_route_uses_one_bounded_api_page():
+    issues = RecordingAnalysisIssueService()
+    service = JiraAnalysisService(base_url="https://jira.example", issue_service=issues)
+
+    result = service.analyze(make_analysis_request("summarize blockers"))
+
+    assert [(call["jql"], call["start_at"], call["max_results"]) for call in issues.page_calls] == [
+        ("project = TV", 0, 50)
+    ]
+    assert issues.all_calls == []
+    assert result["route"] == "jira_api"
+    assert result["displayed_total"] == 4
+    assert [issue["keyId"] for issue in result["issues"]] == ["TV-1", "TV-2"]
+
+
+def test_analysis_service_full_dataset_route_counts_then_fetches_capped_records():
+    issues = RecordingAnalysisIssueService()
+    service = JiraAnalysisService(base_url="https://jira.example", issue_service=issues)
+
+    result = service.analyze(make_analysis_request("distribution"))
+
+    assert [(call["jql"], call["start_at"], call["max_results"]) for call in issues.page_calls] == [
+        ("project = TV", 0, 1)
+    ]
+    assert issues.all_calls == [
+        {
+            "jql": "project = TV",
+            "specs": issues.all_calls[0]["specs"],
+            "include_heavy": False,
+            "page_size": 100,
+            "max_workers": 6,
+            "max_total_results": 1000,
+        }
+    ]
+    assert result["displayed_total"] == 4
+    assert [issue["keyId"] for issue in result["issues"]] == ["TV-1", "TV-2"]
+    assert result["can_load_more"] is True
