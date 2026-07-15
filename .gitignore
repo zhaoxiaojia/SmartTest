@@ -21,8 +21,13 @@ _internal/
 AutoSuspend-master/
 _tmp_kpi_review/
 tmp_main_*.log
-demo_outlook.py
-smtp_check.py
+/demo_confluence.py
+/demo_outlook.py
+/jira_handler.py
+/jira规范.md
+/smtp_check.py
+/中屏用例评估.xlsx
+/SmartTest_中屏开发计划甘特图.png
 teams_demo.py
 
 # Local playback OCR/debug capture output
