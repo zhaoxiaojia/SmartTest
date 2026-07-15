@@ -1166,56 +1166,6 @@
         <translation>正在分析请求：生成回复...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="165" />
-        <source>Jira format audit is ready.</source>
-        <translation>Jira 格式审计已就绪。</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="166" />
-        <source>Only Jira managers can run or export format audits.</source>
-        <translation>只有 Jira 管理员可以运行或导出格式审计。</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="167" />
-        <source>Load Jira issues before running a format audit.</source>
-        <translation>请先加载 Jira 问题，再运行格式审计。</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="168" />
-        <source>The Jira format specification jira规范.md is missing. Restore it at the SmartTest application root and try again.</source>
-        <translation>缺少 Jira 格式规范 jira规范.md。请将其恢复到 SmartTest 应用根目录后重试。</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="169" />
-        <source>Audit complete: {issues} issues, {violations} violations.</source>
-        <translation>审计完成：{issues} 个问题，{violations} 项违规。</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="170" />
-        <source>Run an audit before exporting the report.</source>
-        <translation>请先运行审计，再导出报告。</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="171" />
-        <source>Audit report exported to {path}</source>
-        <translation>审计报告已导出到 {path}</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="172" />
-        <source>Issues</source>
-        <translation>问题单</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="173" />
-        <source>Passed</source>
-        <translation>通过</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraBridge.py" line="174" />
-        <source>Violations</source>
-        <translation>违规项</translation>
-    </message>
-    <message>
         <location filename="bridge/JiraBridge.py" line="178" />
         <source>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</source>
         <translation>当前范围内共匹配到 {total} 条 Jira 问题。首条问题：{key}（{status}，{priority}）- {summary}</translation>
@@ -3570,21 +3520,6 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_Jira.qml" line="1836" />
         <source>SmartTest AI can make mistakes. Verify important information.</source>
         <translation>SmartTest AI 可能出错。请核对重要信息。</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2239" />
-        <source>Format Audit</source>
-        <translation>格式审计</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2254" />
-        <source>Audit Loaded Issues</source>
-        <translation>审计已加载问题</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2259" />
-        <source>Export XLSX</source>
-        <translation>导出 XLSX</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="931" />

@@ -32,8 +32,6 @@ FluPage {
     property var issueRows: []
     property var quickStats: []
     property var analysisActions: []
-    property var auditSummaryRows: []
-    property var auditDetailRows: []
     property var selectedIssue: ({})
     property var savedFilters: []
     property bool issueDetailExpanded: false
@@ -83,8 +81,6 @@ FluPage {
         quickStats = JiraBridge.quickStats()
         selectedIssue = JiraBridge.selectedIssue()
         analysisActions = JiraBridge.analysisActions()
-        auditSummaryRows = JiraBridge.auditSummaryRows()
-        auditDetailRows = JiraBridge.auditDetailRows()
         savedFilters = JiraBridge.savedFilters()
         rebuildDynamicFilterOptions()
         Qt.callLater(function(){
@@ -2226,65 +2222,6 @@ FluPage {
                                                             }
                                                         }
                                                     }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        FluPivotItem{
-                            title: qsTr("Format Audit")
-                            contentItem: Component{
-                                Flickable{
-                                    clip: true
-                                    contentHeight: audit_layout.implicitHeight
-                                    ScrollBar.vertical: FluScrollBar{}
-
-                                    ColumnLayout{
-                                        id: audit_layout
-                                        width: parent.width
-                                        spacing: 8
-
-                                        RowLayout{
-                                            Layout.fillWidth: true
-                                            FluButton{
-                                                text: qsTr("Audit Loaded Issues")
-                                                enabled: JiraBridge.isAuditManager() && issueRows.length > 0
-                                                onClicked: JiraBridge.runFormatAudit()
-                                            }
-                                            FluButton{
-                                                text: qsTr("Export XLSX")
-                                                enabled: JiraBridge.isAuditManager() && auditSummaryRows.length > 0
-                                                onClicked: JiraBridge.exportFormatAudit()
-                                            }
-                                        }
-                                        FluText{
-                                            Layout.fillWidth: true
-                                            text: JiraBridge.auditStatusText()
-                                            wrapMode: Text.WordWrap
-                                            color: FluTheme.fontSecondaryColor
-                                        }
-                                        Repeater{
-                                            model: auditSummaryRows
-                                            FluText{
-                                                Layout.fillWidth: true
-                                                text: modelData.label + ": " + modelData.value
-                                                font: FluTextStyle.BodyStrong
-                                            }
-                                        }
-                                        Rectangle{ Layout.fillWidth: true; height: 1; color: FluTheme.dividerColor }
-                                        Repeater{
-                                            model: auditDetailRows
-                                            FluFrame{
-                                                Layout.fillWidth: true
-                                                padding: 8
-                                                ColumnLayout{
-                                                    anchors.fill: parent
-                                                    FluText{ Layout.fillWidth: true; text: modelData.issueKey + " · " + modelData.rule_id; font: FluTextStyle.BodyStrong; wrapMode: Text.WordWrap }
-                                                    FluText{ Layout.fillWidth: true; text: modelData.failure_reason; wrapMode: Text.WordWrap }
-                                                    FluText{ Layout.fillWidth: true; text: modelData.correction_guidance; color: FluTheme.fontSecondaryColor; wrapMode: Text.WordWrap }
                                                 }
                                             }
                                         }

@@ -25,7 +25,6 @@ testing_root = os.path.join(repo_root, "testing")
 tools_root = os.path.join(repo_root, "tools")
 ai_root = os.path.join(repo_root, "AI")
 jira_tool_root = os.path.join(repo_root, "jira_tool")
-jira_format_spec = os.path.join(repo_root, "jira规范.md")
 build_manifest = os.path.join(repo_root, "build", "generated", "build_manifest.json")
 app_version = "0.0.0"
 try:
@@ -78,10 +77,6 @@ a = Analysis(
         (
             jira_tool_root,
             "jira_tool",
-        ),
-        (
-            jira_format_spec,
-            ".",
         ),
         (
             test_catalog,
