@@ -6,6 +6,8 @@ from AI.mcp.context import McpContextService, create_default_mcp_context_service
 from jira_tool.auth.basic import JiraBasicAuth
 from jira_tool.cache.metadata_cache import JiraFieldMetadataCache
 from jira_tool.fields.registry import FieldRegistry
+from jira_tool.services.analysis_service import JiraAnalysisService
+from jira_tool.services.browse_service import JiraBrowseService
 from jira_tool.services.issue_service import JiraIssueService
 from jira_tool.services.workspace import JiraWorkspaceService
 from jira_tool.transport.client import JiraClient, JiraClientConfig
@@ -36,9 +38,15 @@ def create_jira_workspace_service(
         metadata_cache=metadata_cache,
         ttl_seconds=metadata_ttl_seconds,
     )
-    return JiraWorkspaceService(
+    issue_service = JiraIssueService(client, registry=jira_registry)
+    browse_service = JiraBrowseService(base_url=base_url, issue_service=issue_service)
+    analysis_service = JiraAnalysisService(
         base_url=base_url,
-        issue_service=JiraIssueService(client, registry=jira_registry),
+        issue_service=issue_service,
         mcp_context_service=mcp_context_service
         or create_default_mcp_context_service(username=username, password=password),
+    )
+    return JiraWorkspaceService(
+        browse_service=browse_service,
+        analysis_service=analysis_service,
     )

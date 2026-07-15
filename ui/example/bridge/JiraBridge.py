@@ -15,9 +15,7 @@ from PySide6.QtGui import QGuiApplication
 
 from ui import jsonTool
 
-from jira_tool.services.factory import create_jira_workspace_service
-from jira_tool.services.query_builder import parse_csv_ids, parse_csv_terms
-from jira_tool.services.workspace import JiraWorkspaceService
+from jira_tool.services import JiraWorkspaceService, create_jira_workspace_service
 from example.bridge.AuthBridge import AuthBridge
 from example.helper.TranslateHelper import TranslateHelper
 from tools.logging import smart_log
@@ -30,6 +28,19 @@ except ImportError:  # pragma: no cover - direct unit-test imports may use the u
 
 JIRA_BASE_URL = os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")
 _MAX_DISPLAY_ISSUES = 50
+
+
+def _parse_csv_ids(raw_value: str) -> list[str]:
+    values: list[str] = []
+    for item in str(raw_value or "").split(","):
+        clean = item.strip()
+        if clean and clean not in values:
+            values.append(clean)
+    return values
+
+
+def _parse_csv_terms(raw_value: str) -> list[str]:
+    return _parse_csv_ids(str(raw_value or "").replace(";", ","))
 
 _PROJECT_OPTION_IDS = (
     "all_supported_projects",
@@ -496,7 +507,7 @@ class JiraBridge(QObject):
         default_label: str,
         collapse_all_id: str | None = None,
     ) -> str:
-        option_ids = [option_id for option_id in parse_csv_ids(raw_value) if option_id in valid_ids]
+        option_ids = [option_id for option_id in _parse_csv_ids(raw_value) if option_id in valid_ids]
         if collapse_all_id and collapse_all_id in option_ids:
             option_ids = [collapse_all_id]
         if not option_ids:
@@ -504,7 +515,7 @@ class JiraBridge(QObject):
         return ", ".join(labeler(option_id) for option_id in option_ids)
 
     def _summarize_terms(self, raw_value: str, *, default_label: str) -> str:
-        values = parse_csv_terms(raw_value)
+        values = _parse_csv_terms(raw_value)
         if not values:
             return default_label
         return ", ".join(values)
