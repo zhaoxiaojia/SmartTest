@@ -5,10 +5,12 @@ from datetime import datetime
 from typing import Any, Callable
 
 from AI.mcp.context import McpContextService
+from jira_tool.services.browse_service import JiraBrowseService
 from jira_tool.services.issue_service import JiraIssueService
 from jira_tool.services.payloads import build_analysis_result, build_browse_result, build_detail_result, build_scope_context
 from jira_tool.services.presenter import extract_actions, record_to_issue_row
 from jira_tool.services.query_builder import build_base_jql
+from jira_tool.services.requests import JiraBrowseRequest
 from jira_tool.services.specs import browse_specs, detail_specs
 
 
@@ -21,15 +23,21 @@ class JiraWorkspaceService:
         mcp_context_service: McpContextService | None = None,
         max_display_issues: int = 50,
         max_analysis_issues: int = 1000,
+        browse_service: JiraBrowseService | None = None,
     ):
         self._base_url = base_url
         self._issue_service = issue_service
         self._mcp_context_service = mcp_context_service
         self._max_display_issues = max_display_issues
         self._max_analysis_issues = max_analysis_issues
+        self._browse_service = browse_service or JiraBrowseService(
+            base_url=base_url,
+            issue_service=issue_service,
+            max_display_issues=max_display_issues,
+        )
 
     def fetch_saved_filters(self) -> list[dict[str, str]]:
-        return self._normalize_saved_filters(self._issue_service._client.fetch_favourite_filters())
+        return self._browse_service.fetch_saved_filters()
 
     def browse(
         self,
@@ -56,6 +64,33 @@ class JiraWorkspaceService:
         append: bool,
         translated_state: Callable[..., dict[str, Any]],
     ) -> dict[str, Any]:
+        return self._browse_service.browse(
+            JiraBrowseRequest(
+                worker_id=worker_id,
+                selected_issue_index=selected_issue_index,
+                raw_jql_text=raw_jql_text,
+                project_ids_csv=project_ids_csv,
+                board_id=board_id,
+                board_label=board_label,
+                timeframe_id=timeframe_id,
+                timeframe_label=timeframe_label,
+                status_ids_csv=status_ids_csv,
+                priority_ids_csv=priority_ids_csv,
+                issue_type_ids_csv=issue_type_ids_csv,
+                keyword_text=keyword_text,
+                assignee_text=assignee_text,
+                reporter_text=reporter_text,
+                labels_text=labels_text,
+                include_comments=include_comments,
+                include_links=include_links,
+                only_mine=only_mine,
+                start_at=start_at,
+                append=append,
+                translated_state=translated_state,
+            )
+        )
+
+        # The implementation below is removed when analysis is split in task 3.
         specs = browse_specs()
         plan = self._issue_service._registry.build_plan(specs, include_heavy=False)
         effective_jql = build_base_jql(
@@ -118,6 +153,13 @@ class JiraWorkspaceService:
         include_comments: bool,
         include_links: bool,
     ) -> dict[str, Any]:
+        return self._browse_service.fetch_issue_detail(
+            worker_id=worker_id,
+            issue_key=issue_key,
+            include_comments=include_comments,
+            include_links=include_links,
+        )
+
         record = self._issue_service.hydrate_issue(
             issue_key,
             specs=detail_specs(include_comments=include_comments, include_links=include_links),
