@@ -1,297 +1,66 @@
-# Jira Integration Notes
+# SmartTest Jira 集成
 
-This folder contains SmartTest's Jira integration layer.
+`jira_tool` 是 SmartTest 内部 Jira 集成层。目标是在 Jira Server / Data Center 环境中提供可预测的 REST 行为、明确的字段投影、快速分页浏览和按需分析，而不是为单个 Jira SDK 再包一层。
 
-The goal is not to wrap a single Jira SDK blindly. The goal is to provide:
+## 所有权与依赖方向
 
-- predictable REST behavior against the current Jira deployment
-- explicit field projection for large-result queries
-- strong handling of nested/custom fields
-- fast browse flows for UI
-- heavier analysis flows only when the user explicitly asks for them
+依赖方向固定为：
 
-## Current Assumptions
+```text
+Jira QML
+  -> JiraBridge
+  -> JiraWorkspaceService
+  -> JiraBrowseService / JiraAnalysisService
+  -> JiraIssueService
+  -> JiraClient
+  -> Jira Server
+```
 
-- The live instance currently behaves like Jira Server / Data Center.
-- The active REST path in SmartTest is `.../rest/api/2/...`.
-- LDAP credentials are reused for Jira access in the app.
-- For SmartTest, browse flows and analysis flows must be separated:
-  - browse: light fields, paged, fast response
-  - analysis: may request more fields, more pages, and optional AI summarization
+- `JiraBridge`：只拥有 Qt 属性、信号、槽、页面状态和异步调用适配；不构建 JQL，不访问 Jira 字段、缓存或 REST。
+- `JiraWorkspaceService`：Bridge 使用的稳定兼容门面；把显式参数收拢为不可变请求合同并委托业务服务。
+- `JiraBrowseService`：拥有收藏筛选器规范化、分页浏览和 Issue 详情用例。
+- `JiraAnalysisService`：拥有 AI/MCP 分析、自然语言搜索、JQL 放宽重试和分析辅助算法。
+- `JiraIssueService`：拥有字段抓取计划、分页记录投影、Issue hydration、本地查询与收藏筛选器传输边界。
+- `JiraClient`：唯一 Jira REST 出口；拥有认证、HTTP、分页、JSON 编解码和传输错误。
+- `jira_tool/fields/`：字段规格、元数据注册、嵌套值提取和 `jira_fields`/`expand` 计划的唯一所有者。
+- `jira_tool/cache/`：元数据缓存、Issue store、搜索缓存和同步状态的唯一持久化所有者。
 
-This assumption is based on current runtime behavior and Atlassian's Server/Data Center REST documentation, not just local guesses.
+QML 不直接调用 `jira_tool`，Service 不依赖 Qt，Bridge 不组装 auth、transport、字段注册表或缓存。
 
-## Official References
+## 当前运行假设
 
-Primary references used for this folder:
+- 当前实例按 Jira Server / Data Center 处理，REST 路径为 `.../rest/api/2/...`。
+- 应用复用 LDAP 凭据访问 Jira。
+- 浏览路径只取轻量字段并分页返回；分析路径仅在用户明确要求时扩大字段或结果范围。
+- 字段元数据通过 `/field` 获取并带 TTL 缓存；自定义字段不得依赖硬编码显示名。
 
-- Atlassian Jira Server / Data Center REST overview:
-  - https://developer.atlassian.com/server/jira/platform/about-the-jira-server-rest-apis/
-- Atlassian Jira Server / Data Center basic auth:
-  - https://developer.atlassian.com/server/jira/platform/basic-authentication/
-- Atlassian official REST reference for Jira `api/2/search` and `api/2/field`:
-  - https://docs.atlassian.com/software/jira/docs/api/REST/7.1.9/
-  - https://docs.atlassian.com/software/jira/docs/api/REST/8.2.6/
-- `python-jira` API reference:
-  - https://jira.readthedocs.io/en/latest/api.html
-- `python-jira` client implementation and examples:
-  - https://jira.readthedocs.io/_modules/jira/client.html
-  - https://jira.readthedocs.io/examples.html
+## REST 与字段规则
 
-## What The Official Docs Mean For Our Design
+1. 搜索必须显式传入 `fields`、`startAt`、`maxResults`，仅在需要时传入 `expand`。
+2. `GET /search` 与 `POST /search` 参数需分别规范化；当前 Jira 的 POST JSON 要求布尔型 `validateQuery`。
+3. `/field` 返回 field id、显示名、clause names 与 schema；注册表据此推断 `.value`、`.name`、`.displayName` 或数组路径，并处理别名冲突。
+4. `python-jira` 仅作为接口参考；性能敏感路径继续使用直接 REST JSON、字段投影、本地缓存和延迟 hydration。
+5. changelog、comments、worklog 等重字段默认延迟，只有明确用例才请求。
 
-### 1. Search must be field-projected
+## 性能与排障
 
-Jira search supports `fields`, `startAt`, `maxResults`, `expand`, and JQL.
-That means our default path must be:
+- 页面打开或筛选变化时，不全量抓取、不默认执行 AI；先返回第一页，再按需 load more。
+- 本地 Issue store 用于复用原始 JSON、本地常用维度查询和增量同步，不意味着页面打开时全量同步。
+- 排障时分别确认 Bridge/runtime、认证/transport、JQL/search 与字段映射，不把 QML 或 Python 导入错误误判为 Jira API 错误。
+- 所有 Jira 请求必须经过 `JiraClient`；禁止静默回退到第二条 HTTP 路径。
 
-- request only the fields we actually need
-- page results with `startAt` and `maxResults`
-- avoid `expand` unless the caller explicitly needs it
+## 后续扩展边界
 
-This is the basis for:
+Create Jira 必须通过独立的 `CreateIssueService` 扩展。Bug Clone 只能把外部数据映射为 `CreateIssueRequest`，再交给 `CreateIssueService`，不能直接调用 Jira REST。根目录 `jira_handler.py` 是历史格式审计实现，不属于本封装，也不得迁入或由这里吸收。
 
-- `jira/fields/`
-- `jira/transport/client.py`
-- `jira/services/issue_service.py`
+新增字段时，先检查 `/field` 元数据，再改进元数据到路径的推断；只有真正通用或特殊的字段才增加手写默认规格。新增 UI 浏览能力时，优先减少字段、分页查询、复用缓存原始数据和按选择 hydration。新增分析能力时，输入必须是定义明确的结果集和字段规格，AI 层不得决定底层传输行为。
 
-### 2. `GET /search` and `POST /search` are not interchangeable in practice
+## 官方参考
 
-Official Jira REST docs show that `POST /rest/api/2/search` accepts a JSON body with a schema where `validateQuery` is a boolean.
-We already hit this in the live environment:
-
-- sending `"strict"` in POST caused HTTP 400
-- sending a boolean fixes it
-
-So our transport layer must normalize search arguments differently for:
-
-- GET query params
-- POST JSON bodies
-
-Do not assume a Cloud example or browser test automatically matches Server/DC POST behavior.
-
-### 3. `/field` is required for strong custom-field handling
-
-Official `GET /rest/api/2/field` returns:
-
-- field id
-- display name
-- custom flag
-- clause names
-- schema data
-
-That is exactly why this project keeps a metadata-driven registry:
-
-- custom fields cannot be hardcoded safely
-- display names may collide
-- clause names may be ambiguous
-- schema is required to infer whether a value should come from:
-  - `.value`
-  - `.name`
-  - `.displayName`
-  - `[]`
-
-This is the basis for:
-
-- `jira/fields/registry.py`
-- `jira/cache/metadata_cache.py`
-
-### 4. `python-jira` is useful reference material, not our primary hot path
-
-The `python-jira` docs and source are useful because they document:
-
-- `search_issues(...)`
-- `fields`
-- `expand`
-- `json_result`
-- `use_post`
-
-But for SmartTest's performance requirements, its object layer is not ideal as the primary large-scale path. Our current design intentionally favors:
-
-- direct REST JSON
-- explicit field projection
-- local caching/indexing
-- delayed hydration of heavier issue details
-
-That tradeoff is intentional.
-
-## Folder Strategy
-
-### `jira/transport/`
-
-Owns raw HTTP calls and REST-level normalization.
-
-Responsibilities:
-
-- authenticate requests
-- choose GET vs POST for search
-- normalize search parameters
-- page through results
-- fetch field metadata
-- fetch single issue details
-
-It should not own UI rules or AI rules.
-
-### `jira/fields/`
-
-Owns field specification and extraction.
-
-Responsibilities:
-
-- field alias normalization
-- field registry
-- metadata-driven field registration
-- path extraction from nested Jira JSON
-- fetch planning: `jira_fields` plus `expand`
-
-It should not own HTTP code.
-
-### `jira/cache/`
-
-Owns local persistence.
-
-Responsibilities:
-
-- metadata cache
-- issue store
-- search cache
-- sync state
-
-It should not own JQL construction policy beyond cache keys and sync state.
-
-### `jira/services/`
-
-Owns business-facing Jira operations.
-
-Responsibilities:
-
-- search records with field specs
-- local reprojection of stored issues
-- delayed issue hydration
-- incremental sync
-- service assembly for UI-facing Jira workflows
-
-It should not own QML state or translation logic.
-
-UI bridges should obtain ready-to-use Jira services from `jira/services/`,
-not assemble `auth`, `transport`, metadata cache, and registry pieces
-directly inside the bridge.
-
-## Performance Rules For This Repo
-
-These rules should guide future Jira changes.
-
-### Browse first, analyze later
-
-If the user is only opening the Jira page or changing filters:
-
-- do not fetch all issues
-- do not fetch heavy fields by default
-- do not run AI analysis by default
-- return the first page quickly
-- allow append / load more
-
-### Heavy fields are opt-in
-
-Fields like the following are heavier and should stay deferred unless explicitly requested:
-
-- changelog
-- large comments payloads
-- worklog
-- deeply nested custom structures
-
-### Local store is for response speed
-
-The local issue store exists so we can:
-
-- reuse fetched raw issue JSON
-- query common dimensions locally
-- support incremental sync
-- avoid hitting Jira for every small UI interaction
-
-It is not a license to eagerly sync everything at page-open time.
-
-### Metadata is cacheable
-
-Field metadata changes far less frequently than issue data.
-So `/field` should be cached locally with TTL.
-
-## Known Pitfalls Already Seen
-
-### POST search validation mismatch
-
-We already confirmed one live pitfall:
-
-- `POST /search` rejected string `validateQuery`
-- the live Jira expected boolean JSON
-
-This is now a transport concern, not a UI concern.
-
-### Alias collisions in field metadata
-
-Different Jira fields can collide on:
-
-- display names
-- normalized aliases
-- clause names
-
-So metadata registration must:
-
-- merge equivalent specs
-- skip ambiguous aliases
-- keep stable field ids usable
-
-### QML/bridge failures can look like Jira API failures
-
-We already hit a local bridge regression where a missing Python import (`Path`) broke cache path creation before the real Jira request path even ran.
-
-That means Jira debugging must always separate:
-
-- bridge/runtime errors
-- transport/auth errors
-- JQL/search errors
-- field-mapping errors
-
-## Practical Guidance For Future Work
-
-### When adding a new field
-
-Prefer this order:
-
-1. check whether `/field` metadata already covers it
-2. add or refine metadata-to-path inference if needed
-3. only add a handwritten default spec when the field is truly common or special
-
-### When adding a new UI browse feature
-
-Prefer:
-
-1. lighter `fields`
-2. paged search
-3. local reprojection from cached raw issues
-4. optional detail hydration on selection
-
-Do not default to full search plus AI.
-
-### When adding a new AI analysis feature
-
-The AI layer should consume:
-
-- a defined issue sample or result set
-- explicit field specs
-- optionally hydrated issue details
-
-It should not be the component deciding low-level Jira transport behavior.
-
-## Why This README Exists
-
-This folder has already reached the point where "just try another request shape" is no longer a good development strategy.
-
-The integration should be driven by:
-
-- official Jira REST behavior
-- explicit field semantics
-- performance-aware data access
-- local caching and delayed hydration
-
-If future work conflicts with these principles, stop and reassess before adding more code.
+- Jira Server / Data Center REST 概览：https://developer.atlassian.com/server/jira/platform/about-the-jira-server-rest-apis/
+- Jira Server / Data Center Basic Auth：https://developer.atlassian.com/server/jira/platform/basic-authentication/
+- Jira REST 7.1.9：https://docs.atlassian.com/software/jira/docs/api/REST/7.1.9/
+- Jira REST 8.2.6：https://docs.atlassian.com/software/jira/docs/api/REST/8.2.6/
+- `python-jira` API：https://jira.readthedocs.io/en/latest/api.html
+- `python-jira` client 源码：https://jira.readthedocs.io/_modules/jira/client.html
+- `python-jira` 示例：https://jira.readthedocs.io/examples.html

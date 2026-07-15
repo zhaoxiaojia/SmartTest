@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING, Any, Iterable
 
 from jira_tool.cache.issue_store import JiraIssueStore
 from jira_tool.cache.search_cache import JiraSearchCache
-from jira_tool.core.models import IssueRecord, IssueStoreQuery
+from jira_tool.core.models import IssueRecord, IssueStoreQuery, SearchPage
 from jira_tool.fields.extractors import project_fields
-from jira_tool.fields.registry import FieldRegistry, build_default_registry
+from jira_tool.fields.registry import FieldFetchPlan, FieldRegistry, build_default_registry
 from jira_tool.fields.specs import FieldSpec
 
 if TYPE_CHECKING:
@@ -87,6 +87,37 @@ class JiraIssueService:
                 records=records,
             )
         return records
+
+    def build_fetch_plan(
+        self,
+        specs: Iterable[str | FieldSpec],
+        *,
+        include_heavy: bool = False,
+    ) -> FieldFetchPlan:
+        return self._registry.build_plan(specs, include_heavy=include_heavy)
+
+    def search_page_records(
+        self,
+        jql: str,
+        *,
+        specs: Iterable[str | FieldSpec],
+        start_at: int,
+        max_results: int,
+        include_heavy: bool = False,
+    ) -> tuple[SearchPage, list[IssueRecord]]:
+        plan = self.build_fetch_plan(specs, include_heavy=include_heavy)
+        page = self._client.search_page(
+            jql,
+            start_at=start_at,
+            max_results=max_results,
+            fields=list(plan.jira_fields),
+            expand=list(plan.expand) or None,
+        )
+        records = [self._to_record(issue, list(plan.active_specs)) for issue in page.issues]
+        return page, records
+
+    def fetch_favourite_filters(self) -> list[dict[str, Any]]:
+        return self._client.fetch_favourite_filters()
 
     def project_issue(self, issue: dict[str, Any], specs: list[FieldSpec]) -> IssueRecord:
         return self._to_record(issue, specs)
