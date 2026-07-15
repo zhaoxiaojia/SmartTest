@@ -1,7 +1,10 @@
+from dataclasses import fields
+
 from jira_tool.core.models import IssueRecord, SearchPage
 from jira_tool.fields.registry import build_default_registry
 from jira_tool.services.browse_service import JiraBrowseService
 from jira_tool.services.requests import JiraBrowseRequest
+from jira_tool.services.workspace import JiraWorkspaceService
 
 
 class FakeIssueService:
@@ -77,3 +80,48 @@ def test_saved_filters_are_normalized_without_private_client_access():
     assert service.fetch_saved_filters() == [
         {"id": "7", "name": "My Bugs", "jql": "assignee = currentUser()"}
     ]
+
+
+class RecordingBrowseService:
+    pass
+
+
+class RecordingAnalysisService:
+    def __init__(self, result):
+        self.result = result
+        self.requests = []
+
+    def analyze(self, request):
+        self.requests.append(request)
+        return self.result
+
+
+def analysis_arguments(worker_id=9):
+    browse_request = make_browse_request()
+    values = {field.name: getattr(browse_request, field.name) for field in fields(browse_request)}
+    values.pop("selected_issue_index")
+    values.pop("start_at")
+    values.pop("append")
+    values.update(
+        worker_id=worker_id,
+        project_ids_csv="TV",
+        include_user_message=True,
+        prompt="summarize blockers",
+        raw_state=lambda key: {"key": key},
+        assistant_timestamp="2026-07-15 10:00:00",
+    )
+    return values
+
+
+def test_workspace_facade_delegates_analysis_without_rebuilding_business_logic():
+    analysis = RecordingAnalysisService(result={"mode": "analyze", "worker_id": 9})
+    workspace = JiraWorkspaceService(
+        browse_service=RecordingBrowseService(),
+        analysis_service=analysis,
+    )
+
+    result = workspace.analyze(**analysis_arguments(worker_id=9))
+
+    assert result == {"mode": "analyze", "worker_id": 9}
+    assert analysis.requests[0].prompt == "summarize blockers"
+    assert analysis.requests[0].project_ids_csv == "TV"
