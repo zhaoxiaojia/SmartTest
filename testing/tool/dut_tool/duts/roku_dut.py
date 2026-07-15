@@ -1,4 +1,4 @@
-"""
+﻿"""
 Roku control utilities.
 
 This module provides helper functions and a subclass of the ``roku.Roku`` class

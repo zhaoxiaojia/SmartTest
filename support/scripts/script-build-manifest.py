@@ -9,7 +9,7 @@ import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[2]
-VERSION_PATH = ROOT / "tools" / "packaging" / "version.json"
+VERSION_PATH = ROOT / "support" / "packaging" / "version.json"
 INSTALLER_VERSION_INCLUDE = ROOT / "build" / "generated" / "installer_version.iss"
 _VERSION_RE = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$")
 

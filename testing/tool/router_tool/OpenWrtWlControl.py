@@ -1,4 +1,4 @@
-"""openwrt uci wl controlThis module is part of the arrisRouter package."""
+﻿"""openwrt uci wl controlThis module is part of the arrisRouter package."""
 from __future__ import annotations
 import re, time
 from typing import Optional, Union, Dict, Any, List

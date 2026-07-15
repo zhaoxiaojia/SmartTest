@@ -1,4 +1,4 @@
-"""
+﻿"""
 This module implements telnet tool functionality for the dut_tool package.
 
 It defines functions and classes used by the test harness to interface with devices and utilities.

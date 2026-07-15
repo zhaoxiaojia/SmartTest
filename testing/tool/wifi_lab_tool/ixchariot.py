@@ -1,4 +1,4 @@
-"""Utilities for interacting with Ixia chassis via Tcl scripts.
+﻿"""Utilities for interacting with Ixia chassis via Tcl scripts.
 
 This module defines a simple wrapper around the execution of a Tcl script used
 to measure receiver sensitivity or throughput between pairs of endpoints.  It

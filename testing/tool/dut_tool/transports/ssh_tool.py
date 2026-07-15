@@ -1,4 +1,4 @@
-"""This module implements SSH tool functionality for the dut_tool package."""
+﻿"""This module implements SSH tool functionality for the dut_tool package."""
 
 from __future__ import annotations
 

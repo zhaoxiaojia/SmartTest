@@ -22,7 +22,7 @@ if __name__ == "__main__":
     build_env = env.environment()
     build_env["SMARTTEST_REPO_ROOT"] = str(repo_root)
     subprocess.run(
-        [env.pyinstaller(), "--clean", "-y", str(repo_root / "tools" / "packaging" / "pyinstaller" / "main.spec")],
+        [env.pyinstaller(), "--clean", "-y", str(repo_root / "support" / "packaging" / "pyinstaller" / "main.spec")],
         env=build_env,
         check=True,
     )

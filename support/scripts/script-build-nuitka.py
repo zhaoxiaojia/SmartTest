@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     repo_root = os.path.abspath(".")
     path = os.path.join(repo_root, 'main.py')
-    assets_dir = os.path.join(repo_root, "tools", "packaging", "assets")
+    assets_dir = os.path.join(repo_root, "support", "packaging", "assets")
     args = [
         env.nuitka(),
         "--standalone",

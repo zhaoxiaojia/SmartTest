@@ -32,7 +32,7 @@ def _run_packaging_preflight(repo_root: Path) -> None:
     for test_dir in pytest_dirs:
         if test_dir.exists():
             _run([python, "-m", "pytest", str(test_dir.relative_to(repo_root)), "-q"], cwd=str(repo_root))
-    _run([python, "-m", "compileall", "testing", "tools", str(Path("ui") / "example" / "bridge")], cwd=str(repo_root))
+    _run([python, "-m", "compileall", "testing", "support", str(Path("ui") / "example" / "bridge")], cwd=str(repo_root))
 
 
 def _verify_dist_runtime(repo_root: Path) -> None:
@@ -46,8 +46,8 @@ def _verify_dist_runtime(repo_root: Path) -> None:
         repo_root / "dist" / "SmartTest.exe",
         repo_root / "dist" / "python" / "python.exe",
         repo_root / "dist" / "testing",
-        repo_root / "dist" / "tools",
-        repo_root / "dist" / "tools" / "param_conversion.py",
+        repo_root / "dist" / "support",
+        repo_root / "dist" / "support" / "param_conversion.py",
         repo_root / "dist" / "ui",
     ]
     missing = [str(path) for path in required_paths if not path.exists()]
@@ -83,7 +83,7 @@ def _verify_signed_apk_artifact(repo_root: Path) -> None:
             "Signed Android APK is missing:\n"
             f"{apk_path}\n"
             "Build it first with:\n"
-            f"{_python(repo_root)} {repo_root / 'tools' / 'scripts' / 'script-build-apk.py'}"
+            f"{_python(repo_root)} {repo_root / 'support' / 'scripts' / 'script-build-apk.py'}"
         )
     if apk_path.stat().st_size <= 0:
         raise SystemExit(f"Signed Android APK is empty: {apk_path}")
@@ -179,7 +179,7 @@ def _build_windows_installer(repo_root: Path, scripts_dir: str) -> None:
         raise SystemExit(
             "Inno Setup not found (iscc.exe). Install it first, then re-run this script."
         )
-    iss = os.path.join(str(repo_root), "tools", "packaging", "innosetup", "SmartTest.iss")
+    iss = os.path.join(str(repo_root), "support", "packaging", "innosetup", "SmartTest.iss")
     _run([iscc, iss], cwd=os.path.dirname(iss))
 
 

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Asus telnet nvram control
 
 This module is part of the AsusRouter package.

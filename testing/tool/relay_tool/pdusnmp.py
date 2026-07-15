@@ -1,4 +1,4 @@
-"""High-level control interfaces for SNMP-based power distribution units.
+﻿"""High-level control interfaces for SNMP-based power distribution units.
 
 This module provides a simple wrapper around SNMP commands to control power
 relays. It exposes a :class:`power_ctrl` class that reads configuration
