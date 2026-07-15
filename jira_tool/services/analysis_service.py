@@ -585,4 +585,3 @@ def _trace_workspace(stage: str, **values: Any) -> None:
 
 def _trace_timestamp() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-

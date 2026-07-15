@@ -1,5 +1,18 @@
 # Jira Integration Notes
 
+## SmartTest Jira 封装所有权
+
+当前依赖方向固定为：`Jira QML -> JiraBridge -> JiraWorkspaceService -> JiraBrowseService / JiraAnalysisService -> JiraIssueService -> JiraClient -> Jira Server`，不得反向依赖。
+
+- `JiraBridge` 只拥有 Qt 属性、信号、槽、页面状态和异步调用适配，不构建 JQL，也不访问 Jira 字段、缓存或 REST。
+- `JiraWorkspaceService` 是 Bridge 使用的稳定兼容门面，只把显式参数收拢为不可变请求合同并委托业务服务。
+- `JiraBrowseService` 拥有收藏筛选器规范化、分页浏览和 Issue 详情用例。
+- `JiraAnalysisService` 拥有 AI/MCP 分析、自然语言搜索、JQL 放宽重试和分析辅助算法。
+- `JiraIssueService` 拥有字段抓取计划、分页记录投影、Issue hydration，以及收藏筛选器的传输边界。
+- `JiraClient` 是唯一 Jira REST 出口；认证、HTTP、分页和传输错误都归它所有。
+
+未来 Create Jira 应通过独立的 `CreateIssueService` 扩展。Bug Clone 只能把外部数据映射为 `CreateIssueRequest`，再交给 `CreateIssueService`，不能直接调用 Jira REST。根目录 `jira_handler.py` 是历史格式审计实现，不属于本封装，也不由这里导入或迁移。
+
 This folder contains SmartTest's Jira integration layer.
 
 The goal is not to wrap a single Jira SDK blindly. The goal is to provide:
