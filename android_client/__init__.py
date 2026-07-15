@@ -650,6 +650,31 @@ def _install_privileged_test_apk(
     _wait_for_device_ready(adb_executable=adb_executable, adb_serial=adb_serial)
 
 
+def _restore_existing_package_for_user(
+    *,
+    adb_executable: str,
+    adb_serial: str | None,
+    package_name: str = PACKAGE_NAME,
+) -> bool:
+    result = _run_adb(
+        adb_executable=adb_executable,
+        adb_serial=adb_serial,
+        args=["shell", "cmd", "package", "install-existing", "--user", "0", package_name],
+    )
+    smart_log(
+        f"restore existing package stdout: {result.stdout.strip()}",
+        domain="android",
+        source="android_client.install",
+    )
+    smart_log(
+        f"restore existing package stderr: {result.stderr.strip()}",
+        level="warning",
+        domain="android",
+        source="android_client.install",
+    )
+    return result.returncode == 0
+
+
 def _ensure_privileged_install(
     *,
     adb_executable: str,
@@ -694,7 +719,20 @@ def _ensure_privileged_install(
         apk_path=resolved_apk_path,
         adb_serial=adb_serial,
     )
-    if not is_test_apk_installed(adb_serial=adb_serial):
+    installed_after_provisioning = is_test_apk_installed(adb_serial=adb_serial)
+    if not installed_after_provisioning:
+        smart_log(
+            "priv-app package is not installed for User 0 after reboot; restore existing system package",
+            level="warning",
+            domain="android",
+            source="android_client.install",
+        )
+        _restore_existing_package_for_user(
+            adb_executable=adb_executable,
+            adb_serial=adb_serial,
+        )
+        installed_after_provisioning = is_test_apk_installed(adb_serial=adb_serial)
+    if not installed_after_provisioning:
         raise RuntimeError("android_client priv-app install completed but package is still missing on DUT.")
     verified_code_path = _package_code_path(adb_executable=adb_executable, adb_serial=adb_serial)
     if not _is_privileged_code_path(verified_code_path):
