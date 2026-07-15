@@ -72,7 +72,8 @@ def test_tool_navigation_and_page_layout_contract():
     assert 'title: qsTr("Tool")' in items
     assert "isProtectedRoute(item, item_tool)" in items
     assert 'url: "qrc:/example/qml/page/T_Tool.qml"' in items
-    assert "icon: FluentIcons.DeveloperTools" in items
+    assert "icon: FluentIcons.Repair" in items
+    assert "icon: FluentIcons.DeveloperTools" not in items[items.index("id: item_tool"):]
     assert "FluentIcons.Toolbox" not in items
     assert "ListView" not in page
     assert "ToolBridge.groups" in page

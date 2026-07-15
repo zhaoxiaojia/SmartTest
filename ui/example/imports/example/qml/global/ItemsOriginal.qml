@@ -143,7 +143,7 @@ FluObject{
         id: item_tool
         title: qsTr("Tool")
         menuDelegate: paneItemMenu
-        icon: FluentIcons.DeveloperTools
+        icon: FluentIcons.Repair
         url: "qrc:/example/qml/page/T_Tool.qml"
         onTap: { navigateWithAuth(item_tool) }
     }
