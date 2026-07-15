@@ -18,11 +18,19 @@ class BrowserRuntime:
         self._lock = asyncio.Lock()
 
     async def _launch_playwright(self, headless, browser_type):
+        driver = None
         try:
             from playwright.async_api import async_playwright
-            self._playwright = await async_playwright().start()
-            return await getattr(self._playwright, browser_type).launch(headless=headless)
+            driver = await async_playwright().start()
+            browser = await getattr(driver, browser_type).launch(headless=headless)
+            self._playwright = driver
+            return browser
         except Exception as exc:
+            if driver is not None:
+                try:
+                    await driver.stop()
+                except Exception:
+                    pass
             raise BrowserAutomationError("Unable to start browser automation") from exc
 
     async def start(self):
@@ -35,8 +43,13 @@ class BrowserRuntime:
         async with self._lock:
             if self._browser is None:
                 self._browser = await self._launcher(self._headless, self._browser_type)
+            if key in self._sessions and self._sessions[key].closed:
+                self._sessions.pop(key)
             if key not in self._sessions:
-                self._sessions[key] = BrowserSession(await self._browser.new_context())
+                def remove(closed_session):
+                    if self._sessions.get(key) is closed_session:
+                        self._sessions.pop(key, None)
+                self._sessions[key] = BrowserSession(await self._browser.new_context(), on_close=remove)
             return self._sessions[key]
 
     async def close_context(self, system_id: str, account_id: str):
@@ -49,6 +62,15 @@ class BrowserRuntime:
             sessions, self._sessions = list(self._sessions.values()), {}
             browser, self._browser = self._browser, None
             playwright, self._playwright = self._playwright, None
-        for session in sessions: await session.close()
-        if browser: await browser.close()
-        if playwright: await playwright.stop()
+        failures = []
+        for session in sessions:
+            try: await session.close()
+            except Exception: failures.append("context")
+        if browser:
+            try: await browser.close()
+            except Exception: failures.append("browser")
+        if playwright:
+            try: await playwright.stop()
+            except Exception: failures.append("driver")
+        if failures:
+            raise BrowserAutomationError("Browser automation cleanup failed: " + ", ".join(failures))

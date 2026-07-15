@@ -32,8 +32,7 @@ class RedmineAuthService:
             return AuthResult(AuthState.FAILED, "Verification failed unexpectedly.", self._username)
 
     async def _classify(self):
-        url = str(self._page.url or "").lower()
-        if "/login" not in url and not any(word in url for word in ("verify", "verification", "otp")):
+        if any([await self._page.is_visible(selector) for selector in selectors.AUTHENTICATED_EVIDENCE]):
             return AuthResult(AuthState.AUTHENTICATED, username=self._username)
         if any([await self._page.is_visible(selector) for selector in selectors.VERIFICATION_EVIDENCE]):
             return AuthResult(AuthState.VERIFICATION_REQUIRED, "Mobile verification is required.", self._username)

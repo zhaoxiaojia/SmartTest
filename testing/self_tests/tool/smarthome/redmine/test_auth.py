@@ -13,7 +13,9 @@ class FakePage:
         if self.outcome == "success": self.url = "https://support.amlogic.com/projects"
         elif self.outcome == "verify": self.url = "https://support.amlogic.com/verification"
     async def is_visible(self, selector):
-        return (self.outcome == "error" and selector == ".flash.error") or (self.outcome == "verify" and selector == "input[name='verification_code']")
+        return ((self.outcome == "success" and selector == "a.logout")
+                or (self.outcome == "error" and "Invalid user or password" in selector)
+                or (self.outcome in {"verify", "incorrect_otp"} and selector == "input[name='verification_code']"))
 
 
 class FakeSession:
@@ -28,6 +30,14 @@ def test_login_classifies_only_explicit_evidence(outcome, state):
         service = RedmineAuthService(FakeSession(FakePage(outcome)))
         result = await service.login(Credential("alice", "secret"))
         assert result.state is state and "secret" not in result.message
+    asyncio.run(scenario())
+
+
+def test_url_change_or_generic_error_is_not_authentication_or_credential_failure():
+    async def scenario():
+        page = FakePage("unknown"); page.url = "https://support.amlogic.com/projects"
+        result = await RedmineAuthService(FakeSession(page)).login(Credential("alice", "secret"))
+        assert result.state is AuthState.FAILED
     asyncio.run(scenario())
 
 

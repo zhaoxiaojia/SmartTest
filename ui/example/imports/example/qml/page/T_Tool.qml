@@ -15,12 +15,17 @@ FluPage {
         target: RedmineBridge
         function onCredentialsRequired() { redmine_credentials.open() }
         function onVerificationRequired() { redmine_verification.open() }
+        function onChanged() {
+            if (RedmineBridge.state !== "credentials_required") redmine_credentials.clearSecret()
+            if (RedmineBridge.state !== "verification_required") redmine_verification.clearSecret()
+        }
     }
 
     FluContentDialog {
         id: redmine_credentials
         property string username: ""
         property string password: ""
+        function clearSecret() { password = "" }
         title: qsTr("Redmine credentials")
         positiveText: qsTr("Sign in")
         negativeText: qsTr("Cancel")
@@ -28,21 +33,24 @@ FluPage {
             ColumnLayout {
                 spacing: 8
                 FluTextBox { Layout.fillWidth: true; placeholderText: qsTr("Username"); onTextChanged: redmine_credentials.username = text }
-                FluPasswordBox { Layout.fillWidth: true; placeholderText: qsTr("Password"); onTextChanged: redmine_credentials.password = text }
+                FluPasswordBox { Layout.fillWidth: true; text: redmine_credentials.password; placeholderText: qsTr("Password"); onTextChanged: redmine_credentials.password = text }
             }
         }
-        onPositiveClicked: RedmineBridge.submitCredentials(username, password)
+        onPositiveClicked: { RedmineBridge.submitCredentials(username, password); clearSecret() }
+        onNegativeClicked: { clearSecret(); RedmineBridge.cancelLogin() }
     }
 
     FluContentDialog {
         id: redmine_verification
         property string code: ""
+        function clearSecret() { code = "" }
         title: qsTr("Mobile verification")
         message: qsTr("Enter the verification code shown on your phone.")
         positiveText: qsTr("Verify")
         negativeText: qsTr("Cancel")
-        contentDelegate: Component { FluTextBox { placeholderText: qsTr("Verification code"); onTextChanged: redmine_verification.code = text } }
-        onPositiveClicked: RedmineBridge.submitVerification(code)
+        contentDelegate: Component { FluTextBox { text: redmine_verification.code; placeholderText: qsTr("Verification code"); onTextChanged: redmine_verification.code = text } }
+        onPositiveClicked: { RedmineBridge.submitVerification(code); clearSecret() }
+        onNegativeClicked: { clearSecret(); RedmineBridge.cancelLogin() }
     }
 
     function groupById(groupId) {
