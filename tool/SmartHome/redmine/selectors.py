@@ -7,3 +7,8 @@ VERIFICATION_SUBMIT = "button[type='submit']"
 AUTHENTICATED_EVIDENCE = ("a.logout", "a[href*='/logout']")
 CREDENTIAL_ERRORS = (".flash.error:has-text('Invalid user or password')", ".flash.error:has-text('Invalid credentials')")
 VERIFICATION_EVIDENCE = (VERIFICATION_INPUT, "input[name='otp']", "input[name='code']")
+INCORRECT_VERIFICATION_EVIDENCE = (
+    ".flash.error:has-text('verification code')",
+    ".flash.error:has-text('incorrect code')",
+    "#otp-error",
+)

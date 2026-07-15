@@ -15,6 +15,7 @@ class FakePage:
     async def is_visible(self, selector):
         return ((self.outcome == "success" and selector == "a.logout")
                 or (self.outcome == "error" and "Invalid user or password" in selector)
+                or (self.outcome == "incorrect_otp" and "verification code" in selector)
                 or (self.outcome in {"verify", "incorrect_otp"} and selector == "input[name='verification_code']"))
 
 
@@ -48,4 +49,16 @@ def test_verification_submission_never_returns_code():
         page.outcome = "success"
         result = await service.submit_verification("123456")
         assert result.state is AuthState.AUTHENTICATED and "123456" not in result.message
+    asyncio.run(scenario())
+
+
+def test_incorrect_verification_code_stays_in_verification_without_secret_echo():
+    async def scenario():
+        page = FakePage("verify"); service = RedmineAuthService(FakeSession(page))
+        initial = await service.login(Credential("alice", "secret"))
+        page.outcome = "incorrect_otp"
+        rejected = await service.submit_verification("654321")
+        assert initial.state is AuthState.VERIFICATION_REQUIRED
+        assert rejected.state is AuthState.VERIFICATION_REQUIRED
+        assert "rejected" in rejected.message and "654321" not in rejected.message
     asyncio.run(scenario())

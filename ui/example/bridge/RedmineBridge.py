@@ -26,10 +26,14 @@ class _AsyncLoopWorker:
     def submit(self, coroutine) -> Future:
         return asyncio.run_coroutine_threadsafe(coroutine, self.loop)
 
-    def stop(self):
+    def stop(self, timeout=5):
         self.loop.call_soon_threadsafe(self.loop.stop)
-        self._thread.join(timeout=5)
-        self.loop.close()
+        self._thread.join(timeout=timeout)
+        if self._thread.is_alive():
+            return False
+        if not self.loop.is_closed():
+            self.loop.close()
+        return True
 
 
 class RedmineBridge(QObject):
@@ -94,7 +98,7 @@ class RedmineBridge(QObject):
         self._status = {
             AuthState.AUTHENTICATED: self.tr("Redmine sign-in succeeded."),
             AuthState.CREDENTIALS_REQUIRED: self.tr("Redmine needs a different account or password."),
-            AuthState.VERIFICATION_REQUIRED: self.tr("Enter the mobile verification code."),
+            AuthState.VERIFICATION_REQUIRED: result.message or self.tr("Enter the mobile verification code."),
             AuthState.FAILED: self.tr("Redmine sign-in failed."),
         }.get(result.state, result.message)
         self.changed.emit()

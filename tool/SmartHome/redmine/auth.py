@@ -34,6 +34,12 @@ class RedmineAuthService:
     async def _classify(self):
         if any([await self._page.is_visible(selector) for selector in selectors.AUTHENTICATED_EVIDENCE]):
             return AuthResult(AuthState.AUTHENTICATED, username=self._username)
+        if any([await self._page.is_visible(selector) for selector in selectors.INCORRECT_VERIFICATION_EVIDENCE]):
+            return AuthResult(
+                AuthState.VERIFICATION_REQUIRED,
+                "The verification code was rejected. Enter the latest code from your phone.",
+                self._username,
+            )
         if any([await self._page.is_visible(selector) for selector in selectors.VERIFICATION_EVIDENCE]):
             return AuthResult(AuthState.VERIFICATION_REQUIRED, "Mobile verification is required.", self._username)
         if any([await self._page.is_visible(selector) for selector in selectors.CREDENTIAL_ERRORS]):

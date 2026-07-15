@@ -5,7 +5,7 @@ from pathlib import Path
 from PySide6.QtCore import QCoreApplication, QObject, Signal
 
 from tool.SmartHome.redmine.models import AuthResult, AuthState
-from ui.example.bridge.RedmineBridge import RedmineBridge
+from ui.example.bridge.RedmineBridge import RedmineBridge, _AsyncLoopWorker
 from ui.example.bridge.ToolBridge import build_tool_groups
 
 
@@ -82,3 +82,19 @@ def test_qml_clears_transient_password_and_verification_inputs():
     source = Path("ui/example/imports/example/qml/page/T_Tool.qml").read_text(encoding="utf-8")
     assert source.count("clearSecret()") >= 6
     assert "RedmineBridge.password" not in source and "RedmineBridge.code" not in source
+
+
+def test_worker_does_not_close_loop_while_thread_is_still_alive():
+    class ThreadStillRunning:
+        def join(self, timeout): self.timeout = timeout
+        def is_alive(self): return True
+    class RecordingLoop:
+        def __init__(self): self.closed = False
+        def call_soon_threadsafe(self, callback): self.callback = callback
+        def stop(self): pass
+        def is_closed(self): return False
+        def close(self): self.closed = True
+    worker = _AsyncLoopWorker.__new__(_AsyncLoopWorker)
+    worker.loop = RecordingLoop(); worker._thread = ThreadStillRunning()
+    assert worker.stop(timeout=0.01) is False
+    assert worker.loop.closed is False
