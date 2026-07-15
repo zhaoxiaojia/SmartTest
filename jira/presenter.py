@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from jira_tool.core.models import IssueRecord
+from support.jira_integration.core.models import IssueRecord
 
 
 def record_to_issue_row(record: IssueRecord) -> dict[str, Any]:

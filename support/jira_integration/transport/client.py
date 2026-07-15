@@ -13,9 +13,9 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin
 from urllib.request import HTTPSHandler, Request, build_opener
 
-from jira_tool.auth.basic import JiraBasicAuth
-from jira_tool.core.errors import JiraConfigurationError, JiraRequestError
-from jira_tool.core.models import JiraFieldMetadata, SearchPage
+from support.jira_integration.auth.basic import JiraBasicAuth
+from support.jira_integration.core.errors import JiraConfigurationError, JiraRequestError
+from support.jira_integration.core.models import JiraFieldMetadata, SearchPage
 
 
 @dataclass(frozen=True)

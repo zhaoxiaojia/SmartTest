@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from jira_tool.core.models import IssueRecord, IssueStoreQuery, JiraSyncState
+from support.jira_integration.core.models import IssueRecord, IssueStoreQuery, JiraSyncState
 
 
 class JiraIssueStore:

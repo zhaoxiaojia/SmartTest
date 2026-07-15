@@ -1,7 +1,10 @@
-from jira_tool.core.models import SearchPage
-from jira_tool.fields.registry import build_default_registry
-from jira_tool.services.issue_service import JiraIssueService
-from jira_tool.services.specs import browse_specs
+import ast
+from pathlib import Path
+
+from jira.specs import browse_specs
+from support.jira_integration.core.models import SearchPage
+from support.jira_integration.fields.registry import build_default_registry
+from support.jira_integration.services.issue_service import JiraIssueService
 
 
 class FakeClient:
@@ -46,3 +49,21 @@ def test_build_fetch_plan_defers_heavy_fields_by_default():
 
     assert [spec.name for spec in plan.active_specs] == ["summary"]
     assert [spec.name for spec in plan.deferred_specs] == ["changelog_statuses"]
+
+
+def test_global_jira_integration_has_no_page_or_qt_dependency():
+    root = Path("support/jira_integration")
+    forbidden = set()
+    for path in root.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                top_level = node.module.split(".", 1)[0]
+                if top_level in {"jira", "ui", "PySide6"}:
+                    forbidden.add((str(path), node.module))
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name.split(".", 1)[0] in {"jira", "ui", "PySide6"}:
+                        forbidden.add((str(path), alias.name))
+
+    assert forbidden == set()

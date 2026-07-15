@@ -1,6 +1,6 @@
 # SmartTest Jira 集成
 
-`jira_tool` 是 SmartTest 内部 Jira 集成层。目标是在 Jira Server / Data Center 环境中提供可预测的 REST 行为、明确的字段投影、快速分页浏览和按需分析，而不是为单个 Jira SDK 再包一层。
+`support.jira_integration` 是 SmartTest 全局 Jira 集成层。它在 Jira Server / Data Center 环境中提供可预测的 REST 行为、明确的字段投影和可复用 Issue 访问能力。
 
 ## 所有权与依赖方向
 
@@ -22,10 +22,10 @@ Jira QML
 - `JiraAnalysisService`：拥有 AI/MCP 分析、自然语言搜索、JQL 放宽重试和分析辅助算法。
 - `JiraIssueService`：拥有字段抓取计划、分页记录投影、Issue hydration、本地查询与收藏筛选器传输边界。
 - `JiraClient`：唯一 Jira REST 出口；拥有认证、HTTP、分页、JSON 编解码和传输错误。
-- `jira_tool/fields/`：字段规格、元数据注册、嵌套值提取和 `jira_fields`/`expand` 计划的唯一所有者。
-- `jira_tool/cache/`：元数据缓存、Issue store、搜索缓存和同步状态的唯一持久化所有者。
+- `support/jira_integration/fields/`：字段规格、元数据注册、嵌套值提取和 `jira_fields`/`expand` 计划的唯一所有者。
+- `support/jira_integration/cache/`：元数据缓存、Issue store、搜索缓存和同步状态的唯一持久化所有者。
 
-QML 不直接调用 `jira_tool`，Service 不依赖 Qt，Bridge 不组装 auth、transport、字段注册表或缓存。
+QML 不直接调用全局集成层；该层不依赖 Qt 或根目录 `jira` 页面包。Bridge 不组装 auth、transport、字段注册表或缓存。
 
 ## 当前运行假设
 

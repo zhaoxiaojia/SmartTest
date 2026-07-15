@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from jira_tool.services.issue_service import JiraIssueService
-from jira_tool.services.payloads import build_browse_result, build_detail_result, build_scope_context
-from jira_tool.services.presenter import record_to_issue_row
-from jira_tool.services.query_builder import build_base_jql
-from jira_tool.services.requests import JiraBrowseRequest
-from jira_tool.services.specs import browse_specs, detail_specs
+from support.jira_integration.services.issue_service import JiraIssueService
+from jira.payloads import build_browse_result, build_detail_result, build_scope_context
+from jira.presenter import record_to_issue_row
+from jira.query_builder import build_base_jql
+from jira.requests import JiraBrowseRequest
+from jira.specs import browse_specs, detail_specs
 
 
 class JiraBrowseService:

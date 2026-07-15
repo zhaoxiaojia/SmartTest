@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 
-from jira_tool.fields.specs import FieldSpec
+from support.jira_integration.fields.specs import FieldSpec
 
 
 def browse_specs() -> list[str | FieldSpec]:

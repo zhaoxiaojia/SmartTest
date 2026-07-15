@@ -3,14 +3,14 @@
 from pathlib import Path
 
 from AI.mcp.context import McpContextService, create_default_mcp_context_service
-from jira_tool.auth.basic import JiraBasicAuth
-from jira_tool.cache.metadata_cache import JiraFieldMetadataCache
-from jira_tool.fields.registry import FieldRegistry
-from jira_tool.services.analysis_service import JiraAnalysisService
-from jira_tool.services.browse_service import JiraBrowseService
-from jira_tool.services.issue_service import JiraIssueService
-from jira_tool.services.workspace import JiraWorkspaceService
-from jira_tool.transport.client import JiraClient, JiraClientConfig
+from support.jira_integration.auth.basic import JiraBasicAuth
+from support.jira_integration.cache.metadata_cache import JiraFieldMetadataCache
+from support.jira_integration.fields.registry import FieldRegistry
+from jira.analysis_service import JiraAnalysisService
+from jira.browse_service import JiraBrowseService
+from support.jira_integration.services.issue_service import JiraIssueService
+from jira.workspace import JiraWorkspaceService
+from support.jira_integration.transport.client import JiraClient, JiraClientConfig
 
 def create_jira_workspace_service(
     *,

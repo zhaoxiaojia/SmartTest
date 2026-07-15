@@ -4,9 +4,9 @@ from dataclasses import dataclass
 import re
 from typing import Iterable
 
-from jira_tool.cache.metadata_cache import JiraFieldMetadataCache
-from jira_tool.core.models import JiraFieldMetadata
-from jira_tool.fields.specs import FieldSpec
+from support.jira_integration.cache.metadata_cache import JiraFieldMetadataCache
+from support.jira_integration.core.models import JiraFieldMetadata
+from support.jira_integration.fields.specs import FieldSpec
 from support.logging import smart_log
 
 

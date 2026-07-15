@@ -5,12 +5,12 @@ from datetime import datetime
 from typing import Any
 
 from AI.mcp.context import McpContextService
-from jira_tool.services.issue_service import JiraIssueService
-from jira_tool.services.payloads import build_analysis_result, build_scope_context
-from jira_tool.services.presenter import extract_actions, record_to_issue_row
-from jira_tool.services.query_builder import build_base_jql
-from jira_tool.services.requests import JiraAnalysisRequest
-from jira_tool.services.specs import detail_specs
+from support.jira_integration.services.issue_service import JiraIssueService
+from jira.payloads import build_analysis_result, build_scope_context
+from jira.presenter import extract_actions, record_to_issue_row
+from jira.query_builder import build_base_jql
+from jira.requests import JiraAnalysisRequest
+from jira.specs import detail_specs
 
 
 class JiraAnalysisService:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from jira_tool.services.requests import JiraAnalysisRequest, JiraBrowseRequest
+from jira.requests import JiraAnalysisRequest, JiraBrowseRequest
 
 
 class JiraWorkspaceService:

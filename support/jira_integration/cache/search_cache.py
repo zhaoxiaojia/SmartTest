@@ -6,7 +6,7 @@ import sqlite3
 import time
 from pathlib import Path
 
-from jira_tool.core.models import IssueRecord
+from support.jira_integration.core.models import IssueRecord
 
 
 class JiraSearchCache:

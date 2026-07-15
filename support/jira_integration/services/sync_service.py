@@ -3,10 +3,10 @@
 from datetime import datetime, timedelta, timezone
 from typing import Iterable
 
-from jira_tool.cache.issue_store import JiraIssueStore
-from jira_tool.core.models import JiraSyncResult
-from jira_tool.fields.specs import FieldSpec
-from jira_tool.services.issue_service import JiraIssueService
+from support.jira_integration.cache.issue_store import JiraIssueStore
+from support.jira_integration.core.models import JiraSyncResult
+from support.jira_integration.fields.specs import FieldSpec
+from support.jira_integration.services.issue_service import JiraIssueService
 
 
 class JiraSyncService:

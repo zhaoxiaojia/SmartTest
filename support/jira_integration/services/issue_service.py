@@ -2,15 +2,15 @@
 
 from typing import TYPE_CHECKING, Any, Iterable
 
-from jira_tool.cache.issue_store import JiraIssueStore
-from jira_tool.cache.search_cache import JiraSearchCache
-from jira_tool.core.models import IssueRecord, IssueStoreQuery, SearchPage
-from jira_tool.fields.extractors import project_fields
-from jira_tool.fields.registry import FieldFetchPlan, FieldRegistry, build_default_registry
-from jira_tool.fields.specs import FieldSpec
+from support.jira_integration.cache.issue_store import JiraIssueStore
+from support.jira_integration.cache.search_cache import JiraSearchCache
+from support.jira_integration.core.models import IssueRecord, IssueStoreQuery, SearchPage
+from support.jira_integration.fields.extractors import project_fields
+from support.jira_integration.fields.registry import FieldFetchPlan, FieldRegistry, build_default_registry
+from support.jira_integration.fields.specs import FieldSpec
 
 if TYPE_CHECKING:
-    from jira_tool.transport.client import JiraClient
+    from support.jira_integration.transport.client import JiraClient
 
 
 class JiraIssueService:

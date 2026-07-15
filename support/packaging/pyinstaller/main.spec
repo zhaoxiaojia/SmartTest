@@ -24,7 +24,7 @@ test_catalog = os.path.join(repo_root, "build", "generated", "testing", "cases",
 testing_root = os.path.join(repo_root, "testing")
 support_root = os.path.join(repo_root, "support")
 ai_root = os.path.join(repo_root, "AI")
-jira_tool_root = os.path.join(repo_root, "jira_tool")
+jira_root = os.path.join(repo_root, "jira")
 build_manifest = os.path.join(repo_root, "build", "generated", "build_manifest.json")
 app_version = "0.0.0"
 try:
@@ -75,8 +75,8 @@ a = Analysis(
             "AI",
         ),
         (
-            jira_tool_root,
-            "jira_tool",
+            jira_root,
+            "jira",
         ),
         (
             test_catalog,

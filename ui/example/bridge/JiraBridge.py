@@ -15,7 +15,7 @@ from PySide6.QtGui import QGuiApplication
 
 from ui import jsonTool
 
-from jira_tool.services import JiraWorkspaceService, create_jira_workspace_service
+from jira import JiraWorkspaceService, create_jira_workspace_service
 from example.bridge.AuthBridge import AuthBridge
 from example.helper.TranslateHelper import TranslateHelper
 from support.logging import smart_log

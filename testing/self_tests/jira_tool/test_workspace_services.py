@@ -1,11 +1,11 @@
 from dataclasses import fields
 
-from jira_tool.core.models import IssueRecord, SearchPage
-from jira_tool.fields.registry import build_default_registry
-from jira_tool.services.browse_service import JiraBrowseService
-from jira_tool.services.analysis_service import JiraAnalysisService
-from jira_tool.services.requests import JiraAnalysisRequest, JiraBrowseRequest
-from jira_tool.services.workspace import JiraWorkspaceService
+from jira.analysis_service import JiraAnalysisService
+from jira.browse_service import JiraBrowseService
+from jira.requests import JiraAnalysisRequest, JiraBrowseRequest
+from jira.workspace import JiraWorkspaceService
+from support.jira_integration.core.models import IssueRecord, SearchPage
+from support.jira_integration.fields.registry import build_default_registry
 
 
 class FakeIssueService:

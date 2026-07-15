@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
-from jira_tool.fields.specs import FieldSpec
+from support.jira_integration.fields.specs import FieldSpec
 
 
 @dataclass(frozen=True)
