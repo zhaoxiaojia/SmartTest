@@ -31,7 +31,9 @@ FluFrame {
         FluText {
             Layout.fillWidth: true
             text: root.statusText
-            color: root.state === "failed" ? FluTheme.errorColor : FluTheme.fontSecondaryColor
+            color: root.state === "failed"
+                ? (FluTheme.dark ? "#ff99a4" : "#c42b1c")
+                : FluTheme.fontSecondaryColor
             wrapMode: Text.WordWrap
         }
 

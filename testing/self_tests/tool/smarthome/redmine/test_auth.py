@@ -8,16 +8,26 @@ from tool.SmartHome.redmine.models import AuthState, Credential
 
 class FakePage:
     def __init__(self, outcome): self.outcome = outcome; self.url = "https://support.amlogic.com/login"; self.values = {}
-    async def goto(self, _url): pass
+    async def goto(self, _url, **_kwargs): pass
     async def fill(self, selector, value): self.values[selector] = value
     async def click(self, _selector):
         if self.outcome == "success": self.url = "https://support.amlogic.com/projects"
         elif self.outcome == "verify": self.url = "https://support.amlogic.com/verification"
     async def is_visible(self, selector):
-        return ((self.outcome == "success" and selector == "a.logout")
-                or (self.outcome == "error" and "Invalid user or password" in selector)
-                or (self.outcome == "incorrect_otp" and "verification code" in selector)
-                or (self.outcome in {"verify", "incorrect_otp"} and selector == "input[name='verification_code']"))
+        return (
+            selector in {
+                "input[name='username']",
+                "input[name='password']",
+                "input[name='login']",
+            }
+            or (self.outcome == "success" and selector == "a.logout")
+            or (self.outcome == "error" and "Invalid user or password" in selector)
+            or (self.outcome == "incorrect_otp" and "verification code" in selector)
+            or (
+                self.outcome in {"verify", "incorrect_otp"}
+                and selector == "input[name='verification_code']"
+            )
+        )
 
 
 class FakeSession:

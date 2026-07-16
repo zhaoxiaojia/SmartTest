@@ -5783,7 +5783,7 @@ Some contents...</source>
 <message><source>Redmine sign-in cancelled.</source><translation>已取消 Redmine 登录。</translation></message></context>
 <context><name>T_Tool</name>
 <message><source>Redmine credentials</source><translation>Redmine 登录凭据</translation></message><message><source>Sign in</source><translation>登录</translation></message><message><source>Username</source><translation>用户名</translation></message><message><source>Password</source><translation>密码</translation></message><message><source>Mobile verification</source><translation>手机验证</translation></message><message><source>Enter the verification code shown on your phone.</source><translation>请输入手机上显示的验证码。</translation></message><message><source>Verify</source><translation>验证</translation></message><message><source>Verification code</source><translation>验证码</translation></message></context>
-<context><name>ToolBridge</name><message><source>Redmine Bug Clone</source><translation>Redmine 缺陷克隆</translation></message><message><source>Browse and sign in to SmartHome Redmine.</source><translation>浏览并登录 SmartHome Redmine。</translation></message></context>
+<context><name>ToolBridge</name><message><source>Redmine</source><translation>Redmine</translation></message><message><source>Browse and sign in to SmartHome Redmine.</source><translation>浏览并登录 SmartHome Redmine。</translation></message></context>
 <context>
     <name>IssueDetailView</name>
     <message><source>Add a comment</source><translation>添加评论</translation></message>

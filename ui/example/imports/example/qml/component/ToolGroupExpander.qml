@@ -43,6 +43,13 @@ Item {
                 FluButton {
                     Layout.fillWidth: true
                     text: modelData.title
+                    contentItem: FluText {
+                        text: parent.text
+                        horizontalAlignment: Text.AlignLeft
+                        verticalAlignment: Text.AlignVCenter
+                        font: parent.font
+                        color: parent.textColor
+                    }
                     onClicked: root.toolActivated(root.toolGroup.id, index)
                 }
             }

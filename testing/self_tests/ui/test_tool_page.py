@@ -37,7 +37,7 @@ def test_tool_bridge_survives_runtime_context_registration_and_exposes_redmine()
     smart_home = next(group for group in bridge.groups if group["id"] == "SmartHome")
     assert smart_home["available"] is True
     assert smart_home["tools"][0]["id"] == "redmine"
-    assert smart_home["tools"][0]["title"] == "Redmine Bug Clone"
+    assert smart_home["tools"][0]["title"] == "Redmine"
 
 
 def test_production_context_ownership_survives_gc_and_tool_dialogs_are_warning_free():
@@ -84,7 +84,7 @@ def find_by(prop, value):
         pending.extend(item.children())
         if hasattr(item, "childItems"): pending.extend(item.childItems())
 smart_home=find_by("headerText", "SmartHome"); p=smart_home.mapToScene(QPointF(smart_home.width()/2,22)); QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(p.x()),round(p.y()))); QTest.qWait(250); app.processEvents()
-entry=find_by("text", "Redmine Bug Clone"); p=entry.mapToScene(QPointF(entry.width()/2,entry.height()/2)); QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(p.x()),round(p.y()))); app.processEvents()
+entry=find_by("text", "Redmine"); p=entry.mapToScene(QPointF(entry.width()/2,entry.height()/2)); QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(p.x()),round(p.y()))); app.processEvents()
 button=root.findChild(QObject,"redmineLoginButton"); p=button.mapToScene(QPointF(button.width()/2,button.height()/2)); QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(p.x()),round(p.y()))); app.processEvents()
 redmine.credentialsRequired.emit(); app.processEvents(); redmine.verificationRequired.emit(); app.processEvents()
 selected=root.property("selectedTool"); selected=selected.toVariant() if hasattr(selected,"toVariant") else selected
@@ -166,7 +166,7 @@ def find_by(prop, value):
 smart_home=find_by("headerText", "SmartHome")
 header_point=smart_home.mapToScene(QPointF(smart_home.width()/2, 22))
 QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, QPoint(round(header_point.x()), round(header_point.y()))); QTest.qWait(250); app.processEvents()
-entry=find_by("text", "Redmine Bug Clone")
+entry=find_by("text", "Redmine")
 entry_visible=entry is not None and entry.property("visible") and entry.property("height") > 0
 if entry_visible:
     entry_point=entry.mapToScene(QPointF(entry.width()/2, entry.height()/2))
@@ -324,6 +324,7 @@ def test_tool_navigation_and_page_layout_contract():
     component = (ROOT / "ui/example/imports/example/qml/component/ToolGroupExpander.qml").read_text(encoding="utf-8")
     assert "model: root.toolGroup.available ? root.toolGroup.tools : []" in component
     assert "root.expand && root.toolGroup.available" in component
+    assert "horizontalAlignment: Text.AlignLeft" in component
     assert "AuthBridge.productLines" not in page
     assert "AuthBridge.displayName" not in page
     assert "selectedToolIndex = model.index" not in page
@@ -339,6 +340,7 @@ def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():
     assert "RedmineLoginView" in page
     assert "RedmineWorkspace" in page
     assert "RedmineBridge.state === \"authenticated\"" in page
+    assert page.count("visible: active") >= 2
     assert "maybeStartRedmineLogin" in page
     assert "RedmineBridge.startLogin()" in page
     assert 'visible: root.state === "failed"' in login
@@ -369,6 +371,30 @@ app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]
 engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1280; height: 820; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/component/redmine/RedmineWorkspace.qml" }} }}')
+app.processEvents()
+print(len(engine.rootObjects()), len(warnings), warnings)
+'''
+    result = subprocess.run(
+        [sys.executable, "-c", probe], cwd=ROOT,
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
+        capture_output=True, text=True, timeout=15,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "1 0 []" in result.stdout
+
+
+def test_redmine_failed_login_view_qrc_loads_without_qml_warnings():
+    probe = f'''
+import sys
+sys.path.insert(0, r"{ROOT / 'ui'}")
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from FluentUI import FluentUI
+from example.imports import resource_rc
+app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]
+engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
+FluentUI.registerTypes(engine)
+engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; import "qrc:/example/qml/component/redmine"; Window {{ visible: true; width: 800; height: 600; RedmineLoginView {{ anchors.fill: parent; state: "failed"; statusText: "failed" }} }}')
 app.processEvents()
 print(len(engine.rootObjects()), len(warnings), warnings)
 '''

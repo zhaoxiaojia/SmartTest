@@ -20,8 +20,9 @@ class FakePage:
         self.fills = []
         self.clicks = []
         self.load_waits = 0
+        self.goto_options = {}
 
-    async def goto(self, url): self.url = url
+    async def goto(self, url, **kwargs): self.url = url; self.goto_options = kwargs
     async def fill(self, selector, value): self.fills.append((selector, value))
     async def click(self, selector):
         self.clicks.append(selector)
@@ -46,7 +47,53 @@ def test_login_maps_real_twofa_contract_to_verification_required():
 
     assert result.state is AuthState.VERIFICATION_REQUIRED
     assert result.reason == "verification_required"
-    assert page.load_waits == 1
+    assert page.load_waits == 0
+    assert page.goto_options == {"wait_until": "commit", "timeout": 10000}
+
+
+def test_cached_authenticated_redirect_skips_missing_login_form_without_timeout():
+    page = FakePage(
+        document_url="https://support.amlogic.com/projects/smarthome/issues",
+        visible=(selectors.AUTHENTICATED_PROJECT_LINK,),
+    )
+
+    result = run(RedmineAuthService(FakeSession(page)).login(Credential("alice", "secret")))
+
+    assert result.state is AuthState.AUTHENTICATED
+    assert page.fills == []
+    assert page.clicks == []
+    assert page.load_waits == 0
+
+
+def test_explicit_login_form_is_required_before_credentials_are_filled():
+    page = FakePage(document_url=selectors.LOGIN_URL)
+
+    result = run(RedmineAuthService(FakeSession(page)).login(Credential("alice", "secret")))
+
+    assert result.state is AuthState.FAILED
+    assert result.reason == "unsupported_auth_state"
+    assert page.fills == []
+    assert page.clicks == []
+
+
+def test_auth_timing_logs_contain_phases_and_account_but_not_secrets(monkeypatch):
+    messages = []
+    monkeypatch.setattr(
+        "tool.SmartHome.redmine.auth.smart_log",
+        lambda message, *args, **kwargs: messages.append(message % args if args else message),
+    )
+    page = FakePage(
+        document_url="https://support.amlogic.com/projects/smarthome/issues",
+        visible=(selectors.AUTHENTICATED_PROJECT_LINK,),
+    )
+
+    result = run(RedmineAuthService(FakeSession(page)).login(Credential("alice", "secret")))
+
+    assert result.state is AuthState.AUTHENTICATED
+    assert any("phase=goto" in message and "account=alice" in message for message in messages)
+    assert any("phase=classify" in message and "state=authenticated" in message for message in messages)
+    assert any("phase=result" in message and "elapsed_ms=" in message for message in messages)
+    assert not any("secret" in message for message in messages)
 
 
 def test_twofa_evidence_survives_empty_document_url_adapter_result():

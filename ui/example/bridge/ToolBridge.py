@@ -129,7 +129,11 @@ class ToolBridge(QObject):
             }
             row["title"] = titles[group["id"]]
             row["tools"] = [
-                {**tool, "title": self.tr("Redmine Bug Clone"), "description": self.tr("Browse and sign in to SmartHome Redmine.")}
+                {
+                    **tool,
+                    "title": self.tr("Redmine"),
+                    "description": self.tr("Browse and sign in to SmartHome Redmine."),
+                }
                 for tool in row["tools"]
             ]
             localized.append(row)

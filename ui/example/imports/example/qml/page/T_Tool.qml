@@ -123,6 +123,7 @@ FluPage {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     active: selectedTool.id === "redmine" && RedmineBridge.state !== "authenticated"
+                    visible: active
                     sourceComponent: RedmineLoginView {
                         state: RedmineBridge.state
                         statusText: RedmineBridge.statusText
@@ -137,6 +138,7 @@ FluPage {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     active: selectedTool.id === "redmine" && RedmineBridge.state === "authenticated"
+                    visible: active
                     sourceComponent: RedmineWorkspace {}
                 }
                 FluText {

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from concurrent.futures import Future
 from threading import Event, Thread
 
 from PySide6.QtCore import QObject, Property, Signal, Slot
 
 from support.browser_automation import BrowserRuntime
+from support.logging import smart_log
 from tool.SmartHome.redmine import AuthResult, AuthState, Credential, RedmineAuthService
 
 
@@ -51,6 +53,7 @@ class RedmineBridge(QObject):
         self._service = None
         self._future = None
         self._generation = 0
+        self._operation_started = 0.0
         self._closed = False
         self._state = AuthState.IDLE
         self._status = self.tr("Ready to sign in to Redmine.")
@@ -64,16 +67,45 @@ class RedmineBridge(QObject):
 
     async def _service_for(self, account):
         if self._service is None:
-            self._service = self._service_factory(account) if self._service_factory else RedmineAuthService(
-                await self._runtime.context("amlogic_redmine", account)
-            )
+            if self._service_factory:
+                started_at = time.monotonic()
+                self._service = self._service_factory(account)
+                self._trace("service_init", started_at, account=account)
+            else:
+                started_at = time.monotonic()
+                session = await self._runtime.context("amlogic_redmine", account)
+                self._trace("context_acquisition", started_at, account=account)
+                started_at = time.monotonic()
+                self._service = RedmineAuthService(session)
+                self._trace("service_init", started_at, account=account)
+        else:
+            self._trace("service_reuse", time.monotonic(), account=account)
         return self._service
+
+    def _trace(self, phase, started_at, *, account="", state=""):
+        elapsed_ms = int((time.monotonic() - started_at) * 1000)
+        smart_log(
+            "Redmine bridge phase=%s elapsed_ms=%d account=%s state=%s",
+            phase,
+            elapsed_ms,
+            account or self._account or "<none>",
+            state or self._state.value,
+            domain="ui",
+            source="RedmineBridge",
+            extra={
+                "phase": phase,
+                "elapsed_ms": elapsed_ms,
+                "account": account or self._account,
+                "state": state or self._state.value,
+            },
+        )
 
     def _launch(self, operation):
         if self._closed or self._state is AuthState.SIGNING_IN:
             return
         self._generation += 1
         generation = self._generation
+        self._operation_started = time.monotonic()
         self._state = AuthState.SIGNING_IN
         self._status = self.tr("Signing in to Redmine...")
         self.changed.emit()
@@ -113,6 +145,7 @@ class RedmineBridge(QObject):
             AuthState.FAILED: self.tr("Redmine sign-in failed."),
         }.get(result.state, result.message)
         self._status = reason_status.get(result.reason, result.message or default_status)
+        self._trace("result", self._operation_started or time.monotonic(), state=result.state.value)
         self.changed.emit()
         if result.state is AuthState.CREDENTIALS_REQUIRED:
             self.credentialsRequired.emit()
