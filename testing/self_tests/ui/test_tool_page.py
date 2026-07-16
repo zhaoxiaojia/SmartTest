@@ -39,7 +39,7 @@ def test_tool_bridge_survives_runtime_context_registration_and_exposes_redmine()
     assert smart_home["tools"][0]["title"] == "Redmine Bug Clone"
 
 
-def test_tool_qml_runtime_expands_and_activates_visible_redmine_entry():
+def run_tool_qml_interaction_probe(account: str) -> str:
     probe = f'''
 import sys
 sys.path.insert(0, r"{ROOT / 'ui'}")
@@ -52,7 +52,7 @@ from example.imports import resource_rc
 from example.bridge.ToolBridge import ToolBridge
 class Auth(QObject):
     authChanged = Signal()
-    username = Property(str, lambda self: "chen.chen", notify=authChanged)
+    username = Property(str, lambda self: "{account}", notify=authChanged)
 class Redmine(QObject):
     changed = Signal(); credentialsRequired = Signal(); verificationRequired = Signal()
     state = Property(str, lambda self: "idle", notify=changed)
@@ -99,7 +99,15 @@ print(smart_home.property("expand"), entry_visible, selected.get("id"), workspac
     env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
     result = subprocess.run([sys.executable, "-c", probe], cwd=ROOT, env=env, capture_output=True, text=True, timeout=15)
     assert result.returncode == 0, result.stderr
-    assert "True True redmine True 1 0" in result.stdout
+    return result.stdout
+
+
+def test_tool_qml_runtime_expands_and_activates_visible_redmine_entry():
+    assert "True True redmine True 1 0" in run_tool_qml_interaction_probe("chen.chen")
+
+
+def test_tool_qml_runtime_does_not_expose_redmine_to_unauthorized_account():
+    assert "True False None False 0 0" in run_tool_qml_interaction_probe("junjie.li")
 
 
 def test_personnel_declares_product_line_and_technical_center_owners():
@@ -170,39 +178,15 @@ def test_tool_navigation_and_page_layout_contract():
     assert "ToolBridge.groups" in page
     assert 'self.tr("Common Tools")' in (ROOT / "ui/example/bridge/ToolBridge.py").read_text(encoding="utf-8")
     assert 'qsTr("Custom Tools")' in page
-    expected_expanders = {
-        "common_tools_expander": 'qsTr("Common Tools")',
-        "stb_tools_expander": 'qsTr("STB")',
-        "tv_tools_expander": 'qsTr("TV")',
-        "smart_home_tools_expander": 'qsTr("SmartHome")',
-        "iptv_tools_expander": 'qsTr("IPTV")',
-        "wifi_tools_expander": 'qsTr("Wi-Fi")',
-    }
-    for object_id, header_text in expected_expanders.items():
-        assert f"id: {object_id}" in page
-        assert f"headerText: {header_text}" in page
-    expected_group_bindings = {
-        "common_tools_expander": "common",
-        "stb_tools_expander": "STB",
-        "tv_tools_expander": "TV",
-        "smart_home_tools_expander": "SmartHome",
-        "iptv_tools_expander": "IPTV",
-        "wifi_tools_expander": "Wi-Fi",
-    }
-    for object_id, group_id in expected_group_bindings.items():
-        expander = page.split(f"id: {object_id}", 1)[1].split("FluExpander {", 1)[0]
-        assert f'property var toolGroup: groupById("{group_id}")' in expander
-        if group_id == "SmartHome":
-            assert "model: smart_home_tools_expander.toolGroup.tools" in expander
-            assert "sourceComponent: tool_group_content" not in expander
-        else:
-            assert "sourceComponent: tool_group_content" in expander
-    assert "function groupById(groupId)" in page
-    assert page.count("Binding {") == 5
-    assert 'property var toolGroup: ({"available": false, "tools": []})' in page
-    assert "model: toolGroup.available ? toolGroup.tools : []" in page
-    assert "visible: toolGroup.available" in page
-    assert page.count("FluExpander {") == 6
+    assert "model: ToolBridge.groups" in page
+    assert "toolGroup: modelData" in page
+    assert "headerText: toolGroup.title" in page
+    assert "onToolActivated: (groupId, toolIndex) => selectTool(groupId, toolIndex)" in page
+    assert "sourceComponent: tool_group_content" not in page
+    assert "Component {\n        id: tool_group_content" not in page
+    component = (ROOT / "ui/example/imports/example/qml/component/ToolGroupExpander.qml").read_text(encoding="utf-8")
+    assert "model: root.toolGroup.available ? root.toolGroup.tools : []" in component
+    assert "root.expand && root.toolGroup.available" in component
     assert "AuthBridge.productLines" not in page
     assert "AuthBridge.displayName" not in page
     assert "selectedToolIndex = model.index" not in page
