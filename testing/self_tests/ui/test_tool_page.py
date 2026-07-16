@@ -186,7 +186,7 @@ print(smart_home.property("expand"), entry_visible, selected.get("id"), workspac
 
 
 def test_tool_qml_runtime_expands_and_activates_visible_redmine_entry():
-    assert "True True redmine True 1 0" in run_tool_qml_interaction_probe("chen.chen")
+    assert "True True redmine False 1 0" in run_tool_qml_interaction_probe("chen.chen")
 
 
 def test_tool_qml_runtime_does_not_expose_redmine_to_unauthorized_account():
@@ -194,7 +194,7 @@ def test_tool_qml_runtime_does_not_expose_redmine_to_unauthorized_account():
 
 
 def test_tool_qml_runtime_developer_can_open_redmine_independent_of_assignment():
-    assert "True True redmine True 1 0" in run_tool_qml_interaction_probe(
+    assert "True True redmine False 1 0" in run_tool_qml_interaction_probe(
         "junjie.li", developer=True
     )
 
@@ -339,6 +339,10 @@ def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():
     assert "RedmineLoginView" in page
     assert "RedmineWorkspace" in page
     assert "RedmineBridge.state === \"authenticated\"" in page
+    assert "maybeStartRedmineLogin" in page
+    assert "RedmineBridge.startLogin()" in page
+    assert 'visible: root.state === "failed"' in login
+    assert 'root.state === "idle" || root.state === "failed"' not in login
     for state in ("idle", "signing_in", "credentials_required", "verification_required", "failed"):
         assert f'\"{state}\"' in login
     for signal in (

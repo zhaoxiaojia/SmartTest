@@ -13,6 +13,7 @@ class RedmineAuthService:
             await self._page.fill(selectors.USERNAME, self._username)
             await self._page.fill(selectors.PASSWORD, credential.password)
             await self._page.click(selectors.LOGIN_SUBMIT)
+            await self._wait_for_settled_page()
             return await self._classify()
         except Exception:
             return AuthResult(AuthState.FAILED, username=self._username, reason="login_failed")
@@ -21,31 +22,41 @@ class RedmineAuthService:
         if self._page is None:
             return AuthResult(AuthState.FAILED, reason="verification_not_pending")
         try:
-            target = selectors.VERIFICATION_INPUT
-            for selector in selectors.VERIFICATION_EVIDENCE:
-                if await self._page.is_visible(selector):
-                    target = selector
-                    break
-            await self._page.fill(target, code)
-            await self._page.click(selectors.VERIFICATION_SUBMIT)
-            return await self._classify()
+            await self._page.fill(selectors.TWOFA_CODE_INPUT, code)
+            await self._page.click(selectors.TWOFA_SUBMIT)
+            await self._wait_for_settled_page()
+            return await self._classify(verification_submitted=True)
         except Exception:
             return AuthResult(AuthState.FAILED, username=self._username, reason="verification_failed")
 
-    async def _classify(self):
-        if any([await self._page.is_visible(selector) for selector in selectors.AUTHENTICATED_EVIDENCE]):
-            return AuthResult(AuthState.AUTHENTICATED, username=self._username)
+    async def _wait_for_settled_page(self):
+        try:
+            await self._page.wait_for_load_state("domcontentloaded", timeout=15000)
+        except Exception:
+            # Classification below uses the settled DOM contract and reports a
+            # safe auth state even when the server does not emit a load event.
+            pass
+
+    async def _document_url(self):
+        try:
+            return await self._page.evaluate("window.location.href")
+        except Exception:
+            return self._page.url
+
+    async def _classify(self, *, verification_submitted=False):
+        document_url = await self._document_url()
         if any([await self._page.is_visible(selector) for selector in selectors.INCORRECT_VERIFICATION_EVIDENCE]):
             return AuthResult(
                 AuthState.VERIFICATION_REQUIRED,
                 username=self._username,
                 reason="incorrect_verification_code",
             )
-        if any([await self._page.is_visible(selector) for selector in selectors.VERIFICATION_EVIDENCE]):
+        twofa_visible = any([await self._page.is_visible(selector) for selector in selectors.VERIFICATION_EVIDENCE])
+        if selectors.TWOFA_PATH in document_url or twofa_visible:
             return AuthResult(
                 AuthState.VERIFICATION_REQUIRED,
                 username=self._username,
-                reason="verification_required",
+                reason="incorrect_verification_code" if verification_submitted else "verification_required",
             )
         if any([await self._page.is_visible(selector) for selector in selectors.CREDENTIAL_ERRORS]):
             return AuthResult(
@@ -53,6 +64,10 @@ class RedmineAuthService:
                 username=self._username,
                 reason="credentials_rejected",
             )
+        if any([await self._page.is_visible(selector) for selector in selectors.AUTHENTICATED_EVIDENCE]):
+            return AuthResult(AuthState.AUTHENTICATED, username=self._username)
+        if document_url.startswith("https://support.amlogic.com/projects/"):
+            return AuthResult(AuthState.AUTHENTICATED, username=self._username)
         return AuthResult(AuthState.FAILED, username=self._username, reason="unsupported_auth_state")
 
     async def close(self): await self._session.close()

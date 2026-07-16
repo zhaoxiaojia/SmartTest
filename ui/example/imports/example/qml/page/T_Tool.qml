@@ -12,12 +12,28 @@ FluPage {
     property int selectedToolIndex: 0
     property var selectedGroup: ToolBridge.groups.length > selectedGroupIndex ? ToolBridge.groups[selectedGroupIndex] : ({})
     property var selectedTool: selectedGroup.tools && selectedGroup.tools.length > selectedToolIndex ? selectedGroup.tools[selectedToolIndex] : ({})
+    property string autoStartedToolId: ""
+
+    function maybeStartRedmineLogin() {
+        if (selectedTool.id !== "redmine") {
+            autoStartedToolId = ""
+            return
+        }
+        if (RedmineBridge.state === "idle" && autoStartedToolId !== "redmine") {
+            autoStartedToolId = "redmine"
+            RedmineBridge.startLogin()
+        }
+    }
+
+    onSelectedToolChanged: Qt.callLater(maybeStartRedmineLogin)
+    Component.onCompleted: Qt.callLater(maybeStartRedmineLogin)
 
     function selectTool(groupId, toolIndex) {
         for (var index = 0; index < ToolBridge.groups.length; ++index) {
             if (ToolBridge.groups[index].id === groupId) {
                 selectedGroupIndex = index
                 selectedToolIndex = toolIndex
+                Qt.callLater(maybeStartRedmineLogin)
                 return
             }
         }

@@ -69,9 +69,9 @@ FluFrame {
         }
 
         RowLayout {
-            visible: root.state === "idle" || root.state === "failed"
-            FluFilledButton { objectName: "redmineLoginButton"; text: root.state === "failed" ? qsTr("Retry") : qsTr("Sign in"); onClicked: root.startLoginRequested() }
-            FluButton { visible: root.state === "failed"; text: qsTr("Cancel"); onClicked: root.cancelRequested() }
+            visible: root.state === "failed"
+            FluFilledButton { objectName: "redmineLoginButton"; text: qsTr("Retry"); onClicked: root.startLoginRequested() }
+            FluButton { text: qsTr("Cancel"); onClicked: root.cancelRequested() }
         }
     }
 }
