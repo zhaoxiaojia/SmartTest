@@ -313,6 +313,8 @@ def test_tool_navigation_and_page_layout_contract():
     assert "ToolBridge.groups" in page
     assert 'self.tr("Common Tools")' in (ROOT / "ui/example/bridge/ToolBridge.py").read_text(encoding="utf-8")
     assert 'qsTr("Custom Tools")' in page
+    assert 'text: qsTr("Tools")' not in page
+    assert "Layout.preferredWidth: 216" in page
     assert "model: ToolBridge.groups" in page
     assert "toolGroup: modelData" in page
     assert "headerText: toolGroup.title" in page
@@ -334,6 +336,23 @@ def test_runtime_root_is_created_before_tool_bridge_registration():
         '"ToolBridge": ToolBridge(runtime_root, auth_bridge)'
     )
     assert "register_context_objects(" in source
+    assert '"runtime_root": str(runtime_root)' in source
+
+
+def test_tool_bridge_logs_account_and_group_resolution_without_secrets(monkeypatch):
+    messages = []
+    monkeypatch.setattr(
+        "ui.example.bridge.ToolBridge.smart_log",
+        lambda message, *args, **kwargs: messages.append(message % args if args else message),
+    )
+    auth = RuntimeAuth()
+    bridge = ToolBridge(ROOT, auth)
+
+    groups = bridge.groups
+
+    assert any("account=chen.chen" in message for message in messages)
+    assert any("SmartHome:redmine" in message for message in messages)
+    assert not any("password" in message.casefold() for message in messages)
 
 
 def test_tool_fixed_text_is_finished_in_both_catalogs():

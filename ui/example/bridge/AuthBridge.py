@@ -141,6 +141,21 @@ class AuthBridge(QObject):
         self._load_auth_state()
         self._resolve_profile()
         self._avatar_url = self._avatar_url_for_username(self._username)
+        smart_log(
+            "Authentication state restored (account=%s, authenticated=%s, profile_matched=%s, roles=%s)",
+            self._username or "<none>",
+            self._authenticated,
+            bool(self._profile),
+            ",".join(str(role) for role in self._profile.get("roles", []) or []) or "<none>",
+            domain="ui",
+            source="AuthBridge",
+            extra={
+                "authenticated": self._authenticated,
+                "account": self._username or "<none>",
+                "profile_matched": bool(self._profile),
+                "roles": list(self._profile.get("roles", []) or []),
+            },
+        )
 
     def _auth_state_path(self) -> Path:
         return self._state_root / AUTH_STATE_FILENAME

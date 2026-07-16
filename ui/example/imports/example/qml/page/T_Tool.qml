@@ -70,7 +70,7 @@ FluPage {
         spacing: 0
 
         Rectangle {
-            Layout.preferredWidth: 252
+            Layout.preferredWidth: 216
             Layout.fillHeight: true
             color: FluTheme.dark ? "#202020" : "#f7f7f7"
             border.color: FluTheme.frameColor
@@ -81,10 +81,6 @@ FluPage {
                 anchors.margins: 12
                 spacing: 8
 
-                FluText {
-                    text: qsTr("Tools")
-                    font: FluTextStyle.Title
-                }
                 Repeater {
                     model: ToolBridge.groups
 

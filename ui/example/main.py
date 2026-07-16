@@ -103,6 +103,14 @@ def main():
     app.aboutToQuit.connect(lambda: event_loop.create_task(Async.delete()))
 
     runtime_root = _runtime_root()
+    smart_log(
+        "SmartTest UI runtime initialized (runtime_root=%s, entrypoint=%s)",
+        str(runtime_root),
+        str(Path(sys.argv[0]).resolve()),
+        domain="ui",
+        source="startup",
+        extra={"runtime_root": str(runtime_root), "entrypoint": str(Path(sys.argv[0]).resolve())},
+    )
     auth_bridge = AuthBridge()
     redmine_bridge = RedmineBridge(auth_bridge)
     translate_helper = TranslateHelper()

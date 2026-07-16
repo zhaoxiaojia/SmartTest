@@ -6,6 +6,8 @@ from typing import Any
 
 from PySide6.QtCore import QObject, Property, Signal
 
+from support.logging import smart_log
+
 
 def load_tool_access(path: Path) -> dict[str, Any]:
     with Path(path).open("r", encoding="utf-8") as stream:
@@ -80,11 +82,40 @@ class ToolBridge(QObject):
     def __init__(self, project_root: Path, auth_bridge: QObject):
         super().__init__(auth_bridge)
         self._auth_bridge = auth_bridge
-        self._personnel = load_tool_access(Path(project_root) / "config" / "personnel.json")
+        self._personnel_path = Path(project_root) / "config" / "personnel.json"
+        self._personnel = load_tool_access(self._personnel_path)
+        self._last_logged_signature: tuple[Any, ...] | None = None
         auth_bridge.authChanged.connect(self.groupsChanged)
+        smart_log(
+            "Tool access registry loaded (path=%s)",
+            str(self._personnel_path),
+            domain="ui",
+            source="ToolBridge",
+            extra={"personnel_path": str(self._personnel_path)},
+        )
+        self._groups()
 
     def _groups(self) -> list[dict[str, Any]]:
-        groups = build_tool_groups(self._personnel, getattr(self._auth_bridge, "username", ""))
+        account = str(getattr(self._auth_bridge, "username", "") or "").strip()
+        groups = build_tool_groups(self._personnel, account)
+        signature = tuple(
+            (group["id"], group["available"], tuple(tool["id"] for tool in group["tools"]))
+            for group in groups
+        )
+        if signature != self._last_logged_signature:
+            summary = ",".join(
+                f'{group["id"]}:{"|".join(tool["id"] for tool in group["tools"]) or "-"}'
+                for group in groups
+                if group["available"]
+            )
+            smart_log(
+                "Tool groups resolved (account=%s, available=%s)",
+                account or "<none>",
+                summary or "<none>",
+                domain="ui",
+                source="ToolBridge",
+            )
+            self._last_logged_signature = signature
         localized = []
         for group in groups:
             row = dict(group)
