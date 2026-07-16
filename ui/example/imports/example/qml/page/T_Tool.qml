@@ -13,14 +13,6 @@ FluPage {
     property var selectedGroup: ToolBridge.groups.length > selectedGroupIndex ? ToolBridge.groups[selectedGroupIndex] : ({})
     property var selectedTool: selectedGroup.tools && selectedGroup.tools.length > selectedToolIndex ? selectedGroup.tools[selectedToolIndex] : ({})
 
-    Connections {
-        target: RedmineBridge
-        function onChanged() {
-            if (RedmineBridge.state !== "credentials_required" && RedmineBridge.state !== "verification_required")
-                if (redmineLogin.item) redmineLogin.item.clearSecrets()
-        }
-    }
-
     function selectTool(groupId, toolIndex) {
         for (var index = 0; index < ToolBridge.groups.length; ++index) {
             if (ToolBridge.groups[index].id === groupId) {

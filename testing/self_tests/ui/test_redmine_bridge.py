@@ -82,7 +82,8 @@ def test_cancel_invalidates_late_completion_and_prompts():
 def test_qml_clears_transient_password_and_verification_inputs():
     source = Path("ui/example/imports/example/qml/page/T_Tool.qml").read_text(encoding="utf-8")
     login = Path("ui/example/imports/example/qml/component/redmine/RedmineLoginView.qml").read_text(encoding="utf-8")
-    assert "clearSecrets()" in source
+    assert 'if (state !== "credentials_required") passwordInput.text = ""' in login
+    assert 'if (state !== "verification_required") verificationInput.text = ""' in login
     assert 'passwordInput.text = ""' in login
     assert 'verificationInput.text = ""' in login
     assert "RedmineBridge.password" not in source and "RedmineBridge.code" not in source

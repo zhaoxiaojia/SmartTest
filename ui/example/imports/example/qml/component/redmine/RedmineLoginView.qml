@@ -12,6 +12,11 @@ FluFrame {
     signal cancelRequested()
     padding: 28
 
+    onStateChanged: {
+        if (state !== "credentials_required") passwordInput.text = ""
+        if (state !== "verification_required") verificationInput.text = ""
+    }
+
     function clearSecrets() {
         passwordInput.text = ""
         verificationInput.text = ""
