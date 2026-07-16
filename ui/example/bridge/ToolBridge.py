@@ -27,6 +27,10 @@ def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str,
         (item for item in employees if str(item.get("account", "") or "") == clean_account),
         None,
     )
+    is_developer = any(
+        str(role or "").strip().casefold() == "developer"
+        for role in (employee or {}).get("system_roles", []) or []
+    )
     assigned_ids = {
         str(item.get("product_line_id", "") or "")
         for item in (employee or {}).get("assignments", []) or []
@@ -42,7 +46,7 @@ def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str,
         groups.append(
             {
                 "id": group_id,
-                "available": group_id in product_lines and group_id in assigned_ids,
+                "available": group_id in product_lines and (is_developer or group_id in assigned_ids),
                 "tools": tools,
             }
         )
@@ -53,9 +57,12 @@ def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str,
         for item in personnel.get("technical_centers", []) or []
         if isinstance(item, dict) and item.get("active", True) and item.get("id") == "Wi-Fi"
     ]
-    wifi_available = any(
-        "Wi-Fi" in expertise or str(item.get("owner_account", "") or "") == clean_account
-        for item in technical_centers
+    wifi_available = bool(technical_centers) and (
+        is_developer
+        or any(
+            "Wi-Fi" in expertise or str(item.get("owner_account", "") or "") == clean_account
+            for item in technical_centers
+        )
     )
     groups.append(
         {

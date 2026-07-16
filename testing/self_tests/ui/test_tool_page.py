@@ -39,7 +39,7 @@ def test_tool_bridge_survives_runtime_context_registration_and_exposes_redmine()
     assert smart_home["tools"][0]["title"] == "Redmine Bug Clone"
 
 
-def run_tool_qml_interaction_probe(account: str) -> str:
+def run_tool_qml_interaction_probe(account: str, *, developer: bool = False) -> str:
     probe = f'''
 import sys
 sys.path.insert(0, r"{ROOT / 'ui'}")
@@ -69,6 +69,8 @@ class Redmine(QObject):
     def cancelLogin(self): pass
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
 auth=Auth(); tools=ToolBridge(r"{ROOT}", auth); redmine=Redmine()
+if {developer!r}:
+    next(employee for employee in tools._personnel["employees"] if employee["account"] == "{account}")["system_roles"] = ["Developer"]
 engine.rootContext().setContextProperty("ToolBridge", tools); engine.rootContext().setContextProperty("RedmineBridge", redmine)
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1200; height: 800; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/page/T_Tool.qml" }} }}')
@@ -108,6 +110,12 @@ def test_tool_qml_runtime_expands_and_activates_visible_redmine_entry():
 
 def test_tool_qml_runtime_does_not_expose_redmine_to_unauthorized_account():
     assert "True False None False 0 0" in run_tool_qml_interaction_probe("junjie.li")
+
+
+def test_tool_qml_runtime_developer_can_open_redmine_independent_of_assignment():
+    assert "True True redmine True 1 0" in run_tool_qml_interaction_probe(
+        "junjie.li", developer=True
+    )
 
 
 def test_personnel_declares_product_line_and_technical_center_owners():
@@ -159,6 +167,39 @@ def test_tool_groups_keep_fixed_layout_and_filter_child_tools_by_account():
     unknown_groups = build_tool_groups(personnel, "unknown.account")
     assert len(unknown_groups) == 6
     assert not any(group["available"] for group in unknown_groups[1:])
+
+
+def test_developer_role_grants_every_tool_group_independent_of_assignments_and_casing():
+    personnel = load_tool_access(PERSONNEL_PATH)
+    personnel["employees"].extend(
+        [
+            {
+                "account": "developer.zero",
+                "assignments": [],
+                "expertise_domains": [],
+                "system_roles": ["Developer"],
+            },
+            {
+                "account": "developer.one",
+                "assignments": [{"product_line_id": "STB"}],
+                "expertise_domains": [],
+                "system_roles": ["dEvElOpEr"],
+            },
+        ]
+    )
+
+    for account in ("developer.zero", "developer.one"):
+        groups = build_tool_groups(personnel, account)
+        assert len(groups) == 6
+        assert all(group["available"] for group in groups)
+        assert next(group for group in groups if group["id"] == "SmartHome")["tools"] == [
+            {"id": "redmine"}
+        ]
+
+    personnel["technical_centers"][0]["active"] = False
+    inactive_center_groups = build_tool_groups(personnel, "developer.zero")
+    assert all(group["available"] for group in inactive_center_groups[:-1])
+    assert inactive_center_groups[-1]["available"] is False
 
 
 def test_tool_navigation_and_page_layout_contract():
