@@ -192,18 +192,29 @@ FluPage {
                     property var toolGroup: groupById("SmartHome")
                     Layout.fillWidth: true
                     headerText: qsTr("SmartHome")
-                    contentHeight: smart_home_tools_loader.item ? smart_home_tools_loader.item.implicitHeight : 0
-                    Loader {
-                        id: smart_home_tools_loader
+                    contentHeight: smart_home_tools_content.implicitHeight
+                    Item {
+                        id: smart_home_tools_content
                         anchors.fill: parent
-                        property var toolGroup: smart_home_tools_expander.toolGroup
-                        sourceComponent: tool_group_content
-                    }
-                    Binding {
-                        target: smart_home_tools_loader.item
-                        property: "toolGroup"
-                        value: smart_home_tools_expander.toolGroup
-                        when: smart_home_tools_loader.item !== null
+                        implicitHeight: smart_home_tool_items.implicitHeight + 12
+
+                        ColumnLayout {
+                            id: smart_home_tool_items
+                            x: 6
+                            y: 6
+                            width: parent.width - 12
+                            spacing: 4
+
+                            Repeater {
+                                model: smart_home_tools_expander.toolGroup.tools
+
+                                FluButton {
+                                    Layout.fillWidth: true
+                                    text: modelData.title
+                                    onClicked: selectTool(smart_home_tools_expander.toolGroup.id, index)
+                                }
+                            }
+                        }
                     }
                 }
                 FluExpander {
