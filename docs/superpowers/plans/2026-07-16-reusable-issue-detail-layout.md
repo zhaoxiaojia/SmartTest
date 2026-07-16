@@ -189,4 +189,3 @@ Expected: all focused tests pass, compilation and diff check exit `0`, and both 
 git add ui\example\imports\example\qml\component\issue ui\example\imports\resource.qrc ui\example\example_en_US.ts ui\example\example_zh_CN.ts testing\self_tests\ui\test_issue_detail_view.py
 git commit -m "feat: add reusable Issue detail layout"
 ```
-
