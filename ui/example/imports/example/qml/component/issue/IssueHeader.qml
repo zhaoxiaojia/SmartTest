@@ -14,9 +14,12 @@ ColumnLayout {
         spacing: 8
         Image { objectName: "issueTypeIcon"; visible: !!root.issue.typeIcon; source: root.issue.typeIcon || ""; sourceSize.width: 18; sourceSize.height: 18; fillMode: Image.PreserveAspectFit }
         FluIcon { visible: !root.issue.typeIcon; iconSource: FluentIcons.Document; iconSize: 18; color: FluTheme.primaryColor }
+        Flow {
+            Layout.fillWidth: true
+            spacing: 6
         Repeater {
             model: (root.issue.projectPath && root.issue.projectPath.length) ? root.issue.projectPath : (root.issue.projectName ? [{"label": root.issue.projectName, "url": root.issue.projectUrl || ""}] : [])
-            RowLayout {
+            Row {
                 spacing: 6
                 FluText { visible: index > 0; text: "/"; color: FluTheme.fontSecondaryColor }
                 FluText {
@@ -26,6 +29,7 @@ ColumnLayout {
                     MouseArea { anchors.fill: parent; enabled: !!modelData.url; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: root.externalLinkRequested(modelData.url) }
                 }
             }
+        }
         }
     }
     FluText {
