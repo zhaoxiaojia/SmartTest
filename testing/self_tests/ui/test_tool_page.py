@@ -202,6 +202,19 @@ def test_developer_role_grants_every_tool_group_independent_of_assignments_and_c
     assert inactive_center_groups[-1]["available"] is False
 
 
+def test_configured_chao_li_developer_role_grants_all_active_tool_groups():
+    personnel = load_tool_access(PERSONNEL_PATH)
+    employee = next(item for item in personnel["employees"] if item["account"] == "chao.li")
+
+    assert employee["system_roles"] == ["user", "developer"]
+    groups = build_tool_groups(personnel, "chao.li")
+    assert len(groups) == 6
+    assert all(group["available"] for group in groups)
+    assert next(group for group in groups if group["id"] == "SmartHome")["tools"] == [
+        {"id": "redmine"}
+    ]
+
+
 def test_tool_navigation_and_page_layout_contract():
     items = (ROOT / "ui/example/imports/example/qml/global/ItemsOriginal.qml").read_text(
         encoding="utf-8"

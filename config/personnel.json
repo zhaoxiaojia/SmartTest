@@ -1116,7 +1116,8 @@
       "assignments": [],
       "expertise_domains": [],
       "system_roles": [
-        "user"
+        "user",
+        "developer"
       ]
     },
     {
