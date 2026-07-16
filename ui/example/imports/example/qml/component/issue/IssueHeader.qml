@@ -12,13 +12,20 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         spacing: 8
-        FluIcon { iconSource: FluentIcons.Document; iconSize: 18; color: FluTheme.primaryColor }
-        FluText { text: root.issue.projectName || ""; color: FluTheme.fontSecondaryColor }
-        FluText {
-            visible: !!root.issue.projectUrl
-            text: qsTr("Open project")
-            color: FluTheme.dark ? "#6EA8FE" : "#0F62FE"
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.externalLinkRequested(root.issue.projectUrl || "") }
+        Image { objectName: "issueTypeIcon"; visible: !!root.issue.typeIcon; source: root.issue.typeIcon || ""; sourceSize.width: 18; sourceSize.height: 18; fillMode: Image.PreserveAspectFit }
+        FluIcon { visible: !root.issue.typeIcon; iconSource: FluentIcons.Document; iconSize: 18; color: FluTheme.primaryColor }
+        Repeater {
+            model: (root.issue.projectPath && root.issue.projectPath.length) ? root.issue.projectPath : (root.issue.projectName ? [{"label": root.issue.projectName, "url": root.issue.projectUrl || ""}] : [])
+            RowLayout {
+                spacing: 6
+                FluText { visible: index > 0; text: "/"; color: FluTheme.fontSecondaryColor }
+                FluText {
+                    objectName: "issueProjectPath_" + index
+                    text: modelData.label || modelData.value || ""
+                    color: modelData.url ? (FluTheme.dark ? "#6EA8FE" : "#0F62FE") : FluTheme.fontSecondaryColor
+                    MouseArea { anchors.fill: parent; enabled: !!modelData.url; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: root.externalLinkRequested(modelData.url) }
+                }
+            }
         }
     }
     FluText {

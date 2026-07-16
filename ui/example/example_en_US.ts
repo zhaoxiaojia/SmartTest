@@ -5601,5 +5601,7 @@ Some contents...</translation>
     <message><source>Submit</source><translation>Submit</translation></message>
     <message><source>Submitting...</source><translation>Submitting...</translation></message>
     <message><source>Upload the dropped files?</source><translation>Upload the dropped files?</translation></message>
+    <message><source>Drop files here or select files</source><translation>Drop files here or select files</translation></message>
+    <message><source>Uploading...</source><translation>Uploading...</translation></message>
 </context>
 </TS>

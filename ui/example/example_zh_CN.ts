@@ -5802,5 +5802,7 @@ Some contents...</source>
     <message><source>Submit</source><translation>提交</translation></message>
     <message><source>Submitting...</source><translation>正在提交...</translation></message>
     <message><source>Upload the dropped files?</source><translation>上传拖入的文件吗？</translation></message>
+    <message><source>Drop files here or select files</source><translation>将文件拖到此处或选择文件</translation></message>
+    <message><source>Uploading...</source><translation>正在上传...</translation></message>
 </context>
 </TS>

@@ -29,7 +29,7 @@ Flickable {
     ScrollBar.vertical: FluScrollBar {}
     function clearCommentDraft() { commentsView.clearDraft() }
     function selectAttachmentFiles(fileUrls) { attachmentsView.selectFiles(fileUrls) }
-    function stageDroppedFiles(fileUrls) { if (attachmentUploading) return; pendingDropUrls = (fileUrls || []).filter(url => url.toString().indexOf("file:") === 0); if (pendingDropUrls.length > 0) uploadDialog.open() }
+    function stageDroppedFiles(fileUrls) { if (attachmentUploading) return; pendingDropUrls = attachmentsView.localFiles(fileUrls); if (pendingDropUrls.length > 0) uploadDialog.open() }
     function confirmDroppedFiles() { if (!attachmentUploading && pendingDropUrls.length > 0) attachmentUploadConfirmed(issue.key || "", pendingDropUrls); pendingDropUrls = [] }
     function cancelDroppedFiles() { pendingDropUrls = []; uploadDialog.close() }
 

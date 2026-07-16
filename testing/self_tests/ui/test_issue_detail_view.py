@@ -42,6 +42,11 @@ def test_issue_detail_component_contract_and_resources():
     combined = "\n".join(path.read_text(encoding="utf-8") for path in ISSUE_DIR.glob("*.qml"))
     for forbidden in ("Qt.openUrlExternally", "JiraBridge", "RedmineBridge", "Activity", "Work Log", "Set Due Date", "Resolve", "Export"):
         assert forbidden not in combined
+    assert "issueAttachmentDropSurface" in combined
+    assert "setLineDash" in combined
+    assert "projectPath" in combined and "typeIcon" in combined
+    assert "thumbnailUrl" in combined and "avatarUrl" in combined
+    assert "isLocalFileUrl" in combined
 
 
 def test_issue_detail_runtime_geometry_and_interactions():
@@ -56,7 +61,7 @@ from FluentUI import FluentUI
 from example.imports import resource_rc
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
 FluentUI.registerTypes(engine)
-engine.loadData('import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible:true; width:1200; height:850; Loader {{ id:l; anchors.fill:parent; source:"qrc:/example/qml/component/issue/IssueDetailView.qml"; onLoaded: {{ item.issue={{"key":"ST-42","title":"Long issue title 中文 raw","webUrl":"https://issue/42","projectName":"Smart Home","projectUrl":"https://project","detailsFields":[{{"label":"Status","value":"Open","kind":"status"}},{{"label":"Spec","value":"原始字段","kind":"link","url":"https://field"}}],"peopleFields":[{{"label":"Assignee","value":"Coco","kind":"person"}}],"dateFields":[{{"label":"Created","value":"2026-07-16","kind":"text"}}],"extraSections":[],"description":"raw description 中文"}}; item.comments=[{{"author":"Atlas","time":"now","body":"raw comment"}}]; item.attachments=[{{"name":"screen.png","time":"now","size":"12 KB","url":"file:///screen.png"}}] }} }} }}'.encode('utf-8'))
+engine.loadData('import QtQuick 2.15; import QtQuick.Window 2.15; import FluentUI 1.0; Window {{ visible:true; width:1200; height:850; function useDark(){{FluTheme.darkMode=FluThemeType.Dark}} function useLight(){{FluTheme.darkMode=FluThemeType.Light}} Loader {{ id:l; anchors.fill:parent; source:"qrc:/example/qml/component/issue/IssueDetailView.qml"; onLoaded: {{ item.issue={{"key":"ST-42","title":"Long issue title 中文 raw","webUrl":"https://issue/42","typeIcon":"qrc:/example/res/svg/jira-software-icon.svg","projectPath":[{{"label":"QA","url":"https://project"}},{{"label":"Smart Home","url":""}}],"detailsFields":[{{"label":"Status","value":"Open","kind":"status"}},{{"label":"Spec","value":"原始字段","kind":"link","url":"https://field"}}],"peopleFields":[{{"label":"Assignee","value":"Coco","kind":"person"}}],"dateFields":[{{"label":"Created","value":"2026-07-16","kind":"text"}}],"extraSections":[],"description":"raw description 中文"}}; item.comments=[{{"author":"Atlas","avatarUrl":"qrc:/example/res/svg/avatar_1.svg","time":"now","body":"raw comment"}}]; item.attachments=[{{"name":"screen.png","kind":"image","thumbnailUrl":"qrc:/example/res/image/image_1.jpg","time":"now","size":"12 KB","url":"file:///screen.png"}}] }} }} }}'.encode('utf-8'))
 app.processEvents(); window=engine.rootObjects()[0]; detail=next((child.property('item') for child in window.contentItem().childItems() if child.property('item') is not None), None)
 if detail is None: print([str(x) for x in warnings]); raise SystemExit(4)
 def find(name):
@@ -73,30 +78,36 @@ detail.externalLinkRequested.connect(lambda url: events.append(('link',url)))
 detail.commentSubmitRequested.connect(lambda key,text: events.append(('comment',key,text)))
 detail.attachmentFilesSelected.connect(lambda key,urls: events.append(('select',key,[str(x) for x in variant(urls)])))
 detail.attachmentUploadConfirmed.connect(lambda key,urls: events.append(('upload',key,[str(x) for x in variant(urls)])))
-detail.attachmentOpenRequested.connect(lambda key,row: events.append(('attachment',key,variant(row).get('name'))))
+detail.attachmentOpenRequested.connect(lambda key,row: events.append(('attachment',key,variant(row))))
 left=find('issueDetailLeftColumn'); right=find('issueDetailRightColumn'); root=find('issueDetailRoot')
 ratio=left.property('width')/(left.property('width')+right.property('width'))
 def click(obj):
  if obj is None: raise RuntimeError('missing click target')
  p=obj.mapToScene(QPointF(obj.property('width')/2,obj.property('height')/2)); QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(p.x()),round(p.y()))); app.processEvents()
-click(find('issueKeyLink')); click(find('issueTitleLink')); click(find('issueFieldLink_1'))
+click(find('issueKeyLink')); click(find('issueTitleLink')); click(find('issueProjectPath_0')); click(find('issueFieldLink_1'))
 click(find('issueCommentButton')); editor=find('issueCommentEditor'); editor.setProperty('text','draft text'); click(find('issueCommentSubmit')); detail.setProperty('commentSubmitting',True); click(find('issueCommentSubmit')); detail.setProperty('commentSubmitting',False)
 draft_before=editor.property('text'); detail.clearCommentDraft(); draft_after=editor.property('text')
-detail.selectAttachmentFiles(['file:///one.png','file:///two.txt']); app.processEvents()
-detail.stageDroppedFiles(['file:///a.png','https://bad']); app.processEvents(); before=len([e for e in events if e[0]=='upload']); QMetaObject.invokeMethod(find('issueUploadConfirmDialog'),'positiveClicked',Qt.DirectConnection); app.processEvents(); after=len([e for e in events if e[0]=='upload'])
+detail.selectAttachmentFiles(['file:///one.png','https://bad','file:broken','file:///two.txt']); app.processEvents()
+detail.stageDroppedFiles(['file:///a.png','https://bad','file:broken']); app.processEvents(); before=len([e for e in events if e[0]=='upload']); QMetaObject.invokeMethod(find('issueUploadConfirmDialog'),'positiveClicked',Qt.DirectConnection); app.processEvents(); after=len([e for e in events if e[0]=='upload'])
 detail.stageDroppedFiles(['file:///cancel.txt']); QMetaObject.invokeMethod(find('issueUploadConfirmDialog'),'negativeClicked',Qt.DirectConnection); app.processEvents(); canceled=len([e for e in events if e[0]=='upload'])
-click(find('issueAttachmentCard_0'))
+card=find('issueAttachmentCard_0'); root.setProperty('contentY',max(0,card.mapToItem(root,QPointF(0,0)).y()-300)); app.processEvents(); click(card)
+visible_hooks=all(find(name) is not None and find(name).property('visible') for name in ('issueAttachmentDropSurface','issueTypeIcon','issueProjectPath_0','issueAttachmentThumbnail','issueCommentAvatar_0'))
+QMetaObject.invokeMethod(window,'useDark',Qt.DirectConnection); app.processEvents(); QMetaObject.invokeMethod(window,'useLight',Qt.DirectConnection); app.processEvents()
 bad=[str(x) for x in warnings]
 window.setWidth(760); app.processEvents(); narrow_ratio=left.property('width')/(left.property('width')+right.property('width'))
-print(round(ratio,3), round(narrow_ratio,3), left.property('y')==right.property('y'), root.property('contentWidth')<=root.property('width'), events, draft_before, draft_after, before, after, canceled, len(bad))
+bounded=left.property('x')>=0 and right.property('x')+right.property('width')<=root.property('width')
+print(round(ratio,3), round(narrow_ratio,3), left.property('y')==right.property('y'), root.property('contentWidth')<=root.property('width'), bounded, visible_hooks, events, draft_before, draft_after, before, after, canceled, len(bad))
 '''
     result = subprocess.run([sys.executable, "-c", probe], cwd=ROOT, env=dict(os.environ, QT_QPA_PLATFORM="offscreen"), capture_output=True, text=True, timeout=20)
     assert result.returncode == 0, result.stderr + result.stdout
-    assert "0.68 0.68 True True" in result.stdout
+    assert "0.68 0.68 True True True True" in result.stdout
     assert "('open', 'ST-42', 'https://issue/42')" in result.stdout
     assert "('link', 'https://field')" in result.stdout
+    assert result.stdout.count("('open', 'ST-42', 'https://issue/42')") == 2
     assert "('select', 'ST-42', ['file:///one.png', 'file:///two.txt'])" in result.stdout
     assert result.stdout.count("('comment', 'ST-42', 'draft text')") == 1
+    assert "('upload', 'ST-42', ['file:///a.png'])" in result.stdout
+    assert "'thumbnailUrl': 'qrc:/example/res/image/image_1.jpg'" in result.stdout
     assert "draft text  0 1 1 0" in result.stdout
 
 
