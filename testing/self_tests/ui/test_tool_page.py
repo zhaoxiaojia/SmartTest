@@ -329,6 +329,54 @@ def test_tool_navigation_and_page_layout_contract():
     assert "selectedToolIndex = model.index" not in page
 
 
+def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():
+    component_root = ROOT / "ui/example/imports/example/qml/component/redmine"
+    login = (component_root / "RedmineLoginView.qml").read_text(encoding="utf-8")
+    workspace = (component_root / "RedmineWorkspace.qml").read_text(encoding="utf-8")
+    page = (ROOT / "ui/example/imports/example/qml/page/T_Tool.qml").read_text(encoding="utf-8")
+
+    assert "Tool workspace" not in page
+    assert "RedmineLoginView" in page
+    assert "RedmineWorkspace" in page
+    assert "RedmineBridge.state === \"authenticated\"" in page
+    for state in ("idle", "signing_in", "credentials_required", "verification_required", "failed"):
+        assert f'\"{state}\"' in login
+    for signal in (
+        "startLoginRequested", "credentialsSubmitRequested",
+        "verificationSubmitRequested", "cancelRequested",
+    ):
+        assert f"signal {signal}" in login
+    for label in ("Project", "Status", "Issue type", "Assignee", "Contains text", "Search"):
+        assert f'qsTr("{label}")' in workspace
+    assert "IssueDetailView" in workspace
+    assert "signal searchRequested" in workspace
+    assert "signal issueSelected" in workspace
+
+
+def test_redmine_workspace_qrc_loads_without_qml_warnings():
+    probe = f'''
+import sys
+sys.path.insert(0, r"{ROOT / 'ui'}")
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from FluentUI import FluentUI
+from example.imports import resource_rc
+app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]
+engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
+FluentUI.registerTypes(engine)
+engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1280; height: 820; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/component/redmine/RedmineWorkspace.qml" }} }}')
+app.processEvents()
+print(len(engine.rootObjects()), len(warnings), warnings)
+'''
+    result = subprocess.run(
+        [sys.executable, "-c", probe], cwd=ROOT,
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
+        capture_output=True, text=True, timeout=15,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "1 0 []" in result.stdout
+
+
 def test_runtime_root_is_created_before_tool_bridge_registration():
     source = (ROOT / "ui/example/main.py").read_text(encoding="utf-8")
 

@@ -5604,4 +5604,28 @@ Some contents...</translation>
     <message><source>Drop files here or select files</source><translation>Drop files here or select files</translation></message>
     <message><source>Uploading...</source><translation>Uploading...</translation></message>
 </context>
+<context><name>RedmineLoginView</name>
+<message><source>Redmine sign in</source><translation>Redmine sign in</translation></message>
+<message><source>Signing in with the SmartTest LDAP account...</source><translation>Signing in with the SmartTest LDAP account...</translation></message>
+<message><source>Use a separate Redmine account</source><translation>Use a separate Redmine account</translation></message>
+<message><source>Username</source><translation>Username</translation></message>
+<message><source>Password</source><translation>Password</translation></message>
+<message><source>Sign in</source><translation>Sign in</translation></message>
+<message><source>Cancel</source><translation>Cancel</translation></message>
+<message><source>Mobile verification</source><translation>Mobile verification</translation></message>
+<message><source>Enter the verification code shown on your phone.</source><translation>Enter the verification code shown on your phone.</translation></message>
+<message><source>Verification code</source><translation>Verification code</translation></message>
+<message><source>Verify</source><translation>Verify</translation></message>
+<message><source>Retry</source><translation>Retry</translation></message>
+</context>
+<context><name>RedmineWorkspace</name>
+<message><source>Project</source><translation>Project</translation></message>
+<message><source>Status</source><translation>Status</translation></message>
+<message><source>Issue type</source><translation>Issue type</translation></message>
+<message><source>Assignee</source><translation>Assignee</translation></message>
+<message><source>Contains text</source><translation>Contains text</translation></message>
+<message><source>Search</source><translation>Search</translation></message>
+<message><source>Issues</source><translation>Issues</translation></message>
+<message><source>No issues loaded</source><translation>No issues loaded</translation></message>
+</context>
 </TS>

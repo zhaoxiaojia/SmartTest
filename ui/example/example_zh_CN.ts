@@ -5805,4 +5805,28 @@ Some contents...</source>
     <message><source>Drop files here or select files</source><translation>将文件拖到此处或选择文件</translation></message>
     <message><source>Uploading...</source><translation>正在上传...</translation></message>
 </context>
+<context><name>RedmineLoginView</name>
+<message><source>Redmine sign in</source><translation>登录 Redmine</translation></message>
+<message><source>Signing in with the SmartTest LDAP account...</source><translation>正在使用 SmartTest LDAP 账号登录...</translation></message>
+<message><source>Use a separate Redmine account</source><translation>使用单独的 Redmine 账号</translation></message>
+<message><source>Username</source><translation>用户名</translation></message>
+<message><source>Password</source><translation>密码</translation></message>
+<message><source>Sign in</source><translation>登录</translation></message>
+<message><source>Cancel</source><translation>取消</translation></message>
+<message><source>Mobile verification</source><translation>手机验证</translation></message>
+<message><source>Enter the verification code shown on your phone.</source><translation>请输入手机上显示的验证码。</translation></message>
+<message><source>Verification code</source><translation>验证码</translation></message>
+<message><source>Verify</source><translation>验证</translation></message>
+<message><source>Retry</source><translation>重试</translation></message>
+</context>
+<context><name>RedmineWorkspace</name>
+<message><source>Project</source><translation>项目</translation></message>
+<message><source>Status</source><translation>状态</translation></message>
+<message><source>Issue type</source><translation>问题类型</translation></message>
+<message><source>Assignee</source><translation>经办人</translation></message>
+<message><source>Contains text</source><translation>包含文本</translation></message>
+<message><source>Search</source><translation>搜索</translation></message>
+<message><source>Issues</source><translation>问题</translation></message>
+<message><source>No issues loaded</source><translation>尚未加载问题</translation></message>
+</context>
 </TS>
