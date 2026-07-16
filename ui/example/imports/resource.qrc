@@ -12,6 +12,13 @@
         <file>example/qml/component/ImagePreviewDialog.qml</file>
         <file>example/qml/component/LogListView.qml</file>
         <file>example/qml/component/ToolGroupExpander.qml</file>
+        <file>example/qml/component/issue/IssueDetailView.qml</file>
+        <file>example/qml/component/issue/IssueHeader.qml</file>
+        <file>example/qml/component/issue/IssueFieldSection.qml</file>
+        <file>example/qml/component/issue/IssueDescription.qml</file>
+        <file>example/qml/component/issue/IssueComments.qml</file>
+        <file>example/qml/component/issue/IssueAttachments.qml</file>
+        <file>example/qml/component/issue/IssueAttachmentCard.qml</file>
         <file>example/qml/global/ItemsFooter.qml</file>
         <file>example/qml/global/ItemsOriginal.qml</file>
         <file>example/qml/global/qmldir</file>

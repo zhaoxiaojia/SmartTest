@@ -5784,4 +5784,23 @@ Some contents...</source>
 <context><name>T_Tool</name>
 <message><source>Redmine credentials</source><translation>Redmine 登录凭据</translation></message><message><source>Sign in</source><translation>登录</translation></message><message><source>Username</source><translation>用户名</translation></message><message><source>Password</source><translation>密码</translation></message><message><source>Mobile verification</source><translation>手机验证</translation></message><message><source>Enter the verification code shown on your phone.</source><translation>请输入手机上显示的验证码。</translation></message><message><source>Verify</source><translation>验证</translation></message><message><source>Verification code</source><translation>验证码</translation></message></context>
 <context><name>ToolBridge</name><message><source>Redmine Bug Clone</source><translation>Redmine 缺陷克隆</translation></message><message><source>Browse and sign in to SmartHome Redmine.</source><translation>浏览并登录 SmartHome Redmine。</translation></message></context>
+<context>
+    <name>IssueDetailView</name>
+    <message><source>Add a comment</source><translation>添加评论</translation></message>
+    <message><source>Attachments</source><translation>附件</translation></message>
+    <message><source>Comment</source><translation>评论</translation></message>
+    <message><source>Confirm upload</source><translation>确认上传</translation></message>
+    <message><source>Dates</source><translation>日期</translation></message>
+    <message><source>Details</source><translation>详情</translation></message>
+    <message><source>Loading attachments...</source><translation>正在加载附件...</translation></message>
+    <message><source>Loading comments...</source><translation>正在加载评论...</translation></message>
+    <message><source>No description.</source><translation>暂无描述。</translation></message>
+    <message><source>Open project</source><translation>打开项目</translation></message>
+    <message><source>People</source><translation>人员</translation></message>
+    <message><source>Select attachments</source><translation>选择附件</translation></message>
+    <message><source>Select files</source><translation>选择文件</translation></message>
+    <message><source>Submit</source><translation>提交</translation></message>
+    <message><source>Submitting...</source><translation>正在提交...</translation></message>
+    <message><source>Upload the dropped files?</source><translation>上传拖入的文件吗？</translation></message>
+</context>
 </TS>

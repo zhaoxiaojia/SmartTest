@@ -5583,4 +5583,23 @@ Some contents...</translation>
 <context><name>T_Tool</name>
 <message><source>Redmine credentials</source><translation>Redmine credentials</translation></message><message><source>Sign in</source><translation>Sign in</translation></message><message><source>Username</source><translation>Username</translation></message><message><source>Password</source><translation>Password</translation></message><message><source>Mobile verification</source><translation>Mobile verification</translation></message><message><source>Enter the verification code shown on your phone.</source><translation>Enter the verification code shown on your phone.</translation></message><message><source>Verify</source><translation>Verify</translation></message><message><source>Verification code</source><translation>Verification code</translation></message></context>
 <context><name>ToolBridge</name><message><source>Redmine Bug Clone</source><translation>Redmine Bug Clone</translation></message><message><source>Browse and sign in to SmartHome Redmine.</source><translation>Browse and sign in to SmartHome Redmine.</translation></message></context>
+<context>
+    <name>IssueDetailView</name>
+    <message><source>Add a comment</source><translation>Add a comment</translation></message>
+    <message><source>Attachments</source><translation>Attachments</translation></message>
+    <message><source>Comment</source><translation>Comment</translation></message>
+    <message><source>Confirm upload</source><translation>Confirm upload</translation></message>
+    <message><source>Dates</source><translation>Dates</translation></message>
+    <message><source>Details</source><translation>Details</translation></message>
+    <message><source>Loading attachments...</source><translation>Loading attachments...</translation></message>
+    <message><source>Loading comments...</source><translation>Loading comments...</translation></message>
+    <message><source>No description.</source><translation>No description.</translation></message>
+    <message><source>Open project</source><translation>Open project</translation></message>
+    <message><source>People</source><translation>People</translation></message>
+    <message><source>Select attachments</source><translation>Select attachments</translation></message>
+    <message><source>Select files</source><translation>Select files</translation></message>
+    <message><source>Submit</source><translation>Submit</translation></message>
+    <message><source>Submitting...</source><translation>Submitting...</translation></message>
+    <message><source>Upload the dropped files?</source><translation>Upload the dropped files?</translation></message>
+</context>
 </TS>
