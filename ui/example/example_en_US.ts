@@ -5582,7 +5582,7 @@ Some contents...</translation>
 <message><source>Redmine sign-in cancelled.</source><translation>Redmine sign-in cancelled.</translation></message></context>
 <context><name>T_Tool</name>
 <message><source>Redmine credentials</source><translation>Redmine credentials</translation></message><message><source>Sign in</source><translation>Sign in</translation></message><message><source>Username</source><translation>Username</translation></message><message><source>Password</source><translation>Password</translation></message><message><source>Mobile verification</source><translation>Mobile verification</translation></message><message><source>Enter the verification code shown on your phone.</source><translation>Enter the verification code shown on your phone.</translation></message><message><source>Verify</source><translation>Verify</translation></message><message><source>Verification code</source><translation>Verification code</translation></message></context>
-<context><name>ToolBridge</name><message><source>Redmine</source><translation>Redmine</translation></message><message><source>Browse and sign in to SmartHome Redmine.</source><translation>Browse and sign in to SmartHome Redmine.</translation></message></context>
+<context><name>ToolBridge</name><message><source>redmine</source><translation>redmine</translation></message><message><source>Browse and sign in to SmartHome Redmine.</source><translation>Browse and sign in to SmartHome Redmine.</translation></message></context>
 <context>
     <name>IssueDetailView</name>
     <message><source>Add a comment</source><translation>Add a comment</translation></message>

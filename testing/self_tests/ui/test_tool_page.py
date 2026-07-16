@@ -37,7 +37,7 @@ def test_tool_bridge_survives_runtime_context_registration_and_exposes_redmine()
     smart_home = next(group for group in bridge.groups if group["id"] == "SmartHome")
     assert smart_home["available"] is True
     assert smart_home["tools"][0]["id"] == "redmine"
-    assert smart_home["tools"][0]["title"] == "Redmine"
+    assert smart_home["tools"][0]["title"] == "redmine"
 
 
 def test_production_context_ownership_survives_gc_and_tool_dialogs_are_warning_free():
@@ -84,7 +84,7 @@ def find_by(prop, value):
         pending.extend(item.children())
         if hasattr(item, "childItems"): pending.extend(item.childItems())
 smart_home=find_by("headerText", "SmartHome"); p=smart_home.mapToScene(QPointF(smart_home.width()/2,22)); QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(p.x()),round(p.y()))); QTest.qWait(250); app.processEvents()
-entry=find_by("text", "Redmine"); p=entry.mapToScene(QPointF(entry.width()/2,entry.height()/2)); QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(p.x()),round(p.y()))); app.processEvents()
+entry=find_by("text", "redmine"); p=entry.mapToScene(QPointF(entry.width()/2,entry.height()/2)); QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(p.x()),round(p.y()))); app.processEvents()
 button=root.findChild(QObject,"redmineLoginButton"); p=button.mapToScene(QPointF(button.width()/2,button.height()/2)); QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(p.x()),round(p.y()))); app.processEvents()
 redmine.credentialsRequired.emit(); app.processEvents(); redmine.verificationRequired.emit(); app.processEvents()
 selected=root.property("selectedTool"); selected=selected.toVariant() if hasattr(selected,"toVariant") else selected
@@ -166,7 +166,7 @@ def find_by(prop, value):
 smart_home=find_by("headerText", "SmartHome")
 header_point=smart_home.mapToScene(QPointF(smart_home.width()/2, 22))
 QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, QPoint(round(header_point.x()), round(header_point.y()))); QTest.qWait(250); app.processEvents()
-entry=find_by("text", "Redmine")
+entry=find_by("text", "redmine")
 entry_visible=entry is not None and entry.property("visible") and entry.property("height") > 0
 if entry_visible:
     entry_point=entry.mapToScene(QPointF(entry.width()/2, entry.height()/2))

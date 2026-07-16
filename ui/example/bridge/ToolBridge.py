@@ -131,7 +131,7 @@ class ToolBridge(QObject):
             row["tools"] = [
                 {
                     **tool,
-                    "title": self.tr("Redmine"),
+                    "title": self.tr("redmine"),
                     "description": self.tr("Browse and sign in to SmartHome Redmine."),
                 }
                 for tool in row["tools"]
