@@ -71,7 +71,7 @@ class ToolBridge(QObject):
     groupsChanged = Signal()
 
     def __init__(self, project_root: Path, auth_bridge: QObject):
-        super().__init__()
+        super().__init__(auth_bridge)
         self._auth_bridge = auth_bridge
         self._personnel = load_tool_access(Path(project_root) / "config" / "personnel.json")
         auth_bridge.authChanged.connect(self.groupsChanged)

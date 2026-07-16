@@ -1,14 +1,86 @@
 from __future__ import annotations
 
 import json
+import gc
+import os
+import subprocess
+import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from ui.example.bridge.ToolBridge import build_tool_groups, load_tool_access
+from ui.example.bridge.ToolBridge import ToolBridge
+from PySide6.QtCore import QCoreApplication, QObject, Property, Signal
+from PySide6.QtQml import QQmlEngine
 
 
 ROOT = Path(__file__).resolve().parents[3]
 PERSONNEL_PATH = ROOT / "config" / "personnel.json"
+
+
+class RuntimeAuth(QObject):
+    authChanged = Signal()
+    username = Property(str, lambda self: "chen.chen", notify=authChanged)
+
+
+def test_tool_bridge_survives_runtime_context_registration_and_exposes_redmine():
+    app = QCoreApplication.instance() or QCoreApplication([])
+    engine = QQmlEngine()
+    auth = RuntimeAuth()
+    context = engine.rootContext()
+    context.setContextProperty("ToolBridge", ToolBridge(ROOT, auth))
+    gc.collect()
+
+    bridge = context.contextProperty("ToolBridge")
+    assert bridge is not None
+    smart_home = next(group for group in bridge.groups if group["id"] == "SmartHome")
+    assert smart_home["available"] is True
+    assert smart_home["tools"][0]["id"] == "redmine"
+    assert smart_home["tools"][0]["title"] == "Redmine Bug Clone"
+
+
+def test_tool_qml_runtime_selects_redmine_and_invokes_login():
+    probe = f'''
+import sys
+sys.path.insert(0, r"{ROOT / 'ui'}")
+from PySide6.QtCore import QObject, Property, Q_ARG, QMetaObject, QUrl, Signal, Slot, Qt
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from FluentUI import FluentUI
+from example.imports import resource_rc
+from example.bridge.ToolBridge import ToolBridge
+class Auth(QObject):
+    authChanged = Signal()
+    username = Property(str, lambda self: "chen.chen", notify=authChanged)
+class Redmine(QObject):
+    changed = Signal(); credentialsRequired = Signal(); verificationRequired = Signal()
+    state = Property(str, lambda self: "idle", notify=changed)
+    statusText = Property(str, lambda self: "ready", notify=changed)
+    loading = Property(bool, lambda self: False, notify=changed)
+    calls = 0
+    @Slot()
+    def startLogin(self): self.calls += 1
+    @Slot(str, str)
+    def submitCredentials(self, _u, _p): pass
+    @Slot(str)
+    def submitVerification(self, _c): pass
+    @Slot()
+    def cancelLogin(self): pass
+app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
+auth=Auth(); tools=ToolBridge(r"{ROOT}", auth); redmine=Redmine()
+engine.rootContext().setContextProperty("ToolBridge", tools); engine.rootContext().setContextProperty("RedmineBridge", redmine)
+FluentUI.registerTypes(engine); engine.load(QUrl("qrc:/example/qml/page/T_Tool.qml")); app.processEvents()
+root=engine.rootObjects()[0]
+root.setProperty("selectedGroupIndex", 3); root.setProperty("selectedToolIndex", 0); app.processEvents()
+selected=root.property("selectedTool").toVariant(); button=root.findChild(QObject, "redmineLoginButton")
+QMetaObject.invokeMethod(button, "clicked", Qt.DirectConnection); app.processEvents()
+bad=[str(item) for item in warnings if "ToolBridge" in str(item) or "undefined" in str(item) or "null" in str(item)]
+print(selected.get("id"), redmine.calls, len(bad))
+'''
+    env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+    result = subprocess.run([sys.executable, "-c", probe], cwd=ROOT, env=env, capture_output=True, text=True, timeout=15)
+    assert result.returncode == 0, result.stderr
+    assert "redmine 1 0" in result.stdout
 
 
 def test_personnel_declares_product_line_and_technical_center_owners():

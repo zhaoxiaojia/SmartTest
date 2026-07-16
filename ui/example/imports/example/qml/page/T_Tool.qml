@@ -291,7 +291,7 @@ FluPage {
                 }
                 RowLayout {
                     visible: selectedTool.id === "redmine"
-                    FluButton { text: qsTr("Sign in"); disabled: RedmineBridge.loading; onClicked: RedmineBridge.startLogin() }
+                    FluButton { objectName: "redmineLoginButton"; text: qsTr("Sign in"); disabled: RedmineBridge.loading; onClicked: RedmineBridge.startLogin() }
                     FluButton { text: qsTr("Cancel"); onClicked: RedmineBridge.cancelLogin() }
                 }
                 Item {
