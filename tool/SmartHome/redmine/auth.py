@@ -39,9 +39,13 @@ class RedmineAuthService:
 
     async def _document_url(self):
         try:
-            return await self._page.evaluate("window.location.href")
+            document_url = await self._page.evaluate("window.location.href")
+            if isinstance(document_url, str) and document_url.strip():
+                return document_url
         except Exception:
-            return self._page.url
+            pass
+        page_url = getattr(self._page, "url", "")
+        return page_url if isinstance(page_url, str) else ""
 
     async def _classify(self, *, verification_submitted=False):
         document_url = await self._document_url()

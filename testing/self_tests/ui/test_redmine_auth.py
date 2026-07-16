@@ -49,6 +49,20 @@ def test_login_maps_real_twofa_contract_to_verification_required():
     assert page.load_waits == 1
 
 
+def test_twofa_evidence_survives_empty_document_url_adapter_result():
+    class EmptyDocumentUrlPage(FakePage):
+        async def evaluate(self, _expression): return None
+
+    page = EmptyDocumentUrlPage(
+        post_login_url="https://support.amlogic.com/account/twofa/confirm",
+        visible=(selectors.TWOFA_CODE_INPUT, selectors.TWOFA_SUBMIT),
+    )
+
+    result = run(RedmineAuthService(FakeSession(page)).login(Credential("alice", "secret")))
+
+    assert result.state is AuthState.VERIFICATION_REQUIRED
+
+
 def test_verification_uses_unique_real_twofa_fields_and_same_form_is_rejected_code():
     page = FakePage(
         url="https://support.amlogic.com/account/twofa/confirm",

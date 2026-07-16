@@ -10,7 +10,12 @@ VERIFICATION_SUBMIT = TWOFA_SUBMIT
 AUTHENTICATED_PROJECT_LINK = "a[href^='/projects/']"
 AUTHENTICATED_EVIDENCE = ("a.logout", "a[href*='/logout']", AUTHENTICATED_PROJECT_LINK)
 CREDENTIAL_ERRORS = (".flash.error:has-text('Invalid user or password')", ".flash.error:has-text('Invalid credentials')")
-VERIFICATION_EVIDENCE = (TWOFA_CODE_INPUT,)
+VERIFICATION_EVIDENCE = (
+    TWOFA_CODE_INPUT,
+    "input[name='verification_code']",
+    "input[name='otp']",
+    "input[name='code']",
+)
 INCORRECT_VERIFICATION_EVIDENCE = (
     ".flash.error:has-text('verification code')",
     ".flash.error:has-text('incorrect code')",
