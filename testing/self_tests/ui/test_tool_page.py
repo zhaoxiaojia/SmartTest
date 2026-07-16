@@ -5,12 +5,13 @@ import gc
 import os
 import subprocess
 import sys
+import weakref
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from ui.example.bridge.ToolBridge import build_tool_groups, load_tool_access
 from ui.example.bridge.ToolBridge import ToolBridge
-from PySide6.QtCore import QCoreApplication, QObject, Property, Signal
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, Property, Signal
 from PySide6.QtQml import QQmlEngine
 
 
@@ -37,6 +38,86 @@ def test_tool_bridge_survives_runtime_context_registration_and_exposes_redmine()
     assert smart_home["available"] is True
     assert smart_home["tools"][0]["id"] == "redmine"
     assert smart_home["tools"][0]["title"] == "Redmine Bug Clone"
+
+
+def test_production_context_ownership_survives_gc_and_tool_dialogs_are_warning_free():
+    probe = f'''
+import gc, sys
+sys.path.insert(0, r"{ROOT / 'ui'}")
+from PySide6.QtCore import QObject, QPoint, QPointF, Property, Signal, Slot, Qt
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtTest import QTest
+from FluentUI import FluentUI
+from example.imports import resource_rc
+from example.bridge.ToolBridge import ToolBridge
+from example.context_registry import register_context_objects
+class Auth(QObject):
+    authChanged = Signal()
+    username = Property(str, lambda self: "chao.li", notify=authChanged)
+class Redmine(QObject):
+    changed = Signal(); credentialsRequired = Signal(); verificationRequired = Signal()
+    state = Property(str, lambda self: "idle", notify=changed)
+    statusText = Property(str, lambda self: "ready", notify=changed)
+    loading = Property(bool, lambda self: False, notify=changed)
+    calls = 0
+    @Slot()
+    def startLogin(self): self.calls += 1
+    @Slot(str, str)
+    def submitCredentials(self, _u, _p): pass
+    @Slot(str)
+    def submitVerification(self, _c): pass
+    @Slot()
+    def cancelLogin(self): pass
+app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
+auth=Auth(); redmine=Redmine()
+register_context_objects(engine, {{"AuthBridge": auth, "ToolBridge": ToolBridge(r"{ROOT}", auth), "RedmineBridge": redmine}})
+del auth; gc.collect()
+FluentUI.registerTypes(engine)
+engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1200; height: 800; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/page/T_Tool.qml" }} }}')
+app.processEvents(); gc.collect(); app.processEvents(); window=engine.rootObjects()[0]; root=window.contentItem().childItems()[0].property("item")
+def find_by(prop, value):
+    pending=[root]
+    while pending:
+        item=pending.pop()
+        if item.property(prop)==value: return item
+        pending.extend(item.children())
+        if hasattr(item, "childItems"): pending.extend(item.childItems())
+smart_home=find_by("headerText", "SmartHome"); p=smart_home.mapToScene(QPointF(smart_home.width()/2,22)); QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(p.x()),round(p.y()))); QTest.qWait(250); app.processEvents()
+entry=find_by("text", "Redmine Bug Clone"); p=entry.mapToScene(QPointF(entry.width()/2,entry.height()/2)); QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(p.x()),round(p.y()))); app.processEvents()
+button=root.findChild(QObject,"redmineLoginButton"); p=button.mapToScene(QPointF(button.width()/2,button.height()/2)); QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(p.x()),round(p.y()))); app.processEvents()
+redmine.credentialsRequired.emit(); app.processEvents(); redmine.verificationRequired.emit(); app.processEvents()
+selected=root.property("selectedTool"); selected=selected.toVariant() if hasattr(selected,"toVariant") else selected
+bad=[str(item) for item in warnings]
+print(selected.get("id"), redmine.calls, len(engine._context_objects), len(bad), bad)
+'''
+    result = subprocess.run(
+        [sys.executable, "-c", probe], cwd=ROOT,
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
+        capture_output=True, text=True, timeout=20,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "redmine 1 3 0 []" in result.stdout
+
+
+def test_context_registry_releases_objects_when_engine_is_destroyed():
+    from ui.example.context_registry import register_context_objects
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    engine = QQmlEngine()
+    instance = QObject()
+    reference = weakref.ref(instance)
+    retained = register_context_objects(engine, {"TemporaryBridge": instance})
+    del instance
+    gc.collect()
+    assert reference() is not None
+
+    engine.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    gc.collect()
+
+    assert retained == {}
+    assert reference() is None
 
 
 def run_tool_qml_interaction_probe(account: str, *, developer: bool = False) -> str:
@@ -90,7 +171,7 @@ entry_visible=entry is not None and entry.property("visible") and entry.property
 if entry_visible:
     entry_point=entry.mapToScene(QPointF(entry.width()/2, entry.height()/2))
     QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, QPoint(round(entry_point.x()), round(entry_point.y()))); app.processEvents()
-selected=root.property("selectedTool").toVariant(); button=root.findChild(QObject, "redmineLoginButton")
+selected=root.property("selectedTool"); selected=selected.toVariant() if hasattr(selected,"toVariant") else selected; button=root.findChild(QObject, "redmineLoginButton")
 workspace_visible=button is not None and button.property("visible")
 if workspace_visible:
     button_point=button.mapToScene(QPointF(button.width()/2, button.height()/2))
@@ -250,8 +331,9 @@ def test_runtime_root_is_created_before_tool_bridge_registration():
     source = (ROOT / "ui/example/main.py").read_text(encoding="utf-8")
 
     assert source.index("runtime_root = _runtime_root()") < source.index(
-        'context.setContextProperty("ToolBridge"'
+        '"ToolBridge": ToolBridge(runtime_root, auth_bridge)'
     )
+    assert "register_context_objects(" in source
 
 
 def test_tool_fixed_text_is_finished_in_both_catalogs():

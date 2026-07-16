@@ -32,6 +32,7 @@ from example.bridge.ToolBridge import ToolBridge
 from example.bridge.RedmineBridge import RedmineBridge
 from example.bridge.DebugBridge import DebugBridge
 from example.bridge.BootVideoBridge import BootVideoBridge
+from example.context_registry import register_context_objects
 from support.logging import smart_log
 
 _uri = "example"
@@ -101,27 +102,31 @@ def main():
     app.aboutToQuit.connect(app_close_event.set)
     app.aboutToQuit.connect(lambda: event_loop.create_task(Async.delete()))
 
-    context = engine.rootContext()
-    TranslateHelper().init(engine)
-    context.setContextProperty("AppInfo", AppInfo())
-
-    context.setContextProperty("InitializrHelper", InitializrHelper())
-    context.setContextProperty("SettingsHelper", SettingsHelper())
-    context.setContextProperty("TranslateHelper", TranslateHelper())
     runtime_root = _runtime_root()
     auth_bridge = AuthBridge()
-    context.setContextProperty("AuthBridge", auth_bridge)
-    context.setContextProperty("ToolBridge", ToolBridge(runtime_root, auth_bridge))
     redmine_bridge = RedmineBridge(auth_bridge)
-    context.setContextProperty("RedmineBridge", redmine_bridge)
+    translate_helper = TranslateHelper()
+    translate_helper.init(engine)
+    register_context_objects(
+        engine,
+        {
+            "AppInfo": AppInfo(),
+            "InitializrHelper": InitializrHelper(),
+            "SettingsHelper": SettingsHelper(),
+            "TranslateHelper": translate_helper,
+            "AuthBridge": auth_bridge,
+            "ToolBridge": ToolBridge(runtime_root, auth_bridge),
+            "RedmineBridge": redmine_bridge,
+            "HomeBridge": HomeBridge(),
+            "TestPageBridge": TestPageBridge(runtime_root),
+            "RunBridge": RunBridge(runtime_root),
+            "ReportBridge": ReportBridge(),
+            "JiraBridge": JiraBridge(auth_bridge),
+            "DebugBridge": DebugBridge(runtime_root),
+            "BootVideoBridge": BootVideoBridge(runtime_root),
+        },
+    )
     app.aboutToQuit.connect(redmine_bridge.close)
-    context.setContextProperty("HomeBridge", HomeBridge())
-    context.setContextProperty("TestPageBridge", TestPageBridge(runtime_root))
-    context.setContextProperty("RunBridge", RunBridge(runtime_root))
-    context.setContextProperty("ReportBridge", ReportBridge())
-    context.setContextProperty("JiraBridge", JiraBridge(auth_bridge))
-    context.setContextProperty("DebugBridge", DebugBridge(runtime_root))
-    context.setContextProperty("BootVideoBridge", BootVideoBridge(runtime_root))
     FluentUI.registerTypes(engine)
     qml_file = QUrl("qrc:/example/qml/App.qml")
     engine.load(qml_file)
