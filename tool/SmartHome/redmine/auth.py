@@ -86,12 +86,14 @@ class RedmineAuthService:
             or document_url.startswith("https://support.amlogic.com/projects/"),
         }
 
-    async def _wait_for_auth_surface(self, *, timeout_ms=500):
+    async def _wait_for_auth_surface(self, evidence, *, timeout_ms=7000, poll_interval=0.2):
+        started_at = time.monotonic()
+        self._debug_evidence("wait_start", started_at, evidence)
         deadline = time.monotonic() + timeout_ms / 1000
-        evidence = await self._inspect()
         while not self._is_explicit(evidence) and not evidence["login_form"] and time.monotonic() < deadline:
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(poll_interval)
             evidence = await self._inspect()
+        self._debug_evidence("wait_end", started_at, evidence)
         return evidence
 
     @staticmethod
@@ -107,21 +109,29 @@ class RedmineAuthService:
             phase_started = time.monotonic()
             self._page = self._page or await self._session.new_page()
             self._trace("page_acquisition", phase_started)
-            evidence = None
-            initial = None
-            for attempt in range(2):
-                phase_started = time.monotonic()
-                await self._page.goto(
-                    selectors.LOGIN_URL,
-                    wait_until="commit",
-                    timeout=10000,
-                )
-                self._trace(f"goto_{attempt + 1}", phase_started)
+            phase_started = time.monotonic()
+            await self._page.goto(
+                selectors.LOGIN_URL,
+                wait_until="commit",
+                timeout=10000,
+            )
+            self._trace("goto", phase_started)
 
-                phase_started = time.monotonic()
-                evidence = await self._inspect()
+            phase_started = time.monotonic()
+            evidence = await self._inspect()
+            initial = self._classify_evidence(evidence)
+            self._debug_evidence("post_goto", phase_started, evidence)
+            if initial.state in {
+                AuthState.AUTHENTICATED,
+                AuthState.VERIFICATION_REQUIRED,
+                AuthState.CREDENTIALS_REQUIRED,
+            }:
+                self._trace("result", operation_started, state=initial.state.value)
+                return initial
+
+            if not evidence["login_form"]:
+                evidence = await self._wait_for_auth_surface(evidence)
                 initial = self._classify_evidence(evidence)
-                self._debug_evidence(f"post_goto_{attempt + 1}", phase_started, evidence)
                 if initial.state in {
                     AuthState.AUTHENTICATED,
                     AuthState.VERIFICATION_REQUIRED,
@@ -129,24 +139,6 @@ class RedmineAuthService:
                 }:
                     self._trace("result", operation_started, state=initial.state.value)
                     return initial
-                if evidence["login_form"]:
-                    break
-
-                phase_started = time.monotonic()
-                evidence = await self._wait_for_auth_surface()
-                initial = self._classify_evidence(evidence)
-                self._debug_evidence(f"poll_{attempt + 1}", phase_started, evidence)
-                if initial.state in {
-                    AuthState.AUTHENTICATED,
-                    AuthState.VERIFICATION_REQUIRED,
-                    AuthState.CREDENTIALS_REQUIRED,
-                }:
-                    self._trace("result", operation_started, state=initial.state.value)
-                    return initial
-                if evidence["login_form"]:
-                    break
-                if attempt == 0:
-                    self._trace("retry_navigation", operation_started, state="transitional")
 
             if not evidence["login_form"]:
                 self._trace("result", operation_started, state=initial.state.value)

@@ -76,17 +76,22 @@ def test_explicit_login_form_is_required_before_credentials_are_filled():
     assert page.clicks == []
 
 
-def test_transitional_first_navigation_retries_internally_and_reaches_twofa():
+def test_delayed_login_form_on_one_navigation_reaches_twofa_without_failure():
     class TransitionalPage(FakePage):
         def __init__(self):
             super().__init__(document_url=selectors.LOGIN_URL)
             self.goto_count = 0
+            self.inspection_count = 0
 
         async def goto(self, url, **kwargs):
             await super().goto(url, **kwargs)
             self.goto_count += 1
-            if self.goto_count == 2:
+
+        async def evaluate(self, expression):
+            self.inspection_count += 1
+            if self.inspection_count == 4:
                 self.visible = {selectors.USERNAME, selectors.PASSWORD, selectors.LOGIN_SUBMIT}
+            return await super().evaluate(expression)
 
         async def click(self, selector):
             await super().click(selector)
@@ -98,7 +103,7 @@ def test_transitional_first_navigation_retries_internally_and_reaches_twofa():
 
     result = run(RedmineAuthService(FakeSession(page)).login(Credential("alice", "secret")))
 
-    assert page.goto_count == 2
+    assert page.goto_count == 1
     assert page.fills == [
         (selectors.USERNAME, "alice"),
         (selectors.PASSWORD, "secret"),
@@ -123,7 +128,7 @@ def test_auth_timing_logs_contain_phases_and_account_but_not_secrets(monkeypatch
 
     assert result.state is AuthState.AUTHENTICATED
     assert any("phase=goto" in message and "account=alice" in message for message in messages)
-    assert any("phase=post_goto_1" in message and "auth=True" in message for message in messages)
+    assert any("phase=post_goto" in message and "auth=True" in message for message in messages)
     assert any("phase=result" in message and "elapsed_ms=" in message for message in messages)
     assert not any("secret" in message for message in messages)
     assert not any("private-value" in message for message in messages)
