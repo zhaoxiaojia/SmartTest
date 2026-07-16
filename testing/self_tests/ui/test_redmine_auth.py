@@ -76,6 +76,38 @@ def test_explicit_login_form_is_required_before_credentials_are_filled():
     assert page.clicks == []
 
 
+def test_transitional_first_navigation_retries_internally_and_reaches_twofa():
+    class TransitionalPage(FakePage):
+        def __init__(self):
+            super().__init__(document_url=selectors.LOGIN_URL)
+            self.goto_count = 0
+
+        async def goto(self, url, **kwargs):
+            await super().goto(url, **kwargs)
+            self.goto_count += 1
+            if self.goto_count == 2:
+                self.visible = {selectors.USERNAME, selectors.PASSWORD, selectors.LOGIN_SUBMIT}
+
+        async def click(self, selector):
+            await super().click(selector)
+            if selector == selectors.LOGIN_SUBMIT:
+                self.document_url = "https://support.amlogic.com/account/twofa/confirm"
+                self.visible = {selectors.TWOFA_CODE_INPUT, selectors.TWOFA_SUBMIT}
+
+    page = TransitionalPage()
+
+    result = run(RedmineAuthService(FakeSession(page)).login(Credential("alice", "secret")))
+
+    assert page.goto_count == 2
+    assert page.fills == [
+        (selectors.USERNAME, "alice"),
+        (selectors.PASSWORD, "secret"),
+    ]
+    assert page.clicks == [selectors.LOGIN_SUBMIT]
+    assert result.state is AuthState.VERIFICATION_REQUIRED
+    assert result.reason == "verification_required"
+
+
 def test_auth_timing_logs_contain_phases_and_account_but_not_secrets(monkeypatch):
     messages = []
     monkeypatch.setattr(
@@ -83,7 +115,7 @@ def test_auth_timing_logs_contain_phases_and_account_but_not_secrets(monkeypatch
         lambda message, *args, **kwargs: messages.append(message % args if args else message),
     )
     page = FakePage(
-        document_url="https://support.amlogic.com/projects/smarthome/issues",
+        document_url="https://support.amlogic.com/projects/smarthome/issues?token=private-value",
         visible=(selectors.AUTHENTICATED_PROJECT_LINK,),
     )
 
@@ -91,9 +123,11 @@ def test_auth_timing_logs_contain_phases_and_account_but_not_secrets(monkeypatch
 
     assert result.state is AuthState.AUTHENTICATED
     assert any("phase=goto" in message and "account=alice" in message for message in messages)
-    assert any("phase=classify" in message and "state=authenticated" in message for message in messages)
+    assert any("phase=post_goto_1" in message and "auth=True" in message for message in messages)
     assert any("phase=result" in message and "elapsed_ms=" in message for message in messages)
     assert not any("secret" in message for message in messages)
+    assert not any("private-value" in message for message in messages)
+    assert any("[REDMINE_DEBUG]" in message for message in messages)
 
 
 def test_twofa_evidence_survives_empty_document_url_adapter_result():

@@ -1,4 +1,6 @@
+import asyncio
 import time
+from urllib.parse import urlsplit
 
 from support.logging import smart_log
 from tool.SmartHome.redmine import selectors
@@ -26,11 +28,77 @@ class RedmineAuthService:
             },
         )
 
-    async def _login_form_visible(self):
-        for selector in (selectors.USERNAME, selectors.PASSWORD, selectors.LOGIN_SUBMIT):
-            if not await self._page.is_visible(selector):
-                return False
-        return True
+    @staticmethod
+    def _sanitized_url(document_url):
+        parsed = urlsplit(document_url or "")
+        return f"{parsed.scheme}://{parsed.netloc}{parsed.path}" if parsed.netloc else parsed.path
+
+    def _debug_evidence(self, phase, started_at, evidence):
+        elapsed_ms = int((time.monotonic() - started_at) * 1000)
+        smart_log(
+            "[REDMINE_DEBUG] phase=%s elapsed_ms=%d account=%s url=%s "
+            "login_form=%s twofa=%s auth=%s credential_error=%s verification_error=%s",
+            phase,
+            elapsed_ms,
+            self._username or "<none>",
+            self._sanitized_url(evidence["document_url"]),
+            evidence["login_form"],
+            evidence["twofa"],
+            evidence["authenticated"],
+            evidence["credential_error"],
+            evidence["verification_error"],
+            domain="tool",
+            source="RedmineAuthService",
+            extra={
+                "phase": phase,
+                "elapsed_ms": elapsed_ms,
+                "account": self._username,
+                "document_url": self._sanitized_url(evidence["document_url"]),
+                **{key: value for key, value in evidence.items() if key != "document_url"},
+            },
+        )
+
+    async def _inspect(self):
+        document_url = await self._document_url()
+        visible = {}
+        all_selectors = (
+            selectors.USERNAME,
+            selectors.PASSWORD,
+            selectors.LOGIN_SUBMIT,
+            *selectors.INCORRECT_VERIFICATION_EVIDENCE,
+            *selectors.VERIFICATION_EVIDENCE,
+            *selectors.CREDENTIAL_ERRORS,
+            *selectors.AUTHENTICATED_EVIDENCE,
+        )
+        for selector in dict.fromkeys(all_selectors):
+            visible[selector] = await self._page.is_visible(selector)
+        return {
+            "document_url": document_url,
+            "login_form": all(visible[item] for item in (
+                selectors.USERNAME, selectors.PASSWORD, selectors.LOGIN_SUBMIT,
+            )),
+            "verification_error": any(visible[item] for item in selectors.INCORRECT_VERIFICATION_EVIDENCE),
+            "twofa": selectors.TWOFA_PATH in document_url or any(
+                visible[item] for item in selectors.VERIFICATION_EVIDENCE
+            ),
+            "credential_error": any(visible[item] for item in selectors.CREDENTIAL_ERRORS),
+            "authenticated": any(visible[item] for item in selectors.AUTHENTICATED_EVIDENCE)
+            or document_url.startswith("https://support.amlogic.com/projects/"),
+        }
+
+    async def _wait_for_auth_surface(self, *, timeout_ms=500):
+        deadline = time.monotonic() + timeout_ms / 1000
+        evidence = await self._inspect()
+        while not self._is_explicit(evidence) and not evidence["login_form"] and time.monotonic() < deadline:
+            await asyncio.sleep(0.1)
+            evidence = await self._inspect()
+        return evidence
+
+    @staticmethod
+    def _is_explicit(evidence):
+        return any(evidence[key] for key in (
+            "verification_error", "twofa", "credential_error", "authenticated",
+        ))
 
     async def login(self, credential: Credential) -> AuthResult:
         self._username = credential.username.strip()
@@ -39,31 +107,21 @@ class RedmineAuthService:
             phase_started = time.monotonic()
             self._page = self._page or await self._session.new_page()
             self._trace("page_acquisition", phase_started)
-            phase_started = time.monotonic()
-            await self._page.goto(
-                selectors.LOGIN_URL,
-                wait_until="commit",
-                timeout=10000,
-            )
-            self._trace("goto", phase_started)
+            evidence = None
+            initial = None
+            for attempt in range(2):
+                phase_started = time.monotonic()
+                await self._page.goto(
+                    selectors.LOGIN_URL,
+                    wait_until="commit",
+                    timeout=10000,
+                )
+                self._trace(f"goto_{attempt + 1}", phase_started)
 
-            phase_started = time.monotonic()
-            initial = await self._classify()
-            self._trace("classify", phase_started, state=initial.state.value)
-            if initial.state in {
-                AuthState.AUTHENTICATED,
-                AuthState.VERIFICATION_REQUIRED,
-                AuthState.CREDENTIALS_REQUIRED,
-            }:
-                self._trace("result", operation_started, state=initial.state.value)
-                return initial
-            if not await self._login_form_visible():
                 phase_started = time.monotonic()
-                await self._wait_for_settled_page(timeout=3000)
-                self._trace("settle", phase_started)
-                phase_started = time.monotonic()
-                initial = await self._classify()
-                self._trace("classify", phase_started, state=initial.state.value)
+                evidence = await self._inspect()
+                initial = self._classify_evidence(evidence)
+                self._debug_evidence(f"post_goto_{attempt + 1}", phase_started, evidence)
                 if initial.state in {
                     AuthState.AUTHENTICATED,
                     AuthState.VERIFICATION_REQUIRED,
@@ -71,9 +129,28 @@ class RedmineAuthService:
                 }:
                     self._trace("result", operation_started, state=initial.state.value)
                     return initial
-                if not await self._login_form_visible():
+                if evidence["login_form"]:
+                    break
+
+                phase_started = time.monotonic()
+                evidence = await self._wait_for_auth_surface()
+                initial = self._classify_evidence(evidence)
+                self._debug_evidence(f"poll_{attempt + 1}", phase_started, evidence)
+                if initial.state in {
+                    AuthState.AUTHENTICATED,
+                    AuthState.VERIFICATION_REQUIRED,
+                    AuthState.CREDENTIALS_REQUIRED,
+                }:
                     self._trace("result", operation_started, state=initial.state.value)
                     return initial
+                if evidence["login_form"]:
+                    break
+                if attempt == 0:
+                    self._trace("retry_navigation", operation_started, state="transitional")
+
+            if not evidence["login_form"]:
+                self._trace("result", operation_started, state=initial.state.value)
+                return initial
 
             phase_started = time.monotonic()
             await self._page.fill(selectors.USERNAME, self._username)
@@ -84,7 +161,7 @@ class RedmineAuthService:
             await self._wait_for_settled_page()
             self._trace("settle", phase_started)
             phase_started = time.monotonic()
-            result = await self._classify()
+            result = await self._classify(phase="post_submit")
             self._trace("classify", phase_started, state=result.state.value)
             self._trace("result", operation_started, state=result.state.value)
             return result
@@ -113,7 +190,7 @@ class RedmineAuthService:
             await self._wait_for_settled_page()
             self._trace("settle", phase_started)
             phase_started = time.monotonic()
-            result = await self._classify(verification_submitted=True)
+            result = await self._classify(verification_submitted=True, phase="post_verification")
             self._trace("classify", phase_started, state=result.state.value)
             self._trace("result", operation_started, state=result.state.value)
             return result
@@ -139,31 +216,33 @@ class RedmineAuthService:
         page_url = getattr(self._page, "url", "")
         return page_url if isinstance(page_url, str) else ""
 
-    async def _classify(self, *, verification_submitted=False):
-        document_url = await self._document_url()
-        if any([await self._page.is_visible(selector) for selector in selectors.INCORRECT_VERIFICATION_EVIDENCE]):
+    def _classify_evidence(self, evidence, *, verification_submitted=False):
+        if evidence["verification_error"]:
             return AuthResult(
                 AuthState.VERIFICATION_REQUIRED,
                 username=self._username,
                 reason="incorrect_verification_code",
             )
-        twofa_visible = any([await self._page.is_visible(selector) for selector in selectors.VERIFICATION_EVIDENCE])
-        if selectors.TWOFA_PATH in document_url or twofa_visible:
+        if evidence["twofa"]:
             return AuthResult(
                 AuthState.VERIFICATION_REQUIRED,
                 username=self._username,
                 reason="incorrect_verification_code" if verification_submitted else "verification_required",
             )
-        if any([await self._page.is_visible(selector) for selector in selectors.CREDENTIAL_ERRORS]):
+        if evidence["credential_error"]:
             return AuthResult(
                 AuthState.CREDENTIALS_REQUIRED,
                 username=self._username,
                 reason="credentials_rejected",
             )
-        if any([await self._page.is_visible(selector) for selector in selectors.AUTHENTICATED_EVIDENCE]):
-            return AuthResult(AuthState.AUTHENTICATED, username=self._username)
-        if document_url.startswith("https://support.amlogic.com/projects/"):
+        if evidence["authenticated"]:
             return AuthResult(AuthState.AUTHENTICATED, username=self._username)
         return AuthResult(AuthState.FAILED, username=self._username, reason="unsupported_auth_state")
+
+    async def _classify(self, *, verification_submitted=False, phase="classify"):
+        started_at = time.monotonic()
+        evidence = await self._inspect()
+        self._debug_evidence(phase, started_at, evidence)
+        return self._classify_evidence(evidence, verification_submitted=verification_submitted)
 
     async def close(self): await self._session.close()
