@@ -4,8 +4,9 @@ import FluentUI 1.0
 
 ColumnLayout {
     property string description: ""
+    property bool showTitle: true
     spacing: 7
-    FluText { text: qsTr("Description"); font: FluTextStyle.BodyStrong }
-    Rectangle { Layout.fillWidth: true; height: 1; color: FluTheme.dividerColor }
+    FluText { visible: showTitle; text: qsTr("Description"); font: FluTextStyle.BodyStrong }
+    Rectangle { visible: showTitle; Layout.fillWidth: true; height: 1; color: FluTheme.dividerColor }
     FluText { objectName: "issueDescription"; Layout.fillWidth: true; text: description || qsTr("No description."); wrapMode: Text.WrapAnywhere; color: description ? FluTheme.fontPrimaryColor : FluTheme.fontSecondaryColor }
 }

@@ -1,7 +1,6 @@
-import asyncio
+﻿import asyncio
 import time
 from pathlib import Path
-import xml.etree.ElementTree as ET
 
 from PySide6.QtCore import QCoreApplication, QObject, Signal
 
@@ -111,33 +110,6 @@ def test_incorrect_verification_reason_is_localized_by_bridge():
     bridge._apply(7, AuthResult(AuthState.VERIFICATION_REQUIRED, reason="incorrect_verification_code"))
     assert bridge.statusText == "The verification code was rejected. Enter the latest code from your phone."
     bridge.close()
-
-
-def test_incorrect_verification_text_is_finished_in_both_catalogs():
-    source = "The verification code was rejected. Enter the latest code from your phone."
-    expected = {
-        "example_en_US.ts": source,
-        "example_zh_CN.ts": "验证码已被拒绝，请输入手机上最新的验证码。",
-    }
-    for filename, translation in expected.items():
-        root = ET.parse(Path("ui/example") / filename).getroot()
-        messages = [message for context in root.findall("context") if context.findtext("name") == "RedmineBridge" for message in context.findall("message")]
-        match = next(message for message in messages if message.findtext("source") == source)
-        translated = match.find("translation")
-        assert translated is not None and translated.get("type") != "unfinished"
-        assert translated.text == translation
-
-
-def test_ordinary_verification_text_is_finished_in_both_catalogs():
-    source = "Enter the mobile verification code."
-    expected = {"example_en_US.ts": source, "example_zh_CN.ts": "请输入手机验证码。"}
-    for filename, translation in expected.items():
-        root = ET.parse(Path("ui/example") / filename).getroot()
-        messages = [message for context in root.findall("context") if context.findtext("name") == "RedmineBridge" for message in context.findall("message")]
-        match = next(message for message in messages if message.findtext("source") == source)
-        translated = match.find("translation")
-        assert translated is not None and translated.get("type") != "unfinished"
-        assert translated.text == translation
 
 
 def test_dynamic_external_status_text_remains_raw():

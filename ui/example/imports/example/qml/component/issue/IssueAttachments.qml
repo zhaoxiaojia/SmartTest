@@ -10,14 +10,16 @@ ColumnLayout {
     property bool loading: false
     property bool uploading: false
     property string error: ""
+    property bool showTitle: true
     signal filesSelected(string issueKey, var fileUrls)
     signal attachmentOpenRequested(string issueKey, var attachment)
     spacing: 8
     function isLocalFileUrl(value) { var text = value === undefined || value === null ? "" : value.toString(); return /^file:(?:\/{3}[^\s]+|\/\/[^\/\s]+\/[^\s]+)$/i.test(text) }
     function localFiles(fileUrls) { return (fileUrls || []).filter(value => isLocalFileUrl(value)) }
     function selectFiles(fileUrls) { var accepted = localFiles(fileUrls); if (!uploading && accepted.length > 0) filesSelected(issueKey, accepted) }
-    RowLayout { Layout.fillWidth: true; FluText { text: qsTr("Attachments"); font: FluTextStyle.BodyStrong } Item { Layout.fillWidth: true } FluButton { text: qsTr("Select files"); disabled: root.uploading; onClicked: fileDialog.open() } }
-    Rectangle { Layout.fillWidth: true; height: 1; color: FluTheme.dividerColor }
+    RowLayout { Layout.fillWidth: true; visible: root.showTitle; FluText { text: qsTr("Attachments"); font: FluTextStyle.BodyStrong } Item { Layout.fillWidth: true } FluButton { text: qsTr("Select files"); disabled: root.uploading; onClicked: fileDialog.open() } }
+    RowLayout { Layout.fillWidth: true; visible: !root.showTitle; Item { Layout.fillWidth: true } FluButton { text: qsTr("Select files"); disabled: root.uploading; onClicked: fileDialog.open() } }
+    Rectangle { visible: root.showTitle; Layout.fillWidth: true; height: 1; color: FluTheme.dividerColor }
     FileDialog { id: fileDialog; objectName: "issueAttachmentFileDialog"; title: qsTr("Select attachments"); fileMode: FileDialog.OpenFiles; onAccepted: root.selectFiles(selectedFiles) }
     Rectangle {
         property color dropBorderColor: FluTheme.dark ? "#7B8490" : "#7A869A"

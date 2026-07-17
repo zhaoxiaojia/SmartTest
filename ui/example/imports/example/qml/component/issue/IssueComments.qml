@@ -9,11 +9,13 @@ ColumnLayout {
     property bool loading: false
     property bool submitting: false
     property string error: ""
+    property bool showTitle: true
     signal submitRequested(string issueKey, string content)
     spacing: 8
     function clearDraft() { editor.text = "" }
-    RowLayout { Layout.fillWidth: true; FluText { text: qsTr("Comments"); font: FluTextStyle.BodyStrong } Item { Layout.fillWidth: true } FluButton { objectName: "issueCommentButton"; text: qsTr("Comment"); disabled: root.submitting; onClicked: editorArea.visible = true } }
-    Rectangle { Layout.fillWidth: true; height: 1; color: FluTheme.dividerColor }
+    RowLayout { Layout.fillWidth: true; visible: root.showTitle; FluText { text: qsTr("Comments"); font: FluTextStyle.BodyStrong } Item { Layout.fillWidth: true } FluButton { objectName: "issueCommentButton"; text: qsTr("Comment"); disabled: root.submitting; onClicked: editorArea.visible = true } }
+    RowLayout { Layout.fillWidth: true; visible: !root.showTitle; Item { Layout.fillWidth: true } FluButton { objectName: "issueCommentButtonInline"; text: qsTr("Comment"); disabled: root.submitting; onClicked: editorArea.visible = true } }
+    Rectangle { visible: root.showTitle; Layout.fillWidth: true; height: 1; color: FluTheme.dividerColor }
     FluText { visible: root.loading; text: qsTr("Loading comments..."); color: FluTheme.fontSecondaryColor }
     FluText { visible: !root.loading && (root.comments || []).length === 0; text: qsTr("No comments yet."); color: FluTheme.fontSecondaryColor }
     Repeater {

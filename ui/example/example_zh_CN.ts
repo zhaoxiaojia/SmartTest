@@ -3776,6 +3776,16 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="2003" />
+        <source>%1 of %2</source>
+        <translation>%1 / %2</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2003" />
+        <source>TV Projects</source>
+        <translation>TV Projects</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2003" />
         <source>Selected Issue</source>
         <translation>当前选中问题</translation>
     </message>
@@ -5773,6 +5783,15 @@ Some contents...</source>
     <message><source>Wi-Fi</source><translation>Wi-Fi</translation></message>
 </context>
 <context><name>RedmineBridge</name>
+<message><source>All projects</source><translation>所有项目</translation></message>
+<message><source>All statuses</source><translation>所有状态</translation></message>
+<message><source>Redmine data is not loaded.</source><translation>Redmine 数据尚未加载。</translation></message>
+<message><source>Loading Redmine data...</source><translation>正在加载 Redmine 数据...</translation></message>
+<message><source>Redmine data loaded.</source><translation>Redmine 数据已加载。</translation></message>
+<message><source>Refreshing Redmine issue detail...</source><translation>正在刷新 Redmine 问题详情...</translation></message>
+<message><source>Redmine data load failed.</source><translation>Redmine 数据加载失败。</translation></message>
+<message><source>Redmine issue detail refresh failed.</source><translation>Redmine 问题详情刷新失败。</translation></message>
+<message><source>Redmine issue detail refreshed.</source><translation>Redmine 问题详情已刷新。</translation></message>
 <message><source>The verification code was rejected. Enter the latest code from your phone.</source><translation>验证码已被拒绝，请输入手机上最新的验证码。</translation></message>
 <message><source>Ready to sign in to Redmine.</source><translation>准备登录 Redmine。</translation></message>
 <message><source>Signing in to Redmine...</source><translation>正在登录 Redmine...</translation></message>
@@ -5820,6 +5839,9 @@ Some contents...</source>
 <message><source>Retry</source><translation>重试</translation></message>
 </context>
 <context><name>RedmineWorkspace</name>
+<message><source>All projects</source><translation>所有项目</translation></message>
+<message><source>All statuses</source><translation>所有状态</translation></message>
+<message><source>Bug</source><translation>Bug</translation></message>
 <message><source>Project</source><translation>项目</translation></message>
 <message><source>Status</source><translation>状态</translation></message>
 <message><source>Issue type</source><translation>问题类型</translation></message>

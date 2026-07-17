@@ -332,8 +332,11 @@ def test_tool_navigation_and_page_layout_contract():
 
 def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():
     component_root = ROOT / "ui/example/imports/example/qml/component/redmine"
+    issue_root = ROOT / "ui/example/imports/example/qml/component/issue"
     login = (component_root / "RedmineLoginView.qml").read_text(encoding="utf-8")
     workspace = (component_root / "RedmineWorkspace.qml").read_text(encoding="utf-8")
+    browser = (issue_root / "JiraIssueBrowserLayout.qml").read_text(encoding="utf-8")
+    detail = (issue_root / "JiraIssueDetailLayout.qml").read_text(encoding="utf-8")
     page = (ROOT / "ui/example/imports/example/qml/page/T_Tool.qml").read_text(encoding="utf-8")
 
     assert "Tool workspace" not in page
@@ -352,11 +355,21 @@ def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():
         "verificationSubmitRequested", "cancelRequested",
     ):
         assert f"signal {signal}" in login
-    for label in ("Project", "Status", "Issue type", "Assignee", "Contains text", "Search"):
-        assert f'qsTr("{label}")' in workspace
-    assert "IssueDetailView" in workspace
-    assert "signal searchRequested" in workspace
-    assert "signal issueSelected" in workspace
+    assert "JiraIssueBrowserLayout" in workspace
+    assert "FluFrame" not in workspace
+    for label in ("All projects", "All statuses", "Bug", "Contains text", "Search"):
+        assert f'qsTr("{label}")' in browser
+    assert "JiraIssueDetailLayout" in browser
+    assert "signal searchRequested" in browser
+    assert "signal issueSelected" in browser
+    assert "positionText" in detail
+    assert "previousIssueRequested" in detail
+    assert "nextIssueRequested" in detail
+    assert "toggleIssueListRequested" in detail
+    assert "RedmineBridge.issueRows" in page
+    assert "RedmineBridge.selectedIssue" in page
+    assert "RedmineBridge.applyFilters" in page
+    assert "RedmineBridge.selectIssue" in page
 
 
 def test_redmine_workspace_qrc_loads_without_qml_warnings():

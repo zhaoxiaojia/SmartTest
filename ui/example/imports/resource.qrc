@@ -14,6 +14,9 @@
         <file>example/qml/component/ToolGroupExpander.qml</file>
         <file>example/qml/component/redmine/RedmineLoginView.qml</file>
         <file>example/qml/component/redmine/RedmineWorkspace.qml</file>
+        <file>example/qml/component/issue/JiraIssueBrowserLayout.qml</file>
+        <file>example/qml/component/issue/JiraIssueDetailLayout.qml</file>
+        <file>example/qml/component/issue/JiraIssueSection.qml</file>
         <file>example/qml/component/issue/IssueDetailView.qml</file>
         <file>example/qml/component/issue/IssueHeader.qml</file>
         <file>example/qml/component/issue/IssueFieldSection.qml</file>

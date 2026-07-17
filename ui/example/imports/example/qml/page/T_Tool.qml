@@ -139,7 +139,16 @@ FluPage {
                     Layout.fillHeight: true
                     active: selectedTool.id === "redmine" && RedmineBridge.state === "authenticated"
                     visible: active
-                    sourceComponent: RedmineWorkspace {}
+                    sourceComponent: RedmineWorkspace {
+                        issues: RedmineBridge.issueRows
+                        selectedIssue: RedmineBridge.selectedIssue
+                        projectFilters: RedmineBridge.projectFilterLabels
+                        statusFilters: RedmineBridge.statusFilterLabels
+                        dataLoading: RedmineBridge.dataLoading
+                        dataStatusText: RedmineBridge.dataStatusText
+                        onSearchRequested: filters => RedmineBridge.applyFilters(filters)
+                        onIssueSelected: issue => RedmineBridge.selectIssue(issue.id || issue.key || "")
+                    }
                 }
                 FluText {
                     Layout.fillHeight: true

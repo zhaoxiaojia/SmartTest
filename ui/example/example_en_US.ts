@@ -3620,6 +3620,16 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="2003" />
+        <source>%1 of %2</source>
+        <translation>%1 of %2</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2003" />
+        <source>TV Projects</source>
+        <translation>TV Projects</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2003" />
         <source>Selected Issue</source>
         <translation>Selected Issue</translation>
     </message>
@@ -5579,7 +5589,16 @@ Some contents...</translation>
 <message><source>Redmine needs a different account or password.</source><translation>Redmine needs a different account or password.</translation></message>
 <message><source>Enter the mobile verification code.</source><translation>Enter the mobile verification code.</translation></message>
 <message><source>Redmine sign-in failed.</source><translation>Redmine sign-in failed.</translation></message>
-<message><source>Redmine sign-in cancelled.</source><translation>Redmine sign-in cancelled.</translation></message></context>
+<message><source>Redmine sign-in cancelled.</source><translation>Redmine sign-in cancelled.</translation></message>
+<message><source>All projects</source><translation>All projects</translation></message>
+<message><source>All statuses</source><translation>All statuses</translation></message>
+<message><source>Redmine data is not loaded.</source><translation>Redmine data is not loaded.</translation></message>
+<message><source>Loading Redmine data...</source><translation>Loading Redmine data...</translation></message>
+<message><source>Redmine data loaded.</source><translation>Redmine data loaded.</translation></message>
+<message><source>Refreshing Redmine issue detail...</source><translation>Refreshing Redmine issue detail...</translation></message>
+<message><source>Redmine data load failed.</source><translation>Redmine data load failed.</translation></message>
+<message><source>Redmine issue detail refresh failed.</source><translation>Redmine issue detail refresh failed.</translation></message>
+<message><source>Redmine issue detail refreshed.</source><translation>Redmine issue detail refreshed.</translation></message></context>
 <context><name>T_Tool</name>
 <message><source>Redmine credentials</source><translation>Redmine credentials</translation></message><message><source>Sign in</source><translation>Sign in</translation></message><message><source>Username</source><translation>Username</translation></message><message><source>Password</source><translation>Password</translation></message><message><source>Mobile verification</source><translation>Mobile verification</translation></message><message><source>Enter the verification code shown on your phone.</source><translation>Enter the verification code shown on your phone.</translation></message><message><source>Verify</source><translation>Verify</translation></message><message><source>Verification code</source><translation>Verification code</translation></message></context>
 <context><name>ToolBridge</name><message><source>redmine</source><translation>redmine</translation></message><message><source>Browse and sign in to SmartHome Redmine.</source><translation>Browse and sign in to SmartHome Redmine.</translation></message></context>
@@ -5620,8 +5639,11 @@ Some contents...</translation>
 </context>
 <context><name>RedmineWorkspace</name>
 <message><source>Project</source><translation>Project</translation></message>
+<message><source>All projects</source><translation>All projects</translation></message>
 <message><source>Status</source><translation>Status</translation></message>
+<message><source>All statuses</source><translation>All statuses</translation></message>
 <message><source>Issue type</source><translation>Issue type</translation></message>
+<message><source>Bug</source><translation>Bug</translation></message>
 <message><source>Assignee</source><translation>Assignee</translation></message>
 <message><source>Contains text</source><translation>Contains text</translation></message>
 <message><source>Search</source><translation>Search</translation></message>
