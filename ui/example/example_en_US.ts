@@ -5593,6 +5593,7 @@ Some contents...</translation>
 <message><source>All projects</source><translation>All projects</translation></message>
 <message><source>All statuses</source><translation>All statuses</translation></message>
 <message><source>Redmine data is not loaded.</source><translation>Redmine data is not loaded.</translation></message>
+<message><source>Loading Redmine data... {loaded}/{total}</source><translation>Loading Redmine data... {loaded}/{total}</translation></message>
 <message><source>Loading Redmine data...</source><translation>Loading Redmine data...</translation></message>
 <message><source>Redmine data loaded.</source><translation>Redmine data loaded.</translation></message>
 <message><source>Refreshing Redmine issue detail...</source><translation>Refreshing Redmine issue detail...</translation></message>
@@ -5643,11 +5644,13 @@ Some contents...</translation>
 <message><source>Status</source><translation>Status</translation></message>
 <message><source>All statuses</source><translation>All statuses</translation></message>
 <message><source>Issue type</source><translation>Issue type</translation></message>
+<message><source>All types</source><translation>All types</translation></message>
 <message><source>Bug</source><translation>Bug</translation></message>
 <message><source>Assignee</source><translation>Assignee</translation></message>
 <message><source>Contains text</source><translation>Contains text</translation></message>
 <message><source>Search</source><translation>Search</translation></message>
 <message><source>Issues</source><translation>Issues</translation></message>
+<message><source>Not cloned</source><translation>Not cloned</translation></message>
 <message><source>No issues loaded</source><translation>No issues loaded</translation></message>
 </context>
 </TS>

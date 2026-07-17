@@ -227,25 +227,28 @@ def test_context_collector_keeps_browser_generic_and_builds_context_from_page_co
                         "containerText": "BDS.Cultraview.EDLA.A311D2 [Project ID]:AN40BF-A311D2",
                     }
                 ]
-            if "issues?set_filter=1" in url and "tracker_id=1" not in url:
-                return [
-                    {
-                        "id": "issue-61903",
-                        "cells": [
-                            {"className": "id", "text": "61903", "links": [{"text": "61903", "href": "https://support.amlogic.com/issues/61903"}]},
-                            {"className": "tracker", "text": "Bug", "links": []},
-                            {"className": "subject", "text": "subject", "links": []},
-                        ],
-                    },
-                    {
-                        "id": "issue-62000",
-                        "cells": [
-                            {"className": "id", "text": "62000", "links": [{"text": "62000", "href": "https://support.amlogic.com/issues/62000"}]},
-                            {"className": "tracker", "text": "Support", "links": []},
-                            {"className": "subject", "text": "support subject", "links": []},
-                        ],
-                    },
-                ]
+            if "issues?set_filter=1" in url and "status_id=*" in url and "tracker_id=1" not in url:
+                return {
+                    "total": 2,
+                    "rows": [
+                        {
+                            "id": "issue-61903",
+                            "cells": [
+                                {"className": "id", "text": "61903", "links": [{"text": "61903", "href": "https://support.amlogic.com/issues/61903"}]},
+                                {"className": "tracker", "text": "Bug", "links": []},
+                                {"className": "subject", "text": "subject", "links": []},
+                            ],
+                        },
+                        {
+                            "id": "issue-62000",
+                            "cells": [
+                                {"className": "id", "text": "62000", "links": [{"text": "62000", "href": "https://support.amlogic.com/issues/62000"}]},
+                                {"className": "tracker", "text": "Support", "links": []},
+                                {"className": "subject", "text": "support subject", "links": []},
+                            ],
+                        },
+                    ],
+                }
             raise AssertionError(url)
 
     context = asyncio.run(RedmineContextCollector(FakePage(), account="alice").collect_context())
@@ -254,3 +257,82 @@ def test_context_collector_keeps_browser_generic_and_builds_context_from_page_co
     assert context.projects[0].project_id == "AN40BF-A311D2"
     assert context.projects[0].issues[0].id == "61903"
     assert [issue.tracker for issue in context.projects[0].issues] == ["Bug", "Support"]
+
+
+def test_context_collector_reads_all_issue_pages():
+    class FakePage:
+        def __init__(self):
+            self.urls = []
+
+        async def goto(self, url, **_kwargs):
+            self.urls.append(url)
+
+        async def evaluate(self, _script):
+            url = self.urls[-1]
+            assert "per_page=100" in url
+            page = 2 if "page=2" in url else 1
+            offset = 100 if page == 2 else 0
+            count = 38 if page == 2 else 100
+            return {
+                "total": 138,
+                "pagination": f"({offset + 1}-{offset + count}/138)",
+                "rows": [
+                    {
+                        "id": f"issue-{offset + idx + 1}",
+                        "cells": [
+                            {"className": "id", "text": str(offset + idx + 1), "links": [{"text": str(offset + idx + 1), "href": f"https://support.amlogic.com/issues/{offset + idx + 1}"}]},
+                            {"className": "tracker", "text": "Bug", "links": []},
+                            {"className": "status", "text": "Closed", "links": []},
+                            {"className": "subject", "text": "subject", "links": []},
+                        ],
+                    }
+                    for idx in range(count)
+                ],
+            }
+
+    project = RedmineProject(name="BDS", identifier="bds", url="https://support/projects/bds", project_id="AN40BF-A311D2")
+    issues = asyncio.run(RedmineContextCollector(FakePage(), account="alice").collect_issue_list(project))
+
+    assert len(issues) == 138
+    assert issues[0].id == "1"
+    assert issues[-1].id == "138"
+
+
+def test_context_collector_reports_issue_loading_progress():
+    progress = []
+
+    class FakePage:
+        def __init__(self):
+            self.urls = []
+
+        async def goto(self, url, **_kwargs):
+            self.urls.append(url)
+
+        async def evaluate(self, _script):
+            url = self.urls[-1]
+            page = 2 if "page=2" in url else 1
+            offset = 100 if page == 2 else 0
+            count = 20 if page == 2 else 100
+            return {
+                "total": 120,
+                "pagination": f"({offset + 1}-{offset + count}/120)",
+                "rows": [
+                    {
+                        "id": f"issue-{offset + idx + 1}",
+                        "cells": [
+                            {"className": "id", "text": str(offset + idx + 1), "links": [{"text": str(offset + idx + 1), "href": f"https://support.amlogic.com/issues/{offset + idx + 1}"}]},
+                            {"className": "tracker", "text": "Bug", "links": []},
+                        ],
+                    }
+                    for idx in range(count)
+                ],
+            }
+
+    project = RedmineProject(name="BDS", identifier="bds", url="https://support/projects/bds", project_id="AN40BF-A311D2")
+    collector = RedmineContextCollector(FakePage(), account="alice", progress_callback=lambda loaded, total, label: progress.append((loaded, total, label)))
+
+    issues = asyncio.run(collector.collect_issue_list(project))
+
+    assert len(issues) == 120
+    assert progress[0] == (100, 120, "BDS")
+    assert progress[-1] == (120, 120, "BDS")

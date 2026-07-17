@@ -93,6 +93,14 @@ Flickable {
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openIssueRequested(root.issue.key || "", root.issue.webUrl || "") }
                     }
 
+                    FluText {
+                        visible: !!root.issue.clonedIssueKey
+                        text: root.issue.clonedIssueKey || ""
+                        font: FluTextStyle.Caption
+                        color: FluTheme.dark ? "#6EA8FE" : "#0F62FE"
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.externalLinkRequested(root.issue.clonedIssueUrl || "") }
+                    }
+
                     Item { Layout.fillWidth: true }
 
                     FluText {

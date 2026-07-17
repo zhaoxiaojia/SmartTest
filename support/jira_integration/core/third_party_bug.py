@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+from support.jira_integration.core.models import CreateIssueRequest
+
 
 @dataclass(frozen=True)
 class ThirdPartyBugAttachment:
@@ -132,6 +134,30 @@ class ThirdPartyBugDetail:
                 for attachment in self.attachments
             ],
         }
+
+    def to_create_issue_request(
+        self,
+        *,
+        project_key: str,
+        issue_type: str,
+        source_system: str = "third_party_bug",
+        extra_fields: dict[str, Any] | None = None,
+    ) -> CreateIssueRequest:
+        component = self.attr("Category")
+        return CreateIssueRequest(
+            project_key=project_key,
+            issue_type=issue_type,
+            summary=self.subject,
+            description=self.description,
+            priority=self.attr("Priority"),
+            assignee=self.attr("Assignee"),
+            labels=tuple(self.labels()),
+            components=(component,) if component else (),
+            source_system=source_system,
+            source_id=self.id,
+            source_url=self.url,
+            extra_fields=extra_fields or {},
+        )
 
 
 @dataclass(frozen=True)

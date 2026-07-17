@@ -70,3 +70,27 @@ def test_detail_builds_jira_transition_payload_from_generic_bug_data():
     assert payload["fields"]["summary"] == "panel issue"
     assert payload["fields"]["project"]["redmine_project_id"] == "AN40BF-A311D2"
     assert payload["fields"]["components"] == [{"name": "DDR"}]
+
+
+def test_detail_builds_create_issue_request_for_jira_create_entrypoint():
+    detail = ThirdPartyBugDetail(
+        id="61043",
+        url="https://support/issues/61043",
+        project_identifier="bds",
+        tracker="Bug",
+        subject="panel issue",
+        description="steps",
+        attributes={"Priority": "Urgent", "Assignee": "h shen", "Category": "DDR"},
+    )
+
+    request = detail.to_create_issue_request(project_key="TV", issue_type="Bug", source_system="redmine")
+
+    assert request.project_key == "TV"
+    assert request.issue_type == "Bug"
+    assert request.summary == "panel issue"
+    assert request.source_system == "redmine"
+    assert request.source_id == "61043"
+    assert request.source_url == "https://support/issues/61043"
+    assert request.priority == "Urgent"
+    assert request.assignee == "h shen"
+    assert request.components == ("DDR",)

@@ -357,8 +357,11 @@ def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():
         assert f"signal {signal}" in login
     assert "JiraIssueBrowserLayout" in workspace
     assert "FluFrame" not in workspace
-    for label in ("All projects", "All statuses", "Bug", "Contains text", "Search"):
+    for label in ("All projects", "All statuses", "All types", "Contains text", "Search"):
         assert f'qsTr("{label}")' in browser
+    assert 'typeFilters: [qsTr("All types"), "Bug", "Support"]' in workspace
+    assert 'statusFilters: [qsTr("All statuses"), "Open", "Closed"]' in workspace
+    assert "typeFilters: RedmineBridge.typeFilterLabels" not in page
     assert "JiraIssueDetailLayout" in browser
     assert "signal searchRequested" in browser
     assert "signal issueSelected" in browser
@@ -368,7 +371,11 @@ def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():
     assert "toggleIssueListRequested" in detail
     assert "RedmineBridge.issueRows" in page
     assert "RedmineBridge.selectedIssue" in page
+    assert "RedmineBridge.filters" in page
+    assert "RedmineBridge.dataLoaded" in page
+    assert "RedmineBridge.dataTotal" in page
     assert "RedmineBridge.applyFilters" in page
+    assert "FluProgressBar" in browser
     assert "RedmineBridge.selectIssue" in page
 
 

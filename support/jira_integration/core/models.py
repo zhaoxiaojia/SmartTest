@@ -84,3 +84,37 @@ class IssueStoreQuery:
     text: str | None = None
     updated_since: str | None = None
     limit: int | None = None
+
+
+@dataclass(frozen=True)
+class CreateIssueRequest:
+    project_key: str
+    issue_type: str
+    summary: str
+    description: str = ""
+    priority: str = ""
+    assignee: str = ""
+    labels: tuple[str, ...] = ()
+    components: tuple[str, ...] = ()
+    source_system: str = ""
+    source_id: str = ""
+    source_url: str = ""
+    extra_fields: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class CreateIssueResult:
+    created: bool
+    issue_key: str = ""
+    issue_id: str = ""
+    issue_url: str = ""
+    existing_key: str = ""
+    raw: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ExistingIssue:
+    key: str
+    web_url: str = ""
+    summary: str = ""
+    raw: dict[str, Any] = field(default_factory=dict)

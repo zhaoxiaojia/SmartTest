@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import re
 from dataclasses import replace
-from typing import Any
+from math import ceil
+from typing import Any, Callable
 from urllib.parse import urlsplit
 
-from support.logging import smart_log
 from tool.SmartHome.redmine.models import (
     RedmineAttachment,
     RedmineContext,
@@ -213,10 +214,22 @@ def parse_issue_detail(raw: dict[str, Any], *, list_item: RedmineIssueListItem |
 
 
 class RedmineContextCollector:
-    def __init__(self, page, *, account: str = "", base_url: str = BASE_URL):
+    def __init__(
+        self,
+        page,
+        *,
+        account: str = "",
+        base_url: str = BASE_URL,
+        progress_callback: Callable[[int, int, str], None] | None = None,
+        max_concurrency: int = 8,
+    ):
         self._page = page
         self._account = account
         self._base_url = base_url.rstrip("/")
+        self._progress_callback = progress_callback
+        self._page_semaphore = asyncio.Semaphore(max(1, max_concurrency))
+        self._loaded_by_project: dict[str, int] = {}
+        self._total_by_project: dict[str, int] = {}
 
     async def _goto_and_wait(self, url: str, selector: str, *, timeout: int = 8000) -> None:
         await self._page.goto(url, wait_until="domcontentloaded", timeout=20000)
@@ -232,10 +245,59 @@ class RedmineContextCollector:
         return parse_project_nodes(raw_nodes)
 
     async def collect_issue_list(self, project: RedmineProject) -> tuple[RedmineIssueListItem, ...]:
-        url = f"{self._base_url}/projects/{project.identifier}/issues?set_filter=1"
-        await self._goto_and_wait(url, "table.issues, .nodata, #content")
-        raw_rows = await self._page.evaluate(_ISSUE_LIST_SCRIPT)
-        return parse_issue_list(raw_rows)
+        return await self._collect_issue_list_with_page(self._page, project)
+
+    async def _collect_issue_list_with_page(self, page, project: RedmineProject) -> tuple[RedmineIssueListItem, ...]:
+        per_page = 100
+        first = await self._fetch_issue_page(page, project, page_number=1, per_page=per_page)
+        rows: list[dict[str, Any]] = list(first.get("rows") or [])
+        total = int(first.get("total") or len(rows))
+        self._emit_progress(project, len(rows), total)
+        if rows and len(rows) < total:
+            remaining_pages = range(2, ceil(total / per_page) + 1)
+            page_payloads = await asyncio.gather(*(self._fetch_issue_page_for_project(project, page_number, per_page) for page_number in remaining_pages))
+            for payload in page_payloads:
+                rows.extend(list(payload.get("rows") or []))
+                self._emit_progress(project, min(len(rows), total), total)
+        return parse_issue_list(rows)
+
+    async def _fetch_issue_page_for_project(self, project: RedmineProject, page_number: int, per_page: int) -> dict[str, Any]:
+        context = getattr(self._page, "context", None)
+        if context is None or not hasattr(context, "new_page"):
+            return await self._fetch_issue_page(self._page, project, page_number=page_number, per_page=per_page)
+        page = await context.new_page()
+        try:
+            return await self._fetch_issue_page(page, project, page_number=page_number, per_page=per_page)
+        finally:
+            try:
+                await page.close()
+            except Exception:
+                pass
+
+    async def _fetch_issue_page(self, page, project: RedmineProject, *, page_number: int, per_page: int) -> dict[str, Any]:
+        url = f"{self._base_url}/projects/{project.identifier}/issues?set_filter=1&status_id=*&per_page={per_page}&page={page_number}"
+        async with self._page_semaphore:
+            await self._goto_and_wait_on(page, url, "table.issues, .nodata, #content")
+            payload = await page.evaluate(_ISSUE_PAGE_SCRIPT)
+        return payload
+
+    def _emit_progress(self, project: RedmineProject, loaded: int, total: int) -> None:
+        self._loaded_by_project[project.identifier] = loaded
+        self._total_by_project[project.identifier] = total
+        if self._progress_callback:
+            self._progress_callback(
+                sum(self._loaded_by_project.values()),
+                sum(self._total_by_project.values()),
+                project.name or project.identifier,
+            )
+
+    async def _goto_and_wait_on(self, page, url: str, selector: str, *, timeout: int = 8000) -> None:
+        await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+        if hasattr(page, "wait_for_selector"):
+            try:
+                await page.wait_for_selector(selector, state="attached", timeout=timeout)
+            except Exception:
+                pass
 
     async def collect_issue_detail(
         self,
@@ -251,28 +313,16 @@ class RedmineContextCollector:
             raw["project_url"] = project.url
             raw["project_name"] = project.name
         detail = parse_issue_detail(raw, list_item=issue if isinstance(issue, RedmineIssueListItem) else None)
-        if not detail.subject or not detail.attributes:
-            smart_log(
-                "[redmine-debug] detail parse incomplete issue=%s subject=%s attrs=%d comments=%d attachments=%d content_chars=%d",
-                issue_id,
-                bool(detail.subject),
-                len(detail.attributes),
-                len(detail.comments),
-                len(detail.attachments),
-                len(str(raw.get("contentText") or "")),
-                domain="tool",
-                source="RedmineContextCollector",
-                level="warning",
-            )
         return detail
 
     async def collect_context(self) -> RedmineContext:
-        projects = []
-        for project in await self.collect_projects():
-            enriched = project
-            if project.project_id:
-                enriched = replace(project, issues=await self.collect_issue_list(project))
-            projects.append(enriched)
+        project_nodes = await self.collect_projects()
+        issue_projects = [project for project in project_nodes if project.project_id]
+        project_issues = await self._collect_project_issue_lists(issue_projects)
+        projects = [
+            replace(project, issues=project_issues.get(project.identifier, ())) if project.project_id else project
+            for project in project_nodes
+        ]
         return RedmineContext(
             account=self._account,
             source_url=self._base_url,
@@ -280,6 +330,24 @@ class RedmineContextCollector:
             raw={"project_count": len(projects)},
             jira={"issues": []},
         )
+
+    async def _collect_project_issue_lists(self, projects: list[RedmineProject]) -> dict[str, tuple[RedmineIssueListItem, ...]]:
+        context = getattr(self._page, "context", None)
+        if context is None or not hasattr(context, "new_page") or len(projects) <= 1:
+            return {project.identifier: await self.collect_issue_list(project) for project in projects}
+
+        async def collect(project: RedmineProject):
+            page = await context.new_page()
+            try:
+                return project.identifier, await self._collect_issue_list_with_page(page, project)
+            finally:
+                try:
+                    await page.close()
+                except Exception:
+                    pass
+
+        pairs = await asyncio.gather(*(collect(project) for project in projects))
+        return dict(pairs)
 
 
 _PROJECTS_SCRIPT = r"""
@@ -302,10 +370,10 @@ _PROJECTS_SCRIPT = r"""
 }
 """
 
-_ISSUE_LIST_SCRIPT = r"""
+_ISSUE_PAGE_SCRIPT = r"""
 () => {
   const clean = s => (s || '').replace(/\s+/g, ' ').trim();
-  return Array.from(document.querySelectorAll('table.issues tbody tr')).map((tr, r) => ({
+  const rows = Array.from(document.querySelectorAll('table.issues tbody tr')).map((tr, r) => ({
     r,
     id: tr.id,
     className: tr.className,
@@ -316,6 +384,10 @@ _ISSUE_LIST_SCRIPT = r"""
       links: Array.from(td.querySelectorAll('a[href]')).map(a => ({ text: clean(a.innerText || a.textContent), href: a.href }))
     }))
   }));
+  const pagination = clean(document.querySelector('.pagination')?.innerText || '');
+  const text = clean(pagination || document.body?.innerText || '');
+  const totalMatch = text.match(/\((?:\d+\s*-\s*)?\d+\s*\/\s*(\d+)\)/) || text.match(/\b(?:\d+\s*-\s*)?\d+\s*\/\s*(\d+)\b/);
+  return { rows, total: totalMatch ? Number(totalMatch[1]) : rows.length, pagination };
 }
 """
 

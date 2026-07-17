@@ -163,6 +163,11 @@ class JiraClient:
         response = self._request("GET", self._api_path(f"issue/{issue_key}"), params=params or None)
         return response.data
 
+    def create_issue(self, payload: dict[str, Any]) -> dict[str, Any]:
+        response = self._request("POST", self._api_path("issue"), json=payload)
+        data = response.data
+        return data if isinstance(data, dict) else {}
+
     def fetch_fields_metadata(self) -> list[JiraFieldMetadata]:
         response = self._request("GET", self._api_path("field"))
         payload = response.data if isinstance(response.data, list) else []

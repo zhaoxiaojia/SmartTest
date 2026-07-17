@@ -3,4 +3,6 @@ import "../issue"
 
 JiraIssueBrowserLayout {
     id: root
+    statusFilters: [qsTr("All statuses"), "Open", "Closed"]
+    typeFilters: [qsTr("All types"), "Bug", "Support"]
 }

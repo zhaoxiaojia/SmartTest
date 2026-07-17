@@ -5,6 +5,7 @@ from pathlib import Path
 from PySide6.QtCore import QCoreApplication, QObject, Signal
 
 from tool.SmartHome.redmine.models import AuthResult, AuthState
+from support.jira_integration.core.models import ExistingIssue
 from ui.example.bridge.RedmineBridge import RedmineBridge, _AsyncLoopWorker
 from ui.example.bridge.ToolBridge import build_tool_groups
 
@@ -117,4 +118,63 @@ def test_dynamic_external_status_text_remains_raw():
     bridge._generation = 3
     bridge._apply(3, AuthResult(AuthState.FAILED, message="External Redmine maintenance notice"))
     assert bridge.statusText == "External Redmine maintenance notice"
+    bridge.close()
+
+
+def test_bridge_marks_cloned_redmine_rows_and_detail_with_jira_link():
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._view = {
+        "context": None,
+        "context_payload": {},
+        "issueRows": [{"id": "61043", "key": "61043", "title": "panel", "webUrl": "https://support/issues/61043"}],
+        "selectedIssue": {"id": "61043", "key": "61043", "title": "panel", "webUrl": "https://support/issues/61043"},
+    }
+
+    bridge._apply_clone_status({"61043": ExistingIssue(key="SH-26384", web_url="https://jira/browse/SH-26384")})
+
+    assert bridge.issueRows[0]["clonedIssueKey"] == "SH-26384"
+    assert bridge.selectedIssue["clonedIssueUrl"] == "https://jira/browse/SH-26384"
+    bridge.close()
+
+
+def test_bridge_remembers_opened_web_urls_to_avoid_duplicate_windows(monkeypatch):
+    opened = []
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.QDesktopServices.openUrl", lambda url: opened.append(url.toString()))
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+
+    bridge.openWebUrl("https://support/issues/61043")
+    bridge.openWebUrl("https://support/issues/61043")
+
+    assert bridge._opened_urls == {"https://support/issues/61043"}
+    assert opened == ["https://support/issues/61043"]
+    bridge.close()
+
+
+def test_bridge_formats_redmine_loading_progress():
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._data_loading = True
+
+    bridge._apply_data_progress(100, 138, "BDS")
+
+    assert bridge.dataLoaded == 100
+    assert bridge.dataTotal == 138
+    assert bridge.dataStatusText == "Loading Redmine data... 100/138"
+    bridge.close()
+
+
+def test_bridge_clone_check_progress_extends_total_work():
+    class FakeCloneChecker:
+        def check_many(self, rows, *, progress_callback=None, progress_base=0, progress_total=None):
+            for index, _row in enumerate(rows, start=1):
+                progress_callback(progress_base + index, progress_total, "Checking cloned Jira issues")
+            return {}
+
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)), clone_checker=FakeCloneChecker())
+    bridge._data_loading = True
+
+    bridge._check_clone_status([{"id": "1"}, {"id": "2"}], progress_base=101, progress_total=103)
+
+    assert bridge.dataLoaded == 103
+    assert bridge.dataTotal == 103
+    assert bridge.dataStatusText == "Loading Redmine data... 103/103"
     bridge.close()

@@ -5786,6 +5786,7 @@ Some contents...</source>
 <message><source>All projects</source><translation>所有项目</translation></message>
 <message><source>All statuses</source><translation>所有状态</translation></message>
 <message><source>Redmine data is not loaded.</source><translation>Redmine 数据尚未加载。</translation></message>
+<message><source>Loading Redmine data... {loaded}/{total}</source><translation>???? Redmine ??... {loaded}/{total}</translation></message>
 <message><source>Loading Redmine data...</source><translation>正在加载 Redmine 数据...</translation></message>
 <message><source>Redmine data loaded.</source><translation>Redmine 数据已加载。</translation></message>
 <message><source>Refreshing Redmine issue detail...</source><translation>正在刷新 Redmine 问题详情...</translation></message>
@@ -5841,6 +5842,7 @@ Some contents...</source>
 <context><name>RedmineWorkspace</name>
 <message><source>All projects</source><translation>所有项目</translation></message>
 <message><source>All statuses</source><translation>所有状态</translation></message>
+<message><source>All types</source><translation>全部类型</translation></message>
 <message><source>Bug</source><translation>Bug</translation></message>
 <message><source>Project</source><translation>项目</translation></message>
 <message><source>Status</source><translation>状态</translation></message>
@@ -5849,6 +5851,7 @@ Some contents...</source>
 <message><source>Contains text</source><translation>包含文本</translation></message>
 <message><source>Search</source><translation>搜索</translation></message>
 <message><source>Issues</source><translation>问题</translation></message>
+<message><source>Not cloned</source><translation>未克隆</translation></message>
 <message><source>No issues loaded</source><translation>尚未加载问题</translation></message>
 </context>
 </TS>

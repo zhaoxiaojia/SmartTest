@@ -143,11 +143,15 @@ FluPage {
                         issues: RedmineBridge.issueRows
                         selectedIssue: RedmineBridge.selectedIssue
                         projectFilters: RedmineBridge.projectFilterLabels
-                        statusFilters: RedmineBridge.statusFilterLabels
+                        filters: RedmineBridge.filters
                         dataLoading: RedmineBridge.dataLoading
+                        dataLoaded: RedmineBridge.dataLoaded
+                        dataTotal: RedmineBridge.dataTotal
                         dataStatusText: RedmineBridge.dataStatusText
                         onSearchRequested: filters => RedmineBridge.applyFilters(filters)
                         onIssueSelected: issue => RedmineBridge.selectIssue(issue.id || issue.key || "")
+                        onOpenIssueRequested: (key, url) => RedmineBridge.openWebUrl(url)
+                        onExternalLinkRequested: url => RedmineBridge.openWebUrl(url)
                     }
                 }
                 FluText {

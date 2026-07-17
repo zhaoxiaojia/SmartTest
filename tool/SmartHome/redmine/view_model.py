@@ -19,7 +19,12 @@ def view(
     filters: dict[str, str] | None = None,
     selected_detail: RedmineIssueDetail | None = None,
 ) -> dict[str, Any]:
-    filters = {"project": str((filters or {}).get("project", "") or ""), "status": str((filters or {}).get("status", "") or ""), "text": str((filters or {}).get("text", "") or "")}
+    filters = {
+        "project": str((filters or {}).get("project", "") or ""),
+        "status": str((filters or {}).get("status", "") or ""),
+        "type": str((filters or {}).get("type", "") or ""),
+        "text": str((filters or {}).get("text", "") or ""),
+    }
     projects = [project for project in context.projects if project.project_id]
     rows = [issue_row(project, issue) for project in projects for issue in project.issues if _match(project, issue, filters)]
     selected = detail_row(selected_detail, project=context.project_for_detail(selected_detail)) if selected_detail else (rows[0] if rows else {})
@@ -32,7 +37,8 @@ def view(
         "context_payload": payload,
         "filters": filters,
         "projectFilterLabels": [all_projects] + [_project_label(project) for project in projects],
-        "statusFilterLabels": [all_statuses] + sorted({issue.status for project in projects for issue in project.issues if issue.status}),
+        "statusFilterLabels": [all_statuses, "Open", "Closed"],
+        "typeFilterLabels": ["All types"] + sorted({issue.tracker for project in projects for issue in project.issues if issue.tracker}),
         "issueRows": rows,
         "selectedIssue": selected,
         "selectedIssueId": selected_id,
@@ -122,16 +128,28 @@ def detail_row(issue: RedmineIssueDetail | None = None, *, item: RedmineIssueLis
 def _match(project: RedmineProject, issue: RedmineIssueListItem, filters: dict[str, str]) -> bool:
     wanted_project = filters.get("project", "")
     wanted_status = filters.get("status", "")
+    wanted_type = filters.get("type", "")
     text = filters.get("text", "").lower()
     return (
-        (not wanted_project or _project_label(project) == wanted_project)
-        and (not wanted_status or issue.status == wanted_status)
+        (not wanted_project or wanted_project in {_project_label(project), project.name, project.identifier, project.project_id})
+        and (not wanted_status or _status_matches(issue.status, wanted_status))
+        and (not wanted_type or issue.tracker == wanted_type)
         and (not text or text in " ".join([issue.id, issue.subject, issue.status, issue.priority, issue.assignee, issue.category, project.name, project.project_id]).lower())
     )
 
 
 def _project_label(project: RedmineProject) -> str:
     return f"{project.name} [{project.project_id}]" if project.project_id else project.name
+
+
+def _status_matches(status: str, wanted: str) -> bool:
+    normalized = str(status or "").strip().lower()
+    wanted_normalized = str(wanted or "").strip().lower()
+    if wanted_normalized == "open":
+        return normalized not in {"closed"}
+    if wanted_normalized == "closed":
+        return normalized == "closed"
+    return status == wanted
 
 
 def _attr(attrs: dict[str, Any], *names: str) -> str:

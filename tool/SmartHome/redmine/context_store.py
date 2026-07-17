@@ -36,8 +36,10 @@ def load_view(account: str, *, all_projects: str, all_statuses: str) -> dict[str
     return {
         **empty_view(all_projects, all_statuses),
         "context_payload": dict(payload.get("context") or {}),
+        "filters": dict(payload.get("filters") or (payload.get("context") or {}).get("filters") or {}),
         "projectFilterLabels": list(payload.get("projectFilterLabels") or [all_projects]),
         "statusFilterLabels": list(payload.get("statusFilterLabels") or [all_statuses]),
+        "typeFilterLabels": list(payload.get("typeFilterLabels") or ["All types"]),
         "issueRows": [dict(row) for row in payload.get("issueRows") or [] if isinstance(row, dict)],
         "selectedIssue": selected,
         "selectedIssueId": str(selected.get("id") or selected.get("key") or ""),
@@ -51,10 +53,18 @@ def save_view(account: str, view: dict[str, Any]) -> Path:
         "version": 1,
         "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "context": view.get("context_payload", {}),
+        "filters": view.get("filters", {}),
         "projectFilterLabels": view.get("projectFilterLabels", []),
         "statusFilterLabels": view.get("statusFilterLabels", []),
+        "typeFilterLabels": view.get("typeFilterLabels", []),
         "issueRows": view.get("issueRows", []),
         "selectedIssue": view.get("selectedIssue", {}),
     }
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
+
+
+def load_filters(account: str) -> dict[str, str]:
+    payload = load_view_payload(account) or {}
+    filters = dict(payload.get("filters") or (payload.get("context") or {}).get("filters") or {})
+    return {key: str(filters.get(key, "") or "") for key in ("project", "status", "type", "text")}
