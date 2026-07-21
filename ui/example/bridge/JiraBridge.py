@@ -1377,3 +1377,12 @@ class JiraBridge(QObject):
     statusText = Property(str, _get_status_text, notify=connectionChanged)
     activeScopeSummary = Property(str, _get_active_scope_summary, notify=stateChanged)
     filtersLoading = Property(bool, _get_filters_loading, notify=stateChanged)
+    quickViews = Property(
+        "QVariantList",
+        lambda self: [
+            {"id": str(item.get("id", "")), "label": str(item.get("name", "")), "query": str(item.get("jql", ""))}
+            for item in self._saved_filters
+        ],
+        notify=stateChanged,
+    )
+    activeQuickViewId = Property(str, lambda self: "", notify=stateChanged)

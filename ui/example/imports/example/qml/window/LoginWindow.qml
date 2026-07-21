@@ -1,9 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
-import QtQuick.Dialogs
 import FluentUI 1.0
-import "../component"
 
 FluWindow {
 
@@ -14,31 +12,6 @@ FluWindow {
     fixSize: false
     modality: Qt.ApplicationModal
     property bool accountMode: false
-    property url pendingCropSource: ""
-    property url selectedAvatarSource: ""
-
-    function queueAvatarCrop(source){
-        pendingCropSource = source
-        cropOpenTimer.restart()
-    }
-
-    Timer {
-        id: cropOpenTimer
-        interval: 50
-        repeat: false
-        onTriggered: {
-            if(avatarFileDialog.visible){
-                restart()
-                return
-            }
-            var source = pendingCropSource
-            pendingCropSource = ""
-            if(source.toString() !== ""){
-                window.requestActivate()
-                cropDialog.openForSource(source)
-            }
-        }
-    }
 
     function applyModeSize(nextAccountMode){
         var targetWidth = nextAccountMode ? 460 : 400
@@ -55,35 +28,6 @@ FluWindow {
         window.fixWindowSize()
         if(window.visible && window.autoCenter){
             window.moveWindowToDesktopCenter()
-        }
-    }
-
-    FileDialog {
-        id: avatarFileDialog
-        objectName: "avatarFileDialog"
-        title: qsTr("Upload Avatar")
-        nameFilters: [qsTr("Image files (*.png *.jpg *.jpeg)")]
-        onSelectedFileChanged: {
-            if(selectedFile.toString() !== ""){
-                selectedAvatarSource = selectedFile
-            }
-        }
-        onAccepted: {
-            queueAvatarCrop(selectedAvatarSource.toString())
-            selectedAvatarSource = ""
-        }
-        onRejected: selectedAvatarSource = ""
-    }
-
-    AvatarCropDialog {
-        id: cropDialog
-        onCropAccepted: function(source, horizontalPosition, verticalPosition, cropScale){
-            var result = AuthBridge.saveCroppedAvatar(
-                source.toString(), horizontalPosition, verticalPosition, cropScale
-            )
-            if(!result.success){
-                showError(qsTr("Avatar upload failed"))
-            }
         }
     }
 
@@ -244,14 +188,6 @@ FluWindow {
                             sourceSize: Qt.size(132, 132)
                             cache: false
                         }
-                        MouseArea {
-                            id: avatarMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: avatarFileDialog.open()
-                        }
-                        FluTooltip { text: qsTr("Upload Avatar"); visible: avatarMouse.containsMouse }
                     }
                     ColumnLayout {
                         Layout.fillWidth: true

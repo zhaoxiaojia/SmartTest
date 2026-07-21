@@ -88,3 +88,21 @@ def test_auth_service_contains_no_smarttest_authored_ui_sentences():
         "No verification is pending.",
     }
     assert all(text not in source for text in forbidden)
+
+def test_operation_pages_share_session_context_and_close_independently():
+    class Page:
+        def __init__(self): self.closed = False
+        async def close(self): self.closed = True
+    class Session:
+        def __init__(self): self.pages = []
+        async def new_page(self):
+            page = Page(); self.pages.append(page); return page
+    async def exercise():
+        session = Session(); service = RedmineAuthService(session)
+        main_page = Page(); service._page = main_page
+        async with service.operation_page() as first, service.operation_page() as second:
+            assert first is not second
+            assert first.closed is False and second.closed is False
+        assert first.closed is True and second.closed is True
+        assert main_page.closed is False
+    asyncio.run(exercise())

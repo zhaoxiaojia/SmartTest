@@ -145,27 +145,27 @@
 <context>
     <name>AuthBridge</name>
     <message>
-        <location filename="bridge/AuthBridge.py" line="336" />
+        <location filename="bridge/AuthBridge.py" line="503" />
         <source>Account or password cannot be empty.</source>
         <translation>账号或密码不能为空。</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="343" />
+        <location filename="bridge/AuthBridge.py" line="510" />
         <source>ldap3 is not installed in the current Python environment.</source>
         <translation>当前 Python 环境未安装 ldap3。</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="354" />
+        <location filename="bridge/AuthBridge.py" line="521" />
         <source>LDAP sign-in failed. {detail}</source>
         <translation>LDAP 登录失败。{detail}</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="357" />
+        <location filename="bridge/AuthBridge.py" line="524" />
         <source>LDAP sign-in failed. Please check your account or password.</source>
         <translation>LDAP 登录失败。请检查账号或密码。</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="372" />
+        <location filename="bridge/AuthBridge.py" line="545" />
         <source>Sign-in successful. Welcome, {username}</source>
         <translation>登录成功，欢迎你，{username}</translation>
     </message>
@@ -338,18 +338,199 @@
     </message>
 </context>
 <context>
+    <name>IssueAttachments</name>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="20" />
+        <source>Attachments</source>
+        <translation type="unfinished">附件</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="20" />
+        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="21" />
+        <source>Select files</source>
+        <translation type="unfinished">选择文件</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="23" />
+        <source>Select attachments</source>
+        <translation type="unfinished">选择附件</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="31" />
+        <source>Uploading...</source>
+        <translation type="unfinished">正在上传...</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="31" />
+        <source>Drop files here or select files</source>
+        <translation type="unfinished">将文件拖到此处或选择文件</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="34" />
+        <source>Loading attachments...</source>
+        <translation type="unfinished">正在加载附件...</translation>
+    </message>
+</context>
+<context>
+    <name>IssueComments</name>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="16" />
+        <source>Comments</source>
+        <translation type="unfinished">评论</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="16" />
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="17" />
+        <source>Comment</source>
+        <translation type="unfinished">评论</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="19" />
+        <source>Loading comments...</source>
+        <translation type="unfinished">正在加载评论...</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="20" />
+        <source>No comments yet.</source>
+        <translation type="unfinished">还没有评论。</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="34" />
+        <source>Add a comment</source>
+        <translation type="unfinished">添加评论</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="34" />
+        <source>Submitting...</source>
+        <translation type="unfinished">正在提交...</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="34" />
+        <source>Submit</source>
+        <translation type="unfinished">提交</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="34" />
+        <source>Cancel</source>
+        <translation type="unfinished" />
+    </message>
+</context>
+<context>
+    <name>IssueDescription</name>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueDescription.qml" line="9" />
+        <source>Description</source>
+        <translation type="unfinished">描述</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueDescription.qml" line="11" />
+        <source>No description.</source>
+        <translation type="unfinished">暂无描述。</translation>
+    </message>
+</context>
+<context>
+    <name>IssueDetailView</name>
+    <message>
+        <source>Add a comment</source>
+        <translation type="vanished">添加评论</translation>
+    </message>
+    <message>
+        <source>Attachments</source>
+        <translation type="vanished">附件</translation>
+    </message>
+    <message>
+        <source>Comment</source>
+        <translation type="vanished">评论</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="37" />
+        <source>Confirm upload</source>
+        <translation>确认上传</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="37" />
+        <source>Upload</source>
+        <translation type="unfinished">上传</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="37" />
+        <source>Cancel</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="46" />
+        <source>Dates</source>
+        <translation>日期</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="45" />
+        <source>Details</source>
+        <translation>详情</translation>
+    </message>
+    <message>
+        <source>Loading attachments...</source>
+        <translation type="vanished">正在加载附件...</translation>
+    </message>
+    <message>
+        <source>Loading comments...</source>
+        <translation type="vanished">正在加载评论...</translation>
+    </message>
+    <message>
+        <source>No description.</source>
+        <translation type="vanished">暂无描述。</translation>
+    </message>
+    <message>
+        <source>Open project</source>
+        <translation type="vanished">打开项目</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="46" />
+        <source>People</source>
+        <translation>人员</translation>
+    </message>
+    <message>
+        <source>Select attachments</source>
+        <translation type="vanished">选择附件</translation>
+    </message>
+    <message>
+        <source>Select files</source>
+        <translation type="vanished">选择文件</translation>
+    </message>
+    <message>
+        <source>Submit</source>
+        <translation type="vanished">提交</translation>
+    </message>
+    <message>
+        <source>Submitting...</source>
+        <translation type="vanished">正在提交...</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="37" />
+        <source>Upload the dropped files?</source>
+        <translation>上传拖入的文件吗？</translation>
+    </message>
+    <message>
+        <source>Drop files here or select files</source>
+        <translation type="vanished">将文件拖到此处或选择文件</translation>
+    </message>
+    <message>
+        <source>Uploading...</source>
+        <translation type="vanished">正在上传...</translation>
+    </message>
+</context>
+<context>
     <name>ItemsFooter</name>
     <message>
         <source>About</source>
         <translation type="obsolete">鍏充簬</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsFooter.qml" line="17" />
+        <location filename="imports/example/qml/global/ItemsFooter.qml" line="19" />
         <source>Account</source>
         <translation>账号</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsFooter.qml" line="29" />
+        <location filename="imports/example/qml/global/ItemsFooter.qml" line="104" />
         <source>Settings</source>
         <translation>设置</translation>
     </message>
@@ -377,327 +558,327 @@
         <translation>工具</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="144" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="153" />
         <source>Report</source>
         <translation>报告</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="168" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="177" />
         <source>Debug</source>
         <translation>调试</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="186" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="195" />
         <source>Jira</source>
         <translation>Jira</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="200" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="209" />
         <source>PaneItemExpander Disabled</source>
         <translation>PaneItemExpander 已禁用</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="207" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="216" />
         <source>Basic Input</source>
         <translation>基本输入</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="215" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="224" />
         <source>Buttons</source>
         <translation>按钮</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="217" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="226" />
         <source>A control that responds to user input and raisesa Click event.</source>
         <translation>响应用户输入并引发 Click 事件的控件。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="226" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="235" />
         <source>Text</source>
         <translation>文本</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="240" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="249" />
         <source>Image</source>
         <translation>图像</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="246" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="255" />
         <source>Slider</source>
         <translation>滑块</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="248" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="257" />
         <source>A control that lets the user select from a rangeof values by moving a Thumb control along atrack.</source>
         <translation>一个控件，允许用户通过沿轨道移动 Thumb 控件从一系列值中进行选择。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="253" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="262" />
         <source>CheckBox</source>
         <translation>复选框</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="255" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="264" />
         <source>A control that a user can select or clear.</source>
         <translation>用户可以选择或清除的控件。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="260" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="269" />
         <source>RadioButton</source>
         <translation>单选按钮</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="266" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="275" />
         <source>ToggleSwitch</source>
         <translation>切换开关</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="278" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="287" />
         <source>PaneItem Disabled</source>
         <translation>PaneItem 已禁用</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="272" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="281" />
         <source>GroupBox</source>
         <translation>分组容器</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="153" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="162" />
         <source>AI</source>
         <translation>AI</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="177" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="186" />
         <source>Boot Video</source>
         <translation>开机视频</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="285" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="294" />
         <source>Form</source>
         <translation>表单</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="288" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="297" />
         <source>TextBox</source>
         <translation>文本框</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="294" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="303" />
         <source>TimePicker</source>
         <translation>时间选择器</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="300" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="309" />
         <source>DatePicker</source>
         <translation>日期选择器</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="306" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="315" />
         <source>CalendarPicker</source>
         <translation>日历选择器</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="312" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="321" />
         <source>ColorPicker</source>
         <translation>颜色选择器</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="318" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="327" />
         <source>ShortcutPicker</source>
         <translation>快捷键选择器</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="326" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="335" />
         <source>Surface</source>
         <translation>表面</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="329" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="338" />
         <source>InfoBar</source>
         <translation>信息栏</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="331" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="340" />
         <source>An inline message to display app-wide statuschange information.</source>
         <translation>用于显示应用范围状态更改信息的内联消息。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="336" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="345" />
         <source>Progress</source>
         <translation>进度条</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="342" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="351" />
         <source>RatingControl</source>
         <translation>评级控制</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="348" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="357" />
         <source>Badge</source>
         <translation>徽章</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="354" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="363" />
         <source>Rectangle</source>
         <translation>矩形</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="360" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="369" />
         <source>Clip</source>
         <translation>裁剪</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="366" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="375" />
         <source>Carousel</source>
         <translation>轮播图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="372" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="381" />
         <source>Expander</source>
         <translation>展开</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="378" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="387" />
         <source>Watermark</source>
         <translation>水印</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="386" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="395" />
         <source>Layout</source>
         <translation>布局</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="389" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="398" />
         <source>StaggeredLayout</source>
         <translation>瀑布流布局</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="395" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="404" />
         <source>SplitLayout</source>
         <translation>拆分布局</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="401" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="410" />
         <source>StatusLayout</source>
         <translation>状态布局</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="409" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="418" />
         <source>Popus</source>
         <translation>弹窗</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="412" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="421" />
         <source>Dialog</source>
         <translation>弹窗</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="419" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="428" />
         <source>ComboBox</source>
         <translation>组合框</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="433" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="442" />
         <source>Tooltip</source>
         <translation>工具提示</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="439" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="448" />
         <source>Menu</source>
         <translation>菜单</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="445" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="454" />
         <source>Sheet</source>
         <translation>抽屉</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="453" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="462" />
         <source>Navigation</source>
         <translation>导航</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="456" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="465" />
         <source>Pivot</source>
         <translation>轴转</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="458" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="467" />
         <source>Presents information from different sources in a tabbed view.</source>
         <translation>在选项卡式视图中显示来自不同源的信息。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="463" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="472" />
         <source>BreadcrumbBar</source>
         <translation>面包屑</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="469" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="478" />
         <source>TabView</source>
         <translation>选项卡</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="471" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="480" />
         <source>A control that displays a collection of tabs thatcan be used to display several documents.</source>
         <translation>一个控件，用于显示可用于显示多个文档的选项卡集合。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="476" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="485" />
         <source>TreeView</source>
         <translation>树</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="482" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="491" />
         <source>TableView</source>
         <translation>表格</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="484" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="493" />
         <source>The TableView control provides a flexible way to display a collection of data in rows and columns</source>
         <translation>TableView 控件提供了一种以行和列形式显示数据集合的灵活方法</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="489" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="498" />
         <source>Pagination</source>
         <translation>分页</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="495" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="504" />
         <source>MultiWindow</source>
         <translation>多窗口</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="501" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="510" />
         <source>FlipView</source>
         <translation>翻转视图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="503" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="512" />
         <source>Presents a collection of items that the user canflip through, one item at a time.</source>
         <translation>显示用户可以翻阅的项集合，一次翻阅一个项。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="510" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="519" />
         <source>Theming</source>
         <translation>主题</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="513" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="522" />
         <source>Acrylic</source>
         <translation>亚克力</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="519" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="528" />
         <source>Theme</source>
         <translation>主题</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="525" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="534" />
         <source>Typography</source>
         <translation>字体</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="531" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="540" />
         <source>Icons</source>
         <translation>图标</translation>
     </message>
@@ -706,72 +887,72 @@
         <translation type="obsolete">鍥炬爣</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="539" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="548" />
         <source>Chart</source>
         <translation>图表</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="542" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="551" />
         <source>Bar Chart</source>
         <translation>条形图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="548" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="557" />
         <source>Line Chart</source>
         <translation>线型图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="554" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="563" />
         <source>Pie Chart</source>
         <translation>饼图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="560" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="569" />
         <source>Polar Area Chart</source>
         <translation>极坐标区域图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="566" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="575" />
         <source>Bubble Chart</source>
         <translation>气泡图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="572" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="581" />
         <source>Scatter Chart</source>
         <translation>散点图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="578" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="587" />
         <source>Radar Chart</source>
         <translation>雷达图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="591" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="600" />
         <source>Other</source>
         <translation>其他</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="594" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="603" />
         <source>OpenGL</source>
         <translation type="unfinished" />
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="600" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="609" />
         <source>QRCode</source>
         <translation>二维码</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="606" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="615" />
         <source>Tour</source>
         <translation>游览</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="612" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="621" />
         <source>Timeline</source>
         <translation>时间轴</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="618" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="627" />
         <source>Captcha</source>
         <translation>验证码</translation>
     </message>
@@ -780,12 +961,12 @@
         <translation type="obsolete">缃戠粶</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="625" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="634" />
         <source>Remote Loader</source>
         <translation>远程加载</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="639" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="648" />
         <source>Hot Loader</source>
         <translation>热加载</translation>
     </message>
@@ -801,372 +982,372 @@
 <context>
     <name>JiraBridge</name>
     <message>
-        <location filename="bridge/JiraBridge.py" line="85" />
+        <location filename="bridge/JiraBridge.py" line="95" />
         <source>Ready</source>
         <translation>就绪</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="86" />
+        <location filename="bridge/JiraBridge.py" line="96" />
         <source>Run a Jira query to get a live AI summary.</source>
         <translation>执行一次 Jira 查询即可获取实时 AI 总结。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="90" />
+        <location filename="bridge/JiraBridge.py" line="100" />
         <source>Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</source>
         <translation>已准备好当前登录用户的 Jira 访问。可以直接用自然语言检索问题并总结风险。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="91" />
+        <location filename="bridge/JiraBridge.py" line="101" />
         <source>Workspace ready</source>
         <translation>工作台已就绪</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="92" />
+        <location filename="bridge/JiraBridge.py" line="102" />
         <source>Session cleared. Ask a new Jira question when ready.</source>
         <translation>会话已清空。准备好后可以重新提问 Jira 问题。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="93" />
+        <location filename="bridge/JiraBridge.py" line="103" />
         <source>Reset</source>
         <translation>重置</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="94" />
+        <location filename="bridge/JiraBridge.py" line="104" />
         <source>Jira request failed. Check the connection message above and sign in again if needed.</source>
         <translation>Jira 请求失败。请检查上方连接信息，必要时重新登录。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="95" />
+        <location filename="bridge/JiraBridge.py" line="105" />
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="96" />
+        <location filename="bridge/JiraBridge.py" line="106" />
         <source>All Supported Projects</source>
         <translation>所有支持的项目</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="97" />
+        <location filename="bridge/JiraBridge.py" line="107" />
         <source>Open Work</source>
         <translation>处理中</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="98" />
+        <location filename="bridge/JiraBridge.py" line="108" />
         <source>Ready for Test</source>
         <translation>待测试</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="99" />
+        <location filename="bridge/JiraBridge.py" line="109" />
         <source>Closed Bugs</source>
         <translation>已关闭缺陷</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="100" />
+        <location filename="bridge/JiraBridge.py" line="110" />
         <source>Last 7 Days</source>
         <translation>最近 7 天</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="101" />
+        <location filename="bridge/JiraBridge.py" line="111" />
         <source>Last 30 Days</source>
         <translation>最近 30 天</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="102" />
+        <location filename="bridge/JiraBridge.py" line="112" />
         <source>Last 90 Days</source>
         <translation>最近 90 天</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="103" />
+        <location filename="bridge/JiraBridge.py" line="113" />
         <source>This Year</source>
         <translation>今年</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="104" />
+        <location filename="bridge/JiraBridge.py" line="114" />
         <source>Open</source>
         <translation>打开</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="105" />
+        <location filename="bridge/JiraBridge.py" line="115" />
         <source>In Progress</source>
         <translation>进行中</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="106" />
+        <location filename="bridge/JiraBridge.py" line="116" />
         <source>Verified</source>
         <translation>已验证</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="107" />
+        <location filename="bridge/JiraBridge.py" line="117" />
         <source>Resolved</source>
         <translation>已解决</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="108" />
+        <location filename="bridge/JiraBridge.py" line="118" />
         <source>Closed</source>
         <translation>已关闭</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="109" />
+        <location filename="bridge/JiraBridge.py" line="119" />
         <source>Highest</source>
         <translation>最高</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="110" />
+        <location filename="bridge/JiraBridge.py" line="120" />
         <source>Critical</source>
         <translation>严重</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="111" />
+        <location filename="bridge/JiraBridge.py" line="121" />
         <source>High</source>
         <translation>高</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="112" />
+        <location filename="bridge/JiraBridge.py" line="122" />
         <source>Medium</source>
         <translation>中</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="113" />
+        <location filename="bridge/JiraBridge.py" line="123" />
         <source>Low</source>
         <translation>低</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="114" />
+        <location filename="bridge/JiraBridge.py" line="124" />
         <source>Bug</source>
         <translation>缺陷</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="115" />
+        <location filename="bridge/JiraBridge.py" line="125" />
         <source>Task</source>
         <translation>任务</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="116" />
+        <location filename="bridge/JiraBridge.py" line="126" />
         <source>Story</source>
         <translation>需求</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="117" />
+        <location filename="bridge/JiraBridge.py" line="127" />
         <source>Improvement</source>
         <translation>改进</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="118" />
+        <location filename="bridge/JiraBridge.py" line="128" />
         <source>Unassigned</source>
         <translation>未分配</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="119" />
+        <location filename="bridge/JiraBridge.py" line="129" />
         <source>LDAP session is missing Jira credentials. Please sign in again.</source>
         <translation>当前 LDAP 会话缺少 Jira 凭据。请重新登录。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="120" />
+        <location filename="bridge/JiraBridge.py" line="130" />
         <source>Connected to {base_url} | loaded {loaded} of {total}</source>
         <translation>已连接到 {base_url} | 已加载 {loaded}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="124" />
+        <location filename="bridge/JiraBridge.py" line="134" />
         <source>Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</source>
         <translation>已加载 {loaded}/{total} 条问题用于浏览。选择一条问题或直接提问可继续深入分析。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="125" />
+        <location filename="bridge/JiraBridge.py" line="135" />
         <source>Connected to {base_url} | analyzed {returned} of {total}</source>
         <translation>已连接到 {base_url} | 已分析 {returned}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="126" />
+        <location filename="bridge/JiraBridge.py" line="136" />
         <source>Just now</source>
         <translation>刚刚</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="127" />
+        <location filename="bridge/JiraBridge.py" line="137" />
         <source>Sign in to load Jira data.</source>
         <translation>请先登录以加载 Jira 数据。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="128" />
+        <location filename="bridge/JiraBridge.py" line="138" />
         <source>Sign in with LDAP first, then Jira results and AI analysis will load here.</source>
         <translation>请先使用 LDAP 登录，随后 Jira 结果和 AI 分析会显示在这里。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="129" />
+        <location filename="bridge/JiraBridge.py" line="139" />
         <source>Loading Jira results...</source>
         <translation>正在加载 Jira 结果...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="130" />
+        <location filename="bridge/JiraBridge.py" line="140" />
         <source>Analyzing Jira request...</source>
         <translation>正在分析 Jira 请求...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="131" />
+        <location filename="bridge/JiraBridge.py" line="141" />
         <source>Sign in again to restore Jira access.</source>
         <translation>请重新登录以恢复 Jira 访问。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="132" />
+        <location filename="bridge/JiraBridge.py" line="142" />
         <source>Signed out</source>
         <translation>已退出登录</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="133" />
+        <location filename="bridge/JiraBridge.py" line="143" />
         <source>Unknown Jira error</source>
         <translation>未知 Jira 错误</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="134" />
+        <location filename="bridge/JiraBridge.py" line="144" />
         <source>Jira request failed: {message}</source>
         <translation>Jira 请求失败：{message}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="135" />
+        <location filename="bridge/JiraBridge.py" line="145" />
         <source>Matched</source>
         <translation>匹配到</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="136" />
+        <location filename="bridge/JiraBridge.py" line="146" />
         <source>{displayed} displayed in the current view</source>
         <translation>当前视图显示 {displayed} 条</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="137" />
+        <location filename="bridge/JiraBridge.py" line="147" />
         <source>High Priority</source>
         <translation>高优先级</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="138" />
+        <location filename="bridge/JiraBridge.py" line="148" />
         <source>Highest, critical, or high in the current result set</source>
         <translation>当前结果集中优先级为 Highest、Critical 或 High</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="139" />
+        <location filename="bridge/JiraBridge.py" line="149" />
         <source>Blocked</source>
         <translation>阻塞</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="140" />
+        <location filename="bridge/JiraBridge.py" line="150" />
         <source>Blocked items from the displayed Jira scope</source>
         <translation>当前显示范围内的阻塞项</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="141" />
+        <location filename="bridge/JiraBridge.py" line="151" />
         <source>Projects</source>
         <translation>项目</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="142" />
+        <location filename="bridge/JiraBridge.py" line="152" />
         <source>Workflow Preset</source>
         <translation>流程预设</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="143" />
+        <location filename="bridge/JiraBridge.py" line="153" />
         <source>Time Window</source>
         <translation>时间范围</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="144" />
+        <location filename="bridge/JiraBridge.py" line="154" />
         <source>Statuses</source>
         <translation>状态</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="145" />
+        <location filename="bridge/JiraBridge.py" line="155" />
         <source>Priorities</source>
         <translation>优先级</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="146" />
+        <location filename="bridge/JiraBridge.py" line="156" />
         <source>Issue Types</source>
         <translation>问题类型</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="147" />
+        <location filename="bridge/JiraBridge.py" line="157" />
         <source>Keyword text</source>
         <translation>关键字</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="148" />
+        <location filename="bridge/JiraBridge.py" line="158" />
         <source>Assignee</source>
         <translation>经办人</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="149" />
+        <location filename="bridge/JiraBridge.py" line="159" />
         <source>Reporter</source>
         <translation>报告人</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="150" />
+        <location filename="bridge/JiraBridge.py" line="160" />
         <source>Labels</source>
         <translation>标签</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="151" />
+        <location filename="bridge/JiraBridge.py" line="161" />
         <source>Not limited</source>
         <translation>不限制</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="152" />
+        <location filename="bridge/JiraBridge.py" line="162" />
         <source>Current user</source>
         <translation>当前用户</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="153" />
+        <location filename="bridge/JiraBridge.py" line="163" />
         <source>JQL</source>
         <translation>JQL</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="154" />
+        <location filename="bridge/JiraBridge.py" line="164" />
         <source>Useful candidates for the next regression batch</source>
         <translation>可用于下一轮回归的候选项</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="155" />
+        <location filename="bridge/JiraBridge.py" line="165" />
         <source>My Filters</source>
         <translation>我的过滤器</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="156" />
+        <location filename="bridge/JiraBridge.py" line="166" />
         <source>Loading your Jira filters...</source>
         <translation>正在加载你的 Jira 过滤器...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="157" />
+        <location filename="bridge/JiraBridge.py" line="167" />
         <source>No favourite filters were found for this account.</source>
         <translation>当前账号没有找到收藏的过滤器。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="158" />
+        <location filename="bridge/JiraBridge.py" line="168" />
         <source>Click to apply this filter to the current JQL box.</source>
         <translation>点击后会把这条过滤器应用到当前 JQL 输入框。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="159" />
+        <location filename="bridge/JiraBridge.py" line="169" />
         <source>Comments</source>
         <translation>评论</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="160" />
+        <location filename="bridge/JiraBridge.py" line="170" />
         <source>No Jira issues matched the current scope.</source>
         <translation>当前范围内没有匹配到 Jira 问题。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="161" />
+        <location filename="bridge/JiraBridge.py" line="171" />
         <source>Jira AI Conversation</source>
         <translation>Jira AI 对话</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="162" />
+        <location filename="bridge/JiraBridge.py" line="172" />
         <source>Analyzing request: preparing search scope...</source>
         <translation>正在分析请求：准备搜索范围...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="163" />
+        <location filename="bridge/JiraBridge.py" line="173" />
         <source>Analyzing request: retrieving Jira issues...</source>
         <translation>正在分析请求：获取 Jira 问题...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="164" />
+        <location filename="bridge/JiraBridge.py" line="174" />
         <source>Analyzing request: generating response...</source>
         <translation>正在分析请求：生成回复...</translation>
     </message>
@@ -1177,73 +1358,232 @@
     </message>
 </context>
 <context>
+    <name>JiraIssueBrowserLayout</name>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="45" />
+        <source>Unassigned</source>
+        <translation>未分配</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="46" />
+        <source>Customer inactivity</source>
+        <translation>客户未更新</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="47" />
+        <source>AML inactivity</source>
+        <translation>AML 未更新</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="52" />
+        <source>Stale AML issue</source>
+        <translation>AML 长期问题</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="53" />
+        <source>Stale customer issue</source>
+        <translation>客户长期问题</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="12" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="129" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="139" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="180" />
+        <source>All projects</source>
+        <translation type="unfinished">所有项目</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="13" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="134" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="185" />
+        <source>All statuses</source>
+        <translation type="unfinished">所有状态</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="14" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="135" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="186" />
+        <source>All types</source>
+        <translation type="unfinished">全部类型</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="97" />
+        <source>%1 of %2</source>
+        <translation type="unfinished">%1 / %2</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="166" />
+        <source>Quick views</source>
+        <translation>快捷视图</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="187" />
+        <source>Contains text</source>
+        <translation type="unfinished">包含文本</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="189" />
+        <source>Search</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="216" />
+        <source>Cancel search</source>
+        <translation>取消搜索</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="237" />
+        <source>Issues</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="343" />
+        <source>Not cloned</source>
+        <translation type="unfinished">未克隆</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="351" />
+        <source>No issues loaded</source>
+        <translation type="unfinished">尚未加载问题</translation>
+    </message>
+</context>
+<context>
+    <name>JiraIssueDetailLayout</name>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="45" />
+        <source>Confirm upload</source>
+        <translation type="unfinished">确认上传</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="45" />
+        <source>Upload the dropped files?</source>
+        <translation type="unfinished">上传拖入的文件吗？</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="45" />
+        <source>Upload</source>
+        <translation type="unfinished">上传</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="45" />
+        <source>Cancel</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="119" />
+        <source>No issue selected</source>
+        <translation type="unfinished">未选择问题</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="140" />
+        <source>Details</source>
+        <translation type="unfinished">详情</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="146" />
+        <source>Description</source>
+        <translation type="unfinished">描述</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="152" />
+        <source>Attachments</source>
+        <translation type="unfinished">附件</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="158" />
+        <source>Activity</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="170" />
+        <source>People</source>
+        <translation type="unfinished">人员</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="176" />
+        <source>Dates</source>
+        <translation type="unfinished">日期</translation>
+    </message>
+</context>
+<context>
     <name>LoginWindow</name>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="10" />
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="104" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="9" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="121" />
         <source>Login</source>
         <translation>登录</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="10" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="9" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="148" />
         <source>Account</source>
         <translation>账号</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="38" />
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="82" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="55" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="98" />
         <source>Please enter the account</source>
         <translation>请输入账号</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="43" />
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="94" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="60" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="110" />
         <source>Please enter your password</source>
         <translation>请输入您的密码</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="71" />
         <source>Signed in as %1</source>
-        <translation>当前登录用户：%1</translation>
+        <translation type="vanished">当前登录用户：%1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="72" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="88" />
         <source>LDAP Server: %1</source>
         <translation>LDAP 服务器：%1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="104" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="301" />
         <source>Logout</source>
         <translation>退出登录</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="111" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="306" />
         <source>Signed out</source>
         <translation>已退出登录</translation>
     </message>
-    <message><source>Upload Avatar</source><translation>上传头像</translation></message>
-    <message><source>Image files (*.png *.jpg *.jpeg)</source><translation>图片文件 (*.png *.jpg *.jpeg)</translation></message>
-    <message><source>Avatar upload failed</source><translation>头像上传失败</translation></message>
-    <message><source>Grade</source><translation>职级</translation></message>
-    <message><source>Department</source><translation>部门</translation></message>
-    <message><source>Team</source><translation>团队</translation></message>
-    <message><source>Product Line</source><translation>产品线</translation></message>
-    <message><source>Reports To</source><translation>直属上级</translation></message>
+    <message>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="223" />
+        <source>Grade</source>
+        <translation>职级</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="236" />
+        <source>Department</source>
+        <translation>部门</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="246" />
+        <source>Team</source>
+        <translation>团队</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="271" />
+        <source>Product Line</source>
+        <translation>产品线</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="255" />
+        <source>Reports To</source>
+        <translation>直属上级</translation>
+    </message>
     <message>
         <source>Please feel free to enter a password</source>
         <translation type="obsolete">璇烽殢鎰忚緭鍏ヤ竴涓瘑鐮</translation>
     </message>
 </context>
 <context>
-    <name>AvatarCropDialog</name>
-    <message><source>Crop Avatar</source><translation>裁剪头像</translation></message>
-    <message><source>Cancel</source><translation>取消</translation></message>
-    <message><source>Apply</source><translation>应用</translation></message>
-</context>
-<context>
     <name>MainWindow</name>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="440" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="442" />
         <source>Dark Mode</source>
         <translation>夜间模式</translation>
     </message>
@@ -1264,7 +1604,7 @@
         <translation>最小化</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="356" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="358" />
         <source>Friendly Reminder</source>
         <translation>友情提示</translation>
     </message>
@@ -1274,7 +1614,7 @@
     </message>
     <message>
         <location filename="imports/example/qml/window/MainWindow.qml" line="181" />
-        <location filename="imports/example/qml/window/MainWindow.qml" line="454" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="456" />
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -1294,67 +1634,67 @@
         <translation>在独立窗口中打开</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="297" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="298" />
         <source>Click Time</source>
         <translation>点击次数</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="307" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="308" />
         <source>Search</source>
         <translation>搜索</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="356" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="358" />
         <source>SmartTest is hidden from the tray, click on the tray to activate the window again</source>
         <translation type="unfinished" />
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="434" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="436" />
         <source>Finish</source>
         <translation>完成</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="435" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="437" />
         <source>Next</source>
         <translation>下一步</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="436" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="438" />
         <source>Previous</source>
         <translation>上一步</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="440" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="442" />
         <source>Here you can switch to night mode.</source>
         <translation>在这里，您可以切换到夜间模式。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="442" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="444" />
         <source>Hide Easter eggs</source>
         <translation>隐藏彩蛋</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="442" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="444" />
         <source>Try a few more clicks!!</source>
         <translation>再试几下！！</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="451" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="453" />
         <source>Upgrade Tips</source>
         <translation>升级提示</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="452" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="454" />
         <source>SmartTest update </source>
         <translation type="unfinished" />
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="452" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="454" />
         <source> -- Current version </source>
         <translation type="unfinished" />
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="452" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="454" />
         <source> 
 
 Updated content: 
@@ -1362,7 +1702,7 @@ Updated content:
         <translation type="unfinished" />
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="491" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="493" />
         <source>Update service is not configured</source>
         <translation type="unfinished" />
     </message>
@@ -1385,18 +1725,337 @@ Updated content:
 </translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="455" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="457" />
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="484" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="486" />
         <source>The current version is already the latest</source>
         <translation>当前版本已经是最新版本</translation>
     </message>
     <message>
         <source>The network is abnormal</source>
         <translation type="obsolete">缃戠粶寮傚父</translation>
+    </message>
+</context>
+<context>
+    <name>RedmineBridge</name>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="552" />
+        <source>Discovering Redmine projects and issues...</source>
+        <translation>正在发现 Redmine 项目和问题...</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="555" />
+        <source>Analyzing Redmine issue activity... {loaded}/{total}</source>
+        <translation>正在分析 Redmine 问题活动... {loaded}/{total}</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="557" />
+        <source>Checking cloned Jira issues... {loaded}/{total}</source>
+        <translation>正在检查 Jira 克隆状态... {loaded}/{total}</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="96" />
+        <location filename="bridge/RedmineBridge.py" line="148" />
+        <location filename="bridge/RedmineBridge.py" line="185" />
+        <location filename="bridge/RedmineBridge.py" line="205" />
+        <location filename="bridge/RedmineBridge.py" line="283" />
+        <location filename="bridge/RedmineBridge.py" line="295" />
+        <location filename="bridge/RedmineBridge.py" line="377" />
+        <location filename="bridge/RedmineBridge.py" line="534" />
+        <location filename="bridge/RedmineBridge.py" line="570" />
+        <location filename="bridge/RedmineBridge.py" line="605" />
+        <location filename="bridge/RedmineBridge.py" line="660" />
+        <location filename="bridge/RedmineBridge.py" line="676" />
+        <source>All projects</source>
+        <translation>所有项目</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="96" />
+        <location filename="bridge/RedmineBridge.py" line="148" />
+        <location filename="bridge/RedmineBridge.py" line="206" />
+        <location filename="bridge/RedmineBridge.py" line="283" />
+        <location filename="bridge/RedmineBridge.py" line="295" />
+        <location filename="bridge/RedmineBridge.py" line="378" />
+        <location filename="bridge/RedmineBridge.py" line="534" />
+        <location filename="bridge/RedmineBridge.py" line="571" />
+        <location filename="bridge/RedmineBridge.py" line="605" />
+        <location filename="bridge/RedmineBridge.py" line="661" />
+        <location filename="bridge/RedmineBridge.py" line="676" />
+        <source>All statuses</source>
+        <translation>所有状态</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="100" />
+        <location filename="bridge/RedmineBridge.py" line="150" />
+        <source>Redmine data is not loaded.</source>
+        <translation>Redmine 数据尚未加载。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="448" />
+        <location filename="bridge/RedmineBridge.py" line="554" />
+        <source>Loading issues assigned to me...</source>
+        <translation>正在加载分配给我的问题...</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="559" />
+        <source>Loading Redmine data... {loaded}/{total}</source>
+        <translation>???? Redmine ??... {loaded}/{total}</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="537" />
+        <location filename="bridge/RedmineBridge.py" line="562" />
+        <source>Loading Redmine data...</source>
+        <translation>正在加载 Redmine 数据...</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="109" />
+        <location filename="bridge/RedmineBridge.py" line="159" />
+        <source>Projects are not loaded.</source>
+        <translation>项目尚未加载。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="181" />
+        <location filename="bridge/RedmineBridge.py" line="445" />
+        <source>Issues assigned to me</source>
+        <translation>分配给我的问题</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="213" />
+        <location filename="bridge/RedmineBridge.py" line="681" />
+        <source>Redmine data loaded.</source>
+        <translation>Redmine 数据已加载。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="385" />
+        <location filename="bridge/RedmineBridge.py" line="652" />
+        <location filename="bridge/RedmineBridge.py" line="680" />
+        <source>Issues assigned to me loaded.</source>
+        <translation>分配给我的问题已加载。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="399" />
+        <source>Loading Redmine projects...</source>
+        <translation>正在加载 Redmine 项目...</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="420" />
+        <source>Redmine project loading failed.</source>
+        <translation>Redmine 项目加载失败。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="425" />
+        <source>Redmine projects loaded.</source>
+        <translation>Redmine 项目已加载。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="427" />
+        <source>No Redmine projects were loaded. Retry project loading.</source>
+        <translation>未加载到 Redmine 项目，请重试。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="572" />
+        <source>All types</source>
+        <translation type="unfinished">全部类型</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="590" />
+        <source>Search cancelled.</source>
+        <translation>搜索已取消。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="621" />
+        <source>Refreshing Redmine issue detail...</source>
+        <translation>正在刷新 Redmine 问题详情...</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="646" />
+        <source>Issues assigned to me loading failed.</source>
+        <translation>分配给我的问题加载失败。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="648" />
+        <source>Redmine data load failed.</source>
+        <translation>Redmine 数据加载失败。</translation>
+    </message>
+    <message>
+        <source>Redmine issue detail refresh failed.</source>
+        <translation type="vanished">Redmine 问题详情刷新失败。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="667" />
+        <source>Redmine issue detail refreshed.</source>
+        <translation>Redmine 问题详情已刷新。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="341" />
+        <source>The verification code was rejected. Enter the latest code from your phone.</source>
+        <translation>验证码已被拒绝，请输入手机上最新的验证码。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="94" />
+        <source>Ready to sign in to Redmine.</source>
+        <translation>准备登录 Redmine。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="311" />
+        <source>Signing in to Redmine...</source>
+        <translation>正在登录 Redmine...</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="350" />
+        <source>Redmine sign-in succeeded.</source>
+        <translation>Redmine 登录成功。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="343" />
+        <location filename="bridge/RedmineBridge.py" line="351" />
+        <source>Redmine needs a different account or password.</source>
+        <translation>Redmine 需要其他账号或密码。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="342" />
+        <location filename="bridge/RedmineBridge.py" line="352" />
+        <source>Enter the mobile verification code.</source>
+        <translation>请输入手机验证码。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="344" />
+        <location filename="bridge/RedmineBridge.py" line="345" />
+        <location filename="bridge/RedmineBridge.py" line="346" />
+        <location filename="bridge/RedmineBridge.py" line="347" />
+        <location filename="bridge/RedmineBridge.py" line="353" />
+        <source>Redmine sign-in failed.</source>
+        <translation>Redmine 登录失败。</translation>
+    </message>
+    <message>
+        <location filename="bridge/RedmineBridge.py" line="723" />
+        <source>Redmine sign-in cancelled.</source>
+        <translation>已取消 Redmine 登录。</translation>
+    </message>
+</context>
+<context>
+    <name>RedmineLoginView</name>
+    <message>
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="30" />
+        <source>Redmine sign in</source>
+        <translation>登录 Redmine</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="44" />
+        <source>Signing in with the SmartTest LDAP account...</source>
+        <translation>正在使用 SmartTest LDAP 账号登录...</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="51" />
+        <source>Use a separate Redmine account</source>
+        <translation>使用单独的 Redmine 账号</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="52" />
+        <source>Username</source>
+        <translation>用户名</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="53" />
+        <source>Password</source>
+        <translation>密码</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="55" />
+        <source>Sign in</source>
+        <translation>登录</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="56" />
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="69" />
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="76" />
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="64" />
+        <source>Mobile verification</source>
+        <translation>手机验证</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="65" />
+        <source>Enter the verification code shown on your phone.</source>
+        <translation>请输入手机上显示的验证码。</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="66" />
+        <source>Verification code</source>
+        <translation>验证码</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="68" />
+        <source>Verify</source>
+        <translation>验证</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="75" />
+        <source>Retry</source>
+        <translation>重试</translation>
+    </message>
+</context>
+<context>
+    <name>RedmineWorkspace</name>
+    <message>
+        <source>All projects</source>
+        <translation type="vanished">所有项目</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/redmine/RedmineWorkspace.qml" line="6" />
+        <source>All statuses</source>
+        <translation>所有状态</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/redmine/RedmineWorkspace.qml" line="7" />
+        <source>All types</source>
+        <translation>全部类型</translation>
+    </message>
+    <message>
+        <source>Bug</source>
+        <translation type="vanished">Bug</translation>
+    </message>
+    <message>
+        <source>Project</source>
+        <translation type="vanished">项目</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation type="vanished">状态</translation>
+    </message>
+    <message>
+        <source>Issue type</source>
+        <translation type="vanished">问题类型</translation>
+    </message>
+    <message>
+        <source>Assignee</source>
+        <translation type="vanished">经办人</translation>
+    </message>
+    <message>
+        <source>Contains text</source>
+        <translation type="vanished">包含文本</translation>
+    </message>
+    <message>
+        <source>Search</source>
+        <translation type="vanished">搜索</translation>
+    </message>
+    <message>
+        <source>Issues</source>
+        <translation type="vanished">问题</translation>
+    </message>
+    <message>
+        <source>Not cloned</source>
+        <translation type="vanished">未克隆</translation>
+    </message>
+    <message>
+        <source>No issues loaded</source>
+        <translation type="vanished">尚未加载问题</translation>
     </message>
 </context>
 <context>
@@ -3409,139 +4068,149 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation>聚焦下一轮回归</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="543" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="541" />
         <source>Add Source</source>
         <translation>添加来源</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="572" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1782" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="570" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1787" />
         <source>Sources</source>
         <translation>来源</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="578" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="576" />
         <source>Jira MCP is enabled by default for Jira AI.</source>
         <translation>Jira AI 默认启用 Jira MCP。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="677" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="675" />
         <source>Conversation History</source>
         <translation>对话历史</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="686" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="684" />
         <source>Close</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="748" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="746" />
         <source>%1 messages</source>
         <translation>%1 条消息</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="770" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="768" />
         <source>No conversation history yet.</source>
         <translation>暂无对话历史。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="800" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="798" />
         <source>Jira AI Workspace</source>
         <translation>Jira AI 工作台</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="806" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="804" />
         <source>Signed in as %1. LDAP credentials are reused directly for Jira access.</source>
         <translation>当前登录用户：%1。LDAP 凭据会直接复用于 Jira 访问。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="832" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="830" />
         <source>Connection</source>
         <translation>连接状态</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="850" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="848" />
         <source>Loading</source>
         <translation>正在加载</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="851" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="849" />
         <source>Connected</source>
         <translation>已连接</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="851" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="849" />
         <source>Waiting</source>
         <translation>等待中</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="945" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="943" />
         <source>JQL Filter</source>
         <translation>JQL 过滤语句</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="953" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="951" />
         <source>Paste a Jira filter, for example: project = TV ORDER BY created DESC</source>
         <translation>输入 Jira 过滤语句，例如：project = TV ORDER BY created DESC</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="959" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="957" />
         <source>When this field is filled, SmartTest uses this JQL directly and skips the common Jira filters below.</source>
         <translation>填写后，SmartTest 将直接使用这条 JQL，并跳过下方的常用 Jira 过滤条件。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1542" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1294" />
+        <source>Filters</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1304" />
+        <source>Quick views</source>
+        <translation>快捷视图</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1547" />
         <source>Jira AI Chat</source>
         <translation>Jira AI 对话</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1548" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1553" />
         <source>Preview</source>
         <translation>预览</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1575" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1768" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1580" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1773" />
         <source>More</source>
         <translation>更多</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1608" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1613" />
         <source>Thinking...</source>
         <translation>思考中...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1672" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1677" />
         <source>Copy</source>
         <translation>复制</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1681" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1686" />
         <source>Resend</source>
         <translation>重新发送</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1742" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1747" />
         <source>Ask anything</source>
         <translation>随便问</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1776" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1781" />
         <source>Quick</source>
         <translation>快捷</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1806" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1811" />
         <source>Voice</source>
         <translation>语音</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1836" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1841" />
         <source>SmartTest AI can make mistakes. Verify important information.</source>
         <translation>SmartTest AI 可能出错。请核对重要信息。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="931" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="929" />
         <source>Search Scope</source>
         <translation>检索范围</translation>
     </message>
@@ -3554,60 +4223,60 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">鍏抽敭璇嶃€佹爣绛俱€佺粍浠?..</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="936" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="934" />
         <source>Common Jira Filters</source>
         <translation>常用 Jira 过滤条件</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="967" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="965" />
         <source>Projects</source>
         <translation>项目</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="968" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="966" />
         <source>All Supported Projects</source>
         <translation>所有支持的项目</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="968" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1039" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1073" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1107" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1144" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1166" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1207" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1248" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="966" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1037" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1071" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1105" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1142" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1164" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1205" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1246" />
         <source>Not limited</source>
         <translation>不限制</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="998" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="996" />
         <source>Workflow Preset</source>
         <translation>流程预设</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1018" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1016" />
         <source>Time Window</source>
         <translation>时间范围</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1038" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1036" />
         <source>Statuses</source>
         <translation>状态</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1072" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1070" />
         <source>Priorities</source>
         <translation>优先级</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1106" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1104" />
         <source>Issue Types</source>
         <translation>问题类型</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1143" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1157" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1141" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1155" />
         <source>Keyword text</source>
         <translation>关键字</translation>
     </message>
@@ -3628,28 +4297,28 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">缁勪欢锛屽涓敤閫楀彿鍒嗛殧</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1165" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2144" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1163" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2149" />
         <source>Assignee</source>
         <translation>经办人</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1183" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1224" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1265" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1181" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1222" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1263" />
         <source>No options in current result set</source>
         <translation>当前结果集中没有可用选项</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1206" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2147" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1204" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2152" />
         <source>Reporter</source>
         <translation>报告人</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1247" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2078" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2150" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1245" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2083" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2155" />
         <source>Labels</source>
         <translation>标签</translation>
     </message>
@@ -3658,13 +4327,13 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">缁勪欢</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1288" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1971" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1286" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1976" />
         <source>Loading...</source>
         <translation>正在加载...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1288" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1286" />
         <source>Refresh Results</source>
         <translation>刷新结果</translation>
     </message>
@@ -3685,37 +4354,36 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">浠呯湅鎴戠殑闂鍗</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1296" />
         <source>My Filters</source>
-        <translation>我的过滤器</translation>
+        <translation type="vanished">我的过滤器</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1307" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1312" />
         <source>Loading your Jira filters...</source>
         <translation>正在加载你的 Jira 过滤器...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1316" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1321" />
         <source>No favourite filters were found for this account.</source>
         <translation>当前账号没有找到收藏的过滤器。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1364" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1369" />
         <source>Click to apply this filter to the current JQL box.</source>
         <translation>点击后会把这条过滤器应用到当前 JQL 输入框。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1382" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1387" />
         <source>Suggested Queries</source>
         <translation>推荐提问</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1421" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1426" />
         <source>Click to place this prompt into the AI input box.</source>
         <translation>点击可将这条提示词放入 AI 输入框。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1439" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1444" />
         <source>Recent Sessions</source>
         <translation>最近会话</translation>
     </message>
@@ -3728,12 +4396,12 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">鐩存帴鐢ㄨ嚜鐒惰瑷€鎻愰棶銆侸ira 妫€绱㈠拰 AI 鍒嗘瀽閮戒細鍦ㄨ繖涓伐浣滃彴鍐呭畬鎴愩€</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1563" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1568" />
         <source>History</source>
         <translation>历史</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="523" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="521" />
         <source>Clear Session</source>
         <translation>清空会话</translation>
     </message>
@@ -3742,12 +4410,12 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">鐢ㄨ嚜鐒惰瑷€鍚?Jira 鎻愰棶銆備緥濡傦細鎬荤粨鏈?Sprint 涓笌 WPA 鐩稿叧鐨勯樆濉為棶棰樸€</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="533" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="531" />
         <source>Use Selected Issue</source>
         <translation>使用当前问题</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="537" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="535" />
         <source>Analyze %1 and tell me the risk for testing.</source>
         <translation>分析 %1，并告诉我它对测试的风险。</translation>
     </message>
@@ -3760,92 +4428,90 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">鍙戦€</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1856" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1861" />
         <source>Structured Results</source>
         <translation>结构化结果</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1865" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1870" />
         <source>Issues</source>
         <translation>问题单</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1971" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1976" />
         <source>Load More</source>
         <translation>加载更多</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2003" />
         <source>%1 of %2</source>
-        <translation>%1 / %2</translation>
+        <translation type="vanished">%1 / %2</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2003" />
         <source>TV Projects</source>
-        <translation>TV Projects</translation>
+        <translation type="vanished">TV Projects</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2003" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2008" />
         <source>Selected Issue</source>
         <translation>当前选中问题</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2011" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2016" />
         <source>Click to collapse</source>
         <translation>点击收起</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2011" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2016" />
         <source>Click to expand</source>
         <translation>点击展开</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2028" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2033" />
         <source>No issue selected</source>
         <translation>未选择问题</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2064" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2069" />
         <source>| Updated %1 | %2 comments | %3 links</source>
         <translation>| 更新于 %1 | %2 条评论 | %3 个链接</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2122" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2127" />
         <source>Bug Status</source>
         <translation>问题状态</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2132" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2137" />
         <source>Type</source>
         <translation>类型</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2135" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2140" />
         <source>Priority</source>
         <translation>优先级</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2138" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2143" />
         <source>Status</source>
         <translation>状态</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2141" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2146" />
         <source>Resolution</source>
         <translation>解决结果</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2157" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2162" />
         <source>Description</source>
         <translation>描述</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2189" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2194" />
         <source>Comments</source>
         <translation>评论</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2196" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2201" />
         <source>No comments yet.</source>
         <translation>还没有评论。</translation>
     </message>
@@ -3854,17 +4520,17 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <translation type="vanished">%1 | 鏇存柊浜?%2 | %3 鏉¤瘎璁?| %4 涓叧鑱</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2298" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2243" />
         <source>Analysis</source>
         <translation>分析</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2323" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2268" />
         <source>AI Summary</source>
         <translation>AI 总结</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2344" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2289" />
         <source>Suggested Next Actions</source>
         <translation>建议下一步动作</translation>
     </message>
@@ -5188,6 +5854,98 @@ Some contents...</source>
     </message>
 </context>
 <context>
+    <name>T_Tool</name>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="8" />
+        <source>Tool</source>
+        <translation>工具</translation>
+    </message>
+    <message>
+        <source>Tools</source>
+        <translation type="vanished">工具</translation>
+    </message>
+    <message>
+        <source>Common Tools</source>
+        <translation type="vanished">通用工具</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="84" />
+        <source>Custom Tools</source>
+        <translation>定制工具</translation>
+    </message>
+    <message>
+        <source>STB</source>
+        <translation type="vanished">STB</translation>
+    </message>
+    <message>
+        <source>TV</source>
+        <translation type="vanished">TV</translation>
+    </message>
+    <message>
+        <source>SmartHome</source>
+        <translation type="vanished">智能家居</translation>
+    </message>
+    <message>
+        <source>IPTV</source>
+        <translation type="vanished">IPTV</translation>
+    </message>
+    <message>
+        <source>Wi-Fi</source>
+        <translation type="vanished">Wi-Fi</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="119" />
+        <source>Select a tool</source>
+        <translation>选择工具</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="124" />
+        <source>Tools for this group will appear here.</source>
+        <translation>此处将显示该分组下的工具。</translation>
+    </message>
+    <message>
+        <source>Tool workspace</source>
+        <translation type="vanished">工具工作区</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="183" />
+        <source>This area is reserved for the selected tool. Execution is not available yet.</source>
+        <translation>此区域预留给所选工具，暂不支持执行。</translation>
+    </message>
+    <message>
+        <source>Redmine credentials</source>
+        <translation type="vanished">Redmine 登录凭据</translation>
+    </message>
+    <message>
+        <source>Sign in</source>
+        <translation type="vanished">登录</translation>
+    </message>
+    <message>
+        <source>Username</source>
+        <translation type="vanished">用户名</translation>
+    </message>
+    <message>
+        <source>Password</source>
+        <translation type="vanished">密码</translation>
+    </message>
+    <message>
+        <source>Mobile verification</source>
+        <translation type="vanished">手机验证</translation>
+    </message>
+    <message>
+        <source>Enter the verification code shown on your phone.</source>
+        <translation type="vanished">请输入手机上显示的验证码。</translation>
+    </message>
+    <message>
+        <source>Verify</source>
+        <translation type="vanished">验证</translation>
+    </message>
+    <message>
+        <source>Verification code</source>
+        <translation type="vanished">验证码</translation>
+    </message>
+</context>
+<context>
     <name>T_Tooltip</name>
     <message>
         <location filename="imports/example/qml/page/T_Tooltip.qml" line="10" />
@@ -5758,100 +6516,46 @@ Some contents...</source>
     </message>
 </context>
 <context>
-    <name>T_Tool</name>
-    <message><source>Tool</source><translation>工具</translation></message>
-    <message><source>Tools</source><translation>工具</translation></message>
-    <message><source>Common Tools</source><translation>通用工具</translation></message>
-    <message><source>Custom Tools</source><translation>定制工具</translation></message>
-    <message><source>STB</source><translation>STB</translation></message>
-    <message><source>TV</source><translation>TV</translation></message>
-    <message><source>SmartHome</source><translation>智能家居</translation></message>
-    <message><source>IPTV</source><translation>IPTV</translation></message>
-    <message><source>Wi-Fi</source><translation>Wi-Fi</translation></message>
-    <message><source>Select a tool</source><translation>选择工具</translation></message>
-    <message><source>Tools for this group will appear here.</source><translation>此处将显示该分组下的工具。</translation></message>
-    <message><source>Tool workspace</source><translation>工具工作区</translation></message>
-    <message><source>This area is reserved for the selected tool. Execution is not available yet.</source><translation>此区域预留给所选工具，暂不支持执行。</translation></message>
-</context>
-<context>
     <name>ToolBridge</name>
-    <message><source>Common Tools</source><translation>通用工具</translation></message>
-    <message><source>STB</source><translation>STB</translation></message>
-    <message><source>TV</source><translation>TV</translation></message>
-    <message><source>SmartHome</source><translation>智能家居</translation></message>
-    <message><source>IPTV</source><translation>IPTV</translation></message>
-    <message><source>Wi-Fi</source><translation>Wi-Fi</translation></message>
-</context>
-<context><name>RedmineBridge</name>
-<message><source>All projects</source><translation>所有项目</translation></message>
-<message><source>All statuses</source><translation>所有状态</translation></message>
-<message><source>Redmine data is not loaded.</source><translation>Redmine 数据尚未加载。</translation></message>
-<message><source>Loading Redmine data... {loaded}/{total}</source><translation>???? Redmine ??... {loaded}/{total}</translation></message>
-<message><source>Loading Redmine data...</source><translation>正在加载 Redmine 数据...</translation></message>
-<message><source>Redmine data loaded.</source><translation>Redmine 数据已加载。</translation></message>
-<message><source>Refreshing Redmine issue detail...</source><translation>正在刷新 Redmine 问题详情...</translation></message>
-<message><source>Redmine data load failed.</source><translation>Redmine 数据加载失败。</translation></message>
-<message><source>Redmine issue detail refresh failed.</source><translation>Redmine 问题详情刷新失败。</translation></message>
-<message><source>Redmine issue detail refreshed.</source><translation>Redmine 问题详情已刷新。</translation></message>
-<message><source>The verification code was rejected. Enter the latest code from your phone.</source><translation>验证码已被拒绝，请输入手机上最新的验证码。</translation></message>
-<message><source>Ready to sign in to Redmine.</source><translation>准备登录 Redmine。</translation></message>
-<message><source>Signing in to Redmine...</source><translation>正在登录 Redmine...</translation></message>
-<message><source>Redmine sign-in succeeded.</source><translation>Redmine 登录成功。</translation></message>
-<message><source>Redmine needs a different account or password.</source><translation>Redmine 需要其他账号或密码。</translation></message>
-<message><source>Enter the mobile verification code.</source><translation>请输入手机验证码。</translation></message>
-<message><source>Redmine sign-in failed.</source><translation>Redmine 登录失败。</translation></message>
-<message><source>Redmine sign-in cancelled.</source><translation>已取消 Redmine 登录。</translation></message></context>
-<context><name>T_Tool</name>
-<message><source>Redmine credentials</source><translation>Redmine 登录凭据</translation></message><message><source>Sign in</source><translation>登录</translation></message><message><source>Username</source><translation>用户名</translation></message><message><source>Password</source><translation>密码</translation></message><message><source>Mobile verification</source><translation>手机验证</translation></message><message><source>Enter the verification code shown on your phone.</source><translation>请输入手机上显示的验证码。</translation></message><message><source>Verify</source><translation>验证</translation></message><message><source>Verification code</source><translation>验证码</translation></message></context>
-<context><name>ToolBridge</name><message><source>redmine</source><translation>redmine</translation></message><message><source>Browse and sign in to SmartHome Redmine.</source><translation>浏览并登录 SmartHome Redmine。</translation></message></context>
-<context>
-    <name>IssueDetailView</name>
-    <message><source>Add a comment</source><translation>添加评论</translation></message>
-    <message><source>Attachments</source><translation>附件</translation></message>
-    <message><source>Comment</source><translation>评论</translation></message>
-    <message><source>Confirm upload</source><translation>确认上传</translation></message>
-    <message><source>Dates</source><translation>日期</translation></message>
-    <message><source>Details</source><translation>详情</translation></message>
-    <message><source>Loading attachments...</source><translation>正在加载附件...</translation></message>
-    <message><source>Loading comments...</source><translation>正在加载评论...</translation></message>
-    <message><source>No description.</source><translation>暂无描述。</translation></message>
-    <message><source>Open project</source><translation>打开项目</translation></message>
-    <message><source>People</source><translation>人员</translation></message>
-    <message><source>Select attachments</source><translation>选择附件</translation></message>
-    <message><source>Select files</source><translation>选择文件</translation></message>
-    <message><source>Submit</source><translation>提交</translation></message>
-    <message><source>Submitting...</source><translation>正在提交...</translation></message>
-    <message><source>Upload the dropped files?</source><translation>上传拖入的文件吗？</translation></message>
-    <message><source>Drop files here or select files</source><translation>将文件拖到此处或选择文件</translation></message>
-    <message><source>Uploading...</source><translation>正在上传...</translation></message>
-</context>
-<context><name>RedmineLoginView</name>
-<message><source>Redmine sign in</source><translation>登录 Redmine</translation></message>
-<message><source>Signing in with the SmartTest LDAP account...</source><translation>正在使用 SmartTest LDAP 账号登录...</translation></message>
-<message><source>Use a separate Redmine account</source><translation>使用单独的 Redmine 账号</translation></message>
-<message><source>Username</source><translation>用户名</translation></message>
-<message><source>Password</source><translation>密码</translation></message>
-<message><source>Sign in</source><translation>登录</translation></message>
-<message><source>Cancel</source><translation>取消</translation></message>
-<message><source>Mobile verification</source><translation>手机验证</translation></message>
-<message><source>Enter the verification code shown on your phone.</source><translation>请输入手机上显示的验证码。</translation></message>
-<message><source>Verification code</source><translation>验证码</translation></message>
-<message><source>Verify</source><translation>验证</translation></message>
-<message><source>Retry</source><translation>重试</translation></message>
-</context>
-<context><name>RedmineWorkspace</name>
-<message><source>All projects</source><translation>所有项目</translation></message>
-<message><source>All statuses</source><translation>所有状态</translation></message>
-<message><source>All types</source><translation>全部类型</translation></message>
-<message><source>Bug</source><translation>Bug</translation></message>
-<message><source>Project</source><translation>项目</translation></message>
-<message><source>Status</source><translation>状态</translation></message>
-<message><source>Issue type</source><translation>问题类型</translation></message>
-<message><source>Assignee</source><translation>经办人</translation></message>
-<message><source>Contains text</source><translation>包含文本</translation></message>
-<message><source>Search</source><translation>搜索</translation></message>
-<message><source>Issues</source><translation>问题</translation></message>
-<message><source>Not cloned</source><translation>未克隆</translation></message>
-<message><source>No issues loaded</source><translation>尚未加载问题</translation></message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="138" />
+        <source>Common Tools</source>
+        <translation>通用工具</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="139" />
+        <source>STB</source>
+        <translation>STB</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="140" />
+        <source>TV</source>
+        <translation>TV</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="141" />
+        <source>SmartHome</source>
+        <translation>智能家居</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="142" />
+        <source>IPTV</source>
+        <translation>IPTV</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="143" />
+        <source>Wi-Fi</source>
+        <translation>Wi-Fi</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="149" />
+        <source>redmine</source>
+        <translation>redmine</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="150" />
+        <source>Browse and sign in to SmartHome Redmine.</source>
+        <translation>浏览并登录 SmartHome Redmine。</translation>
+    </message>
 </context>
 </TS>

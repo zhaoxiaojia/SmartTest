@@ -83,6 +83,15 @@ def test_workspace_facade_keeps_explicit_bridge_entry_points():
     assert {"fetch_saved_filters", "browse", "fetch_issue_detail", "analyze"} <= methods
 
 
+def test_jira_filters_region_uses_bridge_quick_views():
+    source = Path("ui/example/imports/example/qml/page/T_Jira.qml").read_text(encoding="utf-8")
+    assert 'title: qsTr("Filters")' in source
+    assert 'text: qsTr("Quick views")' in source
+    assert "quickViews = JiraBridge.quickViews" in source
+    assert "model: quickViews" in source
+    assert "filterRow.query || filterRow.jql" in source
+
+
 def test_jira_bridge_routes_page_actions_only_through_workspace(monkeypatch, tmp_path):
     monkeypatch.setattr(jira_bridge_module, "app_data_dir", lambda: tmp_path)
     monkeypatch.setattr(jira_bridge_module, "Thread", ImmediateThread)

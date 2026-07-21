@@ -151,7 +151,7 @@ class Redmine(QObject):
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
 auth=Auth(); tools=ToolBridge(r"{ROOT}", auth); redmine=Redmine()
 if {developer!r}:
-    next(employee for employee in tools._personnel["employees"] if employee["account"] == "{account}")["system_roles"] = ["Developer"]
+    next(employee for node in tools._personnel["amlogic"]["departments"].values() for employee in node["employees"] if employee["account"] == "{account}")["system_roles"] = ["Developer"]
 engine.rootContext().setContextProperty("ToolBridge", tools); engine.rootContext().setContextProperty("RedmineBridge", redmine)
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1200; height: 800; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/page/T_Tool.qml" }} }}')
@@ -202,13 +202,13 @@ def test_tool_qml_runtime_developer_can_open_redmine_independent_of_assignment()
 def test_personnel_declares_product_line_and_technical_center_owners():
     payload = json.loads(PERSONNEL_PATH.read_text(encoding="utf-8"))
 
-    assert {item["id"]: item["owner_account"] for item in payload["product_lines"]} == {
+    assert {item["id"]: item["owner_account"] for item in payload["amlogic"]["product_lines"]} == {
         "STB": "junjie.li",
         "TV": "jianfan.ai",
         "SmartHome": "chen.chen",
         "IPTV": "lingling.yu",
     }
-    assert payload["technical_centers"] == [
+    assert payload["amlogic"]["technical_centers"] == [
         {
             "id": "Wi-Fi",
             "name": "Wi-Fi",
@@ -252,7 +252,7 @@ def test_tool_groups_keep_fixed_layout_and_filter_child_tools_by_account():
 
 def test_developer_role_grants_every_tool_group_independent_of_assignments_and_casing():
     personnel = load_tool_access(PERSONNEL_PATH)
-    personnel["employees"].extend(
+    personnel["amlogic"]["departments"]["FAE"]["employees"].extend(
         [
             {
                 "account": "developer.zero",
@@ -277,7 +277,7 @@ def test_developer_role_grants_every_tool_group_independent_of_assignments_and_c
             {"id": "redmine"}
         ]
 
-    personnel["technical_centers"][0]["active"] = False
+    personnel["amlogic"]["technical_centers"][0]["active"] = False
     inactive_center_groups = build_tool_groups(personnel, "developer.zero")
     assert all(group["available"] for group in inactive_center_groups[:-1])
     assert inactive_center_groups[-1]["available"] is False
@@ -285,7 +285,7 @@ def test_developer_role_grants_every_tool_group_independent_of_assignments_and_c
 
 def test_configured_chao_li_developer_role_grants_all_active_tool_groups():
     personnel = load_tool_access(PERSONNEL_PATH)
-    employee = next(item for item in personnel["employees"] if item["account"] == "chao.li")
+    employee = next(item for node in personnel["amlogic"]["departments"].values() for item in node["employees"] if item["account"] == "chao.li")
 
     assert employee["system_roles"] == ["user", "developer"]
     groups = build_tool_groups(personnel, "chao.li")
@@ -364,6 +364,16 @@ def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():
     assert "typeFilters: RedmineBridge.typeFilterLabels" not in page
     assert "JiraIssueDetailLayout" in browser
     assert "signal searchRequested" in browser
+    assert "signal quickViewRequested" in browser
+    assert "signal cancelSearchRequested" in browser
+    assert "property var projectOptions" in browser
+    assert "!root.projectsReady" in browser
+    assert 'valueRole: safeCount(root.projectOptions) ? "id" : ""' in browser
+    assert "projectFilter.currentValue" in browser
+    assert browser.count("id: projectFilter") == 1
+    assert "popup.width: Math.max(width, 640)" in browser
+    assert "ToolTip.text: displayText" in browser
+    assert "selectedProjectId()" in browser
     assert "signal issueSelected" in browser
     assert "positionText" in detail
     assert "previousIssueRequested" in detail
@@ -375,6 +385,10 @@ def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():
     assert "RedmineBridge.dataLoaded" in page
     assert "RedmineBridge.dataTotal" in page
     assert "RedmineBridge.applyFilters" in page
+    assert "RedmineBridge.quickViews" in page
+    assert "RedmineBridge.projectOptions" in page
+    assert "RedmineBridge.cancelSearch()" in page
+    assert "RedmineBridge.activateQuickView(quickViewId)" in page
     assert "FluProgressBar" in browser
     assert "RedmineBridge.selectIssue" in page
 
@@ -498,3 +512,78 @@ def test_tool_classification_strings_are_finished_in_both_catalogs():
         }
         for source, translation in required.items():
             assert actual.get(source) == translation
+
+
+def test_fae_redmine_rosters_are_unique_additive_and_keep_unknown_default():
+    from ui.example.bridge.AuthBridge import load_personnel, match_employee_profile
+    personnel = load_personnel(PERSONNEL_PATH)
+    from tool.SmartHome.redmine.overdue import load_redmine_people
+    roster_a = {"daozai.ye", "xin.wang", "wanqiang.xiao", "defeng.zhai", "qiang.zhang", "zhengshuai.zhu", "long.qiu", "rongqi.wang", "yinlong.ban", "chongzhang.gong", "jeremy.wang", "junchao.li", "fei.zhang", "mingyu.lu", "yong.su", "heping.zhang", "qitao.tang", "chengzhuan.bao", "wendong.she", "zhigang.zou"}
+    roster_b = {"zhijun.liu", "yiquan.huang", "yuanyuan.li", "chuanting.xu"}
+    from ui.example.bridge.ToolBridge import amlogic_employees
+    employees = [item for item in amlogic_employees(personnel) if item.get("account") in roster_a | roster_b]
+    assert len(employees) == len(roster_a | roster_b) == 24
+    assert {item["account"] for item in employees} == roster_a | roster_b
+    for employee in employees:
+        assert employee["account"] == employee["account"].lower() and "@" not in employee["account"]
+        assert sum(item.get("product_line_id") == "SmartHome" for item in employee.get("assignments", [])) == 1
+        assert next(group for group in build_tool_groups(personnel, employee["account"]) if group["id"] == "SmartHome")["available"] is True
+        smart_home = next(item for item in employee["assignments"] if item.get("product_line_id") == "SmartHome")
+        assert smart_home["primary"] is (employee["account"] in roster_a)
+    aml_names, departments = load_redmine_people(PERSONNEL_PATH)
+    redmine_by_ldap = {item.get("ldap_account"): item for item in personnel["redmine"]["accounts"]["amlogic"]}
+    assert {redmine_by_ldap[employee["account"]]["display_name"] for employee in employees} <= aml_names
+    assert all(departments[redmine_by_ldap[employee["account"]]["display_name"].casefold()] == "amlogic-fae" for employee in employees)
+    assert all(employee["organization"]["department"] == "FAE-HW" for employee in employees if employee["account"] in roster_b)
+    qa = next(item for item in amlogic_employees(personnel) if item["account"] == "xiuyue.zhang")
+    assert qa["organization"]["department"] == "FAE-QA" and qa["assignments"] == []
+    assert match_employee_profile(personnel, "", username="missing.account") == {}
+    assert [group["id"] for group in build_tool_groups(personnel, "missing.account") if group["available"]] == ["common"]
+
+
+def test_smarthome_assignment_model_remains_additive():
+    personnel = {"amlogic": {"departments": {"FAE": {"employees": [{"account": "fae.user", "assignments": [{"product_line_id": "TV"}, {"product_line_id": "SmartHome", "primary": False}], "system_roles": ["user"]}]}}, "product_lines": [{"id": "TV"}, {"id": "SmartHome"}], "technical_centers": []}}
+    available = {group["id"] for group in build_tool_groups(personnel, "fae.user") if group["available"]}
+    assert available == {"common", "TV", "SmartHome"}
+
+
+def test_identity_domains_and_subing_smarthome_access_are_explicit():
+    personnel = json.loads(PERSONNEL_PATH.read_text(encoding="utf-8"))
+    assert "employees" not in personnel
+    departments = personnel["amlogic"]["departments"]
+    assert set(departments) == {"FAE-QA", "FAE", "FAE-HW"}
+    assert {name: len(value["employees"]) for name, value in departments.items()} == {
+        "FAE-QA": 75, "FAE": 21, "FAE-HW": 4,
+    }
+    assert "product_lines" not in personnel and "technical_centers" not in personnel
+    employee = next(item for item in departments["FAE"]["employees"] if item["account"] == "subing.xu")
+    assert "redmine" not in employee
+    smart_home = next(item for item in employee["assignments"] if item["product_line_id"] == "SmartHome")
+    assert smart_home["primary"] is False
+    from ui.example.bridge.ToolBridge import load_tool_access
+    assert next(group for group in build_tool_groups(load_tool_access(PERSONNEL_PATH), "subing.xu") if group["id"] == "SmartHome")["available"]
+    accounts = personnel["redmine"]["accounts"]
+    assert set(accounts) == {"amlogic", "customer"}
+    mappings = {item.get("ldap_account"): item for item in accounts["amlogic"]}
+    assert mappings["subing.xu"]["display_name"] == "Subing Xu"
+    assert mappings["xin.wang"]["display_name"] == "Xin Wang1-aml"
+    assert mappings["qiang.zhang"]["display_name"] == "Qiang Zhang-aml"
+    assert all("ldap_account" not in item or item["ldap_account"] for item in accounts["customer"])
+
+
+def test_tool_page_invalidates_redmine_selection_when_group_becomes_unavailable():
+    source = (ROOT / "ui/example/imports/example/qml/page/T_Tool.qml").read_text(encoding="utf-8")
+    assert "function ensureSelectedToolAvailable()" in source
+    assert "if (!selectedGroup.available)" in source
+    assert "onSelectedGroupChanged: ensureSelectedToolAvailable()" in source
+
+
+def test_shared_issue_browser_exposes_quick_views_project_options_and_search_cancel():
+    source = (ROOT / "ui/example/imports/example/qml/component/issue/JiraIssueBrowserLayout.qml").read_text(encoding="utf-8")
+    for contract in ("quickViews", "activeQuickViewId", "projectOptions", "projectsLoading", "projectsStatusText", "searchLoading", "searchCanCancel"):
+        assert f"property " in source and contract in source
+    assert "signal quickViewRequested" in source
+    assert "signal cancelSearchRequested" in source
+    assert 'text: "×"' in source
+    assert "onClicked: root.cancelSearchRequested()" in source
+    assert "disabled: root.searchLoading || root.projectsLoading || !root.projectsReady" in source

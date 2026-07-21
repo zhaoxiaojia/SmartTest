@@ -1,4 +1,6 @@
 import asyncio
+import os
+import sys
 
 from support.browser_automation import BrowserRuntime
 from support.browser_automation.errors import BrowserAutomationError
@@ -54,3 +56,85 @@ def test_cleanup_attempts_browser_after_context_failure():
 
 
 async def async_value(value): return value
+
+
+def test_frozen_runtime_uses_existing_user_browser_cache_during_launch(tmp_path, monkeypatch):
+  cache = tmp_path / "ms-playwright"; cache.mkdir()
+  observed = []
+  class BrowserType:
+    async def launch(self, *, headless):
+      observed.append(("launch", os.environ.get("PLAYWRIGHT_BROWSERS_PATH"), headless))
+      return FakeBrowser()
+  class Driver:
+    chromium = BrowserType()
+    async def stop(self): pass
+  class Starter:
+    async def start(self):
+      observed.append(("start", os.environ.get("PLAYWRIGHT_BROWSERS_PATH")))
+      return Driver()
+  monkeypatch.setattr(sys, "frozen", True, raising=False)
+  monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+  monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
+  monkeypatch.setattr("playwright.async_api.async_playwright", lambda: Starter())
+
+  runtime = BrowserRuntime()
+  asyncio.run(runtime.start())
+
+  assert observed == [("start", str(cache)), ("launch", str(cache), True)]
+  assert "PLAYWRIGHT_BROWSERS_PATH" not in os.environ
+  asyncio.run(runtime.close())
+
+
+def test_frozen_runtime_preserves_explicit_browser_path(tmp_path, monkeypatch):
+  explicit = tmp_path / "managed-browsers"
+  observed = []
+  class BrowserType:
+    async def launch(self, *, headless):
+      observed.append(os.environ["PLAYWRIGHT_BROWSERS_PATH"])
+      return FakeBrowser()
+  class Driver:
+    chromium = BrowserType()
+    async def stop(self): pass
+  class Starter:
+    async def start(self): return Driver()
+  monkeypatch.setattr(sys, "frozen", True, raising=False)
+  monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+  monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", str(explicit))
+  monkeypatch.setattr("playwright.async_api.async_playwright", lambda: Starter())
+
+  runtime = BrowserRuntime()
+  asyncio.run(runtime.start())
+
+  assert observed == [str(explicit)]
+  assert os.environ["PLAYWRIGHT_BROWSERS_PATH"] == str(explicit)
+  asyncio.run(runtime.close())
+
+
+def test_startup_failure_logs_safe_frozen_runtime_facts(tmp_path, monkeypatch):
+  cache = tmp_path / "ms-playwright"; cache.mkdir()
+  logs = []
+  class Starter:
+    async def start(self): raise RuntimeError("private filesystem detail")
+  monkeypatch.setattr(sys, "frozen", True, raising=False)
+  monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+  monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
+  monkeypatch.setattr("playwright.async_api.async_playwright", lambda: Starter())
+  monkeypatch.setattr(
+    "support.browser_automation.runtime.smart_log",
+    lambda message, *args, **kwargs: logs.append((message, kwargs)),
+  )
+
+  runtime = BrowserRuntime()
+  try: asyncio.run(runtime.start())
+  except BrowserAutomationError: pass
+  else: raise AssertionError("startup failure must be wrapped")
+
+  assert logs == [("Browser automation startup failed", {
+    "domain": "support", "source": "BrowserRuntime", "level": "warning",
+    "extra": {
+      "frozen": True, "browser_type": "chromium", "browser_cache_configured": True,
+      "browser_cache_exists": True, "error_type": "RuntimeError",
+    },
+  })]
+  assert "private filesystem detail" not in repr(logs)
+  assert str(tmp_path) not in repr(logs)

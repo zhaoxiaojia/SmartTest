@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import os
+from contextlib import asynccontextmanager
+from pathlib import Path
 from concurrent.futures import Future
 from threading import Event, Thread
 
@@ -15,7 +17,10 @@ from support.jira_integration.services.create_issue_service import CreateIssueSe
 from support.jira_integration.transport.client import JiraClient, JiraClientConfig
 from support.logging import smart_log
 from tool.SmartHome.redmine.auth import RedmineAuthService
-from tool.SmartHome.redmine.collector import RedmineContextCollector
+from tool.SmartHome.redmine.collector import RedmineContextCollector, project_options
+from tool.SmartHome.redmine.models import RedmineContext, RedmineProject
+from tool.SmartHome.redmine.issue_analysis_loader import IssueAnalysisLoader, analysis_work_count, consolidate_context
+from tool.SmartHome.redmine.overdue import load_redmine_people
 from tool.SmartHome.redmine import context_store
 from tool.SmartHome.redmine.models import AuthResult, AuthState, Credential
 from tool.SmartHome.redmine.view_model import detail_row, empty_view, replace_detail, view
@@ -54,6 +59,7 @@ class RedmineBridge(QObject):
     resultReady = Signal(int, object)
     dataReady = Signal(int, object)
     dataProgressReady = Signal(int, int, str)
+    projectsReady = Signal(int, object)
 
     def __init__(
         self,
@@ -72,12 +78,21 @@ class RedmineBridge(QObject):
         self._worker = worker or _AsyncLoopWorker()
         self._service = None
         self._login_future = None
+        self._data_future = None
+        self._projects_future = None
+        self._data_operation_kind = ""
+        self._pending_detail_issue_id = ""
+        self._pending_filters = None
+        self._refresh_after_search = False
+        self._active_search_filter_requested = False
         self._generation = 0
         self._data_generation = 0
+        self._projects_generation = 0
         self._closed = False
         self._state = AuthState.IDLE
         self._status = self.tr("Ready to sign in to Redmine.")
         self._account = ""
+        self._auth_account = str(getattr(auth_bridge, "username", "") or "").strip()
         self._view = empty_view(self.tr("All projects"), self.tr("All statuses"))
         self._clone_status: dict[str, object] = {}
         self._opened_urls: set[str] = set()
@@ -87,9 +102,73 @@ class RedmineBridge(QObject):
         self._data_total = 0
         self._progress_loaded = 0
         self._progress_total = 0
+        self._project_options = []
+        self._projects_loading = False
+        self._projects_ready = False
+        self._projects_status = self.tr("Projects are not loaded.")
+        self._active_quick_view_id = "my_assigned"
         self.resultReady.connect(self._apply)
         self.dataReady.connect(self._apply_data)
         self.dataProgressReady.connect(self._apply_data_progress)
+        self.projectsReady.connect(self._apply_projects)
+        auth_bridge.authChanged.connect(self._on_auth_changed)
+
+    @Slot()
+    def _on_auth_changed(self):
+        next_account = str(getattr(self._auth, "username", "") or "").strip()
+        if next_account == self._auth_account:
+            return
+        old_account = self._account or self._auth_account
+        self._auth_account = next_account
+        self._generation += 1
+        self._data_generation += 1
+        self._projects_generation += 1
+        if self._login_future is not None:
+            self._login_future.cancel()
+            self._login_future = None
+        if self._data_future is not None:
+            self._data_future.cancel()
+            self._data_future = None
+        for name in ("_projects_future",):
+            future = getattr(self, name)
+            if future is not None:
+                future.cancel()
+                setattr(self, name, None)
+        service, self._service = self._service, None
+        if service is not None or old_account:
+            self._worker.submit(self._close_account_flow(service, old_account))
+        self._clone_checker = None
+        self._clone_status = {}
+        self._pending_filters = None
+        self._pending_detail_issue_id = ""
+        self._refresh_after_search = False
+        self._active_search_filter_requested = False
+        self._state = AuthState.IDLE
+        self._account = ""
+        self._view = empty_view(self.tr("All projects"), self.tr("All statuses"))
+        self._data_status = self.tr("Redmine data is not loaded.")
+        self._data_loading = False
+        self._data_loaded = 0
+        self._data_total = 0
+        self._progress_loaded = 0
+        self._progress_total = 0
+        self._project_options = []
+        self._projects_loading = False
+        self._projects_ready = False
+        self._projects_status = self.tr("Projects are not loaded.")
+        self.changed.emit()
+
+    async def _close_account_flow(self, service, account):
+        if service is not None:
+            try:
+                await service.close()
+            except Exception:
+                pass
+        if account:
+            try:
+                await self._runtime.close_context("amlogic_redmine", account)
+            except Exception:
+                pass
 
     state = Property(str, lambda self: self._state.value, notify=changed)
     statusText = Property(str, lambda self: self._status, notify=changed)
@@ -99,6 +178,18 @@ class RedmineBridge(QObject):
     dataStatusText = Property(str, lambda self: self._data_status, notify=changed)
     dataLoaded = Property(int, lambda self: self._data_loaded, notify=changed)
     dataTotal = Property(int, lambda self: self._data_total, notify=changed)
+    quickViews = Property("QVariantList", lambda self: [{"id": "my_assigned", "label": self.tr("Issues assigned to me")}], notify=changed)
+    activeQuickViewId = Property(str, lambda self: self._active_quick_view_id, notify=changed)
+    projectOptions = Property(
+        "QVariantList",
+        lambda self: [{"id": "", "label": self.tr("All projects")}, *list(self._project_options)],
+        notify=changed,
+    )
+    projectsLoading = Property(bool, lambda self: self._projects_loading, notify=changed)
+    projectsReadyState = Property(bool, lambda self: self._projects_ready, notify=changed)
+    projectsStatusText = Property(str, lambda self: self._projects_status, notify=changed)
+    searchLoading = Property(bool, lambda self: self._data_loading and self._data_operation_kind == "search", notify=changed)
+    searchCanCancel = Property(bool, lambda self: self._data_loading and self._data_operation_kind == "search" and self._data_future is not None, notify=changed)
     redmineContext = Property("QVariantMap", lambda self: dict(self._view.get("context_payload", {})), notify=changed)
     projectFilterLabels = Property("QVariantList", lambda self: list(self._view.get("projectFilterLabels", [])), notify=changed)
     statusFilterLabels = Property("QVariantList", lambda self: list(self._view.get("statusFilterLabels", [])), notify=changed)
@@ -106,6 +197,7 @@ class RedmineBridge(QObject):
     filters = Property("QVariantMap", lambda self: dict(self._view.get("filters", {})), notify=changed)
     issueRows = Property("QVariantList", lambda self: list(self._view.get("issueRows", [])), notify=changed)
     selectedIssue = Property("QVariantMap", lambda self: dict(self._view.get("selectedIssue", {})), notify=changed)
+    actionableIssues = Property("QVariantList", lambda self: list(self._view.get("actionableIssues", [])), notify=changed)
 
     def _load_cached_view(self):
         cached = context_store.load_view(
@@ -131,13 +223,20 @@ class RedmineBridge(QObject):
         self._clone_checker = _RedmineCloneChecker(CreateIssueService(client, browse_base_url=base_url))
         return self._clone_checker
 
-    def _check_clone_status(self, rows, *, progress_base: int = 0, progress_total: int | None = None):
+    def _check_clone_status(self, rows, *, progress_base: int = 0, progress_total: int | None = None, emit_progress: bool = True):
         checker = self._checker()
         if checker is None:
+            smart_log("[REDMINE_LOAD] clone finished", domain="tool", source="RedmineBridge", level="info", extra={"checked": 0, "total": len(rows), "skipped": True})
             return {}
+        def on_progress(loaded, total, _label):
+            self._emit_data_progress(loaded, total, "clone")
+            smart_log("[REDMINE_LOAD] clone progress", domain="tool", source="RedmineBridge", level="debug", extra={"loaded": loaded, "total": total})
         try:
-            return checker.check_many(rows, progress_callback=self._emit_data_progress, progress_base=progress_base, progress_total=progress_total)
-        except Exception:
+            result = checker.check_many(rows, progress_callback=on_progress if emit_progress else None, progress_base=progress_base, progress_total=progress_total)
+            smart_log("[REDMINE_LOAD] clone finished", domain="tool", source="RedmineBridge", level="info", extra={"checked": len(rows), "total": progress_total or progress_base + len(rows), "matches": len(result)})
+            return result
+        except Exception as exc:
+            smart_log("[REDMINE_LOAD] clone failure", domain="tool", source="RedmineBridge", level="warning", extra={"checked": 0, "total": len(rows), "error_type": type(exc).__name__})
             return {}
 
     def _apply_clone_status(self, clone_status=None):
@@ -169,6 +268,39 @@ class RedmineBridge(QObject):
                 self._service = RedmineAuthService(session)
         return self._service
 
+    @asynccontextmanager
+    async def _operation_page(self, service):
+        operation_page = getattr(service, "operation_page", None)
+        if operation_page is not None:
+            async with operation_page() as page:
+                yield page
+            return
+        yield service.page
+
+    async def _enrich_issue_context(self, page, context, filters, *, progress=True):
+        context = consolidate_context(context)
+        analysis_total = analysis_work_count(context)
+        planned_view = view(context, all_projects=self.tr("All projects"), all_statuses=self.tr("All statuses"), filters=filters)
+        planned_clone_rows = list(planned_view.get("issueRows", []))
+        total_work = analysis_total + len(planned_clone_rows)
+        if progress:
+            self._emit_data_progress(0, total_work, "analysis")
+        aml_names, _departments = load_redmine_people(Path(__file__).resolve().parents[3] / "config" / "personnel.json")
+        loader = IssueAnalysisLoader(
+            page,
+            max_concurrency=int(os.getenv("SMARTTEST_REDMINE_DETAIL_CONCURRENCY", "6")),
+            progress_callback=(lambda done, _total, _label: self._emit_data_progress(done, total_work, "analysis")) if progress else None,
+        )
+        context = await loader.analyze(context, aml_names=aml_names)
+        filtered_view = view(context, all_projects=self.tr("All projects"), all_statuses=self.tr("All statuses"), filters=filters)
+        first_issue_id = str((filtered_view.get("selectedIssue") or {}).get("id") or "")
+        first_project, first_issue = context.item_for_issue(first_issue_id)
+        detail = next((item for item in context.issues if item.id == first_issue_id), None) if first_issue else None
+        if progress:
+            self._emit_data_progress(analysis_total, total_work, "clone")
+        clone_status = self._check_clone_status(planned_clone_rows, progress_base=analysis_total, progress_total=total_work, emit_progress=progress)
+        return context, first_project.identifier if first_project and first_issue else "", detail, filters, clone_status
+
     def _launch(self, operation):
         if self._closed or self._state is AuthState.SIGNING_IN:
             return
@@ -183,8 +315,15 @@ class RedmineBridge(QObject):
         def finished(future):
             try:
                 result = future.result()
-            except Exception:
-                result = AuthResult(AuthState.FAILED, username=self._account)
+            except Exception as exc:
+                result = AuthResult(AuthState.FAILED, username=self._account, reason="operation_exception")
+                smart_log(
+                    "[REDMINE_AUTH] login failure",
+                    domain="tool",
+                    source="RedmineBridge",
+                    level="warning",
+                    extra={"state": "failed", "reason": result.reason, "error_type": type(exc).__name__},
+                )
             self.resultReady.emit(generation, result)
 
         future.add_done_callback(finished)
@@ -214,20 +353,107 @@ class RedmineBridge(QObject):
             AuthState.FAILED: self.tr("Redmine sign-in failed."),
         }.get(result.state, result.message)
         self._status = reason_status.get(result.reason, result.message or default_status)
+        if result.state is AuthState.FAILED and result.reason != "operation_exception":
+            smart_log(
+                "[REDMINE_AUTH] login failure",
+                domain="tool",
+                source="RedmineBridge",
+                level="warning",
+                extra={"state": result.state.value, "reason": result.reason, "error_type": ""},
+            )
         self.changed.emit()
         if result.state is AuthState.CREDENTIALS_REQUIRED:
             self.credentialsRequired.emit()
         elif result.state is AuthState.VERIFICATION_REQUIRED:
             self.verificationRequired.emit()
         elif result.state is AuthState.AUTHENTICATED:
-            self.refreshData()
+            self.activateQuickView("my_assigned")
+            self.refreshProjects()
 
-    def _launch_data_load(self, operation, *, status):
+    def _load_quick_view_cache(self, quick_view_id):
+        cached = context_store.load_quick_view(
+            self._account,
+            quick_view_id,
+            all_projects=self.tr("All projects"),
+            all_statuses=self.tr("All statuses"),
+        )
+        if not cached:
+            return
+        self._view = cached
+        self._apply_clone_status({})
+        self._data_status = self.tr("Issues assigned to me loaded.")
+        self.changed.emit()
+
+    @Slot()
+    def refreshProjects(self):
+        if self._state is not AuthState.AUTHENTICATED or self._projects_loading:
+            return
+        cached = context_store.load_project_options(self._account)
+        if cached:
+            self._project_options = cached
+        self._projects_generation += 1
+        generation = self._projects_generation
+        self._projects_loading = True
+        self._projects_ready = False
+        self._projects_status = self.tr("Loading Redmine projects...")
+        self.changed.emit()
+        async def operation():
+            service = await self._service_for(self._account)
+            async with self._operation_page(service) as page:
+                return project_options(await RedmineContextCollector(page, account=self._account).collect_projects())
+        future = self._worker.submit(operation()); self._projects_future = future
+        def finished(done):
+            try:
+                result = done.result()
+            except Exception as exc:
+                result = exc
+            self.projectsReady.emit(generation, result)
+        future.add_done_callback(finished)
+
+    @Slot(int, object)
+    def _apply_projects(self, generation, result):
+        if self._closed or generation != self._projects_generation:
+            return
+        self._projects_future = None; self._projects_loading = False
+        if isinstance(result, Exception):
+            self._projects_status = self.tr("Redmine project loading failed.")
+        elif result:
+            self._project_options = list(result)
+            context_store.save_project_options(self._account, self._project_options)
+            self._projects_ready = True
+            self._projects_status = self.tr("Redmine projects loaded.")
+        else:
+            self._projects_status = self.tr("No Redmine projects were loaded. Retry project loading.")
+        self.changed.emit()
+
+    @Slot(str)
+    def activateQuickView(self, quick_view_id):
+        if self._state is not AuthState.AUTHENTICATED or self._data_loading or quick_view_id != "my_assigned":
+            return
+        self._active_quick_view_id = quick_view_id
+        self._load_quick_view_cache(quick_view_id)
+        async def operation():
+            service = await self._service_for(self._account)
+            async with self._operation_page(service) as page:
+                self._emit_data_progress(0, 0, "my_assigned")
+                rows = await RedmineContextCollector(page, account=self._account).collect_my_page_assigned()
+                if not rows:
+                    return "quick_view_empty",
+                grouped = {}
+                for row in rows:
+                    key = row.get("project_identifier") or "my-page"
+                    grouped.setdefault(key, {"name": row.get("project_name") or self.tr("Issues assigned to me"), "url": row.get("project_url") or "", "issues": []})["issues"].append(row["issue"])
+                projects = tuple(RedmineProject(name=data["name"], identifier=key, url=data["url"], project_id=key, issues=tuple(data["issues"])) for key, data in grouped.items())
+                return await self._enrich_issue_context(page, RedmineContext(account=self._account, projects=projects), {}, progress=True)
+        self._launch_data_load(operation, status=self.tr("Loading issues assigned to me..."), kind="my_assigned")
+
+    def _launch_data_load(self, operation, *, status, kind="detail"):
         if self._closed:
             return
         self._data_generation += 1
         generation = self._data_generation
         self._data_loading = True
+        self._data_operation_kind = kind
         self._data_loaded = 0
         self._data_total = 0
         self._progress_loaded = 0
@@ -235,12 +461,14 @@ class RedmineBridge(QObject):
         self._data_status = status
         self.changed.emit()
         future = self._worker.submit(operation())
+        self._data_future = future
 
         def finished(future):
             try:
                 result = future.result()
             except Exception as exc:
                 result = exc
+            smart_log("[REDMINE_LOAD] data failure" if isinstance(result, Exception) else "[REDMINE_LOAD] data finished", domain="tool", source="RedmineBridge", level="warning" if isinstance(result, Exception) else "info", extra={"kind": kind, "generation": generation, "error_type": type(result).__name__ if isinstance(result, Exception) else ""})
             self.dataReady.emit(generation, result)
 
         future.add_done_callback(finished)
@@ -276,45 +504,37 @@ class RedmineBridge(QObject):
     def refreshData(self):
         if self._state is not AuthState.AUTHENTICATED:
             return
-        self._load_cached_view()
-        saved_filters = context_store.load_filters(self._account)
+        if not self._projects_ready:
+            return
+        if self._data_loading:
+            self._refresh_after_search = True
+            return
+        filter_requested = self._pending_filters is not None
+        if not filter_requested:
+            self._load_cached_view()
+        saved_filters = dict(self._pending_filters) if filter_requested else context_store.load_filters(self._account)
+        self._pending_filters = None
+        self._active_search_filter_requested = filter_requested
+        self._active_quick_view_id = ""
 
         async def operation():
             service = await self._service_for(self._account)
-            collector = RedmineContextCollector(service.page, account=self._account, progress_callback=self._emit_data_progress)
-            context = await collector.collect_context()
-            list_loaded = self._progress_loaded
-            list_total = self._progress_total
-            filtered_view = view(
-                context,
-                all_projects=self.tr("All projects"),
-                all_statuses=self.tr("All statuses"),
-                filters=saved_filters,
-            )
-            filtered_rows = filtered_view.get("issueRows", [])
-            detail_total = 1 if filtered_rows else 0
-            clone_total = len(filtered_rows)
-            total_work = list_total + detail_total + clone_total
-            self._emit_data_progress(list_loaded, total_work, "Redmine list loaded")
-            first_issue_id = str((filtered_view.get("selectedIssue") or {}).get("id") or "")
-            first_project, first_issue = context.item_for_issue(first_issue_id)
-            if first_issue:
-                self._emit_data_progress(list_loaded, total_work, "Loading Redmine issue detail")
-                detail = await collector.collect_issue_detail(first_issue, project=first_project)
-                self._emit_data_progress(list_loaded + 1, total_work, "Redmine issue detail loaded")
-                context_for_view = replace_detail(context, detail)
-                rows = view(
-                    context_for_view,
-                    all_projects=self.tr("All projects"),
-                    all_statuses=self.tr("All statuses"),
-                    filters=saved_filters,
-                    selected_detail=detail,
-                ).get("issueRows", [])
-                return context, first_project.identifier if first_project else "", detail, saved_filters, self._check_clone_status(rows, progress_base=list_loaded + 1, progress_total=total_work)
-            rows = filtered_rows
-            return context, "", None, saved_filters, self._check_clone_status(rows, progress_base=list_loaded, progress_total=total_work)
+            smart_log("[REDMINE_LOAD] discovery", domain="tool", source="RedmineBridge", level="debug", extra={"phase": "discovery"})
+            self._emit_data_progress(0, 0, "discovery")
+            async with self._operation_page(service) as page:
+                collector = RedmineContextCollector(page, account=self._account, progress_callback=lambda _loaded, _total, _label: self._emit_data_progress(0, 0, "discovery"))
+                selected_project = str(saved_filters.get("project", "") or "").strip()
+                project_identifiers = {selected_project} if selected_project else None
+                effective_filters = saved_filters
+                context = await collector.collect_context(project_identifiers=project_identifiers)
+                enriched = await self._enrich_issue_context(page, context, effective_filters, progress=True)
+            project_count = sum(bool(project.project_id) for project in context.projects)
+            collected_rows = sum(len(project.issues) for project in context.projects)
+            unique_issues = sum(len(project.issues) for project in enriched[0].projects)
+            smart_log("[REDMINE_LOAD] plan", domain="tool", source="RedmineBridge", level="info", extra={"projects": project_count, "collected_rows": collected_rows, "unique_issues": unique_issues, "filtered_rows": len(view(enriched[0], all_projects=self.tr("All projects"), all_statuses=self.tr("All statuses"), filters=effective_filters).get("issueRows", []))})
+            return enriched
 
-        self._launch_data_load(operation, status=self.tr("Loading Redmine data..."))
+        self._launch_data_load(operation, status=self.tr("Loading Redmine data..."), kind="search")
 
     def _emit_data_progress(self, loaded: int, total: int, label: str) -> None:
         self._progress_loaded = int(loaded)
@@ -327,7 +547,15 @@ class RedmineBridge(QObject):
             return
         self._data_loaded = loaded
         self._data_total = total
-        if total > 0:
+        if label == "discovery":
+            self._data_status = self.tr("Discovering Redmine projects and issues...")
+        elif label == "my_assigned":
+            self._data_status = self.tr("Loading issues assigned to me...")
+        elif label == "analysis":
+            self._data_status = self.tr("Analyzing Redmine issue activity... {loaded}/{total}").format(loaded=loaded, total=total)
+        elif label == "clone":
+            self._data_status = self.tr("Checking cloned Jira issues... {loaded}/{total}").format(loaded=loaded, total=total)
+        elif total > 0:
             self._data_status = self.tr("Loading Redmine data... {loaded}/{total}").format(loaded=loaded, total=total)
         else:
             self._data_status = self.tr("Loading Redmine data...")
@@ -336,27 +564,30 @@ class RedmineBridge(QObject):
     @Slot(dict)
     @Slot(object)
     def applyFilters(self, filters):
+        if not self._projects_ready:
+            return
         filters = dict(filters or {})
         project = "" if filters.get("project") == self.tr("All projects") else filters.get("project", "")
         status = "" if filters.get("status") == self.tr("All statuses") else filters.get("status", "")
         issue_type = "" if filters.get("type") in ("", self.tr("All types")) else filters.get("type", "")
-        self._view = view(
-            self._view["context"],
-            all_projects=self.tr("All projects"),
-            all_statuses=self.tr("All statuses"),
-            filters={"project": project, "status": status, "type": issue_type, "text": str(filters.get("text", "") or "")},
-        )
-        self._apply_clone_status({})
-        self._data_status = self.tr("Redmine data loaded.")
-        context_store.save_view(self._account, self._view)
+        self._pending_filters = {"project": project, "status": status, "type": issue_type, "text": str(filters.get("text", "") or "")}
+        smart_log("[REDMINE_FILTER] refresh requested", domain="tool", source="RedmineBridge", level="info", extra={"project": bool(project), "status": status, "type": issue_type, "text_present": bool(self._pending_filters["text"])})
+        if self._data_loading:
+            self._refresh_after_search = True
+            return
+        self.refreshData()
+
+    @Slot()
+    def cancelSearch(self):
+        if self._data_future is None or self._data_operation_kind != "search":
+            return
+        self._data_generation += 1
+        self._data_future.cancel()
+        self._data_future = None
+        self._data_loading = False
+        self._data_operation_kind = ""
+        self._data_status = self.tr("Search cancelled.")
         self.changed.emit()
-        rows = self._view.get("issueRows", [])
-        first = rows[0] if rows else {}
-        if first:
-            self.selectIssue(str(first.get("id") or ""))
-        else:
-            self._view = {**self._view, "selectedIssue": {}, "selectedIssueId": ""}
-            self.changed.emit()
 
     @Slot(str)
     def selectIssue(self, issue_id):
@@ -369,18 +600,38 @@ class RedmineBridge(QObject):
         self._view = {**self._view, "selectedIssue": detail_row(item=item, project=project), "selectedIssueId": issue_id}
         self._apply_clone_status({})
 
+        existing_detail = next((detail for detail in self._view["context"].issues if detail.id == issue_id), None)
+        if existing_detail is not None:
+            self._view = view(self._view["context"], all_projects=self.tr("All projects"), all_statuses=self.tr("All statuses"), filters=self._view.get("filters", {}), selected_detail=existing_detail)
+            self._apply_clone_status({})
+            self.changed.emit()
+            return
+
+        if self._data_loading and self._data_operation_kind == "search":
+            self._pending_detail_issue_id = issue_id
+            self.changed.emit()
+            return
+
         async def operation():
             service = await self._service_for(self._account)
-            collector = RedmineContextCollector(service.page, account=self._account)
-            return "detail", issue_id, await collector.collect_issue_detail(item, project=project)
+            async with self._operation_page(service) as page:
+                collector = RedmineContextCollector(page, account=self._account)
+                return "detail", issue_id, await collector.collect_issue_detail(item, project=project)
 
-        self._launch_data_load(operation, status=self.tr("Refreshing Redmine issue detail..."))
+        self._launch_data_load(operation, status=self.tr("Refreshing Redmine issue detail..."), kind="detail")
 
     @Slot(int, object)
     def _apply_data(self, generation, result):
         if self._closed or generation != self._data_generation:
             return
+        operation_kind = self._data_operation_kind
         self._data_loading = False
+        self._data_operation_kind = ""
+        self._data_future = None
+        if self._refresh_after_search:
+            self._refresh_after_search = False
+            self.refreshData()
+            return
         if isinstance(result, Exception):
             smart_log(
                 "Redmine data load failed",
@@ -389,7 +640,15 @@ class RedmineBridge(QObject):
                 level="warning",
                 exc_info=(type(result), result, result.__traceback__),
             )
-            self._data_status = self.tr("Redmine data load failed.")
+            if operation_kind == "my_assigned":
+                smart_log("[REDMINE_MY_ASSIGNED] refresh failed", domain="tool", source="RedmineBridge", level="warning", extra={"error_type": type(result).__name__})
+                self._data_status = self.tr("Issues assigned to me loading failed.")
+            else:
+                self._data_status = self.tr("Redmine data load failed.")
+            self.changed.emit()
+            return
+        if operation_kind == "my_assigned" and result == ("quick_view_empty",):
+            self._data_status = self.tr("Issues assigned to me loaded.")
             self.changed.emit()
             return
         if isinstance(result, tuple) and len(result) == 3 and result[0] == "detail":
@@ -409,15 +668,29 @@ class RedmineBridge(QObject):
             self.changed.emit()
             return
         context, _project_identifier, detail, filters, clone_status = result
+        if operation_kind == "search" and not self._active_search_filter_requested:
+            wanted_id = str(self._view.get("selectedIssueId") or "")
+            detail = next((item for item in context.issues if item.id == wanted_id), detail if not wanted_id else None)
         if detail:
             context = replace_detail(context, detail)
         self._view = view(context, all_projects=self.tr("All projects"), all_statuses=self.tr("All statuses"), filters=filters, selected_detail=detail)
         self._apply_clone_status(clone_status)
         self._data_loaded = sum(len(project.issues) for project in context.projects)
         self._data_total = self._data_loaded
-        self._data_status = self.tr("Redmine data loaded.")
-        context_store.save_view(self._account, self._view)
+        self._data_status = self.tr("Issues assigned to me loaded.") if operation_kind == "my_assigned" else self.tr("Redmine data loaded.")
+        if operation_kind == "my_assigned":
+            context_store.save_quick_view(self._account, "my_assigned", self._view)
+        else:
+            context_store.save_view(self._account, self._view)
+        if operation_kind == "search" and self._active_search_filter_requested:
+            smart_log("[REDMINE_FILTER] refresh applied", domain="tool", source="RedmineBridge", level="info", extra={"project": bool(filters.get("project")), "status": filters.get("status", ""), "type": filters.get("type", ""), "text_present": bool(filters.get("text")), "result_count": len(self._view.get("issueRows", [])), "actionable_count": len(self._view.get("actionableIssues", []))})
+            self._active_search_filter_requested = False
         self.changed.emit()
+        pending_issue_id, self._pending_detail_issue_id = self._pending_detail_issue_id, ""
+        selected_issue_id = str(self._view.get("selectedIssueId") or "")
+        detail_issue_id = pending_issue_id or selected_issue_id
+        if operation_kind == "search" and detail_issue_id and detail_issue_id == selected_issue_id and not any(item.id == detail_issue_id for item in context.issues):
+            self.selectIssue(detail_issue_id)
 
     async def _close_flow(self):
         service, self._service = self._service, None
@@ -432,13 +705,23 @@ class RedmineBridge(QObject):
     def cancelLogin(self):
         self._generation += 1
         self._data_generation += 1
+        self._projects_generation += 1
         if self._login_future is not None:
             self._login_future.cancel()
             self._login_future = None
+        if self._data_future is not None:
+            self._data_future.cancel()
+            self._data_future = None
+        for name in ("_projects_future",):
+            future = getattr(self, name)
+            if future is not None:
+                future.cancel()
+                setattr(self, name, None)
         self._worker.submit(self._close_flow())
         self._state = AuthState.IDLE
         self._status = self.tr("Redmine sign-in cancelled.")
         self._data_loading = False
+        self._projects_loading = False
         self.changed.emit()
 
     @Slot()
@@ -448,9 +731,18 @@ class RedmineBridge(QObject):
         self._closed = True
         self._generation += 1
         self._data_generation += 1
+        self._projects_generation += 1
         if self._login_future is not None:
             self._login_future.cancel()
             self._login_future = None
+        if self._data_future is not None:
+            self._data_future.cancel()
+            self._data_future = None
+        for name in ("_projects_future",):
+            future = getattr(self, name)
+            if future is not None:
+                future.cancel()
+                setattr(self, name, None)
         try:
             self._worker.submit(self._close_flow()).result(timeout=10)
         finally:

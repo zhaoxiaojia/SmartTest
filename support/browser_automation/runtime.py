@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import sys
+from pathlib import Path
 
+from support.logging import smart_log
 from support.browser_automation.errors import BrowserAutomationError
 from support.browser_automation.models import ContextKey
 from support.browser_automation.session import BrowserSession
@@ -19,7 +23,17 @@ class BrowserRuntime:
 
     async def _launch_playwright(self, headless, browser_type):
         driver = None
+        injected_browser_path = False
+        frozen = bool(getattr(sys, "frozen", False))
+        cache_exists = False
         try:
+            if frozen and "PLAYWRIGHT_BROWSERS_PATH" not in os.environ:
+                local_app_data = os.environ.get("LOCALAPPDATA", "").strip()
+                browser_cache = Path(local_app_data) / "ms-playwright" if local_app_data else None
+                cache_exists = bool(browser_cache and browser_cache.is_dir())
+                if cache_exists:
+                    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(browser_cache)
+                    injected_browser_path = True
             from playwright.async_api import async_playwright
             driver = await async_playwright().start()
             browser = await getattr(driver, browser_type).launch(headless=headless)
@@ -31,7 +45,23 @@ class BrowserRuntime:
                     await driver.stop()
                 except Exception:
                     pass
+            smart_log(
+                "Browser automation startup failed",
+                domain="support",
+                source="BrowserRuntime",
+                level="warning",
+                extra={
+                    "frozen": frozen,
+                    "browser_type": browser_type,
+                    "browser_cache_configured": bool(os.environ.get("PLAYWRIGHT_BROWSERS_PATH")),
+                    "browser_cache_exists": cache_exists,
+                    "error_type": type(exc).__name__,
+                },
+            )
             raise BrowserAutomationError("Unable to start browser automation") from exc
+        finally:
+            if injected_browser_path:
+                os.environ.pop("PLAYWRIGHT_BROWSERS_PATH", None)
 
     async def start(self):
         async with self._lock:

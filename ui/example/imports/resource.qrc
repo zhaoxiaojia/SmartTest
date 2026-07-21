@@ -8,7 +8,6 @@
         <file>example/qml/chart/T_RadarChart.qml</file>
         <file>example/qml/chart/T_ScatterChart.qml</file>
         <file>example/qml/component/CodeExpander.qml</file>
-        <file>example/qml/component/AvatarCropDialog.qml</file>
         <file>example/qml/component/ImagePreviewDialog.qml</file>
         <file>example/qml/component/LogListView.qml</file>
         <file>example/qml/component/ToolGroupExpander.qml</file>

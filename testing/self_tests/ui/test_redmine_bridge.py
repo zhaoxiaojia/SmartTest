@@ -16,10 +16,17 @@ class FakeAuth(QObject):
     def transientCredential(self): return ("alice", "ldap-secret")
 
 
+class MutableAuth(QObject):
+    authChanged = Signal()
+    def __init__(self, username="alice", password="alice-secret"):
+        super().__init__(); self.username = username; self.password = password
+    def transientCredential(self): return self.username, self.password
+
+
 class FakeService:
-    def __init__(self, result): self.result = result; self.credential = None
+    def __init__(self, result): self.result = result; self.credential = None; self.closed = False
     async def login(self, credential): self.credential = credential; return self.result
-    async def close(self): pass
+    async def close(self): self.closed = True
 
 
 class LoopRecordingService(FakeService):
@@ -150,6 +157,153 @@ def test_bridge_remembers_opened_web_urls_to_avoid_duplicate_windows(monkeypatch
     bridge.close()
 
 
+def test_failed_auth_result_logs_state_reason_without_credentials(monkeypatch):
+    logs = []
+    monkeypatch.setattr(
+        "ui.example.bridge.RedmineBridge.smart_log",
+        lambda message, *args, **kwargs: logs.append((message, kwargs)),
+    )
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._generation = 4
+
+    bridge._apply(4, AuthResult(AuthState.FAILED, reason="login_failed", username="alice"))
+
+    message, kwargs = logs[-1]
+    assert message == "[REDMINE_AUTH] login failure"
+    assert kwargs["extra"] == {"state": "failed", "reason": "login_failed", "error_type": ""}
+    assert "ldap-secret" not in repr(logs)
+    bridge.close()
+
+
+def test_auth_operation_exception_keeps_reason_and_error_type(monkeypatch):
+    class RaisingService(FakeService):
+        async def login(self, credential):
+            raise PermissionError("browser state is unavailable")
+
+    logs = []
+    monkeypatch.setattr(
+        "ui.example.bridge.RedmineBridge.smart_log",
+        lambda message, *args, **kwargs: logs.append((message, kwargs)),
+    )
+    bridge = RedmineBridge(
+        FakeAuth(), service_factory=lambda _account: RaisingService(AuthResult(AuthState.IDLE))
+    )
+
+    bridge.startLogin()
+    wait_for(lambda: bridge.state == "failed")
+
+    auth_log = next(item for item in logs if item[0] == "[REDMINE_AUTH] login failure")
+    assert auth_log[1]["extra"] == {
+        "state": "failed",
+        "reason": "operation_exception",
+        "error_type": "PermissionError",
+    }
+    assert bridge.statusText == "Redmine sign-in failed."
+    assert "browser state is unavailable" not in repr(logs)
+    assert "ldap-secret" not in repr(logs)
+    bridge.close()
+
+
+def test_account_change_immediately_invalidates_old_redmine_state_and_late_results():
+    auth = MutableAuth()
+    bridge = RedmineBridge(auth, service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._generation = 8; bridge._data_generation = 5
+    bridge._state = AuthState.AUTHENTICATED; bridge._account = "alice"
+    old_service = FakeService(AuthResult(AuthState.AUTHENTICATED, username="alice"))
+    bridge._service = old_service
+    bridge._view = {**bridge._view, "projectFilterLabels": ["All projects", "Alice project"], "issueRows": [{"id": "1"}]}
+    bridge._clone_checker = object()
+
+    auth.username = "bob"; auth.password = "bob-secret"; auth.authChanged.emit()
+
+    assert bridge.state == "idle" and bridge.account == ""
+    assert bridge.projectFilterLabels == ["All projects"]
+    assert bridge.statusFilterLabels == ["All statuses", "Open", "Closed"]
+    assert bridge.typeFilterLabels == ["All types"]
+    assert bridge.issueRows == [] and bridge._clone_checker is None
+    wait_for(lambda: old_service.closed)
+    bridge._apply(8, AuthResult(AuthState.AUTHENTICATED, username="alice"))
+    assert bridge.state == "idle"
+    bridge.close()
+
+
+def test_login_after_account_change_uses_current_ldap_credential():
+    auth = MutableAuth()
+    accounts = []; services = []
+    def factory(account):
+        service = FakeService(AuthResult(AuthState.CREDENTIALS_REQUIRED, username=account))
+        accounts.append(account); services.append(service); return service
+    bridge = RedmineBridge(auth, service_factory=factory)
+    auth.username = "bob"; auth.password = "bob-secret"; auth.authChanged.emit()
+
+    bridge.startLogin()
+    wait_for(lambda: bridge.state == "credentials_required")
+
+    assert accounts == ["bob"]
+    assert services[0].credential.username == "bob" and services[0].credential.password == "bob-secret"
+    bridge.close()
+
+
+def test_authenticated_default_starts_my_page_and_projects_not_search(monkeypatch):
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    calls = []
+    monkeypatch.setattr(bridge, "activateQuickView", lambda quick_view_id: calls.append(quick_view_id))
+    monkeypatch.setattr(bridge, "refreshProjects", lambda: calls.append("projects"))
+    monkeypatch.setattr(bridge, "refreshData", lambda: calls.append("search"))
+    bridge._generation = 3
+    bridge._apply(3, AuthResult(AuthState.AUTHENTICATED, username="alice"))
+    assert calls == ["my_assigned", "projects"]
+    bridge.close()
+
+
+def test_my_assigned_uses_unified_issue_operation_and_is_not_search_cancellable(monkeypatch):
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._state = AuthState.AUTHENTICATED
+    launched = []
+    monkeypatch.setattr(bridge, "_load_quick_view_cache", lambda quick_view_id: launched.append(("cache", quick_view_id)))
+    def launch(operation, *, status, kind):
+        assert callable(operation)
+        launched.append((kind, status))
+    monkeypatch.setattr(bridge, "_launch_data_load", launch)
+    bridge.activateQuickView("my_assigned")
+    assert launched == [("cache", "my_assigned"), ("my_assigned", "Loading issues assigned to me...")]
+    assert bridge.activeQuickViewId == "my_assigned"
+    assert not hasattr(bridge, "_my_page_future")
+    bridge._data_loading = True; bridge._data_operation_kind = "my_assigned"; bridge._data_future = object()
+    assert bridge.searchLoading is False and bridge.searchCanCancel is False
+    bridge._data_future = None
+    bridge.close()
+
+
+def test_explicit_search_clears_active_quick_view(monkeypatch):
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._state = AuthState.AUTHENTICATED; bridge._projects_ready = True; bridge._active_quick_view_id = "my_assigned"
+    monkeypatch.setattr(bridge, "_launch_data_load", lambda operation, **kwargs: None)
+    bridge.applyFilters({"status": "Open"})
+    assert bridge.activeQuickViewId == ""
+    bridge.close()
+
+
+def test_search_waits_for_projects_and_cancel_invalidates_only_search():
+    class Future:
+        def __init__(self): self.cancelled = False
+        def cancel(self): self.cancelled = True
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._state = AuthState.AUTHENTICATED
+    bridge.applyFilters({"project": "P"})
+    assert bridge._pending_filters is None
+    future = Future(); bridge._data_future = future; bridge._data_loading = True
+    bridge._data_operation_kind = "search"
+    bridge._projects_future = object()
+    generation = bridge._data_generation
+    bridge.cancelSearch()
+    assert future.cancelled and bridge._data_generation == generation + 1
+    assert bridge._projects_future is not None
+    assert bridge.searchLoading is False
+    bridge._projects_future = None
+    bridge.close()
+
+
 def test_bridge_formats_redmine_loading_progress():
     bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
     bridge._data_loading = True
@@ -162,13 +316,15 @@ def test_bridge_formats_redmine_loading_progress():
     bridge.close()
 
 
-def test_bridge_clone_check_progress_extends_total_work():
+def test_bridge_clone_check_progress_extends_total_work(monkeypatch):
     class FakeCloneChecker:
         def check_many(self, rows, *, progress_callback=None, progress_base=0, progress_total=None):
             for index, _row in enumerate(rows, start=1):
                 progress_callback(progress_base + index, progress_total, "Checking cloned Jira issues")
             return {}
 
+    logs = []
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.smart_log", lambda message, *args, **kwargs: logs.append((message, kwargs)))
     bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)), clone_checker=FakeCloneChecker())
     bridge._data_loading = True
 
@@ -176,5 +332,225 @@ def test_bridge_clone_check_progress_extends_total_work():
 
     assert bridge.dataLoaded == 103
     assert bridge.dataTotal == 103
-    assert bridge.dataStatusText == "Loading Redmine data... 103/103"
+    assert bridge.dataStatusText == "Checking cloned Jira issues... 103/103"
+    assert [message for message, _kwargs in logs] == ["[REDMINE_LOAD] clone progress", "[REDMINE_LOAD] clone progress", "[REDMINE_LOAD] clone finished"]
+    bridge.close()
+
+
+def test_bridge_discovery_is_indeterminate_then_plan_denominator_is_stable():
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._data_loading = True
+    bridge._apply_data_progress(0, 0, "discovery")
+    assert bridge.dataTotal == 0
+    assert bridge.dataStatusText == "Discovering Redmine projects and issues..."
+    totals = []
+    for loaded, phase in ((0, "analysis"), (3, "analysis"), (5, "clone"), (8, "clone")):
+        bridge._apply_data_progress(loaded, 8, phase)
+        totals.append(bridge.dataTotal)
+    assert totals == [8, 8, 8, 8]
+    bridge.close()
+
+
+def test_detail_selection_during_search_is_deferred_without_replacing_search_lifecycle(monkeypatch):
+    from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueListItem, RedmineProject
+    from tool.SmartHome.redmine.view_model import view
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._state = AuthState.AUTHENTICATED
+    item = RedmineIssueListItem(id="closed", url="u", tracker="Bug", status="Closed", subject="closed")
+    context = RedmineContext(projects=(RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=(item,)),))
+    bridge._view = view(context, all_projects="All projects", all_statuses="All statuses")
+    bridge._data_loading = True
+    bridge._data_operation_kind = "search"
+    launched = []
+    monkeypatch.setattr(bridge, "_launch_data_load", lambda *args, **kwargs: launched.append(kwargs))
+    bridge.selectIssue("closed")
+    assert launched == []
+    assert bridge._pending_detail_issue_id == "closed"
+    assert bridge.dataLoading is True
+    bridge.close()
+
+
+def test_existing_analysis_detail_keeps_full_panel_content_without_refetch(monkeypatch):
+    from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineJournal, RedmineProject
+    from tool.SmartHome.redmine.view_model import view
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._state = AuthState.AUTHENTICATED
+    item = RedmineIssueListItem(id="open", url="u", tracker="Bug", status="New", subject="full")
+    detail = RedmineIssueDetail(id="open", url="u", project_identifier="p", subject="full", description="full description", attributes={"Status": "New", "Priority": "High"}, comments=(RedmineJournal(id="1", author="Alice", note="comment"),), list_item=item)
+    context = RedmineContext(projects=(RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=(item,)),), issues=(detail,))
+    bridge._view = view(context, all_projects="All projects", all_statuses="All statuses")
+    launched = []
+    monkeypatch.setattr(bridge, "_launch_data_load", lambda *args, **kwargs: launched.append(kwargs))
+    bridge.selectIssue("open")
+    assert launched == []
+    assert bridge.selectedIssue["description"] == "full description"
+    assert bridge.selectedIssue["comments"][0]["body"] == "comment"
+    bridge.close()
+
+
+def test_search_completion_with_closed_filter_has_no_monitor_selection(monkeypatch):
+    from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueListItem, RedmineProject
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._state = AuthState.AUTHENTICATED
+    bridge._data_generation = 4
+    bridge._data_loading = True
+    bridge._data_operation_kind = "search"
+    item = RedmineIssueListItem(id="closed", url="u", tracker="Bug", status="Closed", subject="closed")
+    context = RedmineContext(projects=(RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=(item,)),))
+    selected = []
+    monkeypatch.setattr(bridge, "selectIssue", lambda issue_id: selected.append(issue_id))
+    bridge._apply_data(4, (context, "p", None, {"status": "Closed"}, {}))
+    assert selected == []
+    assert bridge.issueRows == []
+    assert bridge.dataLoading is False
+    assert bridge._data_operation_kind == ""
+    bridge.close()
+
+
+def test_apply_filters_requests_fresh_search_instead_of_finalizing_cached_view(monkeypatch):
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._state = AuthState.AUTHENTICATED
+    bridge._projects_ready = True
+    requested = []
+    monkeypatch.setattr(bridge, "refreshData", lambda: requested.append(dict(bridge._pending_filters or {})))
+    bridge.applyFilters({"project": "P", "status": "Open", "type": "Bug", "text": "needle"})
+    assert requested == [{"project": "P", "status": "Open", "type": "Bug", "text": "needle"}]
+    bridge.close()
+
+
+def test_search_is_disabled_until_project_discovery_succeeds(monkeypatch):
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._state = AuthState.AUTHENTICATED
+    requested = []
+    monkeypatch.setattr(bridge, "refreshData", lambda: requested.append("search"))
+    bridge.applyFilters({"text": "needle"})
+    assert requested == []
+    assert bridge._pending_filters is None
+    bridge.close()
+
+
+def test_cancel_search_invalidates_only_search_generation():
+    class Pending:
+        def __init__(self): self.cancelled = False
+        def cancel(self): self.cancelled = True
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    pending = Pending()
+    bridge._data_future = pending
+    bridge._data_generation = 4
+    bridge._projects_generation = 7
+    bridge._data_loading = True
+    bridge._data_operation_kind = "search"
+    bridge.cancelSearch()
+    assert pending.cancelled is True
+    assert bridge._data_generation == 5
+    assert bridge._projects_generation == 7
+    assert bridge.dataLoading is False
+    bridge.close()
+
+
+def test_detail_loading_is_not_exposed_as_cancellable_search():
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._data_loading = True
+    bridge._data_future = object()
+    bridge._data_operation_kind = "detail"
+    generation = bridge._data_generation
+    assert bridge.searchLoading is False
+    assert bridge.searchCanCancel is False
+    bridge.cancelSearch()
+    assert bridge._data_generation == generation
+    bridge._data_future = None
+    bridge.close()
+
+
+def test_default_my_page_cache_loader_never_reads_search_cache(monkeypatch):
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._account = "alice"
+    cached = {**bridge._view, "issueRows": [{"id": "mine"}]}
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.load_quick_view", lambda *args, **kwargs: cached)
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.load_view", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("search cache read")))
+    bridge._load_quick_view_cache("my_assigned")
+    assert [row["id"] for row in bridge.issueRows] == ["mine"]
+    bridge.close()
+
+
+def test_search_and_my_page_apply_identical_enriched_detail_overdue_and_clone(monkeypatch):
+    from types import SimpleNamespace
+    from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineProject
+    item = RedmineIssueListItem(id="1", url="u", tracker="Bug", status="New", subject="issue")
+    project = RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=(item,))
+    detail = RedmineIssueDetail(id="1", url="u", project_identifier="p", subject="issue", description="body", list_item=item)
+    context = RedmineContext(projects=(project,), issues=(detail,), raw={"issue_analysis": {"1": {"risk": "red", "age_text": "8 days"}}})
+    clone = {"1": SimpleNamespace(key="SH-1", web_url="jira")}
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.save_view", lambda *args, **kwargs: None)
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.save_quick_view", lambda *args, **kwargs: None)
+    search = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    search._data_generation = 1; search._data_loading = True; search._data_operation_kind = "search"
+    search._apply_data(1, (context, "p", detail, {}, clone))
+    mine = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    mine._data_generation = 1; mine._data_loading = True; mine._data_operation_kind = "my_assigned"
+    mine._apply_data(1, (context, "p", detail, {}, clone))
+    for bridge in (search, mine):
+        assert bridge.selectedIssue["description"] == "body"
+        assert bridge.issueRows[0]["updateRisk"] == "red"
+        assert bridge.issueRows[0]["cloneStatus"] == "cloned"
+        assert bridge.issueRows[0]["clonedIssueKey"] == "SH-1"
+    search.close(); mine.close()
+
+
+def test_filter_request_during_search_is_queued_without_overlapping_refresh(monkeypatch):
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._state = AuthState.AUTHENTICATED
+    bridge._projects_ready = True
+    bridge._data_loading = True
+    bridge._data_operation_kind = "search"
+    calls = []
+    monkeypatch.setattr(bridge, "refreshData", lambda: calls.append("refresh"))
+    bridge.applyFilters({"status": "Open"})
+    assert calls == []
+    assert bridge._refresh_after_search is True
+    assert bridge._pending_filters["status"] == "Open"
+    bridge.close()
+
+
+def test_fresh_search_result_applies_requested_filters_not_cached_filters(monkeypatch):
+    from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineProject
+    from tool.SmartHome.redmine.view_model import view
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._state = AuthState.AUTHENTICATED
+    bridge._data_generation = 2
+    bridge._data_loading = True
+    bridge._data_operation_kind = "search"
+    bridge._active_search_filter_requested = True
+    bug = RedmineIssueListItem(id="b", url="ub", tracker="Bug", status="New", subject="bug")
+    support = RedmineIssueListItem(id="s", url="us", tracker="Support", status="New", subject="support")
+    project = RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=(bug, support))
+    context = RedmineContext(projects=(project,), issues=(RedmineIssueDetail(id="s", url="us", project_identifier="p", tracker="Support", subject="support", list_item=support),))
+    bridge._view = view(RedmineContext(projects=(project,)), all_projects="All projects", all_statuses="All statuses", filters={"type": "Bug"})
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.save_view", lambda *args, **kwargs: None)
+    bridge._apply_data(2, (context, "p", context.issues[0], {"type": "Support"}, {}))
+    assert bridge.filters["type"] == "Support"
+    assert [row["id"] for row in bridge.issueRows] == ["s"]
+    bridge.close()
+
+
+def test_clone_work_uses_preanalysis_plan_when_due_row_becomes_hidden():
+    from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueListItem, RedmineProject
+    from tool.SmartHome.redmine.view_model import view
+    class RecordingChecker:
+        def __init__(self): self.ids = []
+        def check_many(self, rows, *, progress_callback=None, progress_base=0, progress_total=None):
+            self.ids = [row["id"] for row in rows]
+            for index, _row in enumerate(rows, 1): progress_callback(progress_base + index, progress_total, "clone")
+            return {}
+    issues = (RedmineIssueListItem(id="ok", url="u1", tracker="Bug", status="New", subject="ok"), RedmineIssueListItem(id="due", url="u2", tracker="Bug", status="New", subject="due"))
+    project = RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=issues)
+    planned_rows = view(RedmineContext(projects=(project,)), all_projects="All projects", all_statuses="All statuses")["issueRows"]
+    final_context = RedmineContext(projects=(project,), raw={"issue_analysis": {"ok": {"risk": "green"}, "due": {"risk": "unknown", "reason": "due_date_not_reached"}}})
+    assert [row["id"] for row in view(final_context, all_projects="All projects", all_statuses="All statuses")["issueRows"]] == ["ok"]
+    checker = RecordingChecker()
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)), clone_checker=checker)
+    bridge._data_loading = True
+    bridge._check_clone_status(planned_rows, progress_base=2, progress_total=4)
+    assert checker.ids == ["ok", "due"]
+    assert (bridge.dataLoaded, bridge.dataTotal) == (4, 4)
     bridge.close()

@@ -14,6 +14,17 @@ FluPage {
     property var selectedTool: selectedGroup.tools && selectedGroup.tools.length > selectedToolIndex ? selectedGroup.tools[selectedToolIndex] : ({})
     property string autoStartedToolId: ""
 
+    function ensureSelectedToolAvailable() {
+        if (!selectedGroup.available) {
+            selectedGroupIndex = 0
+            selectedToolIndex = 0
+            autoStartedToolId = ""
+            return
+        }
+        if (!selectedGroup.tools || selectedToolIndex >= selectedGroup.tools.length)
+            selectedToolIndex = 0
+    }
+
     function maybeStartRedmineLogin() {
         if (selectedTool.id !== "redmine") {
             autoStartedToolId = ""
@@ -26,6 +37,7 @@ FluPage {
     }
 
     onSelectedToolChanged: Qt.callLater(maybeStartRedmineLogin)
+    onSelectedGroupChanged: ensureSelectedToolAvailable()
     Component.onCompleted: Qt.callLater(maybeStartRedmineLogin)
 
     function selectTool(groupId, toolIndex) {
@@ -141,14 +153,25 @@ FluPage {
                     visible: active
                     sourceComponent: RedmineWorkspace {
                         issues: RedmineBridge.issueRows
+                        actionableIssues: RedmineBridge.actionableIssues
                         selectedIssue: RedmineBridge.selectedIssue
                         projectFilters: RedmineBridge.projectFilterLabels
+                        quickViews: RedmineBridge.quickViews
+                        activeQuickViewId: RedmineBridge.activeQuickViewId
+                        projectOptions: RedmineBridge.projectOptions
+                        projectsLoading: RedmineBridge.projectsLoading
+                        projectsReady: RedmineBridge.projectsReadyState
+                        projectsStatusText: RedmineBridge.projectsStatusText
+                        searchLoading: RedmineBridge.searchLoading
+                        searchCanCancel: RedmineBridge.searchCanCancel
                         filters: RedmineBridge.filters
                         dataLoading: RedmineBridge.dataLoading
                         dataLoaded: RedmineBridge.dataLoaded
                         dataTotal: RedmineBridge.dataTotal
                         dataStatusText: RedmineBridge.dataStatusText
                         onSearchRequested: filters => RedmineBridge.applyFilters(filters)
+                        onQuickViewRequested: quickViewId => RedmineBridge.activateQuickView(quickViewId)
+                        onCancelSearchRequested: RedmineBridge.cancelSearch()
                         onIssueSelected: issue => RedmineBridge.selectIssue(issue.id || issue.key || "")
                         onOpenIssueRequested: (key, url) => RedmineBridge.openWebUrl(url)
                         onExternalLinkRequested: url => RedmineBridge.openWebUrl(url)

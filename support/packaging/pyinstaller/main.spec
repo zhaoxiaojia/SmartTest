@@ -25,7 +25,9 @@ testing_root = os.path.join(repo_root, "testing")
 support_root = os.path.join(repo_root, "support")
 ai_root = os.path.join(repo_root, "AI")
 jira_root = os.path.join(repo_root, "jira")
+hooks_root = os.path.join(repo_root, "support", "packaging", "pyinstaller", "hooks")
 build_manifest = os.path.join(repo_root, "build", "generated", "build_manifest.json")
+personnel_config = os.path.join(repo_root, "config", "personnel.json")
 app_version = "0.0.0"
 try:
     with open(build_manifest, "r", encoding="utf-8") as fh:
@@ -87,6 +89,10 @@ a = Analysis(
             os.path.join("build", "generated"),
         ),
         (
+            personnel_config,
+            "config",
+        ),
+        (
             android_client_init,
             "android_client",
         ),
@@ -136,7 +142,7 @@ a = Analysis(
         "testing.tool.boot_video.state_machine",
         "testing.tool.boot_video.templates",
     ],
-    hookspath=[],
+    hookspath=[hooks_root],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],

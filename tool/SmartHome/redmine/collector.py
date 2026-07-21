@@ -47,7 +47,7 @@ def _parse_project_id(text: str) -> str:
 
 def _parse_content_text(raw: dict[str, Any]) -> dict[str, Any]:
     lines = [line for line in (_clean(line) for line in str(raw.get("contentText") or "").splitlines()) if line]
-    wanted_attrs = {"Status", "Priority", "Assignee", "Category", "Start date", "Due date", "% Done", "Estimated time"}
+    wanted_attrs = {"Status", "Priority", "Assignee", "Category", "Start date", "Due date", "% Done", "Estimated time", "Created", "Created on"}
     stop_sections = {"Files", "Subtasks", "Related issues", "History Notes Property changes", "History", "Notes", "Property changes"}
     attrs: dict[str, str] = {}
     description: list[str] = []
@@ -103,21 +103,12 @@ def _parse_content_text(raw: dict[str, Any]) -> dict[str, Any]:
 
 def parse_project_nodes(raw_nodes: list[dict[str, Any]]) -> tuple[RedmineProject, ...]:
     projects: list[RedmineProject] = []
-    last_root = ""
-    children_by_parent: dict[str, list[str]] = {}
+    seen: set[str] = set()
     for node in raw_nodes:
-        class_name = str(node.get("className") or "")
-        parent_class = str(node.get("parentClass") or "")
         identifier = _identifier_from_url(str(node.get("href") or ""))
-        if not identifier:
+        if not identifier or identifier in seen:
             continue
-        is_child = " child " in f" {class_name} " and parent_class != "root"
-        parent_identifier = last_root if is_child else ""
-        level = 1 if is_child else 0
-        if not is_child:
-            last_root = identifier
-        if parent_identifier:
-            children_by_parent.setdefault(parent_identifier, []).append(identifier)
+        seen.add(identifier)
         container_text = _clean(node.get("containerText") or node.get("text"))
         projects.append(
             RedmineProject(
@@ -125,11 +116,13 @@ def parse_project_nodes(raw_nodes: list[dict[str, Any]]) -> tuple[RedmineProject
                 identifier=identifier,
                 url=str(node.get("href") or "").split("?", 1)[0],
                 project_id=str(node.get("projectId") or _parse_project_id(container_text)),
-                parent_identifier=parent_identifier,
-                level=level,
             )
         )
-    return tuple(replace(project, children=tuple(children_by_parent.get(project.identifier, ()))) for project in projects)
+    return tuple(projects)
+
+
+def project_options(projects: tuple[RedmineProject, ...]) -> list[dict[str, str]]:
+    return [{"id": project.identifier, "label": project.name or project.identifier} for project in projects]
 
 
 def parse_issue_list(raw_rows: list[dict[str, Any]]) -> tuple[RedmineIssueListItem, ...]:
@@ -163,6 +156,8 @@ def parse_issue_detail(raw: dict[str, Any], *, list_item: RedmineIssueListItem |
         for item in raw.get("attrs", [])
         if _clean(item.get("label"))
     } or text_payload["attrs"]
+    if _clean(raw.get("created_at")):
+        attrs.setdefault("Created", _clean(raw.get("created_at")))
 
     attachments = []
     for item in raw.get("attachments", []):
@@ -244,6 +239,21 @@ class RedmineContextCollector:
         raw_nodes = await self._page.evaluate(_PROJECTS_SCRIPT)
         return parse_project_nodes(raw_nodes)
 
+    async def collect_my_page_assigned(self) -> list[dict[str, Any]]:
+        await self._goto_and_wait(f"{self._base_url}/my/page", "#block-issuesassignedtome, #content")
+        raw_rows = await self._page.evaluate(_MY_ASSIGNED_SCRIPT)
+        issues = parse_issue_list(raw_rows)
+        rows = []
+        for raw, issue in zip(raw_rows, issues):
+            project_url = str(raw.get("projectHref") or "")
+            rows.append({
+                "issue": issue,
+                "project_name": _clean(raw.get("projectName")),
+                "project_url": project_url,
+                "project_identifier": _identifier_from_url(project_url),
+            })
+        return rows
+
     async def collect_issue_list(self, project: RedmineProject) -> tuple[RedmineIssueListItem, ...]:
         return await self._collect_issue_list_with_page(self._page, project)
 
@@ -315,9 +325,12 @@ class RedmineContextCollector:
         detail = parse_issue_detail(raw, list_item=issue if isinstance(issue, RedmineIssueListItem) else None)
         return detail
 
-    async def collect_context(self) -> RedmineContext:
+    async def collect_context(self, *, project_identifiers: set[str] | None = None) -> RedmineContext:
         project_nodes = await self.collect_projects()
-        issue_projects = [project for project in project_nodes if project.project_id]
+        issue_projects = [
+            project for project in project_nodes
+            if project.project_id and (project_identifiers is None or project.identifier in project_identifiers)
+        ]
         project_issues = await self._collect_project_issue_lists(issue_projects)
         projects = [
             replace(project, issues=project_issues.get(project.identifier, ())) if project.project_id else project
@@ -353,18 +366,37 @@ class RedmineContextCollector:
 _PROJECTS_SCRIPT = r"""
 () => {
   const clean = s => (s || '').replace(/\s+/g, ' ').trim();
-  return Array.from(document.querySelectorAll('a.project')).map((a, idx) => {
-    const parent = a.parentElement;
-    const containerText = clean(parent?.innerText || a.closest('li,div')?.innerText || '');
+  return Array.from(document.querySelectorAll('#projects-index a.project')).map((a, idx) => {
+    const container = a.parentElement || a;
+    const containerText = clean(container.innerText || a.innerText || '');
     const match = containerText.match(/\[Project ID\]:\s*([^\s\[]+)/);
     return {
       idx,
       text: clean(a.innerText || a.textContent),
       href: a.href,
-      className: a.className,
-      parentClass: parent?.className || '',
       containerText,
       projectId: match ? match[1] : ''
+    };
+  });
+}
+"""
+
+_MY_ASSIGNED_SCRIPT = r"""
+() => {
+  const block = document.querySelector('#block-issuesassignedtome');
+  if (!block) return [];
+  const clean = s => (s || '').replace(/\s+/g, ' ').trim();
+  return Array.from(block.querySelectorAll('table.list.issues tbody tr.issue, table.issues tbody tr')).map(tr => {
+    const project = tr.querySelector('td.project a[href]');
+    return {
+      id: tr.id,
+      projectName: clean(project?.innerText || tr.querySelector('td.project')?.innerText),
+      projectHref: project?.href || '',
+      cells: Array.from(tr.querySelectorAll('td')).map(td => ({
+        className: Array.from(td.classList).find(name => name !== 'hide-when-print') || td.className,
+        text: clean(td.innerText),
+        links: Array.from(td.querySelectorAll('a[href]')).map(a => ({text: clean(a.innerText || a.textContent), href: a.href}))
+      }))
     };
   });
 }
@@ -405,11 +437,12 @@ _ISSUE_DETAIL_SCRIPT = r"""
   }).filter(item => item.filename);
   return {
     href: location.href,
+    created_at: document.querySelector('.issue .author a[title], p.author a[title]')?.getAttribute('title') || clean(document.querySelector('.issue .author, p.author')?.innerText || ''),
     h1: clean(document.querySelector('h1')?.innerText),
     issueHeader: clean(document.querySelector('.issue.details .subject h3, .issue.details .subject, div.issue .subject h3, div.issue .subject, div.issue h3')?.innerText || ''),
     description: clean(document.querySelector('.description .wiki, .description, #content .wiki')?.innerText || '').replace(/^Quote Description\s*/, ''),
     attrs: Array.from(document.querySelectorAll('.attributes .attribute, .attribute')).map(attr => ({ label: clean(attr.querySelector('.label')?.innerText || ''), value: clean(attr.querySelector('.value')?.innerText || '') })),
-    journals: Array.from(document.querySelectorAll('#history .journal, .journal')).map(j => ({ id: j.id, header: clean(j.querySelector('h4')?.innerText || ''), author: clean(j.querySelector('.user')?.innerText || ''), note: clean(j.querySelector('.wiki, .journal-notes')?.innerText || ''), details: Array.from(j.querySelectorAll('ul.details li')).map(li => clean(li.innerText)), created_at: j.querySelector('a.journal-link')?.getAttribute('title') || '' })),
+    journals: Array.from(document.querySelectorAll('#history .journal, .journal')).map(j => ({ id: j.id, header: clean(j.querySelector('h4, h5')?.innerText || ''), author: clean(j.querySelector('h4 a.user, h5 a.user, a.user')?.innerText || ''), note: clean(j.querySelector('.wiki, .journal-notes')?.innerText || ''), details: Array.from(j.querySelectorAll('ul.details li, ul.journal-details li')).map(li => clean(li.innerText)), created_at: j.querySelector('a.journal-link[title], h4 a[title], h5 a[title], a[title]')?.getAttribute('title') || '' })),
     attachments: attachmentRows,
     contentText: clean(document.querySelector('#content')?.innerText || '')
   };

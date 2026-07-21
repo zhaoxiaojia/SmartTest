@@ -15,6 +15,21 @@ def load_tool_access(path: Path) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
+def amlogic_employees(personnel: dict[str, Any]) -> list[dict[str, Any]]:
+    employees = []
+    departments = ((personnel.get("amlogic") or {}).get("departments") or {})
+    for department, node in departments.items():
+        for source in (node or {}).get("employees") or []:
+            if not isinstance(source, dict):
+                continue
+            employee = dict(source)
+            organization = dict(employee.get("organization") or {})
+            organization["department"] = str(department or "")
+            employee["organization"] = organization
+            employees.append(employee)
+    return employees
+
+
 def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str, Any]]:
     groups: list[dict[str, Any]] = [
         {
@@ -24,7 +39,7 @@ def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str,
         }
     ]
     clean_account = str(account or "").strip()
-    employees = [item for item in personnel.get("employees", []) if isinstance(item, dict)]
+    employees = amlogic_employees(personnel)
     employee = next(
         (item for item in employees if str(item.get("account", "") or "") == clean_account),
         None,
@@ -40,7 +55,7 @@ def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str,
     }
     product_lines = {
         str(item.get("id", "") or ""): item
-        for item in personnel.get("product_lines", []) or []
+        for item in (personnel.get("amlogic") or {}).get("product_lines", []) or []
         if isinstance(item, dict) and item.get("active", True)
     }
     for group_id in ("STB", "TV", "SmartHome", "IPTV"):
@@ -56,7 +71,7 @@ def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str,
     expertise = {str(item) for item in (employee or {}).get("expertise_domains", []) or []}
     technical_centers = [
         item
-        for item in personnel.get("technical_centers", []) or []
+        for item in (personnel.get("amlogic") or {}).get("technical_centers", []) or []
         if isinstance(item, dict) and item.get("active", True) and item.get("id") == "Wi-Fi"
     ]
     wifi_available = bool(technical_centers) and (

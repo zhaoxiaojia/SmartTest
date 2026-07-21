@@ -33,7 +33,7 @@ FluPage {
     property var quickStats: []
     property var analysisActions: []
     property var selectedIssue: ({})
-    property var savedFilters: []
+    property var quickViews: []
     property bool issueDetailExpanded: false
     property var projectFilterOptions: []
     property var statusFilterOptions: []
@@ -81,7 +81,7 @@ FluPage {
         quickStats = JiraBridge.quickStats()
         selectedIssue = JiraBridge.selectedIssue()
         analysisActions = JiraBridge.analysisActions()
-        savedFilters = JiraBridge.savedFilters()
+        quickViews = JiraBridge.quickViews
         rebuildDynamicFilterOptions()
         Qt.callLater(function(){
             if(list_conversation.count > 0){
@@ -236,7 +236,7 @@ FluPage {
     }
 
     function applySavedFilter(filterRow){
-        textbox_jql.text = (filterRow.jql || "").trim()
+        textbox_jql.text = (filterRow.query || filterRow.jql || "").trim()
         persistFilterState()
         refreshCurrentScopeIfReady()
     }
@@ -1289,13 +1289,20 @@ FluPage {
                         }
 
                         FluGroupBox{
-                            title: qsTr("My Filters")
+                            title: qsTr("Filters")
                             Layout.fillWidth: true
 
                             ColumnLayout{
                                 anchors.left: parent.left
                                 anchors.right: parent.right
                                 spacing: 8
+
+                                FluText{
+                                    Layout.fillWidth: true
+                                    text: qsTr("Quick views")
+                                    font: FluTextStyle.Caption
+                                    color: FluTheme.fontSecondaryColor
+                                }
 
                                 FluText{
                                     visible: JiraBridge.filtersLoading
@@ -1307,7 +1314,7 @@ FluPage {
                                 }
 
                                 FluText{
-                                    visible: !JiraBridge.filtersLoading && savedFilters.length === 0
+                                    visible: !JiraBridge.filtersLoading && quickViews.length === 0
                                     Layout.fillWidth: true
                                     text: qsTr("No favourite filters were found for this account.")
                                     font: FluTextStyle.Caption
@@ -1316,7 +1323,7 @@ FluPage {
                                 }
 
                                 Repeater{
-                                    model: savedFilters
+                                    model: quickViews
 
                                     Item{
                                         Layout.fillWidth: true
@@ -1340,14 +1347,14 @@ FluPage {
 
                                             FluText{
                                                 width: parent.width
-                                                text: modelData.name
+                                                text: modelData.label || modelData.name || ""
                                                 font: FluTextStyle.BodyStrong
                                                 wrapMode: Text.WordWrap
                                             }
 
                                             FluText{
                                                 width: parent.width
-                                                text: modelData.jql
+                                                text: modelData.query || modelData.jql || ""
                                                 font: FluTextStyle.Caption
                                                 color: FluTheme.fontSecondaryColor
                                                 wrapMode: Text.WordWrap

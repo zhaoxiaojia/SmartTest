@@ -5,18 +5,18 @@ import base64
 import ctypes
 import hashlib
 import json
-import math
 from ctypes import wintypes
 from datetime import datetime
 from pathlib import Path
 from sys import platform
 from typing import Any
 
-from PySide6.QtCore import QObject, Property, Qt, QUrl, Signal, Slot
-from PySide6.QtGui import QGuiApplication, QImageReader
+from PySide6.QtCore import QObject, Property, Signal, Slot
+from PySide6.QtGui import QGuiApplication
 
 from ui import jsonTool
 from support.logging import smart_log
+from .ToolBridge import amlogic_employees
 
 try:
     from example.helper.AppPaths import app_data_dir
@@ -59,7 +59,7 @@ def match_employee_profile(
     personnel: dict[str, Any], ldap_display_name: str, *, username: str = ""
 ) -> dict[str, Any]:
     display_name = str(ldap_display_name or "").strip()
-    employees = [item for item in personnel.get("employees", []) if isinstance(item, dict)]
+    employees = amlogic_employees(personnel)
     employee = next(
         (item for item in employees if str(item.get("display_name", "")).strip() == display_name),
         None,
@@ -79,14 +79,14 @@ def match_employee_profile(
     career_level = next(
         (
             item
-            for item in personnel.get("career_levels", [])
+            for item in (personnel.get("amlogic") or {}).get("career_levels", [])
             if isinstance(item, dict) and str(item.get("grade", "") or "") == grade
         ),
         {},
     )
     product_names = {
         str(item.get("id", "") or ""): str(item.get("name", "") or "")
-        for item in personnel.get("product_lines", [])
+        for item in (personnel.get("amlogic") or {}).get("product_lines", [])
         if isinstance(item, dict)
     }
     assignments = employee.get("assignments", []) or []
@@ -166,30 +166,6 @@ class AuthBridge(QObject):
     def _avatar_dir(self) -> Path:
         return self._state_root / "avatars"
 
-    def _uploaded_avatar_dir(self) -> Path:
-        return self._project_root / "config" / "avatars"
-
-    def _avatar_identity(self) -> str:
-        return self._username or self._display_name
-
-    def _uploaded_avatar_path(self) -> Path | None:
-        identity = self._avatar_identity()
-        if not identity:
-            return None
-        digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:24]
-        avatar_dir = self._uploaded_avatar_dir()
-        for suffix in (".png", ".jpg", ".jpeg"):
-            candidate = avatar_dir / f"{digest}{suffix}"
-            if candidate.is_file():
-                return candidate
-        return None
-
-    def _effective_avatar_url(self) -> str:
-        uploaded = self._uploaded_avatar_path()
-        if uploaded is not None:
-            return uploaded.as_uri()
-        return self._avatar_url_for_username(self._username)
-
     def _resolve_profile(self) -> None:
         self._profile = match_employee_profile(
             self._personnel,
@@ -206,7 +182,7 @@ class AuthBridge(QObject):
         self._resolve_profile()
         if self._profile:
             self._display_name = self._profile["display_name"]
-        self._avatar_url = self._effective_avatar_url()
+        self._avatar_url = self._avatar_url_for_username(self._username)
 
     def _normalize_username(self, username: str) -> str:
         clean_username = (username or "").strip()
@@ -470,63 +446,7 @@ class AuthBridge(QObject):
         return self._username
 
     def _get_avatar_url(self) -> str:
-        return self._effective_avatar_url()
-
-    @Slot(str, float, float, float, result="QVariantMap")
-    def saveCroppedAvatar(
-        self, source: str, horizontal_position: float, vertical_position: float, crop_scale: float
-    ) -> dict[str, Any]:
-        if not self._avatar_identity():
-            return {"success": False, "error": "missing_identity", "path": ""}
-        values = (horizontal_position, vertical_position, crop_scale)
-        if any(not isinstance(value, (int, float)) or not math.isfinite(float(value)) for value in values):
-            return {"success": False, "error": "invalid_crop", "path": ""}
-        if float(crop_scale) <= 0:
-            return {"success": False, "error": "invalid_crop", "path": ""}
-        source_url = QUrl(str(source or ""))
-        source_path = Path(source_url.toLocalFile() if source_url.isLocalFile() else str(source or ""))
-        try:
-            resolved_source = source_path.expanduser().resolve(strict=True)
-        except (OSError, RuntimeError):
-            return {"success": False, "error": "missing_file", "path": ""}
-        if resolved_source.suffix.lower() not in {".png", ".jpg", ".jpeg"} or not resolved_source.is_file():
-            return {"success": False, "error": "unsupported_image", "path": ""}
-        reader = QImageReader(str(resolved_source))
-        image = reader.read()
-        if image.isNull():
-            return {"success": False, "error": "invalid_image", "path": ""}
-        position_x = min(max(float(horizontal_position), 0.0), 1.0)
-        position_y = min(max(float(vertical_position), 0.0), 1.0)
-        scale = min(max(float(crop_scale), 0.05), 1.0)
-        side = max(1, round(min(image.width(), image.height()) * scale))
-        left = round(position_x * max(0, image.width() - side))
-        top = round(position_y * max(0, image.height() - side))
-        cropped = image.copy(left, top, side, side).scaled(
-            256,
-            256,
-            Qt.IgnoreAspectRatio,
-            Qt.SmoothTransformation,
-        )
-        avatar_dir = self._uploaded_avatar_dir().resolve()
-        avatar_dir.mkdir(parents=True, exist_ok=True)
-        digest = hashlib.sha256(self._avatar_identity().encode("utf-8")).hexdigest()[:24]
-        destination = (avatar_dir / f"{digest}.png").resolve()
-        temporary = destination.with_name(f".{destination.name}.tmp.png")
-        try:
-            if avatar_dir not in destination.parents or not cropped.save(str(temporary), "PNG"):
-                return {"success": False, "error": "save_failed", "path": ""}
-            temporary.replace(destination)
-        except OSError as exc:
-            smart_log("Failed to save cropped account avatar %s: %s", destination, exc, level="warning")
-            return {"success": False, "error": "save_failed", "path": ""}
-        finally:
-            try:
-                temporary.unlink(missing_ok=True)
-            except OSError:
-                pass
-        self._avatar_url = destination.as_uri()
-        self.authChanged.emit()
-        return {"success": True, "error": "", "path": str(destination)}
+        return self._avatar_url
 
     def _get_display_name(self) -> str:
         return self._display_name or self._username

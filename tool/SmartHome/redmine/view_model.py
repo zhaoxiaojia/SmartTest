@@ -5,6 +5,7 @@ from typing import Any
 
 from tool.SmartHome.redmine.mapping import map_issue_to_jira
 from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineProject
+from tool.SmartHome.redmine.overdue import OverduePolicy
 
 
 def empty_view(all_projects: str, all_statuses: str) -> dict[str, Any]:
@@ -19,19 +20,26 @@ def view(
     filters: dict[str, str] | None = None,
     selected_detail: RedmineIssueDetail | None = None,
 ) -> dict[str, Any]:
+    source_filters = filters or {}
     filters = {
-        "project": str((filters or {}).get("project", "") or ""),
-        "status": str((filters or {}).get("status", "") or ""),
-        "type": str((filters or {}).get("type", "") or ""),
-        "text": str((filters or {}).get("text", "") or ""),
+        "project": str(source_filters.get("project", "") or ""),
+        "status": str(source_filters.get("status", "") or ""),
+        "type": str(source_filters.get("type", "") or ""),
+        "text": str(source_filters.get("text", "") or ""),
     }
     projects = [project for project in context.projects if project.project_id]
-    rows = [issue_row(project, issue) for project in projects for issue in project.issues if _match(project, issue, filters)]
+    analysis = dict(context.raw.get("issue_analysis") or {})
+    policy = OverduePolicy()
+    rows = [issue_row(project, issue, analysis.get(issue.id)) for project in projects for issue in project.issues if _monitored(issue, analysis.get(issue.id) or {}, policy) and _match(project, issue, filters)]
     selected = detail_row(selected_detail, project=context.project_for_detail(selected_detail)) if selected_detail else (rows[0] if rows else {})
     selected_id = str(selected.get("id") or selected.get("key") or "")
     payload = asdict(context)
     payload["filters"] = filters
     payload["selected_issue_id"] = selected_id
+    actionable = sorted(
+        [row for row in rows if _row_is_actionable(row)],
+        key=lambda row: (_action_rank(row), -float(row.get("updateElapsedHours") or row.get("staleElapsedHours") or 0)),
+    )
     return {
         "context": context,
         "context_payload": payload,
@@ -42,6 +50,7 @@ def view(
         "issueRows": rows,
         "selectedIssue": selected,
         "selectedIssueId": selected_id,
+        "actionableIssues": actionable,
     }
 
 
@@ -49,8 +58,20 @@ def replace_detail(context: RedmineContext, detail: RedmineIssueDetail) -> Redmi
     return context.with_detail(detail, jira_issue=map_issue_to_jira(detail, project=context.project_for_detail(detail)))
 
 
-def issue_row(project: RedmineProject, issue: RedmineIssueListItem) -> dict[str, Any]:
-    return {"id": issue.id, "key": issue.id, "title": issue.subject, "webUrl": issue.url, "projectIdentifier": project.identifier, "projectName": project.name, "projectId": project.project_id, "status": issue.status, "type": issue.tracker or "Bug", "assignee": issue.assignee, "priority": issue.priority, "updatedAt": issue.updated_at}
+def issue_row(project: RedmineProject, issue: RedmineIssueListItem, analysis: dict[str, Any] | None = None) -> dict[str, Any]:
+    risk = dict(analysis or {})
+    return {"id": issue.id, "key": issue.id, "title": issue.subject, "webUrl": issue.url, "projectIdentifier": project.identifier, "projectName": project.name, "projectId": project.project_id, "status": issue.status, "type": issue.tracker or "Bug", "assignee": issue.assignee, "priority": issue.priority, "updatedAt": issue.updated_at, "updateRisk": risk.get("risk", "unknown"), "updateAgeText": risk.get("age_text", ""), "updateElapsedHours": risk.get("elapsed_hours"), "updateThresholdHours": risk.get("threshold_hours"), "updateParty": risk.get("party", ""), "updateReason": risk.get("reason", ""), "responsibilityType": risk.get("responsibility_type", ""), "staleType": risk.get("stale_type", ""), "staleElapsedHours": risk.get("stale_elapsed_hours")}
+
+
+def _row_is_actionable(row: dict[str, Any]) -> bool:
+    return row.get("updateRisk") in {"red", "yellow"} or row.get("responsibilityType") == "unassigned" or bool(row.get("staleType"))
+
+
+def _action_rank(row: dict[str, Any]) -> int:
+    if row.get("updateRisk") == "red": return 0
+    if row.get("responsibilityType") == "unassigned": return 1
+    if row.get("staleType"): return 2
+    return 3
 
 
 def detail_row(issue: RedmineIssueDetail | None = None, *, item: RedmineIssueListItem | None = None, project: RedmineProject | None = None) -> dict[str, Any]:
@@ -136,6 +157,23 @@ def _match(project: RedmineProject, issue: RedmineIssueListItem, filters: dict[s
         and (not wanted_type or issue.tracker == wanted_type)
         and (not text or text in " ".join([issue.id, issue.subject, issue.status, issue.priority, issue.assignee, issue.category, project.name, project.project_id]).lower())
     )
+
+
+def _monitored(issue: RedmineIssueListItem, analysis: dict[str, Any], policy: OverduePolicy) -> bool:
+    tracker = str(issue.tracker or "").strip().casefold()
+    status = str(issue.status or "").strip().casefold()
+    subject = "".join(str(issue.subject or "").casefold().split())
+    if tracker and tracker not in policy.trackers:
+        return False
+    if status in policy.excluded_statuses:
+        return False
+    if any("".join(value.casefold().split()) in subject for value in policy.title_exclusions):
+        return False
+    if analysis.get("reason") in {"filtered", "due_date_not_reached"}:
+        return False
+    if analysis and analysis.get("risk") == "unknown" and not analysis.get("responsibility_type") and not analysis.get("stale_type"):
+        return False
+    return True
 
 
 def _project_label(project: RedmineProject) -> str:

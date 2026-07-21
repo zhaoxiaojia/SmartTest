@@ -1,5 +1,6 @@
 import asyncio
 import time
+from contextlib import asynccontextmanager
 
 from support.logging import smart_log
 from tool.SmartHome.redmine import selectors
@@ -20,6 +21,17 @@ class RedmineAuthService:
     @property
     def page(self):
         return self._page
+
+    @asynccontextmanager
+    async def operation_page(self):
+        page = await self._session.new_page()
+        try:
+            yield page
+        finally:
+            try:
+                await page.close()
+            except Exception:
+                pass
 
     async def _document_url(self):
         try:

@@ -10,7 +10,7 @@ from tool.SmartHome.redmine.models import RedmineIssueListItem, RedmineProject
 from tool.SmartHome.redmine.mapping import map_issue_to_jira, redmine_tracker_to_jira_type
 
 
-def test_parse_project_tree_extracts_project_id_and_parent_child_relationship():
+def test_parse_project_options_keeps_every_accessible_project_and_project_id():
     projects = parse_project_nodes(
         [
             {
@@ -38,10 +38,51 @@ def test_parse_project_tree_extracts_project_id_and_parent_child_relationship():
     )
 
     assert projects[0].identifier == "avt-cultraview-bds"
-    assert projects[0].children == ("avt-cultraview-edla-a311d2", "cultraview-a311d2-android-16")
-    assert projects[1].parent_identifier == "avt-cultraview-bds"
+    assert [project.identifier for project in projects] == ["avt-cultraview-bds", "avt-cultraview-edla-a311d2", "cultraview-a311d2-android-16"]
     assert projects[1].project_id == "AN40BF-A311D2"
     assert projects[2].project_id == "AN40CY-A311D2"
+
+
+def test_project_dom_script_collects_all_project_links_without_hierarchy_inference():
+    from tool.SmartHome.redmine.collector import _PROJECTS_SCRIPT
+    assert "#projects-index a.project" in _PROJECTS_SCRIPT
+    assert "parentHref" not in _PROJECTS_SCRIPT
+    assert "walkProject" not in _PROJECTS_SCRIPT
+
+
+def test_my_page_collects_only_assigned_block_rows():
+    class Page:
+        async def goto(self, url, **_kwargs): self.url = url
+        async def wait_for_selector(self, *_args, **_kwargs): pass
+        async def evaluate(self, script):
+            assert "block-issuesassignedtome" in script and "block-issuesreportedbyme" not in script
+            return [{"id": "issue-7", "projectName": "Child", "projectHref": "https://support.amlogic.com/projects/child", "cells": [{"className": "id", "text": "7", "links": [{"href": "https://support.amlogic.com/issues/7"}]}, {"className": "subject", "text": "Assigned", "links": []}]}]
+    async def scenario():
+        rows = await RedmineContextCollector(Page()).collect_my_page_assigned()
+        assert rows[0]["issue"].id == "7"
+        assert rows[0]["project_identifier"] == "child"
+    asyncio.run(scenario())
+
+
+def test_project_options_preserve_all_projects_in_source_order():
+    from tool.SmartHome.redmine.collector import project_options
+    projects = (
+        RedmineProject(name="A", identifier="a", url="/projects/a"),
+        RedmineProject(name="A1", identifier="a1", url="/projects/a1"),
+        RedmineProject(name="A2", identifier="a2", url="/projects/a2"),
+        RedmineProject(name="B", identifier="b", url="/projects/b"),
+    )
+    assert project_options(projects) == [
+        {"id": "a", "label": "A"}, {"id": "a1", "label": "A1"}, {"id": "a2", "label": "A2"}, {"id": "b", "label": "B"},
+    ]
+
+
+def test_project_options_keep_all_301_accessible_projects():
+    from tool.SmartHome.redmine.collector import project_options
+    projects = tuple(RedmineProject(name=f"Complete project label {index}", identifier=f"project-{index}", url=f"/projects/project-{index}") for index in range(301))
+    options = project_options(projects)
+    assert len(options) == 301
+    assert options[-1] == {"id": "project-300", "label": "Complete project label 300"}
 
 
 def test_parse_issue_list_uses_table_class_names_as_raw_fields():
@@ -336,3 +377,19 @@ def test_context_collector_reports_issue_loading_progress():
     assert len(issues) == 120
     assert progress[0] == (100, 120, "BDS")
     assert progress[-1] == (120, 120, "BDS")
+
+
+def test_collect_context_scopes_issue_lists_to_selected_project_identifiers(monkeypatch):
+    projects = (
+        RedmineProject(name="A", identifier="a", url="/a", project_id="A"),
+        RedmineProject(name="B", identifier="b", url="/b", project_id="B"),
+        RedmineProject(name="Other", identifier="other", url="/other", project_id="O"),
+    )
+    collector = RedmineContextCollector(object(), account="alice")
+    calls = []
+    async def collect_projects(): return projects
+    async def collect_issue_list(project): calls.append(project.identifier); return ()
+    monkeypatch.setattr(collector, "collect_projects", collect_projects)
+    monkeypatch.setattr(collector, "collect_issue_list", collect_issue_list)
+    asyncio.run(collector.collect_context(project_identifiers={"b"}))
+    assert calls == ["b"]
