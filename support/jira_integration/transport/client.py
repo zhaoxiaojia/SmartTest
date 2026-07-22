@@ -168,6 +168,32 @@ class JiraClient:
         data = response.data
         return data if isinstance(data, dict) else {}
 
+    def fetch_create_metadata(self, project_key: str, issue_type: str) -> dict[str, Any]:
+        response = self._request(
+            "GET",
+            self._api_path("issue/createmeta"),
+            params={
+                "projectKeys": project_key,
+                "issuetypeNames": issue_type,
+                "expand": "projects.issuetypes.fields",
+            },
+        )
+        return response.data if isinstance(response.data, dict) else {}
+
+    def search_users(
+        self,
+        query: str,
+        *,
+        project_key: str = "SH",
+    ) -> list[dict[str, Any]]:
+        response = self._request(
+            "GET",
+            self._api_path("user/assignable/search"),
+            params={"project": project_key, "username": query},
+        )
+        users = response.data if isinstance(response.data, list) else []
+        return [_public_user(item) for item in users if isinstance(item, dict)]
+
     def fetch_fields_metadata(self) -> list[JiraFieldMetadata]:
         response = self._request("GET", self._api_path("field"))
         payload = response.data if isinstance(response.data, list) else []
@@ -315,6 +341,24 @@ def json_loads(text: str) -> Any:
         return json.loads(text)
     except json.JSONDecodeError as exc:  # pragma: no cover - depends on remote payload
         raise JiraRequestError(f"Jira returned invalid JSON: {text[:200]}") from exc
+
+
+def _public_user(payload: dict[str, Any]) -> dict[str, str]:
+    avatars = payload.get("avatarUrls") or {}
+    avatar_url = ""
+    if isinstance(avatars, dict):
+        avatar_url = str(
+            avatars.get("48x48")
+            or avatars.get("32x32")
+            or avatars.get("24x24")
+            or avatars.get("16x16")
+            or ""
+        )
+    return {
+        "account": str(payload.get("name") or payload.get("accountId") or payload.get("key") or ""),
+        "display_name": str(payload.get("displayName") or ""),
+        "avatar_url": avatar_url,
+    }
 
 
 def _trace_request(stage: str, **values: Any) -> None:

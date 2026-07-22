@@ -1,0 +1,142 @@
+from __future__ import annotations
+
+from dataclasses import FrozenInstanceError
+
+import pytest
+
+from support.jira_integration.core.create_schema import CreateFieldControl
+from support.jira_integration.core.errors import JiraRequestError
+from support.jira_integration.services.create_schema_service import JiraCreateSchemaService
+from support.jira_integration.transport.client import JiraClient
+
+
+CREATE_META = {
+    "projects": [{
+        "key": "SH",
+        "issuetypes": [{
+            "name": "Bug",
+            "fields": {
+                "summary": {"name": "Summary", "required": True, "schema": {"type": "string"}},
+                "description": {"name": "Description", "required": False, "schema": {"type": "string"}},
+                "customfield_12200": {
+                    "name": "Channel of Reporter",
+                    "required": True,
+                    "schema": {"type": "option", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:cascadingselect"},
+                    "allowedValues": [{"id": "10", "value": "Customer-Feedback", "children": [{"id": "11", "value": "None"}]}],
+                },
+                "components": {
+                    "name": "Component/s",
+                    "required": False,
+                    "schema": {"type": "array", "items": "component"},
+                    "allowedValues": [{"id": "20", "name": "Customization"}],
+                },
+                "customfield_10700": {
+                    "name": "Manager",
+                    "required": False,
+                    "schema": {"type": "string", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:userpicker"},
+                },
+                "priority": {
+                    "name": "Priority",
+                    "required": True,
+                    "schema": {"type": "priority"},
+                    "allowedValues": [{"id": "2", "name": "P2"}],
+                },
+                "labels": {"name": "Labels", "required": False, "schema": {"type": "array", "items": "string"}},
+            },
+        }],
+    }],
+}
+
+
+class RecordingClient(JiraClient):
+    def __init__(self, response_data):
+        self.response_data = response_data
+        self.calls = []
+
+    def _api_path(self, suffix):
+        return f"https://jira/rest/api/2/{suffix}"
+
+    def _request(self, method, url, *, params=None, json=None):
+        self.calls.append((method, url, params, json))
+
+        class Response:
+            data = self.response_data
+
+        return Response()
+
+
+def test_fetch_create_metadata_scopes_project_and_issue_type():
+    client = RecordingClient(CREATE_META)
+
+    payload = client.fetch_create_metadata("SH", "Bug")
+
+    assert payload == CREATE_META
+    assert client.calls == [(
+        "GET",
+        "https://jira/rest/api/2/issue/createmeta",
+        {
+            "projectKeys": "SH",
+            "issuetypeNames": "Bug",
+            "expand": "projects.issuetypes.fields",
+        },
+        None,
+    )]
+
+
+def test_search_users_is_project_scoped_and_normalizes_public_identity_only():
+    client = RecordingClient([{
+        "name": "fred.chen",
+        "displayName": "Fred Chen",
+        "avatarUrls": {"48x48": "https://jira/avatar/fred"},
+        "password": "must-not-leak",
+    }])
+
+    users = client.search_users("fred", project_key="SH")
+
+    assert users == [{
+        "account": "fred.chen",
+        "display_name": "Fred Chen",
+        "avatar_url": "https://jira/avatar/fred",
+    }]
+    assert client.calls == [(
+        "GET",
+        "https://jira/rest/api/2/user/assignable/search",
+        {"project": "SH", "username": "fred"},
+        None,
+    )]
+
+
+def test_schema_maps_jira_native_controls_required_options_and_order():
+    service = JiraCreateSchemaService(RecordingClient(CREATE_META))
+
+    schema = service.schema("SH", "Bug")
+    fields = {item.field_id: item for item in schema}
+
+    assert [item.field_id for item in schema] == list(CREATE_META["projects"][0]["issuetypes"][0]["fields"])
+    assert fields["summary"].control == "text" and fields["summary"].required
+    assert fields["description"].control == "multiline"
+    assert fields["customfield_12200"].control == "cascade"
+    assert fields["components"].control == "multi"
+    assert fields["customfield_10700"].control == "user"
+    assert fields["priority"].control == "single"
+    assert fields["labels"].control == "multi"
+    assert fields["priority"].options[0].value == "2"
+    assert fields["priority"].options[0].label == "P2"
+    cascade = fields["customfield_12200"].options[0]
+    assert cascade.value == "10" and cascade.label == "Customer-Feedback"
+    assert cascade.children[0].value == "11" and cascade.children[0].label == "None"
+
+    assert {item.value for item in CreateFieldControl} == {
+        "text", "multiline", "single", "multi", "cascade", "user"
+    }
+    with pytest.raises(FrozenInstanceError):
+        fields["summary"].required = False
+
+
+@pytest.mark.parametrize(
+    "payload, project_key, issue_type",
+    [({"projects": []}, "SH", "Bug"), (CREATE_META, "MISSING", "Bug"), (CREATE_META, "SH", "Support")],
+)
+def test_schema_rejects_missing_project_or_issue_type(payload, project_key, issue_type):
+    with pytest.raises(JiraRequestError):
+        JiraCreateSchemaService(RecordingClient(payload)).schema(project_key, issue_type)
