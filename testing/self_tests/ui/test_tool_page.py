@@ -205,7 +205,7 @@ def test_personnel_declares_product_line_and_technical_center_owners():
     assert {item["id"]: item["owner_account"] for item in payload["amlogic"]["product_lines"]} == {
         "STB": "junjie.li",
         "TV": "jianfan.ai",
-        "SmartHome": "chen.chen",
+        "SmartHome": "fred.chen",
         "IPTV": "lingling.yu",
     }
     assert payload["amlogic"]["technical_centers"] == [
@@ -260,6 +260,7 @@ def test_personnel_uses_three_explicit_fae_departments_and_fred_owns_smarthome()
     assert fred["grade"] == "M5"
     assert fred["organization"]["department"] == "FAE-SW"
     assert employee_department(personnel, "fred.chen") == "FAE-SW"
+    assert employee_department(personnel, "FRED.CHEN") == ""
     assert employee_department(personnel, "missing.account") == ""
     assert any(
         item["product_line_id"] == "SmartHome" and item["primary"]
