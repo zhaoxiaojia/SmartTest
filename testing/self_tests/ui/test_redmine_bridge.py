@@ -5,7 +5,10 @@ from pathlib import Path
 from PySide6.QtCore import QCoreApplication, QObject, Signal
 
 from tool.SmartHome.redmine.models import AuthResult, AuthState
-from support.jira_integration.core.models import ExistingIssue
+from support.jira_integration.core.create_schema import CreateFieldControl, CreateFieldSchema
+from support.jira_integration.core.models import CreateIssueResult, ExistingIssue
+from tool.SmartHome.redmine.clone_draft import RedmineCloneDraftService
+from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineProject
 from ui.example.bridge.RedmineBridge import RedmineBridge, _AsyncLoopWorker
 from ui.example.bridge.ToolBridge import build_tool_groups
 
@@ -154,6 +157,213 @@ def test_bridge_remembers_opened_web_urls_to_avoid_duplicate_windows(monkeypatch
 
     assert bridge._opened_urls == {"https://support/issues/61043"}
     assert opened == ["https://support/issues/61043"]
+    bridge.close()
+
+
+def test_clone_batch_selection_rejects_cloned_rows_and_preserves_source_order():
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._view = {
+        **bridge._view,
+        "issueRows": [
+            {"id": "3", "cloneStatus": "not_cloned"},
+            {"id": "1", "cloneStatus": "cloned"},
+            {"id": "2", "cloneStatus": "not_cloned"},
+        ],
+    }
+
+    bridge.beginCloneSelection()
+    bridge.toggleCloneSelection("2", True)
+    bridge.toggleCloneSelection("1", True)
+    bridge.toggleCloneSelection("3", True)
+
+    assert bridge.cloneSelectionMode is True
+    assert bridge.cloneBatchState == "selecting"
+    assert bridge.cloneSelectedIds == ["3", "2"]
+    bridge.cancelCloneSelection()
+    assert bridge.cloneBatchState == "idle" and bridge.cloneSelectedIds == []
+    bridge.close()
+
+
+CLONE_SCHEMA = (
+    CreateFieldSchema("project", "Project", True, CreateFieldControl.SINGLE, value="SH"),
+    CreateFieldSchema("issuetype", "Issue Type", True, CreateFieldControl.SINGLE, value="Bug"),
+    CreateFieldSchema("summary", "Summary", True, CreateFieldControl.TEXT),
+    CreateFieldSchema("description", "Description", False, CreateFieldControl.MULTILINE),
+    CreateFieldSchema("reporter", "Reporter", False, CreateFieldControl.USER),
+    CreateFieldSchema("customfield_10409", "FAE Coworker", False, CreateFieldControl.USER),
+)
+
+
+class CloneJiraClient:
+    def __init__(self, account="defeng.zhai"):
+        self.account = account
+        self.search_calls = []
+
+    def search_users(self, query, *, project_key="SH"):
+        self.search_calls.append((query, project_key))
+        return [{"account": self.account, "display_name": "Current User", "avatar_url": "avatar"}]
+
+
+class CloneSchemaService:
+    def __init__(self, schema=CLONE_SCHEMA):
+        self.schema_value = schema
+        self.calls = []
+
+    def schema(self, project_key, issue_type):
+        self.calls.append((project_key, issue_type))
+        return self.schema_value
+
+
+class CloneCreateService:
+    def __init__(self):
+        self.rechecks = []
+        self.creates = []
+        self.duplicates = {}
+        self.fail_once = set()
+
+    def check_issue_by_external_url(self, *, project_key, external_url):
+        self.rechecks.append((project_key, external_url))
+        return self.duplicates.get(external_url)
+
+    def create_issue(self, request):
+        self.creates.append(request.source_id)
+        if request.source_id in self.fail_once:
+            self.fail_once.remove(request.source_id)
+            raise RuntimeError(f"failed {request.source_id}")
+        return CreateIssueResult(
+            created=True,
+            issue_key=f"SH-{request.source_id}",
+            issue_url=f"https://jira/browse/SH-{request.source_id}",
+        )
+
+
+class RecordingDraftService:
+    def __init__(self):
+        self.calls = []
+        self.owner = RedmineCloneDraftService()
+
+    def build(self, **kwargs):
+        self.calls.append(kwargs)
+        return self.owner.build(**kwargs)
+
+
+def clone_bridge(*, issue_ids=("1",), schema=CLONE_SCHEMA):
+    auth = MutableAuth("defeng.zhai")
+    bridge = RedmineBridge(auth, service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    items = tuple(
+        RedmineIssueListItem(id=issue_id, url=f"https://redmine/issues/{issue_id}", tracker="Bug", subject=f"Issue {issue_id}")
+        for issue_id in issue_ids
+    )
+    project = RedmineProject(name="SmartHome", identifier="sh", url="project", project_id="PID", issues=items)
+    details = tuple(
+        RedmineIssueDetail(id=item.id, url=item.url, project_identifier="sh", tracker="Bug", subject=item.subject, description="desc", list_item=item)
+        for item in items
+    )
+    bridge._view = {
+        **bridge._view,
+        "context": RedmineContext(account=auth.username, projects=(project,), issues=details),
+        "issueRows": [{"id": item.id, "key": item.id, "webUrl": item.url, "cloneStatus": "not_cloned"} for item in items],
+    }
+    bridge._jira_client = CloneJiraClient(auth.username)
+    bridge._jira_schema_service = CloneSchemaService(schema)
+    bridge._jira_create_service = CloneCreateService()
+    bridge._draft_service = RecordingDraftService()
+    bridge.beginCloneSelection()
+    for issue_id in issue_ids:
+        bridge.toggleCloneSelection(issue_id, True)
+    return bridge
+
+
+def test_prepare_clone_drafts_has_no_create_calls_and_uses_identity_department_and_plain_order():
+    bridge = clone_bridge(issue_ids=("2", "1"))
+    states = []
+    bridge.changed.connect(lambda: states.append(bridge.cloneBatchState))
+
+    bridge.prepareCloneDrafts()
+    wait_for(lambda: bridge.cloneBatchState == "editing")
+
+    assert "loading" in states and states[-1] == "editing"
+    assert bridge._jira_create_service.creates == []
+    assert [item["issueId"] for item in bridge.cloneDrafts] == ["2", "1"]
+    assert [item["fieldId"] for item in bridge.cloneDrafts[0]["fields"]] == [item.field_id for item in CLONE_SCHEMA]
+    assert bridge._draft_service.calls[0]["account"] == "defeng.zhai"
+    assert bridge._draft_service.calls[0]["department"] == "FAE-SW"
+    assert bridge.cloneDrafts[0]["fields"][4]["value"] == "defeng.zhai"
+    bridge.close()
+
+
+def test_required_draft_error_blocks_every_create_and_user_update_revalidates():
+    required = CLONE_SCHEMA + (
+        CreateFieldSchema("customfield_required", "Required", True, CreateFieldControl.TEXT),
+    )
+    bridge = clone_bridge(schema=required)
+    bridge.prepareCloneDrafts(); wait_for(lambda: bridge.cloneBatchState == "editing")
+
+    bridge.submitCloneBatch()
+
+    assert bridge.cloneBatchState == "editing"
+    assert bridge.firstInvalidIssueId == "1"
+    assert bridge.firstInvalidFieldId == "customfield_required"
+    assert bridge._jira_create_service.creates == []
+    bridge.updateCloneDraft("1", "customfield_required", "reviewed")
+    assert bridge.firstInvalidIssueId == ""
+    assert next(item for item in bridge.cloneDrafts[0]["fields"] if item["fieldId"] == "customfield_required")["error"] == ""
+    bridge.close()
+
+
+def test_submit_continues_updates_clone_owner_and_retry_sends_failed_only():
+    bridge = clone_bridge(issue_ids=("1", "2", "3"))
+    creator = bridge._jira_create_service
+    creator.duplicates["https://redmine/issues/2"] = ExistingIssue(key="SH-existing", web_url="existing-url")
+    creator.fail_once.add("3")
+    bridge.prepareCloneDrafts(); wait_for(lambda: bridge.cloneBatchState == "editing")
+
+    bridge.submitCloneBatch(); wait_for(lambda: bridge.cloneBatchState == "partial_failed")
+
+    assert creator.creates == ["1", "3"]
+    assert [item["state"] for item in bridge.cloneDrafts] == ["created", "duplicate", "failed"]
+    assert [row["cloneStatus"] for row in bridge.issueRows] == ["cloned", "cloned", "not_cloned"]
+    bridge.retryFailedClones(); wait_for(lambda: bridge.cloneBatchState == "completed")
+    assert creator.creates == ["1", "3", "3"]
+    assert all(row["cloneStatus"] == "cloned" for row in bridge.issueRows)
+    bridge.close()
+
+
+def test_clone_account_and_user_search_generations_reject_late_results():
+    bridge = clone_bridge()
+    bridge.prepareCloneDrafts(); wait_for(lambda: bridge.cloneBatchState == "editing")
+    old_clone_generation = bridge._clone_generation
+    old_account_generation = bridge._generation
+    bridge.searchCloneUsers("1", "reporter", "fred")
+    current_generation = bridge._clone_generation
+    bridge._apply_clone_result(old_clone_generation, old_account_generation, "users", ("1", "reporter", [{"account": "old", "display_name": "Old"}]))
+    assert all(item.get("value") != "old" for item in bridge.cloneDrafts[0]["fields"][4]["options"])
+    bridge._apply_clone_result(current_generation, old_account_generation, "users", ("1", "reporter", [{"account": "fred", "display_name": "Fred", "avatar_url": "a"}]))
+    assert bridge.cloneDrafts[0]["fields"][4]["options"][0]["value"] == "fred"
+
+    bridge._auth.username = "other"; bridge._auth.authChanged.emit()
+    assert bridge.cloneBatchState == "idle" and bridge.cloneDrafts == []
+    bridge._apply_clone_result(current_generation, old_account_generation, "prepare", [])
+    assert bridge.cloneBatchState == "idle"
+    bridge.close()
+
+
+def test_clone_batch_close_cancels_loading_but_not_submission():
+    class Pending:
+        def __init__(self): self.cancelled = False
+        def cancel(self): self.cancelled = True
+
+    bridge = clone_bridge()
+    pending = Pending()
+    bridge._clone_future = pending
+    bridge._clone_batch_state = "loading"
+    bridge.closeCloneBatch()
+    assert pending.cancelled and bridge.cloneBatchState == "idle"
+
+    bridge._clone_batch_state = "submitting"
+    bridge.closeCloneBatch()
+    assert bridge.cloneBatchState == "submitting"
+    bridge._clone_batch_state = "idle"
     bridge.close()
 
 
