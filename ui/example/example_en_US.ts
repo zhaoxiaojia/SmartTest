@@ -1426,6 +1426,32 @@
         <source>No issues loaded</source>
         <translation type="unfinished">No issues loaded</translation>
     </message>
+    <message><source>%1 selected</source><translation>%1 selected</translation></message>
+    <message><source>Prepare drafts</source><translation>Prepare drafts</translation></message>
+    <message><source>Clone to Jira</source><translation>Clone to Jira</translation></message>
+    <message><source>Cancel</source><translation>Cancel</translation></message>
+</context>
+<context>
+    <name>JiraCreateField</name>
+    <message><source>Search Jira users</source><translation>Search Jira users</translation></message>
+</context>
+<context>
+    <name>JiraCreateDraftCard</name>
+    <message><source>Redmine #%1</source><translation>Redmine #%1</translation></message>
+    <message><source>Open source</source><translation>Open source</translation></message>
+    <message><source>Created: %1</source><translation>Created: %1</translation></message>
+    <message><source>Duplicate: %1</source><translation>Duplicate: %1</translation></message>
+    <message><source>Failed</source><translation>Failed</translation></message>
+</context>
+<context>
+    <name>JiraCreateBatchDialog</name>
+    <message><source>Clone Redmine issues to Jira</source><translation>Clone Redmine issues to Jira</translation></message>
+    <message><source>Close</source><translation>Close</translation></message>
+    <message><source>Preparing drafts %1/%2</source><translation>Preparing drafts %1/%2</translation></message>
+    <message><source>%1 drafts</source><translation>%1 drafts</translation></message>
+    <message><source>Cancel</source><translation>Cancel</translation></message>
+    <message><source>Retry failed</source><translation>Retry failed</translation></message>
+    <message><source>Batch Create</source><translation>Batch Create</translation></message>
 </context>
 <context>
     <name>JiraIssueDetailLayout</name>

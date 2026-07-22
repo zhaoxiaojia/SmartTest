@@ -26,6 +26,9 @@ Item {
     property string projectsStatusText: ""
     property bool searchLoading: false
     property bool searchCanCancel: false
+    property bool cloneSelectionMode: false
+    property bool cloneSelectable: false
+    property var cloneSelectedIds: []
 
     signal searchRequested(var filters)
     signal quickViewRequested(string quickViewId)
@@ -36,6 +39,10 @@ Item {
     signal commentSubmitRequested(string issueKey, string content)
     signal attachmentFilesSelected(string issueKey, var fileUrls)
     signal attachmentUploadConfirmed(string issueKey, var fileUrls)
+    signal cloneSelectionRequested()
+    signal cloneSelectionToggled(string issueId, bool selected)
+    signal cloneSelectionCancelled()
+    signal cloneSelectionConfirmed()
 
     function safeCount(value) {
         return value && value.length !== undefined ? value.length : 0
@@ -243,6 +250,21 @@ Item {
                         }
                         FluText { text: String(safeCount(root.issues)); color: FluTheme.fontSecondaryColor }
                     }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 12; Layout.rightMargin: 12; Layout.bottomMargin: 8
+                        visible: root.cloneSelectionMode
+                        FluText { text: qsTr("%1 selected").arg(root.safeCount(root.cloneSelectedIds)) }
+                        Item { Layout.fillWidth: true }
+                        FluButton { text: qsTr("Cancel"); onClicked: root.cloneSelectionCancelled() }
+                        FluFilledButton { text: qsTr("Prepare drafts"); disabled: root.safeCount(root.cloneSelectedIds) === 0; onClicked: root.cloneSelectionConfirmed() }
+                    }
+                    FluButton {
+                        Layout.leftMargin: 12; Layout.bottomMargin: 8
+                        visible: root.cloneSelectable && !root.cloneSelectionMode
+                        text: qsTr("Clone to Jira")
+                        onClicked: root.cloneSelectionRequested()
+                    }
                     Popup {
                         id: riskPopup
                         x: Math.max(0, parent.width - width - 12)
@@ -304,6 +326,13 @@ Item {
                             onClicked: root.issueSelected(modelData)
                             contentItem: RowLayout {
                                 spacing: 8
+                                property bool cloneSelectable: modelData.cloneStatus !== "cloned" && !modelData.clonedIssueKey
+                                FluCheckBox {
+                                    visible: root.cloneSelectionMode
+                                    disabled: !parent.cloneSelectable
+                                    checked: root.cloneSelectedIds.indexOf(String(modelData.id || modelData.key || "")) >= 0
+                                    onClicked: root.cloneSelectionToggled(String(modelData.id || modelData.key || ""), checked)
+                                }
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 4

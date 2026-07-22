@@ -1446,6 +1446,32 @@
         <source>No issues loaded</source>
         <translation type="unfinished">尚未加载问题</translation>
     </message>
+    <message><source>%1 selected</source><translation>已选择 %1 项</translation></message>
+    <message><source>Prepare drafts</source><translation>准备草稿</translation></message>
+    <message><source>Clone to Jira</source><translation>克隆到 Jira</translation></message>
+    <message><source>Cancel</source><translation>取消</translation></message>
+</context>
+<context>
+    <name>JiraCreateField</name>
+    <message><source>Search Jira users</source><translation>搜索 Jira 用户</translation></message>
+</context>
+<context>
+    <name>JiraCreateDraftCard</name>
+    <message><source>Redmine #%1</source><translation>Redmine #%1</translation></message>
+    <message><source>Open source</source><translation>打开源问题</translation></message>
+    <message><source>Created: %1</source><translation>已创建：%1</translation></message>
+    <message><source>Duplicate: %1</source><translation>重复：%1</translation></message>
+    <message><source>Failed</source><translation>失败</translation></message>
+</context>
+<context>
+    <name>JiraCreateBatchDialog</name>
+    <message><source>Clone Redmine issues to Jira</source><translation>将 Redmine 问题克隆到 Jira</translation></message>
+    <message><source>Close</source><translation>关闭</translation></message>
+    <message><source>Preparing drafts %1/%2</source><translation>正在准备草稿 %1/%2</translation></message>
+    <message><source>%1 drafts</source><translation>%1 个草稿</translation></message>
+    <message><source>Cancel</source><translation>取消</translation></message>
+    <message><source>Retry failed</source><translation>重试失败项</translation></message>
+    <message><source>Batch Create</source><translation>批量创建</translation></message>
 </context>
 <context>
     <name>JiraIssueDetailLayout</name>
