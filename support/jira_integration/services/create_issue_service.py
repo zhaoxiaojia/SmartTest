@@ -61,13 +61,47 @@ class CreateIssueService:
             "labels": self._labels(request),
         }
         if request.priority:
-            fields["priority"] = {"name": request.priority}
+            fields["priority"] = self._field_value(
+                request.priority,
+                request.field_controls.get("priority", ""),
+                default_kind="name",
+            )
         if request.assignee:
             fields["assignee"] = {"name": request.assignee}
         if request.components:
-            fields["components"] = [{"name": component} for component in request.components if component]
-        fields.update({key: value for key, value in request.extra_fields.items() if value not in (None, "", [], {})})
+            control = request.field_controls.get("components", "")
+            fields["components"] = (
+                self._field_value(list(request.components), control)
+                if control
+                else [{"name": component} for component in request.components if component]
+            )
+        fields.update(
+            {
+                key: self._field_value(value, request.field_controls.get(key, ""))
+                for key, value in request.extra_fields.items()
+                if value not in (None, "", [], {})
+            }
+        )
         return {"fields": fields}
+
+    @staticmethod
+    def _field_value(value: Any, control: str, *, default_kind: str = "") -> Any:
+        if control in {"text", "multiline"}:
+            return value
+        if control == "single":
+            return {"id": str(value)}
+        if control == "multi":
+            return [{"id": str(item)} for item in value if item]
+        if control == "cascade":
+            payload = {"id": str(value.get("parent") or "")}
+            if value.get("child"):
+                payload["child"] = {"id": str(value["child"])}
+            return payload
+        if control == "user":
+            return {"name": str(value)}
+        if default_kind:
+            return {default_kind: value}
+        return value
 
     def _labels(self, request: CreateIssueRequest) -> list[str]:
         labels = list(request.labels)

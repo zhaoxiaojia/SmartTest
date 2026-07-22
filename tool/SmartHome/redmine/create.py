@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 
 from support.jira_integration.core.models import CreateIssueResult
 from support.jira_integration.services.create_issue_service import CreateIssueService
+from tool.SmartHome.redmine.clone_draft import CloneDraft
 from tool.SmartHome.redmine.mapping import redmine_tracker_to_jira_type
 from tool.SmartHome.redmine.models import RedmineIssueDetail
 
@@ -22,7 +23,10 @@ class RedmineCloneResult:
 
 
 def clone_issues_to_jira(
-    clone_list: list[RedmineIssueDetail] | tuple[RedmineIssueDetail, ...],
+    clone_list: (
+        list[RedmineIssueDetail | CloneDraft]
+        | tuple[RedmineIssueDetail | CloneDraft, ...]
+    ),
     *,
     project_key: str,
     create_service: CreateIssueService,
@@ -32,13 +36,16 @@ def clone_issues_to_jira(
     failed: list[RedmineCloneFailure] = []
     for issue in clone_list:
         try:
-            result = create_service.create_issue(
-                issue.to_create_issue_request(
+            request = (
+                issue.to_request()
+                if isinstance(issue, CloneDraft)
+                else issue.to_create_issue_request(
                     project_key=project_key,
                     issue_type=redmine_tracker_to_jira_type(issue.tracker),
                     source_system="redmine",
                 )
             )
+            result = create_service.create_issue(request)
             (created if result.created else skipped).append(result)
         except Exception as exc:
             failed.append(RedmineCloneFailure(issue_id=issue.id, message=str(exc)))

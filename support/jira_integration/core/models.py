@@ -100,6 +100,7 @@ class CreateIssueRequest:
     source_id: str = ""
     source_url: str = ""
     extra_fields: dict[str, Any] = field(default_factory=dict)
+    field_controls: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
