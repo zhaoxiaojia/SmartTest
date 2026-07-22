@@ -30,6 +30,18 @@ def amlogic_employees(personnel: dict[str, Any]) -> list[dict[str, Any]]:
     return employees
 
 
+def employee_department(personnel: dict[str, Any], account: str) -> str:
+    clean_account = str(account or "").strip()
+    if not clean_account:
+        return ""
+    matches = [
+        str((employee.get("organization") or {}).get("department") or "")
+        for employee in amlogic_employees(personnel)
+        if str(employee.get("account") or "").strip() == clean_account
+    ]
+    return matches[0] if len(matches) == 1 else ""
+
+
 def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str, Any]]:
     groups: list[dict[str, Any]] = [
         {

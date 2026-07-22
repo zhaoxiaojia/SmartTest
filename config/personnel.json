@@ -1575,8 +1575,35 @@
           }
         ]
       },
-      "FAE": {
+      "FAE-SW": {
         "employees": [
+          {
+            "display_name": "Fred Chen",
+            "account": "fred.chen",
+            "grade": "M5",
+            "reports_to": "",
+            "active": true,
+            "organization": {
+              "team": "Smart Home",
+              "division": ""
+            },
+            "employment": {
+              "grade": "M5",
+              "job_title_override": "",
+              "employee_type": ""
+            },
+            "assignments": [
+              {
+                "product_line_id": "SmartHome",
+                "primary": true,
+                "responsibilities": []
+              }
+            ],
+            "expertise_domains": [],
+            "system_roles": [
+              "user"
+            ]
+          },
           {
             "display_name": "Daozai Ye",
             "account": "daozai.ye",

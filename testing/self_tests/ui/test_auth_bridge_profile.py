@@ -84,6 +84,18 @@ def test_username_matches_exact_personnel_account_only():
     assert match_employee_profile(personnel, "", username="nobody.here") == {}
 
 
+def test_fred_profile_is_uniquely_resolved_by_account():
+    personnel = load_personnel(PERSONNEL_PATH)
+
+    matches = [item for item in amlogic_employees(personnel) if item.get("account") == "fred.chen"]
+    assert len(matches) == 1
+    profile = match_employee_profile(personnel, "", username="fred.chen")
+    assert profile["display_name"] == "Fred Chen"
+    assert profile["grade"] == "M5"
+    assert profile["department"] == "FAE-SW"
+    assert profile["product_lines"] == ["SmartHome"]
+
+
 def test_legacy_auth_state_recovers_profile_from_username(monkeypatch, tmp_path):
     (tmp_path / "auth_state.json").write_text(
         json.dumps({"username": "chao.li", "authenticated": True}), encoding="utf-8"

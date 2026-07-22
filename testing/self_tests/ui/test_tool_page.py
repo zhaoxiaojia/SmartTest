@@ -250,9 +250,26 @@ def test_tool_groups_keep_fixed_layout_and_filter_child_tools_by_account():
     assert not any(group["available"] for group in unknown_groups[1:])
 
 
+def test_personnel_uses_three_explicit_fae_departments_and_fred_owns_smarthome():
+    from ui.example.bridge.ToolBridge import amlogic_employees, employee_department
+
+    personnel = load_tool_access(PERSONNEL_PATH)
+
+    assert set(personnel["amlogic"]["departments"]) == {"FAE-QA", "FAE-SW", "FAE-HW"}
+    fred = next(item for item in amlogic_employees(personnel) if item["account"] == "fred.chen")
+    assert fred["grade"] == "M5"
+    assert fred["organization"]["department"] == "FAE-SW"
+    assert employee_department(personnel, "fred.chen") == "FAE-SW"
+    assert employee_department(personnel, "missing.account") == ""
+    assert any(
+        item["product_line_id"] == "SmartHome" and item["primary"]
+        for item in fred["assignments"]
+    )
+
+
 def test_developer_role_grants_every_tool_group_independent_of_assignments_and_casing():
     personnel = load_tool_access(PERSONNEL_PATH)
-    personnel["amlogic"]["departments"]["FAE"]["employees"].extend(
+    personnel["amlogic"]["departments"]["FAE-SW"]["employees"].extend(
         [
             {
                 "account": "developer.zero",
@@ -542,7 +559,7 @@ def test_fae_redmine_rosters_are_unique_additive_and_keep_unknown_default():
 
 
 def test_smarthome_assignment_model_remains_additive():
-    personnel = {"amlogic": {"departments": {"FAE": {"employees": [{"account": "fae.user", "assignments": [{"product_line_id": "TV"}, {"product_line_id": "SmartHome", "primary": False}], "system_roles": ["user"]}]}}, "product_lines": [{"id": "TV"}, {"id": "SmartHome"}], "technical_centers": []}}
+    personnel = {"amlogic": {"departments": {"FAE-SW": {"employees": [{"account": "fae.user", "assignments": [{"product_line_id": "TV"}, {"product_line_id": "SmartHome", "primary": False}], "system_roles": ["user"]}]}}, "product_lines": [{"id": "TV"}, {"id": "SmartHome"}], "technical_centers": []}}
     available = {group["id"] for group in build_tool_groups(personnel, "fae.user") if group["available"]}
     assert available == {"common", "TV", "SmartHome"}
 
@@ -551,12 +568,12 @@ def test_identity_domains_and_subing_smarthome_access_are_explicit():
     personnel = json.loads(PERSONNEL_PATH.read_text(encoding="utf-8"))
     assert "employees" not in personnel
     departments = personnel["amlogic"]["departments"]
-    assert set(departments) == {"FAE-QA", "FAE", "FAE-HW"}
+    assert set(departments) == {"FAE-QA", "FAE-SW", "FAE-HW"}
     assert {name: len(value["employees"]) for name, value in departments.items()} == {
-        "FAE-QA": 75, "FAE": 21, "FAE-HW": 4,
+        "FAE-QA": 75, "FAE-SW": 22, "FAE-HW": 4,
     }
     assert "product_lines" not in personnel and "technical_centers" not in personnel
-    employee = next(item for item in departments["FAE"]["employees"] if item["account"] == "subing.xu")
+    employee = next(item for item in departments["FAE-SW"]["employees"] if item["account"] == "subing.xu")
     assert "redmine" not in employee
     smart_home = next(item for item in employee["assignments"] if item["product_line_id"] == "SmartHome")
     assert smart_home["primary"] is False
