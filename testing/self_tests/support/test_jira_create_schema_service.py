@@ -13,33 +13,39 @@ from support.jira_integration.transport.client import JiraClient
 CREATE_META = {
     "projects": [{
         "key": "SH",
+        "name": "SmartHome",
         "issuetypes": [{
+            "id": "1",
             "name": "Bug",
             "fields": {
                 "summary": {"name": "Summary", "required": True, "schema": {"type": "string"}},
-                "description": {"name": "Description", "required": False, "schema": {"type": "string"}},
+                "description": {"name": "Description", "required": False, "schema": {"type": "string"}, "defaultValue": "Jira template"},
                 "customfield_12200": {
                     "name": "Channel of Reporter",
                     "required": True,
                     "schema": {"type": "option", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:cascadingselect"},
                     "allowedValues": [{"id": "10", "value": "Customer-Feedback", "children": [{"id": "11", "value": "None"}]}],
+                    "defaultValue": {"id": "10", "child": {"id": "11"}},
                 },
                 "components": {
                     "name": "Component/s",
                     "required": False,
                     "schema": {"type": "array", "items": "component"},
                     "allowedValues": [{"id": "20", "name": "Customization"}],
+                    "defaultValue": [{"id": "20"}],
                 },
                 "customfield_10700": {
                     "name": "Manager",
                     "required": False,
                     "schema": {"type": "string", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:userpicker"},
+                    "defaultValue": {"name": "fred.chen", "displayName": "Fred Chen"},
                 },
                 "priority": {
                     "name": "Priority",
                     "required": True,
                     "schema": {"type": "priority"},
                     "allowedValues": [{"id": "2", "name": "P2"}],
+                    "defaultValue": {"id": "2"},
                 },
                 "labels": {"name": "Labels", "required": False, "schema": {"type": "array", "items": "string"}},
             },
@@ -112,7 +118,17 @@ def test_schema_maps_jira_native_controls_required_options_and_order():
     schema = service.schema("SH", "Bug")
     fields = {item.field_id: item for item in schema}
 
-    assert [item.field_id for item in schema] == list(CREATE_META["projects"][0]["issuetypes"][0]["fields"])
+    assert [item.field_id for item in schema] == [
+        "project",
+        "issuetype",
+        *CREATE_META["projects"][0]["issuetypes"][0]["fields"],
+    ]
+    assert fields["project"].required and fields["project"].control == "single"
+    assert fields["project"].value == "SH"
+    assert fields["project"].options[0].value == "SH"
+    assert fields["issuetype"].required and fields["issuetype"].control == "single"
+    assert fields["issuetype"].value == "Bug"
+    assert fields["issuetype"].options[0].value == "Bug"
     assert fields["summary"].control == "text" and fields["summary"].required
     assert fields["description"].control == "multiline"
     assert fields["customfield_12200"].control == "cascade"
@@ -120,6 +136,11 @@ def test_schema_maps_jira_native_controls_required_options_and_order():
     assert fields["customfield_10700"].control == "user"
     assert fields["priority"].control == "single"
     assert fields["labels"].control == "multi"
+    assert fields["description"].value == "Jira template"
+    assert fields["priority"].value == "2"
+    assert fields["components"].value == ["20"]
+    assert fields["customfield_12200"].value == {"parent": "10", "child": "11"}
+    assert fields["customfield_10700"].value == "fred.chen"
     assert fields["priority"].options[0].value == "2"
     assert fields["priority"].options[0].label == "P2"
     cascade = fields["customfield_12200"].options[0]

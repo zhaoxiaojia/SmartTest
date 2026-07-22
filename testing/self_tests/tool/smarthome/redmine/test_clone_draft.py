@@ -131,8 +131,23 @@ def test_unmapped_required_field_remains_empty_and_blocking():
 
     draft = build(schema=schema)
 
-    assert draft.value("customfield_99999") is None
+    assert draft.value("customfield_99999") == ""
     assert any(error.field_id == "customfield_99999" and error.blocking for error in draft.errors)
+
+
+def test_unmapped_field_preserves_jira_default_and_missing_default_uses_empty_shape():
+    schema = tuple(
+        replace(item, value=["60"], options=(option("60", "Release-1"),))
+        if item.name == "Software Release"
+        else item
+        for item in SCHEMA
+    ) + (field("customfield_99998", "Optional Unknown", "multi"),)
+
+    draft = build(schema=schema)
+
+    assert draft.value("customfield_10300") == ["60"]
+    assert draft.value("customfield_99998") == []
+    assert not any(error.field_id in {"customfield_10300", "customfield_99998"} for error in draft.errors)
 
 
 class PayloadClient:

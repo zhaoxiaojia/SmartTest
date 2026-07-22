@@ -176,15 +176,19 @@ def _initial_value(
         return ["BDS Reference"]
     if name == "project id":
         return [project.project_id] if project.project_id else []
-    if name == "software release":
-        return []
     if field_id == "reporter" or name == "reporter":
         return account
     if name in {"manager", "fae manager"}:
         return "fred.chen"
     if name == "fae coworker":
         return account if department == "FAE-SW" else ""
-    return schema.value
+    if schema.value is not None:
+        return schema.value
+    if schema.control == CreateFieldControl.MULTI:
+        return []
+    if schema.control == CreateFieldControl.CASCADE:
+        return {}
+    return ""
 
 
 def _source_description(issue: RedmineIssueDetail) -> str:
