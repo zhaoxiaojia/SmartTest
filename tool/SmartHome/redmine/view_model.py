@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 from typing import Any
 
+from support.jira_integration.core import UnifiedIssue
 from tool.SmartHome.redmine.mapping import map_issue_to_jira
 from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineProject
 from tool.SmartHome.redmine.overdue import OverduePolicy
-
-
-def empty_view(all_projects: str, all_statuses: str) -> dict[str, Any]:
-    return view(RedmineContext(), all_projects=all_projects, all_statuses=all_statuses)
 
 
 def view(
@@ -31,19 +27,40 @@ def view(
     projects = [project for project in context.projects if project.project_id]
     analysis = dict(context.raw.get("issue_analysis") or {})
     policy = OverduePolicy()
-    rows = [issue_row(project, issue, analysis.get(issue.id)) for project in projects for issue in project.issues if _monitored(issue, analysis.get(issue.id) or {}, policy)]
-    selected = detail_row(selected_detail, project=context.project_for_detail(selected_detail)) if selected_detail else (rows[0] if rows else {})
-    selected_id = str(selected.get("id") or selected.get("key") or "")
-    payload = asdict(context)
-    payload["filters"] = filters
-    payload["selected_issue_id"] = selected_id
-    actionable = sorted(
-        [row for row in rows if _row_is_actionable(row)],
-        key=lambda row: (_action_rank(row), -float(row.get("updateElapsedHours") or row.get("staleElapsedHours") or 0)),
+    details = {detail.id: detail for detail in context.issues}
+    if selected_detail is not None:
+        details[selected_detail.id] = selected_detail
+    issue_list = [
+        unified_issue(
+            project,
+            issue,
+            analysis=analysis.get(issue.id),
+            detail=details.get(issue.id),
+        )
+        for project in projects
+        for issue in project.issues
+        if _monitored(issue, analysis.get(issue.id) or {}, policy)
+    ]
+    selected_id = (
+        selected_detail.id
+        if selected_detail is not None and any(issue.id == selected_detail.id for issue in issue_list)
+        else (issue_list[0].id if issue_list else "")
     )
+    rows = [issue_row_from_unified(issue) for issue in issue_list]
+    selected_issue = next((issue for issue in issue_list if issue.id == selected_id), None)
+    selected = detail_row_from_unified(selected_issue) if selected_issue else {}
+    payload = context_payload(
+        issue_list,
+        account=context.account,
+        source_url=context.source_url,
+        filters=filters,
+        selected_issue_id=selected_id,
+    )
+    actionable = actionable_rows(issue_list)
     return {
         "context": context,
         "context_payload": payload,
+        "issue_list": issue_list,
         "filters": filters,
         "projectFilterLabels": [all_projects] + [_project_label(project) for project in projects],
         "statusFilterLabels": [all_statuses, "Open", "Closed"],
@@ -55,13 +72,186 @@ def view(
     }
 
 
+def unified_issue(
+    project: RedmineProject,
+    item: RedmineIssueListItem,
+    *,
+    analysis: dict[str, Any] | None = None,
+    detail: RedmineIssueDetail | None = None,
+) -> UnifiedIssue:
+    risk = dict(analysis or {})
+    projected = detail_row(detail, item=item, project=project)
+    reporter = _field_value(projected.get("peopleFields"), "Reporter")
+    created_at = _field_value(projected.get("dateFields"), "Created")
+    return UnifiedIssue(
+        id=item.id,
+        key=item.id,
+        source_system="redmine",
+        source_url=item.url,
+        title=detail.subject if detail else item.subject,
+        web_url=detail.url if detail else item.url,
+        project={
+            "id": project.project_id,
+            "identifier": project.identifier,
+            "name": project.name,
+            "url": project.url,
+        },
+        status={"name": _field_value(projected.get("detailsFields"), "Status") or item.status},
+        issue_type={"name": _field_value(projected.get("detailsFields"), "Type") or item.tracker or "Bug"},
+        priority={"name": _field_value(projected.get("detailsFields"), "Priority") or item.priority},
+        assignee={"name": _field_value(projected.get("peopleFields"), "Assignee") or item.assignee},
+        reporter={"name": reporter} if reporter else {},
+        created_at=created_at,
+        updated_at=item.updated_at,
+        description=projected.get("description", ""),
+        detail_fields=list(projected.get("detailsFields") or []),
+        people_fields=list(projected.get("peopleFields") or []),
+        date_fields=list(projected.get("dateFields") or []),
+        extra_sections=list(projected.get("extraSections") or []),
+        comments=list(projected.get("comments") or []),
+        attachments=list(projected.get("attachments") or []),
+        detail_state="loaded" if detail is not None else "unloaded",
+        clone={
+            "state": "not_cloned",
+            "issue_key": "",
+            "issue_url": "",
+            "checked": False,
+        },
+        analysis=risk,
+    )
+
+
+def issue_row_from_unified(issue: UnifiedIssue) -> dict[str, Any]:
+    project = issue.project
+    analysis = issue.analysis
+    clone = issue.clone
+    row = {
+        "id": issue.id,
+        "key": issue.key or issue.id,
+        "title": issue.title,
+        "webUrl": issue.web_url or issue.source_url,
+        "projectIdentifier": str(project.get("identifier") or ""),
+        "projectName": str(project.get("name") or ""),
+        "projectId": str(project.get("id") or ""),
+        "status": str(issue.status.get("name") or ""),
+        "type": str(issue.issue_type.get("name") or "Bug"),
+        "assignee": str(issue.assignee.get("name") or issue.assignee.get("displayName") or ""),
+        "priority": str(issue.priority.get("name") or ""),
+        "updatedAt": issue.updated_at,
+        "updateRisk": analysis.get("risk", "unknown"),
+        "updateAgeText": analysis.get("age_text", ""),
+        "updateElapsedHours": analysis.get("elapsed_hours"),
+        "updateThresholdHours": analysis.get("threshold_hours"),
+        "updateParty": analysis.get("party", ""),
+        "updateReason": analysis.get("reason", ""),
+        "responsibilityType": analysis.get("responsibility_type", ""),
+        "staleType": analysis.get("stale_type", ""),
+        "staleElapsedHours": analysis.get("stale_elapsed_hours"),
+        "cloneStatus": str(clone.get("state") or "not_cloned"),
+    }
+    issue_key = str(clone.get("issue_key") or "")
+    issue_url = str(clone.get("issue_url") or "")
+    if issue_key:
+        row["clonedIssueKey"] = issue_key
+    if issue_url:
+        row["clonedIssueUrl"] = issue_url
+    return row
+
+
+def detail_row_from_unified(issue: UnifiedIssue | None) -> dict[str, Any]:
+    if issue is None:
+        return {}
+    project = issue.project
+    reporter = str(issue.reporter.get("name") or issue.reporter.get("displayName") or "")
+    return {
+        **issue_row_from_unified(issue),
+        "projectUrl": str(project.get("url") or ""),
+        "projectPath": (
+            [{"label": str(project.get("name") or ""), "url": str(project.get("url") or "")}]
+            if project.get("name") or project.get("url")
+            else []
+        ),
+        "description": issue.description,
+        "detailsFields": list(issue.detail_fields),
+        "peopleFields": list(issue.people_fields),
+        "dateFields": list(issue.date_fields),
+        "extraSections": list(issue.extra_sections),
+        "comments": list(issue.comments),
+        "attachments": list(issue.attachments),
+        "reporter": reporter,
+        "jira": {},
+    }
+
+
+def actionable_rows(issues: list[UnifiedIssue] | tuple[UnifiedIssue, ...]) -> list[dict[str, Any]]:
+    rows = [issue_row_from_unified(issue) for issue in issues]
+    return sorted(
+        [row for row in rows if _row_is_actionable(row)],
+        key=lambda row: (
+            _action_rank(row),
+            -float(row.get("updateElapsedHours") or row.get("staleElapsedHours") or 0),
+        ),
+    )
+
+
+def context_payload(
+    issues: list[UnifiedIssue] | tuple[UnifiedIssue, ...],
+    *,
+    account: str,
+    source_url: str = "",
+    filters: dict[str, str] | None = None,
+    selected_issue_id: str = "",
+) -> dict[str, Any]:
+    projects: dict[str, dict[str, Any]] = {}
+    for issue in issues:
+        identifier = str(issue.project.get("identifier") or issue.project.get("id") or "")
+        project = projects.setdefault(
+            identifier,
+            {
+                "name": str(issue.project.get("name") or ""),
+                "identifier": identifier,
+                "url": str(issue.project.get("url") or ""),
+                "project_id": str(issue.project.get("id") or ""),
+                "issue_ids": [],
+            },
+        )
+        project["issue_ids"].append(issue.id)
+    return {
+        "account": account,
+        "source_url": source_url,
+        "projects": list(projects.values()),
+        "filters": dict(filters or {}),
+        "selected_issue_id": selected_issue_id,
+    }
+
+
 def replace_detail(context: RedmineContext, detail: RedmineIssueDetail) -> RedmineContext:
     return context.with_detail(detail, jira_issue=map_issue_to_jira(detail, project=context.project_for_detail(detail)))
 
 
-def issue_row(project: RedmineProject, issue: RedmineIssueListItem, analysis: dict[str, Any] | None = None) -> dict[str, Any]:
-    risk = dict(analysis or {})
-    return {"id": issue.id, "key": issue.id, "title": issue.subject, "webUrl": issue.url, "projectIdentifier": project.identifier, "projectName": project.name, "projectId": project.project_id, "status": issue.status, "type": issue.tracker or "Bug", "assignee": issue.assignee, "priority": issue.priority, "updatedAt": issue.updated_at, "updateRisk": risk.get("risk", "unknown"), "updateAgeText": risk.get("age_text", ""), "updateElapsedHours": risk.get("elapsed_hours"), "updateThresholdHours": risk.get("threshold_hours"), "updateParty": risk.get("party", ""), "updateReason": risk.get("reason", ""), "responsibilityType": risk.get("responsibility_type", ""), "staleType": risk.get("stale_type", ""), "staleElapsedHours": risk.get("stale_elapsed_hours")}
+def issue_row(
+    project: RedmineProject,
+    issue: RedmineIssueListItem,
+    analysis: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Compatibility boundary delegating to the canonical unified projection."""
+    return issue_row_from_unified(
+        unified_issue(project, issue, analysis=analysis)
+    )
+
+
+def _field_value(fields: Any, label: str) -> str:
+    return str(
+        next(
+            (
+                field.get("value")
+                for field in fields or []
+                if isinstance(field, dict) and field.get("label") == label
+            ),
+            "",
+        )
+        or ""
+    )
 
 
 def _row_is_actionable(row: dict[str, Any]) -> bool:

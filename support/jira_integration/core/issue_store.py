@@ -75,15 +75,17 @@ class IssueStore:
         replacements: list[UnifiedIssue] = []
         issue_ids: set[str] = set()
         for issue in issues:
-            if issue.id in issue_ids:
-                raise ValueError(f"Duplicate issue id: {issue.id}")
-            issue_ids.add(issue.id)
+            issue_id = _validated_issue_id(issue)
+            if issue_id in issue_ids:
+                raise ValueError(f"Duplicate issue id: {issue_id}")
+            issue_ids.add(issue_id)
             replacements.append(_copy_issue(issue))
         self._issue_list = replacements
         if self._selected_id not in issue_ids:
             self._selected_id = None
 
     def upsert(self, issue: UnifiedIssue) -> UnifiedIssue:
+        _validated_issue_id(issue)
         replacement = _copy_issue(issue)
         index = self._index_of(issue.id)
         if index is None:
@@ -137,6 +139,12 @@ class IssueStore:
 
 def _copy_issue(issue: UnifiedIssue) -> UnifiedIssue:
     return UnifiedIssue.from_dict(issue.to_dict())
+
+
+def _validated_issue_id(issue: UnifiedIssue) -> str:
+    if not isinstance(issue.id, str) or not issue.id.strip():
+        raise ValueError("Issue id cannot be empty")
+    return issue.id
 
 
 def _json_copy(value: Any) -> Any:

@@ -90,6 +90,19 @@ def test_replace_all_preserves_order_and_rejects_duplicate_ids_atomically() -> N
     assert [issue.id for issue in store.issue_list] == ["2", "1"]
 
 
+@pytest.mark.parametrize("blank_id", ["", " ", "\t\r\n"])
+def test_store_rejects_blank_issue_ids_atomically(blank_id: str) -> None:
+    store = IssueStore([_issue("kept")])
+
+    with pytest.raises(ValueError, match="Issue id cannot be empty"):
+        store.replace_all([_issue(blank_id)])
+    assert [issue.id for issue in store.issue_list] == ["kept"]
+
+    with pytest.raises(ValueError, match="Issue id cannot be empty"):
+        store.upsert(_issue(blank_id))
+    assert [issue.id for issue in store.issue_list] == ["kept"]
+
+
 def test_upsert_and_patch_preserve_existing_positions() -> None:
     store = IssueStore([_issue("1"), _issue("2")])
 
