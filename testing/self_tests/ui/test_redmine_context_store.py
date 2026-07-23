@@ -1,3 +1,6 @@
+import json
+from concurrent.futures import ThreadPoolExecutor
+
 from tool.SmartHome.redmine import context_store
 
 
@@ -57,3 +60,47 @@ def test_enriched_my_page_selected_detail_round_trips(tmp_path, monkeypatch):
     context_store.save_quick_view("alice", "my_assigned", {"issueRows": [{"id": "1"}], "selectedIssue": selected})
     loaded = context_store.load_quick_view("alice", "my_assigned", all_projects="All projects", all_statuses="All statuses")
     assert loaded["selectedIssue"]["description"] == "body"
+
+
+def test_damaged_cache_recovers_without_manual_deletion(tmp_path, monkeypatch):
+    path = tmp_path / "alice.json"
+    path.write_text("{damaged", encoding="utf-8")
+    monkeypatch.setattr(context_store, "cache_path", lambda _account: path)
+
+    assert context_store.load_view_payload("alice") is None
+    context_store.save_project_options("alice", [{"id": "p1"}])
+    context_store.save_quick_view("alice", "my_assigned", {"issueRows": [{"id": "1"}]})
+    context_store.save_view("alice", {"filters": {}, "issueRows": [{"id": "2"}]})
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert payload["projectOptions"] == [{"id": "p1"}]
+    assert payload["quickViews"]["my_assigned"]["issueRows"] == [{"id": "1"}]
+    assert payload["issueRows"] == [{"id": "2"}]
+
+
+def test_concurrent_cache_updates_keep_all_sections_and_valid_json(tmp_path, monkeypatch):
+    path = tmp_path / "alice.json"
+    monkeypatch.setattr(context_store, "cache_path", lambda _account: path)
+
+    operations = [
+        lambda: context_store.save_view("alice", {"filters": {}, "issueRows": [{"id": "view"}]}),
+        lambda: context_store.save_quick_view("alice", "my_assigned", {"issueRows": [{"id": "quick"}]}),
+        lambda: context_store.save_project_options("alice", [{"id": "project"}]),
+    ]
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        list(pool.map(lambda operation: operation(), operations))
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert payload["issueRows"][0]["id"] == "view"
+    assert payload["quickViews"]["my_assigned"]["issueRows"][0]["id"] == "quick"
+    assert payload["projectOptions"][0]["id"] == "project"
+
+
+def test_watched_ids_are_account_isolated_and_share_atomic_context_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(context_store, "cache_path", lambda account: tmp_path / f"{account}.json")
+    context_store.save_view("alice", {"filters": {"subject": "panel"}, "issueRows": [{"id": "1"}]})
+    context_store.save_watched_issue_ids("alice", ["3", "2", "3"])
+    context_store.save_watched_issue_ids("bob", ["9"])
+    assert context_store.load_watched_issue_ids("alice") == ["3", "2"]
+    assert context_store.load_watched_issue_ids("bob") == ["9"]
+    assert context_store.load_filters("alice")["subject"] == "panel"

@@ -11,9 +11,10 @@ from support.jira_integration.core.create_schema import (
 )
 from support.jira_integration.core.models import CreateIssueResult
 from support.jira_integration.services.create_issue_service import CreateIssueService
+from support.jira_integration.core.description import render_notes_description
 from tool.SmartHome.redmine.clone_draft import RedmineCloneDraftService
 from tool.SmartHome.redmine.create import clone_issues_to_jira
-from tool.SmartHome.redmine.models import RedmineIssueDetail, RedmineProject
+from tool.SmartHome.redmine.models import RedmineIssueDetail, RedmineJournal, RedmineProject
 
 
 def option(value, label, children=()):
@@ -36,8 +37,9 @@ SCHEMA = (
     field("issuetype", "Issue Type", "single", required=True),
     field("summary", "Summary", "text", required=True),
     field("description", "Description", "multiline"),
+    field("customfield_attachment_real", "Attachment links", "text"),
     field("priority", "Priority", "single", required=True, options=(option("2", "P2"),)),
-    field("customfield_12200", "Channel of Reporter", "cascade", required=True, options=(option("10", "Customer-Feedback", (option("11", "None"),)),)),
+    field("customfield_12200", "Channel of Reporter", "cascade", required=True, options=(option("", "None"), option("13251", "Customer-Feedback", (option("", "None"),)), option("13261", "Self-Test"))),
     field("customfield_10109", "Severity", "single", required=True, options=(option("20", "Major"),)),
     field("customfield_10107", "Product", "multi", required=True, options=(option("30", "BDS Reference"),)),
     field("components", "Component/s", "multi", required=True, options=(option("40", "Customization"),)),
@@ -72,6 +74,7 @@ def build(*, issue=REDMINE_BUG, schema=SCHEMA, account="defeng.zhai", department
         schema=schema,
         account=account,
         department=department,
+        prepared_description=render_notes_description(issue.description),
     )
 
 
@@ -83,7 +86,7 @@ def test_clone_draft_prefills_confirmed_mappings_with_current_option_ids(tracker
     assert draft.value("issuetype") == expected_type
     assert draft.value("summary") == REDMINE_BUG.subject
     assert draft.value("priority") == "2"
-    assert draft.value("customfield_12200") == {"parent": "10", "child": "11"}
+    assert draft.value("customfield_12200") == {"parent": "13251", "child": ""}
     assert draft.value("customfield_10109") == "20"
     assert draft.value("customfield_10107") == ["30"]
     assert draft.value("components") == ["40"]
@@ -93,8 +96,9 @@ def test_clone_draft_prefills_confirmed_mappings_with_current_option_ids(tracker
     assert draft.value("customfield_10700") == "fred.chen"
     assert draft.value("customfield_10409") == "defeng.zhai"
     assert draft.value("customfield_11002") == "fred.chen"
-    assert "Redmine #61043" in draft.value("description")
-    assert REDMINE_BUG.url in draft.value("description")
+    assert "[Notes]:\nReproduction steps\nHW info:" in draft.value("description")
+    assert "Source" not in draft.value("description")
+    assert REDMINE_BUG.url not in draft.value("description")
     assert not draft.errors
 
 
@@ -103,12 +107,12 @@ def test_only_exact_fae_sw_prefills_coworker(department):
     assert build(account="hardware.user", department=department).value("customfield_10409") == ""
 
 
-def test_empty_description_keeps_source_identity_and_project_id_uses_metadata():
+def test_empty_description_keeps_empty_notes_and_project_id_uses_metadata():
     draft = build(issue=replace(REDMINE_BUG, description=""))
 
-    assert draft.value("description")
-    assert "Redmine #61043" in draft.value("description")
-    assert REDMINE_BUG.url in draft.value("description")
+    assert "[Notes]:\n\nHW info:" in draft.value("description")
+    assert "Source" not in draft.value("description")
+    assert REDMINE_BUG.url not in draft.value("description")
     assert draft.value("customfield_10407") == ["50"]
 
 
@@ -162,29 +166,76 @@ class PayloadClient:
 
 
 def test_user_edits_replace_initial_values_and_payload_shapes_are_owned_by_create_service():
-    draft = build()
+    draft = build(
+        issue=replace(
+            REDMINE_BUG,
+            attributes={"Board": "A"},
+            comments=(RedmineJournal(id="1", note="customer comment"),),
+        )
+    )
     draft.update("summary", "Edited summary")
     draft.update("customfield_10109", "20")
     draft.update("customfield_10107", ["30"])
-    draft.update("customfield_12200", {"parent": "10", "child": "11"})
+    draft.update("customfield_12200", {"parent": "13251", "child": ""})
     draft.update("customfield_10700", "other.user")
+    draft.update("customfield_attachment_real", "https://edited.example/link")
     request = draft.to_request()
 
     assert request.summary == "Edited summary"
     assert request.source_system == "redmine"
     assert request.source_id == "61043"
     assert request.source_url == REDMINE_BUG.url
+    assert request.extra_fields["customfield_attachment_real"] == "https://edited.example/link"
+    assert "Attachment links" not in request.extra_fields
 
     client = PayloadClient()
     CreateIssueService(client).create_issue(request)
     fields = client.payload["fields"]
+    final_description = fields["description"]
+    assert "[Notes]:\nReproduction steps\nHW info:" in final_description
+    for excluded in (
+        "Source:",
+        "Source ID:",
+        "Source URL:",
+        REDMINE_BUG.url,
+        REDMINE_BUG.subject,
+        "Board",
+        "customer comment",
+    ):
+        assert excluded not in final_description
     assert fields["priority"] == {"id": "2"}
     assert fields["components"] == [{"id": "40"}]
     assert fields["customfield_10109"] == {"id": "20"}
     assert fields["customfield_10107"] == [{"id": "30"}]
-    assert fields["customfield_12200"] == {"id": "10", "child": {"id": "11"}}
+    assert fields["customfield_12200"] == {"id": "13251"}
     assert fields["customfield_10700"] == {"name": "other.user"}
+    assert fields["customfield_attachment_real"] == "https://edited.example/link"
     assert {"clone_external", "source_redmine", "redmine_61043"} <= set(fields["labels"])
+
+
+def test_attachment_links_defaults_to_redmine_identity_url_using_real_schema_field_id():
+    draft = build()
+    assert draft.value("customfield_attachment_real") == REDMINE_BUG.url
+    request = draft.to_request()
+    assert request.source_url == REDMINE_BUG.url
+    assert request.extra_fields == {**request.extra_fields, "customfield_attachment_real": REDMINE_BUG.url}
+
+
+def test_channel_child_can_select_reason_then_return_to_empty_none_value():
+    channel_schema = tuple(
+        replace(
+            item,
+            options=(option("13251", "Customer-Feedback", (option("", "None"), option("reason1", "Reason 1"))),),
+        ) if item.name == "Channel of Reporter" else item
+        for item in SCHEMA
+    )
+    draft = build(schema=channel_schema)
+    assert draft.value("customfield_12200") == {"parent": "13251", "child": ""}
+    draft.update("customfield_12200", {"parent": "13251", "child": "reason1"})
+    assert not draft.errors
+    draft.update("customfield_12200", {"parent": "13251", "child": ""})
+    assert draft.value("customfield_12200") == {"parent": "13251", "child": ""}
+    assert not draft.errors
 
 
 def test_existing_clone_entrypoint_accepts_reviewed_draft_without_losing_source_identity():

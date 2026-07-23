@@ -25,12 +25,13 @@ def view(
         "project": str(source_filters.get("project", "") or ""),
         "status": str(source_filters.get("status", "") or ""),
         "type": str(source_filters.get("type", "") or ""),
+        "subject": str(source_filters.get("subject", "") or ""),
         "text": str(source_filters.get("text", "") or ""),
     }
     projects = [project for project in context.projects if project.project_id]
     analysis = dict(context.raw.get("issue_analysis") or {})
     policy = OverduePolicy()
-    rows = [issue_row(project, issue, analysis.get(issue.id)) for project in projects for issue in project.issues if _monitored(issue, analysis.get(issue.id) or {}, policy) and _match(project, issue, filters)]
+    rows = [issue_row(project, issue, analysis.get(issue.id)) for project in projects for issue in project.issues if _monitored(issue, analysis.get(issue.id) or {}, policy)]
     selected = detail_row(selected_detail, project=context.project_for_detail(selected_detail)) if selected_detail else (rows[0] if rows else {})
     selected_id = str(selected.get("id") or selected.get("key") or "")
     payload = asdict(context)
@@ -146,19 +147,6 @@ def detail_row(issue: RedmineIssueDetail | None = None, *, item: RedmineIssueLis
     }
 
 
-def _match(project: RedmineProject, issue: RedmineIssueListItem, filters: dict[str, str]) -> bool:
-    wanted_project = filters.get("project", "")
-    wanted_status = filters.get("status", "")
-    wanted_type = filters.get("type", "")
-    text = filters.get("text", "").lower()
-    return (
-        (not wanted_project or wanted_project in {_project_label(project), project.name, project.identifier, project.project_id})
-        and (not wanted_status or _status_matches(issue.status, wanted_status))
-        and (not wanted_type or issue.tracker == wanted_type)
-        and (not text or text in " ".join([issue.id, issue.subject, issue.status, issue.priority, issue.assignee, issue.category, project.name, project.project_id]).lower())
-    )
-
-
 def _monitored(issue: RedmineIssueListItem, analysis: dict[str, Any], policy: OverduePolicy) -> bool:
     tracker = str(issue.tracker or "").strip().casefold()
     status = str(issue.status or "").strip().casefold()
@@ -178,16 +166,6 @@ def _monitored(issue: RedmineIssueListItem, analysis: dict[str, Any], policy: Ov
 
 def _project_label(project: RedmineProject) -> str:
     return f"{project.name} [{project.project_id}]" if project.project_id else project.name
-
-
-def _status_matches(status: str, wanted: str) -> bool:
-    normalized = str(status or "").strip().lower()
-    wanted_normalized = str(wanted or "").strip().lower()
-    if wanted_normalized == "open":
-        return normalized not in {"closed"}
-    if wanted_normalized == "closed":
-        return normalized == "closed"
-    return status == wanted
 
 
 def _attr(attrs: dict[str, Any], *names: str) -> str:

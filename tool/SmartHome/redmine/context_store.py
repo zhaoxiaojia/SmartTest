@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -9,6 +12,9 @@ from typing import Any
 from PySide6.QtCore import QStandardPaths
 
 from tool.SmartHome.redmine.view_model import empty_view
+
+
+_CACHE_LOCK = threading.RLock()
 
 
 def cache_path(account: str) -> Path:
@@ -20,12 +26,40 @@ def cache_path(account: str) -> Path:
 
 def load_view_payload(account: str) -> dict[str, Any] | None:
     path = cache_path(account)
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return None
+    with _CACHE_LOCK:
+        if not path.exists():
+            return None
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            return payload if isinstance(payload, dict) else None
+        except (OSError, json.JSONDecodeError):
+            return None
+
+
+def _update_payload(account: str, update) -> Path:
+    path = cache_path(account)
+    with _CACHE_LOCK:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = load_view_payload(account) or {}
+        update(payload)
+        handle, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+        try:
+            with os.fdopen(handle, "w", encoding="utf-8") as stream:
+                json.dump(payload, stream, ensure_ascii=False, indent=2)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary_name, path)
+        except Exception:
+            try:
+                os.close(handle)
+            except OSError:
+                pass
+            try:
+                os.unlink(temporary_name)
+            except OSError:
+                pass
+            raise
+    return path
 
 
 def _view_from_payload(payload: dict[str, Any] | None, *, all_projects: str, all_statuses: str) -> dict[str, Any] | None:
@@ -51,11 +85,8 @@ def load_view(account: str, *, all_projects: str, all_statuses: str) -> dict[str
 
 
 def save_view(account: str, view: dict[str, Any]) -> Path:
-    path = cache_path(account)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    existing = load_view_payload(account) or {}
-    payload = {
-        **existing,
+    def update(payload):
+        payload.update({
         "version": 1,
         "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "context": view.get("context_payload", {}),
@@ -66,9 +97,8 @@ def save_view(account: str, view: dict[str, Any]) -> Path:
         "issueRows": view.get("issueRows", []),
         "selectedIssue": view.get("selectedIssue", {}),
         "actionableIssues": view.get("actionableIssues", []),
-    }
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    return path
+        })
+    return _update_payload(account, update)
 
 
 def load_quick_view(account: str, quick_view_id: str, *, all_projects: str, all_statuses: str) -> dict[str, Any] | None:
@@ -81,11 +111,9 @@ def load_quick_view(account: str, quick_view_id: str, *, all_projects: str, all_
 
 
 def save_quick_view(account: str, quick_view_id: str, view: dict[str, Any]) -> Path:
-    path = cache_path(account)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = load_view_payload(account) or {}
-    quick_views = dict(payload.get("quickViews") or {})
-    quick_views[quick_view_id] = {
+    def update(payload):
+        quick_views = dict(payload.get("quickViews") or {})
+        quick_views[quick_view_id] = {
         "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "context": view.get("context_payload", {}),
         "filters": view.get("filters", {}),
@@ -95,10 +123,9 @@ def save_quick_view(account: str, quick_view_id: str, view: dict[str, Any]) -> P
         "issueRows": view.get("issueRows", []),
         "selectedIssue": view.get("selectedIssue", {}),
         "actionableIssues": view.get("actionableIssues", []),
-    }
-    payload["quickViews"] = quick_views
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    return path
+        }
+        payload["quickViews"] = quick_views
+    return _update_payload(account, update)
 
 
 def load_project_options(account: str) -> list[dict[str, Any]]:
@@ -107,15 +134,23 @@ def load_project_options(account: str) -> list[dict[str, Any]]:
 
 
 def save_project_options(account: str, options: list[dict[str, Any]]) -> Path:
-    path = cache_path(account)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = load_view_payload(account) or {}
-    payload["projectOptions"] = [dict(option) for option in options if isinstance(option, dict)]
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    return path
+    def update(payload):
+        payload["projectOptions"] = [dict(option) for option in options if isinstance(option, dict)]
+    return _update_payload(account, update)
 
 
 def load_filters(account: str) -> dict[str, str]:
     payload = load_view_payload(account) or {}
     filters = dict(payload.get("filters") or (payload.get("context") or {}).get("filters") or {})
-    return {key: str(filters.get(key, "") or "") for key in ("project", "status", "type", "text")}
+    return {key: str(filters.get(key, "") or "") for key in ("project", "status", "type", "subject", "text")}
+
+
+def load_watched_issue_ids(account: str) -> list[str]:
+    payload = load_view_payload(account) or {}
+    return [str(value) for value in payload.get("watchedIssueIds") or [] if str(value).strip()]
+
+
+def save_watched_issue_ids(account: str, issue_ids: list[str]) -> Path:
+    def update(payload):
+        payload["watchedIssueIds"] = list(dict.fromkeys(str(value).strip() for value in issue_ids if str(value).strip()))
+    return _update_payload(account, update)

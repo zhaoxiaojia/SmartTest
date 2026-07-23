@@ -45,6 +45,17 @@ tmp_boot_video_debug/
 testing/self_tests/
 !testing/self_tests/
 testing/self_tests/*
+!testing/self_tests/support/
+testing/self_tests/support/*
+!testing/self_tests/support/ai/
+testing/self_tests/support/ai/*
+!testing/self_tests/support/ai/*.py
+!testing/self_tests/support/test_jira_attachment_*.py
+!testing/self_tests/tool/
+!testing/self_tests/tool/smarthome/
+!testing/self_tests/tool/smarthome/redmine/
+testing/self_tests/tool/smarthome/redmine/*
+!testing/self_tests/tool/smarthome/redmine/test_query.py
 !testing/self_tests/ui/
 testing/self_tests/ui/*
 !testing/self_tests/ui/test_auth_bridge_profile.py

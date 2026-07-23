@@ -15,6 +15,7 @@
         <file>example/qml/component/redmine/RedmineWorkspace.qml</file>
         <file>example/qml/component/issue/JiraIssueBrowserLayout.qml</file>
         <file>example/qml/component/issue/JiraCreateField.qml</file>
+        <file>example/qml/component/issue/JiraOptionMultiPicker.qml</file>
         <file>example/qml/component/issue/JiraCreateDraftCard.qml</file>
         <file>example/qml/component/issue/JiraCreateBatchDialog.qml</file>
         <file>example/qml/component/issue/JiraIssueDetailLayout.qml</file>

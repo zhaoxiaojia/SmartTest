@@ -9,6 +9,7 @@ from support.jira_integration.core.create_schema import (
     CreateFieldSchema,
 )
 from support.jira_integration.core.models import CreateIssueRequest
+from support.jira_integration.core.third_party_bug import ThirdPartyBugAttachment
 from tool.SmartHome.redmine.mapping import redmine_tracker_to_jira_type
 from tool.SmartHome.redmine.models import RedmineIssueDetail, RedmineProject
 
@@ -36,6 +37,7 @@ class CloneDraft:
     source_id: str
     source_url: str
     fields: tuple[CloneDraftField, ...]
+    source_attachments: tuple[ThirdPartyBugAttachment, ...] = ()
 
     @property
     def id(self) -> str:
@@ -96,6 +98,7 @@ class CloneDraft:
             source_system="redmine",
             source_id=self.source_id,
             source_url=self.source_url,
+            description_includes_source_identity=True,
             extra_fields=extra_fields,
             field_controls=controls,
         )
@@ -112,6 +115,7 @@ class RedmineCloneDraftService:
         schema: Iterable[CreateFieldSchema],
         account: str,
         department: str,
+        prepared_description: str,
     ) -> CloneDraft:
         fields = tuple(
             _draft_field(
@@ -120,10 +124,16 @@ class RedmineCloneDraftService:
                 project=project,
                 account=str(account or "").strip(),
                 department=str(department or "").strip(),
+                prepared_description=str(prepared_description or ""),
             )
             for item in schema
         )
-        return CloneDraft(source_id=issue.id, source_url=issue.url, fields=fields)
+        return CloneDraft(
+            source_id=issue.id,
+            source_url=issue.url,
+            fields=fields,
+            source_attachments=issue.attachments,
+        )
 
 
 def _draft_field(
@@ -133,6 +143,7 @@ def _draft_field(
     project: RedmineProject,
     account: str,
     department: str,
+    prepared_description: str,
 ) -> CloneDraftField:
     initial = _initial_value(
         schema,
@@ -140,6 +151,7 @@ def _draft_field(
         project=project,
         account=account,
         department=department,
+        prepared_description=prepared_description,
     )
     value, option_error = _resolve_options(schema, initial)
     error = option_error or _validate_value(schema, value)
@@ -153,6 +165,7 @@ def _initial_value(
     project: RedmineProject,
     account: str,
     department: str,
+    prepared_description: str,
 ) -> Any:
     field_id = schema.field_id
     name = schema.name.strip().casefold()
@@ -163,13 +176,15 @@ def _initial_value(
     if field_id == "summary" or name == "summary":
         return issue.subject
     if field_id == "description" or name == "description":
-        return _source_description(issue)
+        return prepared_description
+    if name == "attachment links":
+        return issue.url
     if field_id == "priority" or name == "priority":
         return "P2"
     if field_id == "components" or name in {"component/s", "components"}:
         return ["Customization"]
     if name == "channel of reporter":
-        return {"parent": "Customer-Feedback", "child": "None"}
+        return {"parent": "Customer-Feedback", "child": ""}
     if name == "severity":
         return "Major"
     if name == "product":
@@ -189,12 +204,6 @@ def _initial_value(
     if schema.control == CreateFieldControl.CASCADE:
         return {}
     return ""
-
-
-def _source_description(issue: RedmineIssueDetail) -> str:
-    source = f"Redmine #{issue.id}\n{issue.url}".strip()
-    description = str(issue.description or "").strip()
-    return f"{description}\n\n{source}".strip() if description else source
 
 
 def _resolve_options(schema: CreateFieldSchema, initial: Any) -> tuple[Any, str]:

@@ -9,13 +9,18 @@ import ssl
 from threading import local
 import time
 from typing import Any
+from uuid import uuid4
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin
 from urllib.request import HTTPSHandler, Request, build_opener
 
 from support.jira_integration.auth.basic import JiraBasicAuth
 from support.jira_integration.core.errors import JiraConfigurationError, JiraRequestError
-from support.jira_integration.core.models import JiraFieldMetadata, SearchPage
+from support.jira_integration.core.models import (
+    CreateIssueAttachment,
+    JiraFieldMetadata,
+    SearchPage,
+)
 
 
 @dataclass(frozen=True)
@@ -168,6 +173,38 @@ class JiraClient:
         data = response.data
         return data if isinstance(data, dict) else {}
 
+    def list_attachments(self, issue_key: str) -> list[dict[str, Any]]:
+        issue = self.fetch_issue(issue_key, fields=["attachment"])
+        fields = issue.get("fields") if isinstance(issue, dict) else {}
+        attachments = fields.get("attachment") if isinstance(fields, dict) else []
+        return [item for item in attachments or [] if isinstance(item, dict)]
+
+    def upload_attachment(
+        self,
+        issue_key: str,
+        attachment: CreateIssueAttachment,
+    ) -> dict[str, Any]:
+        boundary = f"SmartTest-{uuid4().hex}"
+        filename = attachment.filename.replace("\\", "\\\\").replace('"', '\\"')
+        body = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+            "Content-Type: application/octet-stream\r\n\r\n"
+        ).encode("utf-8") + attachment.data + f"\r\n--{boundary}--\r\n".encode("ascii")
+        response = self._request(
+            "POST",
+            self._api_path(f"issue/{issue_key}/attachments"),
+            data=body,
+            headers={
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+                "X-Atlassian-Token": "no-check",
+            },
+        )
+        payload = response.data
+        if isinstance(payload, list) and payload and isinstance(payload[0], dict):
+            return payload[0]
+        return payload if isinstance(payload, dict) else {}
+
     def fetch_create_metadata(self, project_key: str, issue_type: str) -> dict[str, Any]:
         response = self._request(
             "GET",
@@ -193,6 +230,11 @@ class JiraClient:
         )
         users = response.data if isinstance(response.data, list) else []
         return [_public_user(item) for item in users if isinstance(item, dict)]
+
+    def current_user(self) -> dict[str, str]:
+        response = self._request("GET", self._api_path("myself"))
+        payload = response.data if isinstance(response.data, dict) else {}
+        return _public_user(payload)
 
     def fetch_fields_metadata(self) -> list[JiraFieldMetadata]:
         response = self._request("GET", self._api_path("field"))
@@ -239,6 +281,8 @@ class JiraClient:
         *,
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
+        data: bytes | None = None,
+        headers: dict[str, str] | None = None,
     ) -> "_HttpResponse":
         started_at = time.monotonic()
         if params:
@@ -246,16 +290,17 @@ class JiraClient:
             separator = "&" if "?" in url else "?"
             url = f"{url}{separator}{query}"
 
-        body = None
-        headers = {
+        body = data
+        request_headers = {
             "Accept": "application/json",
             "Authorization": self._auth.authorization_header(),
         }
+        request_headers.update(headers or {})
         if json is not None:
             body = self._encode_json(json)
-            headers["Content-Type"] = "application/json"
+            request_headers["Content-Type"] = "application/json"
 
-        request = Request(url=url, data=body, method=method.upper(), headers=headers)
+        request = Request(url=url, data=body, method=method.upper(), headers=request_headers)
         opener = self._opener()
         _trace_request("request_start", method=method.upper(), url=url)
         try:

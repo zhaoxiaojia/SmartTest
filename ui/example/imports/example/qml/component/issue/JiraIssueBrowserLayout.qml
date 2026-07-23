@@ -20,6 +20,8 @@ Item {
     property bool issueListCollapsed: false
     property var quickViews: []
     property string activeQuickViewId: ""
+    property string watchedIssueText: ""
+    property string watchedIssueError: ""
     property var projectOptions: []
     property bool projectsLoading: false
     property bool projectsReady: true
@@ -32,6 +34,7 @@ Item {
 
     signal searchRequested(var filters)
     signal quickViewRequested(string quickViewId)
+    signal watchedIssueIdsSaved(string text)
     signal cancelSearchRequested()
     signal issueSelected(var issue)
     signal openIssueRequested(string issueKey, string webUrl)
@@ -148,6 +151,7 @@ Item {
         statusFilter.currentIndex = Math.max(0, statusIndex)
         typeFilter.currentIndex = Math.max(0, typeIndex)
         textFilter.text = root.filters.text || ""
+        subjectFilter.text = root.filters.subject || ""
     }
 
     onFiltersChanged: Qt.callLater(applyFilterState)
@@ -191,6 +195,7 @@ Item {
                     }
                     FluComboBox { id: statusFilter; Layout.preferredWidth: 140; model: safeCount(root.statusFilters) ? root.statusFilters : [qsTr("All statuses")] }
                     FluComboBox { id: typeFilter; Layout.preferredWidth: 130; model: safeCount(root.typeFilters) ? root.typeFilters : [qsTr("All types")] }
+                    FluTextBox { id: subjectFilter; Layout.preferredWidth: 180; placeholderText: qsTr("Subject") }
                     FluTextBox { id: textFilter; Layout.fillWidth: true; placeholderText: qsTr("Contains text") }
                     FluFilledButton {
                         text: qsTr("Search")
@@ -199,9 +204,17 @@ Item {
                             "project": root.selectedProjectId(),
                             "status": statusFilter.currentText,
                             "type": typeFilter.currentText,
+                            "subject": subjectFilter.text,
                             "text": textFilter.text
                         })
                     }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: root.activeQuickViewId === "watched"
+                    FluTextBox { id: watchedIds; Layout.fillWidth: true; text: root.watchedIssueText; placeholderText: qsTr("Watched issue IDs") }
+                    FluFilledButton { text: qsTr("Save watched IDs"); onClicked: root.watchedIssueIdsSaved(watchedIds.text) }
+                    FluText { visible: root.watchedIssueError.length > 0; text: root.watchedIssueError; color: "#D13438"; wrapMode: Text.Wrap }
                 }
             }
         }

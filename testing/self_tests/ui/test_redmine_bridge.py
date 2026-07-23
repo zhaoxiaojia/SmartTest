@@ -5,12 +5,101 @@ from pathlib import Path
 from PySide6.QtCore import QCoreApplication, QObject, Signal
 
 from tool.SmartHome.redmine.models import AuthResult, AuthState
-from support.jira_integration.core.create_schema import CreateFieldControl, CreateFieldSchema
+from support.jira_integration.core.create_schema import CreateFieldControl, CreateFieldOption, CreateFieldSchema
 from support.jira_integration.core.models import CreateIssueResult, ExistingIssue
 from tool.SmartHome.redmine.clone_draft import RedmineCloneDraftService
-from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineProject
-from ui.example.bridge.RedmineBridge import RedmineBridge, _AsyncLoopWorker
+from tool.SmartHome.redmine.models import RedmineAttachment, RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineJournal, RedmineProject
+from ui.example.bridge.RedmineBridge import RedmineBridge, _AsyncLoopWorker, _download_redmine_attachments, _my_assigned_projects, _native_query, _reconcile_project_ids
 from ui.example.bridge.ToolBridge import build_tool_groups
+
+
+def test_bridge_resolves_tracker_label_through_native_metadata():
+    class Collector:
+        async def collect_filter_metadata(self, *, project=""):
+            assert project == "p"
+            return {"Bug": "1", "Support": "3"}
+    query = asyncio.run(_native_query(Collector(), {"project": "p", "status": "Open", "type": "Bug"}))
+    params = query.branches()[0].params(1, 100)
+    assert ("op[status_id]", "o") in params
+    assert ("v[tracker_id][]", "1") in params
+    assert not any(value == "Bug" for _key, value in params)
+
+
+def test_bridge_rejects_unknown_tracker_label_without_sending_it_as_id():
+    import pytest
+    class Collector:
+        async def collect_filter_metadata(self, *, project=""):
+            return {"Bug": "1"}
+    with pytest.raises(ValueError, match="unavailable"):
+        asyncio.run(_native_query(Collector(), {"type": "Support"}))
+
+
+def test_native_query_projects_use_only_synced_business_project_ids_for_clone_mapping():
+    known_issue = RedmineIssueListItem(id="1", url="u1", tracker="Bug", subject="known")
+    unknown_issue = RedmineIssueListItem(id="2", url="u2", tracker="Bug", subject="unknown")
+    context = RedmineContext(projects=(
+        RedmineProject(name="Known", identifier="known", url="p1", project_id="", issues=(known_issue,)),
+        RedmineProject(name="Unknown", identifier="unknown", url="p2", project_id="", issues=(unknown_issue,)),
+    ))
+    reconciled = _reconcile_project_ids(context, [{"id": "known", "projectId": "REAL-PID"}])
+    assert [project.project_id for project in reconciled.projects] == ["REAL-PID", ""]
+
+
+def test_watched_all_syntactically_invalid_preserves_old_state_without_network(monkeypatch):
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._account = "alice"
+    bridge._watched_issue_text = "60371"
+    bridge._view = {**bridge._view, "issueRows": [{"id": "60371"}]}
+    launched = []
+    monkeypatch.setattr(bridge, "_launch_watched_query", lambda *args, **kwargs: launched.append((args, kwargs)))
+    bridge.saveWatchedIssueIds("6037l")
+    assert launched == []
+    assert bridge.watchedIssueText == "6037l"
+    assert "6037l" in bridge.watchedIssueError
+    assert bridge.issueRows == [{"id": "60371"}]
+    bridge.close()
+
+
+def test_watched_mixed_tokens_queries_numeric_candidates_and_keeps_token_order(monkeypatch):
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._account = "alice"
+    launched = []
+    monkeypatch.setattr(bridge, "_load_quick_view_cache", lambda *_args: None)
+    monkeypatch.setattr(bridge, "_launch_watched_query", lambda ids, **kwargs: launched.append((tuple(ids), kwargs)))
+    bridge.saveWatchedIssueIds("60371 abc 999999")
+    assert launched == [(('60371', '999999'), {'validate': True, 'submitted_terms': ('60371', 'abc', '999999')})]
+    assert bridge.watchedIssueText == "60371 abc 999999"
+    bridge.close()
+
+
+def test_watched_mixed_result_saves_valid_numeric_and_reports_all_invalid_in_input_order(monkeypatch):
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._account = "alice"
+    bridge._data_generation = 4
+    bridge._data_loading = True
+    bridge._data_operation_kind = "watched"
+    issue = RedmineIssueListItem(id="60371", url="u", tracker="Bug", status="New", subject="valid")
+    context = RedmineContext(projects=(RedmineProject(name="P", identifier="p", url="p", project_id="PID", issues=(issue,)),))
+    saved = []
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.save_watched_issue_ids", lambda _account, ids: saved.append(ids))
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.save_quick_view", lambda *_args: None)
+    bridge._apply_data(4, (context, "", None, {}, {}, ("60371", "999999"), ("60371", "abc", "999999"), True))
+    assert saved == [["60371"]]
+    assert bridge.watchedIssueText == "60371"
+    assert bridge.watchedIssueError.endswith("abc, 999999")
+    bridge.close()
+
+
+def test_watched_only_separators_clears_saved_ids(monkeypatch):
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._account = "alice"
+    saved = []
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.save_watched_issue_ids", lambda _account, ids: saved.append(ids))
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.save_quick_view", lambda *_args: None)
+    bridge.saveWatchedIssueIds(" ,，；; \n")
+    assert saved == [[]]
+    assert bridge.watchedIssueText == "" and bridge.issueRows == []
+    bridge.close()
 
 
 class FakeAuth(QObject):
@@ -188,9 +277,11 @@ CLONE_SCHEMA = (
     CreateFieldSchema("project", "Project", True, CreateFieldControl.SINGLE, value="SH"),
     CreateFieldSchema("issuetype", "Issue Type", True, CreateFieldControl.SINGLE, value="Bug"),
     CreateFieldSchema("summary", "Summary", True, CreateFieldControl.TEXT),
-    CreateFieldSchema("description", "Description", False, CreateFieldControl.MULTILINE),
-    CreateFieldSchema("reporter", "Reporter", False, CreateFieldControl.USER),
-    CreateFieldSchema("customfield_10409", "FAE Coworker", False, CreateFieldControl.USER),
+    CreateFieldSchema("description", "Description", True, CreateFieldControl.MULTILINE),
+    CreateFieldSchema("reporter", "Reporter", True, CreateFieldControl.USER),
+    CreateFieldSchema("customfield_10409", "FAE Coworker", True, CreateFieldControl.USER),
+    CreateFieldSchema("labels", "Labels", False, CreateFieldControl.MULTI),
+    CreateFieldSchema("customfield_attachment_real", "Attachment links", False, CreateFieldControl.TEXT),
 )
 
 
@@ -198,6 +289,11 @@ class CloneJiraClient:
     def __init__(self, account="defeng.zhai"):
         self.account = account
         self.search_calls = []
+        self.current_user_calls = 0
+
+    def current_user(self):
+        self.current_user_calls += 1
+        return {"account": self.account, "display_name": "Current User", "avatar_url": "avatar"}
 
     def search_users(self, query, *, project_key="SH"):
         self.search_calls.append((query, project_key))
@@ -218,6 +314,7 @@ class CloneCreateService:
     def __init__(self):
         self.rechecks = []
         self.creates = []
+        self.requests = []
         self.duplicates = {}
         self.fail_once = set()
 
@@ -227,6 +324,7 @@ class CloneCreateService:
 
     def create_issue(self, request):
         self.creates.append(request.source_id)
+        self.requests.append(request)
         if request.source_id in self.fail_once:
             self.fail_once.remove(request.source_id)
             raise RuntimeError(f"failed {request.source_id}")
@@ -235,6 +333,9 @@ class CloneCreateService:
             issue_key=f"SH-{request.source_id}",
             issue_url=f"https://jira/browse/SH-{request.source_id}",
         )
+
+    def sync_attachments(self, issue_key, attachments):
+        return ()
 
 
 class RecordingDraftService:
@@ -285,10 +386,193 @@ def test_prepare_clone_drafts_has_no_create_calls_and_uses_identity_department_a
     assert "loading" in states and states[-1] == "editing"
     assert bridge._jira_create_service.creates == []
     assert [item["issueId"] for item in bridge.cloneDrafts] == ["2", "1"]
-    assert [item["fieldId"] for item in bridge.cloneDrafts[0]["fields"]] == [item.field_id for item in CLONE_SCHEMA]
+    assert [item["fieldId"] for item in bridge.cloneDrafts[0]["fields"]] == [
+        item.field_id for item in CLONE_SCHEMA
+        if item.required or item.field_id == "priority" or item.name.casefold() == "attachment links"
+    ]
     assert bridge._draft_service.calls[0]["account"] == "defeng.zhai"
     assert bridge._draft_service.calls[0]["department"] == "FAE-SW"
     assert bridge.cloneDrafts[0]["fields"][4]["value"] == "defeng.zhai"
+    assert bridge._jira_client.current_user_calls == 1
+    assert bridge._jira_client.search_calls == []
+    bridge.close()
+
+
+def test_prepare_clone_uses_deterministic_jira_template_without_ai():
+    bridge = clone_bridge()
+    detail = bridge._view["context"].issues[0]
+    enriched_detail = RedmineIssueDetail(
+        id=detail.id,
+        url=detail.url,
+        project_identifier=detail.project_identifier,
+        tracker=detail.tracker,
+        subject=detail.subject,
+        description=detail.description,
+        attributes={"Board": "A", "Version": "1.0"},
+        comments=(RedmineJournal(id="j1", header="Updated by Alice", note="复现评论", details=("Status changed", "补充信息")),),
+        list_item=detail.list_item,
+    )
+    bridge._view["context"] = RedmineContext(
+        account=bridge._view["context"].account,
+        projects=bridge._view["context"].projects,
+        issues=(enriched_detail,),
+    )
+    assert not hasattr(bridge, "_description_service")
+    bridge.prepareCloneDrafts(); wait_for(lambda: bridge.cloneBatchState == "editing")
+    description = next(
+        item
+        for item in bridge.cloneDrafts[0]["fields"]
+        if item["fieldId"] == "description"
+    )["value"]
+    assert description.startswith("[Steps to reproduce]:")
+    assert "[Actual results]:" in description
+    assert "[Expected results]:" in description
+    assert "[Reproducibility rate]:" in description
+    assert "[Comparision]:" in description
+    assert "[Notes]:" in description
+    assert "HW info:" in description
+    assert "SW info:" in description
+    assert "[Notes]:\ndesc\nHW info:" in description
+    for excluded in (
+        "Source:",
+        "Source ID:",
+        "Source URL:",
+        "Title:",
+        "Board:",
+        "Version:",
+        "Updated by Alice",
+        "复现评论",
+        "Status changed",
+        "补充信息",
+    ):
+        assert excluded not in description
+    bridge.close()
+
+
+def test_authenticated_redmine_attachment_download_returns_hidden_jira_data():
+    class Response:
+        ok = True
+        status = 200
+
+        async def body(self):
+            return b"downloaded"
+
+    class Request:
+        def __init__(self):
+            self.urls = []
+
+        async def get(self, url):
+            self.urls.append(url)
+            return Response()
+
+    class Page:
+        request = Request()
+
+    attachment = RedmineAttachment(
+        id="1",
+        filename="trace.log",
+        download_url="https://redmine/attachments/download/1/trace.log",
+    )
+    result = asyncio.run(_download_redmine_attachments(Page(), (attachment,)))
+    assert Page.request.urls == [attachment.download_url]
+    assert [(item.filename, item.data, item.size) for item in result] == [
+        ("trace.log", b"downloaded", 10)
+    ]
+
+
+def test_submit_downloads_attachment_through_authenticated_page_and_hands_off_bytes():
+    class Response:
+        ok = True
+        status = 200
+
+        async def body(self):
+            return b"jira attachment"
+
+    class Request:
+        async def get(self, url):
+            assert url.endswith("/trace.log")
+            return Response()
+
+    class Page:
+        request = Request()
+
+    bridge = clone_bridge()
+    bridge._service = type("Service", (), {"page": Page()})()
+    detail = bridge._view["context"].issues[0]
+    bridge._view["context"] = RedmineContext(
+        account=bridge._view["context"].account,
+        projects=bridge._view["context"].projects,
+        issues=(
+            RedmineIssueDetail(
+                **{
+                    **detail.__dict__,
+                    "attachments": (
+                        RedmineAttachment(
+                            id="1",
+                            filename="trace.log",
+                            download_url="https://redmine/download/trace.log",
+                        ),
+                    ),
+                }
+            ),
+        ),
+    )
+    bridge.prepareCloneDrafts()
+    wait_for(lambda: bridge.cloneBatchState == "editing")
+    bridge.submitCloneBatch()
+    wait_for(lambda: bridge.cloneBatchState == "completed")
+
+    attachment = bridge._jira_create_service.requests[0].attachments[0]
+    assert (attachment.filename, attachment.data) == (
+        "trace.log",
+        b"jira attachment",
+    )
+    assert "attachments" not in bridge.cloneDrafts[0]
+    bridge.close()
+
+
+def test_clone_editor_exposes_required_fields_and_priority_but_hides_optional_extras():
+    bridge = clone_bridge()
+    bridge.prepareCloneDrafts()
+    wait_for(lambda: bridge.cloneBatchState == "editing")
+
+    field_ids = [item["fieldId"] for item in bridge.cloneDrafts[0]["fields"]]
+    assert "labels" not in field_ids
+    assert "customfield_attachment_real" in field_ids
+    assert field_ids == [
+        item.field_id for item in CLONE_SCHEMA
+        if item.required or item.field_id == "priority" or item.name.casefold() == "attachment links"
+    ]
+    bridge.close()
+
+
+def test_prepare_clone_fails_when_attachment_links_schema_field_is_missing():
+    schema = tuple(item for item in CLONE_SCHEMA if item.name.casefold() != "attachment links")
+    bridge = clone_bridge(schema=schema)
+    bridge.prepareCloneDrafts()
+    wait_for(lambda: bridge.cloneBatchState == "prepare_failed")
+    assert "Attachment links" in bridge.cloneBatchError
+    assert bridge.cloneDrafts == []
+    bridge.close()
+
+
+def test_prepare_failure_keeps_zero_drafts_out_of_editing_and_can_retry():
+    bridge = clone_bridge()
+    original = bridge._jira_client.current_user
+    bridge._jira_client.current_user = lambda: (_ for _ in ()).throw(RuntimeError("Jira identity unavailable"))
+
+    bridge.prepareCloneDrafts()
+    wait_for(lambda: bridge.cloneBatchState == "prepare_failed")
+
+    assert bridge.cloneDrafts == []
+    assert bridge.cloneBatchError == "Jira identity unavailable"
+    bridge.submitCloneBatch()
+    assert bridge._jira_create_service.creates == []
+
+    bridge._jira_client.current_user = original
+    bridge.prepareCloneDrafts()
+    wait_for(lambda: bridge.cloneBatchState == "editing")
+    assert len(bridge.cloneDrafts) == 1
     bridge.close()
 
 
@@ -329,6 +613,18 @@ def test_submit_continues_updates_clone_owner_and_retry_sends_failed_only():
     bridge.close()
 
 
+def test_attachment_link_edit_changes_payload_but_duplicate_identity_stays_fixed_source_url():
+    bridge = clone_bridge()
+    creator = bridge._jira_create_service
+    bridge.prepareCloneDrafts(); wait_for(lambda: bridge.cloneBatchState == "editing")
+    bridge.updateCloneDraft("1", "customfield_attachment_real", "https://edited.example/link")
+    bridge.submitCloneBatch(); wait_for(lambda: bridge.cloneBatchState == "completed")
+    assert creator.rechecks == [("SH", "https://redmine/issues/1")]
+    assert creator.requests[0].source_url == "https://redmine/issues/1"
+    assert creator.requests[0].extra_fields["customfield_attachment_real"] == "https://edited.example/link"
+    bridge.close()
+
+
 def test_clone_account_and_user_search_generations_reject_late_results():
     bridge = clone_bridge()
     bridge.prepareCloneDrafts(); wait_for(lambda: bridge.cloneBatchState == "editing")
@@ -348,7 +644,7 @@ def test_clone_account_and_user_search_generations_reject_late_results():
     bridge.close()
 
 
-def test_clone_batch_close_cancels_loading_but_not_submission():
+def test_clone_batch_close_returns_loading_preview_to_selection_but_not_submission():
     class Pending:
         def __init__(self): self.cancelled = False
         def cancel(self): self.cancelled = True
@@ -357,8 +653,10 @@ def test_clone_batch_close_cancels_loading_but_not_submission():
     pending = Pending()
     bridge._clone_future = pending
     bridge._clone_batch_state = "loading"
+    bridge._clone_selected_ids = ["1"]
     bridge.closeCloneBatch()
-    assert pending.cancelled and bridge.cloneBatchState == "idle"
+    assert pending.cancelled and bridge.cloneBatchState == "selecting"
+    assert bridge.cloneSelectedIds == ["1"]
 
     bridge._clone_batch_state = "submitting"
     bridge.closeCloneBatch()
@@ -482,6 +780,154 @@ def test_my_assigned_uses_unified_issue_operation_and_is_not_search_cancellable(
     bridge._data_loading = True; bridge._data_operation_kind = "my_assigned"; bridge._data_future = object()
     assert bridge.searchLoading is False and bridge.searchCanCancel is False
     bridge._data_future = None
+    bridge.close()
+
+
+def test_my_assigned_projects_reuse_synced_project_id_and_leave_unknown_empty():
+    from ui.example.bridge.RedmineBridge import _my_assigned_projects
+    known = RedmineIssueListItem(id="1", url="u1", subject="known")
+    unknown = RedmineIssueListItem(id="2", url="u2", subject="unknown")
+    rows = [
+        {"project_identifier": "an40bf", "project_name": "AN40BF", "project_url": "p1", "issue": known},
+        {"project_identifier": "new-project", "project_name": "New", "project_url": "p2", "issue": unknown},
+    ]
+
+    projects = _my_assigned_projects(
+        rows,
+        [{"id": "an40bf", "label": "AN40BF", "projectId": "AN40BF-A311D2"}],
+    )
+
+    assert projects[0].identifier == "an40bf"
+    assert projects[0].project_id == "AN40BF-A311D2"
+    assert projects[1].identifier == "new-project"
+    assert projects[1].project_id == ""
+    legacy = _my_assigned_projects(rows[:1], [{"id": "an40bf", "label": "AN40BF"}])
+    assert legacy[0].project_id == ""
+
+    draft = RedmineCloneDraftService().build(
+        issue=RedmineIssueDetail(id="1", url="u1", project_identifier="an40bf", subject="known", list_item=known),
+        project=projects[0],
+        schema=(CreateFieldSchema(
+            "customfield_project", "Project ID", True, CreateFieldControl.MULTI,
+            options=(CreateFieldOption("pid", "AN40BF-A311D2"),),
+        ),),
+        account="subing.xu",
+        department="FAE-SW",
+        prepared_description="prepared description",
+    )
+    assert draft.value("customfield_project") == ["pid"]
+
+
+def test_project_refresh_cache_keeps_project_id_without_extra_collection(monkeypatch):
+    project = RedmineProject(name="AN40BF", identifier="an40bf", url="p", project_id="AN40BF-A311D2")
+    calls = []
+    class Collector:
+        def __init__(self, _page, **_kwargs): pass
+        async def collect_projects(self): calls.append("projects"); return (project,)
+    class Service(FakeService):
+        page = object()
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: Service(AuthResult(AuthState.IDLE)))
+    bridge._state = AuthState.AUTHENTICATED
+    bridge._account = "alice"
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.RedmineContextCollector", Collector)
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.load_project_options", lambda _account: [])
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.save_project_options", lambda _account, options: calls.append(list(options)))
+
+    bridge.refreshProjects()
+    wait_for(lambda: bridge.projectsReadyState)
+
+    assert calls == ["projects", [{"id": "an40bf", "label": "AN40BF", "projectId": "AN40BF-A311D2"}]]
+    bridge.close()
+
+
+def test_late_project_metadata_reconciles_loaded_my_page_without_losing_state(monkeypatch):
+    from tool.SmartHome.redmine.view_model import view
+    item = RedmineIssueListItem(id="1", url="u", tracker="Bug", status="New", subject="known")
+    detail = RedmineIssueDetail(id="1", url="u", project_identifier="an40bf", subject="known", description="body", list_item=item)
+    context = RedmineContext(
+        account="alice",
+        projects=(RedmineProject(name="AN40BF", identifier="an40bf", url="p", project_id="", issues=(item,)),),
+        issues=(detail,),
+        raw={"issue_analysis": {"1": {"risk": "red", "age_text": "8 days"}}},
+    )
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._account = "alice"
+    bridge._active_quick_view_id = "my_assigned"
+    bridge._projects_generation = 4
+    bridge._view = view(context, all_projects="All projects", all_statuses="All statuses", filters={"status": "Open"}, selected_detail=detail)
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.save_project_options", lambda *_args: None)
+
+    bridge._apply_projects(4, [{"id": "an40bf", "label": "AN40BF", "projectId": "AN40BF-A311D2"}])
+
+    reconciled = bridge._view["context"]
+    project, found = reconciled.item_for_issue("1")
+    assert found == item and project.project_id == "AN40BF-A311D2"
+    assert reconciled.issues == (detail,)
+    assert reconciled.raw == context.raw
+    assert bridge.filters["status"] == "Open"
+    assert bridge.selectedIssue["id"] == "1"
+    draft = RedmineCloneDraftService().build(
+        issue=detail,
+        project=project,
+        schema=(CreateFieldSchema("pid", "Project ID", True, CreateFieldControl.MULTI, options=(CreateFieldOption("mapped", "AN40BF-A311D2"),)),),
+        account="alice",
+        department="FAE-SW",
+        prepared_description="prepared description",
+    )
+    assert draft.value("pid") == ["mapped"]
+    bridge.close()
+
+
+def test_project_refresh_never_replaces_cached_rows_or_detail(monkeypatch):
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    bridge._account = "alice"
+    bridge._active_quick_view_id = "my_assigned"
+    bridge._projects_generation = 3
+    bridge._view = {
+        **bridge._view,
+        "issueRows": [{"id": "cached", "title": "Cached"}],
+        "selectedIssue": {"id": "cached", "title": "Cached", "description": "body"},
+        "selectedIssueId": "cached",
+    }
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.save_project_options", lambda *_args: None)
+
+    bridge._apply_projects(3, [{"id": "p", "label": "P", "projectId": "P1"}])
+
+    assert bridge.issueRows == [{"id": "cached", "title": "Cached"}]
+    assert bridge.selectedIssue["description"] == "body"
+    bridge.close()
+
+
+def test_cancel_clone_preview_preserves_selection_and_can_prepare_again():
+    bridge = clone_bridge()
+    bridge.beginCloneSelection()
+    bridge.toggleCloneSelection("1", True)
+    selected = bridge.cloneSelectedIds
+    bridge.prepareCloneDrafts(); wait_for(lambda: bridge.cloneBatchState == "editing")
+
+    bridge.closeCloneBatch()
+
+    assert bridge.cloneBatchState == "selecting"
+    assert bridge.cloneSelectedIds == selected
+    assert bridge.cloneDrafts == []
+    bridge.prepareCloneDrafts(); wait_for(lambda: bridge.cloneBatchState == "editing")
+    assert bridge.cloneSelectedIds == selected
+    bridge.close()
+
+
+def test_project_metadata_first_is_used_when_my_page_rows_arrive(monkeypatch):
+    bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
+    monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.save_project_options", lambda *_args: None)
+    bridge._projects_generation = 2
+    bridge._apply_projects(2, [{"id": "an40bf", "label": "AN40BF", "projectId": "AN40BF-A311D2"}])
+    item = RedmineIssueListItem(id="1", url="u", subject="known")
+
+    projects = _my_assigned_projects(
+        [{"project_identifier": "an40bf", "project_name": "AN40BF", "project_url": "p", "issue": item}],
+        bridge._project_options,
+    )
+
+    assert projects[0].project_id == "AN40BF-A311D2"
     bridge.close()
 
 
@@ -624,7 +1070,7 @@ def test_apply_filters_requests_fresh_search_instead_of_finalizing_cached_view(m
     requested = []
     monkeypatch.setattr(bridge, "refreshData", lambda: requested.append(dict(bridge._pending_filters or {})))
     bridge.applyFilters({"project": "P", "status": "Open", "type": "Bug", "text": "needle"})
-    assert requested == [{"project": "P", "status": "Open", "type": "Bug", "text": "needle"}]
+    assert requested == [{"project": "P", "status": "Open", "type": "Bug", "subject": "", "text": "needle"}]
     bridge.close()
 
 
@@ -733,7 +1179,7 @@ def test_fresh_search_result_applies_requested_filters_not_cached_filters(monkey
     bridge._active_search_filter_requested = True
     bug = RedmineIssueListItem(id="b", url="ub", tracker="Bug", status="New", subject="bug")
     support = RedmineIssueListItem(id="s", url="us", tracker="Support", status="New", subject="support")
-    project = RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=(bug, support))
+    project = RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=(support,))
     context = RedmineContext(projects=(project,), issues=(RedmineIssueDetail(id="s", url="us", project_identifier="p", tracker="Support", subject="support", list_item=support),))
     bridge._view = view(RedmineContext(projects=(project,)), all_projects="All projects", all_statuses="All statuses", filters={"type": "Bug"})
     monkeypatch.setattr("ui.example.bridge.RedmineBridge.context_store.save_view", lambda *args, **kwargs: None)

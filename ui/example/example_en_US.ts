@@ -1401,6 +1401,9 @@
         <source>Contains text</source>
         <translation type="unfinished">Contains text</translation>
     </message>
+    <message><source>Subject</source><translation>Subject</translation></message>
+    <message><source>Watched issue IDs</source><translation>Watched issue IDs</translation></message>
+    <message><source>Save watched IDs</source><translation>Save watched IDs</translation></message>
     <message>
         <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="189" />
         <source>Search</source>
@@ -1434,6 +1437,7 @@
 <context>
     <name>JiraCreateField</name>
     <message><source>Search Jira users</source><translation>Search Jira users</translation></message>
+    <message><source>Select options</source><translation>Select options</translation></message>
 </context>
 <context>
     <name>JiraCreateDraftCard</name>
@@ -1451,6 +1455,7 @@
     <message><source>%1 drafts</source><translation>%1 drafts</translation></message>
     <message><source>Cancel</source><translation>Cancel</translation></message>
     <message><source>Retry failed</source><translation>Retry failed</translation></message>
+    <message><source>Retry preparation</source><translation>Retry preparation</translation></message>
     <message><source>Batch Create</source><translation>Batch Create</translation></message>
 </context>
 <context>
@@ -1773,6 +1778,10 @@ Updated content:
         <source>Issues assigned to me</source>
         <translation>Issues assigned to me</translation>
     </message>
+    <message><source>Watched issues</source><translation>Watched issues</translation></message>
+    <message><source>Loading watched issues...</source><translation>Loading watched issues...</translation></message>
+    <message><source>Invalid issue IDs: %1</source><translation>Invalid issue IDs: %1</translation></message>
+    <message><source>No valid watched issue IDs were found: %1</source><translation>No valid watched issue IDs were found: %1</translation></message>
     <message>
         <location filename="bridge/RedmineBridge.py" line="342" />
         <location filename="bridge/RedmineBridge.py" line="352" />

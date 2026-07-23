@@ -1,5 +1,7 @@
 # SmartTest Jira 集成
 
+第三方 Description 当前使用确定性 Jira 模板；Redmine 原始描述仅进入 `[Notes]`，其余固定章节由用户审核填写。AI 分类接入暂缓，通用 `support.ai` 不接入当前 Jira Clone 业务。
+
 `support.jira_integration` 是 SmartTest 全局 Jira 集成层。它在 Jira Server / Data Center 环境中提供可预测的 REST 行为、明确的字段投影和可复用 Issue 访问能力。
 
 ## 所有权与依赖方向

@@ -5,7 +5,7 @@ import re
 from dataclasses import replace
 from math import ceil
 from typing import Any, Callable
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 from tool.SmartHome.redmine.models import (
     RedmineAttachment,
@@ -15,6 +15,7 @@ from tool.SmartHome.redmine.models import (
     RedmineJournal,
     RedmineProject,
 )
+from tool.SmartHome.redmine.query import RedmineQuery, RedmineQueryBranch
 
 BASE_URL = "https://support.amlogic.com"
 PROJECTS_URL = f"{BASE_URL}/projects"
@@ -122,7 +123,14 @@ def parse_project_nodes(raw_nodes: list[dict[str, Any]]) -> tuple[RedmineProject
 
 
 def project_options(projects: tuple[RedmineProject, ...]) -> list[dict[str, str]]:
-    return [{"id": project.identifier, "label": project.name or project.identifier} for project in projects]
+    return [
+        {
+            "id": project.identifier,
+            "label": project.name or project.identifier,
+            "projectId": project.project_id,
+        }
+        for project in projects
+    ]
 
 
 def parse_issue_list(raw_rows: list[dict[str, Any]]) -> tuple[RedmineIssueListItem, ...]:
@@ -254,8 +262,74 @@ class RedmineContextCollector:
             })
         return rows
 
+    async def collect_filter_metadata(self, *, project: str = "") -> dict[str, str]:
+        path = f"/projects/{project}/issues" if project else "/issues"
+        await self._goto_and_wait(f"{self._base_url}{path}?set_filter=1", "#add_filter_select, #values_tracker_id, #content")
+        if hasattr(self._page, "select_option"):
+            try:
+                await self._page.select_option("#add_filter_select", "tracker_id")
+                await self._page.wait_for_selector("select#values_tracker_id, select[name='v[tracker_id][]']", state="attached", timeout=3000)
+            except Exception:
+                pass
+        options = await self._page.evaluate(_FILTER_METADATA_SCRIPT)
+        return {
+            _clean(option.get("label")): str(option.get("value") or "").strip()
+            for option in options
+            if _clean(option.get("label")) and str(option.get("value") or "").strip()
+        }
+
     async def collect_issue_list(self, project: RedmineProject) -> tuple[RedmineIssueListItem, ...]:
         return await self._collect_issue_list_with_page(self._page, project)
+
+    async def collect_query(self, query: RedmineQuery) -> RedmineContext:
+        merged: dict[str, tuple[RedmineIssueListItem, str, str]] = {}
+        for branch in query.branches():
+            page_number = 1
+            while True:
+                payload = await self._fetch_query_page(branch, page_number=page_number, per_page=100)
+                raw_rows = list(payload.get("rows") or [])
+                for raw, issue in zip(raw_rows, parse_issue_list(raw_rows)):
+                    identifier, name = self._query_row_project(raw, branch.project)
+                    merged.setdefault(issue.id, (issue, identifier, name))
+                total = int(payload.get("total") or len(raw_rows))
+                if page_number * 100 >= total or not raw_rows:
+                    break
+                page_number += 1
+        grouped: dict[str, list[RedmineIssueListItem]] = {}
+        names: dict[str, str] = {}
+        for issue, identifier, name in merged.values():
+            grouped.setdefault(identifier, []).append(issue)
+            names.setdefault(identifier, name)
+        projects = tuple(
+            RedmineProject(
+                name=names.get(identifier) or identifier,
+                identifier=identifier,
+                url=f"{self._base_url}/projects/{identifier}" if identifier else "",
+                project_id="",
+                issues=tuple(sorted(issues, key=lambda item: int(item.id), reverse=True)),
+            )
+            for identifier, issues in grouped.items()
+        )
+        return RedmineContext(account=self._account, source_url=self._base_url, projects=projects)
+
+    async def _fetch_query_page(self, branch: RedmineQueryBranch, *, page_number: int, per_page: int) -> dict[str, Any]:
+        url = self._query_url(branch, page_number, per_page)
+        async with self._page_semaphore:
+            await self._goto_and_wait_on(self._page, url, "table.issues, .nodata, #content")
+            return await self._page.evaluate(_ISSUE_PAGE_SCRIPT)
+
+    def _query_url(self, branch: RedmineQueryBranch, page_number: int, per_page: int) -> str:
+        path = f"/projects/{branch.project}/issues" if branch.project else "/issues"
+        return f"{self._base_url}{path}?{urlencode(branch.params(page_number, per_page))}"
+
+    @staticmethod
+    def _query_row_project(raw: dict[str, Any], fallback: str) -> tuple[str, str]:
+        for cell in raw.get("cells") or []:
+            if str(cell.get("className") or "") == "project":
+                link = next(iter(cell.get("links") or []), {})
+                identifier = _identifier_from_url(str(link.get("href") or ""))
+                return identifier or fallback, _clean(link.get("text") or cell.get("text") or identifier or fallback)
+        return fallback, fallback
 
     async def _collect_issue_list_with_page(self, page, project: RedmineProject) -> tuple[RedmineIssueListItem, ...]:
         per_page = 100
@@ -285,7 +359,8 @@ class RedmineContextCollector:
                 pass
 
     async def _fetch_issue_page(self, page, project: RedmineProject, *, page_number: int, per_page: int) -> dict[str, Any]:
-        url = f"{self._base_url}/projects/{project.identifier}/issues?set_filter=1&status_id=*&per_page={per_page}&page={page_number}"
+        branch = RedmineQuery(project=project.identifier).branches()[0]
+        url = self._query_url(branch, page_number, per_page)
         async with self._page_semaphore:
             await self._goto_and_wait_on(page, url, "table.issues, .nodata, #content")
             payload = await page.evaluate(_ISSUE_PAGE_SCRIPT)
@@ -420,6 +495,14 @@ _ISSUE_PAGE_SCRIPT = r"""
   const text = clean(pagination || document.body?.innerText || '');
   const totalMatch = text.match(/\((?:\d+\s*-\s*)?\d+\s*\/\s*(\d+)\)/) || text.match(/\b(?:\d+\s*-\s*)?\d+\s*\/\s*(\d+)\b/);
   return { rows, total: totalMatch ? Number(totalMatch[1]) : rows.length, pagination };
+}
+"""
+
+_FILTER_METADATA_SCRIPT = r"""
+() => {
+  const select = document.querySelector('select#values_tracker_id, select[name="v[tracker_id][]"], #tr_tracker_id select');
+  if (!select) return [];
+  return Array.from(select.options).map(option => ({label: (option.textContent || '').trim(), value: option.value || ''}));
 }
 """
 

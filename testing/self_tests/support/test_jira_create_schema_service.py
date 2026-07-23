@@ -24,8 +24,8 @@ CREATE_META = {
                     "name": "Channel of Reporter",
                     "required": True,
                     "schema": {"type": "option", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:cascadingselect"},
-                    "allowedValues": [{"id": "10", "value": "Customer-Feedback", "children": [{"id": "11", "value": "None"}]}],
-                    "defaultValue": {"id": "10", "child": {"id": "11"}},
+                    "allowedValues": [{"id": "", "value": "None"}, {"id": "13251", "value": "Customer-Feedback", "children": [{"id": None, "value": "None"}]}, {"id": "13261", "value": "Self-Test"}],
+                    "defaultValue": {"id": "13251", "child": {"id": ""}},
                 },
                 "components": {
                     "name": "Component/s",
@@ -112,6 +112,26 @@ def test_search_users_is_project_scoped_and_normalizes_public_identity_only():
     )]
 
 
+def test_current_user_reads_authenticated_identity_from_myself():
+    client = RecordingClient({
+        "name": "subing.xu",
+        "displayName": "Subing Xu",
+        "avatarUrls": {"48x48": "https://jira/avatar/subing"},
+        "password": "must-not-leak",
+    })
+
+    user = client.current_user()
+
+    assert user == {
+        "account": "subing.xu",
+        "display_name": "Subing Xu",
+        "avatar_url": "https://jira/avatar/subing",
+    }
+    assert client.calls == [(
+        "GET", "https://jira/rest/api/2/myself", None, None,
+    )]
+
+
 def test_schema_maps_jira_native_controls_required_options_and_order():
     service = JiraCreateSchemaService(RecordingClient(CREATE_META))
 
@@ -139,19 +159,43 @@ def test_schema_maps_jira_native_controls_required_options_and_order():
     assert fields["description"].value == "Jira template"
     assert fields["priority"].value == "2"
     assert fields["components"].value == ["20"]
-    assert fields["customfield_12200"].value == {"parent": "10", "child": "11"}
+    assert fields["customfield_12200"].value == {"parent": "13251", "child": ""}
     assert fields["customfield_10700"].value == "fred.chen"
     assert fields["priority"].options[0].value == "2"
     assert fields["priority"].options[0].label == "P2"
-    cascade = fields["customfield_12200"].options[0]
-    assert cascade.value == "10" and cascade.label == "Customer-Feedback"
-    assert cascade.children[0].value == "11" and cascade.children[0].label == "None"
+    none_option, cascade, self_test = fields["customfield_12200"].options
+    assert none_option.value == "" and none_option.label == "None"
+    assert cascade.value == "13251" and cascade.label == "Customer-Feedback"
+    assert cascade.children[0].value == "" and cascade.children[0].label == "None"
+    assert self_test.value == "13261"
 
     assert {item.value for item in CreateFieldControl} == {
         "text", "multiline", "single", "multi", "cascade", "user"
     }
     with pytest.raises(FrozenInstanceError):
         fields["summary"].required = False
+
+
+def test_cascade_schema_injects_selectable_empty_child_when_jira_metadata_omits_placeholder():
+    import copy
+    payload = copy.deepcopy(CREATE_META)
+    channel = payload["projects"][0]["issuetypes"][0]["fields"]["customfield_12200"]
+    customer = next(item for item in channel["allowedValues"] if item.get("value") == "Customer-Feedback")
+    customer["children"] = [
+        {"id": "reason1", "value": "Reason 1"},
+        {"id": "reason2", "value": "Reason 2"},
+    ]
+
+    field = next(
+        item for item in JiraCreateSchemaService(RecordingClient(payload)).schema("SH", "Bug")
+        if item.field_id == "customfield_12200"
+    )
+    customer_option = next(item for item in field.options if item.label == "Customer-Feedback")
+
+    assert [(item.value, item.label) for item in customer_option.children] == [
+        ("", "None"), ("reason1", "Reason 1"), ("reason2", "Reason 2")
+    ]
+    assert field.value == {"parent": "13251", "child": ""}
 
 
 @pytest.mark.parametrize(

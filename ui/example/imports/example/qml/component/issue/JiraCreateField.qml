@@ -7,30 +7,45 @@ ColumnLayout {
     property var field: ({})
     property string issueId: ""
     property bool disabled: false
+    property real labelColumnWidth: 180
+    property bool hasVisibleLabel: !!String(root.field.name || root.field.fieldId || "").trim()
     signal valueChanged(string issueId, string fieldId, var value)
     signal userSearchRequested(string issueId, string fieldId, string query)
 
     Layout.fillWidth: true
-    spacing: 4
+    visible: root.hasVisibleLabel
+    spacing: 3
 
-    FluText {
-        text: (root.field.name || root.field.fieldId || "") + (root.field.required ? " *" : "")
-        font: FluTextStyle.BodyStrong
-    }
-
-    Loader {
-        id: editorLoader
+    RowLayout {
+        id: fieldRow
         Layout.fillWidth: true
-        sourceComponent: root.field.control === "text" ? textEditor
-            : root.field.control === "multiline" ? multilineEditor
-            : root.field.control === "single" ? singleEditor
-            : root.field.control === "multi" ? multiEditor
-            : root.field.control === "cascade" ? cascadeEditor
-            : root.field.control === "user" ? userEditor : textEditor
+        spacing: 12
+        FluText {
+            Layout.preferredWidth: root.labelColumnWidth
+            Layout.minimumWidth: root.labelColumnWidth
+            Layout.maximumWidth: root.labelColumnWidth
+            Layout.alignment: Qt.AlignTop
+            text: (root.field.name || root.field.fieldId || "") + (root.field.required ? " *" : "")
+            font: FluTextStyle.BodyStrong
+            wrapMode: Text.Wrap
+        }
+        Loader {
+            id: editorLoader
+            Layout.fillWidth: true
+            active: root.hasVisibleLabel
+            sourceComponent: root.field.control === "text" ? textEditor
+                : root.field.control === "multiline" ? multilineEditor
+                : root.field.control === "single" ? singleEditor
+                : root.field.control === "multi" ? optionMultiEditor
+                : root.field.control === "cascade" ? cascadeEditor
+                : root.field.control === "user" ? userEditor : textEditor
+        }
     }
 
     FluText {
         visible: !!root.field.error
+        Layout.leftMargin: root.labelColumnWidth + 12
+        Layout.fillWidth: true
         text: root.field.error || ""
         color: "#D13438"
         wrapMode: Text.Wrap
@@ -68,19 +83,13 @@ ColumnLayout {
         }
     }
     Component {
-        id: multiEditor
-        Flow {
-            width: parent ? parent.width : 0
-            spacing: 8
-            Repeater {
-                model: root.field.options || []
-                FluCheckBox {
-                    text: modelData.label || modelData.value || ""
-                    checked: root.containsValue(root.field.value, modelData.value)
-                    disabled: root.disabled
-                    onClicked: root.valueChanged(root.issueId, root.field.fieldId || "", root.toggledValues(root.field.value, modelData.value, checked))
-                }
-            }
+        id: optionMultiEditor
+        JiraOptionMultiPicker {
+            options: root.field.options || []
+            value: root.field.value || []
+            disabled: root.disabled
+            placeholderText: qsTr("Select options")
+            onSelectionChanged: value => root.valueChanged(root.issueId, root.field.fieldId || "", value)
         }
     }
     Component {
@@ -108,27 +117,19 @@ ColumnLayout {
         id: userEditor
         FluAutoSuggestBox {
             objectName: "jiraCreateUser_" + (root.field.fieldId || "")
-            text: root.field.value || ""
+            text: ""
             items: root.userSuggestions(root.field.options)
             disabled: root.disabled
             placeholderText: qsTr("Search Jira users")
             onTextChanged: if (activeFocus) root.userSearchRequested(root.issueId, root.field.fieldId || "", text)
             onItemClicked: data => root.valueChanged(root.issueId, root.field.fieldId || "", data.value || data.title || "")
-            onCommit: root.valueChanged(root.issueId, root.field.fieldId || "", text)
+            Component.onCompleted: updateText(root.field.displayValue || root.field.value || "")
         }
     }
 
     function optionIndex(options, value) {
         for (var i = 0; options && i < options.length; ++i) if (options[i].value === value) return i
         return -1
-    }
-    function containsValue(values, value) { return values && values.indexOf(value) >= 0 }
-    function toggledValues(values, value, selected) {
-        var result = values ? values.slice() : []
-        var index = result.indexOf(value)
-        if (selected && index < 0) result.push(value)
-        if (!selected && index >= 0) result.splice(index, 1)
-        return result
     }
     function childrenFor(options, parentValue) {
         for (var i = 0; options && i < options.length; ++i) if (options[i].value === parentValue) return options[i].children || []

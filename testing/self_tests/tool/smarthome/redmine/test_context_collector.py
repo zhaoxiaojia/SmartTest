@@ -8,6 +8,80 @@ from tool.SmartHome.redmine.collector import (
 )
 from tool.SmartHome.redmine.models import RedmineIssueListItem, RedmineProject
 from tool.SmartHome.redmine.mapping import map_issue_to_jira, redmine_tracker_to_jira_type
+from tool.SmartHome.redmine.query import RedmineQuery, parse_terms
+
+
+def test_native_query_terms_and_union_parameters():
+    assert parse_terms("60371,播放失败；60371\n黑屏") == ("60371", "播放失败", "黑屏")
+    branches = RedmineQuery(status="open", subject="Highlight", text="60371 播放失败").branches()
+    assert [branch.kind for branch in branches] == ["fulltext", "issue_id"]
+    assert ("op[any_searchable]", "*~") in branches[0].params(1, 100)
+    assert ("v[issue_id][]", "60371") in branches[1].params(1, 100)
+    assert ("v[subject][]", "Highlight") in branches[0].params(1, 100)
+
+
+def test_native_query_omits_empty_subject_and_splits_exact_ids():
+    branches = RedmineQuery(issue_ids=("2", "1"), subject="").branches()
+    assert [branch.kind for branch in branches] == ["issue_id", "issue_id"]
+    assert [[value for key, value in branch.params(3, 50) if key == "v[issue_id][]"] for branch in branches] == [["2"], ["1"]]
+
+
+def test_collect_query_executes_union_branches_pages_and_dedupes_descending():
+    class Page:
+        def __init__(self): self.urls = []
+        async def goto(self, url, **_kwargs): self.urls.append(url)
+        async def wait_for_selector(self, *_args, **_kwargs): pass
+        async def evaluate(self, _script):
+            url = self.urls[-1]
+            if "page=1&" in url:
+                ids = ["10", "9"] if "any_searchable" in url else ["10"]
+                total = 101 if "any_searchable" in url else 1
+            else:
+                ids, total = ["8"], 101
+            return {"total": total, "rows": [
+                {"id": f"issue-{issue_id}", "cells": [
+                    {"className": "id", "text": issue_id, "links": [{"href": f"https://support.amlogic.com/issues/{issue_id}"}]},
+                    {"className": "project", "text": "Project", "links": [{"text": "Project", "href": "https://support.amlogic.com/projects/p"}]},
+                ]} for issue_id in ids
+            ]}
+    async def scenario():
+        page = Page()
+        context = await RedmineContextCollector(page).collect_query(RedmineQuery(text="10 failure"))
+        assert [item.id for item in context.projects[0].issues] == ["10", "9", "8"]
+        assert len(page.urls) == 3
+        assert sum("any_searchable" in url for url in page.urls) == 2
+        assert sum("issue_id" in url for url in page.urls) == 1
+        assert context.projects[0].project_id == ""
+    asyncio.run(scenario())
+
+
+def test_filter_metadata_maps_tracker_labels_to_native_option_values():
+    class Page:
+        async def goto(self, url, **_kwargs): self.url = url
+        async def wait_for_selector(self, *_args, **_kwargs): pass
+        async def evaluate(self, script):
+            assert "tracker_id" in script
+            return [{"label": "Bug", "value": "1"}, {"label": "Support", "value": "3"}]
+    async def scenario():
+        metadata = await RedmineContextCollector(Page()).collect_filter_metadata()
+        assert metadata == {"Bug": "1", "Support": "3"}
+    asyncio.run(scenario())
+
+
+def test_watched_ids_execute_one_native_request_per_exact_id():
+    class Page:
+        def __init__(self): self.urls = []
+        async def goto(self, url, **_kwargs): self.urls.append(url)
+        async def wait_for_selector(self, *_args, **_kwargs): pass
+        async def evaluate(self, _script): return {"total": 0, "rows": []}
+    async def scenario():
+        from urllib.parse import parse_qs, urlsplit
+        page = Page()
+        await RedmineContextCollector(page).collect_query(RedmineQuery(issue_ids=("10", "11")))
+        assert len(page.urls) == 2
+        values = [parse_qs(urlsplit(url).query)["v[issue_id][]"] for url in page.urls]
+        assert values == [["10"], ["11"]]
+    asyncio.run(scenario())
 
 
 def test_parse_project_options_keeps_every_accessible_project_and_project_id():
@@ -67,13 +141,16 @@ def test_my_page_collects_only_assigned_block_rows():
 def test_project_options_preserve_all_projects_in_source_order():
     from tool.SmartHome.redmine.collector import project_options
     projects = (
-        RedmineProject(name="A", identifier="a", url="/projects/a"),
+        RedmineProject(name="A", identifier="a", url="/projects/a", project_id="A-ID"),
         RedmineProject(name="A1", identifier="a1", url="/projects/a1"),
         RedmineProject(name="A2", identifier="a2", url="/projects/a2"),
         RedmineProject(name="B", identifier="b", url="/projects/b"),
     )
     assert project_options(projects) == [
-        {"id": "a", "label": "A"}, {"id": "a1", "label": "A1"}, {"id": "a2", "label": "A2"}, {"id": "b", "label": "B"},
+        {"id": "a", "label": "A", "projectId": "A-ID"},
+        {"id": "a1", "label": "A1", "projectId": ""},
+        {"id": "a2", "label": "A2", "projectId": ""},
+        {"id": "b", "label": "B", "projectId": ""},
     ]
 
 
@@ -82,7 +159,7 @@ def test_project_options_keep_all_301_accessible_projects():
     projects = tuple(RedmineProject(name=f"Complete project label {index}", identifier=f"project-{index}", url=f"/projects/project-{index}") for index in range(301))
     options = project_options(projects)
     assert len(options) == 301
-    assert options[-1] == {"id": "project-300", "label": "Complete project label 300"}
+    assert options[-1] == {"id": "project-300", "label": "Complete project label 300", "projectId": ""}
 
 
 def test_parse_issue_list_uses_table_class_names_as_raw_fields():
@@ -268,7 +345,7 @@ def test_context_collector_keeps_browser_generic_and_builds_context_from_page_co
                         "containerText": "BDS.Cultraview.EDLA.A311D2 [Project ID]:AN40BF-A311D2",
                     }
                 ]
-            if "issues?set_filter=1" in url and "status_id=*" in url and "tracker_id=1" not in url:
+            if "/issues?" in url and "set_filter=1" in url and "tracker_id" not in url:
                 return {
                     "total": 2,
                     "rows": [

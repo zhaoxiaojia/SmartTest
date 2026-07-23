@@ -15,11 +15,12 @@ Item {
     signal updateCloneDraft(string issueId, string fieldId, var value)
     signal submitCloneBatch()
     signal retryFailedClones()
+    signal retryPrepareCloneDrafts()
     signal closeCloneBatch()
     signal searchCloneUsers(string issueId, string fieldId, string query)
     signal sourceLinkRequested(string url)
 
-    visible: ["loading", "editing", "validating", "submitting", "completed", "partial_failed"].indexOf(batchState) >= 0
+    visible: ["loading", "prepare_failed", "editing", "validating", "submitting", "completed", "partial_failed"].indexOf(batchState) >= 0
     z: 1000
     onFirstInvalidIssueIdChanged: Qt.callLater(focusFirstInvalidField)
     onFirstInvalidFieldIdChanged: Qt.callLater(focusFirstInvalidField)
@@ -27,8 +28,8 @@ Item {
     Rectangle { anchors.fill: parent; color: FluTheme.dark ? "#CC111111" : "#99000000" }
     FluFrame {
         anchors.centerIn: parent
-        width: Math.min(parent.width - 48, 1040)
-        height: Math.min(parent.height - 48, 760)
+        width: Math.max(0, parent.width - 32)
+        height: Math.max(0, parent.height - 32)
         padding: 0
         ColumnLayout {
             anchors.fill: parent
@@ -48,20 +49,27 @@ Item {
                     FluProgressRing { Layout.alignment: Qt.AlignHCenter }
                     FluText { text: qsTr("Preparing drafts %1/%2").arg(root.loaded).arg(root.total) }
                 }
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    visible: root.batchState === "prepare_failed"
+                    FluText { text: root.batchError; color: "#D13438"; wrapMode: Text.Wrap; Layout.maximumWidth: 640 }
+                }
                 ScrollView {
                     id: draftScroll
                     anchors.fill: parent
                     anchors.margins: 16
-                    visible: root.batchState !== "loading"
+                    visible: root.batchState !== "loading" && root.batchState !== "prepare_failed"
                     clip: true
-                    ColumnLayout {
-                        width: draftScroll.availableWidth
+                    RowLayout {
+                        width: Math.max(draftScroll.availableWidth, root.draftContentWidth())
                         spacing: 12
                         Repeater {
                             id: draftRepeater
                             model: root.cloneDrafts || []
                             JiraCreateDraftCard {
                                 Layout.fillWidth: true
+                                Layout.preferredWidth: root.draftCardWidth()
+                                Layout.alignment: Qt.AlignTop
                                 draft: modelData
                                 disabled: root.batchState === "submitting"
                                 onValueChanged: (issueId, fieldId, value) => root.updateCloneDraft(issueId, fieldId, value)
@@ -69,6 +77,11 @@ Item {
                                 onSourceLinkRequested: url => root.sourceLinkRequested(url)
                             }
                         }
+                    }
+                    Connections {
+                        target: draftScroll.contentItem
+                        function onContentXChanged() { draftScroll.forceActiveFocus() }
+                        function onContentYChanged() { draftScroll.forceActiveFocus() }
                     }
                 }
             }
@@ -80,6 +93,7 @@ Item {
                 Item { Layout.fillWidth: true }
                 FluButton { text: qsTr("Cancel"); visible: root.batchState !== "completed"; disabled: root.batchState === "submitting"; onClicked: root.closeCloneBatch() }
                 FluButton { objectName: "jiraCloneRetryButton"; text: qsTr("Retry failed"); visible: root.batchState === "partial_failed"; onClicked: root.retryFailedClones() }
+                FluButton { objectName: "jiraCloneRetryPrepareButton"; text: qsTr("Retry preparation"); visible: root.batchState === "prepare_failed"; onClicked: root.retryPrepareCloneDrafts() }
                 FluFilledButton { objectName: "jiraCloneBatchCreateButton"; text: qsTr("Batch Create"); visible: root.batchState === "editing" || root.batchState === "validating"; disabled: root.batchState === "validating"; onClicked: root.submitCloneBatch() }
             }
         }
@@ -90,10 +104,20 @@ Item {
         for (var i = 0; i < draftRepeater.count; ++i) {
             var card = draftRepeater.itemAt(i)
             if (card && String(card.draft.issueId || "") === root.firstInvalidIssueId) {
-                draftScroll.contentItem.contentY = Math.max(0, card.y)
+                draftScroll.contentItem.contentX = Math.max(0, card.x)
                 card.focusField(root.firstInvalidFieldId)
                 return
             }
         }
+    }
+    function draftCardWidth() {
+        var count = (root.cloneDrafts || []).length
+        if (count <= 1) return draftScroll.availableWidth
+        if (count === 2) return Math.max(240, (draftScroll.availableWidth - 12) / 2)
+        return 520
+    }
+    function draftContentWidth() {
+        var count = (root.cloneDrafts || []).length
+        return count > 0 ? count * root.draftCardWidth() + Math.max(0, count - 1) * 12 : 0
     }
 }

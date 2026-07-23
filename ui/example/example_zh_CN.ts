@@ -1421,6 +1421,9 @@
         <source>Contains text</source>
         <translation type="unfinished">包含文本</translation>
     </message>
+    <message><source>Subject</source><translation>主题</translation></message>
+    <message><source>Watched issue IDs</source><translation>关注的问题 ID</translation></message>
+    <message><source>Save watched IDs</source><translation>保存关注 ID</translation></message>
     <message>
         <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="189" />
         <source>Search</source>
@@ -1454,6 +1457,7 @@
 <context>
     <name>JiraCreateField</name>
     <message><source>Search Jira users</source><translation>搜索 Jira 用户</translation></message>
+    <message><source>Select options</source><translation>选择选项</translation></message>
 </context>
 <context>
     <name>JiraCreateDraftCard</name>
@@ -1471,6 +1475,7 @@
     <message><source>%1 drafts</source><translation>%1 个草稿</translation></message>
     <message><source>Cancel</source><translation>取消</translation></message>
     <message><source>Retry failed</source><translation>重试失败项</translation></message>
+    <message><source>Retry preparation</source><translation>重试准备</translation></message>
     <message><source>Batch Create</source><translation>批量创建</translation></message>
 </context>
 <context>
@@ -1848,6 +1853,10 @@ Updated content:
         <source>Issues assigned to me</source>
         <translation>分配给我的问题</translation>
     </message>
+    <message><source>Watched issues</source><translation>我关注的问题</translation></message>
+    <message><source>Loading watched issues...</source><translation>正在加载关注的问题...</translation></message>
+    <message><source>Invalid issue IDs: %1</source><translation>无效的问题 ID：%1</translation></message>
+    <message><source>No valid watched issue IDs were found: %1</source><translation>未找到有效的关注问题 ID：%1</translation></message>
     <message>
         <location filename="bridge/RedmineBridge.py" line="213" />
         <location filename="bridge/RedmineBridge.py" line="681" />

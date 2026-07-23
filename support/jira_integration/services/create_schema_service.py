@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from support.jira_integration.core.create_schema import (
@@ -94,6 +95,8 @@ def _field_schema(field_id: str, metadata: dict[str, Any]) -> CreateFieldSchema:
         for item in metadata.get("allowedValues") or ()
         if isinstance(item, dict)
     )
+    if control == CreateFieldControl.CASCADE:
+        options = tuple(_with_empty_cascade_child(option) for option in options)
     return CreateFieldSchema(
         field_id=field_id,
         name=name,
@@ -131,7 +134,10 @@ def _control(
 
 
 def _option(metadata: dict[str, Any]) -> CreateFieldOption:
-    value = str(metadata.get("id") or metadata.get("value") or metadata.get("name") or "")
+    value = str(
+        (metadata.get("id") or "") if "id" in metadata
+        else metadata.get("value") or metadata.get("name") or ""
+    )
     label = str(
         metadata.get("value")
         or metadata.get("name")
@@ -146,6 +152,15 @@ def _option(metadata: dict[str, Any]) -> CreateFieldOption:
             for item in metadata.get("children") or ()
             if isinstance(item, dict)
         ),
+    )
+
+
+def _with_empty_cascade_child(option: CreateFieldOption) -> CreateFieldOption:
+    if not option.value or any(child.value == "" for child in option.children):
+        return option
+    return replace(
+        option,
+        children=(CreateFieldOption(value="", label="None"), *option.children),
     )
 
 

@@ -6,6 +6,7 @@ FluFrame {
     id: root
     property var draft: ({})
     property bool disabled: false
+    property real labelColumnWidth: 180
     signal valueChanged(string issueId, string fieldId, var value)
     signal userSearchRequested(string issueId, string fieldId, string query)
     signal sourceLinkRequested(string url)
@@ -33,6 +34,7 @@ FluFrame {
                 issueId: root.draft.issueId || ""
                 field: modelData
                 disabled: root.disabled
+                labelColumnWidth: root.labelColumnWidth
                 onValueChanged: (issueId, fieldId, value) => root.valueChanged(issueId, fieldId, value)
                 onUserSearchRequested: (issueId, fieldId, query) => root.userSearchRequested(issueId, fieldId, query)
             }

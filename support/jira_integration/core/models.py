@@ -87,6 +87,22 @@ class IssueStoreQuery:
 
 
 @dataclass(frozen=True)
+class CreateIssueAttachment:
+    filename: str
+    data: bytes
+
+    def __post_init__(self):
+        if not self.filename or any(character in self.filename for character in "\r\n"):
+            raise ValueError("Attachment filename is invalid")
+        if not isinstance(self.data, bytes):
+            raise TypeError("Attachment data must be bytes")
+
+    @property
+    def size(self) -> int:
+        return len(self.data)
+
+
+@dataclass(frozen=True)
 class CreateIssueRequest:
     project_key: str
     issue_type: str
@@ -99,8 +115,10 @@ class CreateIssueRequest:
     source_system: str = ""
     source_id: str = ""
     source_url: str = ""
+    description_includes_source_identity: bool = False
     extra_fields: dict[str, Any] = field(default_factory=dict)
     field_controls: dict[str, str] = field(default_factory=dict)
+    attachments: tuple[CreateIssueAttachment, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -111,6 +129,7 @@ class CreateIssueResult:
     issue_url: str = ""
     existing_key: str = ""
     raw: dict[str, Any] = field(default_factory=dict)
+    attachment_errors: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

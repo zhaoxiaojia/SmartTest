@@ -4,7 +4,12 @@ import re
 from typing import TYPE_CHECKING, Any
 
 from support.jira_integration.core.errors import JiraRequestError
-from support.jira_integration.core.models import CreateIssueRequest, CreateIssueResult, ExistingIssue
+from support.jira_integration.core.models import (
+    CreateIssueAttachment,
+    CreateIssueRequest,
+    CreateIssueResult,
+    ExistingIssue,
+)
 
 if TYPE_CHECKING:
     from support.jira_integration.transport.client import JiraClient
@@ -42,15 +47,52 @@ class CreateIssueService:
     def create_issue(self, request: CreateIssueRequest) -> CreateIssueResult:
         existing = self.check_issue(request)
         if existing:
-            return CreateIssueResult(created=False, existing_key=existing.key, issue_url=existing.web_url, raw=existing.raw)
+            errors = self.sync_attachments(existing.key, request.attachments)
+            return CreateIssueResult(
+                created=False,
+                existing_key=existing.key,
+                issue_url=existing.web_url,
+                raw=existing.raw,
+                attachment_errors=errors,
+            )
         created = self._client.create_issue(self._payload(request))
+        issue_key = str(created.get("key", ""))
+        errors = self.sync_attachments(issue_key, request.attachments)
         return CreateIssueResult(
             created=True,
-            issue_key=str(created.get("key", "")),
+            issue_key=issue_key,
             issue_id=str(created.get("id", "")),
             issue_url=str(created.get("self", "")),
             raw=created,
+            attachment_errors=errors,
         )
+
+    def sync_attachments(
+        self,
+        issue_key: str,
+        attachments: tuple[CreateIssueAttachment, ...],
+    ) -> tuple[str, ...]:
+        if not attachments:
+            return ()
+        existing: dict[str, set[int]] = {}
+        for item in self._client.list_attachments(issue_key):
+            filename = str(item.get("filename") or "")
+            if filename:
+                existing.setdefault(filename, set()).add(int(item.get("size") or 0))
+        errors = []
+        for attachment in attachments:
+            if attachment.filename in existing:
+                if attachment.size not in existing[attachment.filename]:
+                    errors.append(
+                        f"{attachment.filename}: Jira already has an attachment with a different size"
+                    )
+                continue
+            try:
+                self._client.upload_attachment(issue_key, attachment)
+                existing[attachment.filename] = {attachment.size}
+            except Exception as exc:
+                errors.append(f"{attachment.filename}: {type(exc).__name__}")
+        return tuple(errors)
 
     def _payload(self, request: CreateIssueRequest) -> dict[str, Any]:
         fields: dict[str, Any] = {
@@ -110,6 +152,8 @@ class CreateIssueService:
         return list(dict.fromkeys(label for label in labels if label))
 
     def _description(self, request: CreateIssueRequest) -> str:
+        if request.description_includes_source_identity:
+            return request.description
         lines = [request.description]
         if request.source_system and request.source_id:
             lines.extend(["", f"Source: {request.source_system}", f"Source ID: {request.source_id}"])
