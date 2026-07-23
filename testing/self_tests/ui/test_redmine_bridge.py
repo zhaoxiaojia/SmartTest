@@ -11,9 +11,10 @@ from tool.SmartHome.redmine.models import AuthResult, AuthState
 from support.jira_integration.core.create_schema import CreateFieldControl, CreateFieldOption, CreateFieldSchema
 from support.jira_integration.core.models import CreateIssueResult, ExistingIssue
 from tool.SmartHome.redmine.clone_draft import RedmineCloneDraftService
+from tool.SmartHome.redmine.issue_controller import RedmineIssueController
 from tool.SmartHome.redmine.models import RedmineAttachment, RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineJournal, RedmineProject
 from tool.SmartHome.redmine.view_model import view
-from ui.example.bridge.RedmineBridge import RedmineBridge, _AsyncLoopWorker, _download_redmine_attachments, _my_assigned_projects, _native_query, _reconcile_project_ids
+from ui.example.bridge.RedmineBridge import RedmineBridge, _AsyncLoopWorker, _download_redmine_attachments, _native_query
 from ui.example.bridge.ToolBridge import build_tool_groups
 
 
@@ -46,11 +47,23 @@ def _issue_record(
 
 
 def _set_bridge_records(bridge, records, *, selected_id="", context=None, filters=None):
-    bridge._replace_store(records, selected_id)
+    bridge._issue_controller._replace_records(records, selected_id)
     if context is not None:
-        bridge._context = context
+        bridge._issue_controller._source_context = context
     if filters is not None:
-        bridge._filters = bridge._filters | filters
+        bridge._issue_controller._filters = bridge._issue_controller._filters | filters
+
+
+def _set_bridge_projection(bridge, projected):
+    controller = bridge._issue_controller
+    controller._source_context = projected["context"]
+    controller._filters = dict(projected["filters"])
+    controller._project_filter_labels = tuple(projected["projectFilterLabels"])
+    controller._status_filter_labels = tuple(projected["statusFilterLabels"])
+    controller._type_filter_labels = tuple(projected["typeFilterLabels"])
+    controller._replace_records(
+        projected["issue_list"], projected.get("selectedIssueId")
+    )
 
 
 def test_bridge_resolves_tracker_label_through_native_metadata():
@@ -81,7 +94,14 @@ def test_native_query_projects_use_only_synced_business_project_ids_for_clone_ma
         RedmineProject(name="Known", identifier="known", url="p1", project_id="", issues=(known_issue,)),
         RedmineProject(name="Unknown", identifier="unknown", url="p2", project_id="", issues=(unknown_issue,)),
     ))
-    reconciled = _reconcile_project_ids(context, [{"id": "known", "projectId": "REAL-PID"}])
+    controller = RedmineIssueController(
+        all_projects="All projects",
+        all_statuses="All statuses",
+        all_types="All types",
+    )
+    reconciled = controller.reconcile_project_ids(
+        context, [{"id": "known", "projectId": "REAL-PID"}]
+    )
     assert [project.project_id for project in reconciled.projects] == ["REAL-PID", ""]
 
 
@@ -274,7 +294,9 @@ def test_bridge_marks_cloned_redmine_rows_and_detail_with_jira_link():
         selected_id="61043",
     )
 
-    bridge._apply_clone_status({"61043": ExistingIssue(key="SH-26384", web_url="https://jira/browse/SH-26384")})
+    bridge._issue_controller.record_clone_results(
+        {"61043": ExistingIssue(key="SH-26384", web_url="https://jira/browse/SH-26384")}
+    )
 
     assert bridge.issueRows[0]["clonedIssueKey"] == "SH-26384"
     assert bridge.selectedIssue["clonedIssueUrl"] == "https://jira/browse/SH-26384"
@@ -406,7 +428,8 @@ def clone_bridge(*, issue_ids=("1",), schema=CLONE_SCHEMA, persist=False):
         for item in items
     )
     context = RedmineContext(account=auth.username, projects=(project,), issues=details)
-    bridge._replace_issue_view(
+    _set_bridge_projection(
+        bridge,
         view(
             context,
             all_projects="All projects",
@@ -418,8 +441,6 @@ def clone_bridge(*, issue_ids=("1",), schema=CLONE_SCHEMA, persist=False):
     bridge._jira_schema_service = CloneSchemaService(schema)
     bridge._jira_create_service = CloneCreateService()
     bridge._draft_service = RecordingDraftService()
-    if not persist:
-        bridge._persist_issue_store = lambda: None
     bridge.beginCloneSelection()
     for issue_id in issue_ids:
         bridge.toggleCloneSelection(issue_id, True)
@@ -451,7 +472,7 @@ def test_prepare_clone_drafts_has_no_create_calls_and_uses_identity_department_a
 
 def test_prepare_clone_uses_deterministic_jira_template_without_ai():
     bridge = clone_bridge()
-    detail = bridge._context.issues[0]
+    detail = bridge._issue_controller._source_context.issues[0]
     enriched_detail = RedmineIssueDetail(
         id=detail.id,
         url=detail.url,
@@ -463,9 +484,9 @@ def test_prepare_clone_uses_deterministic_jira_template_without_ai():
         comments=(RedmineJournal(id="j1", header="Updated by Alice", note="复现评论", details=("Status changed", "补充信息")),),
         list_item=detail.list_item,
     )
-    bridge._context = RedmineContext(
-        account=bridge._context.account,
-        projects=bridge._context.projects,
+    bridge._issue_controller._source_context = RedmineContext(
+        account=bridge._issue_controller._source_context.account,
+        projects=bridge._issue_controller._source_context.projects,
         issues=(enriched_detail,),
     )
     assert not hasattr(bridge, "_description_service")
@@ -549,10 +570,10 @@ def test_submit_downloads_attachment_through_authenticated_page_and_hands_off_by
 
     bridge = clone_bridge()
     bridge._service = type("Service", (), {"page": Page()})()
-    detail = bridge._context.issues[0]
-    bridge._context = RedmineContext(
-        account=bridge._context.account,
-        projects=bridge._context.projects,
+    detail = bridge._issue_controller._source_context.issues[0]
+    bridge._issue_controller._source_context = RedmineContext(
+        account=bridge._issue_controller._source_context.account,
+        projects=bridge._issue_controller._source_context.projects,
         issues=(
             RedmineIssueDetail(
                 **{
@@ -771,7 +792,7 @@ def test_account_change_immediately_invalidates_old_redmine_state_and_late_resul
     old_service = FakeService(AuthResult(AuthState.AUTHENTICATED, username="alice"))
     bridge._service = old_service
     _set_bridge_records(bridge, [_issue_record("1")], selected_id="1")
-    bridge._project_filter_labels = ["All projects", "Alice project"]
+    bridge._issue_controller._project_filter_labels = ("All projects", "Alice project")
     bridge._clone_checker = object()
 
     auth.username = "bob"; auth.password = "bob-secret"; auth.authChanged.emit()
@@ -836,7 +857,6 @@ def test_my_assigned_uses_unified_issue_operation_and_is_not_search_cancellable(
 
 
 def test_my_assigned_projects_reuse_synced_project_id_and_leave_unknown_empty():
-    from ui.example.bridge.RedmineBridge import _my_assigned_projects
     known = RedmineIssueListItem(id="1", url="u1", subject="known")
     unknown = RedmineIssueListItem(id="2", url="u2", subject="unknown")
     rows = [
@@ -844,16 +864,24 @@ def test_my_assigned_projects_reuse_synced_project_id_and_leave_unknown_empty():
         {"project_identifier": "new-project", "project_name": "New", "project_url": "p2", "issue": unknown},
     ]
 
-    projects = _my_assigned_projects(
+    controller = RedmineIssueController(
+        account="alice",
+        all_projects="All projects",
+        all_statuses="All statuses",
+        all_types="All types",
+    )
+    projects = controller.assigned_context(
         rows,
         [{"id": "an40bf", "label": "AN40BF", "projectId": "AN40BF-A311D2"}],
-    )
+    ).projects
 
     assert projects[0].identifier == "an40bf"
     assert projects[0].project_id == "AN40BF-A311D2"
     assert projects[1].identifier == "new-project"
     assert projects[1].project_id == ""
-    legacy = _my_assigned_projects(rows[:1], [{"id": "an40bf", "label": "AN40BF"}])
+    legacy = controller.assigned_context(
+        rows[:1], [{"id": "an40bf", "label": "AN40BF"}]
+    ).projects
     assert legacy[0].project_id == ""
 
     draft = RedmineCloneDraftService().build(
@@ -904,9 +932,10 @@ def test_late_project_metadata_reconciles_loaded_my_page_without_losing_state(mo
     )
     bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
     bridge._account = "alice"
-    bridge._active_quick_view_id = "my_assigned"
+    bridge._issue_controller.activate_view("my_assigned")
     bridge._projects_generation = 4
-    bridge._replace_issue_view(
+    _set_bridge_projection(
+        bridge,
         view(
             context,
             all_projects="All projects",
@@ -919,7 +948,7 @@ def test_late_project_metadata_reconciles_loaded_my_page_without_losing_state(mo
 
     bridge._apply_projects(4, [{"id": "an40bf", "label": "AN40BF", "projectId": "AN40BF-A311D2"}])
 
-    reconciled = bridge._context
+    reconciled = bridge._issue_controller._source_context
     project, found = reconciled.item_for_issue("1")
     assert found == item and project.project_id == "AN40BF-A311D2"
     assert reconciled.issues == (detail,)
@@ -941,7 +970,7 @@ def test_late_project_metadata_reconciles_loaded_my_page_without_losing_state(mo
 def test_project_refresh_never_replaces_cached_rows_or_detail(monkeypatch):
     bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
     bridge._account = "alice"
-    bridge._active_quick_view_id = "my_assigned"
+    bridge._issue_controller.activate_view("my_assigned")
     bridge._projects_generation = 3
     _set_bridge_records(
         bridge,
@@ -981,10 +1010,10 @@ def test_project_metadata_first_is_used_when_my_page_rows_arrive(monkeypatch):
     bridge._apply_projects(2, [{"id": "an40bf", "label": "AN40BF", "projectId": "AN40BF-A311D2"}])
     item = RedmineIssueListItem(id="1", url="u", subject="known")
 
-    projects = _my_assigned_projects(
+    projects = bridge._issue_controller.assigned_context(
         [{"project_identifier": "an40bf", "project_name": "AN40BF", "project_url": "p", "issue": item}],
         bridge._project_options,
-    )
+    ).projects
 
     assert projects[0].project_id == "AN40BF-A311D2"
     bridge.close()
@@ -992,10 +1021,88 @@ def test_project_metadata_first_is_used_when_my_page_rows_arrive(monkeypatch):
 
 def test_explicit_search_clears_active_quick_view(monkeypatch):
     bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
-    bridge._state = AuthState.AUTHENTICATED; bridge._projects_ready = True; bridge._active_quick_view_id = "my_assigned"
+    bridge._state = AuthState.AUTHENTICATED
+    bridge._projects_ready = True
+    bridge._issue_controller.activate_view("my_assigned")
     monkeypatch.setattr(bridge, "_launch_data_load", lambda operation, **kwargs: None)
     bridge.applyFilters({"status": "Open"})
     assert bridge.activeQuickViewId == ""
+    bridge.close()
+
+
+def test_search_operation_executes_canonical_plan_projection_to_completion(monkeypatch):
+    from contextlib import asynccontextmanager
+
+    item = RedmineIssueListItem(
+        id="search",
+        url="https://redmine/issues/search",
+        tracker="Bug",
+        status="New",
+        subject="Search result",
+    )
+    context = RedmineContext(
+        account="alice",
+        projects=(
+            RedmineProject(
+                name="P",
+                identifier="p",
+                url="https://redmine/projects/p",
+                project_id="P1",
+                issues=(item,),
+            ),
+        ),
+    )
+
+    class Collector:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        async def collect_query(self, _query):
+            return context
+
+    @asynccontextmanager
+    async def operation_page(_service):
+        yield object()
+
+    async def service_for(_account):
+        return object()
+
+    bridge = RedmineBridge(
+        FakeAuth(),
+        service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)),
+    )
+    bridge._state = AuthState.AUTHENTICATED
+    bridge._projects_ready = True
+    captured = []
+    logs = []
+    monkeypatch.setattr(
+        "ui.example.bridge.RedmineBridge.RedmineContextCollector", Collector
+    )
+    monkeypatch.setattr(
+        "ui.example.bridge.RedmineBridge.smart_log",
+        lambda message, *args, **kwargs: logs.append((message, kwargs)),
+    )
+    monkeypatch.setattr(bridge, "_service_for", service_for)
+    monkeypatch.setattr(bridge, "_operation_page", operation_page)
+    monkeypatch.setattr(
+        bridge,
+        "_enrich_issue_context",
+        lambda *_args, **_kwargs: asyncio.sleep(
+            0, result=(context, "p", None, {}, None)
+        ),
+    )
+    monkeypatch.setattr(
+        bridge,
+        "_launch_data_load",
+        lambda operation, **_kwargs: captured.append(operation),
+    )
+
+    bridge.refreshData()
+    result = asyncio.run(captured[0]())
+
+    assert result == (context, "p", None, {}, None)
+    plan = next(kwargs["extra"] for message, kwargs in logs if message == "[REDMINE_LOAD] plan")
+    assert plan["filtered_rows"] == 1
     bridge.close()
 
 
@@ -1073,7 +1180,8 @@ def test_detail_selection_during_search_is_deferred_without_replacing_search_lif
     bridge._state = AuthState.AUTHENTICATED
     item = RedmineIssueListItem(id="closed", url="u", tracker="Bug", status="Closed", subject="closed")
     context = RedmineContext(projects=(RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=(item,)),))
-    bridge._replace_issue_view(
+    _set_bridge_projection(
+        bridge,
         view(context, all_projects="All projects", all_statuses="All statuses")
     )
     bridge._data_loading = True
@@ -1095,7 +1203,8 @@ def test_existing_analysis_detail_keeps_full_panel_content_without_refetch(monke
     item = RedmineIssueListItem(id="open", url="u", tracker="Bug", status="New", subject="full")
     detail = RedmineIssueDetail(id="open", url="u", project_identifier="p", subject="full", description="full description", attributes={"Status": "New", "Priority": "High"}, comments=(RedmineJournal(id="1", author="Alice", note="comment"),), list_item=item)
     context = RedmineContext(projects=(RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=(item,)),), issues=(detail,))
-    bridge._replace_issue_view(
+    _set_bridge_projection(
+        bridge,
         view(context, all_projects="All projects", all_statuses="All statuses")
     )
     launched = []
@@ -1123,6 +1232,56 @@ def test_search_completion_with_closed_filter_has_no_monitor_selection(monkeypat
     assert bridge.issueRows == []
     assert bridge.dataLoading is False
     assert bridge._data_operation_kind == ""
+    bridge.close()
+
+
+def test_all_invalid_watched_result_without_cache_replaces_old_membership(monkeypatch):
+    from tool.SmartHome.redmine import context_store
+
+    bridge = RedmineBridge(
+        FakeAuth(),
+        service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)),
+    )
+    bridge._account = "alice"
+    bridge._watched_issue_text = "999999"
+    bridge._issue_controller.activate_view("watched")
+    _set_bridge_records(
+        bridge,
+        [_issue_record("old", title="Old watched issue")],
+        selected_id="old",
+    )
+    bridge._data_generation = 3
+    bridge._data_loading = True
+    bridge._data_operation_kind = "watched"
+    monkeypatch.setattr(context_store, "load_quick_view", lambda *_args: None)
+    monkeypatch.setattr(
+        context_store,
+        "reconcile_issue_records",
+        lambda _account, records, **_kwargs: list(records),
+    )
+    monkeypatch.setattr(
+        context_store, "save_quick_view", lambda *_args, **_kwargs: None
+    )
+
+    bridge._apply_data(
+        3,
+        (
+            RedmineContext(account="alice"),
+            "",
+            None,
+            {},
+            {},
+            ("999999",),
+            ("999999",),
+            True,
+        ),
+    )
+
+    assert bridge.issueRows == []
+    assert bridge.selectedIssue == {}
+    assert bridge.watchedIssueText == "999999"
+    assert bridge.watchedIssueError == "No valid watched issue IDs were found: 999999"
+    assert bridge.dataStatusText == "Redmine data loaded."
     bridge.close()
 
 
@@ -1239,7 +1398,8 @@ def test_fresh_view_preserves_cached_clone_when_checker_is_unavailable(monkeypat
         FakeAuth(),
         service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)),
     )
-    bridge._replace_store(
+    _set_bridge_records(
+        bridge,
         [
             _issue_record(
                 "1",
@@ -1249,7 +1409,7 @@ def test_fresh_view_preserves_cached_clone_when_checker_is_unavailable(monkeypat
                 clone_url="https://jira/browse/SH-1",
             )
         ],
-        "1",
+        selected_id="1",
     )
     bridge._data_generation = 1
     bridge._data_loading = True
@@ -1264,8 +1424,8 @@ def test_fresh_view_preserves_cached_clone_when_checker_is_unavailable(monkeypat
         (RedmineContext(projects=(project,)), "p", None, {}, None),
     )
 
-    assert bridge._issue_store.get("1").title == "Fresh title"
-    assert bridge._issue_store.get("1").clone == {
+    assert bridge._issue_controller._store.get("1").title == "Fresh title"
+    assert bridge._issue_controller._store.get("1").clone == {
         "state": "cloned",
         "issue_key": "SH-1",
         "issue_url": "https://jira/browse/SH-1",
@@ -1320,8 +1480,8 @@ def test_fresh_quick_view_reconciles_global_canonical_record_before_apply(
         service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)),
     )
     bridge._account = "alice"
-    bridge._active_quick_view_id = "my_assigned"
-    assert bridge._issue_store.issue_list == ()
+    bridge._issue_controller.activate_view("my_assigned")
+    assert bridge._issue_controller._store.issue_list == ()
     bridge._data_generation = 1
     bridge._data_loading = True
     bridge._data_operation_kind = "my_assigned"
@@ -1331,7 +1491,7 @@ def test_fresh_quick_view_reconciles_global_canonical_record_before_apply(
         (RedmineContext(projects=(project,)), "p", None, {}, None),
     )
 
-    bridge_issue = bridge._issue_store.get("1")
+    bridge_issue = bridge._issue_controller._store.get("1")
     quick_view = context_store.load_quick_view("alice", "my_assigned")
     cached_issue = quick_view["issue_list"][0]
     assert bridge_issue.to_dict() == cached_issue.to_dict()
@@ -1341,7 +1501,7 @@ def test_fresh_quick_view_reconciles_global_canonical_record_before_apply(
     assert bridge_issue.clone["state"] == "cloned"
     assert bridge_issue.clone["issue_key"] == "SH-1"
     assert [issue.id for issue in quick_view["issue_list"]] == ["1"]
-    assert bridge._issue_store.selected_id == quick_view["selected_issue_id"] == "1"
+    assert bridge._issue_controller._store.selected_id == quick_view["selected_issue_id"] == "1"
     bridge.close()
 
 
@@ -1396,9 +1556,9 @@ def test_quick_view_refresh_preserves_cached_selection_only_while_still_present(
         service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)),
     )
     bridge._account = "alice"
-    bridge._active_quick_view_id = "my_assigned"
+    bridge._issue_controller.activate_view("my_assigned")
     bridge._load_quick_view_cache("my_assigned")
-    assert bridge._issue_store.selected_id == "2"
+    assert bridge._issue_controller._store.selected_id == "2"
     bridge._data_generation = 1
     bridge._data_loading = True
     bridge._data_operation_kind = "my_assigned"
@@ -1409,7 +1569,7 @@ def test_quick_view_refresh_preserves_cached_selection_only_while_still_present(
     )
 
     persisted = context_store.load_quick_view("alice", "my_assigned")
-    assert bridge._issue_store.selected_id == expected_selected_id
+    assert bridge._issue_controller._store.selected_id == expected_selected_id
     assert persisted["selected_issue_id"] == expected_selected_id
     assert [issue.id for issue in persisted["issue_list"]] == list(fresh_ids)
     bridge.close()
@@ -1439,9 +1599,9 @@ def test_empty_my_assigned_refresh_clears_and_persists_active_quick_view(
         service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)),
     )
     bridge._account = "alice"
-    bridge._active_quick_view_id = "my_assigned"
+    bridge._issue_controller.activate_view("my_assigned")
     bridge._load_quick_view_cache("my_assigned")
-    assert bridge._issue_store.selected_id == "stale"
+    assert bridge._issue_controller._store.selected_id == "stale"
     bridge._data_generation = 1
     bridge._data_loading = True
     bridge._data_operation_kind = "my_assigned"
@@ -1449,8 +1609,8 @@ def test_empty_my_assigned_refresh_clears_and_persists_active_quick_view(
     bridge._apply_data(1, ("quick_view_empty",))
 
     persisted = context_store.load_quick_view("alice", "my_assigned")
-    assert bridge._issue_store.issue_list == ()
-    assert bridge._issue_store.selected_id is None
+    assert bridge._issue_controller._store.issue_list == ()
+    assert bridge._issue_controller._store.selected_id is None
     assert bridge.dataStatusText == "Issues assigned to me loaded."
     assert persisted["issue_list"] == []
     assert persisted["selected_issue_id"] == ""
@@ -1485,7 +1645,8 @@ def test_fresh_search_result_applies_requested_filters_not_cached_filters(monkey
     support = RedmineIssueListItem(id="s", url="us", tracker="Support", status="New", subject="support")
     project = RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=(support,))
     context = RedmineContext(projects=(project,), issues=(RedmineIssueDetail(id="s", url="us", project_identifier="p", tracker="Support", subject="support", list_item=support),))
-    bridge._replace_issue_view(
+    _set_bridge_projection(
+        bridge,
         view(
             RedmineContext(projects=(project,)),
             all_projects="All projects",
@@ -1623,8 +1784,8 @@ def test_redmine_cached_bridge_projections_are_defensive(monkeypatch):
     projection = bridge.issueRows
     projection[0]["title"] = "Changed outside"
 
-    assert bridge._issue_store.get("60371").title == "Original"
-    assert bridge._issue_store.selected_id == "60371"
+    assert bridge._issue_controller._store.get("60371").title == "Original"
+    assert bridge._issue_controller._store.selected_id == "60371"
     assert bridge.issueRows[0]["clonedIssueKey"] == "SH-1"
     bridge.close()
 
@@ -1651,7 +1812,8 @@ def test_redmine_detail_result_patches_one_selected_store_record(monkeypatch):
         service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)),
     )
     bridge._state = AuthState.AUTHENTICATED
-    bridge._replace_issue_view(
+    _set_bridge_projection(
+        bridge,
         view(
             RedmineContext(projects=(project,)),
             all_projects="All projects",
@@ -1677,9 +1839,9 @@ def test_redmine_detail_result_patches_one_selected_store_record(monkeypatch):
 
     bridge._apply_data(4, ("detail", "60371", detail))
 
-    assert len(bridge._issue_store.issue_list) == 1
-    assert bridge._issue_store.selected_id == "60371"
-    assert bridge._issue_store.get("60371").detail_state == "loaded"
+    assert len(bridge._issue_controller._store.issue_list) == 1
+    assert bridge._issue_controller._store.selected_id == "60371"
+    assert bridge._issue_controller._store.get("60371").detail_state == "loaded"
     assert bridge.selectedIssue["description"] == "Hydrated"
     bridge.close()
 
@@ -1726,8 +1888,9 @@ def test_quick_view_detail_hydration_persists_only_active_cache_destination(
         service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)),
     )
     bridge._account = "alice"
-    bridge._active_quick_view_id = "my_assigned"
-    bridge._replace_issue_view(
+    bridge._issue_controller.activate_view("my_assigned")
+    _set_bridge_projection(
+        bridge,
         view(
             RedmineContext(projects=(project,)),
             all_projects="All projects",
@@ -1766,7 +1929,8 @@ def test_clone_checker_unavailable_or_failed_preserves_cached_clone_state(monkey
         FakeAuth(),
         service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)),
     )
-    bridge._replace_store(
+    _set_bridge_records(
+        bridge,
         [
             UnifiedIssue(
                 id="1",
@@ -1778,13 +1942,13 @@ def test_clone_checker_unavailable_or_failed_preserves_cached_clone_state(monkey
                 },
             )
         ],
-        "1",
+        selected_id="1",
     )
     monkeypatch.setattr(bridge, "_checker", lambda: None)
     unavailable = bridge._check_clone_status([{"id": "1"}])
     assert unavailable is None
-    bridge._apply_clone_status(unavailable)
-    assert bridge._issue_store.get("1").clone["state"] == "cloned"
+    bridge._issue_controller._patch_clone_results(unavailable, complete=True)
+    assert bridge._issue_controller._store.get("1").clone["state"] == "cloned"
 
     class FailingChecker:
         def check_many(self, *_args, **_kwargs):
@@ -1793,8 +1957,8 @@ def test_clone_checker_unavailable_or_failed_preserves_cached_clone_state(monkey
     monkeypatch.setattr(bridge, "_checker", lambda: FailingChecker())
     failed = bridge._check_clone_status([{"id": "1"}])
     assert failed is None
-    bridge._apply_clone_status(failed)
-    assert bridge._issue_store.get("1").clone["issue_key"] == "SH-1"
+    bridge._issue_controller._patch_clone_results(failed, complete=True)
+    assert bridge._issue_controller._store.get("1").clone["issue_key"] == "SH-1"
     bridge.close()
 
 
@@ -1805,7 +1969,8 @@ def test_successful_clone_check_with_no_match_sets_not_cloned():
         FakeAuth(),
         service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)),
     )
-    bridge._replace_store(
+    _set_bridge_records(
+        bridge,
         [
             UnifiedIssue(
                 id="1",
@@ -1817,12 +1982,12 @@ def test_successful_clone_check_with_no_match_sets_not_cloned():
                 },
             )
         ],
-        "1",
+        selected_id="1",
     )
 
-    bridge._apply_clone_status({})
+    bridge._issue_controller._patch_clone_results({}, complete=True)
 
-    assert bridge._issue_store.get("1").clone == {
+    assert bridge._issue_controller._store.get("1").clone == {
         "state": "not_cloned",
         "issue_key": "",
         "issue_url": "",
@@ -1833,7 +1998,7 @@ def test_successful_clone_check_with_no_match_sets_not_cloned():
 
 def test_clone_submit_patches_and_persists_active_store(monkeypatch):
     bridge = clone_bridge(persist=True)
-    bridge._active_quick_view_id = "my_assigned"
+    bridge._issue_controller.activate_view("my_assigned")
     bridge.prepareCloneDrafts()
     wait_for(lambda: bridge.cloneBatchState == "editing")
     bridge._clone_batch_state = "submitting"
@@ -1857,7 +2022,7 @@ def test_clone_submit_patches_and_persists_active_store(monkeypatch):
         [("1", "duplicate", result, "")],
     )
 
-    assert bridge._issue_store.get("1").clone["state"] == "cloned"
+    assert bridge._issue_controller._store.get("1").clone["state"] == "cloned"
     assert len(saved) == 1
     assert saved[0][1] == "my_assigned"
     assert saved[0][2]["issue_list"][0]["clone"]["issue_key"] == "SH-1"
@@ -1871,12 +2036,256 @@ def test_bridge_has_no_reverse_legacy_issue_ingress():
     )
 
     assert not hasattr(RedmineBridge, "_view")
-    with pytest.raises((KeyError, TypeError, ValueError)):
-        bridge._load_cached_projection(
-            {
-                "issueRows": [{"id": "legacy"}],
-                "selectedIssue": {"id": "legacy"},
-                "filters": {},
-            }
-        )
+    assert not hasattr(RedmineBridge, "_load_cached_projection")
+    assert not hasattr(RedmineBridge, "_replace_issue_view")
     bridge.close()
+
+
+def _controller_project(*issues):
+    return RedmineProject(
+        name="Project",
+        identifier="project",
+        url="https://redmine/projects/project",
+        project_id="P1",
+        issues=issues,
+    )
+
+
+def _controller_item(issue_id, *, title="Issue"):
+    return RedmineIssueListItem(
+        id=issue_id,
+        url=f"https://redmine/issues/{issue_id}",
+        tracker="Bug",
+        status="Open",
+        subject=title,
+    )
+
+
+def _issue_controller(*, account="alice"):
+    return RedmineIssueController(
+        account=account,
+        all_projects="All projects",
+        all_statuses="All statuses",
+        all_types="All types",
+    )
+
+
+def test_issue_controller_reconciles_projection_and_preserves_selection(monkeypatch):
+    from tool.SmartHome.redmine import issue_controller as module
+
+    first = _controller_item("1", title="First")
+    second = _controller_item("2", title="Second")
+    context = RedmineContext(
+        account="alice", projects=(_controller_project(first, second),)
+    )
+    cached_second = UnifiedIssue(
+        id="2",
+        key="2",
+        source_system="redmine",
+        title="Second",
+        project={
+            "id": "P1",
+            "identifier": "project",
+            "name": "Project",
+            "url": "",
+        },
+        detail_state="loaded",
+        clone={
+            "state": "cloned",
+            "issue_key": "SH-2",
+            "issue_url": "https://jira/SH-2",
+            "checked": True,
+        },
+    )
+    reconcile_calls = []
+    persisted = []
+
+    def reconcile(_account, records, *, known_records=()):
+        reconcile_calls.append([issue.id for issue in known_records])
+        return [records[0], cached_second]
+
+    monkeypatch.setattr(module.context_store, "reconcile_issue_records", reconcile)
+    monkeypatch.setattr(
+        module.context_store,
+        "save_quick_view",
+        lambda account, view_id, store, *, filters: persisted.append(
+            (
+                account,
+                view_id,
+                [issue.id for issue in store.issue_list],
+                store.selected_id,
+                dict(filters),
+            )
+        ),
+    )
+    controller = _issue_controller()
+    controller.activate_view("my_assigned")
+    controller.replace_result(context, filters={})
+    controller.select_issue("2")
+    snapshot = controller.replace_result(context, filters={"text": "panel"})
+
+    assert reconcile_calls == [[], ["1", "2"]]
+    assert snapshot.selected_id == "2"
+    assert snapshot.selected_issue["clonedIssueKey"] == "SH-2"
+    assert snapshot.filters["text"] == "panel"
+    assert persisted[-1][0:4] == ("alice", "my_assigned", ["1", "2"], "2")
+
+
+def test_issue_controller_selects_source_and_hydrates_current_detail(monkeypatch):
+    from tool.SmartHome.redmine import issue_controller as module
+
+    item = _controller_item("7")
+    project = _controller_project(item)
+    context = RedmineContext(account="alice", projects=(project,))
+    monkeypatch.setattr(
+        module.context_store,
+        "reconcile_issue_records",
+        lambda _account, records, **_kwargs: list(records),
+    )
+    monkeypatch.setattr(module.context_store, "save_view", lambda *_args, **_kwargs: None)
+    controller = _issue_controller()
+    controller.activate_view("")
+    controller.replace_result(context, filters={})
+
+    selection = controller.select_issue("7")
+    assert selection.project == project
+    assert selection.item == item
+    assert selection.needs_detail is True
+    detail = RedmineIssueDetail(
+        id="7",
+        url=item.url,
+        tracker="Bug",
+        subject="Hydrated",
+        list_item=item,
+    )
+    assert controller.apply_selected_detail("other", detail) is False
+    assert controller.apply_selected_detail("7", detail) is True
+    assert controller.snapshot.selected_issue["title"] == "Hydrated"
+    assert controller.source_for_issue("7").detail == detail
+
+
+def test_issue_controller_owns_clone_patch_and_active_view_persistence(monkeypatch):
+    from tool.SmartHome.redmine import issue_controller as module
+
+    item = _controller_item("9")
+    context = RedmineContext(account="alice", projects=(_controller_project(item),))
+    saved = []
+    monkeypatch.setattr(
+        module.context_store,
+        "reconcile_issue_records",
+        lambda _account, records, **_kwargs: list(records),
+    )
+    monkeypatch.setattr(
+        module.context_store,
+        "save_quick_view",
+        lambda _account, view_id, *_args, **_kwargs: saved.append(view_id),
+    )
+    controller = _issue_controller()
+    controller.activate_view("watched")
+    controller.replace_result(context, filters={})
+    controller.record_clone_results(
+        {
+            "9": type(
+                "Existing",
+                (),
+                {"key": "SH-9", "web_url": "https://jira/SH-9"},
+            )()
+        },
+    )
+
+    assert controller.snapshot.issue_rows[0]["clonedIssueKey"] == "SH-9"
+    assert saved == ["watched", "watched"]
+
+
+def test_issue_controller_project_metadata_refresh_does_not_persist_a_new_view(monkeypatch):
+    from tool.SmartHome.redmine import issue_controller as module
+
+    item = _controller_item("10")
+    project = RedmineProject(
+        name="Project",
+        identifier="project",
+        url="https://redmine/projects/project",
+        project_id="",
+        issues=(item,),
+    )
+    saved = []
+    monkeypatch.setattr(
+        module.context_store,
+        "reconcile_issue_records",
+        lambda _account, records, **_kwargs: list(records),
+    )
+    monkeypatch.setattr(
+        module.context_store,
+        "save_quick_view",
+        lambda *_args, **_kwargs: saved.append("saved"),
+    )
+    controller = _issue_controller()
+    controller.activate_view("my_assigned")
+    controller.replace_result(
+        RedmineContext(account="alice", projects=(project,)),
+        filters={"status": "Open"},
+    )
+    saved.clear()
+
+    controller.apply_project_options(
+        [{"id": "project", "label": "Project", "projectId": "P1"}]
+    )
+
+    assert saved == []
+    assert controller.snapshot.issue_rows[0]["projectId"] == "P1"
+
+
+def test_issue_controller_empty_result_preserves_view_metadata_but_watched_clear_resets_it(monkeypatch):
+    from tool.SmartHome.redmine import issue_controller as module
+
+    item = _controller_item("11")
+    monkeypatch.setattr(
+        module.context_store,
+        "reconcile_issue_records",
+        lambda _account, records, **_kwargs: list(records),
+    )
+    monkeypatch.setattr(
+        module.context_store, "save_quick_view", lambda *_args, **_kwargs: None
+    )
+    controller = _issue_controller()
+    controller.activate_view("my_assigned")
+    controller.replace_result(
+        RedmineContext(
+            account="alice", projects=(_controller_project(item),)
+        ),
+        filters={"status": "Open"},
+    )
+
+    empty = controller.clear_active_view()
+    assert empty.filters["status"] == "Open"
+    assert empty.project_filter_labels == ("All projects", "Project [P1]")
+
+    watched = controller.clear_watched_view()
+    assert watched.filters["status"] == ""
+    assert watched.project_filter_labels == ("All projects",)
+
+
+def test_redmine_bridge_keeps_issue_state_behind_controller_boundary():
+    source = (
+        Path(__file__).resolve().parents[3] / "ui/example/bridge/RedmineBridge.py"
+    ).read_text(encoding="utf-8")
+
+    assert "from tool.SmartHome.redmine.issue_controller import RedmineIssueController" in source
+    assert "self._issue_controller = RedmineIssueController(" in source
+    for forbidden in (
+        "self._issue_store",
+        "self._context",
+        "self._filters",
+        "self._project_filter_labels",
+        "self._status_filter_labels",
+        "self._type_filter_labels",
+    ):
+        assert forbidden not in source
+    for migrated_helper in (
+        "def _replace_store(",
+        "def _replace_issue_view(",
+        "def _load_cached_projection(",
+        "def _apply_clone_status(",
+        "def _persist_issue_store(",
+    ):
+        assert migrated_helper not in source

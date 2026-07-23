@@ -19,7 +19,6 @@ from support.jira_integration.core.models import (
     CreateIssueResult,
     ExistingIssue,
 )
-from support.jira_integration.core import IssueStore, UnifiedIssue
 from support.jira_integration.services.create_issue_service import CreateIssueService
 from support.jira_integration.services.create_schema_service import JiraCreateSchemaService
 from support.jira_integration.core.description import render_notes_description
@@ -28,68 +27,14 @@ from support.logging import smart_log
 from tool.SmartHome.redmine.auth import RedmineAuthService
 from tool.SmartHome.redmine.clone_draft import CloneDraft, RedmineCloneDraftService
 from tool.SmartHome.redmine.collector import RedmineContextCollector, project_options
-from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueListItem, RedmineProject
+from tool.SmartHome.redmine.issue_controller import RedmineIssueController
 from tool.SmartHome.redmine.issue_analysis_loader import IssueAnalysisLoader, analysis_work_count, consolidate_context
 from tool.SmartHome.redmine.mapping import redmine_tracker_to_jira_type
 from tool.SmartHome.redmine.overdue import load_redmine_people
 from tool.SmartHome.redmine.query import RedmineQuery, parse_terms
 from tool.SmartHome.redmine import context_store
 from tool.SmartHome.redmine.models import AuthResult, AuthState, Credential
-from tool.SmartHome.redmine.view_model import (
-    actionable_rows,
-    context_payload,
-    detail_row_from_unified,
-    issue_row_from_unified,
-    replace_detail,
-    unified_issue,
-    view,
-)
 from ui.example.bridge.ToolBridge import amlogic_employees, employee_department, load_tool_access
-
-
-def _my_assigned_projects(rows, project_options):
-    project_ids = _project_ids(project_options)
-    grouped = {}
-    for row in rows:
-        identifier = str(row.get("project_identifier") or "my-page")
-        grouped.setdefault(
-            identifier,
-            {
-                "name": row.get("project_name") or "",
-                "url": row.get("project_url") or "",
-                "issues": [],
-            },
-        )["issues"].append(row["issue"])
-    return tuple(
-        RedmineProject(
-            name=str(data["name"] or identifier),
-            identifier=identifier,
-            url=str(data["url"] or ""),
-            project_id=project_ids.get(identifier, ""),
-            issues=tuple(data["issues"]),
-        )
-        for identifier, data in grouped.items()
-    )
-
-
-def _reconcile_project_ids(context: RedmineContext, project_options) -> RedmineContext:
-    project_ids = _project_ids(project_options)
-    projects = tuple(
-        replace(
-            project,
-            project_id=project_ids.get(project.identifier, project.project_id),
-        )
-        for project in context.projects
-    )
-    return replace(context, projects=projects)
-
-
-def _project_ids(project_options) -> dict[str, str]:
-    return {
-        str(option.get("id") or ""): str(option.get("projectId") or "")
-        for option in project_options
-        if isinstance(option, dict) and option.get("id") and option.get("projectId")
-    }
 
 
 async def _native_query(collector, filters):
@@ -135,38 +80,6 @@ class _AsyncLoopWorker:
         return True
 
 
-def _empty_filters() -> dict[str, str]:
-    return {"project": "", "status": "", "type": "", "subject": "", "text": ""}
-
-
-def _normalize_filters(filters) -> dict[str, str]:
-    source = filters if isinstance(filters, dict) else {}
-    return {
-        key: str(source.get(key, "") or "")
-        for key in _empty_filters()
-    }
-
-
-def _source_item(issue: UnifiedIssue):
-    project = RedmineProject(
-        name=str(issue.project.get("name") or ""),
-        identifier=str(issue.project.get("identifier") or ""),
-        url=str(issue.project.get("url") or ""),
-        project_id=str(issue.project.get("id") or ""),
-    )
-    item = RedmineIssueListItem(
-        id=issue.id,
-        url=issue.web_url or issue.source_url,
-        tracker=str(issue.issue_type.get("name") or ""),
-        status=str(issue.status.get("name") or ""),
-        priority=str(issue.priority.get("name") or ""),
-        subject=issue.title,
-        assignee=str(issue.assignee.get("name") or issue.assignee.get("displayName") or ""),
-        updated_at=issue.updated_at,
-    )
-    return project, item
-
-
 class RedmineBridge(QObject):
     changed = Signal()
     credentialsRequired = Signal()
@@ -209,12 +122,11 @@ class RedmineBridge(QObject):
         self._status = self.tr("Ready to sign in to Redmine.")
         self._account = ""
         self._auth_account = str(getattr(auth_bridge, "username", "") or "").strip()
-        self._issue_store = IssueStore()
-        self._context = RedmineContext()
-        self._filters = _empty_filters()
-        self._project_filter_labels = [self.tr("All projects")]
-        self._status_filter_labels = [self.tr("All statuses"), "Open", "Closed"]
-        self._type_filter_labels = [self.tr("All types")]
+        self._issue_controller = RedmineIssueController(
+            all_projects=self.tr("All projects"),
+            all_statuses=self.tr("All statuses"),
+            all_types=self.tr("All types"),
+        )
         self._opened_urls: set[str] = set()
         self._data_status = self.tr("Redmine data is not loaded.")
         self._data_loading = False
@@ -226,7 +138,6 @@ class RedmineBridge(QObject):
         self._projects_loading = False
         self._projects_ready = False
         self._projects_status = self.tr("Projects are not loaded.")
-        self._active_quick_view_id = "my_assigned"
         self._watched_issue_text = ""
         self._watched_issue_error = ""
         self._clone_generation = 0
@@ -286,7 +197,7 @@ class RedmineBridge(QObject):
         self._active_search_filter_requested = False
         self._state = AuthState.IDLE
         self._account = ""
-        self._clear_issue_state()
+        self._issue_controller.reset()
         self._data_status = self.tr("Redmine data is not loaded.")
         self._data_loading = False
         self._data_loaded = 0
@@ -323,7 +234,7 @@ class RedmineBridge(QObject):
         {"id": "my_assigned", "label": self.tr("Issues assigned to me")},
         {"id": "watched", "label": self.tr("Watched issues")},
     ], notify=changed)
-    activeQuickViewId = Property(str, lambda self: self._active_quick_view_id, notify=changed)
+    activeQuickViewId = Property(str, lambda self: self._issue_controller.active_view_id, notify=changed)
     watchedIssueText = Property(str, lambda self: self._watched_issue_text, notify=changed)
     watchedIssueError = Property(str, lambda self: self._watched_issue_error, notify=changed)
     projectOptions = Property(
@@ -336,20 +247,14 @@ class RedmineBridge(QObject):
     projectsStatusText = Property(str, lambda self: self._projects_status, notify=changed)
     searchLoading = Property(bool, lambda self: self._data_loading and self._data_operation_kind == "search", notify=changed)
     searchCanCancel = Property(bool, lambda self: self._data_loading and self._data_operation_kind == "search" and self._data_future is not None, notify=changed)
-    redmineContext = Property("QVariantMap", lambda self: context_payload(
-        self._issue_store.issue_list,
-        account=self._account,
-        source_url=self._context.source_url,
-        filters=self._filters,
-        selected_issue_id=str(self._issue_store.selected_id or ""),
-    ), notify=changed)
-    projectFilterLabels = Property("QVariantList", lambda self: list(self._project_filter_labels), notify=changed)
-    statusFilterLabels = Property("QVariantList", lambda self: list(self._status_filter_labels), notify=changed)
-    typeFilterLabels = Property("QVariantList", lambda self: list(self._type_filter_labels), notify=changed)
-    filters = Property("QVariantMap", lambda self: dict(self._filters), notify=changed)
-    issueRows = Property("QVariantList", lambda self: self._issue_rows(), notify=changed)
-    selectedIssue = Property("QVariantMap", lambda self: detail_row_from_unified(self._issue_store.selected_issue), notify=changed)
-    actionableIssues = Property("QVariantList", lambda self: actionable_rows(self._issue_store.issue_list), notify=changed)
+    redmineContext = Property("QVariantMap", lambda self: self._issue_controller.snapshot.context_payload, notify=changed)
+    projectFilterLabels = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.project_filter_labels), notify=changed)
+    statusFilterLabels = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.status_filter_labels), notify=changed)
+    typeFilterLabels = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.type_filter_labels), notify=changed)
+    filters = Property("QVariantMap", lambda self: self._issue_controller.snapshot.filters, notify=changed)
+    issueRows = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.issue_rows), notify=changed)
+    selectedIssue = Property("QVariantMap", lambda self: self._issue_controller.snapshot.selected_issue, notify=changed)
+    actionableIssues = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.actionable_issues), notify=changed)
     cloneSelectionMode = Property(bool, lambda self: self._clone_batch_state == "selecting", notify=changed)
     cloneSelectedIds = Property("QVariantList", lambda self: list(self._clone_selected_ids), notify=changed)
     cloneDrafts = Property("QVariantList", lambda self: [self._clone_record_payload(item) for item in self._clone_draft_records], notify=changed)
@@ -360,59 +265,11 @@ class RedmineBridge(QObject):
     firstInvalidIssueId = Property(str, lambda self: self._first_invalid_issue_id, notify=changed)
     firstInvalidFieldId = Property(str, lambda self: self._first_invalid_field_id, notify=changed)
 
-    def _clear_issue_state(self):
-        self._issue_store.replace_all(())
-        self._issue_store.select(None)
-        self._context = RedmineContext(account=self._account)
-        self._filters = _empty_filters()
-        self._project_filter_labels = [self.tr("All projects")]
-        self._status_filter_labels = [self.tr("All statuses"), "Open", "Closed"]
-        self._type_filter_labels = [self.tr("All types")]
-
-    def _issue_rows(self):
-        return [issue_row_from_unified(issue) for issue in self._issue_store.issue_list]
-
-    def _replace_store(self, records, selected_id=""):
-        self._issue_store.replace_all(records or ())
-        selected_id = str(selected_id or "")
-        if selected_id and self._issue_store.get(selected_id) is not None:
-            self._issue_store.select(selected_id)
-        elif self._issue_store.issue_list:
-            self._issue_store.select(self._issue_store.issue_list[0].id)
-        else:
-            self._issue_store.select(None)
-
-    def _replace_issue_view(self, projected):
-        self._context = projected.get("context") or RedmineContext(account=self._account)
-        selected_id = str(projected.get("selectedIssueId") or projected.get("selected_issue_id") or "")
-        self._replace_store(projected.get("issue_list"), selected_id)
-        self._filters = _normalize_filters(projected.get("filters"))
-        self._project_filter_labels = list(
-            projected.get("projectFilterLabels") or [self.tr("All projects")]
-        )
-        self._status_filter_labels = list(
-            projected.get("statusFilterLabels") or [self.tr("All statuses"), "Open", "Closed"]
-        )
-        self._type_filter_labels = list(
-            projected.get("typeFilterLabels") or [self.tr("All types")]
-        )
-
-    def _load_cached_projection(self, cached):
-        records = cached["issue_list"]
-        if not isinstance(records, list) or any(
-            not isinstance(issue, UnifiedIssue) for issue in records
-        ):
-            raise TypeError("Cached issue_list must contain UnifiedIssue records")
-        selected_id = str(cached.get("selected_issue_id") or "")
-        self._replace_store(records, selected_id)
-        self._context = RedmineContext(account=self._account)
-        self._filters = _normalize_filters(cached.get("filters"))
-
     def _load_cached_view(self):
-        cached = context_store.load_view(self._account)
-        if not cached:
+        self._issue_controller.set_account(self._account)
+        self._issue_controller.activate_view("")
+        if not self._issue_controller.load_cached():
             return
-        self._load_cached_projection(cached)
         self._data_status = self.tr("Redmine data loaded.")
         self.changed.emit()
 
@@ -459,45 +316,6 @@ class RedmineBridge(QObject):
             smart_log("[REDMINE_LOAD] clone failure", domain="tool", source="RedmineBridge", level="warning", extra={"checked": 0, "total": len(rows), "error_type": type(exc).__name__})
             return None
 
-    def _apply_clone_status(self, clone_status=None, *, complete=True):
-        if clone_status is None:
-            return
-        statuses = clone_status
-        for issue in self._issue_store.issue_list:
-            existing = statuses.get(issue.id)
-            if existing:
-                clone = {
-                    "state": "cloned",
-                    "issue_key": str(getattr(existing, "key", "") or ""),
-                    "issue_url": str(getattr(existing, "web_url", "") or ""),
-                    "checked": True,
-                }
-            elif complete:
-                clone = {
-                    "state": "not_cloned",
-                    "issue_key": "",
-                    "issue_url": "",
-                    "checked": True,
-                }
-            else:
-                continue
-            self._issue_store.patch(issue.id, clone=clone)
-
-    def _persist_issue_store(self):
-        if self._active_quick_view_id in {"my_assigned", "watched"}:
-            context_store.save_quick_view(
-                self._account,
-                self._active_quick_view_id,
-                self._issue_store,
-                filters=self._filters,
-            )
-        else:
-            context_store.save_view(
-                self._account,
-                self._issue_store,
-                filters=self._filters,
-            )
-
     async def _service_for(self, account):
         if self._service is None:
             if self._service_factory:
@@ -519,8 +337,11 @@ class RedmineBridge(QObject):
     async def _enrich_issue_context(self, page, context, filters, *, progress=True):
         context = consolidate_context(context)
         analysis_total = analysis_work_count(context)
-        planned_view = view(context, all_projects=self.tr("All projects"), all_statuses=self.tr("All statuses"), filters=filters)
-        planned_clone_rows = list(planned_view.get("issueRows", []))
+        planned_clone_rows = list(
+            self._issue_controller.enrichment_projection(
+                context, filters
+            ).issue_rows
+        )
         total_work = analysis_total + len(planned_clone_rows)
         if progress:
             self._emit_data_progress(0, total_work, "analysis")
@@ -531,14 +352,13 @@ class RedmineBridge(QObject):
             progress_callback=(lambda done, _total, _label: self._emit_data_progress(done, total_work, "analysis")) if progress else None,
         )
         context = await loader.analyze(context, aml_names=aml_names)
-        filtered_view = view(context, all_projects=self.tr("All projects"), all_statuses=self.tr("All statuses"), filters=filters)
-        first_issue_id = str((filtered_view.get("selectedIssue") or {}).get("id") or "")
-        first_project, first_issue = context.item_for_issue(first_issue_id)
-        detail = next((item for item in context.issues if item.id == first_issue_id), None) if first_issue else None
+        selected = self._issue_controller.enrichment_projection(
+            context, filters
+        ).source
         if progress:
             self._emit_data_progress(analysis_total, total_work, "clone")
         clone_status = self._check_clone_status(planned_clone_rows, progress_base=analysis_total, progress_total=total_work, emit_progress=progress)
-        return context, first_project.identifier if first_project and first_issue else "", detail, filters, clone_status
+        return context, selected.project.identifier if selected.project and selected.item else "", selected.detail, filters, clone_status
 
     def _launch(self, operation):
         if self._closed or self._state is AuthState.SIGNING_IN:
@@ -574,6 +394,7 @@ class RedmineBridge(QObject):
         self._login_future = None
         self._state = result.state
         self._account = result.username or self._account
+        self._issue_controller.set_account(self._account)
         reason_status = {
             "incorrect_verification_code": self.tr(
                 "The verification code was rejected. Enter the latest code from your phone."
@@ -610,12 +431,13 @@ class RedmineBridge(QObject):
             self.refreshProjects()
 
     def _load_quick_view_cache(self, quick_view_id):
-        cached = context_store.load_quick_view(self._account, quick_view_id)
-        if not cached:
-            return
-        self._load_cached_projection(cached)
+        self._issue_controller.set_account(self._account)
+        self._issue_controller.activate_view(quick_view_id)
+        if not self._issue_controller.load_cached():
+            return False
         self._data_status = self.tr("Issues assigned to me loaded.")
         self.changed.emit()
+        return True
 
     @Slot()
     def refreshProjects(self):
@@ -656,32 +478,8 @@ class RedmineBridge(QObject):
             context_store.save_project_options(self._account, self._project_options)
             self._projects_ready = True
             self._projects_status = self.tr("Redmine projects loaded.")
-            if self._active_quick_view_id == "my_assigned":
-                context = self._context
-                if isinstance(context, RedmineContext):
-                    context = _reconcile_project_ids(context, self._project_options)
-                    self._context = context
-                    if not self._issue_store.issue_list:
-                        selected_detail = context.issues[0] if context.issues else None
-                        self._replace_issue_view(
-                            view(
-                                context,
-                                all_projects=self.tr("All projects"),
-                                all_statuses=self.tr("All statuses"),
-                                filters=self._filters,
-                                selected_detail=selected_detail,
-                            )
-                        )
-                    else:
-                        project_ids = _project_ids(self._project_options)
-                        for issue in self._issue_store.issue_list:
-                            identifier = str(issue.project.get("identifier") or "")
-                            project_id = project_ids.get(identifier)
-                            if project_id and project_id != issue.project.get("id"):
-                                self._issue_store.patch(
-                                    issue.id,
-                                    project={**issue.project, "id": project_id},
-                                )
+            if self._issue_controller.active_view_id == "my_assigned":
+                self._issue_controller.apply_project_options(self._project_options)
         else:
             self._projects_status = self.tr("No Redmine projects were loaded. Retry project loading.")
         self.changed.emit()
@@ -690,7 +488,7 @@ class RedmineBridge(QObject):
     def activateQuickView(self, quick_view_id):
         if self._state is not AuthState.AUTHENTICATED or self._data_loading or quick_view_id not in ("my_assigned", "watched"):
             return
-        self._active_quick_view_id = quick_view_id
+        self._issue_controller.activate_view(quick_view_id)
         self._load_quick_view_cache(quick_view_id)
         if quick_view_id == "watched":
             issue_ids = context_store.load_watched_issue_ids(self._account)
@@ -708,11 +506,9 @@ class RedmineBridge(QObject):
                 if not rows:
                     return "quick_view_empty",
                 metadata = list(self._project_options)
-                current_context = self._context
-                if isinstance(current_context, RedmineContext):
-                    metadata.extend(project_options(current_context.projects))
-                projects = _my_assigned_projects(rows, metadata)
-                return await self._enrich_issue_context(page, RedmineContext(account=self._account, projects=projects), {}, progress=True)
+                metadata.extend(self._issue_controller.context_project_options())
+                context = self._issue_controller.assigned_context(rows, metadata)
+                return await self._enrich_issue_context(page, context, {}, progress=True)
         self._launch_data_load(operation, status=self.tr("Loading issues assigned to me..."), kind="my_assigned")
 
     def _launch_data_load(self, operation, *, status, kind="detail"):
@@ -780,10 +576,12 @@ class RedmineBridge(QObject):
         filter_requested = self._pending_filters is not None
         if not filter_requested:
             self._load_cached_view()
-        saved_filters = dict(self._pending_filters) if filter_requested else context_store.load_filters(self._account)
+        saved_filters = self._issue_controller.filters_for_search(
+            self._pending_filters if filter_requested else None
+        )
         self._pending_filters = None
         self._active_search_filter_requested = filter_requested
-        self._active_quick_view_id = ""
+        self._issue_controller.activate_view("")
         project_metadata = list(self._project_options)
 
         async def operation():
@@ -794,12 +592,19 @@ class RedmineBridge(QObject):
                 collector = RedmineContextCollector(page, account=self._account, progress_callback=lambda _loaded, _total, _label: self._emit_data_progress(0, 0, "discovery"))
                 effective_filters = saved_filters
                 context = await collector.collect_query(await _native_query(collector, saved_filters))
-                context = _reconcile_project_ids(context, project_metadata)
+                context = self._issue_controller.reconcile_project_ids(
+                    context, project_metadata
+                )
                 enriched = await self._enrich_issue_context(page, context, effective_filters, progress=True)
             project_count = sum(bool(project.project_id) for project in context.projects)
             collected_rows = sum(len(project.issues) for project in context.projects)
             unique_issues = sum(len(project.issues) for project in enriched[0].projects)
-            smart_log("[REDMINE_LOAD] plan", domain="tool", source="RedmineBridge", level="info", extra={"projects": project_count, "collected_rows": collected_rows, "unique_issues": unique_issues, "filtered_rows": len(view(enriched[0], all_projects=self.tr("All projects"), all_statuses=self.tr("All statuses"), filters=effective_filters).get("issueRows", []))})
+            filtered_rows = len(
+                self._issue_controller.enrichment_projection(
+                    enriched[0], effective_filters
+                ).issue_rows
+            )
+            smart_log("[REDMINE_LOAD] plan", domain="tool", source="RedmineBridge", level="info", extra={"projects": project_count, "collected_rows": collected_rows, "unique_issues": unique_issues, "filtered_rows": filtered_rows})
             return enriched
 
         self._launch_data_load(operation, status=self.tr("Loading Redmine data..."), kind="search")
@@ -839,7 +644,9 @@ class RedmineBridge(QObject):
                 context = await RedmineContextCollector(page, account=self._account).collect_query(
                     RedmineQuery(issue_ids=submitted)
                 )
-                context = _reconcile_project_ids(context, project_metadata)
+                context = self._issue_controller.reconcile_project_ids(
+                    context, project_metadata
+                )
                 enriched = await self._enrich_issue_context(page, context, {}, progress=True)
                 return (*enriched, submitted, terms, validate)
         self._launch_data_load(operation, status=self.tr("Loading watched issues..."), kind="watched")
@@ -851,17 +658,11 @@ class RedmineBridge(QObject):
         invalid_syntax = tuple(term for term in terms if not term.isdecimal())
         self._watched_issue_text = str(text or "")
         self._watched_issue_error = ""
-        self._active_quick_view_id = "watched"
+        self._issue_controller.activate_view("watched")
         if not terms:
             context_store.save_watched_issue_ids(self._account, [])
             self._watched_issue_text = ""
-            self._clear_issue_state()
-            context_store.save_quick_view(
-                self._account,
-                "watched",
-                self._issue_store,
-                filters=self._filters,
-            )
+            self._issue_controller.clear_watched_view()
             self.changed.emit()
             return
         if not submitted:
@@ -904,24 +705,10 @@ class RedmineBridge(QObject):
         issue_id = str(issue_id or "").strip()
         if not issue_id or self._state is not AuthState.AUTHENTICATED:
             return
-        issue = self._issue_store.get(issue_id)
-        if issue is None:
-            project, item = self._context.item_for_issue(issue_id)
-            if project is None or item is None:
-                return
-            detail = next(
-                (candidate for candidate in self._context.issues if candidate.id == issue_id),
-                None,
-            )
-            issue = self._issue_store.upsert(
-                unified_issue(project, item, detail=detail)
-            )
-        self._issue_store.select(issue_id)
-        project, item = self._context.item_for_issue(issue_id)
-        if item is None:
-            project, item = _source_item(issue)
-
-        if issue.detail_state == "loaded":
+        selection = self._issue_controller.select_issue(issue_id)
+        if selection.issue is None or selection.project is None or selection.item is None:
+            return
+        if not selection.needs_detail:
             self.changed.emit()
             return
 
@@ -934,7 +721,9 @@ class RedmineBridge(QObject):
             service = await self._service_for(self._account)
             async with self._operation_page(service) as page:
                 collector = RedmineContextCollector(page, account=self._account)
-                return "detail", issue_id, await collector.collect_issue_detail(item, project=project)
+                return "detail", issue_id, await collector.collect_issue_detail(
+                    selection.item, project=selection.project
+                )
 
         self._launch_data_load(operation, status=self.tr("Refreshing Redmine issue detail..."), kind="detail")
 
@@ -943,6 +732,7 @@ class RedmineBridge(QObject):
         if self._closed or generation != self._data_generation:
             return
         operation_kind = self._data_operation_kind
+        self._issue_controller.set_account(self._account)
         self._data_loading = False
         self._data_operation_kind = ""
         self._data_future = None
@@ -966,44 +756,16 @@ class RedmineBridge(QObject):
             self.changed.emit()
             return
         if operation_kind == "my_assigned" and result == ("quick_view_empty",):
-            self._issue_store.replace_all(())
-            self._context = RedmineContext(account=self._account)
+            self._issue_controller.activate_view("my_assigned")
+            self._issue_controller.clear_active_view()
             self._data_status = self.tr("Issues assigned to me loaded.")
-            context_store.save_quick_view(
-                self._account,
-                "my_assigned",
-                self._issue_store,
-                filters=self._filters,
-            )
             self.changed.emit()
             return
         if isinstance(result, tuple) and len(result) == 3 and result[0] == "detail":
             _kind, issue_id, detail = result
-            if issue_id != self._issue_store.selected_id:
+            if not self._issue_controller.apply_selected_detail(issue_id, detail):
                 return
-            self._context = replace_detail(self._context, detail)
-            current = self._issue_store.get(issue_id)
-            project, item = self._context.item_for_issue(issue_id)
-            if item is None and current is not None:
-                project, item = _source_item(current)
-            if current is None or project is None or item is None:
-                return
-            hydrated = unified_issue(
-                project,
-                item,
-                analysis=current.analysis,
-                detail=detail,
-            )
-            self._issue_store.patch(
-                issue_id,
-                **{
-                    key: value
-                    for key, value in hydrated.to_dict().items()
-                    if key not in {"id", "clone"}
-                },
-            )
             self._data_status = self.tr("Redmine issue detail refreshed.")
-            self._persist_issue_store()
             self.changed.emit()
             return
         watched_submission = ()
@@ -1014,29 +776,8 @@ class RedmineBridge(QObject):
         else:
             context, _project_identifier, detail, filters, clone_status = result
         if operation_kind == "search" and not self._active_search_filter_requested:
-            wanted_id = str(self._issue_store.selected_id or "")
+            wanted_id = self._issue_controller.snapshot.selected_id
             detail = next((item for item in context.issues if item.id == wanted_id), detail if not wanted_id else None)
-        if detail:
-            context = replace_detail(context, detail)
-        projected = view(
-            context,
-            all_projects=self.tr("All projects"),
-            all_statuses=self.tr("All statuses"),
-            filters=filters,
-            selected_detail=detail,
-        )
-        projected["issue_list"] = context_store.reconcile_issue_records(
-            self._account,
-            projected["issue_list"],
-            known_records=self._issue_store.issue_list,
-        )
-        previous_selected_id = str(self._issue_store.selected_id or "")
-        if previous_selected_id and any(
-            issue.id == previous_selected_id for issue in projected["issue_list"]
-        ):
-            projected["selectedIssueId"] = previous_selected_id
-        self._replace_issue_view(projected)
-        self._apply_clone_status(clone_status)
         self._data_loaded = sum(len(project.issues) for project in context.projects)
         self._data_total = self._data_loaded
         self._data_status = self.tr("Issues assigned to me loaded.") if operation_kind == "my_assigned" else self.tr("Redmine data loaded.")
@@ -1046,34 +787,27 @@ class RedmineBridge(QObject):
             invalid = [term for term in watched_terms if term not in valid_ids]
             if watched_validate and not valid:
                 self._watched_issue_error = self.tr("No valid watched issue IDs were found: %1").replace("%1", ", ".join(invalid))
-                self._load_quick_view_cache("watched")
-                self.changed.emit()
-                return
-            if watched_validate:
-                context_store.save_watched_issue_ids(self._account, valid)
-                self._watched_issue_text = " ".join(valid)
-            self._watched_issue_error = self.tr("Invalid issue IDs: %1").replace("%1", ", ".join(invalid)) if invalid else ""
-            context_store.save_quick_view(
-                self._account,
-                "watched",
-                self._issue_store,
-                filters=self._filters,
-            )
-        elif operation_kind == "my_assigned":
-            context_store.save_quick_view(
-                self._account,
-                "my_assigned",
-                self._issue_store,
-                filters=self._filters,
-            )
-        else:
-            context_store.save_view(self._account, self._issue_store, filters=self._filters)
+                if self._load_quick_view_cache("watched"):
+                    self.changed.emit()
+                    return
+            else:
+                if watched_validate:
+                    context_store.save_watched_issue_ids(self._account, valid)
+                    self._watched_issue_text = " ".join(valid)
+                self._watched_issue_error = self.tr("Invalid issue IDs: %1").replace("%1", ", ".join(invalid)) if invalid else ""
+        self._issue_controller.replace_result(
+            context,
+            filters=filters,
+            selected_detail=detail,
+            clone_status=clone_status,
+        )
         if operation_kind == "search" and self._active_search_filter_requested:
-            smart_log("[REDMINE_FILTER] refresh applied", domain="tool", source="RedmineBridge", level="info", extra={"project": bool(filters.get("project")), "status": filters.get("status", ""), "type": filters.get("type", ""), "text_present": bool(filters.get("text")), "result_count": len(self._issue_store.issue_list), "actionable_count": len(actionable_rows(self._issue_store.issue_list))})
+            snapshot = self._issue_controller.snapshot
+            smart_log("[REDMINE_FILTER] refresh applied", domain="tool", source="RedmineBridge", level="info", extra={"project": bool(filters.get("project")), "status": filters.get("status", ""), "type": filters.get("type", ""), "text_present": bool(filters.get("text")), "result_count": len(snapshot.issue_rows), "actionable_count": len(snapshot.actionable_issues)})
             self._active_search_filter_requested = False
         self.changed.emit()
         pending_issue_id, self._pending_detail_issue_id = self._pending_detail_issue_id, ""
-        selected_issue_id = str(self._issue_store.selected_id or "")
+        selected_issue_id = self._issue_controller.snapshot.selected_id
         detail_issue_id = pending_issue_id or selected_issue_id
         if operation_kind == "search" and detail_issue_id and detail_issue_id == selected_issue_id and not any(item.id == detail_issue_id for item in context.issues):
             self.selectIssue(detail_issue_id)
@@ -1107,7 +841,7 @@ class RedmineBridge(QObject):
         if self._clone_batch_state != "selecting":
             return
         issue_id = str(issue_id or "").strip()
-        rows = self._issue_rows()
+        rows = self._issue_controller.snapshot.issue_rows
         row = next(
             (
                 item
@@ -1184,17 +918,13 @@ class RedmineBridge(QObject):
             }
             if str(current_user.get("display_name") or "").strip():
                 display_names[reporter] = str(current_user.get("display_name") or "").strip()
-            context = self._context
             records = []
             schemas = {}
             for issue_id in self._clone_selected_ids:
-                project, item = context.item_for_issue(issue_id) if context else (None, None)
+                source = self._issue_controller.source_for_issue(issue_id)
+                project, item, detail = source.project, source.item, source.detail
                 if project is None or item is None:
                     raise RuntimeError(f"Redmine issue {issue_id} is unavailable")
-                detail = next(
-                    (candidate for candidate in context.issues if candidate.id == issue_id),
-                    None,
-                )
                 if detail is None:
                     service = await self._service_for(self._account)
                     async with self._operation_page(service) as page:
@@ -1446,8 +1176,7 @@ class RedmineBridge(QObject):
                     record["url"] = url
                     resolved[issue_id] = ExistingIssue(key=key, web_url=url)
             if resolved:
-                self._apply_clone_status(resolved, complete=False)
-                self._persist_issue_store()
+                self._issue_controller.record_clone_results(resolved)
             self._clone_batch_loaded = len(result)
             self._clone_batch_state = (
                 "partial_failed"
