@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import os
 from contextlib import asynccontextmanager
-from dataclasses import replace
 from pathlib import Path
 from concurrent.futures import Future
 from threading import Event, Thread
@@ -14,22 +13,16 @@ from PySide6.QtCore import QUrl
 
 from support.browser_automation import BrowserRuntime
 from support.jira_integration.auth.basic import JiraBasicAuth
-from support.jira_integration.core.models import (
-    CreateIssueAttachment,
-    CreateIssueResult,
-    ExistingIssue,
-)
+from support.jira_integration.core.models import CreateIssueAttachment
 from support.jira_integration.services.create_issue_service import CreateIssueService
 from support.jira_integration.services.create_schema_service import JiraCreateSchemaService
-from support.jira_integration.core.description import render_notes_description
 from support.jira_integration.transport.client import JiraClient, JiraClientConfig
 from support.logging import smart_log
 from tool.SmartHome.redmine.auth import RedmineAuthService
-from tool.SmartHome.redmine.clone_draft import CloneDraft, RedmineCloneDraftService
+from tool.SmartHome.redmine.clone_controller import RedmineCloneController
 from tool.SmartHome.redmine.collector import RedmineContextCollector, project_options
 from tool.SmartHome.redmine.issue_controller import RedmineIssueController
 from tool.SmartHome.redmine.issue_analysis_loader import IssueAnalysisLoader, analysis_work_count, consolidate_context
-from tool.SmartHome.redmine.mapping import redmine_tracker_to_jira_type
 from tool.SmartHome.redmine.overdue import load_redmine_people
 from tool.SmartHome.redmine.query import RedmineQuery, parse_terms
 from tool.SmartHome.redmine import context_store
@@ -140,21 +133,18 @@ class RedmineBridge(QObject):
         self._projects_status = self.tr("Projects are not loaded.")
         self._watched_issue_text = ""
         self._watched_issue_error = ""
-        self._clone_generation = 0
-        self._clone_future = None
-        self._clone_batch_state = "idle"
-        self._clone_selected_ids = []
-        self._clone_draft_records = []
-        self._clone_batch_loaded = 0
-        self._clone_batch_total = 0
-        self._clone_batch_error = ""
-        self._first_invalid_issue_id = ""
-        self._first_invalid_field_id = ""
-        self._clone_user_options = {}
+        self._batch_future = None
         self._jira_client = None
         self._jira_create_service = None
         self._jira_schema_service = None
-        self._draft_service = RedmineCloneDraftService()
+        self._batch_controller = RedmineCloneController(
+            self._issue_controller,
+            jira_dependencies=self._jira_dependencies,
+            account=lambda: str(getattr(self._auth, "username", "") or "").strip(),
+            identity=self._jira_identity,
+            load_detail=self._load_source_detail,
+            download_attachments=self._download_source_attachments,
+        )
         self.resultReady.connect(self._apply)
         self.dataReady.connect(self._apply_data)
         self.dataProgressReady.connect(self._apply_data_progress)
@@ -190,7 +180,7 @@ class RedmineBridge(QObject):
         self._jira_client = None
         self._jira_create_service = None
         self._jira_schema_service = None
-        self._reset_clone_batch(cancel_future=True)
+        self._reset_batch(cancel_future=True)
         self._pending_filters = None
         self._pending_detail_issue_id = ""
         self._refresh_after_search = False
@@ -255,15 +245,15 @@ class RedmineBridge(QObject):
     issueRows = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.issue_rows), notify=changed)
     selectedIssue = Property("QVariantMap", lambda self: self._issue_controller.snapshot.selected_issue, notify=changed)
     actionableIssues = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.actionable_issues), notify=changed)
-    cloneSelectionMode = Property(bool, lambda self: self._clone_batch_state == "selecting", notify=changed)
-    cloneSelectedIds = Property("QVariantList", lambda self: list(self._clone_selected_ids), notify=changed)
-    cloneDrafts = Property("QVariantList", lambda self: [self._clone_record_payload(item) for item in self._clone_draft_records], notify=changed)
-    cloneBatchState = Property(str, lambda self: self._clone_batch_state, notify=changed)
-    cloneBatchLoaded = Property(int, lambda self: self._clone_batch_loaded, notify=changed)
-    cloneBatchTotal = Property(int, lambda self: self._clone_batch_total, notify=changed)
-    cloneBatchError = Property(str, lambda self: self._clone_batch_error, notify=changed)
-    firstInvalidIssueId = Property(str, lambda self: self._first_invalid_issue_id, notify=changed)
-    firstInvalidFieldId = Property(str, lambda self: self._first_invalid_field_id, notify=changed)
+    cloneSelectionMode = Property(bool, lambda self: self._batch_controller.snapshot.state == "selecting", notify=changed)
+    cloneSelectedIds = Property("QVariantList", lambda self: list(self._batch_controller.snapshot.selected_ids), notify=changed)
+    cloneDrafts = Property("QVariantList", lambda self: list(self._batch_controller.snapshot.drafts), notify=changed)
+    cloneBatchState = Property(str, lambda self: self._batch_controller.snapshot.state, notify=changed)
+    cloneBatchLoaded = Property(int, lambda self: self._batch_controller.snapshot.loaded, notify=changed)
+    cloneBatchTotal = Property(int, lambda self: self._batch_controller.snapshot.total, notify=changed)
+    cloneBatchError = Property(str, lambda self: self._batch_controller.snapshot.error, notify=changed)
+    firstInvalidIssueId = Property(str, lambda self: self._batch_controller.snapshot.first_invalid_issue_id, notify=changed)
+    firstInvalidFieldId = Property(str, lambda self: self._batch_controller.snapshot.first_invalid_field_id, notify=changed)
 
     def _load_cached_view(self):
         self._issue_controller.set_account(self._account)
@@ -299,6 +289,35 @@ class RedmineBridge(QObject):
         )
         self._jira_schema_service = JiraCreateSchemaService(self._jira_client)
         return self._jira_client, self._jira_create_service, self._jira_schema_service
+
+    def _jira_identity(self, account, current_user):
+        personnel = load_tool_access(
+            Path(__file__).resolve().parents[3] / "config" / "personnel.json"
+        )
+        display_names = {
+            str(employee.get("account") or "").strip(): str(
+                employee.get("display_name") or ""
+            ).strip()
+            for employee in amlogic_employees(personnel)
+            if str(employee.get("account") or "").strip()
+        }
+        reporter = str(current_user.get("account") or "").strip()
+        display_name = str(current_user.get("display_name") or "").strip()
+        if reporter and display_name:
+            display_names[reporter] = display_name
+        return employee_department(personnel, account), display_names
+
+    async def _load_source_detail(self, source):
+        service = await self._service_for(self._account)
+        async with self._operation_page(service) as page:
+            return await RedmineContextCollector(
+                page, account=self._account
+            ).collect_issue_detail(source.item, project=source.project)
+
+    async def _download_source_attachments(self, attachments):
+        service = await self._service_for(self._account)
+        async with self._operation_page(service) as page:
+            return await _download_redmine_attachments(page, attachments)
 
     def _check_clone_status(self, rows, *, progress_base: int = 0, progress_total: int | None = None, emit_progress: bool = True):
         checker = self._checker()
@@ -812,432 +831,101 @@ class RedmineBridge(QObject):
         if operation_kind == "search" and detail_issue_id and detail_issue_id == selected_issue_id and not any(item.id == detail_issue_id for item in context.issues):
             self.selectIssue(detail_issue_id)
 
-    def _reset_clone_batch(self, *, cancel_future=False):
-        self._clone_generation += 1
-        if cancel_future and self._clone_future is not None:
-            self._clone_future.cancel()
-        self._clone_future = None
-        self._clone_batch_state = "idle"
-        self._clone_selected_ids = []
-        self._clone_draft_records = []
-        self._clone_batch_loaded = 0
-        self._clone_batch_total = 0
-        self._clone_batch_error = ""
-        self._first_invalid_issue_id = ""
-        self._first_invalid_field_id = ""
-        self._clone_user_options = {}
+    def _reset_batch(self, *, cancel_future=False):
+        if cancel_future and self._batch_future is not None:
+            self._batch_future.cancel()
+        self._batch_future = None
+        self._batch_controller.reset()
 
     @Slot()
     def beginCloneSelection(self):
-        if self._clone_batch_state != "idle":
-            return
-        self._clone_batch_state = "selecting"
-        self._clone_selected_ids = []
-        self._clone_batch_error = ""
-        self.changed.emit()
+        if self._batch_controller.begin_selection():
+            self.changed.emit()
 
     @Slot(str, bool)
     def toggleCloneSelection(self, issue_id, selected):
-        if self._clone_batch_state != "selecting":
-            return
-        issue_id = str(issue_id or "").strip()
-        rows = self._issue_controller.snapshot.issue_rows
-        row = next(
-            (
-                item
-                for item in rows
-                if str(item.get("id") or item.get("key") or "") == issue_id
-            ),
-            None,
-        )
-        if row is None or row.get("cloneStatus") == "cloned":
-            return
-        selected_ids = set(self._clone_selected_ids)
-        if selected:
-            selected_ids.add(issue_id)
-        else:
-            selected_ids.discard(issue_id)
-        self._clone_selected_ids = [
-            str(item.get("id") or item.get("key") or "")
-            for item in rows
-            if str(item.get("id") or item.get("key") or "") in selected_ids
-        ]
-        self.changed.emit()
+        if self._batch_controller.toggle_selection(
+            issue_id, selected, self._issue_controller.snapshot.issue_rows
+        ):
+            self.changed.emit()
 
     @Slot()
     def cancelCloneSelection(self):
-        if self._clone_batch_state != "selecting":
-            return
-        self._reset_clone_batch()
-        self.changed.emit()
+        if self._batch_controller.cancel_selection():
+            self.changed.emit()
 
-    def _launch_clone(self, kind, operation):
-        self._clone_generation += 1
-        clone_generation = self._clone_generation
+    def _launch_batch_operation(self, operation):
         account_generation = self._generation
-        future = self._worker.submit(operation())
-        self._clone_future = future
+        future = self._worker.submit(operation.awaitable)
+        self._batch_future = future
 
         def finished(done):
             try:
                 result = done.result()
             except Exception as exc:
                 result = exc
-            self.cloneReady.emit(clone_generation, account_generation, kind, result)
+            self.cloneReady.emit(
+                operation.generation, account_generation, operation.kind, result
+            )
 
         future.add_done_callback(finished)
 
     @Slot()
     def prepareCloneDrafts(self):
-        if self._clone_batch_state not in ("selecting", "prepare_failed") or not self._clone_selected_ids:
-            return
-        self._clone_batch_state = "loading"
-        self._clone_draft_records = []
-        self._clone_batch_loaded = 0
-        self._clone_batch_total = len(self._clone_selected_ids)
-        self._clone_batch_error = ""
-        self.changed.emit()
-
-        async def operation():
-            jira_client, _create_service, schema_service = self._jira_dependencies()
-            if jira_client is None or schema_service is None:
-                raise RuntimeError("Jira credentials are unavailable")
-            account = str(getattr(self._auth, "username", "") or "").strip()
-            current_user = jira_client.current_user()
-            reporter = str(current_user.get("account") or "").strip()
-            if not reporter:
-                raise RuntimeError("Current Jira reporter identity is unavailable")
-            personnel = load_tool_access(
-                Path(__file__).resolve().parents[3] / "config" / "personnel.json"
-            )
-            department = employee_department(personnel, account)
-            display_names = {
-                str(employee.get("account") or "").strip(): str(employee.get("display_name") or "").strip()
-                for employee in amlogic_employees(personnel)
-                if str(employee.get("account") or "").strip()
-            }
-            if str(current_user.get("display_name") or "").strip():
-                display_names[reporter] = str(current_user.get("display_name") or "").strip()
-            records = []
-            schemas = {}
-            for issue_id in self._clone_selected_ids:
-                source = self._issue_controller.source_for_issue(issue_id)
-                project, item, detail = source.project, source.item, source.detail
-                if project is None or item is None:
-                    raise RuntimeError(f"Redmine issue {issue_id} is unavailable")
-                if detail is None:
-                    service = await self._service_for(self._account)
-                    async with self._operation_page(service) as page:
-                        detail = await RedmineContextCollector(
-                            page,
-                            account=self._account,
-                        ).collect_issue_detail(item, project=project)
-                issue_type = redmine_tracker_to_jira_type(detail.tracker)
-                if issue_type not in schemas:
-                    schemas[issue_type] = schema_service.schema("SH", issue_type)
-                    attachment_fields = [
-                        field for field in schemas[issue_type]
-                        if str(field.name or "").strip().casefold() == "attachment links"
-                    ]
-                    if len(attachment_fields) != 1:
-                        raise RuntimeError("Jira create schema must contain exactly one Attachment links field")
-                draft = self._draft_service.build(
-                    issue=detail,
-                    project=project,
-                    schema=schemas[issue_type],
-                    account=reporter,
-                    department=department,
-                    prepared_description=render_notes_description(detail.description),
-                )
-                records.append(
-                    {
-                        "draft": draft,
-                        "state": "editing",
-                        "key": "",
-                        "url": "",
-                        "error": "",
-                        "errorFieldId": "",
-                    }
-                )
-            return records, display_names
-
-        self._launch_clone("prepare", operation)
+        operation = self._batch_controller.start_prepare()
+        if operation is not None:
+            self.changed.emit()
+            self._launch_batch_operation(operation)
 
     @Slot(str, str, "QVariant")
     def updateCloneDraft(self, issue_id, field_id, value):
-        if self._clone_batch_state != "editing":
-            return
-        record = self._clone_record(issue_id)
-        if record is None:
-            return
-        try:
-            record["draft"].update(str(field_id or ""), value)
-        except (KeyError, TypeError, ValueError) as exc:
-            record["error"] = str(exc)
-            record["errorFieldId"] = str(field_id or "")
-        else:
-            record["error"] = ""
-            record["errorFieldId"] = ""
-        self._first_invalid_issue_id = ""
-        self._first_invalid_field_id = ""
-        self.changed.emit()
+        if self._batch_controller.update_draft(issue_id, field_id, value):
+            self.changed.emit()
 
     @Slot()
     def submitCloneBatch(self):
-        if self._clone_batch_state != "editing":
-            return
-        self._clone_batch_state = "validating"
-        self._first_invalid_issue_id = ""
-        self._first_invalid_field_id = ""
-        for record in self._clone_draft_records:
-            if record["error"]:
-                self._first_invalid_issue_id = record["draft"].source_id
-                self._first_invalid_field_id = record["errorFieldId"]
-                self._clone_batch_state = "editing"
-                self.changed.emit()
-                return
-            errors = record["draft"].errors
-            if errors:
-                self._first_invalid_issue_id = record["draft"].source_id
-                self._first_invalid_field_id = errors[0].field_id
-                self._clone_batch_state = "editing"
-                self.changed.emit()
-                return
-        self._submit_clone_records(self._clone_draft_records)
-
-    def _submit_clone_records(self, records):
-        self._clone_batch_state = "submitting"
-        self._clone_batch_loaded = 0
-        self._clone_batch_total = len(records)
-        self._clone_batch_error = ""
+        operation = self._batch_controller.start_submit()
         self.changed.emit()
-
-        async def operation():
-            _client, create_service, _schema_service = self._jira_dependencies()
-            if create_service is None:
-                raise RuntimeError("Jira credentials are unavailable")
-            results = []
-            for record in records:
-                draft = record["draft"]
-                try:
-                    request = draft.to_request()
-                    if draft.source_attachments:
-                        service = await self._service_for(self._account)
-                        async with self._operation_page(service) as page:
-                            attachments = await _download_redmine_attachments(
-                                page, draft.source_attachments
-                            )
-                        request = replace(request, attachments=attachments)
-                    existing = create_service.check_issue_by_external_url(
-                        project_key="SH",
-                        external_url=draft.source_url,
-                    )
-                    if existing:
-                        errors = create_service.sync_attachments(
-                            existing.key, request.attachments
-                        )
-                        payload = CreateIssueResult(
-                            created=False,
-                            existing_key=existing.key,
-                            issue_url=existing.web_url,
-                            raw=existing.raw,
-                            attachment_errors=errors,
-                        )
-                        state = "failed" if errors else "duplicate"
-                        results.append(
-                            (draft.source_id, state, payload, "; ".join(errors))
-                        )
-                        continue
-                    created = create_service.create_issue(request)
-                    state = (
-                        "failed"
-                        if created.attachment_errors
-                        else ("created" if created.created else "duplicate")
-                    )
-                    results.append(
-                        (
-                            draft.source_id,
-                            state,
-                            created,
-                            "; ".join(created.attachment_errors),
-                        )
-                    )
-                except Exception as exc:
-                    results.append((draft.source_id, "failed", None, str(exc)))
-            return results
-
-        self._launch_clone("submit", operation)
+        if operation is not None:
+            self._launch_batch_operation(operation)
 
     @Slot()
     def retryFailedClones(self):
-        if self._clone_batch_state != "partial_failed":
-            return
-        failed = [item for item in self._clone_draft_records if item["state"] == "failed"]
-        if failed:
-            self._submit_clone_records(failed)
+        operation = self._batch_controller.retry_failed()
+        if operation is not None:
+            self.changed.emit()
+            self._launch_batch_operation(operation)
 
     @Slot()
     def closeCloneBatch(self):
-        if self._clone_batch_state == "submitting":
-            return
-        if self._clone_batch_state == "completed":
-            self._reset_clone_batch(cancel_future=True)
-        else:
-            selected_ids = list(self._clone_selected_ids)
-            self._reset_clone_batch(cancel_future=True)
-            self._clone_batch_state = "selecting"
-            self._clone_selected_ids = selected_ids
-        self.changed.emit()
+        if self._batch_controller.close_batch():
+            if self._batch_future is not None:
+                self._batch_future.cancel()
+                self._batch_future = None
+            self.changed.emit()
 
     @Slot(str, str, str)
     def searchCloneUsers(self, issue_id, field_id, query):
-        if self._clone_batch_state != "editing" or self._clone_record(issue_id) is None:
-            return
-
-        async def operation():
-            jira_client, _create_service, _schema_service = self._jira_dependencies()
-            if jira_client is None:
-                return issue_id, field_id, []
-            return issue_id, field_id, jira_client.search_users(query, project_key="SH")
-
-        self._launch_clone("users", operation)
+        operation = self._batch_controller.start_user_search(
+            issue_id, field_id, query
+        )
+        if operation is not None:
+            self._launch_batch_operation(operation)
 
     @Slot(int, int, str, object)
     def _apply_clone_result(self, clone_generation, account_generation, kind, result):
         if (
             self._closed
-            or clone_generation != self._clone_generation
+            or clone_generation != self._batch_controller.generation
             or account_generation != self._generation
         ):
             return
-        self._clone_future = None
+        self._batch_future = None
         if isinstance(result, Exception):
-            self._clone_batch_error = str(result)
-            if kind == "prepare":
-                self._clone_draft_records = []
-                self._clone_batch_loaded = 0
-                self._clone_batch_state = "prepare_failed"
-            elif kind == "submit":
-                self._clone_batch_state = "partial_failed"
-            self.changed.emit()
-            return
-        if kind == "prepare":
-            records, display_names = result
-            self._clone_draft_records = list(records)
-            for record in self._clone_draft_records:
-                draft = record["draft"]
-                for field in draft.fields:
-                    account = str(field.value or "") if field.schema.control.value == "user" else ""
-                    if account:
-                        self._clone_user_options[(draft.source_id, field.field_id)] = [{
-                            "value": account,
-                            "label": display_names.get(account, account),
-                            "avatarUrl": "",
-                            "children": [],
-                        }]
-            self._clone_batch_loaded = len(self._clone_draft_records)
-            self._clone_batch_state = "editing"
-        elif kind == "users":
-            issue_id, field_id, users = result
-            existing = self._clone_user_options.get((issue_id, field_id), [])
-            fetched = [
-                {
-                    "value": str(item.get("account") or ""),
-                    "label": str(item.get("display_name") or ""),
-                    "avatarUrl": str(item.get("avatar_url") or ""),
-                    "children": [],
-                }
-                for item in users
-            ]
-            fetched_values = {str(item.get("value") or "") for item in fetched}
-            self._clone_user_options[(issue_id, field_id)] = fetched + [
-                item for item in existing if str(item.get("value") or "") not in fetched_values
-            ]
-        elif kind == "submit":
-            resolved = {}
-            for issue_id, state, payload, error in result:
-                record = self._clone_record(issue_id)
-                if record is None:
-                    continue
-                record["state"] = state
-                record["error"] = error
-                if isinstance(payload, CreateIssueResult):
-                    record["key"] = payload.issue_key or payload.existing_key
-                    record["url"] = payload.issue_url
-                if state == "created" and isinstance(payload, CreateIssueResult):
-                    resolved[issue_id] = ExistingIssue(
-                        key=payload.issue_key,
-                        web_url=payload.issue_url,
-                    )
-                elif state == "duplicate":
-                    key = getattr(payload, "existing_key", "") or getattr(payload, "key", "")
-                    url = getattr(payload, "issue_url", "") or getattr(payload, "web_url", "")
-                    record["key"] = key
-                    record["url"] = url
-                    resolved[issue_id] = ExistingIssue(key=key, web_url=url)
-            if resolved:
-                self._issue_controller.record_clone_results(resolved)
-            self._clone_batch_loaded = len(result)
-            self._clone_batch_state = (
-                "partial_failed"
-                if any(item["state"] == "failed" for item in self._clone_draft_records)
-                else "completed"
-            )
+            self._batch_controller.apply_error(kind, result)
+        else:
+            self._batch_controller.apply_result(kind, result)
         self.changed.emit()
-
-    def _clone_record(self, issue_id):
-        issue_id = str(issue_id or "")
-        return next(
-            (
-                item
-                for item in self._clone_draft_records
-                if item["draft"].source_id == issue_id
-            ),
-            None,
-        )
-
-    def _clone_record_payload(self, record):
-        draft = record["draft"]
-        fields = []
-        for field in draft.fields:
-            if (
-                not field.schema.required
-                and field.field_id != "priority"
-                and str(field.schema.name or "").strip().casefold() != "attachment links"
-            ):
-                continue
-            options = self._clone_user_options.get(
-                (draft.source_id, field.field_id),
-                [_clone_option_payload(item) for item in field.schema.options],
-            )
-            fields.append(
-                {
-                    "fieldId": field.field_id,
-                    "name": field.schema.name,
-                    "required": field.schema.required,
-                    "control": field.schema.control.value,
-                    "options": options,
-                    "value": field.value,
-                    "displayValue": next(
-                        (str(item.get("label") or item.get("value") or "") for item in options if str(item.get("value") or "") == str(field.value or "")),
-                        str(field.value or ""),
-                    ),
-                    "error": field.error,
-                }
-            )
-        return {
-            "issueId": draft.source_id,
-            "sourceUrl": draft.source_url,
-            "fields": fields,
-            "errors": [
-                {"fieldId": item.field_id, "message": item.message, "blocking": item.blocking}
-                for item in draft.errors
-            ],
-            "state": record["state"],
-            "key": record["key"],
-            "url": record["url"],
-            "error": record["error"],
-        }
     async def _close_flow(self):
         service, self._service = self._service, None
         if service is not None:
@@ -1252,7 +940,7 @@ class RedmineBridge(QObject):
         self._generation += 1
         self._data_generation += 1
         self._projects_generation += 1
-        self._reset_clone_batch(cancel_future=True)
+        self._reset_batch(cancel_future=True)
         if self._login_future is not None:
             self._login_future.cancel()
             self._login_future = None
@@ -1279,7 +967,7 @@ class RedmineBridge(QObject):
         self._generation += 1
         self._data_generation += 1
         self._projects_generation += 1
-        self._reset_clone_batch(cancel_future=True)
+        self._reset_batch(cancel_future=True)
         if self._login_future is not None:
             self._login_future.cancel()
             self._login_future = None
@@ -1303,14 +991,6 @@ class RedmineBridge(QObject):
             return
         self._opened_urls.add(clean_url)
         QDesktopServices.openUrl(QUrl(clean_url))
-
-
-def _clone_option_payload(option):
-    return {
-        "value": option.value,
-        "label": option.label,
-        "children": [_clone_option_payload(item) for item in option.children],
-    }
 
 
 async def _download_redmine_attachments(page, attachments):

@@ -440,7 +440,7 @@ def clone_bridge(*, issue_ids=("1",), schema=CLONE_SCHEMA, persist=False):
     bridge._jira_client = CloneJiraClient(auth.username)
     bridge._jira_schema_service = CloneSchemaService(schema)
     bridge._jira_create_service = CloneCreateService()
-    bridge._draft_service = RecordingDraftService()
+    bridge._batch_controller._draft_service = RecordingDraftService()
     bridge.beginCloneSelection()
     for issue_id in issue_ids:
         bridge.toggleCloneSelection(issue_id, True)
@@ -462,8 +462,8 @@ def test_prepare_clone_drafts_has_no_create_calls_and_uses_identity_department_a
         item.field_id for item in CLONE_SCHEMA
         if item.required or item.field_id == "priority" or item.name.casefold() == "attachment links"
     ]
-    assert bridge._draft_service.calls[0]["account"] == "defeng.zhai"
-    assert bridge._draft_service.calls[0]["department"] == "FAE-SW"
+    assert bridge._batch_controller._draft_service.calls[0]["account"] == "defeng.zhai"
+    assert bridge._batch_controller._draft_service.calls[0]["department"] == "FAE-SW"
     assert bridge.cloneDrafts[0]["fields"][4]["value"] == "defeng.zhai"
     assert bridge._jira_client.current_user_calls == 1
     assert bridge._jira_client.search_calls == []
@@ -700,10 +700,10 @@ def test_attachment_link_edit_changes_payload_but_duplicate_identity_stays_fixed
 def test_clone_account_and_user_search_generations_reject_late_results():
     bridge = clone_bridge()
     bridge.prepareCloneDrafts(); wait_for(lambda: bridge.cloneBatchState == "editing")
-    old_clone_generation = bridge._clone_generation
+    old_clone_generation = bridge._batch_controller.generation
     old_account_generation = bridge._generation
     bridge.searchCloneUsers("1", "reporter", "fred")
-    current_generation = bridge._clone_generation
+    current_generation = bridge._batch_controller.generation
     bridge._apply_clone_result(old_clone_generation, old_account_generation, "users", ("1", "reporter", [{"account": "old", "display_name": "Old"}]))
     assert all(item.get("value") != "old" for item in bridge.cloneDrafts[0]["fields"][4]["options"])
     bridge._apply_clone_result(current_generation, old_account_generation, "users", ("1", "reporter", [{"account": "fred", "display_name": "Fred", "avatar_url": "a"}]))
@@ -723,17 +723,17 @@ def test_clone_batch_close_returns_loading_preview_to_selection_but_not_submissi
 
     bridge = clone_bridge()
     pending = Pending()
-    bridge._clone_future = pending
-    bridge._clone_batch_state = "loading"
-    bridge._clone_selected_ids = ["1"]
+    bridge._batch_future = pending
+    bridge._batch_controller._state = "loading"
+    bridge._batch_controller._selected_ids = ["1"]
     bridge.closeCloneBatch()
     assert pending.cancelled and bridge.cloneBatchState == "selecting"
     assert bridge.cloneSelectedIds == ["1"]
 
-    bridge._clone_batch_state = "submitting"
+    bridge._batch_controller._state = "submitting"
     bridge.closeCloneBatch()
     assert bridge.cloneBatchState == "submitting"
-    bridge._clone_batch_state = "idle"
+    bridge._batch_controller._state = "idle"
     bridge.close()
 
 
@@ -2001,7 +2001,7 @@ def test_clone_submit_patches_and_persists_active_store(monkeypatch):
     bridge._issue_controller.activate_view("my_assigned")
     bridge.prepareCloneDrafts()
     wait_for(lambda: bridge.cloneBatchState == "editing")
-    bridge._clone_batch_state = "submitting"
+    bridge._batch_controller._state = "submitting"
     saved = []
     monkeypatch.setattr(
         "ui.example.bridge.RedmineBridge.context_store.save_quick_view",
@@ -2016,7 +2016,7 @@ def test_clone_submit_patches_and_persists_active_store(monkeypatch):
     )
 
     bridge._apply_clone_result(
-        bridge._clone_generation,
+        bridge._batch_controller.generation,
         bridge._generation,
         "submit",
         [("1", "duplicate", result, "")],
@@ -2272,6 +2272,8 @@ def test_redmine_bridge_keeps_issue_state_behind_controller_boundary():
 
     assert "from tool.SmartHome.redmine.issue_controller import RedmineIssueController" in source
     assert "self._issue_controller = RedmineIssueController(" in source
+    assert "from tool.SmartHome.redmine.clone_controller import RedmineCloneController" in source
+    assert "self._batch_controller = RedmineCloneController(" in source
     for forbidden in (
         "self._issue_store",
         "self._context",
@@ -2279,6 +2281,14 @@ def test_redmine_bridge_keeps_issue_state_behind_controller_boundary():
         "self._project_filter_labels",
         "self._status_filter_labels",
         "self._type_filter_labels",
+        "self._clone_batch_state",
+        "self._clone_selected_ids",
+        "self._clone_draft_records",
+        "self._clone_batch_loaded",
+        "self._clone_batch_total",
+        "self._clone_batch_error",
+        "self._clone_user_options",
+        "field.schema.required",
     ):
         assert forbidden not in source
     for migrated_helper in (
