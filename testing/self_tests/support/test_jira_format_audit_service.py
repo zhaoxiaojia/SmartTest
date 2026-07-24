@@ -34,11 +34,11 @@ def _issue(key: str) -> dict:
     return {
         "key": key,
         "fields": {
-            "summary": "[ACME][T7][Playback] Video freezes after seeking",
+            "summary": "[ACME][T7][V1.1][Video]: Video freezes after seeking,1/1",
             "description": "\n".join(
                 (
                     "[Steps to reproduce]:",
-                    "Seek video",
+                    "1. Start playback",
                     "[Actual results]:",
                     "Freeze",
                     "[Expected results]:",
@@ -46,17 +46,14 @@ def _issue(key: str) -> dict:
                     "[Reproducibility rate]:",
                     "1/1",
                     "[Comparision]:",
-                    "Not reproduced on build 2026.07.20",
+                    "Previous version build V1.0 is normal; current version build V1.1 is broken.",
                     "[Notes]:",
-                    "",
-                    "HW info:",
-                    "T7",
-                    "SW info:",
-                    "2026.07.20",
+                    "HW info: T7",
+                    "SW info: V1.1",
                 )
             ),
             "reporter": {"displayName": "Coco"},
-            "components": [{"name": "Playback"}],
+            "components": [{"name": "Video"}],
             "labels": [],
             "attachment": [],
         },
