@@ -42,12 +42,34 @@ def employee_department(personnel: dict[str, Any], account: str) -> str:
     return matches[0] if len(matches) == 1 else ""
 
 
+def can_access_jira_audit(personnel: dict[str, Any], account: str) -> bool:
+    clean_account = str(account or "").strip()
+    employee = next(
+        (
+            item
+            for item in amlogic_employees(personnel)
+            if str(item.get("account", "") or "").strip() == clean_account
+        ),
+        None,
+    )
+    if employee is None:
+        return False
+    if any(
+        str(role or "").strip().casefold() == "developer"
+        for role in employee.get("system_roles", []) or []
+    ):
+        return True
+    department = str((employee.get("organization") or {}).get("department", "") or "").strip()
+    grade = str((employee.get("employment") or {}).get("grade", "") or "").strip()
+    return department == "FAE-QA" and grade.startswith("M")
+
+
 def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str, Any]]:
     groups: list[dict[str, Any]] = [
         {
             "id": "common",
             "available": True,
-            "tools": [],
+            "tools": [{"id": "jira_audit"}] if can_access_jira_audit(personnel, account) else [],
         }
     ]
     clean_account = str(account or "").strip()
@@ -155,15 +177,21 @@ class ToolBridge(QObject):
                 "Wi-Fi": self.tr("Wi-Fi"),
             }
             row["title"] = titles[group["id"]]
-            row["tools"] = [
-                {
-                    **tool,
-                    "title": self.tr("redmine"),
-                    "description": self.tr("Browse and sign in to SmartHome Redmine."),
-                }
-                for tool in row["tools"]
-            ]
+            row["tools"] = [self._localized_tool(tool) for tool in row["tools"]]
             localized.append(row)
         return localized
+
+    def _localized_tool(self, tool: dict[str, Any]) -> dict[str, Any]:
+        if tool.get("id") == "jira_audit":
+            return {
+                **tool,
+                "title": self.tr("Jira Format Audit"),
+                "description": self.tr("Review Jira issues against the FAE-QA format rules."),
+            }
+        return {
+            **tool,
+            "title": self.tr("redmine"),
+            "description": self.tr("Browse and sign in to SmartHome Redmine."),
+        }
 
     groups = Property("QVariantList", _groups, notify=groupsChanged)

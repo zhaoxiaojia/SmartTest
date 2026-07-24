@@ -190,7 +190,7 @@ def test_tool_qml_runtime_expands_and_activates_visible_redmine_entry():
 
 
 def test_tool_qml_runtime_does_not_expose_redmine_to_unauthorized_account():
-    assert "True False None False 0 0" in run_tool_qml_interaction_probe("junjie.li")
+    assert "True False jira_audit False 0 0" in run_tool_qml_interaction_probe("junjie.li")
 
 
 def test_tool_qml_runtime_developer_can_open_redmine_independent_of_assignment():
@@ -238,7 +238,7 @@ def test_tool_groups_keep_fixed_layout_and_filter_child_tools_by_account():
 
     tv_groups = build_tool_groups(personnel, "jianfan.ai")
     assert tv_groups[0]["id"] == "common"
-    assert tv_groups[0]["tools"] == []
+    assert tv_groups[0]["tools"] == [{"id": "jira_audit"}]
     assert tv_groups[2]["available"] is True
 
     wifi_groups = build_tool_groups(personnel, "zijie.chen")
@@ -312,6 +312,55 @@ def test_configured_chao_li_developer_role_grants_all_active_tool_groups():
     assert next(group for group in groups if group["id"] == "SmartHome")["tools"] == [
         {"id": "redmine"}
     ]
+
+
+def test_jira_audit_common_tool_permission_matrix():
+    from ui.example.bridge.ToolBridge import can_access_jira_audit
+
+    personnel = {
+        "amlogic": {
+            "departments": {
+                "FAE-QA": {
+                    "employees": [
+                        {"account": "qa.m1", "employment": {"grade": "M1"}, "system_roles": []},
+                        {"account": "qa.m5", "employment": {"grade": " M5 "}, "system_roles": []},
+                        {"account": "qa.i2", "employment": {"grade": "I2"}, "system_roles": []},
+                    ]
+                },
+                "FAE-SW": {
+                    "employees": [
+                        {"account": "sw.m3", "employment": {"grade": "M3"}, "system_roles": []},
+                        {
+                            "account": "developer.upper",
+                            "employment": {"grade": "I2"},
+                            "system_roles": ["Developer"],
+                        },
+                        {
+                            "account": "developer.mixed",
+                            "employment": {"grade": "I2"},
+                            "system_roles": ["dEvElOpEr"],
+                        },
+                    ]
+                },
+            },
+            "product_lines": [],
+            "technical_centers": [],
+        }
+    }
+
+    for account in ("qa.m1", "qa.m5", "developer.upper", "developer.mixed"):
+        assert can_access_jira_audit(personnel, account) is True
+        common = build_tool_groups(personnel, account)[0]
+        assert common["tools"] == [{"id": "jira_audit"}]
+    for account in ("qa.i2", "sw.m3", "unknown"):
+        assert can_access_jira_audit(personnel, account) is False
+        assert build_tool_groups(personnel, account)[0]["tools"] == []
+
+
+def test_configured_chao_li_receives_jira_audit_common_tool():
+    personnel = load_tool_access(PERSONNEL_PATH)
+
+    assert build_tool_groups(personnel, "chao.li")[0]["tools"] == [{"id": "jira_audit"}]
 
 
 def test_tool_navigation_and_page_layout_contract():
@@ -465,6 +514,8 @@ def test_runtime_root_is_created_before_tool_bridge_registration():
     assert source.index("runtime_root = _runtime_root()") < source.index(
         '"ToolBridge": ToolBridge(runtime_root, auth_bridge)'
     )
+    assert "jira_audit_bridge = JiraAuditBridge(auth_bridge)" in source
+    assert '"JiraAuditBridge": jira_audit_bridge' in source
     assert "register_context_objects(" in source
     assert '"runtime_root": str(runtime_root)' in source
 
