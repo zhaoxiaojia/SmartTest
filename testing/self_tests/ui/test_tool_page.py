@@ -677,7 +677,6 @@ def test_jira_audit_workspace_contract_loader_and_resource_registration():
         "JiraAuditBridge.canExport",
         "JiraAuditBridge.startAudit",
         "JiraAuditBridge.exportReport",
-        "JiraAuditBridge.revealExport",
     ):
         assert binding in workspace
     for object_name in (
@@ -693,6 +692,8 @@ def test_jira_audit_workspace_contract_loader_and_resource_registration():
         assert f'objectName: "{object_name}"' in workspace
     assert "JiraAuditBridge.inputError" in workspace
     assert "onClicked: JiraAuditBridge.startAudit(auditInput.text)" in workspace
+    assert "FluTools.showFileInFolder(JiraAuditBridge.exportPath)" in workspace
+    assert "JiraAuditBridge.revealExport" not in workspace
 
 
 def test_shared_issue_browser_exposes_quick_views_project_options_and_search_cancel():

@@ -22,8 +22,6 @@ REQUIRED = {
         "Complete a Jira audit before exporting.",
         "Failed to export the Jira audit workbook.",
         "Jira audit workbook exported.",
-        "The exported file does not exist.",
-        "Windows File Explorer could not be opened.",
         "The login changed. Start the Jira audit again.",
         "The Jira audit returned an invalid result.",
         "Jira audit failed.",

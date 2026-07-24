@@ -74,7 +74,7 @@ def _issue(key: str) -> dict:
     ],
 )
 def test_resolve_audit_input_accepts_supported_sources(text, kind, jql):
-    from support.jira_integration.audit.input_resolver import resolve_audit_input
+    from support.jira_integration.audit.service import resolve_audit_input
 
     client = FakeClient()
     result = resolve_audit_input(text, base_url="https://jira.example.com", client=client)
@@ -85,7 +85,7 @@ def test_resolve_audit_input_accepts_supported_sources(text, kind, jql):
 
 
 def test_resolve_filter_url_fetches_jql_and_validates_it():
-    from support.jira_integration.audit.input_resolver import resolve_audit_input
+    from support.jira_integration.audit.service import resolve_audit_input
 
     client = FakeClient(filter_payload={"id": "42", "jql": "labels = regression"})
     result = resolve_audit_input(
@@ -111,14 +111,14 @@ def test_resolve_filter_url_fetches_jql_and_validates_it():
     ],
 )
 def test_resolve_audit_input_rejects_invalid_input(text, message):
-    from support.jira_integration.audit.input_resolver import resolve_audit_input
+    from support.jira_integration.audit.service import resolve_audit_input
 
     with pytest.raises(ValueError, match=message):
         resolve_audit_input(text, base_url="https://jira.example.com", client=FakeClient())
 
 
 def test_filter_without_jql_and_jira_validation_failure_are_actionable():
-    from support.jira_integration.audit.input_resolver import resolve_audit_input
+    from support.jira_integration.audit.service import resolve_audit_input
 
     with pytest.raises(ValueError, match="JQL"):
         resolve_audit_input(
@@ -199,3 +199,13 @@ def test_service_returns_empty_report_with_fetch_progress():
     assert report.total_count == 0
     assert report.issues == ()
     assert progress == [("fetching", 0, 0)]
+
+
+def test_input_resolution_is_owned_by_audit_service_module():
+    from pathlib import Path
+
+    audit_root = Path(__file__).resolve().parents[3] / "support/jira_integration/audit"
+    service = (audit_root / "service.py").read_text(encoding="utf-8")
+
+    assert not (audit_root / "input_resolver.py").exists()
+    assert "def resolve_audit_input(" in service

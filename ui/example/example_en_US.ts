@@ -6537,8 +6537,6 @@ Some contents...</translation>
     <message><source>Complete a Jira audit before exporting.</source><translation>Complete a Jira audit before exporting.</translation></message>
     <message><source>Failed to export the Jira audit workbook.</source><translation>Failed to export the Jira audit workbook.</translation></message>
     <message><source>Jira audit workbook exported.</source><translation>Jira audit workbook exported.</translation></message>
-    <message><source>The exported file does not exist.</source><translation>The exported file does not exist.</translation></message>
-    <message><source>Windows File Explorer could not be opened.</source><translation>Windows File Explorer could not be opened.</translation></message>
     <message><source>The login changed. Start the Jira audit again.</source><translation>The login changed. Start the Jira audit again.</translation></message>
     <message><source>The Jira audit returned an invalid result.</source><translation>The Jira audit returned an invalid result.</translation></message>
     <message><source>Jira audit failed.</source><translation>Jira audit failed.</translation></message>

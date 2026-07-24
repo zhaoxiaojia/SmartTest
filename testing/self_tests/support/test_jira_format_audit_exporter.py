@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from zipfile import ZipFile
+
+from openpyxl import load_workbook
+
+
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def _report():
@@ -38,16 +42,9 @@ def _report():
     )
 
 
-def _workbook_text(path: Path) -> str:
-    with ZipFile(path) as archive:
-        return "\n".join(
-            archive.read(name).decode("utf-8")
-            for name in archive.namelist()
-            if name.endswith(".xml")
-        )
-
-
-def test_export_creates_unique_xlsx_with_four_sheets_and_hyperlink(tmp_path):
+def test_export_creates_unique_openpyxl_workbook_with_four_sheets_and_hyperlinks(
+    tmp_path,
+):
     from support.jira_integration.audit.exporter import export_audit_xlsx
 
     now = datetime(2026, 7, 24, 10, 11, 12)
@@ -59,19 +56,45 @@ def test_export_creates_unique_xlsx_with_four_sheets_and_hyperlink(tmp_path):
     assert first.exists() and second.exists()
     assert not list(tmp_path.glob("*.tmp"))
 
-    with ZipFile(first) as archive:
-        workbook = archive.read("xl/workbook.xml").decode("utf-8")
-        assert all(f'name="{name}"' in workbook for name in ("Summary", "Rules", "Issues", "Violations"))
-        assert archive.testzip() is None
+    workbook = load_workbook(first, data_only=False)
+    assert workbook.sheetnames == ["Summary", "Rules", "Issues", "Violations"]
+    assert workbook["Summary"]["B5"].value == "project = SH"
+    assert workbook["Rules"]["A2"].value == "SUMMARY.FORMAT"
+    assert workbook["Issues"]["A2"].value == "SH-1"
+    assert workbook["Issues"]["B2"].value == "https://jira.example.com/browse/SH-1"
+    assert workbook["Issues"]["B2"].hyperlink.target == "https://jira.example.com/browse/SH-1"
+    assert workbook["Violations"]["C2"].value == "SUMMARY-001"
+    assert workbook["Violations"]["H2"].value == "Summary 结构不符合规范。"
+    assert workbook["Violations"]["B2"].hyperlink.target == (
+        "https://jira.example.com/browse/SH-1"
+    )
+    for sheet in workbook.worksheets:
+        assert sheet.freeze_panes == "A2"
+        assert all(cell.font.bold for cell in sheet[1])
 
-    text = _workbook_text(first)
-    for expected in (
-        "project = SH",
-        "SUMMARY-001",
-        "SH-1",
-        "bad summary",
-        "Summary 结构不符合规范。",
-        "https://jira.example.com/browse/SH-1",
-        "HYPERLINK",
+
+def test_exporter_reuses_declared_openpyxl_without_manual_ooxml():
+    exporter = (ROOT / "support/jira_integration/audit/exporter.py").read_text(
+        encoding="utf-8"
+    )
+    dependencies = (ROOT / "support/scripts/script-init-venv.py").read_text(
+        encoding="utf-8"
+    )
+    pyinstaller = (ROOT / "support/packaging/pyinstaller/main.spec").read_text(
+        encoding="utf-8"
+    )
+
+    assert "from openpyxl import Workbook" in exporter
+    assert "openpyxl==3.1.5" in dependencies
+    for obsolete in (
+        "ZipFile",
+        "zipfile",
+        "_sheet_xml",
+        "_content_types",
+        "_package_relationships",
+        "_workbook_xml",
+        "_workbook_relationships",
+        "_styles_xml",
     ):
-        assert expected in text
+        assert obsolete not in exporter
+    assert "openpyxl" not in pyinstaller

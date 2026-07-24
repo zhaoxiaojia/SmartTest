@@ -323,3 +323,14 @@ def test_owned_rule_reason_and_qml_text_contains_no_mojibake():
     assert all(marker not in qml for marker in MOJIBAKE_MARKERS)
     assert ' + " 路 " + ' not in qml
     assert ' + " · " + ' in qml
+
+
+def test_rule_catalog_and_validator_have_one_business_owner():
+    root = Path(__file__).resolve().parents[3]
+    audit_root = root / "support/jira_integration/audit"
+    rules = (audit_root / "rules.py").read_text(encoding="utf-8")
+
+    assert not (audit_root / "validator.py").exists()
+    assert "def active_rules(" in rules
+    assert "def audit_issue(" in rules
+    assert "def normalize_issue(" in rules

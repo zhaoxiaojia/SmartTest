@@ -6770,8 +6770,6 @@ Some contents...</source>
     <message><source>Complete a Jira audit before exporting.</source><translation>请先完成 Jira 审查再导出。</translation></message>
     <message><source>Failed to export the Jira audit workbook.</source><translation>导出 Jira 审查工作簿失败。</translation></message>
     <message><source>Jira audit workbook exported.</source><translation>Jira 审查工作簿已导出。</translation></message>
-    <message><source>The exported file does not exist.</source><translation>导出的文件不存在。</translation></message>
-    <message><source>Windows File Explorer could not be opened.</source><translation>无法打开 Windows 文件资源管理器。</translation></message>
     <message><source>The login changed. Start the Jira audit again.</source><translation>登录状态已变化，请重新开始 Jira 审查。</translation></message>
     <message><source>The Jira audit returned an invalid result.</source><translation>Jira 审查返回了无效结果。</translation></message>
     <message><source>Jira audit failed.</source><translation>Jira 审查失败。</translation></message>

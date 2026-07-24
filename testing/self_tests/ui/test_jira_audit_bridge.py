@@ -137,11 +137,10 @@ def test_stale_generation_payload_does_not_replace_newer_state():
     assert bridge._report is None
 
 
-def test_export_and_reveal_use_generated_file_without_shell(tmp_path):
+def test_export_publishes_generated_file_path(tmp_path):
     from ui.example.bridge.JiraAuditBridge import JiraAuditBridge
 
     exported = tmp_path / "audit.xlsx"
-    launched = []
 
     def exporter(_report):
         exported.write_bytes(b"xlsx")
@@ -150,20 +149,28 @@ def test_export_and_reveal_use_generated_file_without_shell(tmp_path):
     bridge = JiraAuditBridge(
         FakeAuth(),
         export_function=exporter,
-        process_launcher=lambda args, **kwargs: launched.append((args, kwargs)),
     )
     bridge._report = _empty_report()
     bridge._state = "completed"
 
     bridge.exportReport()
-    bridge.revealExport()
 
     assert bridge.exportPath == str(exported.resolve())
-    assert launched == [(["explorer.exe", f"/select,{exported.resolve()}"], {"shell": False})]
 
-    exported.unlink()
-    bridge.revealExport()
-    assert "does not exist" in bridge.inputError
+
+def test_file_reveal_reuses_global_flutools_without_bridge_launcher():
+    root = Path(__file__).resolve().parents[3]
+    bridge = (root / "ui/example/bridge/JiraAuditBridge.py").read_text(encoding="utf-8")
+    workspace = (
+        root
+        / "ui/example/imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml"
+    ).read_text(encoding="utf-8")
+
+    assert "FluTools.showFileInFolder(JiraAuditBridge.exportPath)" in workspace
+    assert "JiraAuditBridge.exportPath.length === 0" in workspace
+    for obsolete in ("revealExport", "process_launcher", "subprocess"):
+        assert obsolete not in bridge
+    assert "JiraAuditBridge.revealExport" not in workspace
 
 
 def test_missing_transient_credential_fails_before_worker_creation():

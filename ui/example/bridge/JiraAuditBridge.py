@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 import os
-import subprocess
+from dataclasses import asdict
 from pathlib import Path
 from threading import Thread
 from typing import Any, Callable
 
 from PySide6.QtCore import QObject, Property, Signal, Slot
 
-from support.jira_integration.audit import AuditReport, active_rules
-from support.jira_integration.audit.exporter import export_audit_xlsx
-from support.jira_integration.audit.input_resolver import resolve_audit_input
-from support.jira_integration.audit.service import JiraAuditService
+from support.jira_integration.audit import (
+    AuditReport,
+    JiraAuditService,
+    active_rules,
+    export_audit_xlsx,
+    resolve_audit_input,
+)
 from support.jira_integration.auth.basic import JiraBasicAuth
 from support.jira_integration.transport.client import JiraClient, JiraClientConfig
 from support.logging import smart_log
@@ -34,7 +37,6 @@ class JiraAuditBridge(QObject):
         client_factory: Callable[..., Any] = JiraClient,
         service_factory: Callable[..., Any] | None = None,
         export_function: Callable[[AuditReport], Path] = export_audit_xlsx,
-        process_launcher: Callable[..., Any] = subprocess.Popen,
         thread_factory: Callable[..., Thread] = Thread,
     ):
         super().__init__(auth_bridge)
@@ -45,7 +47,6 @@ class JiraAuditBridge(QObject):
             lambda client, base_url: JiraAuditService(client, base_url=base_url)
         )
         self._export_function = export_function
-        self._process_launcher = process_launcher
         self._thread_factory = thread_factory
         self._generation = 0
         self._state = "idle"
@@ -56,6 +57,9 @@ class JiraAuditBridge(QObject):
         self._progress_value = 0.0
         self._report: AuditReport | None = None
         self._export_path = ""
+        self._rule_rows = [asdict(rule) for rule in active_rules()]
+        self._result_summary: dict[str, int] = {}
+        self._violation_rows: list[dict[str, Any]] = []
         self._workerProgress.connect(self._on_worker_progress)
         self._workerFinished.connect(self._on_worker_finished)
         self._workerFailed.connect(self._on_worker_failed)
@@ -69,7 +73,7 @@ class JiraAuditBridge(QObject):
             self._input_error = self.tr("Enter JQL or a Jira URL.")
             self.stateChanged.emit()
             return
-        if not self._can_start():
+        if not self.canStart:
             return
 
         username = str(self._auth_bridge.currentUsername() or "").strip()
@@ -97,6 +101,8 @@ class JiraAuditBridge(QObject):
         self._progress_value = 0.0
         self._report = None
         self._export_path = ""
+        self._result_summary = {}
+        self._violation_rows = []
         self.stateChanged.emit()
         worker = self._thread_factory(
             target=self._run_audit,
@@ -146,7 +152,7 @@ class JiraAuditBridge(QObject):
 
     @Slot()
     def exportReport(self) -> None:
-        if not self._can_export() or self._report is None:
+        if not self.canExport or self._report is None:
             self._input_error = self.tr("Complete a Jira audit before exporting.")
             self.stateChanged.emit()
             return
@@ -166,25 +172,6 @@ class JiraAuditBridge(QObject):
         self._export_path = str(path)
         self._input_error = ""
         self._status_text = self.tr("Jira audit workbook exported.")
-        self.stateChanged.emit()
-
-    @Slot()
-    def revealExport(self) -> None:
-        path = Path(self._export_path) if self._export_path else None
-        if path is None or not path.is_file():
-            self._input_error = self.tr("The exported file does not exist.")
-            self.stateChanged.emit()
-            return
-        try:
-            self._process_launcher(
-                ["explorer.exe", f"/select,{path.resolve()}"],
-                shell=False,
-            )
-        except OSError:
-            self._input_error = self.tr("Windows File Explorer could not be opened.")
-            self.stateChanged.emit()
-            return
-        self._input_error = ""
         self.stateChanged.emit()
 
     @Slot(object)
@@ -219,6 +206,17 @@ class JiraAuditBridge(QObject):
             )
             return
         self._report = report
+        self._result_summary = {
+            "totalCount": report.total_count,
+            "passedCount": report.passed_count,
+            "failedCount": report.failed_count,
+            "violationCount": report.violation_count,
+        }
+        self._violation_rows = [
+            dict(asdict(violation), key=issue.key, url=issue.url)
+            for issue in report.issues
+            for violation in issue.violations
+        ]
         self._state = "completed"
         self._processed_count = max(self._processed_count, report.total_count)
         self._total_count = max(self._total_count, report.total_count)
@@ -245,63 +243,31 @@ class JiraAuditBridge(QObject):
             self._status_text = self.tr("The login changed. Start the Jira audit again.")
             self.stateChanged.emit()
 
-    def _rule_rows(self) -> list[dict[str, str]]:
-        return [
-            {
-                "ruleId": rule.rule_id,
-                "section": rule.section,
-                "field": rule.field,
-                "requirement": rule.requirement,
-                "guidance": rule.guidance,
-            }
-            for rule in active_rules()
-        ]
-
-    def _result_summary(self) -> dict[str, int]:
-        if self._report is None:
-            return {}
-        return {
-            "totalCount": self._report.total_count,
-            "passedCount": self._report.passed_count,
-            "failedCount": self._report.failed_count,
-            "violationCount": self._report.violation_count,
-        }
-
-    def _violation_rows(self) -> list[dict[str, str]]:
-        if self._report is None:
-            return []
-        rows = []
-        for issue in self._report.issues:
-            for violation in issue.violations:
-                rows.append(
-                    {
-                        "key": issue.key,
-                        "url": issue.url,
-                        "ruleId": violation.rule_id,
-                        "section": violation.section,
-                        "field": violation.field,
-                        "observed": violation.observed,
-                        "reason": violation.reason,
-                        "guidance": violation.guidance,
-                    }
-                )
-        return rows
-
-    def _can_start(self) -> bool:
-        return self._state not in {"resolving", "fetching", "auditing"}
-
-    def _can_export(self) -> bool:
-        return self._state == "completed" and self._report is not None
-
     state = Property(str, lambda self: self._state, notify=stateChanged)
     statusText = Property(str, lambda self: self._status_text, notify=stateChanged)
     inputError = Property(str, lambda self: self._input_error, notify=stateChanged)
     progressValue = Property(float, lambda self: self._progress_value, notify=stateChanged)
     processedCount = Property(int, lambda self: self._processed_count, notify=stateChanged)
     totalCount = Property(int, lambda self: self._total_count, notify=stateChanged)
-    ruleRows = Property("QVariantList", _rule_rows, notify=stateChanged)
-    resultSummary = Property("QVariantMap", _result_summary, notify=stateChanged)
-    violationRows = Property("QVariantList", _violation_rows, notify=stateChanged)
+    ruleRows = Property("QVariantList", lambda self: self._rule_rows, notify=stateChanged)
+    resultSummary = Property(
+        "QVariantMap",
+        lambda self: self._result_summary,
+        notify=stateChanged,
+    )
+    violationRows = Property(
+        "QVariantList",
+        lambda self: self._violation_rows,
+        notify=stateChanged,
+    )
     exportPath = Property(str, lambda self: self._export_path, notify=stateChanged)
-    canStart = Property(bool, _can_start, notify=stateChanged)
-    canExport = Property(bool, _can_export, notify=stateChanged)
+    canStart = Property(
+        bool,
+        lambda self: self._state not in {"resolving", "fetching", "auditing"},
+        notify=stateChanged,
+    )
+    canExport = Property(
+        bool,
+        lambda self: self._state == "completed" and self._report is not None,
+        notify=stateChanged,
+    )
