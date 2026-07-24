@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+import asyncio
+from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from typing import Any, Awaitable, Callable, Iterable
 
 from support.jira_integration.core.description import render_notes_description
 from support.jira_integration.core.models import (
+    AttachmentCancellation,
+    AttachmentTransferResult,
     CreateIssueResult,
     ExistingIssue,
 )
+from support.logging import smart_log
 from tool.SmartHome.redmine.clone_draft import (
     CloneDraft,
     RedmineCloneDraftService,
@@ -46,12 +52,14 @@ class RedmineCloneController:
         identity: Callable[[str, dict[str, Any]], tuple[str, dict[str, str]]]
         | None = None,
         load_detail: Callable[[Any], Awaitable[Any]] | None = None,
-        download_attachments: Callable[[Iterable[Any]], Awaitable[Iterable[Any]]]
-        | None = None,
+        download_attachments: Callable[
+            [Iterable[Any], Any], Awaitable[Any]
+        ] | None = None,
         draft_service: RedmineCloneDraftService | None = None,
         prepare_records: Callable[[], Awaitable[Any]] | None = None,
         submit_records: Callable[[list[dict[str, Any]]], Awaitable[Any]] | None = None,
         search_users: Callable[[str, str, str], Awaitable[Any]] | None = None,
+        attachment_cancel_wait: float = 35.0,
     ):
         self._issue_controller = issue_controller
         self._jira_dependencies = jira_dependencies or (lambda: (None, None, None))
@@ -63,6 +71,7 @@ class RedmineCloneController:
         self._prepare_records_override = prepare_records
         self._submit_records_override = submit_records
         self._search_users_override = search_users
+        self._attachment_cancel_wait = attachment_cancel_wait
         self._generation = 0
         self._state = "idle"
         self._selected_ids: list[str] = []
@@ -202,7 +211,15 @@ class RedmineCloneController:
     def retry_failed(self) -> CloneOperation | None:
         if self._state != "partial_failed":
             return None
-        failed = [item for item in self._records if item["state"] == "failed"]
+        failed = [
+            item
+            for item in self._records
+            if item["state"] in {"failed", "create_failed"}
+            or any(
+                result.retryable
+                for result in item.get("attachmentResults", ())
+            )
+        ]
         return self._start_submit_records(failed) if failed else None
 
     def close_batch(self) -> bool:
@@ -353,55 +370,182 @@ class RedmineCloneController:
         for record in records:
             clone_draft = record["draft"]
             try:
-                request = clone_draft.to_request()
-                if clone_draft.source_attachments:
-                    if self._download_attachments is None:
-                        raise RuntimeError("Redmine attachment downloader is unavailable")
-                    attachments = await self._download_attachments(
-                        clone_draft.source_attachments
-                    )
-                    request = replace(request, attachments=tuple(attachments))
-                existing = create_service.check_issue_by_external_url(
-                    project_key="SH", external_url=clone_draft.source_url
+                payload = record.get("result")
+                retrying_attachments = (
+                    isinstance(payload, CreateIssueResult)
+                    and payload.issue_state in {"created", "duplicate"}
                 )
-                if existing:
-                    errors = create_service.sync_attachments(
-                        existing.key, request.attachments
+                if not retrying_attachments:
+                    existing = create_service.check_issue_by_external_url(
+                        project_key="SH", external_url=clone_draft.source_url
                     )
-                    payload = CreateIssueResult(
-                        created=False,
-                        existing_key=existing.key,
-                        issue_url=existing.web_url,
-                        raw=existing.raw,
-                        attachment_errors=errors,
-                    )
-                    state = "failed" if errors else "duplicate"
-                    results.append(
-                        (
-                            clone_draft.source_id,
-                            state,
-                            payload,
-                            "; ".join(errors),
+                    if existing:
+                        payload = CreateIssueResult(
+                            created=False,
+                            issue_state="duplicate",
+                            existing_key=existing.key,
+                            issue_url=existing.web_url,
+                            raw=existing.raw,
                         )
+                    else:
+                        payload = create_service.create_issue(
+                            clone_draft.to_request()
+                        )
+                if (
+                    isinstance(payload, CreateIssueResult)
+                    and payload.issue_state in {"created", "duplicate"}
+                    and clone_draft.source_attachments
+                ):
+                    payload = await self._sync_source_attachments(
+                        create_service,
+                        clone_draft,
+                        payload,
+                        retry_only=retrying_attachments,
                     )
-                    continue
-                created = create_service.create_issue(request)
-                state = (
-                    "failed"
-                    if created.attachment_errors
-                    else ("created" if created.created else "duplicate")
-                )
+                results.append((clone_draft.source_id, payload))
+            except Exception as exc:
                 results.append(
                     (
                         clone_draft.source_id,
-                        state,
-                        created,
-                        "; ".join(created.attachment_errors),
+                        CreateIssueResult(
+                            created=False,
+                            issue_state="create_failed",
+                            issue_error=str(exc) or type(exc).__name__,
+                        ),
                     )
                 )
-            except Exception as exc:
-                results.append((clone_draft.source_id, "failed", None, str(exc)))
         return results
+
+    async def _sync_source_attachments(
+        self,
+        create_service,
+        clone_draft: CloneDraft,
+        payload: CreateIssueResult,
+        *,
+        retry_only: bool,
+    ) -> CreateIssueResult:
+        issue_key = payload.issue_key or payload.existing_key
+        previous = tuple(payload.attachment_results)
+        all_sources = tuple(clone_draft.source_attachments)
+        name_counts = Counter(item.filename for item in all_sources)
+        duplicate_filenames = {
+            filename for filename, count in name_counts.items() if count > 1
+        }
+        sources = all_sources
+        if retry_only:
+            retryable_ids = {
+                item.source_id for item in previous if item.retryable
+            }
+            sources = tuple(
+                item for item in sources if item.id in retryable_ids
+            )
+        if not sources:
+            return payload
+        if self._download_attachments is None:
+            failed = tuple(
+                AttachmentTransferResult(
+                    source_id=item.id,
+                    filename=item.filename,
+                    size=None,
+                    state="failed",
+                    reason_code="source_downloader_unavailable",
+                    retryable=True,
+                )
+                for item in sources
+            )
+            return _with_attachment_results(
+                payload, _merge_attachment_results(previous, failed)
+            )
+        metadata = await asyncio.to_thread(create_service.attachment_metadata)
+        batch = None
+        current: tuple[AttachmentTransferResult, ...] = ()
+        executor = None
+        deferred_cleanup = False
+        try:
+            batch = await self._download_attachments(
+                sources,
+                metadata,
+                duplicate_filenames=duplicate_filenames,
+            )
+            cancellation = AttachmentCancellation()
+            executor = ThreadPoolExecutor(
+                max_workers=1,
+                thread_name_prefix="jira-attachment-upload",
+            )
+            blocking = executor.submit(
+                create_service.sync_attachments,
+                issue_key,
+                tuple(batch.attachments),
+                metadata=metadata,
+                prior_results=tuple(batch.results),
+                cancellation=cancellation,
+            )
+            wrapped = asyncio.wrap_future(blocking)
+            try:
+                sync = await asyncio.shield(wrapped)
+            except asyncio.CancelledError:
+                cancellation.cancel()
+                try:
+                    await asyncio.wait_for(
+                        asyncio.shield(wrapped),
+                        timeout=self._attachment_cancel_wait,
+                    )
+                except asyncio.TimeoutError:
+                    deferred_cleanup = True
+                    blocking.add_done_callback(
+                        lambda _done: _cleanup_staged_batch(
+                            batch, clone_draft.source_id
+                        )
+                    )
+                    smart_log(
+                        "Jira attachment upload cancellation reached timeout",
+                        domain="jira",
+                        source="RedmineCloneController",
+                        level="warning",
+                        extra={
+                            "issue_id": clone_draft.source_id,
+                            "timeout_seconds": self._attachment_cancel_wait,
+                        },
+                    )
+                except Exception:
+                    pass
+                raise
+            current = sync.results
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            current = tuple(
+                AttachmentTransferResult(
+                    source_id=item.id,
+                    filename=item.filename,
+                    size=None,
+                    state="failed",
+                    reason_code="jira_sync_failed",
+                    reason_args={
+                        "detail": str(exc) or type(exc).__name__,
+                        "error_type": type(exc).__name__,
+                    },
+                    retryable=True,
+                )
+                for item in sources
+            )
+        finally:
+            if executor is not None:
+                executor.shutdown(wait=False)
+            if batch is not None and not deferred_cleanup:
+                cleanup_result = _cleanup_staged_batch(
+                    batch, clone_draft.source_id
+                )
+                if cleanup_result is not None:
+                    current = tuple(current) + (cleanup_result,)
+        return _with_attachment_results(
+            payload,
+            (
+                _merge_attachment_results(previous, current)
+                if retry_only
+                else tuple(current)
+            ),
+        )
 
     async def _search_users(self, issue_id: str, field_id: str, query: str):
         jira_client, _create_service, _schema_service = self._jira_dependencies()
@@ -414,37 +558,64 @@ class RedmineCloneController:
 
     def _apply_submit_result(self, result) -> None:
         resolved = {}
-        for issue_id, state, payload, error in result:
+        for item in result:
+            if len(item) == 2:
+                issue_id, payload = item
+            else:
+                issue_id, legacy_state, payload, legacy_error = item
+                if not isinstance(payload, CreateIssueResult):
+                    payload = CreateIssueResult(
+                        created=False,
+                        issue_state="create_failed",
+                        issue_error=legacy_error,
+                    )
+                elif legacy_state == "failed" and payload.issue_state not in {
+                    "created",
+                    "duplicate",
+                }:
+                    payload = replace(
+                        payload,
+                        issue_state="create_failed",
+                        issue_error=legacy_error,
+                    )
             record = self._record(issue_id)
             if record is None:
                 continue
-            record["state"] = state
-            record["error"] = error
-            if isinstance(payload, CreateIssueResult):
-                record["key"] = payload.issue_key or payload.existing_key
-                record["url"] = payload.issue_url
-            if state == "created" and isinstance(payload, CreateIssueResult):
+            record["result"] = payload
+            record["state"] = (
+                "failed"
+                if payload.issue_state == "create_failed"
+                else payload.issue_state
+            )
+            record["error"] = payload.issue_error
+            record["key"] = payload.issue_key or payload.existing_key
+            record["url"] = payload.issue_url
+            record["attachmentState"] = payload.attachment_state
+            record["attachmentResults"] = payload.attachment_results
+            record["attachmentWarnings"] = _attachment_warning_payloads(
+                payload.attachment_results
+            )
+            if payload.issue_state == "created":
                 resolved[issue_id] = ExistingIssue(
                     key=payload.issue_key, web_url=payload.issue_url
                 )
-            elif state == "duplicate":
-                key = getattr(payload, "existing_key", "") or getattr(
-                    payload, "key", ""
+            elif payload.issue_state == "duplicate":
+                resolved[issue_id] = ExistingIssue(
+                    key=payload.existing_key or payload.issue_key,
+                    web_url=payload.issue_url,
                 )
-                url = getattr(payload, "issue_url", "") or getattr(
-                    payload, "web_url", ""
-                )
-                record["key"] = key
-                record["url"] = url
-                resolved[issue_id] = ExistingIssue(key=key, web_url=url)
         if resolved:
             self._issue_controller.record_clone_results(resolved)
         self._loaded = len(result)
-        self._state = (
-            "partial_failed"
-            if any(item["state"] == "failed" for item in self._records)
-            else "completed"
+        retryable_failure = any(
+            item["state"] in {"failed", "create_failed"}
+            or any(
+                attachment.retryable
+                for attachment in item.get("attachmentResults", ())
+            )
+            for item in self._records
         )
+        self._state = "partial_failed" if retryable_failure else "completed"
 
     def _record(self, issue_id: str) -> dict[str, Any] | None:
         issue_id = str(issue_id or "")
@@ -508,6 +679,8 @@ class RedmineCloneController:
             "key": record["key"],
             "url": record["url"],
             "error": record["error"],
+            "attachmentState": record.get("attachmentState", "none"),
+            "attachmentWarnings": list(record.get("attachmentWarnings", ())),
         }
 
 
@@ -519,6 +692,10 @@ def _new_record(clone_draft: CloneDraft) -> dict[str, Any]:
         "url": "",
         "error": "",
         "errorFieldId": "",
+        "attachmentState": "none",
+        "attachmentResults": (),
+        "attachmentWarnings": (),
+        "result": None,
     }
 
 
@@ -529,3 +706,83 @@ def _option_payload(option) -> dict[str, Any]:
         "avatarUrl": str(getattr(option, "avatar_url", "") or ""),
         "children": [_option_payload(child) for child in option.children],
     }
+
+
+def _merge_attachment_results(
+    previous: tuple[AttachmentTransferResult, ...],
+    current: tuple[AttachmentTransferResult, ...],
+) -> tuple[AttachmentTransferResult, ...]:
+    current_ids = {item.source_id for item in current}
+    return tuple(
+        item for item in previous if item.source_id not in current_ids
+    ) + tuple(current)
+
+
+def _with_attachment_results(
+    payload: CreateIssueResult,
+    results: tuple[AttachmentTransferResult, ...],
+) -> CreateIssueResult:
+    if not results:
+        state = "none"
+    elif any(item.state == "failed" for item in results):
+        state = "partial_failed"
+    elif any(item.state == "oversized" for item in results):
+        state = "oversized"
+    else:
+        state = "complete"
+    return replace(
+        payload,
+        attachment_state=state,
+        attachment_results=results,
+    )
+
+
+def _attachment_warning_payloads(
+    results: tuple[AttachmentTransferResult, ...],
+) -> tuple[dict[str, Any], ...]:
+    return tuple(
+        {
+            "sourceId": item.source_id,
+            "filename": item.filename,
+            "size": item.size,
+            "state": item.state,
+            "reasonCode": item.reason_code,
+            "reasonArgs": dict(item.reason_args),
+            "retryable": item.retryable,
+        }
+        for item in results
+        if item.state not in {"uploaded", "already_present"}
+    )
+
+
+def _cleanup_staged_batch(
+    batch,
+    issue_id: str,
+) -> AttachmentTransferResult | None:
+    try:
+        batch.close()
+    except Exception as exc:
+        smart_log(
+            "Redmine attachment temp cleanup failed",
+            domain="tool",
+            source="RedmineCloneController",
+            level="warning",
+            exc_info=(type(exc), exc, exc.__traceback__),
+            extra={
+                "issue_id": issue_id,
+                "error_type": type(exc).__name__,
+            },
+        )
+        return AttachmentTransferResult(
+            source_id=f"cleanup:{issue_id}",
+            filename="",
+            size=None,
+            state="failed",
+            reason_code="temp_cleanup_failed",
+            reason_args={
+                "detail": str(exc) or type(exc).__name__,
+                "error_type": type(exc).__name__,
+            },
+            retryable=False,
+        )
+    return None

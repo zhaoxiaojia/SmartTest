@@ -1,6 +1,7 @@
 ﻿import asyncio
 import time
 from pathlib import Path
+from threading import Event
 
 import pytest
 
@@ -9,7 +10,14 @@ from PySide6.QtCore import QCoreApplication, QObject, Signal
 from support.jira_integration.core import UnifiedIssue
 from tool.SmartHome.redmine.models import AuthResult, AuthState
 from support.jira_integration.core.create_schema import CreateFieldControl, CreateFieldOption, CreateFieldSchema
-from support.jira_integration.core.models import CreateIssueResult, ExistingIssue
+from support.jira_integration.core.models import (
+    AttachmentSyncResult,
+    AttachmentTransferResult,
+    CreateIssueAttachment,
+    CreateIssueResult,
+    ExistingIssue,
+    JiraAttachmentMetadata,
+)
 from tool.SmartHome.redmine.clone_draft import RedmineCloneDraftService
 from tool.SmartHome.redmine.issue_controller import RedmineIssueController
 from tool.SmartHome.redmine.models import RedmineAttachment, RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineJournal, RedmineProject
@@ -382,6 +390,7 @@ class CloneCreateService:
         self.rechecks = []
         self.creates = []
         self.requests = []
+        self.synced = []
         self.duplicates = {}
         self.fail_once = set()
 
@@ -401,8 +410,42 @@ class CloneCreateService:
             issue_url=f"https://jira/browse/SH-{request.source_id}",
         )
 
-    def sync_attachments(self, issue_key, attachments):
-        return ()
+    def attachment_metadata(self):
+        return JiraAttachmentMetadata(
+            available=True, enabled=True, upload_limit=1024
+        )
+
+    def sync_attachments(
+        self,
+        issue_key,
+        attachments,
+        *,
+        metadata,
+        prior_results=(),
+        cancellation=None,
+    ):
+        self.synced.extend(
+            (
+                issue_key,
+                item.filename,
+                item.path.read_bytes(),
+                item.size,
+            )
+            for item in attachments
+        )
+        results = tuple(prior_results) + tuple(
+            AttachmentTransferResult(
+                source_id=item.source_id,
+                filename=item.filename,
+                size=item.size,
+                state="uploaded",
+            )
+            for item in attachments
+        )
+        return AttachmentSyncResult(
+            state="complete" if results else "none",
+            results=results,
+        )
 
 
 class RecordingDraftService:
@@ -545,14 +588,28 @@ def test_authenticated_redmine_attachment_download_returns_hidden_jira_data():
         filename="trace.log",
         download_url="https://redmine/attachments/download/1/trace.log",
     )
-    result = asyncio.run(_download_redmine_attachments(Page(), (attachment,)))
+    result = asyncio.run(
+        _download_redmine_attachments(
+            Page(),
+            (attachment,),
+            JiraAttachmentMetadata(
+                available=False, enabled=None, upload_limit=None
+            ),
+        )
+    )
     assert Page.request.urls == [attachment.download_url]
-    assert [(item.filename, item.data, item.size) for item in result] == [
+    assert [
+        (item.filename, item.path.read_bytes(), item.size)
+        for item in result.attachments
+    ] == [
         ("trace.log", b"downloaded", 10)
     ]
+    directory = result.directory
+    result.close()
+    assert not directory.exists()
 
 
-def test_submit_downloads_attachment_through_authenticated_page_and_hands_off_bytes():
+def test_submit_downloads_attachment_through_authenticated_page_and_hands_off_file():
     class Response:
         ok = True
         status = 200
@@ -594,13 +651,202 @@ def test_submit_downloads_attachment_through_authenticated_page_and_hands_off_by
     bridge.submitCloneBatch()
     wait_for(lambda: bridge.cloneBatchState == "completed")
 
-    attachment = bridge._jira_create_service.requests[0].attachments[0]
-    assert (attachment.filename, attachment.data) == (
-        "trace.log",
-        b"jira attachment",
-    )
+    assert bridge._jira_create_service.requests[0].attachments == ()
+    assert bridge._jira_create_service.synced == [
+        ("SH-1", "trace.log", b"jira attachment", 15)
+    ]
     assert "attachments" not in bridge.cloneDrafts[0]
     bridge.close()
+
+
+def test_bridge_close_cancels_active_upload_before_temp_cleanup(tmp_path):
+    entered = Event()
+    released = Event()
+    cleaned = Event()
+    timed_out = Event()
+
+    class BlockingCreateService(CloneCreateService):
+        def sync_attachments(
+            self,
+            issue_key,
+            attachments,
+            *,
+            metadata,
+            prior_results=(),
+            cancellation=None,
+        ):
+            entered.set()
+            deadline = time.monotonic() + 2
+            while cancellation is None or not cancellation.cancelled:
+                if time.monotonic() >= deadline:
+                    timed_out.set()
+                    break
+                time.sleep(0.01)
+            released.set()
+            return AttachmentSyncResult(
+                state="partial_failed",
+                results=tuple(prior_results),
+            )
+
+    class Batch:
+        def __init__(self):
+            path = tmp_path / "active-upload.log"
+            path.write_bytes(b"x" * 128)
+            self.attachments = (
+                CreateIssueAttachment(
+                    source_id="1",
+                    filename="active-upload.log",
+                    path=path,
+                ),
+            )
+            self.results = ()
+            self._path = path
+
+        def close(self):
+            self._path.unlink(missing_ok=True)
+            cleaned.set()
+
+    async def download(
+        _attachments, _metadata, *, duplicate_filenames
+    ):
+        assert duplicate_filenames == set()
+        return Batch()
+
+    bridge = clone_bridge()
+    bridge._jira_create_service = BlockingCreateService()
+    bridge._batch_controller._download_attachments = download
+    detail = bridge._issue_controller._source_context.issues[0]
+    bridge._issue_controller._source_context = RedmineContext(
+        account=bridge._issue_controller._source_context.account,
+        projects=bridge._issue_controller._source_context.projects,
+        issues=(
+            RedmineIssueDetail(
+                **{
+                    **detail.__dict__,
+                    "attachments": (
+                        RedmineAttachment(
+                            id="1",
+                            filename="active-upload.log",
+                            download_url="https://redmine/active-upload.log",
+                        ),
+                    ),
+                }
+            ),
+        ),
+    )
+    bridge.prepareCloneDrafts()
+    wait_for(lambda: bridge.cloneBatchState == "editing")
+    bridge.submitCloneBatch()
+    assert entered.wait(timeout=1)
+
+    started = time.monotonic()
+    bridge.close()
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 1
+    assert released.is_set()
+    assert cleaned.is_set()
+    assert not timed_out.is_set()
+    assert not (tmp_path / "active-upload.log").exists()
+
+
+def test_bridge_close_timeout_defers_cleanup_until_upload_thread_finishes(
+    tmp_path, monkeypatch
+):
+    entered = Event()
+    release = Event()
+    cleaned = Event()
+    early_cleanup = Event()
+    logs = []
+    monkeypatch.setattr(
+        "tool.SmartHome.redmine.clone_controller.smart_log",
+        lambda message, **kwargs: logs.append((message, kwargs)),
+    )
+
+    class IgnoringCancelCreateService(CloneCreateService):
+        def sync_attachments(
+            self,
+            issue_key,
+            attachments,
+            *,
+            metadata,
+            prior_results=(),
+            cancellation=None,
+        ):
+            entered.set()
+            release.wait(timeout=2)
+            return AttachmentSyncResult(
+                state="complete",
+                results=tuple(prior_results),
+            )
+
+    class Batch:
+        def __init__(self):
+            self._path = tmp_path / "deferred-upload.log"
+            self._path.write_bytes(b"x" * 128)
+            self.attachments = (
+                CreateIssueAttachment(
+                    source_id="1",
+                    filename="deferred-upload.log",
+                    path=self._path,
+                ),
+            )
+            self.results = ()
+
+        def close(self):
+            if not release.is_set():
+                early_cleanup.set()
+            self._path.unlink(missing_ok=True)
+            cleaned.set()
+
+    async def download(
+        _attachments, _metadata, *, duplicate_filenames
+    ):
+        assert duplicate_filenames == set()
+        return Batch()
+
+    bridge = clone_bridge()
+    bridge._jira_create_service = IgnoringCancelCreateService()
+    bridge._batch_controller._download_attachments = download
+    bridge._batch_controller._attachment_cancel_wait = 0.02
+    detail = bridge._issue_controller._source_context.issues[0]
+    bridge._issue_controller._source_context = RedmineContext(
+        account=bridge._issue_controller._source_context.account,
+        projects=bridge._issue_controller._source_context.projects,
+        issues=(
+            RedmineIssueDetail(
+                **{
+                    **detail.__dict__,
+                    "attachments": (
+                        RedmineAttachment(
+                            id="1",
+                            filename="deferred-upload.log",
+                            download_url="https://redmine/deferred-upload.log",
+                        ),
+                    ),
+                }
+            ),
+        ),
+    )
+    bridge.prepareCloneDrafts()
+    wait_for(lambda: bridge.cloneBatchState == "editing")
+    bridge.submitCloneBatch()
+    assert entered.wait(timeout=1)
+
+    started = time.monotonic()
+    bridge.close()
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 0.5
+    assert not cleaned.is_set()
+    assert not early_cleanup.is_set()
+    assert (tmp_path / "deferred-upload.log").exists()
+    assert any("cancellation reached timeout" in item[0] for item in logs)
+
+    release.set()
+    assert cleaned.wait(timeout=1)
+    assert not early_cleanup.is_set()
+    assert not (tmp_path / "deferred-upload.log").exists()
 
 
 def test_clone_editor_exposes_required_fields_and_priority_but_hides_optional_extras():
@@ -1027,6 +1273,31 @@ def test_explicit_search_clears_active_quick_view(monkeypatch):
     monkeypatch.setattr(bridge, "_launch_data_load", lambda operation, **kwargs: None)
     bridge.applyFilters({"status": "Open"})
     assert bridge.activeQuickViewId == ""
+    bridge.close()
+
+
+def test_clone_draft_projection_localizes_attachment_warning_in_bridge():
+    bridge = clone_bridge()
+    warning = {
+        "sourceId": "a",
+        "filename": "外部-trace.log",
+        "size": 9,
+        "state": "failed",
+        "reasonCode": "jira_upload_failed",
+        "reasonArgs": {"detail": "server 原文"},
+        "retryable": True,
+    }
+
+    projected = bridge._localized_clone_drafts(
+        ({"issueId": "1", "attachmentWarnings": [warning]},)
+    )
+
+    localized = projected[0]["attachmentWarnings"][0]
+    assert localized["attachmentWarningText"] == (
+        "Attachment upload failed for 外部-trace.log: server 原文"
+    )
+    assert localized["reasonCode"] == "jira_upload_failed"
+    assert localized["filename"] == "外部-trace.log"
     bridge.close()
 
 

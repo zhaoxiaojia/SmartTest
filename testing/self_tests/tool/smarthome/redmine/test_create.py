@@ -29,3 +29,31 @@ def test_clone_issues_to_jira_maps_redmine_trackers_and_summarizes_results():
     assert result.created == [CreateIssueResult(created=True, issue_key="TV-1")]
     assert result.skipped == [CreateIssueResult(created=False, existing_key="TV-2")]
     assert result.failed == []
+
+
+def test_clone_issues_to_jira_classifies_create_failed_result_as_failure():
+    class FailedCreateService:
+        def create_issue(self, _request):
+            return CreateIssueResult(
+                created=False,
+                issue_state="create_failed",
+                issue_error="offline",
+            )
+
+    result = clone_issues_to_jira(
+        [
+            RedmineIssueDetail(
+                id="1",
+                url="https://support/issues/1",
+                tracker="Bug",
+                subject="bug",
+            )
+        ],
+        project_key="TV",
+        create_service=FailedCreateService(),
+    )
+
+    assert result.created == []
+    assert result.skipped == []
+    assert result.failed[0].issue_id == "1"
+    assert result.failed[0].message == "offline"

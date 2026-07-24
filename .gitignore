@@ -58,6 +58,7 @@ testing/self_tests/support/ai/*
 testing/self_tests/tool/smarthome/redmine/*
 !testing/self_tests/tool/smarthome/redmine/test_query.py
 !testing/self_tests/tool/smarthome/redmine/test_clone_controller.py
+!testing/self_tests/tool/smarthome/redmine/test_attachment_transfer.py
 !testing/self_tests/ui/
 testing/self_tests/ui/*
 !testing/self_tests/ui/test_auth_bridge_profile.py

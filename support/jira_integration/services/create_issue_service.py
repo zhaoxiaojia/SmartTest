@@ -5,10 +5,15 @@ from typing import TYPE_CHECKING, Any
 
 from support.jira_integration.core.errors import JiraRequestError
 from support.jira_integration.core.models import (
+    AttachmentCancellation,
+    AttachmentSyncResult,
+    AttachmentTransferResult,
+    AttachmentUploadCancelled,
     CreateIssueAttachment,
     CreateIssueRequest,
     CreateIssueResult,
     ExistingIssue,
+    JiraAttachmentMetadata,
 )
 
 if TYPE_CHECKING:
@@ -45,54 +50,215 @@ class CreateIssueService:
         return None
 
     def create_issue(self, request: CreateIssueRequest) -> CreateIssueResult:
-        existing = self.check_issue(request)
-        if existing:
-            errors = self.sync_attachments(existing.key, request.attachments)
+        try:
+            existing = self.check_issue(request)
+        except Exception as exc:
             return CreateIssueResult(
                 created=False,
+                issue_state="create_failed",
+                issue_error=str(exc) or type(exc).__name__,
+            )
+        if existing:
+            attachment_sync = self.sync_attachments(
+                existing.key, request.attachments
+            )
+            return CreateIssueResult(
+                created=False,
+                issue_state="duplicate",
                 existing_key=existing.key,
                 issue_url=existing.web_url,
                 raw=existing.raw,
-                attachment_errors=errors,
+                attachment_state=attachment_sync.state,
+                attachment_results=attachment_sync.results,
             )
-        created = self._client.create_issue(self._payload(request))
+        try:
+            created = self._client.create_issue(self._payload(request))
+        except Exception as exc:
+            return CreateIssueResult(
+                created=False,
+                issue_state="create_failed",
+                issue_error=str(exc) or type(exc).__name__,
+            )
         issue_key = str(created.get("key", ""))
-        errors = self.sync_attachments(issue_key, request.attachments)
+        attachment_sync = self.sync_attachments(issue_key, request.attachments)
         return CreateIssueResult(
             created=True,
+            issue_state="created",
             issue_key=issue_key,
             issue_id=str(created.get("id", "")),
-            issue_url=str(created.get("self", "")),
+            issue_url=(
+                f"{self._browse_base_url}/browse/{issue_key}"
+                if self._browse_base_url and issue_key
+                else str(created.get("self", ""))
+            ),
             raw=created,
-            attachment_errors=errors,
+            attachment_state=attachment_sync.state,
+            attachment_results=attachment_sync.results,
         )
+
+    def attachment_metadata(self) -> JiraAttachmentMetadata:
+        try:
+            return self._client.attachment_metadata()
+        except Exception:
+            return JiraAttachmentMetadata(
+                available=False,
+                enabled=None,
+                upload_limit=None,
+            )
 
     def sync_attachments(
         self,
         issue_key: str,
         attachments: tuple[CreateIssueAttachment, ...],
-    ) -> tuple[str, ...]:
+        *,
+        metadata: JiraAttachmentMetadata | None = None,
+        prior_results: tuple[AttachmentTransferResult, ...] = (),
+        cancellation: AttachmentCancellation | None = None,
+    ) -> AttachmentSyncResult:
         if not attachments:
-            return ()
+            return AttachmentSyncResult(
+                state=_attachment_state(prior_results),
+                results=prior_results,
+            )
+        metadata = metadata or self.attachment_metadata()
+        if cancellation is not None and cancellation.cancelled:
+            results = prior_results + _cancelled_results(attachments)
+            return AttachmentSyncResult(
+                state=_attachment_state(results),
+                results=results,
+            )
+        if metadata.enabled is False:
+            results = prior_results + tuple(
+                AttachmentTransferResult(
+                    source_id=attachment.source_id,
+                    filename=attachment.filename,
+                    size=attachment.size,
+                    state="failed",
+                    reason_code="jira_attachments_disabled",
+                    retryable=False,
+                )
+                for attachment in attachments
+            )
+            return AttachmentSyncResult(
+                state=_attachment_state(results),
+                results=results,
+            )
         existing: dict[str, set[int]] = {}
-        for item in self._client.list_attachments(issue_key):
+        try:
+            remote_attachments = self._client.list_attachments(issue_key)
+        except Exception as exc:
+            results = prior_results + tuple(
+                AttachmentTransferResult(
+                    source_id=attachment.source_id,
+                    filename=attachment.filename,
+                    size=attachment.size,
+                    state="failed",
+                    reason_code="jira_list_failed",
+                    reason_args={
+                        "detail": str(exc) or type(exc).__name__,
+                        "error_type": type(exc).__name__,
+                    },
+                    retryable=True,
+                )
+                for attachment in attachments
+            )
+            return AttachmentSyncResult(
+                state=_attachment_state(results),
+                results=results,
+            )
+        for item in remote_attachments:
             filename = str(item.get("filename") or "")
             if filename:
-                existing.setdefault(filename, set()).add(int(item.get("size") or 0))
-        errors = []
-        for attachment in attachments:
-            if attachment.filename in existing:
-                if attachment.size not in existing[attachment.filename]:
-                    errors.append(
-                        f"{attachment.filename}: Jira already has an attachment with a different size"
+                try:
+                    size = int(item.get("size"))
+                except (TypeError, ValueError):
+                    continue
+                existing.setdefault(filename, set()).add(size)
+        results = list(prior_results)
+        for index, attachment in enumerate(attachments):
+            if cancellation is not None and cancellation.cancelled:
+                results.extend(_cancelled_results(attachments[index:]))
+                break
+            if (
+                metadata.upload_limit is not None
+                and attachment.size > metadata.upload_limit
+            ):
+                results.append(
+                    AttachmentTransferResult(
+                        source_id=attachment.source_id,
+                        filename=attachment.filename,
+                        size=attachment.size,
+                        state="oversized",
+                        reason_code="attachment_oversized",
+                        reason_args={
+                            "actual_bytes": attachment.size,
+                            "limit_bytes": metadata.upload_limit,
+                        },
+                        retryable=False,
+                    )
+                )
+                continue
+            if attachment.upload_filename in existing:
+                if attachment.size not in existing[attachment.upload_filename]:
+                    results.append(
+                        AttachmentTransferResult(
+                            source_id=attachment.source_id,
+                            filename=attachment.filename,
+                            size=attachment.size,
+                            state="failed",
+                            reason_code="jira_existing_size_conflict",
+                            retryable=False,
+                        )
+                    )
+                else:
+                    results.append(
+                        AttachmentTransferResult(
+                            source_id=attachment.source_id,
+                            filename=attachment.filename,
+                            size=attachment.size,
+                            state="already_present",
+                        )
                     )
                 continue
             try:
-                self._client.upload_attachment(issue_key, attachment)
-                existing[attachment.filename] = {attachment.size}
+                self._client.upload_attachment(
+                    issue_key,
+                    attachment,
+                    cancellation=cancellation,
+                )
+                existing[attachment.upload_filename] = {attachment.size}
+            except AttachmentUploadCancelled:
+                results.extend(_cancelled_results(attachments[index:]))
+                break
             except Exception as exc:
-                errors.append(f"{attachment.filename}: {type(exc).__name__}")
-        return tuple(errors)
+                results.append(
+                    AttachmentTransferResult(
+                        source_id=attachment.source_id,
+                        filename=attachment.filename,
+                        size=attachment.size,
+                        state="failed",
+                        reason_code="jira_upload_failed",
+                        reason_args={
+                            "detail": str(exc) or type(exc).__name__,
+                            "error_type": type(exc).__name__,
+                        },
+                        retryable=True,
+                    )
+                )
+            else:
+                results.append(
+                    AttachmentTransferResult(
+                        source_id=attachment.source_id,
+                        filename=attachment.filename,
+                        size=attachment.size,
+                        state="uploaded",
+                    )
+                )
+        frozen_results = tuple(results)
+        return AttachmentSyncResult(
+            state=_attachment_state(frozen_results),
+            results=frozen_results,
+        )
 
     def _payload(self, request: CreateIssueRequest) -> dict[str, Any]:
         fields: dict[str, Any] = {
@@ -197,3 +363,31 @@ def _safe_label(value: str) -> str:
 
 def _jql_quote(value: str) -> str:
     return str(value or "").replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _attachment_state(
+    results: tuple[AttachmentTransferResult, ...],
+) -> str:
+    if not results:
+        return "none"
+    if any(item.state == "failed" for item in results):
+        return "partial_failed"
+    if any(item.state == "oversized" for item in results):
+        return "oversized"
+    return "complete"
+
+
+def _cancelled_results(
+    attachments: tuple[CreateIssueAttachment, ...],
+) -> tuple[AttachmentTransferResult, ...]:
+    return tuple(
+        AttachmentTransferResult(
+            source_id=attachment.source_id,
+            filename=attachment.filename,
+            size=attachment.size,
+            state="failed",
+            reason_code="upload_cancelled",
+            retryable=True,
+        )
+        for attachment in attachments
+    )

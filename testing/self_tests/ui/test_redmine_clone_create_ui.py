@@ -13,6 +13,21 @@ CARD_QML = ISSUE_ROOT / "JiraCreateDraftCard.qml"
 BATCH_QML = ISSUE_ROOT / "JiraCreateBatchDialog.qml"
 MULTI_PICKER_QML = ISSUE_ROOT / "JiraOptionMultiPicker.qml"
 WORKSPACE_QML = ROOT / "ui/example/imports/example/qml/component/redmine/RedmineWorkspace.qml"
+BRIDGE_ATTACHMENT_WARNING_SOURCES = {
+    "Attachment %1 is %2 bytes; Jira limit is %3 bytes.",
+    "Jira attachments are disabled for %1.",
+    "Attachment source URL is unavailable for %1.",
+    "Attachment download failed for %1 (HTTP %2).",
+    "Attachment download failed for %1: %2",
+    "Attachment source is invalid for %1.",
+    "Jira already has %1 with a different size.",
+    "Could not check Jira attachments for %1: %2",
+    "Attachment upload failed for %1: %2",
+    "Attachment upload was cancelled for %1.",
+    "Attachment downloader is unavailable for %1.",
+    "Jira attachment synchronization failed for %1: %2",
+    "Temporary attachment cleanup failed: %1",
+}
 
 
 def test_issue_list_clone_mode_and_batch_dialog_contract():
@@ -42,6 +57,17 @@ def test_schema_controls_are_rendered_without_business_mapping_or_payload():
     assert "FluCheckBox" not in field
     assert "toggledValues" not in field and "containsValue" not in field
     assert "FluAutoSuggestBox" in field
+
+
+def test_clone_card_keeps_created_key_visible_with_attachment_warning():
+    card = CARD_QML.read_text(encoding="utf-8")
+    assert 'root.draft.state === "created"' in card
+    assert "root.draft.attachmentWarnings" in card
+    assert "modelData.attachmentWarningText" in card
+    assert "reasonCode" not in card
+    assert "function attachmentWarningText" not in card
+    assert "FluTheme.dark ?" in card
+    assert 'color: "#B8860B"' not in card
 
 
 def test_multi_fields_have_one_bounded_schema_option_picker_owner():
@@ -160,6 +186,9 @@ print(len(engine.rootObjects()), len(warnings), warnings)
 
 def test_clone_fixed_text_is_finished_in_both_catalogs():
     contexts = {"JiraCreateField", "JiraCreateDraftCard", "JiraCreateBatchDialog"}
+    warning_sources = BRIDGE_ATTACHMENT_WARNING_SOURCES | {
+        "Attachment warning for %1."
+    }
     for filename in ("example_en_US.ts", "example_zh_CN.ts"):
         root = ET.parse(ROOT / "ui/example" / filename).getroot()
         available = {node.findtext("name"): node for node in root.findall("context")}
@@ -170,6 +199,83 @@ def test_clone_fixed_text_is_finished_in_both_catalogs():
                 assert translation is not None
                 assert translation.get("type") != "unfinished"
                 assert (translation.text or "").strip()
+        bridge_messages = {
+            message.findtext("source"): message.find("translation")
+            for message in available["RedmineBridge"].findall("message")
+        }
+        assert warning_sources <= bridge_messages.keys()
+        for source in warning_sources:
+            translation = bridge_messages[source]
+            assert translation is not None
+            assert translation.get("type") != "unfinished"
+            assert (translation.text or "").strip()
+
+
+def test_lupdate_extracts_all_bridge_attachment_warning_sources(tmp_path):
+    output = tmp_path / "redmine_bridge.ts"
+    executable = (
+        ROOT / ".venv/Scripts/pyside6-lupdate.exe"
+        if os.name == "nt"
+        else ROOT / ".venv/bin/pyside6-lupdate"
+    )
+    result = subprocess.run(
+        [
+            str(executable),
+            str(ROOT / "ui/example/bridge/RedmineBridge.py"),
+            "-ts",
+            str(output),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    root = ET.parse(output).getroot()
+    context = next(
+        item
+        for item in root.findall("context")
+        if item.findtext("name") == "RedmineBridge"
+    )
+    extracted = {
+        message.findtext("source") for message in context.findall("message")
+    }
+    assert BRIDGE_ATTACHMENT_WARNING_SOURCES <= extracted
+
+
+def test_embedded_qm_translates_bridge_attachment_warning_in_both_locales():
+    source = "Attachment upload failed for %1: %2"
+    expected = {
+        "example_en_US.qm": source,
+        "example_zh_CN.qm": "附件 %1 上传失败：%2",
+    }
+    for catalog, translation in expected.items():
+        probe = f'''
+import sys
+sys.path.insert(0, r"{ROOT / 'ui'}")
+from PySide6.QtCore import QCoreApplication, QTranslator
+from example.imports import resource_rc
+app = QCoreApplication([])
+translator = QTranslator()
+loaded = translator.load(":/example/i18n/{catalog}")
+app.installTranslator(translator)
+sys.stdout.write(
+    str(loaded) + " "
+    + QCoreApplication.translate("RedmineBridge", {source!r})
+)
+'''
+        result = subprocess.run(
+            [sys.executable, "-c", probe],
+            cwd=ROOT,
+            env=dict(os.environ, PYTHONIOENCODING="utf-8"),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="strict",
+            timeout=15,
+        )
+        assert result.returncode == 0, result.stderr + result.stdout
+        assert result.stdout.strip() == f"True {translation}"
 
 
 def test_redmine_workspace_loader_activates_batch_module_from_qrc():

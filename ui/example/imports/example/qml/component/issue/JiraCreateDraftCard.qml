@@ -40,6 +40,15 @@ FluFrame {
             }
         }
         FluText { visible: !!root.draft.error; text: root.draft.error || ""; color: "#D13438"; wrapMode: Text.Wrap }
+        Repeater {
+            model: root.draft.attachmentWarnings || []
+            FluText {
+                Layout.fillWidth: true
+                text: modelData.attachmentWarningText || ""
+                color: FluTheme.dark ? "#FCE100" : "#986F0B"
+                wrapMode: Text.Wrap
+            }
+        }
     }
 
     function resultText() {

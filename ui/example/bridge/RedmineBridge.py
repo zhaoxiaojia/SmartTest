@@ -4,21 +4,28 @@ import asyncio
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from concurrent.futures import Future
+from concurrent.futures import Future, TimeoutError as FutureTimeoutError
 from threading import Event, Thread
 
-from PySide6.QtCore import QObject, Property, Signal, Slot
+from PySide6.QtCore import (
+    QCoreApplication,
+    QObject,
+    Property,
+    QT_TRANSLATE_NOOP,
+    Signal,
+    Slot,
+)
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
 
 from support.browser_automation import BrowserRuntime
 from support.jira_integration.auth.basic import JiraBasicAuth
-from support.jira_integration.core.models import CreateIssueAttachment
 from support.jira_integration.services.create_issue_service import CreateIssueService
 from support.jira_integration.services.create_schema_service import JiraCreateSchemaService
 from support.jira_integration.transport.client import JiraClient, JiraClientConfig
 from support.logging import smart_log
 from tool.SmartHome.redmine.auth import RedmineAuthService
+from tool.SmartHome.redmine.attachment_transfer import RedmineAttachmentTransfer
 from tool.SmartHome.redmine.clone_controller import RedmineCloneController
 from tool.SmartHome.redmine.collector import RedmineContextCollector, project_options
 from tool.SmartHome.redmine.issue_controller import RedmineIssueController
@@ -134,6 +141,7 @@ class RedmineBridge(QObject):
         self._watched_issue_text = ""
         self._watched_issue_error = ""
         self._batch_future = None
+        self._batch_done_event = None
         self._jira_client = None
         self._jira_create_service = None
         self._jira_schema_service = None
@@ -247,13 +255,148 @@ class RedmineBridge(QObject):
     actionableIssues = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.actionable_issues), notify=changed)
     cloneSelectionMode = Property(bool, lambda self: self._batch_controller.snapshot.state == "selecting", notify=changed)
     cloneSelectedIds = Property("QVariantList", lambda self: list(self._batch_controller.snapshot.selected_ids), notify=changed)
-    cloneDrafts = Property("QVariantList", lambda self: list(self._batch_controller.snapshot.drafts), notify=changed)
+    cloneDrafts = Property(
+        "QVariantList",
+        lambda self: self._localized_clone_drafts(
+            self._batch_controller.snapshot.drafts
+        ),
+        notify=changed,
+    )
     cloneBatchState = Property(str, lambda self: self._batch_controller.snapshot.state, notify=changed)
     cloneBatchLoaded = Property(int, lambda self: self._batch_controller.snapshot.loaded, notify=changed)
     cloneBatchTotal = Property(int, lambda self: self._batch_controller.snapshot.total, notify=changed)
     cloneBatchError = Property(str, lambda self: self._batch_controller.snapshot.error, notify=changed)
     firstInvalidIssueId = Property(str, lambda self: self._batch_controller.snapshot.first_invalid_issue_id, notify=changed)
     firstInvalidFieldId = Property(str, lambda self: self._batch_controller.snapshot.first_invalid_field_id, notify=changed)
+
+    def _localized_clone_drafts(self, drafts):
+        projected = []
+        for draft in drafts:
+            item = dict(draft)
+            item["attachmentWarnings"] = [
+                {
+                    **warning,
+                    "attachmentWarningText": self._attachment_warning_text(
+                        warning
+                    ),
+                }
+                for warning in draft.get("attachmentWarnings", ())
+            ]
+            projected.append(item)
+        return projected
+
+    def _attachment_warning_text(self, warning):
+        args = warning.get("reasonArgs") or {}
+        filename = str(warning.get("filename") or "")
+        messages = {
+            "attachment_oversized": (
+                QT_TRANSLATE_NOOP(
+                    "RedmineBridge",
+                    "Attachment %1 is %2 bytes; Jira limit is %3 bytes.",
+                ),
+                (
+                    filename,
+                    args.get("actual_bytes", warning.get("size") or 0),
+                    args.get("limit_bytes", 0),
+                ),
+            ),
+            "jira_attachments_disabled": (
+                QT_TRANSLATE_NOOP(
+                    "RedmineBridge",
+                    "Jira attachments are disabled for %1.",
+                ),
+                (filename,),
+            ),
+            "source_url_missing": (
+                QT_TRANSLATE_NOOP(
+                    "RedmineBridge",
+                    "Attachment source URL is unavailable for %1.",
+                ),
+                (filename,),
+            ),
+            "source_http_error": (
+                QT_TRANSLATE_NOOP(
+                    "RedmineBridge",
+                    "Attachment download failed for %1 (HTTP %2).",
+                ),
+                (filename, args.get("status", "")),
+            ),
+            "source_download_failed": (
+                QT_TRANSLATE_NOOP(
+                    "RedmineBridge",
+                    "Attachment download failed for %1: %2",
+                ),
+                (filename, args.get("detail", "")),
+            ),
+            "source_file_invalid": (
+                QT_TRANSLATE_NOOP(
+                    "RedmineBridge",
+                    "Attachment source is invalid for %1.",
+                ),
+                (filename,),
+            ),
+            "jira_existing_size_conflict": (
+                QT_TRANSLATE_NOOP(
+                    "RedmineBridge",
+                    "Jira already has %1 with a different size.",
+                ),
+                (filename,),
+            ),
+            "jira_list_failed": (
+                QT_TRANSLATE_NOOP(
+                    "RedmineBridge",
+                    "Could not check Jira attachments for %1: %2",
+                ),
+                (filename, args.get("detail", "")),
+            ),
+            "jira_upload_failed": (
+                QT_TRANSLATE_NOOP(
+                    "RedmineBridge",
+                    "Attachment upload failed for %1: %2",
+                ),
+                (filename, args.get("detail", "")),
+            ),
+            "upload_cancelled": (
+                QT_TRANSLATE_NOOP(
+                    "RedmineBridge",
+                    "Attachment upload was cancelled for %1.",
+                ),
+                (filename,),
+            ),
+            "source_downloader_unavailable": (
+                QT_TRANSLATE_NOOP(
+                    "RedmineBridge",
+                    "Attachment downloader is unavailable for %1.",
+                ),
+                (filename,),
+            ),
+            "jira_sync_failed": (
+                QT_TRANSLATE_NOOP(
+                    "RedmineBridge",
+                    "Jira attachment synchronization failed for %1: %2",
+                ),
+                (filename, args.get("detail", "")),
+            ),
+            "temp_cleanup_failed": (
+                QT_TRANSLATE_NOOP(
+                    "RedmineBridge",
+                    "Temporary attachment cleanup failed: %1",
+                ),
+                (args.get("detail", ""),),
+            ),
+        }
+        source, values = messages.get(
+            warning.get("reasonCode"),
+            (
+                QT_TRANSLATE_NOOP(
+                    "RedmineBridge", "Attachment warning for %1."
+                ),
+                (filename,),
+            ),
+        )
+        return _translated_args(
+            QCoreApplication.translate("RedmineBridge", source), *values
+        )
 
     def _load_cached_view(self):
         self._issue_controller.set_account(self._account)
@@ -314,10 +457,17 @@ class RedmineBridge(QObject):
                 page, account=self._account
             ).collect_issue_detail(source.item, project=source.project)
 
-    async def _download_source_attachments(self, attachments):
+    async def _download_source_attachments(
+        self, attachments, metadata, *, duplicate_filenames
+    ):
         service = await self._service_for(self._account)
         async with self._operation_page(service) as page:
-            return await _download_redmine_attachments(page, attachments)
+            return await _download_redmine_attachments(
+                page,
+                attachments,
+                metadata,
+                duplicate_filenames=duplicate_filenames,
+            )
 
     def _check_clone_status(self, rows, *, progress_base: int = 0, progress_total: int | None = None, emit_progress: bool = True):
         checker = self._checker()
@@ -831,10 +981,23 @@ class RedmineBridge(QObject):
         if operation_kind == "search" and detail_issue_id and detail_issue_id == selected_issue_id and not any(item.id == detail_issue_id for item in context.issues):
             self.selectIssue(detail_issue_id)
 
-    def _reset_batch(self, *, cancel_future=False):
+    def _reset_batch(self, *, cancel_future=False, wait=False):
         if cancel_future and self._batch_future is not None:
             self._batch_future.cancel()
+            if (
+                wait
+                and self._batch_done_event is not None
+                and not self._batch_done_event.wait(timeout=40)
+            ):
+                smart_log(
+                    "Redmine clone cancellation did not finish before close timeout",
+                    domain="ui",
+                    source="RedmineBridge",
+                    level="warning",
+                    extra={"timeout_seconds": 40},
+                )
         self._batch_future = None
+        self._batch_done_event = None
         self._batch_controller.reset()
 
     @Slot()
@@ -856,8 +1019,17 @@ class RedmineBridge(QObject):
 
     def _launch_batch_operation(self, operation):
         account_generation = self._generation
-        future = self._worker.submit(operation.awaitable)
+        completion = Event()
+
+        async def tracked_operation():
+            try:
+                return await operation.awaitable
+            finally:
+                completion.set()
+
+        future = self._worker.submit(tracked_operation())
         self._batch_future = future
+        self._batch_done_event = completion
 
         def finished(done):
             try:
@@ -921,6 +1093,7 @@ class RedmineBridge(QObject):
         ):
             return
         self._batch_future = None
+        self._batch_done_event = None
         if isinstance(result, Exception):
             self._batch_controller.apply_error(kind, result)
         else:
@@ -940,7 +1113,7 @@ class RedmineBridge(QObject):
         self._generation += 1
         self._data_generation += 1
         self._projects_generation += 1
-        self._reset_batch(cancel_future=True)
+        self._reset_batch(cancel_future=True, wait=True)
         if self._login_future is not None:
             self._login_future.cancel()
             self._login_future = None
@@ -967,7 +1140,7 @@ class RedmineBridge(QObject):
         self._generation += 1
         self._data_generation += 1
         self._projects_generation += 1
-        self._reset_batch(cancel_future=True)
+        self._reset_batch(cancel_future=True, wait=True)
         if self._login_future is not None:
             self._login_future.cancel()
             self._login_future = None
@@ -980,9 +1153,26 @@ class RedmineBridge(QObject):
                 future.cancel()
                 setattr(self, name, None)
         try:
-            self._worker.submit(self._close_flow()).result(timeout=10)
+            close_future = self._worker.submit(self._close_flow())
+            try:
+                close_future.result(timeout=10)
+            except FutureTimeoutError:
+                close_future.cancel()
+                smart_log(
+                    "Redmine close flow reached timeout",
+                    domain="ui",
+                    source="RedmineBridge",
+                    level="warning",
+                    extra={"timeout_seconds": 10},
+                )
         finally:
-            self._worker.stop()
+            if not self._worker.stop():
+                smart_log(
+                    "Redmine async worker did not stop before timeout",
+                    domain="ui",
+                    source="RedmineBridge",
+                    level="warning",
+                )
 
     @Slot(str)
     def openWebUrl(self, url):
@@ -993,25 +1183,28 @@ class RedmineBridge(QObject):
         QDesktopServices.openUrl(QUrl(clean_url))
 
 
-async def _download_redmine_attachments(page, attachments):
-    downloaded = []
-    for attachment in attachments:
-        url = str(attachment.download_url or attachment.detail_url or "").strip()
-        if not url:
-            raise RuntimeError(f"Redmine attachment URL is unavailable: {attachment.filename}")
-        response = await page.request.get(url)
-        if not response.ok:
-            raise RuntimeError(
-                f"Redmine attachment download failed: {attachment.filename} "
-                f"(HTTP {response.status})"
-            )
-        downloaded.append(
-            CreateIssueAttachment(
-                filename=attachment.filename,
-                data=await response.body(),
-            )
-        )
-    return tuple(downloaded)
+async def _download_redmine_attachments(
+    page,
+    attachments,
+    metadata,
+    *,
+    duplicate_filenames=(),
+    transfer=None,
+):
+    owner = transfer or RedmineAttachmentTransfer()
+    return await owner.stage(
+        page,
+        attachments,
+        metadata,
+        duplicate_filenames=duplicate_filenames,
+    )
+
+
+def _translated_args(template, *values):
+    text = str(template)
+    for index in range(len(values), 0, -1):
+        text = text.replace(f"%{index}", str(values[index - 1]))
+    return text
 
 
 class _RedmineCloneChecker:

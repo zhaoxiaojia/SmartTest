@@ -46,7 +46,17 @@ def clone_issues_to_jira(
                 )
             )
             result = create_service.create_issue(request)
-            (created if result.created else skipped).append(result)
+            if result.issue_state == "create_failed":
+                failed.append(
+                    RedmineCloneFailure(
+                        issue_id=issue.id,
+                        message=result.issue_error or "Jira issue creation failed",
+                    )
+                )
+            elif result.issue_state == "created":
+                created.append(result)
+            else:
+                skipped.append(result)
         except Exception as exc:
             failed.append(RedmineCloneFailure(issue_id=issue.id, message=str(exc)))
     return RedmineCloneResult(created=created, skipped=skipped, failed=failed)

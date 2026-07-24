@@ -5,10 +5,11 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 from math import ceil
+from pathlib import Path
 import ssl
 from threading import local
 import time
-from typing import Any
+from typing import Any, Iterable
 from uuid import uuid4
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin
@@ -17,7 +18,9 @@ from urllib.request import HTTPSHandler, Request, build_opener
 from support.jira_integration.auth.basic import JiraBasicAuth
 from support.jira_integration.core.errors import JiraConfigurationError, JiraRequestError
 from support.jira_integration.core.models import (
+    AttachmentCancellation,
     CreateIssueAttachment,
+    JiraAttachmentMetadata,
     JiraFieldMetadata,
     SearchPage,
 )
@@ -179,24 +182,49 @@ class JiraClient:
         attachments = fields.get("attachment") if isinstance(fields, dict) else []
         return [item for item in attachments or [] if isinstance(item, dict)]
 
+    def attachment_metadata(self) -> JiraAttachmentMetadata:
+        response = self._request("GET", self._api_path("attachment/meta"))
+        payload = response.data if isinstance(response.data, dict) else {}
+        enabled = payload.get("enabled")
+        upload_limit = payload.get("uploadLimit")
+        return JiraAttachmentMetadata(
+            available=True,
+            enabled=enabled if isinstance(enabled, bool) else None,
+            upload_limit=(
+                int(upload_limit)
+                if isinstance(upload_limit, int) and not isinstance(upload_limit, bool)
+                else None
+            ),
+        )
+
     def upload_attachment(
         self,
         issue_key: str,
         attachment: CreateIssueAttachment,
+        *,
+        cancellation: AttachmentCancellation | None = None,
     ) -> dict[str, Any]:
         boundary = f"SmartTest-{uuid4().hex}"
-        filename = attachment.filename.replace("\\", "\\\\").replace('"', '\\"')
-        body = (
+        filename = attachment.upload_filename.replace("\\", "\\\\").replace('"', '\\"')
+        prefix = (
             f"--{boundary}\r\n"
             f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
             "Content-Type: application/octet-stream\r\n\r\n"
-        ).encode("utf-8") + attachment.data + f"\r\n--{boundary}--\r\n".encode("ascii")
+        ).encode("utf-8")
+        suffix = f"\r\n--{boundary}--\r\n".encode("ascii")
+        body = _MultipartFileBody(
+            attachment.path,
+            prefix,
+            suffix,
+            cancellation=cancellation,
+        )
         response = self._request(
             "POST",
             self._api_path(f"issue/{issue_key}/attachments"),
             data=body,
             headers={
                 "Content-Type": f"multipart/form-data; boundary={boundary}",
+                "Content-Length": str(len(prefix) + attachment.size + len(suffix)),
                 "X-Atlassian-Token": "no-check",
             },
         )
@@ -281,7 +309,7 @@ class JiraClient:
         *,
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
-        data: bytes | None = None,
+        data: bytes | Iterable[bytes] | None = None,
         headers: dict[str, str] | None = None,
     ) -> "_HttpResponse":
         started_at = time.monotonic()
@@ -377,6 +405,40 @@ class _HttpResponse:
     status_code: int
     text: str
     data: Any
+
+
+class _MultipartFileBody:
+    def __init__(
+        self,
+        path: Path,
+        prefix: bytes,
+        suffix: bytes,
+        *,
+        chunk_size: int = 64 * 1024,
+        cancellation: AttachmentCancellation | None = None,
+    ):
+        self._path = path
+        self._prefix = prefix
+        self._suffix = suffix
+        self._chunk_size = chunk_size
+        self._cancellation = cancellation
+
+    def __iter__(self):
+        self._raise_if_cancelled()
+        yield self._prefix
+        with self._path.open("rb") as source:
+            while True:
+                self._raise_if_cancelled()
+                chunk = source.read(self._chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+        self._raise_if_cancelled()
+        yield self._suffix
+
+    def _raise_if_cancelled(self) -> None:
+        if self._cancellation is not None:
+            self._cancellation.raise_if_cancelled()
 
 
 def json_loads(text: str) -> Any:
