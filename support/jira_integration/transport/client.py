@@ -278,6 +278,11 @@ class JiraClient:
         payload = response.data if isinstance(response.data, list) else []
         return [item for item in payload if isinstance(item, dict)]
 
+    def fetch_filter(self, filter_id: str) -> dict[str, Any]:
+        response = self._request("GET", self._api_path(f"filter/{str(filter_id).strip()}"))
+        payload = response.data
+        return payload if isinstance(payload, dict) else {}
+
     def _api_path(self, suffix: str) -> str:
         base = self._config.base_url.rstrip("/") + "/"
         return urljoin(base, f"rest/api/{self._config.api_version}/{suffix.lstrip('/')}")
