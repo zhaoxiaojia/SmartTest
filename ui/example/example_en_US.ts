@@ -6516,5 +6516,49 @@ Some contents...</translation>
         <source>Browse and sign in to SmartHome Redmine.</source>
         <translation>Browse and sign in to SmartHome Redmine.</translation>
     </message>
+    <message>
+        <source>Jira Format Audit</source>
+        <translation>Jira Format Audit</translation>
+    </message>
+    <message>
+        <source>Review Jira issues against the FAE-QA format rules.</source>
+        <translation>Review Jira issues against the FAE-QA format rules.</translation>
+    </message>
+</context>
+<context>
+    <name>JiraAuditBridge</name>
+    <message><source>Ready to review Jira issues.</source><translation>Ready to review Jira issues.</translation></message>
+    <message><source>Enter JQL or a Jira URL.</source><translation>Enter JQL or a Jira URL.</translation></message>
+    <message><source>Sign in with LDAP again to review Jira issues.</source><translation>Sign in with LDAP again to review Jira issues.</translation></message>
+    <message><source>Validating Jira input...</source><translation>Validating Jira input...</translation></message>
+    <message><source>Fetching Jira issues...</source><translation>Fetching Jira issues...</translation></message>
+    <message><source>Reviewing Jira issue formats...</source><translation>Reviewing Jira issue formats...</translation></message>
+    <message><source>Jira format audit completed.</source><translation>Jira format audit completed.</translation></message>
+    <message><source>Complete a Jira audit before exporting.</source><translation>Complete a Jira audit before exporting.</translation></message>
+    <message><source>Failed to export the Jira audit workbook.</source><translation>Failed to export the Jira audit workbook.</translation></message>
+    <message><source>Jira audit workbook exported.</source><translation>Jira audit workbook exported.</translation></message>
+    <message><source>The exported file does not exist.</source><translation>The exported file does not exist.</translation></message>
+    <message><source>Windows File Explorer could not be opened.</source><translation>Windows File Explorer could not be opened.</translation></message>
+    <message><source>The login changed. Start the Jira audit again.</source><translation>The login changed. Start the Jira audit again.</translation></message>
+    <message><source>The Jira audit returned an invalid result.</source><translation>The Jira audit returned an invalid result.</translation></message>
+    <message><source>Jira audit failed.</source><translation>Jira audit failed.</translation></message>
+</context>
+<context>
+    <name>JiraAuditWorkspace</name>
+    <message><source>JQL or Jira URL</source><translation>JQL or Jira URL</translation></message>
+    <message><source>Paste JQL or a Jira issue, filter, or search URL.</source><translation>Paste JQL or a Jira issue, filter, or search URL.</translation></message>
+    <message><source>Start Audit</source><translation>Start Audit</translation></message>
+    <message><source>Rules</source><translation>Rules</translation></message>
+    <message><source>Audit Progress</source><translation>Audit Progress</translation></message>
+    <message><source>Results</source><translation>Results</translation></message>
+    <message><source>Total</source><translation>Total</translation></message>
+    <message><source>Passed</source><translation>Passed</translation></message>
+    <message><source>Failed</source><translation>Failed</translation></message>
+    <message><source>Violations</source><translation>Violations</translation></message>
+    <message><source>No violations were found.</source><translation>No violations were found.</translation></message>
+    <message><source>Export XLSX</source><translation>Export XLSX</translation></message>
+    <message><source>Show in Folder</source><translation>Show in Folder</translation></message>
+    <message><source>Exported file</source><translation>Exported file</translation></message>
+    <message><source>No export has been created.</source><translation>No export has been created.</translation></message>
 </context>
 </TS>

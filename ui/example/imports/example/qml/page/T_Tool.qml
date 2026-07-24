@@ -3,6 +3,7 @@ import QtQuick.Layouts 1.15
 import FluentUI 1.0
 import "../component"
 import "../component/redmine"
+import "../component/jiraaudit"
 
 FluPage {
     title: qsTr("Tool")
@@ -131,6 +132,14 @@ FluPage {
                     color: FluTheme.frameColor
                 }
                 Loader {
+                    id: jiraAuditWorkspace
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    active: selectedTool.id === "jira_audit"
+                    visible: active
+                    sourceComponent: JiraAuditWorkspace {}
+                }
+                Loader {
                     id: redmineLogin
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -179,7 +188,7 @@ FluPage {
                 }
                 FluText {
                     Layout.fillHeight: true
-                    visible: selectedTool.id !== "redmine"
+                    visible: selectedTool.id !== "redmine" && selectedTool.id !== "jira_audit"
                     text: qsTr("This area is reserved for the selected tool. Execution is not available yet.")
                     color: FluTheme.fontSecondaryColor
                 }

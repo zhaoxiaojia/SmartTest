@@ -11,6 +11,7 @@
         <file>example/qml/component/ImagePreviewDialog.qml</file>
         <file>example/qml/component/LogListView.qml</file>
         <file>example/qml/component/ToolGroupExpander.qml</file>
+        <file>example/qml/component/jiraaudit/JiraAuditWorkspace.qml</file>
         <file>example/qml/component/redmine/RedmineLoginView.qml</file>
         <file>example/qml/component/redmine/RedmineWorkspace.qml</file>
         <file>example/qml/component/issue/JiraIssueBrowserLayout.qml</file>

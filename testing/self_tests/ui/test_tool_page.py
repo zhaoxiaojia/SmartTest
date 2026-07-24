@@ -50,6 +50,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtTest import QTest
 from FluentUI import FluentUI
 from example.imports import resource_rc
+from example.bridge.JiraAuditBridge import JiraAuditBridge
 from example.bridge.ToolBridge import ToolBridge
 from example.context_registry import register_context_objects
 class Auth(QObject):
@@ -71,7 +72,7 @@ class Redmine(QObject):
     def cancelLogin(self): pass
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
 auth=Auth(); redmine=Redmine()
-register_context_objects(engine, {{"AuthBridge": auth, "ToolBridge": ToolBridge(r"{ROOT}", auth), "RedmineBridge": redmine}})
+register_context_objects(engine, {{"AuthBridge": auth, "ToolBridge": ToolBridge(r"{ROOT}", auth), "RedmineBridge": redmine, "JiraAuditBridge": JiraAuditBridge(auth)}})
 del auth; gc.collect()
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1200; height: 800; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/page/T_Tool.qml" }} }}')
@@ -97,7 +98,7 @@ print(selected.get("id"), redmine.calls, len(engine._context_objects), len(bad),
         capture_output=True, text=True, timeout=20,
     )
     assert result.returncode == 0, result.stderr + result.stdout
-    assert "redmine 1 3 0 []" in result.stdout
+    assert "redmine 1 4 0 []" in result.stdout
 
 
 def test_context_registry_releases_objects_when_engine_is_destroyed():
@@ -645,6 +646,53 @@ def test_tool_page_invalidates_redmine_selection_when_group_becomes_unavailable(
     assert "function ensureSelectedToolAvailable()" in source
     assert "if (!selectedGroup.available)" in source
     assert "onSelectedGroupChanged: ensureSelectedToolAvailable()" in source
+
+
+def test_jira_audit_workspace_contract_loader_and_resource_registration():
+    page = (ROOT / "ui/example/imports/example/qml/page/T_Tool.qml").read_text(encoding="utf-8")
+    workspace_path = (
+        ROOT
+        / "ui/example/imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml"
+    )
+    resource = (ROOT / "ui/example/imports/resource.qrc").read_text(encoding="utf-8")
+
+    assert workspace_path.exists()
+    workspace = workspace_path.read_text(encoding="utf-8")
+    assert 'import "../component/jiraaudit"' in page
+    assert 'selectedTool.id === "jira_audit"' in page
+    assert "JiraAuditWorkspace" in page
+    assert "example/qml/component/jiraaudit/JiraAuditWorkspace.qml" in resource
+    for binding in (
+        "JiraAuditBridge.state",
+        "JiraAuditBridge.statusText",
+        "JiraAuditBridge.inputError",
+        "JiraAuditBridge.progressValue",
+        "JiraAuditBridge.processedCount",
+        "JiraAuditBridge.totalCount",
+        "JiraAuditBridge.ruleRows",
+        "JiraAuditBridge.resultSummary",
+        "JiraAuditBridge.violationRows",
+        "JiraAuditBridge.exportPath",
+        "JiraAuditBridge.canStart",
+        "JiraAuditBridge.canExport",
+        "JiraAuditBridge.startAudit",
+        "JiraAuditBridge.exportReport",
+        "JiraAuditBridge.revealExport",
+    ):
+        assert binding in workspace
+    for object_name in (
+        "jiraAuditInput",
+        "jiraAuditStart",
+        "jiraAuditRules",
+        "jiraAuditProgress",
+        "jiraAuditResults",
+        "jiraAuditViolations",
+        "jiraAuditExport",
+        "jiraAuditReveal",
+    ):
+        assert f'objectName: "{object_name}"' in workspace
+    assert "JiraAuditBridge.inputError" in workspace
+    assert "onClicked: JiraAuditBridge.startAudit(auditInput.text)" in workspace
 
 
 def test_shared_issue_browser_exposes_quick_views_project_options_and_search_cancel():

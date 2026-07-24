@@ -6749,5 +6749,49 @@ Some contents...</source>
         <source>Browse and sign in to SmartHome Redmine.</source>
         <translation>浏览并登录 SmartHome Redmine。</translation>
     </message>
+    <message>
+        <source>Jira Format Audit</source>
+        <translation>Jira 规范审查</translation>
+    </message>
+    <message>
+        <source>Review Jira issues against the FAE-QA format rules.</source>
+        <translation>根据 FAE-QA 格式规则审查 Jira 问题。</translation>
+    </message>
+</context>
+<context>
+    <name>JiraAuditBridge</name>
+    <message><source>Ready to review Jira issues.</source><translation>可以开始审查 Jira 问题。</translation></message>
+    <message><source>Enter JQL or a Jira URL.</source><translation>请输入 JQL 或 Jira URL。</translation></message>
+    <message><source>Sign in with LDAP again to review Jira issues.</source><translation>请重新使用 LDAP 登录后再审查 Jira 问题。</translation></message>
+    <message><source>Validating Jira input...</source><translation>正在验证 Jira 输入...</translation></message>
+    <message><source>Fetching Jira issues...</source><translation>正在获取 Jira 问题...</translation></message>
+    <message><source>Reviewing Jira issue formats...</source><translation>正在审查 Jira 问题格式...</translation></message>
+    <message><source>Jira format audit completed.</source><translation>Jira 规范审查已完成。</translation></message>
+    <message><source>Complete a Jira audit before exporting.</source><translation>请先完成 Jira 审查再导出。</translation></message>
+    <message><source>Failed to export the Jira audit workbook.</source><translation>导出 Jira 审查工作簿失败。</translation></message>
+    <message><source>Jira audit workbook exported.</source><translation>Jira 审查工作簿已导出。</translation></message>
+    <message><source>The exported file does not exist.</source><translation>导出的文件不存在。</translation></message>
+    <message><source>Windows File Explorer could not be opened.</source><translation>无法打开 Windows 文件资源管理器。</translation></message>
+    <message><source>The login changed. Start the Jira audit again.</source><translation>登录状态已变化，请重新开始 Jira 审查。</translation></message>
+    <message><source>The Jira audit returned an invalid result.</source><translation>Jira 审查返回了无效结果。</translation></message>
+    <message><source>Jira audit failed.</source><translation>Jira 审查失败。</translation></message>
+</context>
+<context>
+    <name>JiraAuditWorkspace</name>
+    <message><source>JQL or Jira URL</source><translation>JQL 或 Jira URL</translation></message>
+    <message><source>Paste JQL or a Jira issue, filter, or search URL.</source><translation>粘贴 JQL、Jira 问题链接、筛选器链接或搜索链接。</translation></message>
+    <message><source>Start Audit</source><translation>开始审查</translation></message>
+    <message><source>Rules</source><translation>规则明细</translation></message>
+    <message><source>Audit Progress</source><translation>审查进度</translation></message>
+    <message><source>Results</source><translation>审查结果</translation></message>
+    <message><source>Total</source><translation>总数</translation></message>
+    <message><source>Passed</source><translation>通过</translation></message>
+    <message><source>Failed</source><translation>未通过</translation></message>
+    <message><source>Violations</source><translation>违规项</translation></message>
+    <message><source>No violations were found.</source><translation>未发现违规项。</translation></message>
+    <message><source>Export XLSX</source><translation>导出 XLSX</translation></message>
+    <message><source>Show in Folder</source><translation>在文件夹中显示</translation></message>
+    <message><source>Exported file</source><translation>导出文件</translation></message>
+    <message><source>No export has been created.</source><translation>尚未生成导出文件。</translation></message>
 </context>
 </TS>
