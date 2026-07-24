@@ -6,16 +6,13 @@ from datetime import datetime
 from pathlib import Path
 from threading import Lock, Thread
 import time
-import uuid
 from typing import Any, Callable
 from urllib.parse import quote
 
 from PySide6.QtCore import QObject, Property, QT_TRANSLATE_NOOP, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from ui import jsonTool
-
-from jira import JiraWorkspaceService, create_jira_workspace_service
+from jira import JiraConversationController, JiraWorkspaceService, create_jira_workspace_service
 from example.bridge.AuthBridge import AuthBridge
 from example.helper.TranslateHelper import TranslateHelper
 from support.logging import smart_log
@@ -205,9 +202,13 @@ class JiraBridge(QObject):
         self._issues: list[dict[str, Any]] = []
         self._saved_filters: list[dict[str, str]] = []
         self._filters_loading = False
-        self._conversation = [self._workspace_ready_row()]
-        self._conversation_history = self._load_conversation_history()
-        self._current_conversation_id = uuid.uuid4().hex
+        self._conversation_controller = JiraConversationController(
+            app_data_dir() / "Jira" / "ai_conversation_history.json",
+            initial_row=JiraConversationController.system_row(
+                message_template="Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.",
+                timestamp_template="Workspace ready",
+            ),
+        )
         self._selected_issue_index = 0
         self._displayed_total = 0
         self._worker_seq = 0
@@ -252,23 +253,6 @@ class JiraBridge(QObject):
     def _render_template(self, template: str, values: dict[str, Any] | None = None) -> str:
         return self.tr(str(template or "")).format(**dict(values or {}))
 
-    def _system_row(
-        self,
-        *,
-        message_template: str,
-        timestamp_template: str,
-        message_values: dict[str, Any] | None = None,
-        timestamp_values: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        return {
-            "role": "assistant",
-            "author": "SmartTest AI",
-            "message_template": message_template,
-            "message_values": dict(message_values or {}),
-            "timestamp_template": timestamp_template,
-            "timestamp_values": dict(timestamp_values or {}),
-        }
-
     def _render_conversation_row(self, row: dict[str, Any]) -> dict[str, Any]:
         rendered = dict(row)
         if "message_template" in row:
@@ -282,70 +266,6 @@ class JiraBridge(QObject):
                 row.get("timestamp_values"),
             )
         return rendered
-
-    def _workspace_ready_row(self) -> dict[str, Any]:
-        return self._system_row(
-            message_template="Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.",
-            timestamp_template="Workspace ready",
-        )
-
-    def _clear_session_row(self) -> dict[str, Any]:
-        return self._system_row(
-            message_template="Session cleared. Ask a new Jira question when ready.",
-            timestamp_template="Reset",
-        )
-
-    def _history_path(self) -> Path:
-        return app_data_dir() / "Jira" / "ai_conversation_history.json"
-
-    def _load_conversation_history(self) -> list[dict[str, Any]]:
-        path = self._history_path()
-        payload = jsonTool.read_json(path, {})
-        rows = payload.get("conversations") if isinstance(payload, dict) else None
-        return rows if isinstance(rows, list) else []
-
-    def _save_conversation_history(self) -> None:
-        path = self._history_path()
-        jsonTool.write_json(path, {"conversations": self._conversation_history[:50]})
-
-    def _current_history_title(self) -> str:
-        for row in self._conversation:
-            if row.get("role") == "user":
-                message = str(row.get("message", "") or "").strip()
-                if message:
-                    return message[:60]
-        return self._t("Jira AI Conversation")
-
-    def _current_history_preview(self) -> str:
-        for row in reversed(self._conversation):
-            message = str(row.get("message", "") or "").strip()
-            if message:
-                return " ".join(message.split())[:100]
-        return ""
-
-    def _persist_current_conversation(self) -> None:
-        messages = [dict(row) for row in self._conversation if str(row.get("message", "") or "").strip()]
-        if not messages:
-            return
-        now = int(time.time())
-        entry = {
-            "id": self._current_conversation_id,
-            "title": self._current_history_title(),
-            "preview": self._current_history_preview(),
-            "updated_at": now,
-            "messages": messages,
-        }
-        self._conversation_history = [
-            item for item in self._conversation_history if item.get("id") != self._current_conversation_id
-        ]
-        self._conversation_history.insert(0, entry)
-        self._save_conversation_history()
-
-    def _error_row(self) -> dict[str, Any]:
-        return self._system_row(
-            message_template="Jira request failed. Check the connection message above and sign in again if needed.",
-            timestamp_template="Error",
-        )
 
     def _project_label(self, option_id: str) -> str:
         labels = {
@@ -538,27 +458,6 @@ class JiraBridge(QObject):
             return
         self._loading = value
         self.loadingChanged.emit()
-
-    def _set_progress_message(self, message: str) -> None:
-        clean = str(message or "").strip()
-        if not clean:
-            return
-        if self._conversation and self._conversation[-1].get("is_progress") is True:
-            self._conversation[-1]["message"] = clean
-            self._conversation[-1]["timestamp"] = self._t("Just now")
-            return
-        self._conversation.append(
-            {
-                "role": "assistant",
-                "author": "SmartTest AI",
-                "message": clean,
-                "timestamp": self._t("Just now"),
-                "is_progress": True,
-            }
-        )
-
-    def _clear_progress_message(self) -> None:
-        self._conversation = [row for row in self._conversation if row.get("is_progress") is not True]
 
     def _set_connection(
         self,
@@ -898,13 +797,10 @@ class JiraBridge(QObject):
         if clean_prompt == "":
             return
         with self._state_lock:
-            self._conversation.append(
-                {
-                    "role": "user",
-                    "author": self._auth_bridge.currentUsername(),
-                    "message": clean_prompt,
-                    "timestamp": self._t("Just now"),
-                }
+            self._conversation_controller.append_user(
+                author=self._auth_bridge.currentUsername(),
+                message=clean_prompt,
+                timestamp=self._t("Just now"),
             )
         self.stateChanged.emit()
         self._start_analysis_worker(
@@ -1029,7 +925,10 @@ class JiraBridge(QObject):
         self._worker_seq += 1
         worker_id = self._worker_seq
         self._set_loading(True)
-        self._set_progress_message(self._t("Searching Jira issues from your request..."))
+        self._conversation_controller.replace_progress(
+            message=self._t("Searching Jira issues from your request..."),
+            timestamp=self._t("Just now"),
+        )
         self.stateChanged.emit()
         self._set_connection(
             connected=self._connected,
@@ -1109,19 +1008,31 @@ class JiraBridge(QObject):
 
     @Slot()
     def clearConversation(self) -> None:
-        self._persist_current_conversation()
-        self._current_conversation_id = uuid.uuid4().hex
-        self._conversation = [self._clear_session_row()]
+        self._invalidate_active_worker()
+        self._conversation_controller.clear(
+            initial_row=JiraConversationController.system_row(
+                message_template="Session cleared. Ask a new Jira question when ready.",
+                timestamp_template="Reset",
+            )
+        )
         self.stateChanged.emit()
 
     @Slot(str)
     def restoreConversation(self, conversation_id: str) -> None:
-        for entry in self._conversation_history:
-            if entry.get("id") == conversation_id:
-                self._current_conversation_id = str(entry.get("id", "") or uuid.uuid4().hex)
-                self._conversation = [dict(row) for row in list(entry.get("messages") or [])]
-                self.stateChanged.emit()
-                return
+        self._invalidate_active_worker()
+        self._conversation_controller.restore(conversation_id)
+        self.stateChanged.emit()
+
+    def _invalidate_active_worker(self) -> None:
+        was_loading = self._loading
+        self._worker_seq += 1
+        self._conversation_controller.remove_progress()
+        self._set_loading(False)
+        if was_loading:
+            self._set_connection(
+                connected=self._connected,
+                status_state=self._translated_state("Ready"),
+            )
 
     def _handle_auth_changed(self) -> None:
         if self._auth_bridge.isAuthenticated() and self._auth_bridge.hasCredential():
@@ -1166,17 +1077,13 @@ class JiraBridge(QObject):
         self._can_load_more = bool(payload.get("can_load_more", False))
         self._active_scope = dict(payload.get("scope") or {})
         assistant_message = str(payload.get("assistant_message", "") or "").strip()
-        self._clear_progress_message()
+        self._conversation_controller.remove_progress()
         if assistant_message:
-            self._conversation.append(
-                {
-                    "role": "assistant",
-                    "author": "SmartTest AI",
-                    "message": assistant_message,
-                    "timestamp": str(payload.get("assistant_timestamp", self._t("Just now"))),
-                }
+            self._conversation_controller.append_assistant(
+                message=assistant_message,
+                timestamp=str(payload.get("assistant_timestamp", self._t("Just now"))),
             )
-        self._persist_current_conversation()
+        self._conversation_controller.persist()
         status_state = payload.get("status_state")
         self._set_connection(
             connected=bool(payload.get("connected", False)),
@@ -1194,7 +1101,7 @@ class JiraBridge(QObject):
         message = str((payload or {}).get("message", "") or "").strip()
         if not message:
             return
-        self._set_progress_message(message)
+        self._conversation_controller.replace_progress(message=message, timestamp=self._t("Just now"))
         self.stateChanged.emit()
 
     @Slot(object)
@@ -1237,8 +1144,11 @@ class JiraBridge(QObject):
             "Jira request failed. Check the connection message above and sign in again if needed."
         )
         self._analysis_actions = []
-        self._conversation.append(self._error_row())
-        self._clear_progress_message()
+        self._conversation_controller.remove_progress()
+        self._conversation_controller.append_system(
+            message_template="Jira request failed. Check the connection message above and sign in again if needed.",
+            timestamp_template="Error",
+        )
         self._set_loading(False)
         self.stateChanged.emit()
 
@@ -1272,12 +1182,12 @@ class JiraBridge(QObject):
 
     @Slot(result="QVariantList")
     def conversationRows(self):
-        return [self._render_conversation_row(row) for row in self._conversation]
+        return [self._render_conversation_row(row) for row in self._conversation_controller.conversation_rows()]
 
     @Slot(result="QVariantList")
     def conversationHistoryRows(self):
         rows = []
-        for entry in self._conversation_history:
+        for entry in self._conversation_controller.history_rows():
             updated_at = int(entry.get("updated_at", 0) or 0)
             rows.append(
                 {
@@ -1285,7 +1195,7 @@ class JiraBridge(QObject):
                     "title": str(entry.get("title", "") or self._t("Jira AI Conversation")),
                     "preview": str(entry.get("preview", "")),
                     "updatedAt": time.strftime("%Y-%m-%d %H:%M", time.localtime(updated_at)) if updated_at else "",
-                    "messageCount": len(list(entry.get("messages") or [])),
+                    "messageCount": int(entry.get("message_count", 0) or 0),
                 }
             )
         return rows
