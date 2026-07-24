@@ -61,3 +61,8 @@ Delivery requires two independent results:
 - When Coco says “提交”, “合并”, or “push” for completed work, treat all three as the same delivery instruction: commit only the approved scoped changes, integrate them into the repository's main branch, then push the main branch to its configured remote. Do not leave completed work only on a feature branch, and do not include unrelated user-owned changes.
 
 Reports are concise: changed files, commands with exit codes, criterion failures, limitations/blockers, relevant workspace status, and worker thread/task identity. Do not repeat requirements, implementation narrative, source code, or full logs.
+
+## Documentation Language
+
+- SmartTest design documents, implementation plans, development documents, and delivery reports must be written in Chinese by default.
+- Keep code identifiers, file paths, commands, protocol/API names, and quoted external source text in their original form when translation would reduce precision.

@@ -1,175 +1,175 @@
-# Jira Format Audit Common Tool Design
+# Jira 规范审查 Common Tool 设计
 
-## Goal
+## 目标
 
-Add a complete Jira format-audit workflow to SmartTest Common Tools. Authorized users enter either JQL or a Jira URL, start an asynchronous audit, inspect the active rule set and progress, review results, export an XLSX report to the Windows Downloads directory, and reveal the exported file in File Explorer.
+在 SmartTest 的 Common Tools 中提供完整的 Jira 规范审查流程。授权用户可以输入 JQL 或 Jira URL，异步启动审查，查看当前规则、审查进度和审查结果，将结果导出为 Windows 下载目录中的 XLSX 文件，并在文件管理器中定位该文件。
 
-## Scope
+## 范围
 
-This delivery includes:
+本次开发包括：
 
-- an independent audit capability under `support/jira_integration`;
-- a narrow Qt bridge registered by the desktop application;
-- a Jira Format Audit entry and workspace under Common Tools;
-- input validation, Jira querying, rule evaluation, progress reporting, result presentation, XLSX export, and file reveal;
-- visibility for FAE-QA management grades and developers;
-- English and Chinese owned UI text;
-- focused business, bridge, permission, QML, translation, and source-runtime validation.
+- 在 `support/jira_integration` 下新增独立的审查能力；
+- 新增一个由桌面应用注册的窄职责 Qt Bridge；
+- 在 Common Tools 中新增“Jira 规范审查”入口和工作区；
+- 实现输入校验、Jira 查询、规则审查、进度反馈、结果展示、XLSX 导出和文件定位；
+- 仅向 FAE-QA 的 M 岗及开发者开放；
+- 同步维护中英文前端固定文本；
+- 增加业务、Bridge、权限、QML、翻译和源码运行验证。
 
-This delivery excludes:
+本次开发不包括：
 
-- changes to or imports from root `jira_handler.py`;
-- changes to Redmine Clone, its templates, validation, or submission flow;
-- Jira issue mutation or automatic issue correction;
-- new authentication UI or credential persistence;
-- desktop package or installer rebuilds.
+- 修改或导入根目录的 `jira_handler.py`；
+- 修改 Redmine Clone、其模板、校验或提交流程；
+- 修改 Jira 问题或自动修复问题内容；
+- 新增认证界面或持久化用户凭据；
+- 重建桌面安装包。
 
-Redmine integration with the shared audit rules is deferred to a separate delivery. That later delivery must use a narrow call into the audit capability and may remove only proven duplicate rule code; it must not change unrelated Redmine behavior.
+Redmine 复用审查规则将在后续独立任务中完成。后续只能通过窄接口调用审查能力，并且只能删除已证实重复的规则代码，不得改变其他 Redmine 业务。
 
-## Ownership and Architecture
+## 业务所有权与架构
 
-`support/jira_integration` is the sole business owner of the new audit models, input resolution, rules, validation, orchestration, and XLSX export. The implementation may use root `jira_handler.py` as a behavioral reference during development, but production code and tests must not import it, execute it, or read it at runtime.
+`support/jira_integration` 是新审查模型、输入解析、规则、校验、流程编排和 XLSX 导出的唯一业务所有者。开发时可以将根目录的 `jira_handler.py` 作为行为参考，但生产代码和测试不得导入、执行或在运行时读取该文件。
 
-The existing Jira integration remains the owner of authentication and transport:
+现有 Jira 集成继续负责认证和传输：
 
-- `AuthBridge` supplies the authenticated account and transient LDAP credential.
-- `JiraBasicAuth` constructs Jira Basic authentication.
-- `JiraClient` performs Jira REST requests and paginated JQL searches.
+- `AuthBridge` 提供当前已认证账号和 LDAP 临时凭据；
+- `JiraBasicAuth` 生成 Jira Basic Authentication；
+- `JiraClient` 负责 Jira REST 请求和 JQL 分页查询。
 
-A dedicated Jira audit bridge owns asynchronous execution, UI-facing state, localized fixed text, the last completed result, export coordination, and File Explorer reveal. QML owns layout and presentational interaction only. It must not parse Jira payloads, implement audit rules, build XLSX content, infer progress, or access credentials.
+新增独立 Jira 审查 Bridge，负责后台执行、前端状态、固定文本本地化、最近一次完整结果、导出协调和文件管理器定位。QML 只负责布局和交互展示，不得解析 Jira 数据、实现规则、生成 XLSX、推断进度或读取凭据。
 
-The audit bridge is independent from `JiraBridge`. Both may consume `AuthBridge`, but neither owns or calls the other.
+审查 Bridge 与 `JiraBridge` 相互独立。二者都可以使用 `AuthBridge`，但不得互相拥有或调用。
 
-## Access Control
+## 权限
 
-The Common Tools group remains generally available. The Jira Format Audit tool entry is included only when the authenticated personnel record satisfies either condition:
+Common Tools 分组继续保持通用可用。只有满足以下任一条件的用户才能在 `ToolBridge.groups` 模型中获得“Jira 规范审查”入口：
 
-1. department is exactly `FAE-QA` and `career.grade` starts with uppercase `M` after trimming; or
-2. `system_roles` contains `developer`, compared case-insensitively.
+1. 部门严格为 `FAE-QA`，并且去除首尾空格后的 `career.grade` 以大写 `M` 开头；
+2. `system_roles` 中包含忽略大小写匹配的 `developer`。
 
-This admits FAE-QA grades M1 through M5 and grants `chao.li` access through the existing developer role. Non-authorized users must not receive the tool entry in the `ToolBridge.groups` model. Hiding only the QML content is insufficient.
+这将允许 FAE-QA 的 M1 至 M5 用户访问，并通过现有 developer 角色为 `chao.li` 提供完整权限。未授权用户不能从 Bridge 模型中收到该入口，不能只在 QML 层隐藏内容。
 
-## Input Contract
+## 输入约定
 
-The page provides one multiline-capable text input accepting either raw JQL or one Jira URL.
+页面提供一个可输入多行内容的输入框，同时接受原始 JQL 或单个 Jira URL。
 
-When the user presses **Start Audit**:
+用户点击“开始审查”时：
 
-- whitespace-only input is rejected locally with an owned message requiring JQL or a Jira URL;
-- strings recognized as URLs must use HTTP or HTTPS and target the configured Jira host;
-- a Jira browse URL resolves to `key = ISSUE-KEY`;
-- a Jira filter URL resolves its filter identifier through Jira and uses that filter's JQL;
-- a Jira URL containing a `jql` query parameter uses its decoded JQL;
-- unsupported or malformed Jira URLs are rejected with an actionable message;
-- non-URL input is treated as raw JQL and validated by Jira through the existing search API;
-- no audit run starts until the input resolves successfully.
+- 只有空白字符的输入在本地直接拒绝，并提示必须输入 JQL 或 Jira URL；
+- 被识别为 URL 的输入必须使用 HTTP 或 HTTPS，并指向当前配置的 Jira 主机；
+- Jira issue 浏览 URL 转换为 `key = ISSUE-KEY`；
+- Jira filter URL 通过 Jira 读取 filter 的 JQL；
+- 含 `jql` 查询参数的 Jira URL 使用解码后的 JQL；
+- 无法支持或格式错误的 Jira URL 给出可操作的错误提示；
+- 非 URL 输入按原始 JQL 处理，并通过现有 Jira 查询接口校验；
+- 输入成功解析前不得启动审查。
 
-The configured Jira base URL is the existing SmartTest Jira endpoint. User input cannot redirect credentials to another host.
+Jira Base URL 使用 SmartTest 已有配置。用户输入不得把认证信息转发到其他主机。
 
-## Rule Capability
+## 规则能力
 
-The audit package exposes immutable UI-safe rule descriptors and structured audit results. Each rule descriptor includes a stable rule ID, section, field, human-readable requirement, and guidance. Each violation includes the rule ID, Jira key and URL, field, observed display value, reason, and guidance.
+审查模块向前端提供不可变、可安全展示的规则描述和结构化审查结果。每条规则包含稳定的规则编号、章节、字段、规则要求和修改建议。每条违规包含规则编号、Jira Key、Jira URL、字段、当前展示值、失败原因和修改建议。
 
-The initial rule behavior matches the supported behavior of `jira_handler.py`:
+首版规则行为与 `jira_handler.py` 当前支持的行为一致：
 
-- Summary structure and required values;
-- customer and problem-description English checks;
-- uppercase chip check;
-- allowed Jira module/component checks;
-- probability format;
-- required Description sections;
-- Regression evidence requirements;
-- attachment size limit;
-- known label-driven conditions;
-- unsupported normative-section reporting when applicable.
+- Summary 结构及必填内容；
+- 客户名称和问题描述的英文校验；
+- CHIP 大写校验；
+- Jira 模块和 Component 合法性校验；
+- 复现概率格式；
+- Description 必需章节；
+- Regression 版本证据；
+- 附件大小限制；
+- 已知 Label 触发的条件规则；
+- 必要时报告尚未支持的规范章节。
 
-Rules are implemented within `support/jira_integration`; embedded defaults must be deterministic and testable. The audit runtime must not depend on root `jira规范.md`, because the feature must remain independently deployable. If Markdown rule loading is retained, it is an explicit optional override over embedded defaults and failures must not silently change the active rule set.
+规则必须实现在 `support/jira_integration` 内，并提供确定且可测试的内置默认值。运行时不得依赖根目录的 `jira规范.md`，以保证功能可以独立交付。如果保留 Markdown 规则加载能力，它只能作为内置规则的显式覆盖；加载失败不得静默改变当前规则集。
 
-## Execution and Progress
+## 执行与进度
 
-Audit execution runs outside the QML/UI thread. Only one audit may run per bridge instance.
+审查必须在 QML/UI 线程之外运行。每个 Bridge 实例同一时间只能有一个审查任务。
 
-The UI-facing state machine is:
+前端状态机包括：
 
-- `idle`: ready for input;
-- `resolving`: validating input and resolving URL/filter JQL;
-- `fetching`: querying Jira;
-- `auditing`: evaluating fetched issues;
-- `completed`: complete result available;
-- `failed`: actionable failure displayed.
+- `idle`：可以输入；
+- `resolving`：校验输入并解析 URL 或 filter JQL；
+- `fetching`：从 Jira 查询问题；
+- `auditing`：逐个审查已获取的问题；
+- `completed`：审查完成并可查看结果；
+- `failed`：显示可操作的失败信息。
 
-Progress includes a stage label, processed count, total count, and normalized percentage. Fetch progress must be emitted by bounded Jira page retrieval rather than appearing frozen until `search_all` completes. Audit progress advances per processed issue. A stale background result must not overwrite the state of a newer run.
+进度数据包括阶段文本、已处理数量、总数量和标准化百分比。查询阶段必须按 Jira 分页推进进度，不能直接调用 `search_all` 后长时间没有反馈。规则审查阶段按问题逐个推进。旧后台任务的结果不得覆盖后启动任务的状态。
 
-Jira credentials and raw authorization values must never appear in models, logs, errors, exports, or QML.
+凭据和原始 Authorization 内容不得进入前端模型、日志、错误文本、导出文件或 QML。
 
-## Result Presentation
+## 结果展示
 
-The workspace has four visible regions:
+工作区包含四个可见区域：
 
-1. input and Start Audit action;
-2. expandable or scrollable active-rule details;
-3. current state, progress bar, processed/total counts, and status message;
-4. completed summary and violation rows.
+1. 输入框和“开始审查”按钮；
+2. 可展开或滚动查看的当前规则明细；
+3. 当前状态、进度条、已处理数量、总数量和状态信息；
+4. 完成后的统计摘要和违规明细。
 
-The completed summary shows total issues, passed issues, failed issues, and total violations. Violation rows expose Jira key, failed field/section, rule, reason, and guidance. Jira-originated content remains raw; fixed UI labels and messages are translated through the existing translation files.
+完成摘要展示问题总数、通过数量、失败数量和违规总数。违规行展示 Jira Key、失败字段或章节、规则、失败原因和修改建议。Jira 原始内容保持原样；固定界面文字和提示通过现有翻译文件提供中英文版本。
 
-Starting a new valid audit clears the previous completed result. Invalid input leaves the last completed result intact but displays the validation error.
+启动新的合法审查时清空上次完整结果。输入不合法时保留上次完整结果，但显示本次输入校验错误。
 
-## Export and File Reveal
+## 导出与文件定位
 
-Export is enabled only for a successfully completed audit. It creates a unique `.xlsx` file in the current Windows user's Downloads known folder. The filename contains a stable Jira-audit prefix and a local timestamp so an existing export is not overwritten.
+只有审查成功完成后才能导出。导出文件使用唯一的 `.xlsx` 文件名写入当前 Windows 用户的 Downloads Known Folder。文件名包含稳定的 Jira 审查前缀和本地时间戳，不得覆盖已有导出文件。
 
-The workbook contains:
+工作簿包含：
 
-- an audit summary with resolved JQL and generation time;
-- active rule details;
-- per-issue audit status;
-- one row per violation with Jira link, field, observed value, rule ID, requirement, reason, and guidance.
+- 审查摘要、最终 JQL 和生成时间；
+- 当前生效的规则明细；
+- 每个 Jira 问题的审查状态；
+- 每条违规的 Jira 链接、字段、当前值、规则编号、规则要求、失败原因和修改建议。
 
-Export returns the absolute generated path to the bridge. The UI displays the path and enables **Show in Folder**. On Windows, that action launches File Explorer with the generated file selected. It is rejected cleanly if no export exists or the file has subsequently been removed.
+导出成功后，Bridge 向前端返回文件的绝对路径。页面展示该路径，并启用“在文件夹中显示”。Windows 上通过文件管理器打开下载目录并选中生成文件。如果尚未导出或文件之后被删除，应明确拒绝并提示。
 
-## Error Handling
+## 错误处理
 
-The bridge presents concise owned messages for:
+Bridge 为以下情况提供简洁的固定提示：
 
-- missing input;
-- malformed or unsupported URL;
-- foreign Jira host;
-- invalid JQL;
-- missing authenticated credential;
-- Jira authentication, permission, network, timeout, or response failures;
-- empty result sets;
-- export failure;
-- missing exported file or File Explorer launch failure.
+- 未输入内容；
+- URL 格式错误或不受支持；
+- 非当前 Jira 主机；
+- JQL 不合法；
+- 当前登录缺少临时凭据；
+- Jira 认证、权限、网络、超时或响应错误；
+- 查询结果为空；
+- 导出失败；
+- 导出文件不存在或文件管理器启动失败。
 
-Internal exception details may be logged without secrets. User-facing messages must not include authorization headers, passwords, or unbounded Jira response bodies.
+内部异常可以在不包含秘密信息的前提下写入日志。用户提示不得包含 Authorization、密码或无限长度的 Jira 响应正文。
 
-## Validation
+## 验证
 
-Functional acceptance requires:
+功能验收至少包括：
 
-- unit tests for URL/JQL resolution and rejection;
-- rule tests covering every supported rule and representative passing issues;
-- audit orchestration tests for counts, progress, empty results, and failures;
-- XLSX tests for workbook structure, report contents, unique Downloads paths, and no overwrite;
-- bridge tests for the state machine, stale-run protection, input errors, authentication reuse, export, and file reveal;
-- permission tests for FAE-QA M grades, FAE-QA individual grades, other departments, developer casing, and `chao.li`;
-- QML source checks and both-language owned-translation validation;
-- rebuilt QRC resources when QML or translation resources require it;
-- focused test suite, `git diff --check`, and bounded source startup validation from the repository root.
+- URL/JQL 解析与拒绝行为的单元测试；
+- 覆盖每条规则以及代表性通过问题的规则测试；
+- 审查统计、进度、空结果和失败行为测试；
+- XLSX 结构、报告内容、唯一下载路径和不覆盖行为测试；
+- Bridge 状态机、过期任务保护、输入错误、认证复用、导出和文件定位测试；
+- FAE-QA M 岗、FAE-QA I 岗、其他部门、developer 大小写和 `chao.li` 的权限测试；
+- QML 源码检查和中英文固定文本完整性测试；
+- QML 或翻译资源变化后重建 QRC；
+- 运行聚焦测试、`git diff --check`，并从仓库根目录进行有界源码启动验证。
 
-## Acceptance Criteria
+## 验收标准
 
-The delivery passes only when:
+只有同时满足以下条件才可交付：
 
-- authorized users can see and open Jira Format Audit in Common Tools;
-- unauthorized users receive no entry;
-- empty and malformed input is rejected before work begins;
-- supported Jira URLs and valid JQL execute through the existing authenticated Jira client;
-- rules and progress are visible during the workflow;
-- completed results accurately expose passed/failed counts and violations;
-- XLSX export lands in Downloads and can be revealed in File Explorer;
-- `jira_handler.py` is unchanged and absent from runtime dependencies;
-- Redmine files and behavior are unchanged;
-- no credentials are persisted or leaked;
-- focused tests and source validation pass without weakening existing tests.
+- 授权用户可以在 Common Tools 中看到并打开 Jira 规范审查；
+- 未授权用户不会获得入口；
+- 空输入和错误格式在执行前被拒绝；
+- 支持的 Jira URL 和合法 JQL 通过现有已认证 Jira Client 执行；
+- 页面可查看规则并实时显示执行进度；
+- 完成结果准确展示通过、失败和违规统计；
+- XLSX 导出到下载目录，并可在文件管理器中定位；
+- `jira_handler.py` 未修改且不属于运行时依赖；
+- Redmine 文件和行为未修改；
+- 不持久化或泄露凭据；
+- 聚焦测试和源码验证通过，且未削弱已有测试。
