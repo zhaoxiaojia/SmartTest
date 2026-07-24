@@ -14,24 +14,6 @@ class AuditRule:
 
 
 @dataclass(frozen=True)
-class AuditAttachment:
-    filename: str
-    size: int
-
-
-@dataclass(frozen=True)
-class AuditIssue:
-    key: str
-    url: str
-    summary: str
-    description: str
-    reporter: str
-    components: tuple[str, ...]
-    labels: tuple[str, ...]
-    attachments: tuple[AuditAttachment, ...]
-
-
-@dataclass(frozen=True)
 class AuditViolation:
     rule_id: str
     section: str

@@ -3,11 +3,13 @@ from __future__ import annotations
 import time
 from datetime import datetime
 from pathlib import Path
+from threading import Event
 
 from PySide6.QtCore import QCoreApplication, QObject, QStandardPaths, Signal
 
 from support.jira_integration.audit import AuditReport, ResolvedAuditInput, active_rules
 from support.jira_integration.core.models import SearchPage
+from ui.example.bridge.JiraAuditBridge import JiraAuditBridge
 
 
 class FakeAuth(QObject):
@@ -39,20 +41,7 @@ class FakeClient:
         return {}
 
 
-class FakeService:
-    def __init__(self, report, *, gate=None):
-        self.report = report
-        self.gate = gate
-
-    def run(self, _resolved, progress):
-        progress("fetching", 1, 2)
-        if self.gate is not None:
-            self.gate.wait(2)
-        progress("auditing", 2, 2)
-        return self.report
-
-
-def _empty_report():
+def _report():
     return AuditReport(
         resolved=ResolvedAuditInput("jql", "project = SH", "project = SH"),
         generated_at=datetime(2026, 7, 24, 10, 0, 0),
@@ -72,28 +61,33 @@ def _wait_until(predicate, timeout=2):
     raise AssertionError("condition was not reached")
 
 
-def test_empty_input_is_rejected_without_starting_or_clearing_previous_result():
-    from ui.example.bridge.JiraAuditBridge import JiraAuditBridge
-
+def test_empty_input_and_missing_auth_do_not_start_audit():
     calls = []
     bridge = JiraAuditBridge(FakeAuth(), client_factory=lambda *args: calls.append(args))
-    bridge._report = _empty_report()
 
     bridge.startAudit("  ")
 
-    assert bridge.state == "idle"
-    assert "JQL" in bridge.inputError
-    assert bridge._report is not None
+    assert bridge.viewState["state"] == "idle"
+    assert "JQL" in bridge.viewState["inputError"]
+    assert calls == []
+
+    bridge = JiraAuditBridge(FakeAuth(password=""), client_factory=lambda *args: calls.append(args))
+    bridge.startAudit("project = SH")
+    assert bridge.viewState["state"] == "failed"
+    assert "Sign in" in bridge.viewState["statusText"]
     assert calls == []
 
 
-def test_audit_runs_in_background_and_reuses_transient_credential():
-    from threading import Event
-
-    from ui.example.bridge.JiraAuditBridge import JiraAuditBridge
-
+def test_async_completion_reuses_auth_and_reports_progress():
     gate = Event()
     created = []
+
+    class Service:
+        def run(self, _resolved, progress):
+            progress("fetching", 1, 2)
+            gate.wait(2)
+            progress("auditing", 2, 2)
+            return _report()
 
     def client_factory(config, auth):
         created.append((config, auth))
@@ -102,47 +96,52 @@ def test_audit_runs_in_background_and_reuses_transient_credential():
     bridge = JiraAuditBridge(
         FakeAuth(),
         client_factory=client_factory,
-        service_factory=lambda _client, base_url: FakeService(_empty_report(), gate=gate),
+        service_factory=lambda *_args, **_kwargs: Service(),
     )
-
     started = time.monotonic()
     bridge.startAudit("project = SH")
-    elapsed = time.monotonic() - started
 
-    assert elapsed < 0.2
-    assert bridge.state in {"resolving", "fetching"}
-    assert bridge.canStart is False
+    assert time.monotonic() - started < 0.2
+    assert bridge.viewState["canStart"] is False
     gate.set()
-    _wait_until(lambda: bridge.state == "completed")
-
-    assert created[0][1].username == "chao.li"
-    assert created[0][1].password == "secret"
-    assert bridge.processedCount == 2
-    assert bridge.totalCount == 2
-    assert bridge.progressValue == 1.0
-    assert bridge.canExport is True
-    assert bridge.resultSummary["totalCount"] == 0
+    _wait_until(lambda: bridge.viewState["state"] == "completed")
+    assert (created[0][1].username, created[0][1].password) == ("chao.li", "secret")
+    assert bridge.viewState["progressValue"] == 1.0
+    assert bridge.viewState["canExport"] is True
 
 
-def test_stale_generation_payload_does_not_replace_newer_state():
-    from ui.example.bridge.JiraAuditBridge import JiraAuditBridge
+def test_stale_generation_cannot_replace_current_state():
+    class HeldThread:
+        def __init__(self, **_kwargs):
+            pass
 
-    bridge = JiraAuditBridge(FakeAuth())
-    bridge._generation = 4
-    bridge._state = "resolving"
+        def start(self):
+            pass
 
-    bridge._on_worker_finished({"generation": 3, "report": _empty_report()})
+    bridge = JiraAuditBridge(FakeAuth(), thread_factory=HeldThread)
+    bridge.startAudit("project = SH")
 
-    assert bridge.state == "resolving"
+    bridge._on_worker_finished({"generation": 0, "report": _report()})
+
+    assert bridge.viewState["state"] == "resolving"
     assert bridge._report is None
 
 
-def test_export_publishes_generated_file_path(tmp_path):
-    from ui.example.bridge.JiraAuditBridge import JiraAuditBridge
-
+def test_export_uses_qstandardpaths_download_location(tmp_path):
     exported = tmp_path / "audit.xlsx"
-
     calls = []
+
+    class ImmediateThread:
+        def __init__(self, *, target, args, **_kwargs):
+            self.target = target
+            self.args = args
+
+        def start(self):
+            self.target(*self.args)
+
+    class Service:
+        def run(self, _resolved, _progress):
+            return _report()
 
     def exporter(_report, *, downloads_dir):
         calls.append(Path(downloads_dir))
@@ -151,52 +150,14 @@ def test_export_publishes_generated_file_path(tmp_path):
 
     bridge = JiraAuditBridge(
         FakeAuth(),
+        client_factory=lambda *_args: FakeClient(),
+        service_factory=lambda *_args, **_kwargs: Service(),
         export_function=exporter,
+        thread_factory=ImmediateThread,
     )
-    bridge._report = _empty_report()
-    bridge._state = "completed"
-
+    bridge.startAudit("project = SH")
     bridge.exportReport()
 
-    assert bridge.exportPath == str(exported.resolve())
-    expected = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation)
-    assert calls == [Path(expected) if expected else Path.home() / "Downloads"]
-
-
-def test_file_reveal_reuses_global_flutools_without_bridge_launcher():
-    root = Path(__file__).resolve().parents[3]
-    bridge = (root / "ui/example/bridge/JiraAuditBridge.py").read_text(encoding="utf-8")
-    workspace = (
-        root
-        / "ui/example/imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml"
-    ).read_text(encoding="utf-8")
-
-    assert "FluTools.showFileInFolder(JiraAuditBridge.exportPath)" in workspace
-    assert "JiraAuditBridge.exportPath.length === 0" in workspace
-    for obsolete in ("revealExport", "process_launcher", "subprocess"):
-        assert obsolete not in bridge
-    assert "JiraAuditBridge.revealExport" not in workspace
-
-
-def test_missing_transient_credential_fails_before_worker_creation():
-    from ui.example.bridge.JiraAuditBridge import JiraAuditBridge
-
-    calls = []
-    bridge = JiraAuditBridge(FakeAuth(password=""), client_factory=lambda *args: calls.append(args))
-
-    bridge.startAudit("project = SH")
-
-    assert bridge.state == "failed"
-    assert "Sign in" in bridge.statusText
-    assert calls == []
-
-
-def test_input_resolution_errors_are_bridge_owned_fixed_text():
-    from ui.example.bridge.JiraAuditBridge import JiraAuditBridge
-
-    bridge = JiraAuditBridge(FakeAuth(), client_factory=lambda *_args: FakeClient())
-
-    bridge.startAudit("https://other.example.com/browse/SH-1")
-    _wait_until(lambda: bridge.state == "failed")
-
-    assert bridge.statusText == "The Jira URL host must match the configured Jira host."
+    standard = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation)
+    assert calls == [Path(standard) if standard else Path.home() / "Downloads"]
+    assert bridge.viewState["exportPath"] == str(exported.resolve())

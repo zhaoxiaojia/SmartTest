@@ -5,7 +5,7 @@ import FluentUI 1.0
 
 Item {
     id: root
-
+    readonly property var view: JiraAuditBridge.viewState
     component AuditSection: FluFrame {
         default property alias sectionData: sectionColumn.data
         Layout.fillWidth: true
@@ -18,7 +18,6 @@ Item {
             spacing: 8
         }
     }
-
     component DetailCard: FluFrame {
         default property alias detailData: detailColumn.data
         Layout.fillWidth: true
@@ -35,6 +34,12 @@ Item {
     component WrappedText: FluText {
         Layout.fillWidth: true
         wrapMode: Text.WrapAnywhere
+    }
+    component SecondaryText: WrappedText {
+        color: FluTheme.fontSecondaryColor
+    }
+    component SectionTitle: FluText {
+        font: FluTextStyle.Subtitle
     }
 
     Flickable {
@@ -57,38 +62,31 @@ Item {
 
             FluMultilineTextBox {
                 id: auditInput
-                objectName: "jiraAuditInput"
                 Layout.fillWidth: true
                 Layout.preferredHeight: 92
                 placeholderText: qsTr("Paste JQL or a Jira issue, filter, or search URL.")
-                enabled: JiraAuditBridge.canStart
+                enabled: root.view.canStart
             }
 
             RowLayout {
                 Layout.fillWidth: true
 
                 FluFilledButton {
-                    objectName: "jiraAuditStart"
                     text: qsTr("Start Audit")
-                    disabled: !JiraAuditBridge.canStart
+                    disabled: !root.view.canStart
                     onClicked: JiraAuditBridge.startAudit(auditInput.text)
                 }
                 WrappedText {
-                    visible: JiraAuditBridge.inputError.length > 0
-                    text: JiraAuditBridge.inputError
+                    visible: root.view.inputError.length > 0
+                    text: root.view.inputError
                     color: FluTheme.dark ? "#FF99A4" : "#D13438"
                 }
             }
 
             AuditSection {
-                objectName: "jiraAuditRules"
-
-                FluText {
-                    text: qsTr("Rules")
-                    font: FluTextStyle.Subtitle
-                }
+                SectionTitle { text: qsTr("Rules") }
                 Repeater {
-                    model: JiraAuditBridge.ruleRows
+                    model: root.view.ruleRows
 
                     DetailCard {
                         required property var modelData
@@ -98,70 +96,53 @@ Item {
                             font: FluTextStyle.BodyStrong
                         }
                         WrappedText { text: modelData.requirement }
-                        WrappedText {
-                            text: modelData.guidance
-                            color: FluTheme.fontSecondaryColor
-                        }
+                        SecondaryText { text: modelData.guidance }
                     }
                 }
             }
 
             AuditSection {
-                objectName: "jiraAuditProgress"
-
                 RowLayout {
                     Layout.fillWidth: true
-                    FluText {
-                        text: qsTr("Audit Progress")
-                        font: FluTextStyle.Subtitle
-                    }
+                    SectionTitle { text: qsTr("Audit Progress") }
                     Item { Layout.fillWidth: true }
                     FluText {
-                        text: JiraAuditBridge.processedCount + " / "
-                              + JiraAuditBridge.totalCount
+                        text: root.view.processedCount + " / " + root.view.totalCount
                         color: FluTheme.fontSecondaryColor
                     }
                 }
                 FluProgressBar {
                     Layout.fillWidth: true
-                    indeterminate: JiraAuditBridge.state === "resolving"
-                    value: JiraAuditBridge.progressValue
+                    indeterminate: root.view.state === "resolving"
+                    value: root.view.progressValue
                 }
-                WrappedText {
-                    text: JiraAuditBridge.statusText
-                    color: FluTheme.fontSecondaryColor
-                }
+                SecondaryText { text: root.view.statusText }
             }
 
             AuditSection {
-                objectName: "jiraAuditResults"
-                visible: JiraAuditBridge.state === "completed"
+                visible: root.view.state === "completed"
 
-                FluText {
-                    text: qsTr("Results")
-                    font: FluTextStyle.Subtitle
-                }
+                SectionTitle { text: qsTr("Results") }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 18
-                    FluText { text: qsTr("Total") + ": " + (JiraAuditBridge.resultSummary.totalCount || 0) }
-                    FluText { text: qsTr("Passed") + ": " + (JiraAuditBridge.resultSummary.passedCount || 0) }
-                    FluText { text: qsTr("Failed") + ": " + (JiraAuditBridge.resultSummary.failedCount || 0) }
-                    FluText { text: qsTr("Violations") + ": " + (JiraAuditBridge.resultSummary.violationCount || 0) }
+                    FluText { text: qsTr("Total") + ": " + (root.view.resultSummary.totalCount || 0) }
+                    FluText { text: qsTr("Passed") + ": " + (root.view.resultSummary.passedCount || 0) }
+                    FluText { text: qsTr("Failed") + ": " + (root.view.resultSummary.failedCount || 0) }
+                    FluText { text: qsTr("Violations") + ": " + (root.view.resultSummary.violationCount || 0) }
                     Item { Layout.fillWidth: true }
                 }
                 FluText {
-                    visible: JiraAuditBridge.violationRows.length === 0
+                    visible: root.view.violationRows.length === 0
                     text: qsTr("No violations were found.")
                     color: FluTheme.fontSecondaryColor
                 }
                 ColumnLayout {
-                    objectName: "jiraAuditViolations"
                     Layout.fillWidth: true
                     spacing: 6
 
                     Repeater {
-                        model: JiraAuditBridge.violationRows
+                        model: root.view.violationRows
 
                         DetailCard {
                             required property var modelData
@@ -171,10 +152,7 @@ Item {
                                 font: FluTextStyle.BodyStrong
                             }
                             WrappedText { text: modelData.reason }
-                            WrappedText {
-                                text: modelData.guidance
-                                color: FluTheme.fontSecondaryColor
-                            }
+                            SecondaryText { text: modelData.guidance }
                         }
                     }
                 }
@@ -184,34 +162,23 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     FluFilledButton {
-                        objectName: "jiraAuditExport"
                         text: qsTr("Export XLSX")
-                        disabled: !JiraAuditBridge.canExport
+                        disabled: !root.view.canExport
                         onClicked: JiraAuditBridge.exportReport()
                     }
                     FluButton {
-                        objectName: "jiraAuditReveal"
                         text: qsTr("Show in Folder")
-                        disabled: JiraAuditBridge.exportPath.length === 0
-                        onClicked: FluTools.showFileInFolder(JiraAuditBridge.exportPath)
+                        disabled: root.view.exportPath.length === 0
+                        onClicked: FluTools.showFileInFolder(root.view.exportPath)
                     }
                     Item { Layout.fillWidth: true }
                 }
-                FluText {
-                    text: qsTr("Exported file")
-                    font: FluTextStyle.BodyStrong
-                }
-                WrappedText {
-                    text: JiraAuditBridge.exportPath.length > 0
-                          ? JiraAuditBridge.exportPath
+                FluText { text: qsTr("Exported file"); font: FluTextStyle.BodyStrong }
+                SecondaryText {
+                    text: root.view.exportPath.length > 0
+                          ? root.view.exportPath
                           : qsTr("No export has been created.")
-                    color: FluTheme.fontSecondaryColor
                 }
-            }
-
-            Item {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 1
             }
         }
     }

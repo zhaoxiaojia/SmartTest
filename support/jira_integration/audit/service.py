@@ -10,31 +10,27 @@ from .models import AuditReport, ResolvedAuditInput
 from .rules import active_rules, audit_issue
 
 
-_URL_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
+_URL = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
 _ISSUE_KEY = re.compile(r"^[A-Z][A-Z0-9]+-\d+$")
+_FIELDS = ("summary", "description", "reporter", "components", "labels", "attachment")
 
 
 class _AuditClient(Protocol):
     def fetch_filter(self, filter_id: str) -> dict: ...
-
     def search_page(self, jql: str, **kwargs): ...
 
 
 def resolve_audit_input(
-    text: str,
-    *,
-    base_url: str,
-    client: _AuditClient,
+    text: str, *, base_url: str, client: _AuditClient
 ) -> ResolvedAuditInput:
     original = str(text or "").strip()
     if not original:
         raise ValueError("请输入 JQL 或 Jira URL。")
-
-    if _URL_SCHEME.match(original):
-        resolved = _resolve_url(original, base_url=base_url, client=client)
-    else:
-        resolved = ResolvedAuditInput("jql", original, original)
-
+    resolved = (
+        _resolve_url(original, base_url, client)
+        if _URL.match(original)
+        else ResolvedAuditInput("jql", original, original)
+    )
     try:
         client.search_page(
             resolved.jql,
@@ -50,34 +46,32 @@ def resolve_audit_input(
 
 
 def _resolve_url(
-    original: str,
-    *,
-    base_url: str,
-    client: _AuditClient,
+    original: str, base_url: str, client: _AuditClient
 ) -> ResolvedAuditInput:
-    parsed = urlsplit(original)
+    parsed, base = urlsplit(original), urlsplit(str(base_url or "").strip())
     if parsed.scheme.casefold() not in {"http", "https"}:
         raise ValueError("Jira URLs must use HTTP or HTTPS.")
-    base = urlsplit(str(base_url or "").strip())
     if not parsed.hostname or not base.hostname:
         raise ValueError("The Jira URL is malformed.")
-    if str(parsed.hostname).casefold() != str(base.hostname).casefold():
+    if parsed.hostname.casefold() != base.hostname.casefold():
         raise ValueError("The Jira URL host must match the configured Jira host.")
 
     query = parse_qs(parsed.query, keep_blank_values=True)
-    jql_values = query.get("jql") or []
-    if jql_values and str(jql_values[0] or "").strip():
-        return ResolvedAuditInput("jql_url", original, str(jql_values[0]).strip())
+    jql = str((query.get("jql") or [""])[0] or "").strip()
+    if jql:
+        return ResolvedAuditInput("jql_url", original, jql)
 
-    browse_match = re.fullmatch(r"/browse/([^/]+)/?", parsed.path)
-    if browse_match:
-        key = browse_match.group(1).strip()
+    browse = re.fullmatch(r"/browse/([^/]+)/?", parsed.path)
+    if browse:
+        key = browse.group(1).strip()
         if not _ISSUE_KEY.fullmatch(key):
             raise ValueError("The Jira issue URL contains an invalid issue key.")
         return ResolvedAuditInput("issue_url", original, f'key = "{key}"')
 
-    filter_id = _filter_id(parsed.path, query)
-    if filter_id:
+    filter_id = str((query.get("filter") or [""])[0] or "").strip()
+    path_filter = re.fullmatch(r"/filter/(\d+)/?", parsed.path)
+    filter_id = filter_id or (path_filter.group(1) if path_filter else "")
+    if filter_id.isdigit():
         try:
             payload = client.fetch_filter(filter_id)
         except Exception as exc:
@@ -88,62 +82,39 @@ def _resolve_url(
         if not jql:
             raise ValueError("The Jira filter does not contain JQL.")
         return ResolvedAuditInput("filter_url", original, jql)
-
     raise ValueError("Use a Jira issue, filter, or search URL.")
 
 
-def _filter_id(path: str, query: dict[str, list[str]]) -> str:
-    values = query.get("filter") or []
-    candidate = str(values[0] or "").strip() if values else ""
-    if not candidate:
-        match = re.fullmatch(r"/filter/(\d+)/?", path)
-        candidate = match.group(1) if match else ""
-    return candidate if candidate.isdigit() else ""
-
-
 class JiraAuditService:
-    _FIELDS = [
-        "summary",
-        "description",
-        "reporter",
-        "components",
-        "labels",
-        "attachment",
-    ]
-
     def __init__(self, client: _AuditClient, *, base_url: str):
         self._client = client
         self._base_url = str(base_url or "").rstrip("/")
 
     def run(
-        self,
-        resolved: ResolvedAuditInput,
-        progress: Callable[[str, int, int], None],
+        self, resolved: ResolvedAuditInput, progress: Callable[[str, int, int], None]
     ) -> AuditReport:
         raw_issues = []
         start_at = 0
-        total = 0
         while True:
             page = self._client.search_page(
                 resolved.jql,
                 start_at=start_at,
-                fields=self._FIELDS,
+                fields=_FIELDS,
                 validate_query="strict",
             )
             raw_issues.extend(page.issues)
-            total = page.total
-            progress("fetching", len(raw_issues), total)
-            if page.is_last or not page.issues or len(raw_issues) >= total:
+            progress("fetching", len(raw_issues), page.total)
+            if page.is_last or not page.issues or len(raw_issues) >= page.total:
                 break
             start_at = page.start_at + len(page.issues)
 
         results = []
-        for index, issue in enumerate(raw_issues, start=1):
+        for index, issue in enumerate(raw_issues, 1):
             results.append(audit_issue(issue, base_url=self._base_url))
             progress("auditing", index, len(raw_issues))
         return AuditReport(
-            resolved=resolved,
-            generated_at=datetime.now(),
-            rules=active_rules(),
-            issues=tuple(results),
+            resolved,
+            datetime.now(),
+            active_rules(),
+            tuple(results),
         )

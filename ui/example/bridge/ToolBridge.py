@@ -45,19 +45,13 @@ def employee_department(personnel: dict[str, Any], account: str) -> str:
 def can_access_jira_audit(personnel: dict[str, Any], account: str) -> bool:
     clean_account = str(account or "").strip()
     employee = next(
-        (
-            item
-            for item in amlogic_employees(personnel)
-            if str(item.get("account", "") or "").strip() == clean_account
-        ),
-        None,
+        (item for item in amlogic_employees(personnel)
+         if str(item.get("account", "") or "").strip() == clean_account),
+        {},
     )
-    if employee is None:
-        return False
-    if any(
-        str(role or "").strip().casefold() == "developer"
-        for role in employee.get("system_roles", []) or []
-    ):
+    roles = {str(role or "").strip().casefold()
+             for role in employee.get("system_roles", []) or []}
+    if "developer" in roles:
         return True
     department = str((employee.get("organization") or {}).get("department", "") or "").strip()
     grade = str((employee.get("employment") or {}).get("grade", "") or "").strip()

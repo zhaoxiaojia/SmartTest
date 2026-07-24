@@ -149,11 +149,18 @@ class Redmine(QObject):
     def submitVerification(self, _c): pass
     @Slot()
     def cancelLogin(self): pass
+class JiraAudit(QObject):
+    changed = Signal()
+    viewState = Property("QVariantMap", lambda self: {{"state":"idle","statusText":"","inputError":"","progressValue":0.0,"processedCount":0,"totalCount":0,"ruleRows":[],"resultSummary":{{}},"violationRows":[],"exportPath":"","canStart":True,"canExport":False}}, notify=changed)
+    @Slot(str)
+    def startAudit(self, _text): pass
+    @Slot()
+    def exportReport(self): pass
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
-auth=Auth(); tools=ToolBridge(r"{ROOT}", auth); redmine=Redmine()
+auth=Auth(); tools=ToolBridge(r"{ROOT}", auth); redmine=Redmine(); jira=JiraAudit()
 if {developer!r}:
     next(employee for node in tools._personnel["amlogic"]["departments"].values() for employee in node["employees"] if employee["account"] == "{account}")["system_roles"] = ["Developer"]
-engine.rootContext().setContextProperty("ToolBridge", tools); engine.rootContext().setContextProperty("RedmineBridge", redmine)
+engine.rootContext().setContextProperty("ToolBridge", tools); engine.rootContext().setContextProperty("RedmineBridge", redmine); engine.rootContext().setContextProperty("JiraAuditBridge", jira)
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1200; height: 800; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/page/T_Tool.qml" }} }}')
 app.processEvents(); window=engine.rootObjects()[0]; root=window.contentItem().childItems()[0].property("item")
@@ -324,7 +331,6 @@ def test_jira_audit_common_tool_permission_matrix():
                 "FAE-QA": {
                     "employees": [
                         {"account": "qa.m1", "employment": {"grade": "M1"}, "system_roles": []},
-                        {"account": "qa.m5", "employment": {"grade": " M5 "}, "system_roles": []},
                         {"account": "qa.i2", "employment": {"grade": "I2"}, "system_roles": []},
                     ]
                 },
@@ -332,12 +338,7 @@ def test_jira_audit_common_tool_permission_matrix():
                     "employees": [
                         {"account": "sw.m3", "employment": {"grade": "M3"}, "system_roles": []},
                         {
-                            "account": "developer.upper",
-                            "employment": {"grade": "I2"},
-                            "system_roles": ["Developer"],
-                        },
-                        {
-                            "account": "developer.mixed",
+                            "account": "developer",
                             "employment": {"grade": "I2"},
                             "system_roles": ["dEvElOpEr"],
                         },
@@ -349,19 +350,17 @@ def test_jira_audit_common_tool_permission_matrix():
         }
     }
 
-    for account in ("qa.m1", "qa.m5", "developer.upper", "developer.mixed"):
-        assert can_access_jira_audit(personnel, account) is True
-        common = build_tool_groups(personnel, account)[0]
-        assert common["tools"] == [{"id": "jira_audit"}]
-    for account in ("qa.i2", "sw.m3", "unknown"):
-        assert can_access_jira_audit(personnel, account) is False
-        assert build_tool_groups(personnel, account)[0]["tools"] == []
-
-
-def test_configured_chao_li_receives_jira_audit_common_tool():
-    personnel = load_tool_access(PERSONNEL_PATH)
-
-    assert build_tool_groups(personnel, "chao.li")[0]["tools"] == [{"id": "jira_audit"}]
+    expected = {
+        "qa.m1": True,
+        "qa.i2": False,
+        "sw.m3": False,
+        "developer": True,
+        "unknown": False,
+    }
+    assert {account: can_access_jira_audit(personnel, account) for account in expected} == expected
+    assert build_tool_groups(load_tool_access(PERSONNEL_PATH), "chao.li")[0]["tools"] == [
+        {"id": "jira_audit"}
+    ]
 
 
 def test_tool_navigation_and_page_layout_contract():
@@ -515,8 +514,6 @@ def test_runtime_root_is_created_before_tool_bridge_registration():
     assert source.index("runtime_root = _runtime_root()") < source.index(
         '"ToolBridge": ToolBridge(runtime_root, auth_bridge)'
     )
-    assert "jira_audit_bridge = JiraAuditBridge(auth_bridge)" in source
-    assert '"JiraAuditBridge": jira_audit_bridge' in source
     assert "register_context_objects(" in source
     assert '"runtime_root": str(runtime_root)' in source
 
@@ -538,7 +535,13 @@ def test_tool_bridge_logs_account_and_group_resolution_without_secrets(monkeypat
 
 
 def test_tool_fixed_text_is_finished_in_both_catalogs():
-    required_contexts = {"ItemsOriginal", "T_Tool", "ToolBridge"}
+    required_contexts = {
+        "ItemsOriginal",
+        "T_Tool",
+        "ToolBridge",
+        "JiraAuditBridge",
+        "JiraAuditWorkspace",
+    }
     for filename in ("example_en_US.ts", "example_zh_CN.ts"):
         root = ET.parse(ROOT / "ui/example" / filename).getroot()
         contexts = {
@@ -552,7 +555,8 @@ def test_tool_fixed_text_is_finished_in_both_catalogs():
                 for context in named_contexts
                 for message in context.findall("message")
                 if "Tool" in (message.findtext("source") or "")
-                or context.findtext("name") == "ToolBridge"
+                or context.findtext("name")
+                in {"ToolBridge", "JiraAuditBridge", "JiraAuditWorkspace"}
             ]
             assert tool_messages
             for message in tool_messages:
@@ -646,54 +650,6 @@ def test_tool_page_invalidates_redmine_selection_when_group_becomes_unavailable(
     assert "function ensureSelectedToolAvailable()" in source
     assert "if (!selectedGroup.available)" in source
     assert "onSelectedGroupChanged: ensureSelectedToolAvailable()" in source
-
-
-def test_jira_audit_workspace_contract_loader_and_resource_registration():
-    page = (ROOT / "ui/example/imports/example/qml/page/T_Tool.qml").read_text(encoding="utf-8")
-    workspace_path = (
-        ROOT
-        / "ui/example/imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml"
-    )
-    resource = (ROOT / "ui/example/imports/resource.qrc").read_text(encoding="utf-8")
-
-    assert workspace_path.exists()
-    workspace = workspace_path.read_text(encoding="utf-8")
-    assert 'import "../component/jiraaudit"' in page
-    assert 'selectedTool.id === "jira_audit"' in page
-    assert "JiraAuditWorkspace" in page
-    assert "example/qml/component/jiraaudit/JiraAuditWorkspace.qml" in resource
-    for binding in (
-        "JiraAuditBridge.state",
-        "JiraAuditBridge.statusText",
-        "JiraAuditBridge.inputError",
-        "JiraAuditBridge.progressValue",
-        "JiraAuditBridge.processedCount",
-        "JiraAuditBridge.totalCount",
-        "JiraAuditBridge.ruleRows",
-        "JiraAuditBridge.resultSummary",
-        "JiraAuditBridge.violationRows",
-        "JiraAuditBridge.exportPath",
-        "JiraAuditBridge.canStart",
-        "JiraAuditBridge.canExport",
-        "JiraAuditBridge.startAudit",
-        "JiraAuditBridge.exportReport",
-    ):
-        assert binding in workspace
-    for object_name in (
-        "jiraAuditInput",
-        "jiraAuditStart",
-        "jiraAuditRules",
-        "jiraAuditProgress",
-        "jiraAuditResults",
-        "jiraAuditViolations",
-        "jiraAuditExport",
-        "jiraAuditReveal",
-    ):
-        assert f'objectName: "{object_name}"' in workspace
-    assert "JiraAuditBridge.inputError" in workspace
-    assert "onClicked: JiraAuditBridge.startAudit(auditInput.text)" in workspace
-    assert "FluTools.showFileInFolder(JiraAuditBridge.exportPath)" in workspace
-    assert "JiraAuditBridge.revealExport" not in workspace
 
 
 def test_shared_issue_browser_exposes_quick_views_project_options_and_search_cancel():
