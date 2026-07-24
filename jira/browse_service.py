@@ -54,7 +54,9 @@ class JiraBrowseService:
             scope=build_scope_context(
                 raw_jql_text=request.raw_jql_text,
                 project_ids_csv=request.project_ids_csv,
+                board_id=request.board_id,
                 board_label=request.board_label,
+                timeframe_id=request.timeframe_id,
                 timeframe_label=request.timeframe_label,
                 status_ids_csv=request.status_ids_csv,
                 priority_ids_csv=request.priority_ids_csv,

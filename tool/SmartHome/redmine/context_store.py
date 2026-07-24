@@ -7,6 +7,7 @@ import re
 import tempfile
 import threading
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
@@ -136,10 +137,7 @@ def reconcile_issue_records(
         cached = _issues(snapshot["issue_list"]) if snapshot is not None else []
         canonical = _merge_issues(cached, known)
         canonical = _merge_issues(canonical.values(), incoming)
-    return [
-        UnifiedIssue.from_dict(canonical[issue.id].to_dict())
-        for issue in incoming
-    ]
+    return [canonical[issue.id] for issue in incoming]
 
 
 def load_project_options(account: str) -> list[dict[str, Any]]:
@@ -216,7 +214,7 @@ def _loaded_view(snapshot: dict[str, Any], view_id: str) -> dict[str, Any] | Non
     if selected_issue_id and selected_issue_id not in {issue.id for issue in issues}:
         selected_issue_id = ""
     return {
-        "issue_list": [UnifiedIssue.from_dict(issue.to_dict()) for issue in issues],
+        "issue_list": issues,
         "selected_issue_id": selected_issue_id,
         "filters": dict(view["filters"]),
     }
@@ -294,10 +292,11 @@ def _normalize_snapshot(raw: Any, account: str) -> dict[str, Any] | None:
         return None
     try:
         issues = _issues(raw["issue_list"])
-        IssueStore(issues)
     except (TypeError, ValueError):
         return None
     issue_ids = {issue.id for issue in issues}
+    if len(issue_ids) != len(issues):
+        return None
     quick_views: dict[str, dict[str, Any]] = {}
     for view_id, source in raw["quick_views"].items():
         if (
@@ -355,7 +354,7 @@ def _empty_snapshot(account: str) -> dict[str, Any]:
 
 
 def _issues(records: list[Any]) -> list[UnifiedIssue]:
-    return [UnifiedIssue.from_dict(dict(record)) for record in records]
+    return [UnifiedIssue.from_dict(record) for record in records]
 
 
 def _merge_issues(
@@ -370,15 +369,14 @@ def _merge_issues(
 
 
 def _merge_issue(existing: UnifiedIssue, incoming: UnifiedIssue) -> UnifiedIssue:
-    payload = incoming.to_dict()
+    changes = {}
     if existing.detail_state == "loaded" and incoming.detail_state != "loaded":
-        existing_payload = existing.to_dict()
         for field_name in _DETAIL_FIELDS:
-            payload[field_name] = existing_payload[field_name]
+            changes[field_name] = getattr(existing, field_name)
     incoming_checked = bool(incoming.clone.get("checked"))
     if existing.clone and not incoming_checked:
-        payload["clone"] = existing.to_dict()["clone"]
-    return UnifiedIssue.from_dict(payload)
+        changes["clone"] = existing.clone
+    return replace(incoming, **changes) if changes else incoming
 
 
 def _valid_issue_record(record: Any) -> bool:

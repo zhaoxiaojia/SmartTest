@@ -124,16 +124,12 @@ class RedmineBridge(QObject):
         self._auth_account = str(getattr(auth_bridge, "username", "") or "").strip()
         self._issue_controller = RedmineIssueController(
             all_projects=self.tr("All projects"),
-            all_statuses=self.tr("All statuses"),
-            all_types=self.tr("All types"),
         )
         self._opened_urls: set[str] = set()
         self._data_status = self.tr("Redmine data is not loaded.")
         self._data_loading = False
         self._data_loaded = 0
         self._data_total = 0
-        self._progress_loaded = 0
-        self._progress_total = 0
         self._project_options = []
         self._projects_loading = False
         self._projects_ready = False
@@ -200,8 +196,6 @@ class RedmineBridge(QObject):
         self._data_loading = False
         self._data_loaded = 0
         self._data_total = 0
-        self._progress_loaded = 0
-        self._progress_total = 0
         self._project_options = []
         self._projects_loading = False
         self._projects_ready = False
@@ -245,10 +239,7 @@ class RedmineBridge(QObject):
     projectsStatusText = Property(str, lambda self: self._projects_status, notify=changed)
     searchLoading = Property(bool, lambda self: self._data_loading and self._data_operation_kind == "search", notify=changed)
     searchCanCancel = Property(bool, lambda self: self._data_loading and self._data_operation_kind == "search" and self._data_future is not None, notify=changed)
-    redmineContext = Property("QVariantMap", lambda self: self._issue_controller.snapshot.context_payload, notify=changed)
     projectFilterLabels = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.project_filter_labels), notify=changed)
-    statusFilterLabels = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.status_filter_labels), notify=changed)
-    typeFilterLabels = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.type_filter_labels), notify=changed)
     filters = Property("QVariantMap", lambda self: self._issue_controller.snapshot.filters, notify=changed)
     issueRows = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.issue_rows), notify=changed)
     selectedIssue = Property("QVariantMap", lambda self: self._issue_controller.snapshot.selected_issue, notify=changed)
@@ -689,8 +680,6 @@ class RedmineBridge(QObject):
         self._data_operation_kind = kind
         self._data_loaded = 0
         self._data_total = 0
-        self._progress_loaded = 0
-        self._progress_total = 0
         self._data_status = status
         self.changed.emit()
         future = self._worker.submit(operation())
@@ -758,7 +747,7 @@ class RedmineBridge(QObject):
             smart_log("[REDMINE_LOAD] discovery", domain="tool", source="RedmineBridge", level="debug", extra={"phase": "discovery"})
             self._emit_data_progress(0, 0, "discovery")
             async with self._operation_page(service) as page:
-                collector = RedmineContextCollector(page, account=self._account, progress_callback=lambda _loaded, _total, _label: self._emit_data_progress(0, 0, "discovery"))
+                collector = RedmineContextCollector(page, account=self._account)
                 effective_filters = saved_filters
                 context = await collector.collect_query(await _native_query(collector, saved_filters))
                 context = self._issue_controller.reconcile_project_ids(
@@ -779,8 +768,6 @@ class RedmineBridge(QObject):
         self._launch_data_load(operation, status=self.tr("Loading Redmine data..."), kind="search")
 
     def _emit_data_progress(self, loaded: int, total: int, label: str) -> None:
-        self._progress_loaded = int(loaded)
-        self._progress_total = int(total)
         self.dataProgressReady.emit(int(loaded), int(total), str(label or ""))
 
     @Slot(int, int, str)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
 from typing import Any
 
 from AI.mcp.context import McpContextService
@@ -55,8 +54,6 @@ class JiraAnalysisService:
         specs = detail_specs(include_comments=include_comments, include_links=include_links)
         nl_search_intent = _has_prompt_search_intent(prompt)
         extra_clause = _prompt_jql_clause(prompt) if nl_search_intent else ""
-        if nl_search_intent and not extra_clause:
-            extra_clause = self._nl_clause(prompt, project_label=project_ids_csv, mcp_context=[])
         if nl_search_intent and not extra_clause:
             raise ValueError(
                 "SmartTest could not convert the natural-language search request into Jira JQL. "
@@ -163,7 +160,9 @@ class JiraAnalysisService:
             scope=build_scope_context(
                 raw_jql_text=effective_jql if nl_search_intent else raw_jql_text,
                 project_ids_csv=project_ids_csv,
+                board_id=board_id,
                 board_label=board_label,
+                timeframe_id=timeframe_id,
                 timeframe_label=timeframe_label,
                 status_ids_csv=status_ids_csv,
                 priority_ids_csv=priority_ids_csv,
@@ -185,14 +184,6 @@ class JiraAnalysisService:
         result["prompt"] = prompt.strip()
         result["route"] = route
         return result
-
-    def _mcp_context(self, prompt: str) -> list[dict[str, Any]]:
-        if self._mcp_context_service is None:
-            return []
-        _trace_workspace("mcp_context_start", prompt=prompt[:120])
-        context = self._mcp_context_service.enrich(prompt)
-        _trace_workspace("mcp_context_done", items=len(context))
-        return context
 
     def _search_with_jira_mcp(self, jql: str, *, limit: int) -> list[dict[str, Any]]:
         if self._mcp_context_service is None:
@@ -321,11 +312,6 @@ class JiraAnalysisService:
         )
         return any(marker in normalized for marker in markers)
 
-    def _nl_clause(self, prompt: str, *, project_label: str, mcp_context: list[dict[str, Any]] | None = None) -> str:
-        del prompt, project_label, mcp_context
-        _trace_workspace("nl_clause_disabled")
-        return ""
-
     @staticmethod
     def _fallback_analysis_text(issues: list[dict[str, Any]], total: int) -> str:
         if not issues:
@@ -335,20 +321,6 @@ class JiraAnalysisService:
             f"{total} Jira issues matched the current scope. "
             f"Top issue: {top_issue['keyId']} ({top_issue['status']}, {top_issue['priority']}) - {top_issue['summary']}"
         )
-
-def _compact_issue(issue: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "keyId": issue.get("keyId", ""),
-        "summary": issue.get("summary", ""),
-        "status": issue.get("status", ""),
-        "priority": issue.get("priority", ""),
-        "issueType": issue.get("issueType", ""),
-        "labels": issue.get("labels", []),
-        "components": issue.get("components", []),
-        "detail": str(issue.get("detail", "") or "")[:180],
-    }
-
-
 def _combine_jql(base_jql: str, extra_clause: str) -> str:
     clean_base = base_jql.strip()
     clean_extra = extra_clause.strip()
@@ -382,24 +354,6 @@ def _split_order_by(jql: str) -> tuple[str, str]:
     if index < 0:
         return jql, "ORDER BY updated DESC"
     return jql[:index].strip(), jql[index + 1 :].strip()
-
-
-def _strip_json_response(text: str) -> str:
-    clean = text.strip()
-    if clean.startswith("```"):
-        lines = clean.splitlines()
-        if lines and lines[0].strip().startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].strip() == "```":
-            lines = lines[:-1]
-        clean = "\n".join(lines).strip()
-    start = clean.find("{")
-    end = clean.rfind("}")
-    if start >= 0 and end >= start:
-        return clean[start : end + 1]
-    return clean
-
-
 def _has_natural_language_search_intent(prompt: str) -> bool:
     normalized = (prompt or "").strip().lower()
     if normalized == "":
@@ -525,28 +479,6 @@ def _unique_values(values: list[str]) -> list[str]:
             result.append(clean)
             seen.add(clean)
     return result
-
-
-def _should_use_mcp_context(prompt: str) -> bool:
-    normalized = (prompt or "").strip().lower()
-    markers = (
-        "mcp",
-        "spec",
-        "datasheet",
-        "confluence",
-        "opengrok",
-        "gerrit",
-        "jenkins",
-        "\u89c4\u683c",
-        "\u6587\u6863",
-        "\u6e90\u7801",
-        "\u4ee3\u7801",
-        "\u6784\u5efa",
-        "\u6d41\u6c34\u7ebf",
-    )
-    return any(marker in normalized for marker in markers)
-
-
 def _contains_searchable_token(text: str) -> bool:
     stop_words = {
         "jira",
@@ -581,7 +513,3 @@ def _trace_workspace(stage: str, **values: Any) -> None:
         source="jira.services.workspace",
         extra={"stage": stage, **values},
     )
-
-
-def _trace_timestamp() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]

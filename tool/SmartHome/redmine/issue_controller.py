@@ -13,7 +13,6 @@ from tool.SmartHome.redmine.models import (
 )
 from tool.SmartHome.redmine.view_model import (
     actionable_rows,
-    context_payload,
     detail_row_from_unified,
     issue_row_from_unified,
     replace_detail,
@@ -37,11 +36,8 @@ class IssueSource:
 
 @dataclass(frozen=True)
 class IssueSnapshot:
-    context_payload: dict[str, Any]
     filters: dict[str, str]
     project_filter_labels: tuple[str, ...]
-    status_filter_labels: tuple[str, ...]
-    type_filter_labels: tuple[str, ...]
     issue_rows: tuple[dict[str, Any], ...]
     selected_issue: dict[str, Any]
     actionable_issues: tuple[dict[str, Any], ...]
@@ -62,13 +58,9 @@ class RedmineIssueController:
         *,
         account: str = "",
         all_projects: str,
-        all_statuses: str,
-        all_types: str,
     ) -> None:
         self._account = str(account or "")
         self._all_projects = str(all_projects)
-        self._all_statuses = str(all_statuses)
-        self._all_types = str(all_types)
         self._store = IssueStore()
         self._active_view_id = "my_assigned"
         self._reset_projection()
@@ -82,17 +74,8 @@ class RedmineIssueController:
         records = self._store.issue_list
         selected_id = str(self._store.selected_id or "")
         return IssueSnapshot(
-            context_payload=context_payload(
-                records,
-                account=self._account,
-                source_url=self._source_context.source_url,
-                filters=self._filters,
-                selected_issue_id=selected_id,
-            ),
             filters=dict(self._filters),
             project_filter_labels=self._project_filter_labels,
-            status_filter_labels=self._status_filter_labels,
-            type_filter_labels=self._type_filter_labels,
             issue_rows=tuple(issue_row_from_unified(issue) for issue in records),
             selected_issue=detail_row_from_unified(self._store.selected_issue),
             actionable_issues=tuple(actionable_rows(records)),
@@ -123,14 +106,16 @@ class RedmineIssueController:
         projected = view(
             context,
             all_projects=self._all_projects,
-            all_statuses=self._all_statuses,
             filters=_normalize_filters(filters),
         )
         issue_id = str(projected.get("selectedIssueId") or "")
         project, item = context.item_for_issue(issue_id)
         detail = next((entry for entry in context.issues if entry.id == issue_id), None)
         return EnrichmentProjection(
-            tuple(projected.get("issueRows") or ()),
+            tuple(
+                issue_row_from_unified(issue)
+                for issue in projected.get("issue_list") or ()
+            ),
             IssueSource(project=project, item=item, detail=detail),
         )
 
@@ -185,7 +170,6 @@ class RedmineIssueController:
         projected = view(
             context,
             all_projects=self._all_projects,
-            all_statuses=self._all_statuses,
             filters=_normalize_filters(filters),
             selected_detail=selected_detail,
         )
@@ -205,14 +189,6 @@ class RedmineIssueController:
         self._project_filter_labels = tuple(
             projected.get("projectFilterLabels") or (self._all_projects,)
         )
-        self._status_filter_labels = tuple(
-            projected.get("statusFilterLabels")
-            or (self._all_statuses, "Open", "Closed")
-        )
-        type_labels = list(projected.get("typeFilterLabels") or (self._all_types,))
-        if type_labels:
-            type_labels[0] = self._all_types
-        self._type_filter_labels = tuple(type_labels)
         self._replace_records(incoming, selected_id)
         self._patch_clone_results(clone_status, complete=True)
         if persist:
@@ -364,8 +340,6 @@ class RedmineIssueController:
         self._source_context = RedmineContext(account=self._account)
         self._filters = _normalize_filters({})
         self._project_filter_labels = (self._all_projects,)
-        self._status_filter_labels = (self._all_statuses, "Open", "Closed")
-        self._type_filter_labels = (self._all_types,)
 
     def _source(self, issue_id: str) -> IssueSource:
         issue_id = str(issue_id or "").strip()

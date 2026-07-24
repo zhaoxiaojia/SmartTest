@@ -62,13 +62,11 @@ def _set_bridge_records(bridge, records, *, selected_id="", context=None, filter
         bridge._issue_controller._filters = bridge._issue_controller._filters | filters
 
 
-def _set_bridge_projection(bridge, projected):
+def _set_bridge_projection(bridge, context, projected):
     controller = bridge._issue_controller
-    controller._source_context = projected["context"]
+    controller._source_context = context
     controller._filters = dict(projected["filters"])
     controller._project_filter_labels = tuple(projected["projectFilterLabels"])
-    controller._status_filter_labels = tuple(projected["statusFilterLabels"])
-    controller._type_filter_labels = tuple(projected["typeFilterLabels"])
     controller._replace_records(
         projected["issue_list"], projected.get("selectedIssueId")
     )
@@ -104,8 +102,6 @@ def test_native_query_projects_use_only_synced_business_project_ids_for_clone_ma
     ))
     controller = RedmineIssueController(
         all_projects="All projects",
-        all_statuses="All statuses",
-        all_types="All types",
     )
     reconciled = controller.reconcile_project_ids(
         context, [{"id": "known", "projectId": "REAL-PID"}]
@@ -473,10 +469,10 @@ def clone_bridge(*, issue_ids=("1",), schema=CLONE_SCHEMA, persist=False):
     context = RedmineContext(account=auth.username, projects=(project,), issues=details)
     _set_bridge_projection(
         bridge,
+        context,
         view(
             context,
             all_projects="All projects",
-            all_statuses="All statuses",
             selected_detail=details[0] if details else None,
         )
     )
@@ -1045,8 +1041,6 @@ def test_account_change_immediately_invalidates_old_redmine_state_and_late_resul
 
     assert bridge.state == "idle" and bridge.account == ""
     assert bridge.projectFilterLabels == ["All projects"]
-    assert bridge.statusFilterLabels == ["All statuses", "Open", "Closed"]
-    assert bridge.typeFilterLabels == ["All types"]
     assert bridge.issueRows == [] and bridge._clone_checker is None
     wait_for(lambda: old_service.closed)
     bridge._apply(8, AuthResult(AuthState.AUTHENTICATED, username="alice"))
@@ -1113,8 +1107,6 @@ def test_my_assigned_projects_reuse_synced_project_id_and_leave_unknown_empty():
     controller = RedmineIssueController(
         account="alice",
         all_projects="All projects",
-        all_statuses="All statuses",
-        all_types="All types",
     )
     projects = controller.assigned_context(
         rows,
@@ -1182,10 +1174,10 @@ def test_late_project_metadata_reconciles_loaded_my_page_without_losing_state(mo
     bridge._projects_generation = 4
     _set_bridge_projection(
         bridge,
+        context,
         view(
             context,
             all_projects="All projects",
-            all_statuses="All statuses",
             filters={"status": "Open"},
             selected_detail=detail,
         )
@@ -1453,7 +1445,8 @@ def test_detail_selection_during_search_is_deferred_without_replacing_search_lif
     context = RedmineContext(projects=(RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=(item,)),))
     _set_bridge_projection(
         bridge,
-        view(context, all_projects="All projects", all_statuses="All statuses")
+        context,
+        view(context, all_projects="All projects")
     )
     bridge._data_loading = True
     bridge._data_operation_kind = "search"
@@ -1476,7 +1469,8 @@ def test_existing_analysis_detail_keeps_full_panel_content_without_refetch(monke
     context = RedmineContext(projects=(RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=(item,)),), issues=(detail,))
     _set_bridge_projection(
         bridge,
-        view(context, all_projects="All projects", all_statuses="All statuses")
+        context,
+        view(context, all_projects="All projects")
     )
     launched = []
     monkeypatch.setattr(bridge, "_launch_data_load", lambda *args, **kwargs: launched.append(kwargs))
@@ -1916,12 +1910,13 @@ def test_fresh_search_result_applies_requested_filters_not_cached_filters(monkey
     support = RedmineIssueListItem(id="s", url="us", tracker="Support", status="New", subject="support")
     project = RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=(support,))
     context = RedmineContext(projects=(project,), issues=(RedmineIssueDetail(id="s", url="us", project_identifier="p", tracker="Support", subject="support", list_item=support),))
+    previous_context = RedmineContext(projects=(project,))
     _set_bridge_projection(
         bridge,
+        previous_context,
         view(
-            RedmineContext(projects=(project,)),
+            previous_context,
             all_projects="All projects",
-            all_statuses="All statuses",
             filters={"type": "Bug"},
         )
     )
@@ -1943,9 +1938,15 @@ def test_clone_work_uses_preanalysis_plan_when_due_row_becomes_hidden():
             return {}
     issues = (RedmineIssueListItem(id="ok", url="u1", tracker="Bug", status="New", subject="ok"), RedmineIssueListItem(id="due", url="u2", tracker="Bug", status="New", subject="due"))
     project = RedmineProject(name="P", identifier="p", url="u", project_id="P", issues=issues)
-    planned_rows = view(RedmineContext(projects=(project,)), all_projects="All projects", all_statuses="All statuses")["issueRows"]
+    controller = RedmineIssueController(all_projects="All projects")
+    planned_rows = controller.enrichment_projection(
+        RedmineContext(projects=(project,)), {}
+    ).issue_rows
     final_context = RedmineContext(projects=(project,), raw={"issue_analysis": {"ok": {"risk": "green"}, "due": {"risk": "unknown", "reason": "due_date_not_reached"}}})
-    assert [row["id"] for row in view(final_context, all_projects="All projects", all_statuses="All statuses")["issueRows"]] == ["ok"]
+    assert [
+        row["id"]
+        for row in controller.enrichment_projection(final_context, {}).issue_rows
+    ] == ["ok"]
     checker = RecordingChecker()
     bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)), clone_checker=checker)
     bridge._data_loading = True
@@ -1955,9 +1956,13 @@ def test_clone_work_uses_preanalysis_plan_when_due_row_becomes_hidden():
     bridge.close()
 
 
-def test_redmine_view_creates_complete_unified_records_and_projects_legacy_shapes():
+def test_redmine_view_creates_complete_unified_records_for_canonical_projections():
     from support.jira_integration.core import UnifiedIssue
-    from tool.SmartHome.redmine.view_model import view
+    from tool.SmartHome.redmine.view_model import (
+        detail_row_from_unified,
+        issue_row_from_unified,
+        view,
+    )
 
     item = RedmineIssueListItem(
         id="60371",
@@ -1982,7 +1987,6 @@ def test_redmine_view_creates_complete_unified_records_and_projects_legacy_shape
             raw={"issue_analysis": {"60371": {"party": "customer"}}},
         ),
         all_projects="All projects",
-        all_statuses="All statuses",
     )
 
     issue = projected["issue_list"][0]
@@ -1990,15 +1994,16 @@ def test_redmine_view_creates_complete_unified_records_and_projects_legacy_shape
     assert set(issue.to_dict()) == set(UnifiedIssue().to_dict())
     assert issue.detail_state == "unloaded"
     assert issue.project["identifier"] == "sh"
-    assert projected["issueRows"][0]["id"] == "60371"
-    assert projected["issueRows"][0]["updateParty"] == "customer"
-    assert "updatePartyText" not in projected["issueRows"][0]
-    assert projected["selectedIssue"]["id"] == "60371"
+    row = issue_row_from_unified(issue)
+    assert row["id"] == "60371"
+    assert row["updateParty"] == "customer"
+    assert "updatePartyText" not in row
+    assert detail_row_from_unified(issue)["id"] == "60371"
 
 
-def test_legacy_issue_row_delegates_to_canonical_unified_projection():
+def test_canonical_issue_projection_keeps_analysis_fields():
     from tool.SmartHome.redmine.view_model import (
-        issue_row,
+        detail_row_from_unified,
         issue_row_from_unified,
         unified_issue,
     )
@@ -2018,9 +2023,9 @@ def test_legacy_issue_row_delegates_to_canonical_unified_projection():
     )
     analysis = {"risk": "red", "party": "customer"}
 
-    assert issue_row(project, item, analysis) == issue_row_from_unified(
-        unified_issue(project, item, analysis=analysis)
-    )
+    issue = unified_issue(project, item, analysis=analysis)
+    assert issue_row_from_unified(issue)["updateParty"] == "customer"
+    assert detail_row_from_unified(issue)["updateRisk"] == "red"
 
 
 def test_redmine_cached_bridge_projections_are_defensive(monkeypatch):
@@ -2083,12 +2088,13 @@ def test_redmine_detail_result_patches_one_selected_store_record(monkeypatch):
         service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)),
     )
     bridge._state = AuthState.AUTHENTICATED
+    source_context = RedmineContext(projects=(project,))
     _set_bridge_projection(
         bridge,
+        source_context,
         view(
-            RedmineContext(projects=(project,)),
+            source_context,
             all_projects="All projects",
-            all_statuses="All statuses",
         )
     )
     detail = RedmineIssueDetail(
@@ -2160,12 +2166,13 @@ def test_quick_view_detail_hydration_persists_only_active_cache_destination(
     )
     bridge._account = "alice"
     bridge._issue_controller.activate_view("my_assigned")
+    source_context = RedmineContext(projects=(project,))
     _set_bridge_projection(
         bridge,
+        source_context,
         view(
-            RedmineContext(projects=(project,)),
+            source_context,
             all_projects="All projects",
-            all_statuses="All statuses",
             filters={"text": "quick"},
         )
     )
@@ -2290,7 +2297,7 @@ def test_clone_submit_patches_and_persists_active_store(monkeypatch):
         bridge._batch_controller.generation,
         bridge._generation,
         "submit",
-        [("1", "duplicate", result, "")],
+        [("1", result)],
     )
 
     assert bridge._issue_controller._store.get("1").clone["state"] == "cloned"
@@ -2336,8 +2343,6 @@ def _issue_controller(*, account="alice"):
     return RedmineIssueController(
         account=account,
         all_projects="All projects",
-        all_statuses="All statuses",
-        all_types="All types",
     )
 
 

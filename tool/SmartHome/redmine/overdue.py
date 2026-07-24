@@ -105,10 +105,6 @@ def _journal_time(journal: dict[str, Any], tz: timezone) -> datetime | None:
     return _time(journal.get("timestamp") or journal.get("created_at") or journal.get("anchor_title") or journal.get("header"), tz)
 
 
-def _neutral(reason: str) -> dict[str, Any]:
-    return {"risk": "unknown", "reason": reason, "party": "", "elapsed_hours": None, "threshold_hours": None, "age_text": ""}
-
-
 def _age_text(hours: float) -> str:
     if hours < 24:
         return f"{max(0, int(hours))}h"

@@ -113,12 +113,10 @@ class IssueStore:
         return _copy_issue(self._issue_list[index])
 
     def snapshot(self) -> dict[str, Any]:
-        return _json_copy(
-            {
-                "issue_list": [issue.to_dict() for issue in self._issue_list],
-                "selected_id": self._selected_id,
-            }
-        )
+        return {
+            "issue_list": [issue.to_dict() for issue in self._issue_list],
+            "selected_id": self._selected_id,
+        }
 
     def select(self, issue_id: str | None) -> UnifiedIssue | None:
         if issue_id is None:

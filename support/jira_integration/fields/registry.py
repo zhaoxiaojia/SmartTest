@@ -17,11 +17,6 @@ class FieldFetchPlan:
     jira_fields: tuple[str, ...]
     expand: tuple[str, ...]
 
-    @property
-    def has_deferred_fields(self) -> bool:
-        return len(self.deferred_specs) > 0
-
-
 class FieldRegistry:
     def __init__(self) -> None:
         self._by_name: dict[str, FieldSpec] = {}
@@ -208,18 +203,6 @@ def build_default_registry() -> FieldRegistry:
         )
     )
     return registry
-
-
-def registry_from_metadata(metadata_items: Iterable[JiraFieldMetadata]) -> FieldRegistry:
-    registry = build_default_registry()
-    registry.register_metadata_fields(metadata_items)
-    return registry
-
-
-def infer_field_spec_from_metadata(metadata: JiraFieldMetadata) -> FieldSpec:
-    return FieldRegistry._spec_from_metadata(metadata)
-
-
 def _normalize_field_alias(value: str) -> str:
     cleaned = (value or "").strip().lower()
     cleaned = cleaned.replace("-", "").replace("_", " ")

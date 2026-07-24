@@ -67,3 +67,16 @@ def test_global_jira_integration_has_no_page_or_qt_dependency():
                         forbidden.add((str(path), alias.name))
 
     assert forbidden == set()
+
+
+def test_issue_service_has_no_parallel_unused_cache_or_sync_path():
+    source = Path(
+        "support/jira_integration/services/issue_service.py"
+    ).read_text(encoding="utf-8")
+
+    assert "JiraSearchCache" not in source
+    assert "JiraIssueStore" not in source
+    assert "use_cache" not in source
+    assert not Path("support/jira_integration/cache/search_cache.py").exists()
+    assert not Path("support/jira_integration/cache/issue_store.py").exists()
+    assert not Path("support/jira_integration/services/sync_service.py").exists()

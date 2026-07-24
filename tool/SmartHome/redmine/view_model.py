@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Any
 
 from support.jira_integration.core import UnifiedIssue
-from tool.SmartHome.redmine.mapping import map_issue_to_jira
 from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineProject
 from tool.SmartHome.redmine.overdue import OverduePolicy
 
@@ -12,7 +11,6 @@ def view(
     context: RedmineContext,
     *,
     all_projects: str,
-    all_statuses: str,
     filters: dict[str, str] | None = None,
     selected_detail: RedmineIssueDetail | None = None,
 ) -> dict[str, Any]:
@@ -46,29 +44,11 @@ def view(
         if selected_detail is not None and any(issue.id == selected_detail.id for issue in issue_list)
         else (issue_list[0].id if issue_list else "")
     )
-    rows = [issue_row_from_unified(issue) for issue in issue_list]
-    selected_issue = next((issue for issue in issue_list if issue.id == selected_id), None)
-    selected = detail_row_from_unified(selected_issue) if selected_issue else {}
-    payload = context_payload(
-        issue_list,
-        account=context.account,
-        source_url=context.source_url,
-        filters=filters,
-        selected_issue_id=selected_id,
-    )
-    actionable = actionable_rows(issue_list)
     return {
-        "context": context,
-        "context_payload": payload,
         "issue_list": issue_list,
         "filters": filters,
         "projectFilterLabels": [all_projects] + [_project_label(project) for project in projects],
-        "statusFilterLabels": [all_statuses, "Open", "Closed"],
-        "typeFilterLabels": ["All types"] + sorted({issue.tracker for project in projects for issue in project.issues if issue.tracker}),
-        "issueRows": rows,
-        "selectedIssue": selected,
         "selectedIssueId": selected_id,
-        "actionableIssues": actionable,
     }
 
 
@@ -179,7 +159,6 @@ def detail_row_from_unified(issue: UnifiedIssue | None) -> dict[str, Any]:
         "comments": list(issue.comments),
         "attachments": list(issue.attachments),
         "reporter": reporter,
-        "jira": {},
     }
 
 
@@ -194,50 +173,8 @@ def actionable_rows(issues: list[UnifiedIssue] | tuple[UnifiedIssue, ...]) -> li
     )
 
 
-def context_payload(
-    issues: list[UnifiedIssue] | tuple[UnifiedIssue, ...],
-    *,
-    account: str,
-    source_url: str = "",
-    filters: dict[str, str] | None = None,
-    selected_issue_id: str = "",
-) -> dict[str, Any]:
-    projects: dict[str, dict[str, Any]] = {}
-    for issue in issues:
-        identifier = str(issue.project.get("identifier") or issue.project.get("id") or "")
-        project = projects.setdefault(
-            identifier,
-            {
-                "name": str(issue.project.get("name") or ""),
-                "identifier": identifier,
-                "url": str(issue.project.get("url") or ""),
-                "project_id": str(issue.project.get("id") or ""),
-                "issue_ids": [],
-            },
-        )
-        project["issue_ids"].append(issue.id)
-    return {
-        "account": account,
-        "source_url": source_url,
-        "projects": list(projects.values()),
-        "filters": dict(filters or {}),
-        "selected_issue_id": selected_issue_id,
-    }
-
-
 def replace_detail(context: RedmineContext, detail: RedmineIssueDetail) -> RedmineContext:
-    return context.with_detail(detail, jira_issue=map_issue_to_jira(detail, project=context.project_for_detail(detail)))
-
-
-def issue_row(
-    project: RedmineProject,
-    issue: RedmineIssueListItem,
-    analysis: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Compatibility boundary delegating to the canonical unified projection."""
-    return issue_row_from_unified(
-        unified_issue(project, issue, analysis=analysis)
-    )
+    return context.with_detail(detail)
 
 
 def _field_value(fields: Any, label: str) -> str:
@@ -273,15 +210,12 @@ def detail_row(issue: RedmineIssueDetail | None = None, *, item: RedmineIssueLis
         status, priority, assignee, tracker, updated_at, component = item.status, item.priority, item.assignee, item.tracker or "Bug", item.updated_at, item.category
         reporter = created = ""
         comments = attachments = []
-        jira = {}
     else:
-        jira = map_issue_to_jira(issue, project=project)
-        fields = jira.get("fields", {})
         issue_id, title, web_url, description = issue.id, issue.subject, issue.url, issue.description
-        status = fields.get("status", {}).get("name", "")
-        priority = fields.get("priority", {}).get("name", "")
-        assignee = fields.get("assignee", {}).get("displayName", "")
-        tracker = fields.get("issuetype", {}).get("name", issue.tracker or "Bug")
+        status = issue.attr("Status")
+        priority = issue.attr("Priority")
+        assignee = issue.attr("Assignee")
+        tracker = issue.tracker or "Bug"
         updated_at = issue.list_item.updated_at if issue.list_item else ""
         component = issue.attributes.get("Category", "")
         reporter = issue.attributes.get("Author") or issue.attributes.get("Reporter") or ""
@@ -333,7 +267,6 @@ def detail_row(issue: RedmineIssueDetail | None = None, *, item: RedmineIssueLis
         ],
         "comments": comments,
         "attachments": attachments,
-        "jira": jira,
     }
 
 

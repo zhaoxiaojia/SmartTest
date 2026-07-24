@@ -2,13 +2,11 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import datetime
 import json
 from math import ceil
 from pathlib import Path
 import ssl
 from threading import local
-import time
 from typing import Any, Iterable
 from uuid import uuid4
 from urllib.error import HTTPError, URLError
@@ -118,14 +116,6 @@ class JiraClient:
         target_total = first_page.total
         if max_total_results is not None:
             target_total = min(target_total, max_total_results)
-        _trace_request(
-            "search_all_plan",
-            first_count=len(first_page.issues),
-            jql=jql,
-            page_size=effective_page_size,
-            target_total=target_total,
-            total=first_page.total,
-        )
         if target_total <= len(first_page.issues):
             return first_page.issues[:target_total]
 
@@ -312,7 +302,6 @@ class JiraClient:
         data: bytes | Iterable[bytes] | None = None,
         headers: dict[str, str] | None = None,
     ) -> "_HttpResponse":
-        started_at = time.monotonic()
         if params:
             query = urlencode(self._normalize_params(params), doseq=True)
             separator = "&" if "?" in url else "?"
@@ -330,39 +319,18 @@ class JiraClient:
 
         request = Request(url=url, data=body, method=method.upper(), headers=request_headers)
         opener = self._opener()
-        _trace_request("request_start", method=method.upper(), url=url)
         try:
             with opener.open(request, timeout=self._config.timeout_seconds) as response:
                 raw_body = response.read()
                 text = raw_body.decode("utf-8", errors="replace")
                 payload = json_loads(text) if text else None
-                _trace_request(
-                    "request_done",
-                    method=method.upper(),
-                    url=url,
-                    status=int(response.status),
-                    elapsed_ms=int((time.monotonic() - started_at) * 1000),
-                )
                 return _HttpResponse(status_code=int(response.status), text=text, data=payload)
         except HTTPError as exc:
             text = exc.read().decode("utf-8", errors="replace")
-            _trace_request(
-                "request_http_error",
-                method=method.upper(),
-                url=url,
-                status=exc.code,
-                elapsed_ms=int((time.monotonic() - started_at) * 1000),
-            )
             raise JiraRequestError(
                 f"Jira request failed: {method} {url} -> {exc.code} {text[:400]}"
             ) from exc
         except URLError as exc:
-            _trace_request(
-                "request_url_error",
-                method=method.upper(),
-                url=url,
-                elapsed_ms=int((time.monotonic() - started_at) * 1000),
-            )
             raise JiraRequestError(f"Jira request failed: {method} {url} -> {exc.reason}") from exc
 
     @staticmethod
@@ -466,11 +434,3 @@ def _public_user(payload: dict[str, Any]) -> dict[str, str]:
         "display_name": str(payload.get("displayName") or ""),
         "avatar_url": avatar_url,
     }
-
-
-def _trace_request(stage: str, **values: Any) -> None:
-    details = " ".join(f"{key}={values[key]}" for key in sorted(values))
-
-
-def _trace_timestamp() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]

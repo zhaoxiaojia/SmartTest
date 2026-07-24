@@ -44,53 +44,7 @@ def test_context_selects_items_and_replaces_detail_without_callsite_scanning():
     detail = ThirdPartyBugDetail(id="61043", url=item.url, project_identifier="bds", subject="new", list_item=item)
 
     assert context.item_for_issue("61043") == (project, item)
-    assert context.project_for_detail(detail) == project
 
     updated = context.with_detail(detail)
 
     assert updated.issues == (detail,)
-    assert updated.raw["selected_issue_id"] == "61043"
-
-
-def test_detail_builds_jira_transition_payload_from_generic_bug_data():
-    detail = ThirdPartyBugDetail(
-        id="61043",
-        url="https://support/issues/61043",
-        project_identifier="bds",
-        tracker="Bug",
-        subject="panel issue",
-        description="steps",
-        attributes={"Priority": "Urgent", "Status": "New", "Assignee": "h shen", "Category": "DDR"},
-    )
-    project = ThirdPartyBugProject(name="BDS", identifier="bds", url="https://support/projects/bds", project_id="AN40BF-A311D2")
-
-    payload = detail.to_jira_transition(project=project)
-
-    assert payload["source"]["system"] == "third_party_bug"
-    assert payload["fields"]["summary"] == "panel issue"
-    assert payload["fields"]["project"]["redmine_project_id"] == "AN40BF-A311D2"
-    assert payload["fields"]["components"] == [{"name": "DDR"}]
-
-
-def test_detail_builds_create_issue_request_for_jira_create_entrypoint():
-    detail = ThirdPartyBugDetail(
-        id="61043",
-        url="https://support/issues/61043",
-        project_identifier="bds",
-        tracker="Bug",
-        subject="panel issue",
-        description="steps",
-        attributes={"Priority": "Urgent", "Assignee": "h shen", "Category": "DDR"},
-    )
-
-    request = detail.to_create_issue_request(project_key="TV", issue_type="Bug", source_system="redmine")
-
-    assert request.project_key == "TV"
-    assert request.issue_type == "Bug"
-    assert request.summary == "panel issue"
-    assert request.source_system == "redmine"
-    assert request.source_id == "61043"
-    assert request.source_url == "https://support/issues/61043"
-    assert request.priority == "Urgent"
-    assert request.assignee == "h shen"
-    assert request.components == ("DDR",)

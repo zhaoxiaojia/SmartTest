@@ -214,10 +214,13 @@ class RedmineCloneController:
         failed = [
             item
             for item in self._records
-            if item["state"] in {"failed", "create_failed"}
-            or any(
-                result.retryable
-                for result in item.get("attachmentResults", ())
+            if item["result"] is not None
+            and (
+                item["result"].issue_state == "create_failed"
+                or any(
+                    result.retryable
+                    for result in item["result"].attachment_results
+                )
             )
         ]
         return self._start_submit_records(failed) if failed else None
@@ -558,43 +561,11 @@ class RedmineCloneController:
 
     def _apply_submit_result(self, result) -> None:
         resolved = {}
-        for item in result:
-            if len(item) == 2:
-                issue_id, payload = item
-            else:
-                issue_id, legacy_state, payload, legacy_error = item
-                if not isinstance(payload, CreateIssueResult):
-                    payload = CreateIssueResult(
-                        created=False,
-                        issue_state="create_failed",
-                        issue_error=legacy_error,
-                    )
-                elif legacy_state == "failed" and payload.issue_state not in {
-                    "created",
-                    "duplicate",
-                }:
-                    payload = replace(
-                        payload,
-                        issue_state="create_failed",
-                        issue_error=legacy_error,
-                    )
+        for issue_id, payload in result:
             record = self._record(issue_id)
             if record is None:
                 continue
             record["result"] = payload
-            record["state"] = (
-                "failed"
-                if payload.issue_state == "create_failed"
-                else payload.issue_state
-            )
-            record["error"] = payload.issue_error
-            record["key"] = payload.issue_key or payload.existing_key
-            record["url"] = payload.issue_url
-            record["attachmentState"] = payload.attachment_state
-            record["attachmentResults"] = payload.attachment_results
-            record["attachmentWarnings"] = _attachment_warning_payloads(
-                payload.attachment_results
-            )
             if payload.issue_state == "created":
                 resolved[issue_id] = ExistingIssue(
                     key=payload.issue_key, web_url=payload.issue_url
@@ -608,10 +579,13 @@ class RedmineCloneController:
             self._issue_controller.record_clone_results(resolved)
         self._loaded = len(result)
         retryable_failure = any(
-            item["state"] in {"failed", "create_failed"}
-            or any(
-                attachment.retryable
-                for attachment in item.get("attachmentResults", ())
+            item["result"] is not None
+            and (
+                item["result"].issue_state == "create_failed"
+                or any(
+                    attachment.retryable
+                    for attachment in item["result"].attachment_results
+                )
             )
             for item in self._records
         )
@@ -630,6 +604,7 @@ class RedmineCloneController:
 
     def _record_payload(self, record: dict[str, Any]) -> dict[str, Any]:
         clone_draft = record["draft"]
+        result = record["result"]
         fields = []
         for field in clone_draft.fields:
             if (
@@ -675,26 +650,38 @@ class RedmineCloneController:
                 }
                 for item in clone_draft.errors
             ],
-            "state": record["state"],
-            "key": record["key"],
-            "url": record["url"],
-            "error": record["error"],
-            "attachmentState": record.get("attachmentState", "none"),
-            "attachmentWarnings": list(record.get("attachmentWarnings", ())),
+            "state": (
+                "editing"
+                if result is None
+                else "failed"
+                if result.issue_state == "create_failed"
+                else result.issue_state
+            ),
+            "key": (
+                result.issue_key or result.existing_key
+                if result is not None
+                else ""
+            ),
+            "url": result.issue_url if result is not None else "",
+            "error": result.issue_error if result is not None else record["error"],
+            "attachmentState": (
+                result.attachment_state
+                if result is not None
+                else "none"
+            ),
+            "attachmentWarnings": (
+                list(_attachment_warning_payloads(result.attachment_results))
+                if result is not None
+                else []
+            ),
         }
 
 
 def _new_record(clone_draft: CloneDraft) -> dict[str, Any]:
     return {
         "draft": clone_draft,
-        "state": "editing",
-        "key": "",
-        "url": "",
         "error": "",
         "errorFieldId": "",
-        "attachmentState": "none",
-        "attachmentResults": (),
-        "attachmentWarnings": (),
         "result": None,
     }
 

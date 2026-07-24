@@ -31,6 +31,38 @@ _TEMPLATE_VALUE_FIELDS = (
 _FORMATTER = Formatter()
 
 
+def is_safe_template(template: Any, values: Any) -> bool:
+    if not isinstance(template, str) or not _valid_template_values(values):
+        return False
+    try:
+        for _literal, field_name, format_spec, conversion in _FORMATTER.parse(template):
+            if field_name is None:
+                continue
+            if (
+                not field_name
+                or not field_name.isidentifier()
+                or field_name not in values
+                or format_spec
+                or conversion
+            ):
+                return False
+    except ValueError:
+        return False
+    return True
+
+
+def _valid_template_values(value: Any) -> bool:
+    return isinstance(value, dict) and all(
+        isinstance(key, str)
+        and (
+            item is None
+            or isinstance(item, (str, bool, int))
+            or (isinstance(item, float) and math.isfinite(item))
+        )
+        for key, item in value.items()
+    )
+
+
 class JiraConversationController:
     def __init__(
         self,
@@ -245,7 +277,10 @@ class JiraConversationController:
             return None
         if any(field in value and not isinstance(value[field], str) for field in _STRING_ROW_FIELDS):
             return None
-        if any(field in value and not cls._valid_values(value[field]) for field in _VALUES_ROW_FIELDS):
+        if any(
+            field in value and not _valid_template_values(value[field])
+            for field in _VALUES_ROW_FIELDS
+        ):
             return None
         if any(
             values_field in value and template_field not in value
@@ -254,7 +289,7 @@ class JiraConversationController:
             return None
         if any(
             template_field in value
-            and not cls._valid_template(value[template_field], value.get(values_field, {}))
+            and not is_safe_template(value[template_field], value.get(values_field, {}))
             for template_field, values_field in _TEMPLATE_VALUE_FIELDS
         ):
             return None
@@ -270,37 +305,6 @@ class JiraConversationController:
         if any(field in value and not isinstance(value[field], bool) for field in _BOOL_ROW_FIELDS):
             return None
         return copy.deepcopy(value)
-
-    @staticmethod
-    def _valid_template(template: str, values: dict[str, Any]) -> bool:
-        try:
-            parsed = _FORMATTER.parse(template)
-            for _literal, field_name, format_spec, conversion in parsed:
-                if field_name is None:
-                    continue
-                if (
-                    not field_name
-                    or not field_name.isidentifier()
-                    or field_name not in values
-                    or format_spec
-                    or conversion
-                ):
-                    return False
-        except ValueError:
-            return False
-        return True
-
-    @staticmethod
-    def _valid_values(value: Any) -> bool:
-        return isinstance(value, dict) and all(
-            isinstance(key, str)
-            and (
-                item is None
-                or isinstance(item, (str, bool, int))
-                or (isinstance(item, float) and math.isfinite(item))
-            )
-            for key, item in value.items()
-        )
 
     @staticmethod
     def _integer(value: Any) -> int:

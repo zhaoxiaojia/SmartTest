@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from dataclasses import replace
-from math import ceil
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import urlencode, urlsplit
 
 from tool.SmartHome.redmine.models import (
@@ -151,7 +149,6 @@ def parse_issue_list(raw_rows: list[dict[str, Any]]) -> tuple[RedmineIssueListIt
                 assignee=fields.get("assigned_to", ""),
                 updated_at=fields.get("updated_on", ""),
                 category=fields.get("category", ""),
-                raw_fields=fields,
             )
         )
     return tuple(issues)
@@ -205,7 +202,6 @@ def parse_issue_detail(raw: dict[str, Any], *, list_item: RedmineIssueListItem |
         id=issue_id,
         url=issue_url,
         project_identifier=_identifier_from_url(str(raw.get("project_url") or "")),
-        project_name=_clean(raw.get("project_name") or raw.get("h1")),
         tracker=tracker_match.group(1) if tracker_match else (list_item.tracker if list_item else ""),
         subject=_clean(raw.get("subject") or raw.get("issueHeader")) or (list_item.subject if list_item else ""),
         description=_clean(raw.get("description")) or text_payload["description"],
@@ -223,24 +219,15 @@ class RedmineContextCollector:
         *,
         account: str = "",
         base_url: str = BASE_URL,
-        progress_callback: Callable[[int, int, str], None] | None = None,
         max_concurrency: int = 8,
     ):
         self._page = page
         self._account = account
         self._base_url = base_url.rstrip("/")
-        self._progress_callback = progress_callback
         self._page_semaphore = asyncio.Semaphore(max(1, max_concurrency))
-        self._loaded_by_project: dict[str, int] = {}
-        self._total_by_project: dict[str, int] = {}
 
     async def _goto_and_wait(self, url: str, selector: str, *, timeout: int = 8000) -> None:
-        await self._page.goto(url, wait_until="domcontentloaded", timeout=20000)
-        if hasattr(self._page, "wait_for_selector"):
-            try:
-                await self._page.wait_for_selector(selector, state="attached", timeout=timeout)
-            except Exception:
-                pass
+        await self._goto_and_wait_on(self._page, url, selector, timeout=timeout)
 
     async def collect_projects(self) -> tuple[RedmineProject, ...]:
         await self._goto_and_wait(f"{self._base_url}/projects", "a.project, #projects-index, #content")
@@ -278,9 +265,6 @@ class RedmineContextCollector:
             if _clean(option.get("label")) and str(option.get("value") or "").strip()
         }
 
-    async def collect_issue_list(self, project: RedmineProject) -> tuple[RedmineIssueListItem, ...]:
-        return await self._collect_issue_list_with_page(self._page, project)
-
     async def collect_query(self, query: RedmineQuery) -> RedmineContext:
         merged: dict[str, tuple[RedmineIssueListItem, str, str]] = {}
         for branch in query.branches():
@@ -310,7 +294,7 @@ class RedmineContextCollector:
             )
             for identifier, issues in grouped.items()
         )
-        return RedmineContext(account=self._account, source_url=self._base_url, projects=projects)
+        return RedmineContext(account=self._account, projects=projects)
 
     async def _fetch_query_page(self, branch: RedmineQueryBranch, *, page_number: int, per_page: int) -> dict[str, Any]:
         url = self._query_url(branch, page_number, per_page)
@@ -330,51 +314,6 @@ class RedmineContextCollector:
                 identifier = _identifier_from_url(str(link.get("href") or ""))
                 return identifier or fallback, _clean(link.get("text") or cell.get("text") or identifier or fallback)
         return fallback, fallback
-
-    async def _collect_issue_list_with_page(self, page, project: RedmineProject) -> tuple[RedmineIssueListItem, ...]:
-        per_page = 100
-        first = await self._fetch_issue_page(page, project, page_number=1, per_page=per_page)
-        rows: list[dict[str, Any]] = list(first.get("rows") or [])
-        total = int(first.get("total") or len(rows))
-        self._emit_progress(project, len(rows), total)
-        if rows and len(rows) < total:
-            remaining_pages = range(2, ceil(total / per_page) + 1)
-            page_payloads = await asyncio.gather(*(self._fetch_issue_page_for_project(project, page_number, per_page) for page_number in remaining_pages))
-            for payload in page_payloads:
-                rows.extend(list(payload.get("rows") or []))
-                self._emit_progress(project, min(len(rows), total), total)
-        return parse_issue_list(rows)
-
-    async def _fetch_issue_page_for_project(self, project: RedmineProject, page_number: int, per_page: int) -> dict[str, Any]:
-        context = getattr(self._page, "context", None)
-        if context is None or not hasattr(context, "new_page"):
-            return await self._fetch_issue_page(self._page, project, page_number=page_number, per_page=per_page)
-        page = await context.new_page()
-        try:
-            return await self._fetch_issue_page(page, project, page_number=page_number, per_page=per_page)
-        finally:
-            try:
-                await page.close()
-            except Exception:
-                pass
-
-    async def _fetch_issue_page(self, page, project: RedmineProject, *, page_number: int, per_page: int) -> dict[str, Any]:
-        branch = RedmineQuery(project=project.identifier).branches()[0]
-        url = self._query_url(branch, page_number, per_page)
-        async with self._page_semaphore:
-            await self._goto_and_wait_on(page, url, "table.issues, .nodata, #content")
-            payload = await page.evaluate(_ISSUE_PAGE_SCRIPT)
-        return payload
-
-    def _emit_progress(self, project: RedmineProject, loaded: int, total: int) -> None:
-        self._loaded_by_project[project.identifier] = loaded
-        self._total_by_project[project.identifier] = total
-        if self._progress_callback:
-            self._progress_callback(
-                sum(self._loaded_by_project.values()),
-                sum(self._total_by_project.values()),
-                project.name or project.identifier,
-            )
 
     async def _goto_and_wait_on(self, page, url: str, selector: str, *, timeout: int = 8000) -> None:
         await page.goto(url, wait_until="domcontentloaded", timeout=20000)
@@ -399,44 +338,6 @@ class RedmineContextCollector:
             raw["project_name"] = project.name
         detail = parse_issue_detail(raw, list_item=issue if isinstance(issue, RedmineIssueListItem) else None)
         return detail
-
-    async def collect_context(self, *, project_identifiers: set[str] | None = None) -> RedmineContext:
-        project_nodes = await self.collect_projects()
-        issue_projects = [
-            project for project in project_nodes
-            if project.project_id and (project_identifiers is None or project.identifier in project_identifiers)
-        ]
-        project_issues = await self._collect_project_issue_lists(issue_projects)
-        projects = [
-            replace(project, issues=project_issues.get(project.identifier, ())) if project.project_id else project
-            for project in project_nodes
-        ]
-        return RedmineContext(
-            account=self._account,
-            source_url=self._base_url,
-            projects=tuple(projects),
-            raw={"project_count": len(projects)},
-            jira={"issues": []},
-        )
-
-    async def _collect_project_issue_lists(self, projects: list[RedmineProject]) -> dict[str, tuple[RedmineIssueListItem, ...]]:
-        context = getattr(self._page, "context", None)
-        if context is None or not hasattr(context, "new_page") or len(projects) <= 1:
-            return {project.identifier: await self.collect_issue_list(project) for project in projects}
-
-        async def collect(project: RedmineProject):
-            page = await context.new_page()
-            try:
-                return project.identifier, await self._collect_issue_list_with_page(page, project)
-            finally:
-                try:
-                    await page.close()
-                except Exception:
-                    pass
-
-        pairs = await asyncio.gather(*(collect(project) for project in projects))
-        return dict(pairs)
-
 
 _PROJECTS_SCRIPT = r"""
 () => {

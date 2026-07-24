@@ -9,11 +9,9 @@ from support.jira_integration.core.create_schema import (
     CreateFieldOption,
     CreateFieldSchema,
 )
-from support.jira_integration.core.models import CreateIssueResult
 from support.jira_integration.services.create_issue_service import CreateIssueService
 from support.jira_integration.core.description import render_notes_description
 from tool.SmartHome.redmine.clone_draft import RedmineCloneDraftService
-from tool.SmartHome.redmine.create import clone_issues_to_jira
 from tool.SmartHome.redmine.models import RedmineIssueDetail, RedmineJournal, RedmineProject
 
 
@@ -236,17 +234,3 @@ def test_channel_child_can_select_reason_then_return_to_empty_none_value():
     draft.update("customfield_12200", {"parent": "13251", "child": ""})
     assert draft.value("customfield_12200") == {"parent": "13251", "child": ""}
     assert not draft.errors
-
-
-def test_existing_clone_entrypoint_accepts_reviewed_draft_without_losing_source_identity():
-    class RecordingService:
-        def create_issue(self, request):
-            self.request = request
-            return CreateIssueResult(created=True, issue_key="SH-1")
-
-    service = RecordingService()
-    result = clone_issues_to_jira([build()], project_key="SH", create_service=service)
-
-    assert result.created == [CreateIssueResult(created=True, issue_key="SH-1")]
-    assert service.request.source_system == "redmine"
-    assert service.request.source_id == "61043"

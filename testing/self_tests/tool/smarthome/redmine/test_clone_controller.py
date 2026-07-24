@@ -69,11 +69,9 @@ def records(*drafts):
     return [
         {
             "draft": item,
-            "state": "editing",
-            "key": "",
-            "url": "",
             "error": "",
             "errorFieldId": "",
+            "result": None,
         }
         for item in drafts
     ]
@@ -159,9 +157,16 @@ def test_partial_success_patches_issue_owner_and_retry_selects_failed_only():
     controller.apply_result(
         "submit",
         [
-            ("1", "created", created, ""),
-            ("2", "duplicate", duplicate, ""),
-            ("3", "failed", None, "offline"),
+            ("1", created),
+            ("2", duplicate),
+            (
+                "3",
+                CreateIssueResult(
+                    created=False,
+                    issue_state="create_failed",
+                    issue_error="offline",
+                ),
+            ),
         ],
     )
 
@@ -176,6 +181,49 @@ def test_partial_success_patches_issue_owner_and_retry_selects_failed_only():
     assert operation is not None and operation.kind == "submit"
     assert controller.snapshot.state == "submitting"
     operation.awaitable.close()
+
+
+def test_current_submit_owner_classifies_create_failure_and_continues_batch():
+    owner = IssueOwner()
+
+    class Service:
+        def __init__(self):
+            self.source_ids = []
+
+        def check_issue_by_external_url(self, **_kwargs):
+            return None
+
+        def create_issue(self, request):
+            self.source_ids.append(request.source_id)
+            if request.source_id == "1":
+                raise RuntimeError("offline")
+            return CreateIssueResult(
+                created=True,
+                issue_state="created",
+                issue_key="SH-2",
+            )
+
+    service = Service()
+    controller = RedmineCloneController(
+        owner,
+        jira_dependencies=lambda: (object(), service, object()),
+    )
+    controller.apply_result(
+        "prepare",
+        (records(draft("1"), draft("2")), {}),
+    )
+
+    operation = controller.start_submit()
+    controller.apply_result("submit", asyncio.run(operation.awaitable))
+
+    assert service.source_ids == ["1", "2"]
+    assert [item["state"] for item in controller.snapshot.drafts] == [
+        "failed",
+        "created",
+    ]
+    assert controller.snapshot.drafts[0]["error"] == "offline"
+    assert controller.snapshot.state == "partial_failed"
+    assert owner.results[0]["2"].key == "SH-2"
 
 
 def test_user_result_replaces_search_hits_but_keeps_current_value_option():

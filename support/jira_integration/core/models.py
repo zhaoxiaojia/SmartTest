@@ -58,37 +58,6 @@ class JiraFieldMetadata:
 
 
 @dataclass(frozen=True)
-class JiraSyncState:
-    scope_key: str
-    cursor_updated: str | None
-    synced_at: float | None = None
-    base_jql: str | None = None
-    extra: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class JiraSyncResult:
-    scope_key: str
-    effective_jql: str
-    fetched_count: int
-    stored_count: int
-    previous_cursor: str | None
-    next_cursor: str | None
-    full_sync: bool
-
-
-@dataclass(frozen=True)
-class IssueStoreQuery:
-    issue_keys: tuple[str, ...] = ()
-    statuses: tuple[str, ...] = ()
-    assignees: tuple[str, ...] = ()
-    priorities: tuple[str, ...] = ()
-    text: str | None = None
-    updated_since: str | None = None
-    limit: int | None = None
-
-
-@dataclass(frozen=True)
 class JiraAttachmentMetadata:
     available: bool
     enabled: bool | None
