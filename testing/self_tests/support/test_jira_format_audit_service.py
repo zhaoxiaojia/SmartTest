@@ -128,13 +128,34 @@ def test_filter_without_jql_and_jira_validation_failure_are_actionable():
             base_url="https://jira.example.com",
             client=FakeClient(filter_payload={"id": "42"}),
         )
-
     with pytest.raises(ValueError, match="JQL"):
         resolve_audit_input(
             "project =",
             base_url="https://jira.example.com",
             client=FakeClient(error=RuntimeError("syntax error")),
         )
+
+
+def test_jira_client_fetch_filter_uses_existing_transport_boundary(monkeypatch):
+    from types import SimpleNamespace
+
+    from support.jira_integration.auth.basic import JiraBasicAuth
+    from support.jira_integration.transport.client import JiraClient, JiraClientConfig
+
+    client = JiraClient(
+        JiraClientConfig(base_url="https://jira.example.com"),
+        JiraBasicAuth("user", "secret"),
+    )
+    calls = []
+    monkeypatch.setattr(
+        client,
+        "_request",
+        lambda method, url: calls.append((method, url))
+        or SimpleNamespace(data={"id": "42", "jql": "project = SH"}),
+    )
+
+    assert client.fetch_filter(" 42 ") == {"id": "42", "jql": "project = SH"}
+    assert calls == [("GET", "https://jira.example.com/rest/api/2/filter/42")]
 
 
 def test_service_reports_fetch_and_audit_progress_per_page_and_issue():
