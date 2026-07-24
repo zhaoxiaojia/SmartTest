@@ -232,7 +232,8 @@ class JiraAuditBridge(QObject):
         if int(payload.get("generation", -1)) != self._generation:
             return
         self._state = "failed"
-        self._status_text = str(payload.get("message", "") or self.tr("Jira audit failed."))
+        message = str(payload.get("message", "") or "Jira audit failed.")
+        self._status_text = self.tr(message)
         self._input_error = self._status_text
         self.stateChanged.emit()
 

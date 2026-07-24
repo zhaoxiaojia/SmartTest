@@ -6542,6 +6542,14 @@ Some contents...</translation>
     <message><source>The login changed. Start the Jira audit again.</source><translation>The login changed. Start the Jira audit again.</translation></message>
     <message><source>The Jira audit returned an invalid result.</source><translation>The Jira audit returned an invalid result.</translation></message>
     <message><source>Jira audit failed.</source><translation>Jira audit failed.</translation></message>
+    <message><source>Jira URLs must use HTTP or HTTPS.</source><translation>Jira URLs must use HTTP or HTTPS.</translation></message>
+    <message><source>The Jira URL is malformed.</source><translation>The Jira URL is malformed.</translation></message>
+    <message><source>The Jira URL host must match the configured Jira host.</source><translation>The Jira URL host must match the configured Jira host.</translation></message>
+    <message><source>The Jira issue URL contains an invalid issue key.</source><translation>The Jira issue URL contains an invalid issue key.</translation></message>
+    <message><source>Use a Jira issue, filter, or search URL.</source><translation>Use a Jira issue, filter, or search URL.</translation></message>
+    <message><source>The Jira filter could not be loaded. Check its permissions.</source><translation>The Jira filter could not be loaded. Check its permissions.</translation></message>
+    <message><source>The Jira filter does not contain JQL.</source><translation>The Jira filter does not contain JQL.</translation></message>
+    <message><source>JQL validation failed. Check the query and Jira permissions.</source><translation>JQL validation failed. Check the query and Jira permissions.</translation></message>
 </context>
 <context>
     <name>JiraAuditWorkspace</name>

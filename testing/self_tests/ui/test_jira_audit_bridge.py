@@ -177,3 +177,14 @@ def test_missing_transient_credential_fails_before_worker_creation():
     assert bridge.state == "failed"
     assert "Sign in" in bridge.statusText
     assert calls == []
+
+
+def test_input_resolution_errors_are_bridge_owned_fixed_text():
+    from ui.example.bridge.JiraAuditBridge import JiraAuditBridge
+
+    bridge = JiraAuditBridge(FakeAuth(), client_factory=lambda *_args: FakeClient())
+
+    bridge.startAudit("https://other.example.com/browse/SH-1")
+    _wait_until(lambda: bridge.state == "failed")
+
+    assert bridge.statusText == "The Jira URL host must match the configured Jira host."

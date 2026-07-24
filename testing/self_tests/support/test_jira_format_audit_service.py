@@ -68,6 +68,7 @@ def _issue(key: str) -> dict:
     [
         ("project = SH ORDER BY key", "jql", "project = SH ORDER BY key"),
         ("https://jira.example.com/browse/SH-123", "issue_url", 'key = "SH-123"'),
+        ("http://jira.example.com/browse/SH-123", "issue_url", 'key = "SH-123"'),
         (
             "https://jira.example.com/issues/?jql=project%20%3D%20SH",
             "jql_url",
@@ -106,7 +107,7 @@ def test_resolve_filter_url_fetches_jql_and_validates_it():
     ("text", "message"),
     [
         ("  ", "JQL"),
-        ("https://other.example.com/browse/SH-1", "主机"),
+        ("https://other.example.com/browse/SH-1", "host"),
         ("ftp://jira.example.com/browse/SH-1", "HTTP"),
         ("https://jira.example.com/browse/not-a-key", "URL"),
         ("https://jira.example.com/unsupported", "URL"),

@@ -6775,6 +6775,14 @@ Some contents...</source>
     <message><source>The login changed. Start the Jira audit again.</source><translation>登录状态已变化，请重新开始 Jira 审查。</translation></message>
     <message><source>The Jira audit returned an invalid result.</source><translation>Jira 审查返回了无效结果。</translation></message>
     <message><source>Jira audit failed.</source><translation>Jira 审查失败。</translation></message>
+    <message><source>Jira URLs must use HTTP or HTTPS.</source><translation>Jira URL 仅支持 HTTP 或 HTTPS。</translation></message>
+    <message><source>The Jira URL is malformed.</source><translation>Jira URL 格式错误。</translation></message>
+    <message><source>The Jira URL host must match the configured Jira host.</source><translation>Jira URL 主机必须与当前配置的 Jira 主机一致。</translation></message>
+    <message><source>The Jira issue URL contains an invalid issue key.</source><translation>Jira 问题链接中的 Issue Key 格式无效。</translation></message>
+    <message><source>Use a Jira issue, filter, or search URL.</source><translation>请使用 Jira 问题、筛选器或搜索链接。</translation></message>
+    <message><source>The Jira filter could not be loaded. Check its permissions.</source><translation>无法加载 Jira 筛选器，请检查访问权限。</translation></message>
+    <message><source>The Jira filter does not contain JQL.</source><translation>Jira 筛选器中不包含 JQL。</translation></message>
+    <message><source>JQL validation failed. Check the query and Jira permissions.</source><translation>JQL 校验失败，请检查查询语法和 Jira 权限。</translation></message>
 </context>
 <context>
     <name>JiraAuditWorkspace</name>
