@@ -66,3 +66,10 @@ Reports are concise: changed files, commands with exit codes, criterion failures
 
 - SmartTest design documents, implementation plans, development documents, and delivery reports must be written in Chinese by default.
 - Keep code identifiers, file paths, commands, protocol/API names, and quoted external source text in their original form when translation would reduce precision.
+
+## Dependency And Reuse Discipline
+
+- Before implementing a file format, protocol, platform integration, serializer, exporter, launcher, cache, transport, or UI mechanism, search the repository and the managed dependency set for an existing owner or a mature maintained library.
+- When an existing owner or suitable third-party library covers the requirement, reuse or import it and update the declared development, runtime, packaging, and test dependency chain as needed. Do not hand-write low-level replacements merely to avoid declaring a dependency.
+- A custom implementation is allowed only when no suitable owner or library exists, a concrete product or packaging constraint rules them out, and the design records Coco's approval of that constraint and the maintenance cost.
+- Atlas and the worker must report the reuse decision and review net production-code growth. Passing tests do not compensate for duplicated mechanisms, thin wrappers, excessive file splitting, or avoidable code volume.

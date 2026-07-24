@@ -6,7 +6,7 @@
 
 **架构：** `support/jira_integration/audit/` 作为唯一业务所有者，复用 `JiraClient` 传输但不依赖 `jira_handler.py`；`JiraAuditBridge` 负责线程边界和前端状态；QML 只展示 Bridge 模型。权限继续由 `ToolBridge` 从 `config/personnel.json` 计算。
 
-**技术栈：** Python 3、PySide6/QML、现有 FluentUI、pytest、标准库 ZIP/XML XLSX 生成、Windows Explorer。
+**技术栈：** Python 3、PySide6/QML、现有 FluentUI、pytest、`openpyxl`、现有 `FluTools.showFileInFolder()`。
 
 ## 全局约束
 
@@ -20,6 +20,10 @@
 - QML 不实现规则、解析 Jira 数据、生成 XLSX 或访问凭据。
 - 固定前端文本同时更新 `example_zh_CN.ts` 和 `example_en_US.ts`，无 fallback、unfinished 或乱码。
 - 不构建安装包；验证目标为仓库源码运行。
+- 禁止手写 Office Open XML；XLSX 导出必须使用 `openpyxl`，并在虚拟环境初始化和打包链中声明依赖。
+- 文件定位必须复用 `FluTools.showFileInFolder()`，不得在 Jira 审查 Bridge 中重复实现 Explorer 调用。
+- 规则模型与校验应合并到最少的清晰业务文件；删除薄封装、仅重命名转发和无业务价值的过细拆分。
+- 返工验收必须报告净生产代码变化；目标是在保持全部行为和测试的前提下显著低于当前 1849 行新增生产代码。
 
 ---
 
