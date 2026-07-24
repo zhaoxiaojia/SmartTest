@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QCoreApplication, QObject, Signal
+from PySide6.QtCore import QCoreApplication, QObject, QStandardPaths, Signal
 
 from support.jira_integration.audit import AuditReport, ResolvedAuditInput, active_rules
 from support.jira_integration.core.models import SearchPage
@@ -142,7 +142,10 @@ def test_export_publishes_generated_file_path(tmp_path):
 
     exported = tmp_path / "audit.xlsx"
 
-    def exporter(_report):
+    calls = []
+
+    def exporter(_report, *, downloads_dir):
+        calls.append(Path(downloads_dir))
         exported.write_bytes(b"xlsx")
         return exported
 
@@ -156,6 +159,8 @@ def test_export_publishes_generated_file_path(tmp_path):
     bridge.exportReport()
 
     assert bridge.exportPath == str(exported.resolve())
+    expected = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation)
+    assert calls == [Path(expected) if expected else Path.home() / "Downloads"]
 
 
 def test_file_reveal_reuses_global_flutools_without_bridge_launcher():

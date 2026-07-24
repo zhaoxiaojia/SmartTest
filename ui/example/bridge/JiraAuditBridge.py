@@ -6,7 +6,7 @@ from pathlib import Path
 from threading import Thread
 from typing import Any, Callable
 
-from PySide6.QtCore import QObject, Property, Signal, Slot
+from PySide6.QtCore import QObject, Property, QStandardPaths, Signal, Slot
 
 from support.jira_integration.audit import (
     AuditReport,
@@ -36,7 +36,7 @@ class JiraAuditBridge(QObject):
         base_url: str = JIRA_BASE_URL,
         client_factory: Callable[..., Any] = JiraClient,
         service_factory: Callable[..., Any] | None = None,
-        export_function: Callable[[AuditReport], Path] = export_audit_xlsx,
+        export_function: Callable[..., Path] = export_audit_xlsx,
         thread_factory: Callable[..., Thread] = Thread,
     ):
         super().__init__(auth_bridge)
@@ -157,7 +157,14 @@ class JiraAuditBridge(QObject):
             self.stateChanged.emit()
             return
         try:
-            path = Path(self._export_function(self._report)).resolve()
+            location = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation)
+            downloads_dir = Path(location) if location else Path.home() / "Downloads"
+            path = Path(
+                self._export_function(
+                    self._report,
+                    downloads_dir=downloads_dir,
+                )
+            ).resolve()
         except Exception as exc:
             smart_log(
                 "Jira audit export failed: %s",

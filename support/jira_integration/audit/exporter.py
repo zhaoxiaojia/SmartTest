@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import ctypes
 import os
 import tempfile
-from ctypes import wintypes
 from datetime import datetime
 from pathlib import Path
-from uuid import UUID
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -26,7 +23,9 @@ def export_audit_xlsx(
     now: datetime | None = None,
 ) -> Path:
     target_dir = (
-        Path(downloads_dir) if downloads_dir is not None else _windows_downloads_dir()
+        Path(downloads_dir)
+        if downloads_dir is not None
+        else Path.home() / "Downloads"
     )
     target_dir.mkdir(parents=True, exist_ok=True)
     timestamp = (now or datetime.now()).strftime("%Y%m%d_%H%M%S")
@@ -177,41 +176,3 @@ def _unique_path(directory: Path, stem: str, suffix: str) -> Path:
         candidate = directory / f"{stem}_{counter}{suffix}"
         counter += 1
     return candidate
-
-
-def _windows_downloads_dir() -> Path:
-    if os.name != "nt":
-        return Path.home() / "Downloads"
-
-    class GUID(ctypes.Structure):
-        _fields_ = [
-            ("Data1", wintypes.DWORD),
-            ("Data2", wintypes.WORD),
-            ("Data3", wintypes.WORD),
-            ("Data4", ctypes.c_ubyte * 8),
-        ]
-
-        @classmethod
-        def from_uuid(cls, value: UUID):
-            raw = value.bytes_le
-            return cls(
-                int.from_bytes(raw[0:4], "little"),
-                int.from_bytes(raw[4:6], "little"),
-                int.from_bytes(raw[6:8], "little"),
-                (ctypes.c_ubyte * 8)(*raw[8:]),
-            )
-
-    folder_id = GUID.from_uuid(UUID("374DE290-123F-4565-9164-39C4925E467B"))
-    result_path = ctypes.c_wchar_p()
-    status = ctypes.windll.shell32.SHGetKnownFolderPath(  # type: ignore[attr-defined]
-        ctypes.byref(folder_id),
-        0,
-        None,
-        ctypes.byref(result_path),
-    )
-    if status != 0 or not result_path.value:
-        raise OSError(f"无法获取 Windows Downloads Known Folder：{status}")
-    try:
-        return Path(result_path.value)
-    finally:
-        ctypes.windll.ole32.CoTaskMemFree(result_path)  # type: ignore[attr-defined]

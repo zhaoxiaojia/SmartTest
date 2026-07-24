@@ -87,6 +87,11 @@ def test_exporter_reuses_declared_openpyxl_without_manual_ooxml():
     assert "from openpyxl import Workbook" in exporter
     assert "openpyxl==3.1.5" in dependencies
     for obsolete in (
+        "ctypes",
+        "wintypes",
+        "UUID",
+        "GUID",
+        "SHGetKnownFolderPath",
         "ZipFile",
         "zipfile",
         "_sheet_xml",
