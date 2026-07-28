@@ -7,7 +7,14 @@ from threading import Event
 
 from PySide6.QtCore import QCoreApplication, QObject, QStandardPaths, Signal
 
-from support.jira_integration.audit import AuditReport, ResolvedAuditInput, active_rules
+from support.jira_integration.audit import (
+    AIReviewStatus,
+    AuditReport,
+    AuditViolation,
+    IssueAuditResult,
+    ResolvedAuditInput,
+    active_rules,
+)
 from support.jira_integration.core.models import SearchPage
 from ui.example.bridge.JiraAuditBridge import JiraAuditBridge
 
@@ -47,6 +54,34 @@ def _report():
         generated_at=datetime(2026, 7, 24, 10, 0, 0),
         rules=active_rules(),
         issues=(),
+    )
+
+
+def _report_with_ai_fallback():
+    violation = AuditViolation(
+        rule_id="description-steps",
+        section="Description",
+        field="Description",
+        observed="Sensitive description must not reach the view state.",
+        reason="Steps are required.",
+        guidance="Add reproduction steps.",
+    )
+    issue = IssueAuditResult(
+        key="SH-123",
+        url="https://jira.example.com/browse/SH-123",
+        summary="Safe summary",
+        reporter="safe-reporter",
+        passed=False,
+        violations=(violation,),
+        has_ai_candidates=True,
+        ai_review_status=AIReviewStatus.UNCONFIGURED,
+        ai_failure_category="configuration",
+    )
+    return AuditReport(
+        resolved=ResolvedAuditInput("jql", "project = SH", "project = SH"),
+        generated_at=datetime(2026, 7, 24, 10, 0, 0),
+        rules=active_rules(),
+        issues=(issue,),
     )
 
 
@@ -104,10 +139,12 @@ def test_async_completion_reuses_auth_and_reports_progress():
     assert time.monotonic() - started < 0.2
     assert bridge.viewState["canStart"] is False
     gate.set()
-    _wait_until(lambda: bridge.viewState["state"] == "completed")
+    _wait_until(lambda: bridge.viewState["state"] == "awaiting_confirmation")
     assert (created[0][1].username, created[0][1].password) == ("chao.li", "secret")
     assert bridge.viewState["progressValue"] == 1.0
-    assert bridge.viewState["canExport"] is True
+    assert bridge.viewState["state"] == "awaiting_confirmation"
+    assert bridge.viewState["canConfirm"] is True
+    assert bridge.viewState["canExport"] is False
 
 
 def test_stale_generation_cannot_replace_current_state():
@@ -156,8 +193,62 @@ def test_export_uses_qstandardpaths_download_location(tmp_path):
         thread_factory=ImmediateThread,
     )
     bridge.startAudit("project = SH")
+
+    bridge.exportReport()
+    assert calls == []
+    assert "Confirm" in bridge.viewState["inputError"]
+
+    bridge.confirmAudit()
     bridge.exportReport()
 
     standard = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation)
     assert calls == [Path(standard) if standard else Path.home() / "Downloads"]
     assert bridge.viewState["exportPath"] == str(exported.resolve())
+
+
+def test_progress_and_ai_fallback_are_safe_for_the_view_state():
+    bridge = JiraAuditBridge(FakeAuth())
+    bridge._generation = 1
+    expected = {
+        "fetching": ("fetching", 0.2),
+        "rule_auditing": ("rule_auditing", 0.5),
+        "ai_reviewing": ("ai_reviewing", 0.75),
+        "finalizing": ("finalizing", 0.9),
+    }
+
+    for stage, (state, progress) in expected.items():
+        bridge._on_worker_progress((1, stage, 1, 2))
+        assert bridge.viewState["state"] == state
+        assert bridge.viewState["progressValue"] == progress
+
+    bridge._on_worker_finished({"generation": 1, "report": _report_with_ai_fallback()})
+
+    assert bridge.viewState["state"] == "awaiting_confirmation"
+    assert bridge.viewState["aiReviewStatus"] == "fallback"
+    assert "Character-rule results were retained" in bridge.viewState["aiReviewText"]
+    assert bridge.viewState["violationRows"] == [{
+        "rule_id": "description-steps",
+        "section": "Description",
+        "field": "Description",
+        "reason": "Steps are required.",
+        "guidance": "Add reproduction steps.",
+    }]
+
+
+def test_confirmation_requires_current_report_and_auth_change_revokes_it():
+    auth = FakeAuth()
+    bridge = JiraAuditBridge(auth)
+
+    bridge.confirmAudit()
+    assert "Complete" in bridge.viewState["inputError"]
+
+    bridge._generation = 1
+    bridge._on_worker_finished({"generation": 1, "report": _report()})
+    bridge.confirmAudit()
+    assert bridge.viewState["canExport"] is True
+
+    auth.authChanged.emit()
+
+    assert bridge.viewState["canConfirm"] is False
+    assert bridge.viewState["canExport"] is False
+    assert bridge.viewState["exportPath"] == ""

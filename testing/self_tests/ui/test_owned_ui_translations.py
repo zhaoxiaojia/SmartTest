@@ -28,6 +28,18 @@ REQUIRED = {
     },
 }
 
+JIRA_AUDIT_REQUIRED = {
+    "JiraAuditBridge": {
+        "Reviewing ambiguous results with AI...",
+        "Finalizing Jira audit results...",
+        "Jira audit completed. Confirm the audit before exporting.",
+        "Complete a Jira audit before confirming it.",
+        "Confirm the Jira audit before exporting.",
+        "AI review is unavailable. Character-rule results were retained.",
+    },
+    "JiraAuditWorkspace": {"Confirm Audit", "AI Review"},
+}
+
 
 def _catalog(path: Path) -> dict[str, dict[str, ET.Element]]:
     contexts = {}
@@ -52,6 +64,19 @@ def test_ai_settings_fixed_text_is_finished_in_both_catalogs():
                 assert text and "\ufffd" not in text and text not in {"?", "??", "???"}
 
 
+def test_jira_audit_fixed_text_is_finished_in_both_catalogs():
+    for filename in ("example_en_US.ts", "example_zh_CN.ts"):
+        contexts = _catalog(ROOT / "ui/example" / filename)
+        for context_name, sources in JIRA_AUDIT_REQUIRED.items():
+            assert context_name in contexts
+            for source in sources:
+                translation = contexts[context_name].get(source)
+                assert translation is not None, f"{filename}: missing {context_name}/{source}"
+                assert translation.get("type") != "unfinished"
+                assert translation.get("type") != "vanished"
+                assert (translation.text or "").strip()
+
+
 def test_lupdate_keeps_ai_settings_bridge_text_active(tmp_path):
     generated_catalog = tmp_path / "example_en_US.ts"
 
@@ -60,6 +85,7 @@ def test_lupdate_keeps_ai_settings_bridge_text_active(tmp_path):
             env.pyside6_lupdate(),
             str(ROOT / "ui/example/imports/resource.qrc"),
             str(ROOT / "ui/example/bridge/AISettingsBridge.py"),
+            str(ROOT / "ui/example/bridge/JiraAuditBridge.py"),
             "-ts",
             str(generated_catalog),
         ],
@@ -70,5 +96,11 @@ def test_lupdate_keeps_ai_settings_bridge_text_active(tmp_path):
     bridge_messages = _catalog(generated_catalog)["AISettingsBridge"]
     for source in REQUIRED["AISettingsBridge"]:
         translation = bridge_messages.get(source)
+        assert translation is not None, f"lupdate omitted {source}"
+        assert translation.get("type") not in {"vanished", "obsolete"}
+
+    jira_messages = _catalog(generated_catalog)["JiraAuditBridge"]
+    for source in JIRA_AUDIT_REQUIRED["JiraAuditBridge"]:
+        translation = jira_messages.get(source)
         assert translation is not None, f"lupdate omitted {source}"
         assert translation.get("type") not in {"vanished", "obsolete"}

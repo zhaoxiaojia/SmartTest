@@ -63,6 +63,7 @@ if __name__ == "__main__":
             os.path.join(example_project_dir, "bridge", "AuthBridge.py"),
             os.path.join(example_project_dir, "bridge", "HomeBridge.py"),
             os.path.join(example_project_dir, "bridge", "JiraBridge.py"),
+            os.path.join(example_project_dir, "bridge", "JiraAuditBridge.py"),
             os.path.join(example_project_dir, "bridge", "DebugBridge.py"),
             os.path.join(example_project_dir, "bridge", "ReportBridge.py"),
             os.path.join(example_project_dir, "bridge", "RunBridge.py"),

@@ -21,7 +21,19 @@ from support.logging import smart_log
 
 
 JIRA_BASE_URL = os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")
-_BUSY_STATES = {"resolving", "fetching", "auditing"}
+_BUSY_STATES = {
+    "resolving",
+    "fetching",
+    "rule_auditing",
+    "ai_reviewing",
+    "finalizing",
+}
+_STAGE_PROGRESS = {
+    "fetching": 0.2,
+    "rule_auditing": 0.5,
+    "ai_reviewing": 0.75,
+    "finalizing": 0.9,
+}
 
 
 class JiraAuditBridge(QObject):
@@ -59,8 +71,11 @@ class JiraAuditBridge(QObject):
             "ruleRows": [asdict(rule) for rule in active_rules()],
             "resultSummary": {},
             "violationRows": [],
+            "aiReviewStatus": "not_required",
+            "aiReviewText": self.tr("No AI review was required."),
             "exportPath": "",
             "canStart": True,
+            "canConfirm": False,
             "canExport": False,
         }
         self._workerProgress.connect(self._on_worker_progress)
@@ -104,6 +119,8 @@ class JiraAuditBridge(QObject):
             progressValue=0.0,
             resultSummary={},
             violationRows=[],
+            aiReviewStatus="not_required",
+            aiReviewText=self.tr("No AI review was required."),
             exportPath="",
         )
         args = (generation, clean_text, username, str(password))
@@ -123,14 +140,30 @@ class JiraAuditBridge(QObject):
                 ),
             )
             self._workerFinished.emit({"generation": generation, "report": report})
+        except ValueError as exc:
+            smart_log("Jira audit input validation failed: %s", exc, level="warning",
+                      domain="jira", source="JiraAuditBridge")
+            self._workerFailed.emit({"generation": generation, "kind": "input"})
         except Exception as exc:
             smart_log("Jira format audit failed: %s", exc, level="error",
                       domain="jira", source="JiraAuditBridge")
-            self._workerFailed.emit({"generation": generation, "message": str(exc)[:400]})
+            self._workerFailed.emit({"generation": generation, "kind": "audit"})
+
+    @Slot()
+    def confirmAudit(self) -> None:
+        if self._report is None or self._view["state"] != "awaiting_confirmation":
+            self._set(inputError=self.tr("Complete a Jira audit before confirming it."))
+            return
+        self._set(
+            state="confirmed",
+            inputError="",
+            statusText=self.tr("Jira audit confirmed. Export is ready."),
+        )
+
     @Slot()
     def exportReport(self) -> None:
         if not self._view["canExport"] or self._report is None:
-            self._set(inputError=self.tr("Complete a Jira audit before exporting."))
+            self._set(inputError=self.tr("Confirm the Jira audit before exporting."))
             return
         try:
             location = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation)
@@ -144,6 +177,7 @@ class JiraAuditBridge(QObject):
             self._set(inputError=self.tr("Failed to export the Jira audit workbook."))
             return
         self._set(
+            state="exported",
             exportPath=str(path),
             inputError="",
             statusText=self.tr("Jira audit workbook exported."),
@@ -154,18 +188,16 @@ class JiraAuditBridge(QObject):
         if int(generation) != self._generation:
             return
         stage = str(stage or "")
+        if stage == "auditing":
+            stage = "rule_auditing"
         processed, total = max(0, int(processed or 0)), max(0, int(total or 0))
-        state = stage if stage in {"fetching", "auditing"} else self._view["state"]
+        state = stage if stage in _STAGE_PROGRESS else self._view["state"]
         self._set(
             state=state,
             processedCount=processed,
             totalCount=total,
-            progressValue=min(1.0, processed / total) if total else 0.0,
-            statusText=(
-                self.tr("Fetching Jira issues...")
-                if state == "fetching"
-                else self.tr("Reviewing Jira issue formats...")
-            ),
+            progressValue=_STAGE_PROGRESS.get(state, self._view["progressValue"]),
+            statusText=self._stage_text(state),
         )
     @Slot(object)
     def _on_worker_finished(self, payload: dict[str, Any]) -> None:
@@ -174,17 +206,16 @@ class JiraAuditBridge(QObject):
         report = payload.get("report")
         if not isinstance(report, AuditReport):
             self._on_worker_failed(
-                {"generation": self._generation,
-                 "message": self.tr("The Jira audit returned an invalid result.")}
+                {"generation": self._generation, "kind": "audit"}
             )
             return
         self._report = report
         self._set(
-            state="completed",
+            state="awaiting_confirmation",
             processedCount=max(self._view["processedCount"], report.total_count),
             totalCount=max(self._view["totalCount"], report.total_count),
             progressValue=1.0,
-            statusText=self.tr("Jira format audit completed."),
+            statusText=self.tr("Jira audit completed. Confirm the audit before exporting."),
             inputError="",
             resultSummary={
                 "totalCount": report.total_count,
@@ -193,32 +224,85 @@ class JiraAuditBridge(QObject):
                 "violationCount": report.violation_count,
             },
             violationRows=[
-                dict(asdict(violation), key=issue.key, url=issue.url)
+                {
+                    "rule_id": violation.rule_id,
+                    "section": violation.section,
+                    "field": violation.field,
+                    "reason": violation.reason,
+                    "guidance": violation.guidance,
+                }
                 for issue in report.issues
                 for violation in issue.violations
             ],
+            **self._ai_review_view(report),
         )
     @Slot(object)
     def _on_worker_failed(self, payload: dict[str, Any]) -> None:
         if int(payload.get("generation", -1)) != self._generation:
             return
-        message = self.tr(str(payload.get("message", "") or "Jira audit failed."))
+        message = (
+            self.tr("Jira input is invalid. Enter JQL or a Jira issue, filter, or search URL.")
+            if payload.get("kind") == "input"
+            else self.tr("Jira audit failed. Review the input and sign-in, then try again.")
+        )
         self._set(state="failed", statusText=message, inputError=message)
     @Slot()
     def _on_auth_changed(self) -> None:
-        if self._view["state"] in _BUSY_STATES:
-            self._generation += 1
-            self._set(
-                state="failed",
-                statusText=self.tr("The login changed. Start the Jira audit again."),
-            )
+        self._generation += 1
+        self._report = None
+        self._set(
+            state="failed",
+            statusText=self.tr("The login changed. Start the Jira audit again."),
+            inputError="",
+            progressValue=0.0,
+            processedCount=0,
+            totalCount=0,
+            resultSummary={},
+            violationRows=[],
+            aiReviewStatus="not_required",
+            aiReviewText=self.tr("No AI review was required."),
+            exportPath="",
+        )
+
+    def _stage_text(self, state: str) -> str:
+        texts = {
+            "fetching": self.tr("Fetching Jira issues..."),
+            "rule_auditing": self.tr("Reviewing Jira issue formats..."),
+            "ai_reviewing": self.tr("Reviewing ambiguous results with AI..."),
+            "finalizing": self.tr("Finalizing Jira audit results..."),
+        }
+        return texts.get(state, self._view["statusText"])
+
+    def _ai_review_view(self, report: AuditReport) -> dict[str, str]:
+        statuses = {
+            issue.ai_review_status
+            for issue in report.issues
+            if issue.has_ai_candidates
+        }
+        if not statuses:
+            return {
+                "aiReviewStatus": "not_required",
+                "aiReviewText": self.tr("No AI review was required."),
+            }
+        if any(status.value in {"unconfigured", "failed"} for status in statuses):
+            return {
+                "aiReviewStatus": "fallback",
+                "aiReviewText": self.tr(
+                    "AI review is unavailable. Character-rule results were retained."
+                ),
+            }
+        return {
+            "aiReviewStatus": "completed",
+            "aiReviewText": self.tr("AI review completed."),
+        }
     def _set(self, **changes) -> None:
         state = str(changes.get("state", self._view["state"]))
         self._view = {
             **self._view,
             **changes,
             "canStart": state not in _BUSY_STATES,
-            "canExport": state == "completed" and self._report is not None,
+            "canConfirm": state == "awaiting_confirmation" and self._report is not None,
+            "canExport": state in {"confirmed", "exported"} and self._report is not None,
         }
         self.viewStateChanged.emit()
     viewState = Property("QVariantMap", lambda self: self._view, notify=viewStateChanged)

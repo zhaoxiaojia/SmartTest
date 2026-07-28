@@ -151,9 +151,11 @@ class Redmine(QObject):
     def cancelLogin(self): pass
 class JiraAudit(QObject):
     changed = Signal()
-    viewState = Property("QVariantMap", lambda self: {{"state":"idle","statusText":"","inputError":"","progressValue":0.0,"processedCount":0,"totalCount":0,"ruleRows":[],"resultSummary":{{}},"violationRows":[],"exportPath":"","canStart":True,"canExport":False}}, notify=changed)
+    viewState = Property("QVariantMap", lambda self: {{"state":"idle","statusText":"","inputError":"","progressValue":0.0,"processedCount":0,"totalCount":0,"ruleRows":[],"resultSummary":{{}},"violationRows":[],"aiReviewText":"","exportPath":"","canStart":True,"canConfirm":False,"canExport":False}}, notify=changed)
     @Slot(str)
     def startAudit(self, _text): pass
+    @Slot()
+    def confirmAudit(self): pass
     @Slot()
     def exportReport(self): pass
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
@@ -395,6 +397,20 @@ def test_tool_navigation_and_page_layout_contract():
     assert "AuthBridge.productLines" not in page
     assert "AuthBridge.displayName" not in page
     assert "selectedToolIndex = model.index" not in page
+
+
+def test_jira_audit_workspace_keeps_confirmation_and_export_gates_in_the_bridge():
+    workspace = (
+        ROOT / "ui/example/imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml"
+    ).read_text(encoding="utf-8")
+
+    assert "JiraAuditBridge.confirmAudit()" in workspace
+    assert "JiraAuditBridge.exportReport()" in workspace
+    assert "disabled: !root.view.canConfirm" in workspace
+    assert "disabled: !root.view.canExport" in workspace
+    assert "disabled: root.view.exportPath.length === 0" in workspace
+    assert 'qsTr("Confirm Audit")' in workspace
+    assert 'qsTr("AI Review")' in workspace
 
 
 def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():

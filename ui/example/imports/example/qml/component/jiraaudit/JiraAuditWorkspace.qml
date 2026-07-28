@@ -120,7 +120,7 @@ Item {
             }
 
             AuditSection {
-                visible: root.view.state === "completed"
+                visible: ["awaiting_confirmation", "confirmed", "exported"].indexOf(root.view.state) >= 0
 
                 SectionTitle { text: qsTr("Results") }
                 RowLayout {
@@ -137,6 +137,14 @@ Item {
                     text: qsTr("No violations were found.")
                     color: FluTheme.fontSecondaryColor
                 }
+                RowLayout {
+                    Layout.fillWidth: true
+                    FluText {
+                        text: qsTr("AI Review") + ": " + root.view.aiReviewText
+                        color: FluTheme.fontSecondaryColor
+                    }
+                    Item { Layout.fillWidth: true }
+                }
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 6
@@ -147,8 +155,7 @@ Item {
                         DetailCard {
                             required property var modelData
                             WrappedText {
-                                text: modelData.key + " · " + modelData.rule_id
-                                      + " · " + modelData.field
+                                text: modelData.rule_id + " · " + modelData.field
                                 font: FluTextStyle.BodyStrong
                             }
                             WrappedText { text: modelData.reason }
@@ -161,6 +168,11 @@ Item {
             AuditSection {
                 RowLayout {
                     Layout.fillWidth: true
+                    FluFilledButton {
+                        text: qsTr("Confirm Audit")
+                        disabled: !root.view.canConfirm
+                        onClicked: JiraAuditBridge.confirmAudit()
+                    }
                     FluFilledButton {
                         text: qsTr("Export XLSX")
                         disabled: !root.view.canExport
