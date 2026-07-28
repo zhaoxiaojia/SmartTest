@@ -2,6 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
+
+
+class AIReviewStatus(str, Enum):
+    NOT_REQUIRED = "not_required"
+    COMPLETED = "completed"
+    UNCONFIGURED = "unconfigured"
+    FAILED = "failed"
 
 
 @dataclass(frozen=True)
@@ -31,6 +39,11 @@ class IssueAuditResult:
     reporter: str
     passed: bool
     violations: tuple[AuditViolation, ...]
+    has_ai_candidates: bool = False
+    ai_review_status: AIReviewStatus = AIReviewStatus.NOT_REQUIRED
+    ai_failure_category: str | None = None
+    ai_passed_count: int = 0
+    ai_failed_count: int = 0
 
 
 @dataclass(frozen=True)

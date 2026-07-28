@@ -13,6 +13,15 @@ ALLOWED_MODULES = tuple(
      "MS12|DV|NTS|Primevideo").split("|")
 )
 MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+AI_REVIEWABLE_RULE_IDS = frozenset(
+    {
+        "SUMMARY.PROBABILITY",
+        "DESCRIPTION.RATE_FORMAT",
+        "DESCRIPTION.COMPARISON",
+        "DESCRIPTION.NOTES_HW",
+        "DESCRIPTION.NOTES_SW",
+    }
+)
 
 _RULE_DATA = (
     ("SUMMARY.FORMAT", "Summary", "summary", "Summary 必须包含 4–6 个方括号分组，最后四组依次为客户、CHIP、系统版本和模块，随后填写英文问题描述与复现概率。", "使用“[客户][CHIP][版本][模块]: 英文问题描述,复现概率”；前面可选增加公共 Jira ID 和客户 Bug ID。"),
@@ -30,27 +39,105 @@ _RULE_DATA = (
     ("DESCRIPTION.ACTUAL_RESULTS", "Description", "description.actual_results", "Description 必须包含非空的 Actual results。", "补充实际发生的结果。"),
     ("DESCRIPTION.EXPECTED_RESULTS", "Description", "description.expected_results", "Description 必须包含非空的 Expected results。", "补充预期结果。"),
     ("DESCRIPTION.REPRODUCIBILITY_RATE", "Description", "description.reproducibility_rate", "Description 必须包含非空的 Reproducibility rate。", "补充百分比或分数形式的复现概率。"),
-    ("DESCRIPTION.COMPARISION", "Description", "description.comparision", "Description 必须包含非空的 Comparision。", "补充版本或平台对比信息。"),
+    ("DESCRIPTION.COMPARISON", "Description", "description.comparison", "Description 必须包含非空的 Comparison。", "补充版本或平台对比信息。"),
     ("DESCRIPTION.NOTES", "Description", "description.notes", "Description 必须包含非空的 Notes。", "补充包含软硬件信息的备注。"),
     ("DESCRIPTION.STEPS_ORDERED", "Description", "description.steps_to_reproduce", "复现步骤必须从 1 开始连续编号，且每一步包含可执行动作。", "按顺序重写为完整的编号步骤。"),
     ("DESCRIPTION.RATE_FORMAT", "Description", "description.reproducibility_rate", "Description 中的复现概率必须是百分比或分数。", "使用 50% 或 1/2 等格式。"),
     ("DESCRIPTION.NOTES_HW", "Description", "description.notes", "Notes 必须包含已填写的“HW info: ...”。", "在 Notes 中补充 HW info。"),
     ("DESCRIPTION.NOTES_SW", "Description", "description.notes", "Notes 必须包含已填写的“SW info: ...”。", "在 Notes 中补充 SW info。"),
-    ("REGRESSION.EVIDENCE", "Regression", "description.comparision", "Regression 问题必须同时说明旧版本正常和当前版本异常。", "在 Comparision 中补充旧版本正常与当前版本异常的对照证据。"),
+    ("REGRESSION.EVIDENCE", "Regression", "description.comparison", "Regression 问题必须同时说明旧版本正常和当前版本异常。", "在 Comparison 中补充旧版本正常与当前版本异常的对照证据。"),
     ("ATTACHMENT.MAX_SIZE", "Attachment", "attachment", "单个附件不得超过 10 MiB。", "压缩、拆分附件或改用链接。"),
 )
 _RULES = tuple(AuditRule(*row) for row in _RULE_DATA)
 
-_SUMMARY_PATTERN = re.compile(r"((?:\[[^\]\r\n]+\]){4,6}):\s*(.+),\s*([^,]+)\.?")
+_SUMMARY_STRUCTURE = re.compile(
+    r"((?:\[[^\]\r\n]*\]){4,6})\s*[:：]\s*(.+)"
+)
+_SUMMARY_RATE_AT_END = re.compile(
+    r"(?P<rate>(?:100|\d{1,2})(?:\.\d+)?%|\d+\s*/\s*\d+)"
+    r"\s*[.。]?\s*$"
+)
 _DESCRIPTION_RULES = (
     ("steps to reproduce", "DESCRIPTION.STEPS_TO_REPRODUCE"),
     ("actual results", "DESCRIPTION.ACTUAL_RESULTS"),
     ("expected results", "DESCRIPTION.EXPECTED_RESULTS"),
     ("reproducibility rate", "DESCRIPTION.REPRODUCIBILITY_RATE"),
-    ("comparision", "DESCRIPTION.COMPARISION"),
+    ("comparison", "DESCRIPTION.COMPARISON"),
     ("notes", "DESCRIPTION.NOTES"),
 )
-_DESCRIPTION_HEADINGS = {name for name, _rule_id in _DESCRIPTION_RULES}
+_DESCRIPTION_SECTION_ALIASES = {
+    "steps to reproduce": (
+        "Steps to reproduce",
+        "Reproduction steps",
+        "Test steps",
+        "操作步骤",
+        "复现步骤",
+        "测试步骤",
+    ),
+    "actual results": (
+        "Actual result",
+        "Actual results",
+        "Observed result",
+        "Observed results",
+        "实际结果",
+        "实际现象",
+        "问题现象",
+    ),
+    "expected results": (
+        "Expected result",
+        "Expected results",
+        "Expected behavior",
+        "Expected behaviour",
+        "预期结果",
+        "预期现象",
+    ),
+    "reproducibility rate": (
+        "Reproducibility rate",
+        "Reproduction rate",
+        "Occurrence rate",
+        "复现概率",
+        "复现率",
+        "出现概率",
+    ),
+    "comparison": (
+        "Comparision",
+        "Compare info",
+        "Comparison",
+        "Comparison info",
+        "Version comparison",
+        "Third Comparison",
+        "Third-party Comparison",
+        "Third party comparison",
+        "对比信息",
+        "版本对比",
+        "第三方对比",
+    ),
+    "notes": (
+        "Note",
+        "Notes",
+        "Remark",
+        "Remarks",
+        "Additional information",
+        "备注",
+        "补充信息",
+    ),
+}
+_NOTES_INFO_ALIASES = {
+    "hw": (
+        "HW info",
+        "HW information",
+        "Hardware info",
+        "Hardware information",
+        "硬件信息",
+    ),
+    "sw": (
+        "SW info",
+        "SW information",
+        "Software info",
+        "Software information",
+        "软件信息",
+    ),
+}
 _Failure = Callable[[str, Any, str], None]
 
 
@@ -92,7 +179,7 @@ def audit_issue(
     _audit_summary(normalized.summary, fail)
     _audit_components(normalized.components, fail)
     sections = _audit_description(normalized.description, fail)
-    _audit_regression(normalized.labels, sections.get("comparision", ""), fail)
+    _audit_regression(normalized.labels, sections.get("comparison", ""), fail)
     for filename, size in normalized.attachments:
         if size > MAX_ATTACHMENT_BYTES:
             fail(
@@ -104,7 +191,41 @@ def audit_issue(
     return IssueAuditResult(
         normalized.key, normalized.url, normalized.summary,
         normalized.reporter, not violations, tuple(violations),
+        bool(_ai_reviewable_violations(violations)),
     )
+
+
+def ai_reviewable_violations(
+    result: IssueAuditResult,
+) -> tuple[AuditViolation, ...]:
+    return _ai_reviewable_violations(result.violations)
+
+
+def _ai_reviewable_violations(
+    violations: Sequence[AuditViolation],
+) -> tuple[AuditViolation, ...]:
+    return tuple(
+        violation
+        for violation in violations
+        if _is_ai_reviewable_violation(violation)
+    )
+
+
+def _is_ai_reviewable_violation(violation: AuditViolation) -> bool:
+    if violation.rule_id not in AI_REVIEWABLE_RULE_IDS:
+        return False
+    if violation.rule_id in {
+        "SUMMARY.PROBABILITY",
+        "DESCRIPTION.RATE_FORMAT",
+    }:
+        return True
+    aliases = {
+        "DESCRIPTION.COMPARISON": _DESCRIPTION_SECTION_ALIASES["comparison"],
+        "DESCRIPTION.NOTES_HW": _NOTES_INFO_ALIASES["hw"],
+        "DESCRIPTION.NOTES_SW": _NOTES_INFO_ALIASES["sw"],
+    }[violation.rule_id]
+    observed = violation.observed.casefold()
+    return any(alias.casefold() in observed for alias in aliases)
 
 
 def _normalize_issue(issue: dict[str, Any], base_url: str) -> _Issue:
@@ -147,7 +268,7 @@ def _normalize_issue(issue: dict[str, Any], base_url: str) -> _Issue:
 
 
 def _audit_summary(summary: str, fail: _Failure) -> None:
-    match = _SUMMARY_PATTERN.fullmatch(summary)
+    match = _SUMMARY_STRUCTURE.fullmatch(summary.strip())
     if not match:
         fail(
             "SUMMARY.FORMAT",
@@ -156,9 +277,19 @@ def _audit_summary(summary: str, fail: _Failure) -> None:
         )
         return
 
-    groups = [item.strip() for item in re.findall(r"\[([^\]]+)\]", match.group(1))]
+    groups = [item.strip() for item in re.findall(r"\[([^\]]*)\]", match.group(1))]
     customer, chip, version, module = groups[-4:]
-    description, probability = match.group(2).strip(), match.group(3).strip()
+    body = match.group(2).strip()
+    rate_match = _SUMMARY_RATE_AT_END.search(body)
+    probability = rate_match.group("rate").strip() if rate_match else ""
+    description = (
+        body[:rate_match.start()].rstrip().rstrip(",，").rstrip()
+        if rate_match
+        else body.rstrip(",，").rstrip()
+    )
+    if not description:
+        fail("SUMMARY.FORMAT", summary, "Summary 的问题描述为空。")
+        return
     for rule_id, value, reason in (
         ("SUMMARY.CUSTOMER", customer, "客户名称为空。"),
         ("SUMMARY.CHIP", chip, "CHIP 为空。"),
@@ -221,12 +352,12 @@ def _audit_description(description: str, fail: _Failure) -> dict[str, str]:
             f"Description 中的复现概率“{rate[0].strip()}”格式无效。",
         )
     notes = sections.get("notes", "")
-    for marker, rule_id, label in (
-        ("HW info", "DESCRIPTION.NOTES_HW", "硬件"),
-        ("SW info", "DESCRIPTION.NOTES_SW", "软件"),
+    for info_kind, rule_id, label in (
+        ("hw", "DESCRIPTION.NOTES_HW", "硬件"),
+        ("sw", "DESCRIPTION.NOTES_SW", "软件"),
     ):
-        pattern = rf"(?im)^[^\S\r\n]*{re.escape(marker)}[^\S\r\n]*:[^\S\r\n]*\S"
-        if not re.search(pattern, notes):
+        if not _notes_have_info(notes, info_kind):
+            marker = "HW info" if info_kind == "hw" else "SW info"
             fail(rule_id, notes, f"Notes 缺少已填写的{label}信息“{marker}: ...”。")
     return sections
 
@@ -258,16 +389,72 @@ def _audit_regression(
 def _description_sections(description: str) -> dict[str, str]:
     sections: dict[str, list[str]] = {}
     current = ""
+    aliases = {
+        _normalize_label(alias): section
+        for section, section_aliases in _DESCRIPTION_SECTION_ALIASES.items()
+        for alias in section_aliases
+    }
     for line in description.splitlines():
-        cleaned = re.sub(r"^\s*#+\s*", "", line).strip()
-        bracket = re.fullmatch(r"\[([^]]+)\]\s*:\s*", cleaned)
-        heading = (bracket.group(1) if bracket else cleaned.rstrip(":")).strip().casefold()
-        if heading in _DESCRIPTION_HEADINGS:
-            current = heading
+        labeled = _split_labeled_line(line)
+        section = aliases.get(labeled[0]) if labeled else None
+        if section:
+            current = section
             sections.setdefault(current, [])
+            if labeled and labeled[1]:
+                sections[current].append(labeled[1])
         elif current:
             sections[current].append(line)
     return {key: "\n".join(lines).strip() for key, lines in sections.items()}
+
+
+def _notes_have_info(notes: str, info_kind: str) -> bool:
+    aliases = {
+        _normalize_label(alias)
+        for alias in _NOTES_INFO_ALIASES.get(info_kind, ())
+    }
+    known_labels = {
+        _normalize_label(alias)
+        for alias_group in (
+            *_DESCRIPTION_SECTION_ALIASES.values(),
+            *_NOTES_INFO_ALIASES.values(),
+        )
+        for alias in alias_group
+    }
+    lines = notes.splitlines()
+    for index, line in enumerate(lines):
+        labeled = _split_labeled_line(line)
+        if not labeled or labeled[0] not in aliases:
+            continue
+        if labeled[1]:
+            return True
+        for following in lines[index + 1:]:
+            if not following.strip():
+                continue
+            following_label = _split_labeled_line(following)
+            return not following_label or following_label[0] not in known_labels
+    return False
+
+
+def _split_labeled_line(line: str) -> tuple[str, str] | None:
+    cleaned = re.sub(r"^\s*#+\s*", "", line).strip()
+    cleaned = re.sub(r"^[*_]{1,3}\s*", "", cleaned)
+    cleaned = cleaned.replace("\uFF1A", ":")
+    cleaned = re.sub(r"(?<=\])[*_]{1,3}(?=:)", "", cleaned)
+    bracket = re.fullmatch(r"\[([^]]+)\]\s*(?::\s*[*_]{0,3}\s*(.*))?", cleaned)
+    if bracket:
+        return (
+            _normalize_label(bracket.group(1)),
+            (bracket.group(2) or "").strip("*_ "),
+        )
+    labeled = re.fullmatch(r"([^:]+?)\s*:\s*[*_]{0,3}\s*(.*)", cleaned)
+    if labeled:
+        return _normalize_label(labeled.group(1)), labeled.group(2).strip("*_ ")
+    standalone = _normalize_label(cleaned)
+    return (standalone, "") if standalone else None
+
+
+def _normalize_label(value: str) -> str:
+    return " ".join(value.strip().strip("*_").split()).casefold()
 
 
 def _valid_rate(value: str) -> bool:

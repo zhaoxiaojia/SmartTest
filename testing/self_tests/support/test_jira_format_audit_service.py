@@ -1,0 +1,309 @@
+from __future__ import annotations
+
+import json
+import re
+
+import pytest
+
+from support.ai import (
+    AIChatResponse,
+    AIConfigurationError,
+    AIResponseError,
+    AITransportError,
+)
+from support.jira_integration.audit import (
+    AIReviewStatus,
+    JiraAuditService,
+    ResolvedAuditInput,
+)
+from support.jira_integration.core.models import SearchPage
+
+
+def _description(
+    *,
+    actual="Video freezes.",
+    rate="2/2",
+    comparison="Previous version V1.0 is normal; current version V1.1 is broken.",
+    notes="HW info: T7 reference board\nSW info: V1.1",
+):
+    values = (
+        ("Steps to reproduce", "1. Start playback.\n2. Seek to 00:30."),
+        ("Actual results", actual),
+        ("Expected results", "Playback continues."),
+        ("Reproducibility rate", rate),
+        ("Comparison", comparison),
+        ("Notes", notes),
+    )
+    return "\n".join(f"[{heading}]:\n{value}" for heading, value in values)
+
+
+def _issue(
+    key="SH-123",
+    *,
+    summary="[ACME][T7][V1.1][Video]: Video freezes after seeking,2/2",
+    description=None,
+):
+    return {
+        "key": key,
+        "fields": {
+            "summary": summary,
+            "description": _description() if description is None else description,
+            "reporter": {"displayName": "Coco"},
+            "components": [{"name": "Video"}],
+            "labels": [],
+            "attachment": [],
+        },
+    }
+
+
+class JiraClient:
+    def __init__(self, issues):
+        self._issues = list(issues)
+
+    def search_page(self, _jql, **kwargs):
+        return SearchPage(
+            self._issues,
+            kwargs.get("start_at", 0),
+            len(self._issues),
+            len(self._issues),
+            True,
+        )
+
+
+class AIClient:
+    def __init__(self, responses):
+        self.responses = dict(responses)
+        self.requests = []
+
+    def chat_completion(self, messages, **kwargs):
+        self.requests.append((messages, kwargs))
+        content = messages[-1].content
+        issue_key = re.search(r'"issue_key":\s*"([^"]+)"', content).group(1)
+        response = self.responses[issue_key]
+        if isinstance(response, BaseException):
+            raise response
+        return AIChatResponse(content=response, model="test-model")
+
+
+def _run(issues, factory, progress=None):
+    return JiraAuditService(
+        JiraClient(issues),
+        base_url="https://jira.example.com",
+        ai_client_factory=factory,
+    ).run(
+        ResolvedAuditInput("jql", "project = SH", "project = SH"),
+        progress or (lambda *_value: None),
+    )
+
+
+def _review(issue_key, *decisions):
+    return json.dumps(
+        {
+            "issue_key": issue_key,
+            "decisions": [
+                {
+                    "rule_id": rule_id,
+                    "result": result,
+                    "reason": reason,
+                    "guidance": guidance,
+                }
+                for rule_id, result, reason, guidance in decisions
+            ],
+        }
+    )
+
+
+def test_one_jira_with_multiple_candidates_uses_one_ai_request_and_merges_results():
+    client = AIClient(
+        {
+            "SH-1": _review(
+                "SH-1",
+                ("SUMMARY.PROBABILITY", "PASS", "", ""),
+                (
+                    "DESCRIPTION.RATE_FORMAT",
+                    "FAIL",
+                    "原文没有明确量化复现概率。",
+                    "补充百分比或分数。",
+                ),
+            )
+        }
+    )
+    issue = _issue(
+        "SH-1",
+        summary="[ACME][T7][V1.1][Video]: Video freezes,often",
+        description=_description(rate="intermittent"),
+    )
+
+    result = _run([issue], lambda: client).issues[0]
+
+    assert len(client.requests) == 1
+    assert result.ai_review_status is AIReviewStatus.COMPLETED
+    assert result.ai_passed_count == 1
+    assert result.ai_failed_count == 1
+    assert [item.rule_id for item in result.violations] == [
+        "DESCRIPTION.RATE_FORMAT"
+    ]
+    assert result.violations[0].reason == "原文没有明确量化复现概率。"
+    assert result.violations[0].guidance == "补充百分比或分数。"
+
+
+def test_hard_violation_does_not_create_ai_client():
+    created = []
+    issue = _issue("SH-1", description=_description(actual=""))
+
+    report = _run([issue], lambda: created.append(True))
+
+    assert not created
+    assert report.issues[0].ai_review_status is AIReviewStatus.NOT_REQUIRED
+    assert {item.rule_id for item in report.issues[0].violations} == {
+        "DESCRIPTION.ACTUAL_RESULTS"
+    }
+
+
+def test_unconfigured_ai_retains_initial_violation_with_sanitized_status():
+    issue = _issue(
+        "SH-1",
+        summary="[ACME][T7][V1.1][Video]: Video freezes,often",
+    )
+
+    result = _run(
+        [issue],
+        lambda: (_ for _ in ()).throw(
+            AIConfigurationError("secret key must not be reported")
+        ),
+    ).issues[0]
+
+    assert result.ai_review_status is AIReviewStatus.UNCONFIGURED
+    assert result.ai_failure_category == "configuration"
+    assert [item.rule_id for item in result.violations] == [
+        "SUMMARY.PROBABILITY"
+    ]
+    assert "secret" not in repr(result)
+
+
+@pytest.mark.parametrize(
+    ("failure", "category"),
+    (
+        (TimeoutError("private timeout detail"), "timeout"),
+        (
+            AITransportError(
+                "private transport detail", category="connectionreseterror"
+            ),
+            "transport",
+        ),
+        (AIResponseError("private response detail"), "invalid_response"),
+    ),
+)
+def test_ai_failure_retains_initial_violation_and_reports_sanitized_category(
+    failure, category
+):
+    issue = _issue(
+        "SH-1",
+        summary="[ACME][T7][V1.1][Video]: Video freezes,often",
+    )
+    client = AIClient({"SH-1": failure})
+
+    result = _run([issue], lambda: client).issues[0]
+
+    assert result.ai_review_status is AIReviewStatus.FAILED
+    assert result.ai_failure_category == category
+    assert [item.rule_id for item in result.violations] == [
+        "SUMMARY.PROBABILITY"
+    ]
+    assert "private" not in repr(result)
+
+
+@pytest.mark.parametrize(
+    "response",
+    (
+        "",
+        "{}",
+        _review(
+            "OTHER-1",
+            ("SUMMARY.PROBABILITY", "PASS", "", ""),
+        ),
+        _review("SH-1"),
+        _review(
+            "SH-1",
+            ("SUMMARY.PROBABILITY", "PASS", "", ""),
+            ("SUMMARY.PROBABILITY", "PASS", "", ""),
+        ),
+        _review(
+            "SH-1",
+            ("SUMMARY.PROBABILITY", "MAYBE", "", ""),
+        ),
+        _review(
+            "SH-1",
+            ("SUMMARY.PROBABILITY", "FAIL", "", "补充概率。"),
+        ),
+    ),
+)
+def test_invalid_ai_decision_payload_degrades_without_changing_violations(response):
+    issue = _issue(
+        "SH-1",
+        summary="[ACME][T7][V1.1][Video]: Video freezes,often",
+    )
+
+    result = _run([issue], lambda: AIClient({"SH-1": response})).issues[0]
+
+    assert result.ai_review_status is AIReviewStatus.FAILED
+    assert result.ai_failure_category == "invalid_response"
+    assert [item.rule_id for item in result.violations] == [
+        "SUMMARY.PROBABILITY"
+    ]
+
+
+def test_one_failed_jira_does_not_prevent_other_ai_reviews():
+    client = AIClient(
+        {
+            "SH-1": "{}",
+            "SH-2": _review(
+                "SH-2",
+                ("SUMMARY.PROBABILITY", "PASS", "", ""),
+            ),
+        }
+    )
+    issues = [
+        _issue(
+            key,
+            summary=f"[ACME][T7][V1.1][Video]: Video freezes {key},often",
+        )
+        for key in ("SH-1", "SH-2")
+    ]
+
+    report = _run(issues, lambda: client)
+
+    assert [item.ai_review_status for item in report.issues] == [
+        AIReviewStatus.FAILED,
+        AIReviewStatus.COMPLETED,
+    ]
+    assert [item.passed for item in report.issues] == [False, True]
+
+
+def test_progress_uses_candidate_issue_count_for_ai_stage():
+    progress = []
+    client = AIClient(
+        {
+            "SH-2": _review(
+                "SH-2",
+                ("SUMMARY.PROBABILITY", "PASS", "", ""),
+            )
+        }
+    )
+    issues = [
+        _issue("SH-1"),
+        _issue(
+            "SH-2",
+            summary="[ACME][T7][V1.1][Video]: Video freezes,often",
+        ),
+    ]
+
+    _run(issues, lambda: client, lambda *value: progress.append(value))
+
+    assert progress == [
+        ("fetching", 2, 2),
+        ("rule_auditing", 1, 2),
+        ("rule_auditing", 2, 2),
+        ("ai_reviewing", 1, 1),
+        ("finalizing", 2, 2),
+    ]

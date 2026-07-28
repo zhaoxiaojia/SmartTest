@@ -2,7 +2,12 @@
 
 from .exporter import export_audit_xlsx
 from .models import (
-    AuditReport, AuditRule, AuditViolation, IssueAuditResult, ResolvedAuditInput,
+    AIReviewStatus,
+    AuditReport,
+    AuditRule,
+    AuditViolation,
+    IssueAuditResult,
+    ResolvedAuditInput,
 )
 from .rules import active_rules, audit_issue
 from .service import JiraAuditService, resolve_audit_input

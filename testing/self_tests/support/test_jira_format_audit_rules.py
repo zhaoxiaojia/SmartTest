@@ -25,7 +25,7 @@ RULE_IDS = tuple(
     SUMMARY.DESCRIPTION_ENGLISH SUMMARY.PROBABILITY COMPONENT.REQUIRED
     COMPONENT.ALLOWED DESCRIPTION.STEPS_TO_REPRODUCE DESCRIPTION.ACTUAL_RESULTS
     DESCRIPTION.EXPECTED_RESULTS DESCRIPTION.REPRODUCIBILITY_RATE
-    DESCRIPTION.COMPARISION DESCRIPTION.NOTES DESCRIPTION.STEPS_ORDERED
+    DESCRIPTION.COMPARISON DESCRIPTION.NOTES DESCRIPTION.STEPS_ORDERED
     DESCRIPTION.RATE_FORMAT DESCRIPTION.NOTES_HW DESCRIPTION.NOTES_SW
     REGRESSION.EVIDENCE ATTACHMENT.MAX_SIZE
     """.split()
@@ -130,7 +130,7 @@ EMPTY_DESCRIPTION = _description(
                 "DESCRIPTION.ACTUAL_RESULTS",
                 "DESCRIPTION.EXPECTED_RESULTS",
                 "DESCRIPTION.REPRODUCIBILITY_RATE",
-                "DESCRIPTION.COMPARISION",
+                "DESCRIPTION.COMPARISON",
                 "DESCRIPTION.NOTES",
                 "DESCRIPTION.NOTES_HW",
                 "DESCRIPTION.NOTES_SW",
@@ -160,6 +160,66 @@ EMPTY_DESCRIPTION = _description(
 )
 def test_rule_failure_matrix(changes, expected):
     assert expected <= _violations(**changes)
+
+
+def test_only_declared_ambiguous_violations_become_ai_candidates():
+    hard_failure = audit_issue(
+        _issue(description=_description(actual="")),
+        base_url="https://jira.example.com",
+    )
+    fuzzy_failures = (
+        audit_issue(
+            _issue(
+                summary="[ACME][T7][V1.1][Video]: Video freezes,often",
+                labels=(),
+            ),
+            base_url="https://jira.example.com",
+        ),
+        audit_issue(
+            _issue(
+                summary=(
+                    "[ACME][T7][V1.1][Video]: "
+                    "Video freezes every few runs"
+                ),
+                labels=(),
+            ),
+            base_url="https://jira.example.com",
+        ),
+        audit_issue(
+            _issue(description=_description(rate="intermittent"), labels=()),
+            base_url="https://jira.example.com",
+        ),
+        audit_issue(
+            _issue(description=_description(comparison=""), labels=()),
+            base_url="https://jira.example.com",
+        ),
+        audit_issue(
+            _issue(
+                description=_description(
+                    notes="Hardware information:\nSoftware information: V1.1"
+                ),
+                labels=(),
+            ),
+            base_url="https://jira.example.com",
+        ),
+        audit_issue(
+            _issue(
+                description=_description(notes="HW info: T7\nSW info:"),
+                labels=(),
+            ),
+            base_url="https://jira.example.com",
+        ),
+    )
+
+    assert not hard_failure.has_ai_candidates
+    assert [result.has_ai_candidates for result in fuzzy_failures] == [
+        True,
+        True,
+        True,
+        True,
+        True,
+        True,
+    ]
 
 
 @dataclass
@@ -220,7 +280,7 @@ def test_rejects_empty_external_or_invalid_jira_input():
                             client=FakeClient(error=RuntimeError("invalid")))
 
 
-def test_service_paginates_and_reports_fetch_and_audit_progress():
+def test_service_paginates_and_reports_stable_progress_stages():
     client = FakeClient(
         pages=[
             SearchPage([_issue("SH-1"), _issue("SH-2")], 0, 2, 3, False),
@@ -239,9 +299,11 @@ def test_service_paginates_and_reports_fetch_and_audit_progress():
     assert progress == [
         ("fetching", 2, 3),
         ("fetching", 3, 3),
-        ("auditing", 1, 3),
-        ("auditing", 2, 3),
-        ("auditing", 3, 3),
+        ("rule_auditing", 1, 3),
+        ("rule_auditing", 2, 3),
+        ("rule_auditing", 3, 3),
+        ("ai_reviewing", 0, 0),
+        ("finalizing", 3, 3),
     ]
 
 

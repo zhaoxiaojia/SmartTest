@@ -1,13 +1,30 @@
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import datetime
 from typing import Protocol
 from urllib.parse import parse_qs, urlsplit
 
-from .models import AuditReport, ResolvedAuditInput
-from .rules import active_rules, audit_issue
+from support.ai import (
+    AIChatClient,
+    AIChatMessage,
+    AIConfigurationError,
+    AIResponseError,
+    AITransportError,
+    create_chat_client,
+)
+
+from .models import (
+    AIReviewStatus,
+    AuditReport,
+    AuditViolation,
+    IssueAuditResult,
+    ResolvedAuditInput,
+)
+from .rules import active_rules, ai_reviewable_violations, audit_issue
 
 
 _URL = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
@@ -86,9 +103,16 @@ def _resolve_url(
 
 
 class JiraAuditService:
-    def __init__(self, client: _AuditClient, *, base_url: str):
+    def __init__(
+        self,
+        client: _AuditClient,
+        *,
+        base_url: str,
+        ai_client_factory: Callable[[], AIChatClient] = create_chat_client,
+    ):
         self._client = client
         self._base_url = str(base_url or "").rstrip("/")
+        self._ai_client_factory = ai_client_factory
 
     def run(
         self, resolved: ResolvedAuditInput, progress: Callable[[str, int, int], None]
@@ -111,10 +135,222 @@ class JiraAuditService:
         results = []
         for index, issue in enumerate(raw_issues, 1):
             results.append(audit_issue(issue, base_url=self._base_url))
-            progress("auditing", index, len(raw_issues))
+            progress("rule_auditing", index, len(raw_issues))
+
+        candidate_indexes = [
+            index for index, result in enumerate(results)
+            if result.has_ai_candidates
+        ]
+        if not candidate_indexes:
+            progress("ai_reviewing", 0, 0)
+        else:
+            results = self._review_candidates(
+                results,
+                candidate_indexes,
+                progress,
+            )
+        progress("finalizing", len(results), len(results))
         return AuditReport(
             resolved,
             datetime.now(),
             active_rules(),
             tuple(results),
         )
+
+    def _review_candidates(
+        self,
+        results: list[IssueAuditResult],
+        candidate_indexes: list[int],
+        progress: Callable[[str, int, int], None],
+    ) -> list[IssueAuditResult]:
+        try:
+            ai_client = self._ai_client_factory()
+        except AIConfigurationError:
+            failure = (AIReviewStatus.UNCONFIGURED, "configuration")
+        except Exception:
+            failure = (AIReviewStatus.FAILED, "unexpected")
+        else:
+            for completed, index in enumerate(candidate_indexes, 1):
+                results[index] = _review_issue(results[index], ai_client)
+                progress("ai_reviewing", completed, len(candidate_indexes))
+            return results
+
+        for completed, index in enumerate(candidate_indexes, 1):
+            results[index] = _review_failure(results[index], *failure)
+            progress("ai_reviewing", completed, len(candidate_indexes))
+        return results
+
+
+def _review_issue(
+    result: IssueAuditResult,
+    client: AIChatClient,
+) -> IssueAuditResult:
+    candidates = ai_reviewable_violations(result)
+    try:
+        response = client.chat_completion(
+            [
+                AIChatMessage(
+                    "system",
+                    "只输出 Jira 模糊边界复核 JSON，不展示推理过程。",
+                ),
+                AIChatMessage("user", _review_prompt(result, candidates)),
+            ],
+            response_format={"type": "json_object"},
+            temperature=0,
+            max_tokens=1800,
+        )
+        decisions = _parse_review_response(
+            str(response.content or ""),
+            issue_key=result.key,
+            requested_rule_ids={item.rule_id for item in candidates},
+        )
+    except AIConfigurationError:
+        return _review_failure(
+            result,
+            AIReviewStatus.UNCONFIGURED,
+            "configuration",
+        )
+    except TimeoutError:
+        return _review_failure(result, AIReviewStatus.FAILED, "timeout")
+    except AITransportError as exc:
+        category = "timeout" if exc.category == "timeout" else "transport"
+        return _review_failure(result, AIReviewStatus.FAILED, category)
+    except AIResponseError:
+        return _review_failure(
+            result,
+            AIReviewStatus.FAILED,
+            "invalid_response",
+        )
+    except (TypeError, ValueError):
+        return _review_failure(
+            result,
+            AIReviewStatus.FAILED,
+            "invalid_response",
+        )
+    except Exception:
+        return _review_failure(result, AIReviewStatus.FAILED, "unexpected")
+    return _merge_review(result, candidates, decisions)
+
+
+def _review_prompt(
+    result: IssueAuditResult,
+    candidates: tuple[AuditViolation, ...],
+) -> str:
+    rules_by_id = {rule.rule_id: rule for rule in active_rules()}
+    payload = {
+        "issue_key": result.key,
+        "summary": result.summary,
+        "violations": [
+            {
+                "rule_id": item.rule_id,
+                "field": item.field,
+                "observed": item.observed,
+                "requirement": rules_by_id[item.rule_id].requirement,
+                "initial_reason": item.reason,
+            }
+            for item in candidates
+        ],
+    }
+    return (
+        "你只复核输入中字符规则无法确定的 Jira 模糊边界，不新增任何规则。"
+        "人类能够清楚理解且语义满足规范时判定 PASS；确实缺少必需信息时判定 FAIL。"
+        "返回一个 JSON 对象，issue_key 必须与输入相同；decisions 必须为每个输入规则"
+        "返回且只返回一次。每项包含 rule_id、result（PASS 或 FAIL）、reason 和 guidance；"
+        "FAIL 必须提供非空 reason。\n"
+        + json.dumps(payload, ensure_ascii=False)
+    )
+
+
+def _parse_review_response(
+    content: str,
+    *,
+    issue_key: str,
+    requested_rule_ids: set[str],
+) -> dict[str, dict[str, str]]:
+    try:
+        payload = json.loads(content.strip())
+    except (json.JSONDecodeError, TypeError):
+        raise ValueError("invalid AI JSON") from None
+    if not isinstance(payload, dict) or payload.get("issue_key") != issue_key:
+        raise ValueError("invalid AI issue key")
+    decisions = payload.get("decisions")
+    if not isinstance(decisions, list):
+        raise ValueError("invalid AI decisions")
+
+    normalized: dict[str, dict[str, str]] = {}
+    for decision in decisions:
+        if not isinstance(decision, dict):
+            raise ValueError("invalid AI decision")
+        rule_id = decision.get("rule_id")
+        if (
+            not isinstance(rule_id, str)
+            or rule_id not in requested_rule_ids
+            or rule_id in normalized
+        ):
+            raise ValueError("invalid AI rule decision")
+        outcome = decision.get("result")
+        if outcome not in {"PASS", "FAIL"}:
+            raise ValueError("invalid AI result")
+        reason = decision.get("reason", "")
+        guidance = decision.get("guidance", "")
+        if not isinstance(reason, str) or not isinstance(guidance, str):
+            raise ValueError("invalid AI decision text")
+        reason = reason.strip()
+        guidance = guidance.strip()
+        if outcome == "FAIL" and not reason:
+            raise ValueError("AI failure reason is required")
+        normalized[rule_id] = {
+            "result": outcome,
+            "reason": reason,
+            "guidance": guidance,
+        }
+    if set(normalized) != requested_rule_ids:
+        raise ValueError("incomplete AI decisions")
+    return normalized
+
+
+def _merge_review(
+    result: IssueAuditResult,
+    candidates: tuple[AuditViolation, ...],
+    decisions: dict[str, dict[str, str]],
+) -> IssueAuditResult:
+    candidate_ids = {item.rule_id for item in candidates}
+    final_violations = []
+    passed_count = failed_count = 0
+    for violation in result.violations:
+        if violation.rule_id not in candidate_ids:
+            final_violations.append(violation)
+            continue
+        decision = decisions[violation.rule_id]
+        if decision["result"] == "PASS":
+            passed_count += 1
+            continue
+        failed_count += 1
+        final_violations.append(
+            replace(
+                violation,
+                reason=decision["reason"],
+                guidance=decision["guidance"] or violation.guidance,
+            )
+        )
+    return replace(
+        result,
+        passed=not final_violations,
+        violations=tuple(final_violations),
+        ai_review_status=AIReviewStatus.COMPLETED,
+        ai_failure_category=None,
+        ai_passed_count=passed_count,
+        ai_failed_count=failed_count,
+    )
+
+
+def _review_failure(
+    result: IssueAuditResult,
+    status: AIReviewStatus,
+    category: str,
+) -> IssueAuditResult:
+    return replace(
+        result,
+        ai_review_status=status,
+        ai_failure_category=category,
+    )
