@@ -29,6 +29,13 @@ FluScrollablePage{
         }
     }
 
+    Connections{
+        target: TranslateHelper
+        function onCurrentChanged(){
+            page_root.refreshAiSettingsState()
+        }
+    }
+
     FluEvent{
         name: "checkUpdateFinish"
         onTriggered: {
@@ -92,6 +99,7 @@ FluScrollablePage{
                 onActivated: function(index) {
                     var models = page_root.aiSettingsState.models || []
                     if (index >= 0 && index < models.length) {
+                        aiApiKeyInput.text = ""
                         AISettingsBridge.selectModel(models[index].id)
                     }
                 }

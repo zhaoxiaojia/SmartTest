@@ -6569,6 +6569,8 @@ Some contents...</translation>
 </context>
 <context>
     <name>AISettingsBridge</name>
+    <message><source>Company Intranet Kimi</source><translation>Company Intranet Kimi</translation></message>
+    <message><source>Public DeepSeek</source><translation>Public DeepSeek</translation></message>
     <message><source>Unable to select the AI model. Try again.</source><translation>Unable to select the AI model. Try again.</translation></message>
     <message><source>Enter an API key.</source><translation>Enter an API key.</translation></message>
     <message><source>Unable to save the API key. Check the key and try again.</source><translation>Unable to save the API key. Check the key and try again.</translation></message>

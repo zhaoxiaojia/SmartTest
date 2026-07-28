@@ -59,6 +59,7 @@ if __name__ == "__main__":
         ["en_US", "zh_CN"],
         [
             os.path.join(example_project_dir, "helper", "InitializrHelper.py"),
+            os.path.join(example_project_dir, "bridge", "AISettingsBridge.py"),
             os.path.join(example_project_dir, "bridge", "AuthBridge.py"),
             os.path.join(example_project_dir, "bridge", "HomeBridge.py"),
             os.path.join(example_project_dir, "bridge", "JiraBridge.py"),

@@ -15,6 +15,12 @@ from support.ai import (
 )
 
 
+_MODEL_DISPLAY_NAMES = {
+    "company-kimi": "Company Intranet Kimi",
+    "public-deepseek": "Public DeepSeek",
+}
+
+
 class AISettingsBridge(QObject):
     stateChanged = Signal()
     errorOccurred = Signal(str)
@@ -46,7 +52,7 @@ class AISettingsBridge(QObject):
             models.append(
                 {
                     "id": template.id,
-                    "display_name": template.display_name,
+                    "display_name": self.tr(_MODEL_DISPLAY_NAMES[template.id]),
                     "configured": bool(configured),
                 }
             )
@@ -61,6 +67,7 @@ class AISettingsBridge(QObject):
             self._model_by_id(str(model_id or "").strip())
             self._select_model(str(model_id or "").strip())
         except (AIConfigurationError, OSError, ValueError, TypeError):
+            self.stateChanged.emit()
             self._emit_error("Unable to select the AI model. Try again.")
             return False
         self.stateChanged.emit()

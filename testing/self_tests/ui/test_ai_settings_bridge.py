@@ -54,10 +54,16 @@ def test_state_exposes_only_safe_model_configuration_fields():
 
     assert state["selected_model_id"] == "company-kimi"
     assert state["models"] == [
-        {"id": "company-kimi", "display_name": "Company Kimi", "configured": True},
+        {"id": "company-kimi", "display_name": "Company Intranet Kimi", "configured": True},
         {"id": "public-deepseek", "display_name": "Public DeepSeek", "configured": False},
     ]
-    assert "api_key" not in str(state).lower()
+    assert set(state) == {"selected_model_id", "models"}
+    assert all(set(model) == {"id", "display_name", "configured"} for model in state["models"])
+    assert not ({"api_key", "key", "secret", "credential"} & set(state))
+    assert all(
+        not ({"api_key", "key", "secret", "credential"} & set(model))
+        for model in state["models"]
+    )
     assert "stored-secret" not in str(state)
 
 
@@ -68,6 +74,23 @@ def test_select_model_uses_the_unified_ai_owner_and_refreshes_state():
 
     assert selected["id"] == "public-deepseek"
     assert bridge.state()["selected_model_id"] == "public-deepseek"
+
+
+def test_failed_model_selection_refreshes_the_real_state():
+    bridge, _resolver, selected = build_bridge()
+    refreshes: list[bool] = []
+    bridge.stateChanged.connect(lambda: refreshes.append(True))
+
+    def fail_selection(_model_id: str) -> None:
+        raise AIConfigurationError("selection failed")
+
+    bridge._select_model = fail_selection
+
+    assert bridge.selectModel("public-deepseek") is False
+
+    assert selected["id"] == "company-kimi"
+    assert bridge.state()["selected_model_id"] == "company-kimi"
+    assert refreshes == [True]
 
 
 def test_save_rejects_empty_key_and_never_returns_it():
@@ -93,7 +116,7 @@ def test_clear_only_affects_the_selected_model_credential():
 
     assert resolver.keys == {"public-deepseek": "second-secret"}
     assert bridge.state()["models"] == [
-        {"id": "company-kimi", "display_name": "Company Kimi", "configured": False},
+        {"id": "company-kimi", "display_name": "Company Intranet Kimi", "configured": False},
         {"id": "public-deepseek", "display_name": "Public DeepSeek", "configured": True},
     ]
 
