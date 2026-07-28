@@ -24,6 +24,13 @@ def clear_compatibility_environment(monkeypatch):
         monkeypatch.delenv(name, raising=False)
 
 
+def _resolver_at(monkeypatch, path):
+    import support.ai.config as config
+
+    monkeypatch.setattr(config, "_default_store_path", lambda: path)
+    return AIKeyResolver()
+
+
 def test_builtin_models_are_resolvable_and_unknown_model_is_rejected():
     models = available_models()
 
@@ -96,7 +103,7 @@ def test_credentials_are_isolated_and_clear_only_removes_requested_credential(
 
     monkeypatch.setattr(config, "_dpapi_protect", lambda value, *, entropy=None: b"p:" + value)
     monkeypatch.setattr(config, "_dpapi_unprotect", lambda value, *, entropy=None: value[2:])
-    resolver = AIKeyResolver(tmp_path / "secrets.json")
+    resolver = _resolver_at(monkeypatch, tmp_path / "secrets.json")
 
     resolver.store("company-kimi", "kimi-key")
     resolver.store("public-deepseek", "deepseek-key")
@@ -113,12 +120,13 @@ def test_environment_key_is_a_fallback_not_an_override(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "_dpapi_protect", lambda value, *, entropy=None: b"p:" + value)
     monkeypatch.setattr(config, "_dpapi_unprotect", lambda value, *, entropy=None: value[2:])
     monkeypatch.setenv("DEEPSEEK_API_KEY", "environment-key")
-    resolver = AIKeyResolver(tmp_path / "secrets.json")
+    resolver = _resolver_at(monkeypatch, tmp_path / "secrets.json")
 
     resolver.store("public-deepseek", "saved-key")
 
     assert resolver.resolve("public-deepseek") == "saved-key"
-    assert AIKeyResolver(tmp_path / "empty.json").resolve("public-deepseek") == "environment-key"
+    empty = _resolver_at(monkeypatch, tmp_path / "empty.json")
+    assert empty.resolve("public-deepseek") == "environment-key"
 
 
 @pytest.mark.parametrize(
@@ -146,7 +154,7 @@ def test_legacy_kimi_key_migrates_only_when_kimi_credential_is_resolved(
         lambda value, *, entropy=None: calls.append(entropy) or b"legacy-key",
     )
     monkeypatch.setattr(config, "_dpapi_protect", lambda value, *, entropy=None: b"new-cipher")
-    resolver = AIKeyResolver(store_path)
+    resolver = _resolver_at(monkeypatch, store_path)
 
     with pytest.raises(AIConfigurationError):
         resolver.resolve("public-deepseek")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import time
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +17,9 @@ from support.jira_integration.audit import (
     active_rules,
 )
 from support.jira_integration.core.models import SearchPage
-from ui.example.bridge.JiraAuditBridge import JiraAuditBridge
+
+bridge_module = importlib.import_module("ui.example.bridge.JiraAuditBridge")
+JiraAuditBridge = bridge_module.JiraAuditBridge
 
 
 class FakeAuth(QObject):
@@ -48,6 +51,23 @@ class FakeClient:
         return {}
 
 
+class HeldThread:
+    def __init__(self, **_kwargs):
+        pass
+
+    def start(self):
+        pass
+
+
+class ImmediateThread:
+    def __init__(self, *, target, args, **_kwargs):
+        self.target = target
+        self.args = args
+
+    def start(self):
+        self.target(*self.args)
+
+
 def _report():
     return AuditReport(
         resolved=ResolvedAuditInput("jql", "project = SH", "project = SH"),
@@ -73,9 +93,7 @@ def _report_with_ai_fallback():
         reporter="safe-reporter",
         passed=False,
         violations=(violation,),
-        has_ai_candidates=True,
         ai_review_status=AIReviewStatus.UNCONFIGURED,
-        ai_failure_category="configuration",
     )
     return AuditReport(
         resolved=ResolvedAuditInput("jql", "project = SH", "project = SH"),
@@ -96,9 +114,10 @@ def _wait_until(predicate, timeout=2):
     raise AssertionError("condition was not reached")
 
 
-def test_empty_input_and_missing_auth_do_not_start_audit():
+def test_empty_input_and_missing_auth_do_not_start_audit(monkeypatch):
     calls = []
-    bridge = JiraAuditBridge(FakeAuth(), client_factory=lambda *args: calls.append(args))
+    monkeypatch.setattr(bridge_module, "JiraClient", lambda *args: calls.append(args))
+    bridge = JiraAuditBridge(FakeAuth())
 
     bridge.startAudit("  ")
 
@@ -106,14 +125,14 @@ def test_empty_input_and_missing_auth_do_not_start_audit():
     assert "JQL" in bridge.viewState["inputError"]
     assert calls == []
 
-    bridge = JiraAuditBridge(FakeAuth(password=""), client_factory=lambda *args: calls.append(args))
+    bridge = JiraAuditBridge(FakeAuth(password=""))
     bridge.startAudit("project = SH")
     assert bridge.viewState["state"] == "failed"
     assert "Sign in" in bridge.viewState["statusText"]
     assert calls == []
 
 
-def test_async_completion_reuses_auth_and_reports_progress():
+def test_async_completion_reuses_auth_and_reports_progress(monkeypatch):
     gate = Event()
     created = []
 
@@ -121,18 +140,16 @@ def test_async_completion_reuses_auth_and_reports_progress():
         def run(self, _resolved, progress):
             progress("fetching", 1, 2)
             gate.wait(2)
-            progress("auditing", 2, 2)
+            progress("rule_auditing", 2, 2)
             return _report()
 
     def client_factory(config, auth):
         created.append((config, auth))
         return FakeClient()
 
-    bridge = JiraAuditBridge(
-        FakeAuth(),
-        client_factory=client_factory,
-        service_factory=lambda *_args, **_kwargs: Service(),
-    )
+    monkeypatch.setattr(bridge_module, "JiraClient", client_factory)
+    monkeypatch.setattr(bridge_module, "JiraAuditService", lambda *_args, **_kwargs: Service())
+    bridge = JiraAuditBridge(FakeAuth())
     started = time.monotonic()
     bridge.startAudit("project = SH")
 
@@ -147,15 +164,9 @@ def test_async_completion_reuses_auth_and_reports_progress():
     assert bridge.viewState["canExport"] is False
 
 
-def test_stale_generation_cannot_replace_current_state():
-    class HeldThread:
-        def __init__(self, **_kwargs):
-            pass
-
-        def start(self):
-            pass
-
-    bridge = JiraAuditBridge(FakeAuth(), thread_factory=HeldThread)
+def test_stale_generation_cannot_replace_current_state(monkeypatch):
+    monkeypatch.setattr(bridge_module, "Thread", HeldThread)
+    bridge = JiraAuditBridge(FakeAuth())
     bridge.startAudit("project = SH")
 
     bridge._on_worker_finished({"generation": 0, "report": _report()})
@@ -164,17 +175,9 @@ def test_stale_generation_cannot_replace_current_state():
     assert bridge._report is None
 
 
-def test_export_uses_qstandardpaths_download_location(tmp_path):
+def test_export_uses_qstandardpaths_download_location(monkeypatch, tmp_path):
     exported = tmp_path / "audit.xlsx"
     calls = []
-
-    class ImmediateThread:
-        def __init__(self, *, target, args, **_kwargs):
-            self.target = target
-            self.args = args
-
-        def start(self):
-            self.target(*self.args)
 
     class Service:
         def run(self, _resolved, _progress):
@@ -185,13 +188,11 @@ def test_export_uses_qstandardpaths_download_location(tmp_path):
         exported.write_bytes(b"xlsx")
         return exported
 
-    bridge = JiraAuditBridge(
-        FakeAuth(),
-        client_factory=lambda *_args: FakeClient(),
-        service_factory=lambda *_args, **_kwargs: Service(),
-        export_function=exporter,
-        thread_factory=ImmediateThread,
-    )
+    monkeypatch.setattr(bridge_module, "JiraClient", lambda *_args: FakeClient())
+    monkeypatch.setattr(bridge_module, "JiraAuditService", lambda *_args, **_kwargs: Service())
+    monkeypatch.setattr(bridge_module, "export_audit_xlsx", exporter)
+    monkeypatch.setattr(bridge_module, "Thread", ImmediateThread)
+    bridge = JiraAuditBridge(FakeAuth())
     bridge.startAudit("project = SH")
 
     bridge.exportReport()
@@ -224,13 +225,11 @@ def test_progress_and_ai_fallback_are_safe_for_the_view_state():
     bridge._on_worker_finished({"generation": 1, "report": _report_with_ai_fallback()})
 
     assert bridge.viewState["state"] == "awaiting_confirmation"
-    assert bridge.viewState["aiReviewStatus"] == "fallback"
     assert "Character-rule results were retained" in bridge.viewState["aiReviewText"]
     assert bridge.viewState["violationRows"] == [{
         "issueKey": "SH-123",
         "issueUrl": "https://jira.example.com/browse/SH-123",
         "rule_id": "description-steps",
-        "section": "Description",
         "field": "Description",
         "reason": "Steps are required.",
         "guidance": "Add reproduction steps.",
@@ -256,15 +255,7 @@ def test_confirmation_requires_current_report_and_auth_change_revokes_it():
     assert bridge.viewState["exportPath"] == ""
 
 
-def test_input_errors_keep_resolver_categories_without_exposing_lower_errors():
-    class ImmediateThread:
-        def __init__(self, *, target, args, **_kwargs):
-            self.target = target
-            self.args = args
-
-        def start(self):
-            self.target(*self.args)
-
+def test_input_errors_keep_resolver_categories_without_exposing_lower_errors(monkeypatch):
     class FilterDeniedClient(FakeClient):
         def fetch_filter(self, _filter_id):
             raise RuntimeError("private transport detail")
@@ -282,13 +273,19 @@ def test_input_errors_keep_resolver_categories_without_exposing_lower_errors():
     ]
     for text, client_type, expected in cases:
         service_calls = []
-        bridge = JiraAuditBridge(
-            FakeAuth(),
-            base_url="https://jira.example.com",
-            client_factory=lambda *_args, client_type=client_type: client_type(),
-            service_factory=lambda *_args, **_kwargs: service_calls.append(True),
-            thread_factory=ImmediateThread,
+        monkeypatch.setattr(bridge_module, "JIRA_BASE_URL", "https://jira.example.com")
+        monkeypatch.setattr(
+            bridge_module,
+            "JiraClient",
+            lambda *_args, client_type=client_type: client_type(),
         )
+        monkeypatch.setattr(
+            bridge_module,
+            "JiraAuditService",
+            lambda *_args, **_kwargs: service_calls.append(True),
+        )
+        monkeypatch.setattr(bridge_module, "Thread", ImmediateThread)
+        bridge = JiraAuditBridge(FakeAuth())
 
         bridge.startAudit(text)
 
@@ -297,15 +294,9 @@ def test_input_errors_keep_resolver_categories_without_exposing_lower_errors():
         assert service_calls == []
 
 
-def test_starting_a_new_audit_revokes_a_confirmed_report():
-    class HeldThread:
-        def __init__(self, **_kwargs):
-            pass
-
-        def start(self):
-            pass
-
-    bridge = JiraAuditBridge(FakeAuth(), thread_factory=HeldThread)
+def test_starting_a_new_audit_revokes_a_confirmed_report(monkeypatch):
+    monkeypatch.setattr(bridge_module, "Thread", HeldThread)
+    bridge = JiraAuditBridge(FakeAuth())
     bridge.startAudit("project = SH")
     bridge._on_worker_finished({"generation": 1, "report": _report()})
     bridge.confirmAudit()

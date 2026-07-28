@@ -15,6 +15,7 @@ from support.jira_integration.audit import (
     export_audit_xlsx,
     resolve_audit_input,
 )
+from support.jira_integration.audit.rules import ai_reviewable_violations
 from support.jira_integration.core.models import SearchPage
 
 
@@ -58,7 +59,6 @@ def _issue(
     description=None,
     components=("Video",),
     labels=("regression",),
-    attachments=({"filename": "evidence.zip", "size": 1024},),
 ):
     return {
         "key": key,
@@ -68,7 +68,6 @@ def _issue(
             "reporter": {"displayName": "Coco"},
             "components": [{"name": value} for value in components],
             "labels": list(labels),
-            "attachment": list(attachments),
         },
     }
 
@@ -114,7 +113,7 @@ EMPTY_DESCRIPTION = _description(
         ({"summary": "[客户][T7][V1][Video]: 播放冻结,50%"},
          {"SUMMARY.CUSTOMER_ENGLISH", "SUMMARY.DESCRIPTION_ENGLISH"}),
         (
-            {"summary": "[ACME][t7][V1][Unknown]: Video freezes,3/2"},
+            {"summary": "[ACME][T7][V1][Video]: Video freezes,3/2"},
             {"SUMMARY.PROBABILITY"},
         ),
         ({"components": ()}, {"COMPONENT.REQUIRED"}),
@@ -133,7 +132,6 @@ EMPTY_DESCRIPTION = _description(
         (
             {
                 "description": _description(
-                    steps="1. Start playback.\n3. Seek.",
                     rate="3/2",
                     notes="HW info:\nSW info:",
                 ),
@@ -153,27 +151,6 @@ def test_rule_failure_matrix(changes, expected):
     assert expected <= _violations(**changes)
 
 
-@pytest.mark.parametrize(
-    "changes",
-    (
-        {"summary": "[ACME][t7][V1][Unknown]: Video freezes,50%"},
-        {"components": ("Unknown",)},
-        {"description": _description(rate=""), "labels": ()},
-        {
-            "description": _description(steps="1. Start playback.\n3. Seek."),
-            "labels": (),
-        },
-        {
-            "attachments": (
-                {"filename": "large.bin", "size": 10 * 1024 * 1024 + 1},
-            )
-        },
-    ),
-)
-def test_disabled_rules_are_not_active_or_reported(changes):
-    assert not _violations(**changes)
-
-
 def test_legacy_comparision_heading_is_a_hard_missing_section_violation():
     description = _description().replace("[Comparison]", "[Comparision]")
 
@@ -185,7 +162,7 @@ def test_legacy_comparision_heading_is_a_hard_missing_section_violation():
     assert {item.rule_id for item in result.violations} == {
         "DESCRIPTION.COMPARISON"
     }
-    assert not result.has_ai_candidates
+    assert not ai_reviewable_violations(result)
 
 
 def test_only_declared_ambiguous_violations_become_ai_candidates():
@@ -197,16 +174,6 @@ def test_only_declared_ambiguous_violations_become_ai_candidates():
         audit_issue(
             _issue(
                 summary="[ACME][T7][V1.1][Video]: Video freezes,often",
-                labels=(),
-            ),
-            base_url="https://jira.example.com",
-        ),
-        audit_issue(
-            _issue(
-                summary=(
-                    "[ACME][T7][V1.1][Video]: "
-                    "Video freezes every few runs"
-                ),
                 labels=(),
             ),
             base_url="https://jira.example.com",
@@ -237,9 +204,8 @@ def test_only_declared_ambiguous_violations_become_ai_candidates():
         ),
     )
 
-    assert not hard_failure.has_ai_candidates
-    assert [result.has_ai_candidates for result in fuzzy_failures] == [
-        True,
+    assert not ai_reviewable_violations(hard_failure)
+    assert [bool(ai_reviewable_violations(result)) for result in fuzzy_failures] == [
         True,
         True,
         True,

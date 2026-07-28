@@ -325,8 +325,6 @@ def test_configured_chao_li_developer_role_grants_all_active_tool_groups():
 
 
 def test_jira_audit_common_tool_permission_matrix():
-    from ui.example.bridge.ToolBridge import can_access_jira_audit
-
     personnel = {
         "amlogic": {
             "departments": {
@@ -359,7 +357,11 @@ def test_jira_audit_common_tool_permission_matrix():
         "developer": True,
         "unknown": False,
     }
-    assert {account: can_access_jira_audit(personnel, account) for account in expected} == expected
+    assert {
+        account: build_tool_groups(personnel, account)[0]["tools"]
+        == [{"id": "jira_audit"}]
+        for account in expected
+    } == expected
     assert build_tool_groups(load_tool_access(PERSONNEL_PATH), "chao.li")[0]["tools"] == [
         {"id": "jira_audit"}
     ]
@@ -503,8 +505,8 @@ class JiraAudit(QObject):
         "state": "awaiting_confirmation", "statusText": "ready", "inputError": "",
         "progressValue": 1.0, "processedCount": 1, "totalCount": 1,
         "ruleRows": [], "resultSummary": {{"totalCount": 1, "passedCount": 0, "failedCount": 1, "violationCount": 1}},
-        "violationRows": [{{"issueKey": "SH-123", "issueUrl": "https://jira.example.com/browse/SH-123", "rule_id": "description-steps", "section": "Description", "field": "Description", "reason": "Steps are required.", "guidance": "Add steps."}}],
-        "aiReviewStatus": "fallback", "aiReviewText": "Character-rule results were retained.",
+        "violationRows": [{{"issueKey": "SH-123", "issueUrl": "https://jira.example.com/browse/SH-123", "rule_id": "description-steps", "field": "Description", "reason": "Steps are required.", "guidance": "Add steps."}}],
+        "aiReviewText": "Character-rule results were retained.",
         "exportPath": "", "canStart": True, "canConfirm": True, "canExport": False,
         }}
     viewState = Property("QVariantMap", lambda self: self._view, notify=changed)
@@ -595,13 +597,7 @@ def test_tool_bridge_logs_account_and_group_resolution_without_secrets(monkeypat
 
 
 def test_tool_fixed_text_is_finished_in_both_catalogs():
-    required_contexts = {
-        "ItemsOriginal",
-        "T_Tool",
-        "ToolBridge",
-        "JiraAuditBridge",
-        "JiraAuditWorkspace",
-    }
+    required_contexts = {"ItemsOriginal", "T_Tool", "ToolBridge"}
     for filename in ("example_en_US.ts", "example_zh_CN.ts"):
         root = ET.parse(ROOT / "ui/example" / filename).getroot()
         contexts = {
@@ -615,8 +611,7 @@ def test_tool_fixed_text_is_finished_in_both_catalogs():
                 for context in named_contexts
                 for message in context.findall("message")
                 if "Tool" in (message.findtext("source") or "")
-                or context.findtext("name")
-                in {"ToolBridge", "JiraAuditBridge", "JiraAuditWorkspace"}
+                or context.findtext("name") == "ToolBridge"
             ]
             assert tool_messages
             for message in tool_messages:

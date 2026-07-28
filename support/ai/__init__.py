@@ -13,7 +13,6 @@ from .core import (
     AIClientConfig,
     AIConfigurationError,
     AIError,
-    AIModelTemplate,
     AIResponseError,
     AITransportError,
 )
@@ -26,7 +25,6 @@ __all__ = [
     "AIConfigurationError",
     "AIError",
     "AIKeyResolver",
-    "AIModelTemplate",
     "AIResponseError",
     "AITransportError",
     "available_models",

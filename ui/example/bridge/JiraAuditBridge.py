@@ -4,7 +4,7 @@ import os
 from dataclasses import asdict
 from pathlib import Path
 from threading import Thread
-from typing import Any, Callable
+from typing import Any
 
 from PySide6.QtCore import QObject, Property, QStandardPaths, Signal, Slot
 
@@ -45,20 +45,10 @@ class JiraAuditBridge(QObject):
     def __init__(
         self,
         auth_bridge: QObject,
-        *,
-        base_url: str = JIRA_BASE_URL,
-        client_factory: Callable[..., Any] = JiraClient,
-        service_factory: Callable[..., Any] | None = None,
-        export_function: Callable[..., Path] = export_audit_xlsx,
-        thread_factory: Callable[..., Thread] = Thread,
     ):
         super().__init__(auth_bridge)
         self._auth = auth_bridge
-        self._base_url = str(base_url or "").rstrip("/")
-        self._client_factory = client_factory
-        self._service_factory = service_factory or JiraAuditService
-        self._export_function = export_function
-        self._thread_factory = thread_factory
+        self._base_url = JIRA_BASE_URL.rstrip("/")
         self._generation = 0
         self._report: AuditReport | None = None
         self._view = {
@@ -71,7 +61,6 @@ class JiraAuditBridge(QObject):
             "ruleRows": [asdict(rule) for rule in active_rules()],
             "resultSummary": {},
             "violationRows": [],
-            "aiReviewStatus": "not_required",
             "aiReviewText": self.tr("No AI review was required."),
             "exportPath": "",
             "canStart": True,
@@ -119,21 +108,20 @@ class JiraAuditBridge(QObject):
             progressValue=0.0,
             resultSummary={},
             violationRows=[],
-            aiReviewStatus="not_required",
             aiReviewText=self.tr("No AI review was required."),
             exportPath="",
         )
         args = (generation, clean_text, username, str(password))
-        self._thread_factory(target=self._run_audit, args=args, daemon=True).start()
+        Thread(target=self._run_audit, args=args, daemon=True).start()
 
     def _run_audit(self, generation, text, username, password) -> None:
         try:
-            client = self._client_factory(
+            client = JiraClient(
                 JiraClientConfig(base_url=self._base_url),
                 JiraBasicAuth(username=username, password=password),
             )
             resolved = resolve_audit_input(text, base_url=self._base_url, client=client)
-            report = self._service_factory(client, base_url=self._base_url).run(
+            report = JiraAuditService(client, base_url=self._base_url).run(
                 resolved,
                 lambda stage, processed, total: self._workerProgress.emit(
                     (generation, stage, processed, total)
@@ -171,7 +159,7 @@ class JiraAuditBridge(QObject):
             location = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation)
             downloads_dir = Path(location) if location else Path.home() / "Downloads"
             path = Path(
-                self._export_function(self._report, downloads_dir=downloads_dir)
+                export_audit_xlsx(self._report, downloads_dir=downloads_dir)
             ).resolve()
         except Exception as exc:
             smart_log("Jira audit export failed: %s", exc, level="error",
@@ -190,8 +178,6 @@ class JiraAuditBridge(QObject):
         if int(generation) != self._generation:
             return
         stage = str(stage or "")
-        if stage == "auditing":
-            stage = "rule_auditing"
         processed, total = max(0, int(processed or 0)), max(0, int(total or 0))
         state = stage if stage in _STAGE_PROGRESS else self._view["state"]
         self._set(
@@ -230,7 +216,6 @@ class JiraAuditBridge(QObject):
                     "issueKey": issue.key,
                     "issueUrl": issue.url,
                     "rule_id": violation.rule_id,
-                    "section": violation.section,
                     "field": violation.field,
                     "reason": violation.reason,
                     "guidance": violation.guidance,
@@ -263,7 +248,6 @@ class JiraAuditBridge(QObject):
             totalCount=0,
             resultSummary={},
             violationRows=[],
-            aiReviewStatus="not_required",
             aiReviewText=self.tr("No AI review was required."),
             exportPath="",
         )
@@ -281,43 +265,37 @@ class JiraAuditBridge(QObject):
         statuses = {
             issue.ai_review_status
             for issue in report.issues
-            if issue.has_ai_candidates
+            if issue.ai_review_status.value != "not_required"
         }
         if not statuses:
             return {
-                "aiReviewStatus": "not_required",
                 "aiReviewText": self.tr("No AI review was required."),
             }
         if any(status.value in {"unconfigured", "failed"} for status in statuses):
             return {
-                "aiReviewStatus": "fallback",
                 "aiReviewText": self.tr(
                     "AI review is unavailable. Character-rule results were retained."
                 ),
             }
         return {
-            "aiReviewStatus": "completed",
             "aiReviewText": self.tr("AI review completed."),
         }
 
     def _input_error_text(self, message: str) -> str:
-        if message == "Jira URLs must use HTTP or HTTPS.":
-            return self.tr("Jira URLs must use HTTP or HTTPS.")
-        if message == "The Jira URL is malformed.":
-            return self.tr("The Jira URL is malformed.")
-        if message == "The Jira URL host must match the configured Jira host.":
-            return self.tr("The Jira URL host must match the configured Jira host.")
-        if message == "The Jira issue URL contains an invalid issue key.":
-            return self.tr("The Jira issue URL contains an invalid issue key.")
-        if message == "Use a Jira issue, filter, or search URL.":
-            return self.tr("Use a Jira issue, filter, or search URL.")
-        if message == "The Jira filter could not be loaded. Check its permissions.":
-            return self.tr("The Jira filter could not be loaded. Check its permissions.")
-        if message == "The Jira filter does not contain JQL.":
-            return self.tr("The Jira filter does not contain JQL.")
-        if message == "JQL validation failed. Check the query and Jira permissions.":
-            return self.tr("JQL validation failed. Check the query and Jira permissions.")
-        return self.tr("Jira input is invalid. Enter JQL or a Jira issue, filter, or search URL.")
+        texts = {
+            "Jira URLs must use HTTP or HTTPS.": self.tr("Jira URLs must use HTTP or HTTPS."),
+            "The Jira URL is malformed.": self.tr("The Jira URL is malformed."),
+            "The Jira URL host must match the configured Jira host.": self.tr("The Jira URL host must match the configured Jira host."),
+            "The Jira issue URL contains an invalid issue key.": self.tr("The Jira issue URL contains an invalid issue key."),
+            "Use a Jira issue, filter, or search URL.": self.tr("Use a Jira issue, filter, or search URL."),
+            "The Jira filter could not be loaded. Check its permissions.": self.tr("The Jira filter could not be loaded. Check its permissions."),
+            "The Jira filter does not contain JQL.": self.tr("The Jira filter does not contain JQL."),
+            "JQL validation failed. Check the query and Jira permissions.": self.tr("JQL validation failed. Check the query and Jira permissions."),
+        }
+        return texts.get(
+            message,
+            self.tr("Jira input is invalid. Enter JQL or a Jira issue, filter, or search URL."),
+        )
 
     def _set(self, **changes) -> None:
         state = str(changes.get("state", self._view["state"]))

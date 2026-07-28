@@ -39,9 +39,8 @@ class IssueAuditResult:
     reporter: str
     passed: bool
     violations: tuple[AuditViolation, ...]
-    has_ai_candidates: bool = False
+    description: str = ""
     ai_review_status: AIReviewStatus = AIReviewStatus.NOT_REQUIRED
-    ai_failure_category: str | None = None
 
 
 @dataclass(frozen=True)

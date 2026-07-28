@@ -15,7 +15,6 @@ _KIMI_CREDENTIAL_ID = "company-kimi"
 _MODELS = (
     AIModelTemplate(
         id="company-kimi",
-        display_name="Company Kimi",
         credential_id="company-kimi",
         base_url="https://llm.amlogic.com/8d1b5b4c",
         model_id="Amlogic_Local/Kimi-K2.7-Code",
@@ -23,7 +22,6 @@ _MODELS = (
     ),
     AIModelTemplate(
         id="public-deepseek",
-        display_name="Public DeepSeek",
         credential_id="public-deepseek",
         base_url="https://api.deepseek.com",
         model_id="deepseek-v4-flash",
@@ -64,9 +62,6 @@ def select_model(model_id: str) -> None:
 
 
 class AIKeyResolver:
-    def __init__(self, store_path: Path | None = None):
-        self._store_path = store_path
-
     def resolve(self, credential_id: str) -> str:
         credential_id = _credential_id(credential_id)
         payload = self._read_payload()
@@ -132,7 +127,7 @@ class AIKeyResolver:
         return bool(_environment_key(credential_id))
 
     def _path(self) -> Path:
-        return self._store_path or _default_store_path()
+        return _default_store_path()
 
     def _read_payload(self) -> dict[str, Any]:
         path = self._path()
@@ -147,8 +142,8 @@ class AIKeyResolver:
         return payload
 
 
-def create_chat_client(model_id: str | None = None) -> AIChatClient:
-    template = model_by_id(model_id or selected_model_id())
+def create_chat_client() -> AIChatClient:
+    template = model_by_id(selected_model_id())
     key = AIKeyResolver().resolve(template.credential_id)
     return AIChatClient(
         AIClientConfig(

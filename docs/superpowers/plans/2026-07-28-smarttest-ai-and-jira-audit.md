@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - 根目录 `jira_handler.py` 保持独立，不修改、不导入、不依赖。
-- 首版内置公司内网 Kimi、公司内网 DeepSeek、公网 DeepSeek 三个模板，地址和模型 ID 不允许用户修改。
+- 首版内置公司内网 Kimi、公网 DeepSeek 两个模板，地址和模型 ID 不允许用户修改；公司内网 DeepSeek 在取得准确配置前不提供占位模板。
 - API Key 不得进入 QSettings、QML 状态、日志、异常、报告、QRC、翻译文件或安装包明文。
 - 复用现有 OpenAI-compatible 客户端和 `openpyxl`，不得复制 HTTP、JSON 或 XLSX/XML 实现。
 - AI 只复核明确声明的模糊候选；失败时保留字符初审结果。
@@ -38,7 +38,7 @@
 
 - [ ] **Step 1: 编写模型注册、凭据隔离和旧 Key 迁移的失败测试**
 
-覆盖三个稳定模板 ID、无效模板拒绝、两个凭据互不覆盖、清除单个凭据、旧 `api_key_dpapi` 只迁移到公司内网 Kimi。
+覆盖两个稳定模板 ID、无效模板拒绝、两个凭据互不覆盖、清除单个凭据、旧 `api_key_dpapi` 只迁移到公司内网 Kimi。
 
 - [ ] **Step 2: 运行 AI 配置测试并确认因新接口不存在而失败**
 
@@ -221,4 +221,3 @@ Run: `git diff --stat`
 Run: `git diff --check`
 
 核对根目录 `jira_handler.py`、Redmine、用户既有未跟踪文件和无关改动均未被修改；净生产代码增长与复用决策符合设计。
-

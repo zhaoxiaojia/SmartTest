@@ -24,14 +24,12 @@ from .models import (
     IssueAuditResult,
     ResolvedAuditInput,
 )
-from .rules import (
-    active_rules, ai_reviewable_violations, audit_issue, issue_description,
-)
+from .rules import active_rules, ai_reviewable_violations, audit_issue
 
 
 _URL = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
 _ISSUE_KEY = re.compile(r"^[A-Z][A-Z0-9]+-\d+$")
-_FIELDS = ("summary", "description", "reporter", "components", "labels", "attachment")
+_FIELDS = ("summary", "description", "reporter", "components", "labels")
 
 
 class _AuditClient(Protocol):
@@ -110,11 +108,9 @@ class JiraAuditService:
         client: _AuditClient,
         *,
         base_url: str,
-        ai_client_factory: Callable[[], AIChatClient] = create_chat_client,
     ):
         self._client = client
         self._base_url = str(base_url or "").rstrip("/")
-        self._ai_client_factory = ai_client_factory
 
     def run(
         self, resolved: ResolvedAuditInput, progress: Callable[[str, int, int], None]
@@ -143,56 +139,37 @@ class JiraAuditService:
 
         candidate_indexes = [
             index for index, result in enumerate(results)
-            if result.has_ai_candidates
+            if ai_reviewable_violations(result)
         ]
         if not candidate_indexes:
             progress("ai_reviewing", 0, 0)
         else:
-            results = self._review_candidates(
-                results,
-                raw_issues,
-                candidate_indexes,
-                progress,
-            )
+            try:
+                ai_client = create_chat_client()
+            except AIConfigurationError:
+                failure_status = AIReviewStatus.UNCONFIGURED
+            except Exception:
+                failure_status = AIReviewStatus.FAILED
+            else:
+                failure_status = None
+            for completed, index in enumerate(candidate_indexes, 1):
+                results[index] = (
+                    _review_failure(results[index], failure_status)
+                    if failure_status
+                    else _review_issue(results[index], ai_client)
+                )
+                progress("ai_reviewing", completed, len(candidate_indexes))
         progress("finalizing", len(results), len(results))
         return AuditReport(
             resolved,
             datetime.now(),
             active_rules(),
-            tuple(results),
+            tuple(replace(result, description="") for result in results),
         )
-
-    def _review_candidates(
-        self,
-        results: list[IssueAuditResult],
-        raw_issues: list[dict],
-        candidate_indexes: list[int],
-        progress: Callable[[str, int, int], None],
-    ) -> list[IssueAuditResult]:
-        try:
-            ai_client = self._ai_client_factory()
-        except AIConfigurationError:
-            failure = (AIReviewStatus.UNCONFIGURED, "configuration")
-        except Exception:
-            failure = (AIReviewStatus.FAILED, "unexpected")
-        else:
-            for completed, index in enumerate(candidate_indexes, 1):
-                results[index] = _review_issue(
-                    results[index], ai_client, issue_description(raw_issues[index])
-                )
-                progress("ai_reviewing", completed, len(candidate_indexes))
-            return results
-
-        for completed, index in enumerate(candidate_indexes, 1):
-            results[index] = _review_failure(results[index], *failure)
-            progress("ai_reviewing", completed, len(candidate_indexes))
-        return results
-
 
 def _review_issue(
     result: IssueAuditResult,
     client: AIChatClient,
-    description: str,
 ) -> IssueAuditResult:
     candidates = ai_reviewable_violations(result)
     try:
@@ -202,7 +179,7 @@ def _review_issue(
                     "system",
                     "只输出 Jira 模糊边界复核 JSON，不展示推理过程。",
                 ),
-                AIChatMessage("user", _review_prompt(result, candidates, description)),
+                AIChatMessage("user", _review_prompt(result, candidates)),
             ],
             response_format={"type": "json_object"},
             temperature=0,
@@ -214,44 +191,24 @@ def _review_issue(
             requested_rule_ids={item.rule_id for item in candidates},
         )
     except AIConfigurationError:
-        return _review_failure(
-            result,
-            AIReviewStatus.UNCONFIGURED,
-            "configuration",
-        )
-    except TimeoutError:
-        return _review_failure(result, AIReviewStatus.FAILED, "timeout")
-    except AITransportError as exc:
-        category = "timeout" if exc.category == "timeout" else "transport"
-        return _review_failure(result, AIReviewStatus.FAILED, category)
-    except AIResponseError:
-        return _review_failure(
-            result,
-            AIReviewStatus.FAILED,
-            "invalid_response",
-        )
-    except (TypeError, ValueError):
-        return _review_failure(
-            result,
-            AIReviewStatus.FAILED,
-            "invalid_response",
-        )
+        return _review_failure(result, AIReviewStatus.UNCONFIGURED)
+    except (TimeoutError, AITransportError, AIResponseError, TypeError, ValueError):
+        return _review_failure(result, AIReviewStatus.FAILED)
     except Exception:
-        return _review_failure(result, AIReviewStatus.FAILED, "unexpected")
+        return _review_failure(result, AIReviewStatus.FAILED)
     return _merge_review(result, candidates, decisions)
 
 
 def _review_prompt(
     result: IssueAuditResult,
     candidates: tuple[AuditViolation, ...],
-    description: str,
 ) -> str:
     rules_by_id = {rule.rule_id: rule for rule in active_rules()}
     payload = {
         "issue_key": result.key,
         "jira_fields": {
             "Summary": result.summary,
-            "Description": description,
+            "Description": result.description,
         },
         "violations": [
             {
@@ -349,17 +306,14 @@ def _merge_review(
         passed=not final_violations,
         violations=tuple(final_violations),
         ai_review_status=AIReviewStatus.COMPLETED,
-        ai_failure_category=None,
     )
 
 
 def _review_failure(
     result: IssueAuditResult,
     status: AIReviewStatus,
-    category: str,
 ) -> IssueAuditResult:
     return replace(
         result,
         ai_review_status=status,
-        ai_failure_category=category,
     )

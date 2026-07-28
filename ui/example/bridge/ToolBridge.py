@@ -42,30 +42,7 @@ def employee_department(personnel: dict[str, Any], account: str) -> str:
     return matches[0] if len(matches) == 1 else ""
 
 
-def can_access_jira_audit(personnel: dict[str, Any], account: str) -> bool:
-    clean_account = str(account or "").strip()
-    employee = next(
-        (item for item in amlogic_employees(personnel)
-         if str(item.get("account", "") or "").strip() == clean_account),
-        {},
-    )
-    roles = {str(role or "").strip().casefold()
-             for role in employee.get("system_roles", []) or []}
-    if "developer" in roles:
-        return True
-    department = str((employee.get("organization") or {}).get("department", "") or "").strip()
-    grade = str((employee.get("employment") or {}).get("grade", "") or "").strip()
-    return department == "FAE-QA" and grade.startswith("M")
-
-
 def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str, Any]]:
-    groups: list[dict[str, Any]] = [
-        {
-            "id": "common",
-            "available": True,
-            "tools": [{"id": "jira_audit"}] if can_access_jira_audit(personnel, account) else [],
-        }
-    ]
     clean_account = str(account or "").strip()
     employees = amlogic_employees(personnel)
     employee = next(
@@ -76,6 +53,20 @@ def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str,
         str(role or "").strip().casefold() == "developer"
         for role in (employee or {}).get("system_roles", []) or []
     )
+    department = str(
+        ((employee or {}).get("organization") or {}).get("department", "") or ""
+    ).strip()
+    grade = str(((employee or {}).get("employment") or {}).get("grade", "") or "").strip()
+    jira_audit_available = is_developer or (
+        department == "FAE-QA" and grade.startswith("M")
+    )
+    groups: list[dict[str, Any]] = [
+        {
+            "id": "common",
+            "available": True,
+            "tools": [{"id": "jira_audit"}] if jira_audit_available else [],
+        }
+    ]
     assigned_ids = {
         str(item.get("product_line_id", "") or "")
         for item in (employee or {}).get("assignments", []) or []

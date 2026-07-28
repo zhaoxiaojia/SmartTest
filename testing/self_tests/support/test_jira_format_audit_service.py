@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
+import importlib
 import re
-from dataclasses import asdict
 
 import pytest
 
@@ -18,6 +18,9 @@ from support.jira_integration.audit import (
     ResolvedAuditInput,
 )
 from support.jira_integration.core.models import SearchPage
+
+
+service_module = importlib.import_module("support.jira_integration.audit.service")
 
 
 def _description(
@@ -86,12 +89,9 @@ class AIClient:
         return AIChatResponse(content=response, model="test-model")
 
 
-def _run(issues, factory, progress=None):
-    return JiraAuditService(
-        JiraClient(issues),
-        base_url="https://jira.example.com",
-        ai_client_factory=factory,
-    ).run(
+def _run(monkeypatch, issues, factory, progress=None):
+    monkeypatch.setattr(service_module, "create_chat_client", factory)
+    return JiraAuditService(JiraClient(issues), base_url="https://jira.example.com").run(
         ResolvedAuditInput("jql", "project = SH", "project = SH"),
         progress or (lambda *_value: None),
     )
@@ -114,7 +114,9 @@ def _review(issue_key, *decisions):
     )
 
 
-def test_one_jira_with_multiple_candidates_uses_one_ai_request_and_merges_results():
+def test_one_jira_with_multiple_candidates_uses_one_ai_request_and_merges_results(
+    monkeypatch,
+):
     client = AIClient(
         {
             "SH-1": _review(
@@ -135,7 +137,7 @@ def test_one_jira_with_multiple_candidates_uses_one_ai_request_and_merges_result
         description=_description(rate="intermittent"),
     )
 
-    result = _run([issue], lambda: client).issues[0]
+    result = _run(monkeypatch, [issue], lambda: client).issues[0]
 
     assert len(client.requests) == 1
     assert result.ai_review_status is AIReviewStatus.COMPLETED
@@ -146,7 +148,7 @@ def test_one_jira_with_multiple_candidates_uses_one_ai_request_and_merges_result
     assert result.violations[0].guidance == "补充百分比或分数。"
 
 
-def test_ai_receives_full_context_without_persisting_it_in_report_data():
+def test_ai_receives_full_jira_context(monkeypatch):
     description_marker = "private-description-context"
     description = _description(
         actual=f"Video freezes; {description_marker}; observed 2/2.",
@@ -178,27 +180,25 @@ def test_ai_receives_full_context_without_persisting_it_in_report_data():
     )
 
     report = _run(
+        monkeypatch,
         [_issue("SH-1", summary=summary, description=description)],
         lambda: client,
     )
     request_payload = json.loads(
         client.requests[0][0][-1].content.rsplit("\n", 1)[-1]
     )
-    result_data = asdict(report.issues[0])
-
     assert request_payload["jira_fields"] == {
         "Summary": summary,
         "Description": description,
     }
-    assert "_ai_description" not in result_data
-    assert description_marker not in json.dumps(result_data, ensure_ascii=False)
+    assert report.issues[0].description == ""
 
 
-def test_hard_violation_does_not_create_ai_client():
+def test_hard_violation_does_not_create_ai_client(monkeypatch):
     created = []
     issue = _issue("SH-1", description=_description(actual=""))
 
-    report = _run([issue], lambda: created.append(True))
+    report = _run(monkeypatch, [issue], lambda: created.append(True))
 
     assert not created
     assert report.issues[0].ai_review_status is AIReviewStatus.NOT_REQUIRED
@@ -207,13 +207,14 @@ def test_hard_violation_does_not_create_ai_client():
     }
 
 
-def test_unconfigured_ai_retains_initial_violation_with_sanitized_status():
+def test_unconfigured_ai_retains_initial_violation_with_sanitized_status(monkeypatch):
     issue = _issue(
         "SH-1",
         summary="[ACME][T7][V1.1][Video]: Video freezes,often",
     )
 
     result = _run(
+        monkeypatch,
         [issue],
         lambda: (_ for _ in ()).throw(
             AIConfigurationError("secret key must not be reported")
@@ -221,7 +222,6 @@ def test_unconfigured_ai_retains_initial_violation_with_sanitized_status():
     ).issues[0]
 
     assert result.ai_review_status is AIReviewStatus.UNCONFIGURED
-    assert result.ai_failure_category == "configuration"
     assert [item.rule_id for item in result.violations] == [
         "SUMMARY.PROBABILITY"
     ]
@@ -229,20 +229,17 @@ def test_unconfigured_ai_retains_initial_violation_with_sanitized_status():
 
 
 @pytest.mark.parametrize(
-    ("failure", "category"),
+    "failure",
     (
-        (TimeoutError("private timeout detail"), "timeout"),
-        (
-            AITransportError(
-                "private transport detail", category="connectionreseterror"
-            ),
-            "transport",
+        TimeoutError("private timeout detail"),
+        AITransportError(
+            "private transport detail", category="connectionreseterror"
         ),
-        (AIResponseError("private response detail"), "invalid_response"),
+        AIResponseError("private response detail"),
     ),
 )
-def test_ai_failure_retains_initial_violation_and_reports_sanitized_category(
-    failure, category
+def test_ai_failure_retains_initial_violation_and_sanitized_status(
+    monkeypatch, failure
 ):
     issue = _issue(
         "SH-1",
@@ -250,10 +247,9 @@ def test_ai_failure_retains_initial_violation_and_reports_sanitized_category(
     )
     client = AIClient({"SH-1": failure})
 
-    result = _run([issue], lambda: client).issues[0]
+    result = _run(monkeypatch, [issue], lambda: client).issues[0]
 
     assert result.ai_review_status is AIReviewStatus.FAILED
-    assert result.ai_failure_category == category
     assert [item.rule_id for item in result.violations] == [
         "SUMMARY.PROBABILITY"
     ]
@@ -285,22 +281,25 @@ def test_ai_failure_retains_initial_violation_and_reports_sanitized_category(
         ),
     ),
 )
-def test_invalid_ai_decision_payload_degrades_without_changing_violations(response):
+def test_invalid_ai_decision_payload_degrades_without_changing_violations(
+    monkeypatch, response
+):
     issue = _issue(
         "SH-1",
         summary="[ACME][T7][V1.1][Video]: Video freezes,often",
     )
 
-    result = _run([issue], lambda: AIClient({"SH-1": response})).issues[0]
+    result = _run(
+        monkeypatch, [issue], lambda: AIClient({"SH-1": response})
+    ).issues[0]
 
     assert result.ai_review_status is AIReviewStatus.FAILED
-    assert result.ai_failure_category == "invalid_response"
     assert [item.rule_id for item in result.violations] == [
         "SUMMARY.PROBABILITY"
     ]
 
 
-def test_one_failed_jira_does_not_prevent_other_ai_reviews():
+def test_one_failed_jira_does_not_prevent_other_ai_reviews(monkeypatch):
     client = AIClient(
         {
             "SH-1": "{}",
@@ -318,7 +317,7 @@ def test_one_failed_jira_does_not_prevent_other_ai_reviews():
         for key in ("SH-1", "SH-2")
     ]
 
-    report = _run(issues, lambda: client)
+    report = _run(monkeypatch, issues, lambda: client)
 
     assert [item.ai_review_status for item in report.issues] == [
         AIReviewStatus.FAILED,
@@ -327,7 +326,7 @@ def test_one_failed_jira_does_not_prevent_other_ai_reviews():
     assert [item.passed for item in report.issues] == [False, True]
 
 
-def test_progress_uses_candidate_issue_count_for_ai_stage():
+def test_progress_uses_candidate_issue_count_for_ai_stage(monkeypatch):
     progress = []
     client = AIClient(
         {
@@ -345,7 +344,12 @@ def test_progress_uses_candidate_issue_count_for_ai_stage():
         ),
     ]
 
-    _run(issues, lambda: client, lambda *value: progress.append(value))
+    _run(
+        monkeypatch,
+        issues,
+        lambda: client,
+        lambda *value: progress.append(value),
+    )
 
     assert progress == [
         ("fetching", 2, 2),

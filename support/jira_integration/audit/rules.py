@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from typing import Any, NamedTuple
 
 from .models import (
@@ -10,23 +10,6 @@ from .models import (
     IssueAuditResult,
 )
 
-
-ALLOWED_MODULES = tuple(
-    ("System|Online|Video|Ethernet|Wifi|BT|APK|HDMI|Audio|DLNA|Miracast|PQ|KPI|USB|"
-     "Stability|Multivideo|Tr069|CTS / VTS / GTS / TVTS / STS / GGI / CTS-verify|"
-     "MS12|DV|NTS|Primevideo").split("|")
-)
-MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
-DISABLED_RULE_IDS = frozenset(
-    {
-        "COMPONENT.ALLOWED",
-        "DESCRIPTION.REPRODUCIBILITY_RATE",
-        "ATTACHMENT.MAX_SIZE",
-        "SUMMARY.MODULE",
-        "SUMMARY.CHIP_UPPERCASE",
-        "DESCRIPTION.STEPS_ORDERED",
-    }
-)
 AI_REVIEWABLE_RULE_IDS = frozenset(
     {
         "SUMMARY.PROBABILITY",
@@ -43,30 +26,20 @@ _RULE_DATA = (
     ("SUMMARY.CHIP", "Summary", "summary.chip", "Summary 必须填写 CHIP。", "填写大写 CHIP 名称。"),
     ("SUMMARY.VERSION", "Summary", "summary.version", "Summary 必须填写系统版本。", "填写明确的系统版本。"),
     ("SUMMARY.CUSTOMER_ENGLISH", "Summary", "summary.customer", "客户名称必须使用英文名或英文项目代号。", "将客户名称改为英文名或英文项目代号。"),
-    ("SUMMARY.CHIP_UPPERCASE", "Summary", "summary.chip", "CHIP 必须包含字母并使用大写。", "将 CHIP 名称中的字母改为大写。"),
-    ("SUMMARY.MODULE", "Summary", "summary.module", "Summary 的模块必须来自规范允许的模块列表。", "选择规则明细中列出的模块名称。"),
     ("SUMMARY.DESCRIPTION_ENGLISH", "Summary", "summary.description", "Summary 的问题描述必须使用英文。", "使用英文描述问题现象。"),
     ("SUMMARY.PROBABILITY", "Summary", "summary.probability", "Summary 的复现概率必须是百分比或分数。", "使用 50% 或 1/2 等格式。"),
     ("COMPONENT.REQUIRED", "Component", "components", "至少填写一个 Component。", "选择一个或多个与问题相关的 Component。"),
-    ("COMPONENT.ALLOWED", "Component", "components", "每个 Component 都必须来自规范允许的模块列表。", "移除不支持的 Component，改用规则明细中的模块名称。"),
     ("DESCRIPTION.STEPS_TO_REPRODUCE", "Description", "description.steps_to_reproduce", "Description 必须包含非空的 Steps to reproduce。", "补充可执行的复现步骤。"),
     ("DESCRIPTION.ACTUAL_RESULTS", "Description", "description.actual_results", "Description 必须包含非空的 Actual results。", "补充实际发生的结果。"),
     ("DESCRIPTION.EXPECTED_RESULTS", "Description", "description.expected_results", "Description 必须包含非空的 Expected results。", "补充预期结果。"),
-    ("DESCRIPTION.REPRODUCIBILITY_RATE", "Description", "description.reproducibility_rate", "Description 必须包含非空的 Reproducibility rate。", "补充百分比或分数形式的复现概率。"),
     ("DESCRIPTION.COMPARISON", "Description", "description.comparison", "Description 必须包含非空的 Comparison。", "补充版本或平台对比信息。"),
     ("DESCRIPTION.NOTES", "Description", "description.notes", "Description 必须包含非空的 Notes。", "补充包含软硬件信息的备注。"),
-    ("DESCRIPTION.STEPS_ORDERED", "Description", "description.steps_to_reproduce", "复现步骤必须从 1 开始连续编号，且每一步包含可执行动作。", "按顺序重写为完整的编号步骤。"),
     ("DESCRIPTION.RATE_FORMAT", "Description", "description.reproducibility_rate", "Description 中的复现概率必须是百分比或分数。", "使用 50% 或 1/2 等格式。"),
     ("DESCRIPTION.NOTES_HW", "Description", "description.notes", "Notes 必须包含已填写的“HW info: ...”。", "在 Notes 中补充 HW info。"),
     ("DESCRIPTION.NOTES_SW", "Description", "description.notes", "Notes 必须包含已填写的“SW info: ...”。", "在 Notes 中补充 SW info。"),
     ("REGRESSION.EVIDENCE", "Regression", "description.comparison", "Regression 问题必须同时说明旧版本正常和当前版本异常。", "在 Comparison 中补充旧版本正常与当前版本异常的对照证据。"),
-    ("ATTACHMENT.MAX_SIZE", "Attachment", "attachment", "单个附件不得超过 10 MiB。", "压缩、拆分附件或改用链接。"),
 )
-_ALL_RULES = tuple(AuditRule(*row) for row in _RULE_DATA)
-_RULES = tuple(
-    rule for rule in _ALL_RULES
-    if rule.rule_id not in DISABLED_RULE_IDS
-)
+_RULES = tuple(AuditRule(*row) for row in _RULE_DATA)
 
 _SUMMARY_RATE_AT_END = re.compile(
     r"(?P<rate>(?:100|\d{1,2})(?:\.\d+)?%|\d+\s*/\s*\d+)"
@@ -76,7 +49,6 @@ _DESCRIPTION_RULES = (
     ("steps to reproduce", "DESCRIPTION.STEPS_TO_REPRODUCE"),
     ("actual results", "DESCRIPTION.ACTUAL_RESULTS"),
     ("expected results", "DESCRIPTION.EXPECTED_RESULTS"),
-    ("reproducibility rate", "DESCRIPTION.REPRODUCIBILITY_RATE"),
     ("comparison", "DESCRIPTION.COMPARISON"),
     ("notes", "DESCRIPTION.NOTES"),
 )
@@ -163,7 +135,6 @@ class _Issue(NamedTuple):
     reporter: str
     components: tuple[str, ...]
     labels: tuple[str, ...]
-    attachments: tuple[tuple[str, int], ...]
 
 
 def active_rules() -> tuple[AuditRule, ...]:
@@ -174,15 +145,12 @@ def audit_issue(
     issue: dict[str, Any],
     *,
     base_url: str,
-    rules: Sequence[AuditRule] | None = None,
 ) -> IssueAuditResult:
     normalized = _normalize_issue(issue, base_url)
-    selected = {rule.rule_id: rule for rule in (rules or _RULES)}
+    selected = {rule.rule_id: rule for rule in _RULES}
     violations: list[AuditViolation] = []
 
     def fail(rule_id: str, observed: Any, reason: str) -> None:
-        if rule_id in DISABLED_RULE_IDS:
-            return
         rule = selected.get(rule_id)
         if rule:
             violations.append(
@@ -193,16 +161,10 @@ def audit_issue(
             )
 
     _audit_summary(normalized.summary, fail)
-    _audit_components(normalized.components, fail)
+    if not normalized.components:
+        fail("COMPONENT.REQUIRED", "", "Component 为空。")
     sections = _audit_description(normalized.description, fail)
     _audit_regression(normalized.labels, sections.get("comparison", ""), fail)
-    for filename, size in normalized.attachments:
-        if size > MAX_ATTACHMENT_BYTES:
-            fail(
-                "ATTACHMENT.MAX_SIZE",
-                f"{filename} ({size} bytes)",
-                f"附件“{filename}”超过 10 MiB。",
-            )
 
     return IssueAuditResult(
         key=normalized.key,
@@ -211,28 +173,16 @@ def audit_issue(
         reporter=normalized.reporter,
         passed=not violations,
         violations=tuple(violations),
-        has_ai_candidates=bool(_ai_reviewable_violations(violations)),
+        description=normalized.description,
     )
-
-
-def issue_description(issue: dict[str, Any]) -> str:
-    fields = issue.get("fields") if isinstance(issue, dict) else {}
-    fields = fields if isinstance(fields, dict) else {}
-    return _plain_text(fields.get("description"))
 
 
 def ai_reviewable_violations(
     result: IssueAuditResult,
 ) -> tuple[AuditViolation, ...]:
-    return _ai_reviewable_violations(result.violations)
-
-
-def _ai_reviewable_violations(
-    violations: Sequence[AuditViolation],
-) -> tuple[AuditViolation, ...]:
     return tuple(
         violation
-        for violation in violations
+        for violation in result.violations
         if _is_ai_reviewable_violation(violation)
     )
 
@@ -270,11 +220,6 @@ def _normalize_issue(issue: dict[str, Any], base_url: str) -> _Issue:
         for item in fields.get("labels") or ()
         if (value := _item_text(item))
     )
-    attachments = tuple(
-        (str(item.get("filename", "") or ""), _safe_int(item.get("size")))
-        for item in (fields.get("attachment") or fields.get("attachments") or ())
-        if isinstance(item, dict)
-    )
     reporter_name = (
         reporter.get("displayName")
         or reporter.get("name")
@@ -289,7 +234,6 @@ def _normalize_issue(issue: dict[str, Any], base_url: str) -> _Issue:
         str(reporter_name),
         components,
         labels,
-        attachments,
     )
 
 
@@ -303,7 +247,7 @@ def _audit_summary(summary: str, fail: _Failure) -> None:
         )
         return
 
-    customer, chip, version, module = groups[-4:]
+    customer, chip, version, _module = groups[-4:]
     for rule_id, value, reason in (
         ("SUMMARY.CUSTOMER", customer, "客户名称为空。"),
         ("SUMMARY.CHIP", chip, "CHIP 为空。"),
@@ -313,10 +257,6 @@ def _audit_summary(summary: str, fail: _Failure) -> None:
             fail(rule_id, value, reason)
     if customer and not _is_english(customer):
         fail("SUMMARY.CUSTOMER_ENGLISH", customer, "客户名称不是有效的英文内容。")
-    if chip and (chip != chip.upper() or not re.search(r"[A-Z]", chip)):
-        fail("SUMMARY.CHIP_UPPERCASE", chip, f"CHIP“{chip}”未按要求使用大写。")
-    if module not in ALLOWED_MODULES:
-        fail("SUMMARY.MODULE", module, f"模块“{module}”不在允许列表中。")
     if not _is_english(description):
         fail("SUMMARY.DESCRIPTION_ENGLISH", description, "问题描述不是有效的英文内容。")
     if not _valid_rate(probability):
@@ -347,10 +287,8 @@ def _parse_summary_format(
         groups.append(text[position + 1:closing_position].strip())
         position = closing_position + 1
 
-    group_count_error = ""
     if not 4 <= len(groups) <= 6:
-        group_count_error = f"方括号字段数量为 {len(groups)}，要求 4–6 个"
-        errors.append(group_count_error)
+        errors.append(f"方括号字段数量为 {len(groups)}，要求 4–6 个")
     empty_groups = [
         str(index) for index, group in enumerate(groups, 1)
         if not group
@@ -365,20 +303,6 @@ def _parse_summary_format(
         return groups, "", "", errors
 
     body = text[position + 1:].strip()
-    misplaced_group = re.match(r"^(\[([^\]]+)\]|【([^】]+)】)", body)
-    misplaced_module = (
-        (misplaced_group.group(2) or misplaced_group.group(3)).strip()
-        if misplaced_group
-        else ""
-    )
-    if len(groups) == 3 and misplaced_module.casefold() in {
-        module.casefold() for module in ALLOWED_MODULES
-    }:
-        errors.remove(group_count_error)
-        errors.append(
-            f"Bug 模块字段“{misplaced_group.group(1)}”位于冒号后，"
-            f"导致冒号前只有 3 个字段；应将“{misplaced_group.group(1)}”移到冒号前"
-        )
     rate_match = _SUMMARY_RATE_AT_END.search(body)
     probability = rate_match.group("rate").strip() if rate_match else ""
     description = (
@@ -391,40 +315,11 @@ def _parse_summary_format(
     return groups, description, probability, errors
 
 
-def _audit_components(components: tuple[str, ...], fail: _Failure) -> None:
-    if not components:
-        fail("COMPONENT.REQUIRED", "", "Component 为空。")
-        return
-    unsupported = [value for value in components if value not in ALLOWED_MODULES]
-    if unsupported:
-        fail(
-            "COMPONENT.ALLOWED",
-            ", ".join(components),
-            f"Component 包含不支持的模块：{', '.join(unsupported)}。",
-        )
-
-
 def _audit_description(description: str, fail: _Failure) -> dict[str, str]:
     sections = _description_sections(description)
     for heading, rule_id in _DESCRIPTION_RULES:
         if not sections.get(heading, "").strip():
             fail(rule_id, description, f"{heading.title()} 章节缺失或为空。")
-
-    steps = sections.get("steps to reproduce", "")
-    numbered = [
-        (int(number), text.strip())
-        for number, text in re.findall(r"(?m)^\s*(\d+)[.)]\s*(\S.*)$", steps)
-    ]
-    if steps and (
-        not numbered
-        or [number for number, _text in numbered] != list(range(1, len(numbered) + 1))
-        or any(not text.strip(" ;.") for _number, text in numbered)
-    ):
-        fail(
-            "DESCRIPTION.STEPS_ORDERED",
-            steps,
-            "复现步骤没有从 1 开始连续编号，或步骤内容不可执行。",
-        )
 
     rate = sections.get("reproducibility rate", "").splitlines()
     if rate and not _valid_rate(rate[0]):
@@ -576,10 +471,3 @@ def _adf_text(value: Any) -> str:
     if isinstance(value, list):
         return "\n".join(_adf_text(item) for item in value)
     return ""
-
-
-def _safe_int(value: Any) -> int:
-    try:
-        return int(value or 0)
-    except (TypeError, ValueError):
-        return 0

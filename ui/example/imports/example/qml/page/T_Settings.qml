@@ -87,15 +87,7 @@ FluScrollablePage{
                 Layout.fillWidth: true
                 model: page_root.aiSettingsState.models || []
                 textRole: "display_name"
-                currentIndex: {
-                    var models = page_root.aiSettingsState.models || []
-                    for (var i = 0; i < models.length; ++i) {
-                        if (models[i].id === page_root.aiSettingsState.selected_model_id) {
-                            return i
-                        }
-                    }
-                    return -1
-                }
+                currentIndex: page_root.aiSettingsState.selected_model_index
                 onActivated: function(index) {
                     var models = page_root.aiSettingsState.models || []
                     if (index >= 0 && index < models.length) {
@@ -105,15 +97,8 @@ FluScrollablePage{
                 }
             }
             FluText{
-                text: {
-                    var models = page_root.aiSettingsState.models || []
-                    for (var i = 0; i < models.length; ++i) {
-                        if (models[i].id === page_root.aiSettingsState.selected_model_id) {
-                            return models[i].configured ? qsTr("Configured") : qsTr("Not configured")
-                        }
-                    }
-                    return qsTr("Not configured")
-                }
+                text: page_root.aiSettingsState.selected_model_configured
+                      ? qsTr("Configured") : qsTr("Not configured")
                 color: FluTheme.fontSecondaryColor
             }
             RowLayout{
