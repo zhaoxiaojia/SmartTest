@@ -176,16 +176,19 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     FluFilledButton {
+                        objectName: "confirmAuditButton"
                         text: qsTr("Confirm Audit")
                         disabled: !root.view.canConfirm
                         onClicked: JiraAuditBridge.confirmAudit()
                     }
                     FluFilledButton {
+                        objectName: "exportAuditButton"
                         text: qsTr("Export XLSX")
                         disabled: !root.view.canExport
                         onClicked: JiraAuditBridge.exportReport()
                     }
                     FluButton {
+                        objectName: "showAuditExportButton"
                         text: qsTr("Show in Folder")
                         disabled: root.view.exportPath.length === 0
                         onClicked: FluTools.showFileInFolder(root.view.exportPath)

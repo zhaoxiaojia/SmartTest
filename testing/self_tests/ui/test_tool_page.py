@@ -497,14 +497,19 @@ from FluentUI import FluentUI
 from example.imports import resource_rc
 class JiraAudit(QObject):
     changed = Signal()
-    viewState = Property("QVariantMap", lambda self: {{
+    def __init__(self):
+        super().__init__()
+        self._view = {{
         "state": "awaiting_confirmation", "statusText": "ready", "inputError": "",
         "progressValue": 1.0, "processedCount": 1, "totalCount": 1,
         "ruleRows": [], "resultSummary": {{"totalCount": 1, "passedCount": 0, "failedCount": 1, "violationCount": 1}},
         "violationRows": [{{"issueKey": "SH-123", "issueUrl": "https://jira.example.com/browse/SH-123", "rule_id": "description-steps", "section": "Description", "field": "Description", "reason": "Steps are required.", "guidance": "Add steps."}}],
         "aiReviewStatus": "fallback", "aiReviewText": "Character-rule results were retained.",
         "exportPath": "", "canStart": True, "canConfirm": True, "canExport": False,
-    }}, notify=changed)
+        }}
+    viewState = Property("QVariantMap", lambda self: self._view, notify=changed)
+    def setView(self, **changes):
+        self._view.update(changes); self.changed.emit()
     @Slot(str)
     def startAudit(self, _text): pass
     @Slot()
@@ -517,7 +522,15 @@ jira=JiraAudit(); engine.rootContext().setContextProperty("JiraAuditBridge", jir
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 900; height: 700; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" }} }}')
 app.processEvents()
-print(len(engine.rootObjects()), len(warnings), warnings)
+window=engine.rootObjects()[0]
+buttons=[window.findChild(QObject, name) for name in ("confirmAuditButton", "exportAuditButton", "showAuditExportButton")]
+assert all(buttons)
+print(*[button.property("disabled") for button in buttons])
+jira.setView(canConfirm=False, canExport=True); app.processEvents()
+print(*[button.property("disabled") for button in buttons])
+jira.setView(exportPath="C:/Users/test/Downloads/audit.xlsx"); app.processEvents()
+print(*[button.property("disabled") for button in buttons])
+print(len(warnings), warnings)
 '''
     result = subprocess.run(
         [sys.executable, "-c", probe], cwd=ROOT,
@@ -525,7 +538,10 @@ print(len(engine.rootObjects()), len(warnings), warnings)
         capture_output=True, text=True, timeout=15,
     )
     assert result.returncode == 0, result.stderr + result.stdout
-    assert "1 0 []" in result.stdout
+    assert "False True True" in result.stdout
+    assert "True False True" in result.stdout
+    assert "True False False" in result.stdout
+    assert "0 []" in result.stdout
 
 
 def test_redmine_failed_login_view_qrc_loads_without_qml_warnings():
