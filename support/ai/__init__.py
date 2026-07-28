@@ -1,5 +1,37 @@
 from .client import AIChatClient
-from .config import AIKeyResolver, load_ai_client_config
-from .core import AIChatMessage, AIChatResponse, AIClientConfig, AIConfigurationError, AIError, AIResponseError, AITransportError
+from .config import (
+    AIKeyResolver,
+    available_models,
+    create_chat_client,
+    model_by_id,
+    select_model,
+    selected_model_id,
+)
+from .core import (
+    AIChatMessage,
+    AIChatResponse,
+    AIClientConfig,
+    AIConfigurationError,
+    AIError,
+    AIModelTemplate,
+    AIResponseError,
+    AITransportError,
+)
 
-__all__ = ["AIChatClient", "AIKeyResolver", "load_ai_client_config", "AIChatMessage", "AIChatResponse", "AIClientConfig", "AIConfigurationError", "AIError", "AIResponseError", "AITransportError"]
+__all__ = [
+    "AIChatClient",
+    "AIChatMessage",
+    "AIChatResponse",
+    "AIClientConfig",
+    "AIConfigurationError",
+    "AIError",
+    "AIKeyResolver",
+    "AIModelTemplate",
+    "AIResponseError",
+    "AITransportError",
+    "available_models",
+    "create_chat_client",
+    "model_by_id",
+    "select_model",
+    "selected_model_id",
+]

@@ -1,62 +1,111 @@
-import pytest
-from support.ai import AIConfigurationError, AIKeyResolver, load_ai_client_config
 import base64
 import json
 
-def test_key_resolver_prefers_environment(monkeypatch):
-    monkeypatch.setenv("SMARTTEST_AI_API_KEY", "env-key")
-    assert AIKeyResolver().resolve() == "env-key"
+import pytest
 
-def test_missing_key_is_explicit(monkeypatch, tmp_path):
-    monkeypatch.delenv("SMARTTEST_AI_API_KEY", raising=False)
-    with pytest.raises(AIConfigurationError): AIKeyResolver(tmp_path / "missing.json").resolve()
+from support.ai import (
+    AIConfigurationError,
+    AIKeyResolver,
+    available_models,
+    model_by_id,
+    select_model,
+    selected_model_id,
+)
 
 
-def test_runtime_config_defaults_to_company_provider_and_allows_environment_override(monkeypatch):
-    class Resolver:
-        def resolve(self): return "key"
-    for name in (
-        "SMARTTEST_AI_BASE_URL",
-        "SMARTTEST_AI_MODEL",
-        "SMARTTEST_AI_TIMEOUT",
-        "SMARTTEST_AI_MAX_TOKENS",
-    ):
-        monkeypatch.delenv(name, raising=False)
-    default = load_ai_client_config(Resolver())
-    assert default.base_url == "https://llm.amlogic.com/8d1b5b4c"
-    assert default.model == "Amlogic_Local/Kimi-K2.7-Code"
-    assert default.timeout == 120.0
-    assert default.max_tokens == 2048
-    monkeypatch.setenv("SMARTTEST_AI_BASE_URL", "https://internal.example/v1/")
-    monkeypatch.setenv("SMARTTEST_AI_MODEL", "internal-model")
-    monkeypatch.setenv("SMARTTEST_AI_TIMEOUT", "7.5")
-    monkeypatch.setenv("SMARTTEST_AI_MAX_TOKENS", "512")
-    overridden = load_ai_client_config(Resolver())
-    assert (
-        overridden.base_url,
-        overridden.model,
-        overridden.timeout,
-        overridden.max_tokens,
-    ) == ("https://internal.example/v1", "internal-model", 7.5, 512)
+def test_builtin_models_are_resolvable_and_unknown_model_is_rejected():
+    models = available_models()
 
-def test_config_module_has_no_qt_dependency():
+    assert [model.id for model in models] == [
+        "company-kimi",
+        "public-deepseek",
+    ]
+    assert model_by_id("company-kimi").credential_id != model_by_id(
+        "public-deepseek"
+    ).credential_id
+    with pytest.raises(AIConfigurationError):
+        model_by_id("unknown-model")
+
+
+def test_selected_model_is_persisted_and_unknown_selection_is_rejected(monkeypatch, tmp_path):
     import support.ai.config as config
-    assert "PySide6" not in config.__loader__.get_source(config.__name__)
 
-def test_legacy_dpapi_field_uses_historical_entropy_and_migrates(monkeypatch, tmp_path):
+    monkeypatch.setattr(config, "_default_settings_path", lambda: tmp_path / "settings.json")
+
+    assert selected_model_id() == "company-kimi"
+    select_model("public-deepseek")
+    assert selected_model_id() == "public-deepseek"
+    assert json.loads((tmp_path / "settings.json").read_text(encoding="utf-8")) == {
+        "selected_model_id": "public-deepseek"
+    }
+    with pytest.raises(AIConfigurationError):
+        select_model("unknown-model")
+
+
+def test_credentials_are_isolated_and_clear_only_removes_requested_credential(
+    monkeypatch, tmp_path
+):
     import support.ai.config as config
-    path = tmp_path / "secret_store.json"
-    path.write_text(json.dumps({"encrypted_api_key": base64.b64encode(b"cipher").decode()}), encoding="utf-8")
+
+    monkeypatch.setattr(config, "_dpapi_protect", lambda value, *, entropy=None: b"p:" + value)
+    monkeypatch.setattr(config, "_dpapi_unprotect", lambda value, *, entropy=None: value[2:])
+    resolver = AIKeyResolver(tmp_path / "secrets.json")
+
+    resolver.store("company-kimi", "kimi-key")
+    resolver.store("public-deepseek", "deepseek-key")
+    resolver.clear("company-kimi")
+
+    assert not resolver.is_configured("company-kimi")
+    assert resolver.resolve("public-deepseek") == "deepseek-key"
+    assert resolver.is_configured("public-deepseek")
+
+
+def test_environment_key_is_a_fallback_not_an_override(monkeypatch, tmp_path):
+    import support.ai.config as config
+
+    monkeypatch.setattr(config, "_dpapi_protect", lambda value, *, entropy=None: b"p:" + value)
+    monkeypatch.setattr(config, "_dpapi_unprotect", lambda value, *, entropy=None: value[2:])
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "environment-key")
+    resolver = AIKeyResolver(tmp_path / "secrets.json")
+
+    resolver.store("public-deepseek", "saved-key")
+
+    assert resolver.resolve("public-deepseek") == "saved-key"
+    assert AIKeyResolver(tmp_path / "empty.json").resolve("public-deepseek") == "environment-key"
+
+
+@pytest.mark.parametrize(
+    ("field", "entropy"),
+    [
+        ("api_key_dpapi", None),
+        ("encrypted_api_key", b"SmartTest.AI.SecretStore.v1"),
+    ],
+)
+def test_legacy_kimi_key_migrates_only_when_kimi_credential_is_resolved(
+    monkeypatch, tmp_path, field, entropy
+):
+    import support.ai.config as config
+
+    store_path = tmp_path / "secrets.json"
+    store_path.write_text(
+        json.dumps({field: base64.b64encode(b"legacy-cipher").decode()}),
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     calls = []
-    monkeypatch.delenv("SMARTTEST_AI_API_KEY", raising=False)
-    monkeypatch.setattr(config, "_dpapi_unprotect", lambda value, *, entropy=None: calls.append((value, entropy)) or b"legacy-key")
-    monkeypatch.setattr(AIKeyResolver, "store", lambda self, key: calls.append(("store", key)) or path)
-    assert AIKeyResolver(path).resolve() == "legacy-key"
-    assert calls == [(b"cipher", config.LEGACY_DPAPI_ENTROPY), ("store", "legacy-key")]
+    monkeypatch.setattr(
+        config,
+        "_dpapi_unprotect",
+        lambda value, *, entropy=None: calls.append(entropy) or b"legacy-key",
+    )
+    monkeypatch.setattr(config, "_dpapi_protect", lambda value, *, entropy=None: b"new-cipher")
+    resolver = AIKeyResolver(store_path)
 
-@pytest.mark.parametrize("name,value", [("SMARTTEST_AI_TIMEOUT", "0"), ("SMARTTEST_AI_TIMEOUT", "-1")])
-def test_invalid_runtime_config_is_explicit(monkeypatch, name, value):
-    class Resolver:
-        def resolve(self): return "key"
-    monkeypatch.setenv(name, value)
-    with pytest.raises(AIConfigurationError): load_ai_client_config(Resolver())
+    with pytest.raises(AIConfigurationError):
+        resolver.resolve("public-deepseek")
+    assert resolver.resolve("company-kimi") == "legacy-key"
+    payload = json.loads(store_path.read_text(encoding="utf-8"))
+    assert "api_key_dpapi" not in payload
+    assert "legacy-key" not in store_path.read_text(encoding="utf-8")
+    assert set(payload["credentials"]) == {"company-kimi"}
+    assert calls == [entropy]

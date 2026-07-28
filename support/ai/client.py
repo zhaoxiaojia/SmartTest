@@ -33,6 +33,8 @@ class AIChatClient:
                 self._config.max_tokens if max_tokens is None else int(max_tokens)
             ),
         }
+        if self._config.request_options:
+            payload.update(self._config.request_options)
         if response_format is not None: payload["response_format"] = response_format
         request = urllib.request.Request(self._config.base_url.rstrip("/") + "/chat/completions", data=json.dumps(payload).encode("utf-8"), headers={"Authorization": "Bearer " + self._config.api_key, "Content-Type": "application/json"}, method="POST")
         try:

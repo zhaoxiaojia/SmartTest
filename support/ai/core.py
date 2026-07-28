@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Mapping
 
 
 class AIError(RuntimeError):
@@ -38,6 +38,19 @@ class AIClientConfig:
     api_key: str
     timeout: float = 120.0
     max_tokens: int = 2048
+    request_options: Mapping[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class AIModelTemplate:
+    id: str
+    display_name: str
+    credential_id: str
+    base_url: str
+    model_id: str
+    timeout: float = 120.0
+    max_tokens: int = 2048
+    request_options: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True)
