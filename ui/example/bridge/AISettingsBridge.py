@@ -15,12 +15,6 @@ from support.ai import (
 )
 
 
-_MODEL_DISPLAY_NAMES = {
-    "company-kimi": "Company Intranet Kimi",
-    "public-deepseek": "Public DeepSeek",
-}
-
-
 class AISettingsBridge(QObject):
     stateChanged = Signal()
     errorOccurred = Signal(str)
@@ -52,7 +46,7 @@ class AISettingsBridge(QObject):
             models.append(
                 {
                     "id": template.id,
-                    "display_name": self.tr(_MODEL_DISPLAY_NAMES[template.id]),
+                    "display_name": self._display_name(template.id),
                     "configured": bool(configured),
                 }
             )
@@ -68,7 +62,7 @@ class AISettingsBridge(QObject):
             self._select_model(str(model_id or "").strip())
         except (AIConfigurationError, OSError, ValueError, TypeError):
             self.stateChanged.emit()
-            self._emit_error("Unable to select the AI model. Try again.")
+            self.errorOccurred.emit(self.tr("Unable to select the AI model. Try again."))
             return False
         self.stateChanged.emit()
         return True
@@ -77,13 +71,13 @@ class AISettingsBridge(QObject):
     def saveApiKey(self, model_id: str, key: str) -> bool:
         clean_key = str(key or "").strip()
         if not clean_key:
-            self._emit_error("Enter an API key.")
+            self.errorOccurred.emit(self.tr("Enter an API key."))
             return False
         try:
             template = self._model_by_id(str(model_id or "").strip())
             self._key_resolver.store(template.credential_id, clean_key)
         except (AIConfigurationError, OSError, ValueError, TypeError):
-            self._emit_error("Unable to save the API key. Check the key and try again.")
+            self.errorOccurred.emit(self.tr("Unable to save the API key. Check the key and try again."))
             return False
         self.stateChanged.emit()
         return True
@@ -94,10 +88,12 @@ class AISettingsBridge(QObject):
             template = self._model_by_id(str(model_id or "").strip())
             self._key_resolver.clear(template.credential_id)
         except (AIConfigurationError, OSError, ValueError, TypeError):
-            self._emit_error("Unable to clear the API key. Try again.")
+            self.errorOccurred.emit(self.tr("Unable to clear the API key. Try again."))
             return False
         self.stateChanged.emit()
         return True
 
-    def _emit_error(self, message: str) -> None:
-        self.errorOccurred.emit(self.tr(message))
+    def _display_name(self, model_id: str) -> str:
+        if model_id == "company-kimi":
+            return self.tr("Company Intranet Kimi")
+        return self.tr("Public DeepSeek")

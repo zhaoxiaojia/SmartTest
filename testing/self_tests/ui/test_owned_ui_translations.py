@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from subprocess import run
+
+from support.scripts import env
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -47,3 +50,25 @@ def test_ai_settings_fixed_text_is_finished_in_both_catalogs():
                 assert translation.get("type") != "unfinished"
                 text = (translation.text or "").strip()
                 assert text and "\ufffd" not in text and text not in {"?", "??", "???"}
+
+
+def test_lupdate_keeps_ai_settings_bridge_text_active(tmp_path):
+    generated_catalog = tmp_path / "example_en_US.ts"
+
+    run(
+        [
+            env.pyside6_lupdate(),
+            str(ROOT / "ui/example/imports/resource.qrc"),
+            str(ROOT / "ui/example/bridge/AISettingsBridge.py"),
+            "-ts",
+            str(generated_catalog),
+        ],
+        check=True,
+        cwd=ROOT,
+    )
+
+    bridge_messages = _catalog(generated_catalog)["AISettingsBridge"]
+    for source in REQUIRED["AISettingsBridge"]:
+        translation = bridge_messages.get(source)
+        assert translation is not None, f"lupdate omitted {source}"
+        assert translation.get("type") not in {"vanished", "obsolete"}
