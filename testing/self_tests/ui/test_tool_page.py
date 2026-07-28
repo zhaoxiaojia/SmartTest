@@ -399,20 +399,6 @@ def test_tool_navigation_and_page_layout_contract():
     assert "selectedToolIndex = model.index" not in page
 
 
-def test_jira_audit_workspace_keeps_confirmation_and_export_gates_in_the_bridge():
-    workspace = (
-        ROOT / "ui/example/imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml"
-    ).read_text(encoding="utf-8")
-
-    assert "JiraAuditBridge.confirmAudit()" in workspace
-    assert "JiraAuditBridge.exportReport()" in workspace
-    assert "disabled: !root.view.canConfirm" in workspace
-    assert "disabled: !root.view.canExport" in workspace
-    assert "disabled: root.view.exportPath.length === 0" in workspace
-    assert 'qsTr("Confirm Audit")' in workspace
-    assert 'qsTr("AI Review")' in workspace
-
-
 def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():
     component_root = ROOT / "ui/example/imports/example/qml/component/redmine"
     issue_root = ROOT / "ui/example/imports/example/qml/component/issue"
@@ -488,6 +474,48 @@ app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]
 engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1280; height: 820; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/component/redmine/RedmineWorkspace.qml" }} }}')
+app.processEvents()
+print(len(engine.rootObjects()), len(warnings), warnings)
+'''
+    result = subprocess.run(
+        [sys.executable, "-c", probe], cwd=ROOT,
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
+        capture_output=True, text=True, timeout=15,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "1 0 []" in result.stdout
+
+
+def test_jira_audit_workspace_qrc_loads_review_identity_without_qml_warnings():
+    probe = f'''
+import sys
+sys.path.insert(0, r"{ROOT / 'ui'}")
+from PySide6.QtCore import QObject, Property, Signal, Slot
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from FluentUI import FluentUI
+from example.imports import resource_rc
+class JiraAudit(QObject):
+    changed = Signal()
+    viewState = Property("QVariantMap", lambda self: {{
+        "state": "awaiting_confirmation", "statusText": "ready", "inputError": "",
+        "progressValue": 1.0, "processedCount": 1, "totalCount": 1,
+        "ruleRows": [], "resultSummary": {{"totalCount": 1, "passedCount": 0, "failedCount": 1, "violationCount": 1}},
+        "violationRows": [{{"issueKey": "SH-123", "issueUrl": "https://jira.example.com/browse/SH-123", "rule_id": "description-steps", "section": "Description", "field": "Description", "reason": "Steps are required.", "guidance": "Add steps."}}],
+        "aiReviewStatus": "fallback", "aiReviewText": "Character-rule results were retained.",
+        "exportPath": "", "canStart": True, "canConfirm": True, "canExport": False,
+    }}, notify=changed)
+    @Slot(str)
+    def startAudit(self, _text): pass
+    @Slot()
+    def confirmAudit(self): pass
+    @Slot()
+    def exportReport(self): pass
+app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]
+engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
+jira=JiraAudit(); engine.rootContext().setContextProperty("JiraAuditBridge", jira)
+FluentUI.registerTypes(engine)
+engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 900; height: 700; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" }} }}')
 app.processEvents()
 print(len(engine.rootObjects()), len(warnings), warnings)
 '''

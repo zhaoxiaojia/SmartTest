@@ -154,9 +154,16 @@ Item {
 
                         DetailCard {
                             required property var modelData
-                            WrappedText {
-                                text: modelData.rule_id + " · " + modelData.field
-                                font: FluTextStyle.BodyStrong
+                            RowLayout {
+                                Layout.fillWidth: true
+                                FluButton {
+                                    text: modelData.issueKey
+                                    onClicked: Qt.openUrlExternally(modelData.issueUrl)
+                                }
+                                WrappedText {
+                                    text: modelData.rule_id + " · " + modelData.field
+                                    font: FluTextStyle.BodyStrong
+                                }
                             }
                             WrappedText { text: modelData.reason }
                             SecondaryText { text: modelData.guidance }

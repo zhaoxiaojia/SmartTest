@@ -6761,241 +6761,189 @@ Some contents...</source>
 <context>
     <name>JiraAuditBridge</name>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="66" />
         <source>Ready to review Jira issues.</source>
         <translation>可以开始审查 Jira 问题。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="75" />
-        <location filename="bridge/JiraAuditBridge.py" line="123" />
-        <location filename="bridge/JiraAuditBridge.py" line="263" />
-        <location filename="bridge/JiraAuditBridge.py" line="285" />
         <source>No AI review was required.</source>
         <translation>无需 AI 复核。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="91" />
         <source>Enter JQL or a Jira URL.</source>
         <translation>请输入 JQL 或 Jira URL。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="107" />
         <source>Sign in with LDAP again to review Jira issues.</source>
         <translation>请重新使用 LDAP 登录后再审查 Jira 问题。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="115" />
         <source>Validating Jira input...</source>
         <translation>正在验证 Jira 输入...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="155" />
         <source>Complete a Jira audit before confirming it.</source>
         <translation>请先完成 Jira 审查，再确认审查。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="160" />
         <source>Jira audit confirmed. Export is ready.</source>
         <translation>Jira 审查已确认，可以导出。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="166" />
         <source>Confirm the Jira audit before exporting.</source>
         <translation>请先确认 Jira 审查，再导出。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="218" />
         <source>Jira audit completed. Confirm the audit before exporting.</source>
         <translation>Jira 审查已完成。请确认审查后再导出。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="245" />
         <source>Jira input is invalid. Enter JQL or a Jira issue, filter, or search URL.</source>
         <translation>Jira 输入无效。请输入 JQL 或 Jira 问题、筛选器或搜索 URL。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="247" />
         <source>Jira audit failed. Review the input and sign-in, then try again.</source>
         <translation>Jira 审查失败。请检查输入和登录状态后重试。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="269" />
         <source>Fetching Jira issues...</source>
         <translation>正在获取 Jira 问题...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="270" />
         <source>Reviewing Jira issue formats...</source>
         <translation>正在审查 Jira 问题格式...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="271" />
         <source>Reviewing ambiguous results with AI...</source>
         <translation>正在使用 AI 复核模糊结果...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="272" />
         <source>Finalizing Jira audit results...</source>
         <translation>正在整理 Jira 审查结果...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="292" />
         <source>AI review is unavailable. Character-rule results were retained.</source>
         <translation>AI 复核不可用，已保留字符初审结果。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="296" />
         <source>AI review completed.</source>
         <translation>AI 复核已完成。</translation>
     </message>
+
+
     <message>
-        <source>Jira format audit completed.</source>
-        <translation type="vanished">Jira 规范审查已完成。</translation>
-    </message>
-    <message>
-        <source>Complete a Jira audit before exporting.</source>
-        <translation type="vanished">请先完成 Jira 审查再导出。</translation>
-    </message>
-    <message>
-        <location filename="bridge/JiraAuditBridge.py" line="177" />
         <source>Failed to export the Jira audit workbook.</source>
         <translation>导出 Jira 审查工作簿失败。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="183" />
         <source>Jira audit workbook exported.</source>
         <translation>Jira 审查工作簿已导出。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="255" />
         <source>The login changed. Start the Jira audit again.</source>
         <translation>登录状态已变化，请重新开始 Jira 审查。</translation>
     </message>
-    <message>
-        <source>The Jira audit returned an invalid result.</source>
-        <translation type="vanished">Jira 审查返回了无效结果。</translation>
-    </message>
-    <message>
-        <source>Jira audit failed.</source>
-        <translation type="vanished">Jira 审查失败。</translation>
-    </message>
+
+
     <message>
         <source>Jira URLs must use HTTP or HTTPS.</source>
-        <translation type="vanished">Jira URL 仅支持 HTTP 或 HTTPS。</translation>
+        <translation>Jira URL 仅支持 HTTP 或 HTTPS。</translation>
     </message>
     <message>
         <source>The Jira URL is malformed.</source>
-        <translation type="vanished">Jira URL 格式错误。</translation>
+        <translation>Jira URL 格式错误。</translation>
     </message>
     <message>
         <source>The Jira URL host must match the configured Jira host.</source>
-        <translation type="vanished">Jira URL 主机必须与当前配置的 Jira 主机一致。</translation>
+        <translation>Jira URL 主机必须与当前配置的 Jira 主机一致。</translation>
     </message>
     <message>
         <source>The Jira issue URL contains an invalid issue key.</source>
-        <translation type="vanished">Jira 问题链接中的 Issue Key 格式无效。</translation>
+        <translation>Jira 问题链接中的 Issue Key 格式无效。</translation>
     </message>
     <message>
         <source>Use a Jira issue, filter, or search URL.</source>
-        <translation type="vanished">请使用 Jira 问题、筛选器或搜索链接。</translation>
+        <translation>请使用 Jira 问题、筛选器或搜索链接。</translation>
     </message>
     <message>
         <source>The Jira filter could not be loaded. Check its permissions.</source>
-        <translation type="vanished">无法加载 Jira 筛选器，请检查访问权限。</translation>
+        <translation>无法加载 Jira 筛选器，请检查访问权限。</translation>
     </message>
     <message>
         <source>The Jira filter does not contain JQL.</source>
-        <translation type="vanished">Jira 筛选器中不包含 JQL。</translation>
+        <translation>Jira 筛选器中不包含 JQL。</translation>
     </message>
     <message>
         <source>JQL validation failed. Check the query and Jira permissions.</source>
-        <translation type="vanished">JQL 校验失败，请检查查询语法和 Jira 权限。</translation>
+        <translation>JQL 校验失败，请检查查询语法和 Jira 权限。</translation>
     </message>
 </context>
 <context>
     <name>JiraAuditWorkspace</name>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="59" />
         <source>JQL or Jira URL</source>
         <translation>JQL 或 Jira URL</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="67" />
         <source>Paste JQL or a Jira issue, filter, or search URL.</source>
         <translation>粘贴 JQL、Jira 问题链接、筛选器链接或搜索链接。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="75" />
         <source>Start Audit</source>
         <translation>开始审查</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="87" />
         <source>Rules</source>
         <translation>规则明细</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="107" />
         <source>Audit Progress</source>
         <translation>审查进度</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="125" />
         <source>Results</source>
         <translation>审查结果</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="129" />
         <source>Total</source>
         <translation>总数</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="130" />
         <source>Passed</source>
         <translation>通过</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="131" />
         <source>Failed</source>
         <translation>未通过</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="132" />
         <source>Violations</source>
         <translation>违规项</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="137" />
         <source>No violations were found.</source>
         <translation>未发现违规项。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="143" />
         <source>AI Review</source>
         <translation>AI 复核</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="172" />
         <source>Confirm Audit</source>
         <translation>确认审查</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="177" />
         <source>Export XLSX</source>
         <translation>导出 XLSX</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="182" />
         <source>Show in Folder</source>
         <translation>在文件夹中显示</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="188" />
         <source>Exported file</source>
         <translation>导出文件</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="192" />
         <source>No export has been created.</source>
         <translation>尚未生成导出文件。</translation>
     </message>

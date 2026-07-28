@@ -4,6 +4,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from subprocess import run
 
+from PySide6.QtCore import QTranslator
+
 from support.scripts import env
 
 
@@ -30,14 +32,52 @@ REQUIRED = {
 
 JIRA_AUDIT_REQUIRED = {
     "JiraAuditBridge": {
+        "Ready to review Jira issues.",
+        "No AI review was required.",
+        "Enter JQL or a Jira URL.",
+        "Sign in with LDAP again to review Jira issues.",
+        "Validating Jira input...",
+        "Jira audit confirmed. Export is ready.",
+        "Failed to export the Jira audit workbook.",
+        "Jira audit workbook exported.",
+        "The login changed. Start the Jira audit again.",
         "Reviewing ambiguous results with AI...",
         "Finalizing Jira audit results...",
         "Jira audit completed. Confirm the audit before exporting.",
         "Complete a Jira audit before confirming it.",
         "Confirm the Jira audit before exporting.",
         "AI review is unavailable. Character-rule results were retained.",
+        "AI review completed.",
+        "Jira input is invalid. Enter JQL or a Jira issue, filter, or search URL.",
+        "Jira audit failed. Review the input and sign-in, then try again.",
+        "Jira URLs must use HTTP or HTTPS.",
+        "The Jira URL is malformed.",
+        "The Jira URL host must match the configured Jira host.",
+        "The Jira issue URL contains an invalid issue key.",
+        "Use a Jira issue, filter, or search URL.",
+        "The Jira filter could not be loaded. Check its permissions.",
+        "The Jira filter does not contain JQL.",
+        "JQL validation failed. Check the query and Jira permissions.",
     },
-    "JiraAuditWorkspace": {"Confirm Audit", "AI Review"},
+    "JiraAuditWorkspace": {
+        "JQL or Jira URL",
+        "Paste JQL or a Jira issue, filter, or search URL.",
+        "Start Audit",
+        "Rules",
+        "Audit Progress",
+        "Results",
+        "Total",
+        "Passed",
+        "Failed",
+        "Violations",
+        "No violations were found.",
+        "AI Review",
+        "Confirm Audit",
+        "Export XLSX",
+        "Show in Folder",
+        "Exported file",
+        "No export has been created.",
+    },
 }
 
 
@@ -74,7 +114,19 @@ def test_jira_audit_fixed_text_is_finished_in_both_catalogs():
                 assert translation is not None, f"{filename}: missing {context_name}/{source}"
                 assert translation.get("type") != "unfinished"
                 assert translation.get("type") != "vanished"
-                assert (translation.text or "").strip()
+                text = (translation.text or "").strip()
+                assert text and "\ufffd" not in text and text not in {"?", "??", "???"}
+
+
+def test_jira_audit_runtime_qm_translations_are_active_and_readable():
+    for locale in ("en_US", "zh_CN"):
+        translator = QTranslator()
+        qm_path = ROOT / "ui/example/imports/example/i18n" / f"example_{locale}.qm"
+        assert translator.load(str(qm_path)), f"failed to load {qm_path}"
+        for context_name, sources in JIRA_AUDIT_REQUIRED.items():
+            for source in sources:
+                text = translator.translate(context_name, source).strip()
+                assert text and "\ufffd" not in text and text not in {"?", "??", "???"}
 
 
 def test_lupdate_keeps_ai_settings_bridge_text_active(tmp_path):

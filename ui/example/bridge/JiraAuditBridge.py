@@ -143,7 +143,9 @@ class JiraAuditBridge(QObject):
         except ValueError as exc:
             smart_log("Jira audit input validation failed: %s", exc, level="warning",
                       domain="jira", source="JiraAuditBridge")
-            self._workerFailed.emit({"generation": generation, "kind": "input"})
+            self._workerFailed.emit(
+                {"generation": generation, "kind": "input", "message": str(exc)}
+            )
         except Exception as exc:
             smart_log("Jira format audit failed: %s", exc, level="error",
                       domain="jira", source="JiraAuditBridge")
@@ -225,6 +227,8 @@ class JiraAuditBridge(QObject):
             },
             violationRows=[
                 {
+                    "issueKey": issue.key,
+                    "issueUrl": issue.url,
                     "rule_id": violation.rule_id,
                     "section": violation.section,
                     "field": violation.field,
@@ -241,7 +245,7 @@ class JiraAuditBridge(QObject):
         if int(payload.get("generation", -1)) != self._generation:
             return
         message = (
-            self.tr("Jira input is invalid. Enter JQL or a Jira issue, filter, or search URL.")
+            self._input_error_text(str(payload.get("message", "")))
             if payload.get("kind") == "input"
             else self.tr("Jira audit failed. Review the input and sign-in, then try again.")
         )
@@ -295,6 +299,26 @@ class JiraAuditBridge(QObject):
             "aiReviewStatus": "completed",
             "aiReviewText": self.tr("AI review completed."),
         }
+
+    def _input_error_text(self, message: str) -> str:
+        if message == "Jira URLs must use HTTP or HTTPS.":
+            return self.tr("Jira URLs must use HTTP or HTTPS.")
+        if message == "The Jira URL is malformed.":
+            return self.tr("The Jira URL is malformed.")
+        if message == "The Jira URL host must match the configured Jira host.":
+            return self.tr("The Jira URL host must match the configured Jira host.")
+        if message == "The Jira issue URL contains an invalid issue key.":
+            return self.tr("The Jira issue URL contains an invalid issue key.")
+        if message == "Use a Jira issue, filter, or search URL.":
+            return self.tr("Use a Jira issue, filter, or search URL.")
+        if message == "The Jira filter could not be loaded. Check its permissions.":
+            return self.tr("The Jira filter could not be loaded. Check its permissions.")
+        if message == "The Jira filter does not contain JQL.":
+            return self.tr("The Jira filter does not contain JQL.")
+        if message == "JQL validation failed. Check the query and Jira permissions.":
+            return self.tr("JQL validation failed. Check the query and Jira permissions.")
+        return self.tr("Jira input is invalid. Enter JQL or a Jira issue, filter, or search URL.")
+
     def _set(self, **changes) -> None:
         state = str(changes.get("state", self._view["state"]))
         self._view = {

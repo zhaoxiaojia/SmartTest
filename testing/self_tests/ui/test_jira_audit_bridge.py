@@ -227,6 +227,8 @@ def test_progress_and_ai_fallback_are_safe_for_the_view_state():
     assert bridge.viewState["aiReviewStatus"] == "fallback"
     assert "Character-rule results were retained" in bridge.viewState["aiReviewText"]
     assert bridge.viewState["violationRows"] == [{
+        "issueKey": "SH-123",
+        "issueUrl": "https://jira.example.com/browse/SH-123",
         "rule_id": "description-steps",
         "section": "Description",
         "field": "Description",
@@ -252,3 +254,66 @@ def test_confirmation_requires_current_report_and_auth_change_revokes_it():
     assert bridge.viewState["canConfirm"] is False
     assert bridge.viewState["canExport"] is False
     assert bridge.viewState["exportPath"] == ""
+
+
+def test_input_errors_keep_resolver_categories_without_exposing_lower_errors():
+    class ImmediateThread:
+        def __init__(self, *, target, args, **_kwargs):
+            self.target = target
+            self.args = args
+
+        def start(self):
+            self.target(*self.args)
+
+    class FilterDeniedClient(FakeClient):
+        def fetch_filter(self, _filter_id):
+            raise RuntimeError("private transport detail")
+
+    class InvalidJqlClient(FakeClient):
+        def search_page(self, _jql, **_kwargs):
+            raise RuntimeError("private validation detail")
+
+    cases = [
+        ("ftp://jira.example.com/browse/SH-1", FakeClient, "HTTP or HTTPS"),
+        ("https://other.example.com/browse/SH-1", FakeClient, "configured Jira host"),
+        ("https://jira.example.com/not-an-audit-url", FakeClient, "issue, filter, or search"),
+        ("https://jira.example.com/filter?filter=7", FilterDeniedClient, "could not be loaded"),
+        ("project = invalid", InvalidJqlClient, "JQL validation failed"),
+    ]
+    for text, client_type, expected in cases:
+        service_calls = []
+        bridge = JiraAuditBridge(
+            FakeAuth(),
+            base_url="https://jira.example.com",
+            client_factory=lambda *_args, client_type=client_type: client_type(),
+            service_factory=lambda *_args, **_kwargs: service_calls.append(True),
+            thread_factory=ImmediateThread,
+        )
+
+        bridge.startAudit(text)
+
+        assert expected in bridge.viewState["inputError"]
+        assert "private" not in bridge.viewState["inputError"]
+        assert service_calls == []
+
+
+def test_starting_a_new_audit_revokes_a_confirmed_report():
+    class HeldThread:
+        def __init__(self, **_kwargs):
+            pass
+
+        def start(self):
+            pass
+
+    bridge = JiraAuditBridge(FakeAuth(), thread_factory=HeldThread)
+    bridge.startAudit("project = SH")
+    bridge._on_worker_finished({"generation": 1, "report": _report()})
+    bridge.confirmAudit()
+    assert bridge.viewState["canExport"] is True
+
+    bridge.startAudit("project = NEW")
+
+    assert bridge.viewState["state"] == "resolving"
+    assert bridge.viewState["canConfirm"] is False
+    assert bridge.viewState["canExport"] is False
+    assert bridge.viewState["resultSummary"] == {}
