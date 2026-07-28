@@ -24,7 +24,9 @@ from .models import (
     IssueAuditResult,
     ResolvedAuditInput,
 )
-from .rules import active_rules, ai_reviewable_violations, audit_issue
+from .rules import (
+    active_rules, ai_reviewable_violations, audit_issue, issue_description,
+)
 
 
 _URL = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
@@ -148,6 +150,7 @@ class JiraAuditService:
         else:
             results = self._review_candidates(
                 results,
+                raw_issues,
                 candidate_indexes,
                 progress,
             )
@@ -162,6 +165,7 @@ class JiraAuditService:
     def _review_candidates(
         self,
         results: list[IssueAuditResult],
+        raw_issues: list[dict],
         candidate_indexes: list[int],
         progress: Callable[[str, int, int], None],
     ) -> list[IssueAuditResult]:
@@ -173,7 +177,9 @@ class JiraAuditService:
             failure = (AIReviewStatus.FAILED, "unexpected")
         else:
             for completed, index in enumerate(candidate_indexes, 1):
-                results[index] = _review_issue(results[index], ai_client)
+                results[index] = _review_issue(
+                    results[index], ai_client, issue_description(raw_issues[index])
+                )
                 progress("ai_reviewing", completed, len(candidate_indexes))
             return results
 
@@ -186,6 +192,7 @@ class JiraAuditService:
 def _review_issue(
     result: IssueAuditResult,
     client: AIChatClient,
+    description: str,
 ) -> IssueAuditResult:
     candidates = ai_reviewable_violations(result)
     try:
@@ -195,7 +202,7 @@ def _review_issue(
                     "system",
                     "只输出 Jira 模糊边界复核 JSON，不展示推理过程。",
                 ),
-                AIChatMessage("user", _review_prompt(result, candidates)),
+                AIChatMessage("user", _review_prompt(result, candidates, description)),
             ],
             response_format={"type": "json_object"},
             temperature=0,
@@ -237,13 +244,14 @@ def _review_issue(
 def _review_prompt(
     result: IssueAuditResult,
     candidates: tuple[AuditViolation, ...],
+    description: str,
 ) -> str:
     rules_by_id = {rule.rule_id: rule for rule in active_rules()}
     payload = {
         "issue_key": result.key,
         "jira_fields": {
             "Summary": result.summary,
-            "Description": result._ai_description,
+            "Description": description,
         },
         "violations": [
             {

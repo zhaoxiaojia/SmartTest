@@ -47,3 +47,13 @@
 - 清理：删除无消费者的 AI 通过/失败计数、旧 `Comparision` 兼容和重复 context 结构；根 `DISABLED_RULE_IDS` 同时约束 `active_rules()` 与执行。
 - rework 生产代码净增 `81` 行（新增 `116`、删除 `35`），测试净增 `102` 行（新增 `121`、删除 `19`）；Task 3 累计生产净增 `522` 行、测试净增 `473` 行。增量主要为根 Summary 字符解析、禁用规则一致性及完整上下文/不泄露边界。
 - 状态/限制：未修改或提交起始 docs、版本、翻译和其他未跟踪用户文件；未执行真实 Jira/AI 联网验收。
+
+## Fix round 2
+
+- 身份：`Mason-JiraReview`；任务：`/root/mason_jira_review_core`
+- 变更文件：`models.py`、`rules.py`、`service.py`、Jira audit service self-test 与本报告。
+- 验证：聚焦 Jira audit `40 passed`、support 全量 `101 passed`、audit `compileall` 与 `git diff --check` 均 exit `0`。
+- Acceptance / quality：Functional Acceptance `PASS`；Code Quality `PASS`。
+- 复用决策：Description 由 service 在 AI 调用前通过 rules 文本归一 owner 从当前原始 Jira 临时提取；最终 `IssueAuditResult`/`AuditReport` 不包含 Description 或内部 AI context 字段。
+- 本轮生产净增 `8` 行（新增 `19`、删除 `11`），测试净减 `13` 行（新增 `5`、删除 `18`），总计净减 `5` 行；Task 3 累计生产净增 `530` 行、测试净增 `460` 行。
+- 状态/限制：未修改或提交起始 docs、版本、翻译和其他未跟踪用户文件；未执行真实 Jira/AI 联网验收。

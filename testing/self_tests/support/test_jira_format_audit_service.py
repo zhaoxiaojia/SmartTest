@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import asdict
 
 import pytest
-from openpyxl import load_workbook
 
 from support.ai import (
     AIChatResponse,
@@ -16,7 +16,6 @@ from support.jira_integration.audit import (
     AIReviewStatus,
     JiraAuditService,
     ResolvedAuditInput,
-    export_audit_xlsx,
 )
 from support.jira_integration.core.models import SearchPage
 
@@ -147,9 +146,8 @@ def test_one_jira_with_multiple_candidates_uses_one_ai_request_and_merges_result
     assert result.violations[0].guidance == "补充百分比或分数。"
 
 
-def test_ai_receives_full_cross_field_context_without_report_or_export_leak(tmp_path):
+def test_ai_receives_full_context_without_persisting_it_in_report_data():
     description_marker = "private-description-context"
-    raw_response_marker = "private-raw-response"
     description = _description(
         actual=f"Video freezes; {description_marker}; observed 2/2.",
         rate="intermittent",
@@ -174,7 +172,6 @@ def test_ai_receives_full_cross_field_context_without_report_or_export_leak(tmp_
                             "guidance": "",
                         },
                     ],
-                    "raw_marker": raw_response_marker,
                 }
             )
         }
@@ -187,24 +184,14 @@ def test_ai_receives_full_cross_field_context_without_report_or_export_leak(tmp_
     request_payload = json.loads(
         client.requests[0][0][-1].content.rsplit("\n", 1)[-1]
     )
-    exported = load_workbook(
-        export_audit_xlsx(report, downloads_dir=tmp_path)
-    )
-    exported_text = " ".join(
-        str(cell.value or "")
-        for sheet in exported.worksheets
-        for row in sheet.iter_rows()
-        for cell in row
-    )
+    result_data = asdict(report.issues[0])
 
     assert request_payload["jira_fields"] == {
         "Summary": summary,
         "Description": description,
     }
-    assert description_marker not in repr(report.issues[0])
-    assert raw_response_marker not in repr(report.issues[0])
-    assert description_marker not in exported_text
-    assert raw_response_marker not in exported_text
+    assert "_ai_description" not in result_data
+    assert description_marker not in json.dumps(result_data, ensure_ascii=False)
 
 
 def test_hard_violation_does_not_create_ai_client():

@@ -212,8 +212,13 @@ def audit_issue(
         passed=not violations,
         violations=tuple(violations),
         has_ai_candidates=bool(_ai_reviewable_violations(violations)),
-        _ai_description=normalized.description,
     )
+
+
+def issue_description(issue: dict[str, Any]) -> str:
+    fields = issue.get("fields") if isinstance(issue, dict) else {}
+    fields = fields if isinstance(fields, dict) else {}
+    return _plain_text(fields.get("description"))
 
 
 def ai_reviewable_violations(
