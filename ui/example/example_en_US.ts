@@ -36,6 +36,39 @@
     </message>
 </context>
 <context>
+    <name>AISettingsBridge</name>
+    <message>
+        <location filename="bridge/AISettingsBridge.py" line="99" />
+        <source>Company Intranet Kimi</source>
+        <translation>Company Intranet Kimi</translation>
+    </message>
+    <message>
+        <location filename="bridge/AISettingsBridge.py" line="100" />
+        <source>Public DeepSeek</source>
+        <translation>Public DeepSeek</translation>
+    </message>
+    <message>
+        <location filename="bridge/AISettingsBridge.py" line="65" />
+        <source>Unable to select the AI model. Try again.</source>
+        <translation>Unable to select the AI model. Try again.</translation>
+    </message>
+    <message>
+        <location filename="bridge/AISettingsBridge.py" line="74" />
+        <source>Enter an API key.</source>
+        <translation>Enter an API key.</translation>
+    </message>
+    <message>
+        <location filename="bridge/AISettingsBridge.py" line="80" />
+        <source>Unable to save the API key. Check the key and try again.</source>
+        <translation>Unable to save the API key. Check the key and try again.</translation>
+    </message>
+    <message>
+        <location filename="bridge/AISettingsBridge.py" line="91" />
+        <source>Unable to clear the API key. Try again.</source>
+        <translation>Unable to clear the API key. Try again.</translation>
+    </message>
+</context>
+<context>
     <name>AboutWindow</name>
     <message>
         <location filename="imports/example/qml/window/AboutWindow.qml" line="8" />
@@ -960,379 +993,569 @@
     </message>
 </context>
 <context>
+    <name>JiraAuditBridge</name>
+    <message>
+        <source>Ready to review Jira issues.</source>
+        <translation>Ready to review Jira issues.</translation>
+    </message>
+    <message>
+        <source>No AI review was required.</source>
+        <translation>No AI review was required.</translation>
+    </message>
+    <message>
+        <source>Enter JQL or a Jira URL.</source>
+        <translation>Enter JQL or a Jira URL.</translation>
+    </message>
+    <message>
+        <source>Sign in with LDAP again to review Jira issues.</source>
+        <translation>Sign in with LDAP again to review Jira issues.</translation>
+    </message>
+    <message>
+        <source>Validating Jira input...</source>
+        <translation>Validating Jira input...</translation>
+    </message>
+    <message>
+        <source>Complete a Jira audit before confirming it.</source>
+        <translation>Complete a Jira audit before confirming it.</translation>
+    </message>
+    <message>
+        <source>Jira audit confirmed. Export is ready.</source>
+        <translation>Jira audit confirmed. Export is ready.</translation>
+    </message>
+    <message>
+        <source>Confirm the Jira audit before exporting.</source>
+        <translation>Confirm the Jira audit before exporting.</translation>
+    </message>
+    <message>
+        <source>Jira audit completed. Confirm the audit before exporting.</source>
+        <translation>Jira audit completed. Confirm the audit before exporting.</translation>
+    </message>
+    <message>
+        <source>Jira input is invalid. Enter JQL or a Jira issue, filter, or search URL.</source>
+        <translation>Jira input is invalid. Enter JQL or a Jira issue, filter, or search URL.</translation>
+    </message>
+    <message>
+        <source>Jira audit failed. Review the input and sign-in, then try again.</source>
+        <translation>Jira audit failed. Review the input and sign-in, then try again.</translation>
+    </message>
+    <message>
+        <source>Fetching Jira issues...</source>
+        <translation>Fetching Jira issues...</translation>
+    </message>
+    <message>
+        <source>Reviewing Jira issue formats...</source>
+        <translation>Reviewing Jira issue formats...</translation>
+    </message>
+    <message>
+        <source>Reviewing ambiguous results with AI...</source>
+        <translation>Reviewing ambiguous results with AI...</translation>
+    </message>
+    <message>
+        <source>Finalizing Jira audit results...</source>
+        <translation>Finalizing Jira audit results...</translation>
+    </message>
+    <message>
+        <source>AI review is unavailable. Character-rule results were retained.</source>
+        <translation>AI review is unavailable. Character-rule results were retained.</translation>
+    </message>
+    <message>
+        <source>AI review completed.</source>
+        <translation>AI review completed.</translation>
+    </message>
+
+
+    <message>
+        <source>Failed to export the Jira audit workbook.</source>
+        <translation>Failed to export the Jira audit workbook.</translation>
+    </message>
+    <message>
+        <source>Jira audit workbook exported.</source>
+        <translation>Jira audit workbook exported.</translation>
+    </message>
+    <message>
+        <source>The login changed. Start the Jira audit again.</source>
+        <translation>The login changed. Start the Jira audit again.</translation>
+    </message>
+
+
+    <message>
+        <source>Jira URLs must use HTTP or HTTPS.</source>
+        <translation>Jira URLs must use HTTP or HTTPS.</translation>
+    </message>
+    <message>
+        <source>The Jira URL is malformed.</source>
+        <translation>The Jira URL is malformed.</translation>
+    </message>
+    <message>
+        <source>The Jira URL host must match the configured Jira host.</source>
+        <translation>The Jira URL host must match the configured Jira host.</translation>
+    </message>
+    <message>
+        <source>The Jira issue URL contains an invalid issue key.</source>
+        <translation>The Jira issue URL contains an invalid issue key.</translation>
+    </message>
+    <message>
+        <source>Use a Jira issue, filter, or search URL.</source>
+        <translation>Use a Jira issue, filter, or search URL.</translation>
+    </message>
+    <message>
+        <source>The Jira filter could not be loaded. Check its permissions.</source>
+        <translation>The Jira filter could not be loaded. Check its permissions.</translation>
+    </message>
+    <message>
+        <source>The Jira filter does not contain JQL.</source>
+        <translation>The Jira filter does not contain JQL.</translation>
+    </message>
+    <message>
+        <source>JQL validation failed. Check the query and Jira permissions.</source>
+        <translation>JQL validation failed. Check the query and Jira permissions.</translation>
+    </message>
+</context>
+<context>
+    <name>JiraAuditWorkspace</name>
+    <message>
+        <source>JQL or Jira URL</source>
+        <translation>JQL or Jira URL</translation>
+    </message>
+    <message>
+        <source>Paste JQL or a Jira issue, filter, or search URL.</source>
+        <translation>Paste JQL or a Jira issue, filter, or search URL.</translation>
+    </message>
+    <message>
+        <source>Start Audit</source>
+        <translation>Start Audit</translation>
+    </message>
+    <message>
+        <source>Rules</source>
+        <translation>Rules</translation>
+    </message>
+    <message>
+        <source>Audit Progress</source>
+        <translation>Audit Progress</translation>
+    </message>
+    <message>
+        <source>Results</source>
+        <translation>Results</translation>
+    </message>
+    <message>
+        <source>Total</source>
+        <translation>Total</translation>
+    </message>
+    <message>
+        <source>Passed</source>
+        <translation>Passed</translation>
+    </message>
+    <message>
+        <source>Failed</source>
+        <translation>Failed</translation>
+    </message>
+    <message>
+        <source>Violations</source>
+        <translation>Violations</translation>
+    </message>
+    <message>
+        <source>No violations were found.</source>
+        <translation>No violations were found.</translation>
+    </message>
+    <message>
+        <source>AI Review</source>
+        <translation>AI Review</translation>
+    </message>
+    <message>
+        <source>Confirm Audit</source>
+        <translation>Confirm Audit</translation>
+    </message>
+    <message>
+        <source>Export XLSX</source>
+        <translation>Export XLSX</translation>
+    </message>
+    <message>
+        <source>Show in Folder</source>
+        <translation>Show in Folder</translation>
+    </message>
+    <message>
+        <source>Exported file</source>
+        <translation>Exported file</translation>
+    </message>
+    <message>
+        <source>No export has been created.</source>
+        <translation>No export has been created.</translation>
+    </message>
+</context>
+<context>
     <name>JiraBridge</name>
     <message>
-        <location filename="bridge/JiraBridge.py" line="95" />
+        <location filename="bridge/JiraBridge.py" line="61" />
         <source>Ready</source>
         <translation>Ready</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="96" />
+        <location filename="bridge/JiraBridge.py" line="62" />
         <source>Run a Jira query to get a live AI summary.</source>
         <translation>Run a Jira query to get a live AI summary.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="100" />
+        <location filename="bridge/JiraBridge.py" line="66" />
         <source>Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</source>
         <translation>Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="101" />
+        <location filename="bridge/JiraBridge.py" line="67" />
         <source>Workspace ready</source>
         <translation>Workspace ready</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="102" />
+        <location filename="bridge/JiraBridge.py" line="68" />
         <source>Session cleared. Ask a new Jira question when ready.</source>
         <translation>Session cleared. Ask a new Jira question when ready.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="103" />
+        <location filename="bridge/JiraBridge.py" line="69" />
         <source>Reset</source>
         <translation>Reset</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="104" />
+        <location filename="bridge/JiraBridge.py" line="70" />
         <source>Jira request failed. Check the connection message above and sign in again if needed.</source>
         <translation>Jira request failed. Check the connection message above and sign in again if needed.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="105" />
+        <location filename="bridge/JiraBridge.py" line="71" />
         <source>Error</source>
         <translation>Error</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="106" />
+        <location filename="bridge/JiraBridge.py" line="72" />
         <source>All Supported Projects</source>
         <translation>All Supported Projects</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="107" />
+        <location filename="bridge/JiraBridge.py" line="73" />
         <source>Open Work</source>
         <translation>Open Work</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="108" />
+        <location filename="bridge/JiraBridge.py" line="74" />
         <source>Ready for Test</source>
         <translation>Ready for Test</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="109" />
+        <location filename="bridge/JiraBridge.py" line="75" />
         <source>Closed Bugs</source>
         <translation>Closed Bugs</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="110" />
+        <location filename="bridge/JiraBridge.py" line="76" />
         <source>Last 7 Days</source>
         <translation>Last 7 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="111" />
+        <location filename="bridge/JiraBridge.py" line="77" />
         <source>Last 30 Days</source>
         <translation>Last 30 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="112" />
+        <location filename="bridge/JiraBridge.py" line="78" />
         <source>Last 90 Days</source>
         <translation>Last 90 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="113" />
+        <location filename="bridge/JiraBridge.py" line="79" />
         <source>This Year</source>
         <translation>This Year</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="114" />
+        <location filename="bridge/JiraBridge.py" line="80" />
         <source>Open</source>
         <translation>Open</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="115" />
+        <location filename="bridge/JiraBridge.py" line="81" />
         <source>In Progress</source>
         <translation>In Progress</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="116" />
+        <location filename="bridge/JiraBridge.py" line="82" />
         <source>Verified</source>
         <translation>Verified</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="117" />
+        <location filename="bridge/JiraBridge.py" line="83" />
         <source>Resolved</source>
         <translation>Resolved</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="118" />
+        <location filename="bridge/JiraBridge.py" line="84" />
         <source>Closed</source>
         <translation>Closed</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="119" />
+        <location filename="bridge/JiraBridge.py" line="85" />
         <source>Highest</source>
         <translation>Highest</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="120" />
+        <location filename="bridge/JiraBridge.py" line="86" />
         <source>Critical</source>
         <translation>Critical</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="121" />
+        <location filename="bridge/JiraBridge.py" line="87" />
         <source>High</source>
         <translation>High</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="122" />
+        <location filename="bridge/JiraBridge.py" line="88" />
         <source>Medium</source>
         <translation>Medium</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="123" />
+        <location filename="bridge/JiraBridge.py" line="89" />
         <source>Low</source>
         <translation>Low</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="124" />
+        <location filename="bridge/JiraBridge.py" line="90" />
         <source>Bug</source>
         <translation>Bug</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="125" />
+        <location filename="bridge/JiraBridge.py" line="91" />
         <source>Task</source>
         <translation>Task</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="126" />
+        <location filename="bridge/JiraBridge.py" line="92" />
         <source>Story</source>
         <translation>Story</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="127" />
+        <location filename="bridge/JiraBridge.py" line="93" />
         <source>Improvement</source>
         <translation>Improvement</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="128" />
+        <location filename="bridge/JiraBridge.py" line="94" />
         <source>Unassigned</source>
         <translation>Unassigned</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="129" />
+        <location filename="bridge/JiraBridge.py" line="95" />
         <source>LDAP session is missing Jira credentials. Please sign in again.</source>
         <translation>LDAP session is missing Jira credentials. Please sign in again.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="130" />
+        <location filename="bridge/JiraBridge.py" line="96" />
         <source>Connected to {base_url} | loaded {loaded} of {total}</source>
         <translation>Connected to {base_url} | loaded {loaded} of {total}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="134" />
+        <location filename="bridge/JiraBridge.py" line="100" />
         <source>Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</source>
         <translation>Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="135" />
+        <location filename="bridge/JiraBridge.py" line="101" />
         <source>Connected to {base_url} | analyzed {returned} of {total}</source>
         <translation>Connected to {base_url} | analyzed {returned} of {total}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="136" />
+        <location filename="bridge/JiraBridge.py" line="102" />
         <source>Just now</source>
         <translation>Just now</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="137" />
+        <location filename="bridge/JiraBridge.py" line="103" />
         <source>Sign in to load Jira data.</source>
         <translation>Sign in to load Jira data.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="138" />
+        <location filename="bridge/JiraBridge.py" line="104" />
         <source>Sign in with LDAP first, then Jira results and AI analysis will load here.</source>
         <translation>Sign in with LDAP first, then Jira results and AI analysis will load here.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="139" />
+        <location filename="bridge/JiraBridge.py" line="105" />
         <source>Loading Jira results...</source>
         <translation>Loading Jira results...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="140" />
+        <location filename="bridge/JiraBridge.py" line="106" />
         <source>Analyzing Jira request...</source>
         <translation>Analyzing Jira request...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="141" />
+        <location filename="bridge/JiraBridge.py" line="107" />
         <source>Sign in again to restore Jira access.</source>
         <translation>Sign in again to restore Jira access.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="142" />
+        <location filename="bridge/JiraBridge.py" line="108" />
         <source>Signed out</source>
         <translation>Signed out</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="143" />
+        <location filename="bridge/JiraBridge.py" line="109" />
         <source>Unknown Jira error</source>
         <translation>Unknown Jira error</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="144" />
+        <location filename="bridge/JiraBridge.py" line="110" />
         <source>Jira request failed: {message}</source>
         <translation>Jira request failed: {message}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="145" />
+        <location filename="bridge/JiraBridge.py" line="111" />
         <source>Matched</source>
         <translation>Matched</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="146" />
+        <location filename="bridge/JiraBridge.py" line="112" />
         <source>{displayed} displayed in the current view</source>
         <translation>{displayed} displayed in the current view</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="147" />
+        <location filename="bridge/JiraBridge.py" line="113" />
         <source>High Priority</source>
         <translation>High Priority</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="148" />
+        <location filename="bridge/JiraBridge.py" line="114" />
         <source>Highest, critical, or high in the current result set</source>
         <translation>Highest, critical, or high in the current result set</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="149" />
+        <location filename="bridge/JiraBridge.py" line="115" />
         <source>Blocked</source>
         <translation>Blocked</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="150" />
+        <location filename="bridge/JiraBridge.py" line="116" />
         <source>Blocked items from the displayed Jira scope</source>
         <translation>Blocked items from the displayed Jira scope</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="151" />
+        <location filename="bridge/JiraBridge.py" line="117" />
         <source>Projects</source>
         <translation>Projects</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="152" />
+        <location filename="bridge/JiraBridge.py" line="118" />
         <source>Workflow Preset</source>
         <translation>Workflow Preset</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="153" />
+        <location filename="bridge/JiraBridge.py" line="119" />
         <source>Time Window</source>
         <translation>Time Window</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="154" />
+        <location filename="bridge/JiraBridge.py" line="120" />
         <source>Statuses</source>
         <translation>Statuses</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="155" />
+        <location filename="bridge/JiraBridge.py" line="121" />
         <source>Priorities</source>
         <translation>Priorities</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="156" />
+        <location filename="bridge/JiraBridge.py" line="122" />
         <source>Issue Types</source>
         <translation>Issue Types</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="157" />
+        <location filename="bridge/JiraBridge.py" line="123" />
         <source>Keyword text</source>
         <translation>Keyword text</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="158" />
+        <location filename="bridge/JiraBridge.py" line="124" />
         <source>Assignee</source>
         <translation>Assignee</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="159" />
+        <location filename="bridge/JiraBridge.py" line="125" />
         <source>Reporter</source>
         <translation>Reporter</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="160" />
+        <location filename="bridge/JiraBridge.py" line="126" />
         <source>Labels</source>
         <translation>Labels</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="161" />
+        <location filename="bridge/JiraBridge.py" line="127" />
         <source>Not limited</source>
         <translation>Not limited</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="162" />
+        <location filename="bridge/JiraBridge.py" line="128" />
         <source>Current user</source>
         <translation>Current user</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="163" />
+        <location filename="bridge/JiraBridge.py" line="129" />
         <source>JQL</source>
         <translation>JQL</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="164" />
+        <location filename="bridge/JiraBridge.py" line="130" />
         <source>Useful candidates for the next regression batch</source>
         <translation>Useful candidates for the next regression batch</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="165" />
+        <location filename="bridge/JiraBridge.py" line="131" />
         <source>My Filters</source>
         <translation>My Filters</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="166" />
+        <location filename="bridge/JiraBridge.py" line="132" />
         <source>Loading your Jira filters...</source>
         <translation>Loading your Jira filters...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="167" />
+        <location filename="bridge/JiraBridge.py" line="133" />
         <source>No favourite filters were found for this account.</source>
         <translation>No favourite filters were found for this account.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="168" />
+        <location filename="bridge/JiraBridge.py" line="134" />
         <source>Click to apply this filter to the current JQL box.</source>
         <translation>Click to apply this filter to the current JQL box.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="169" />
+        <location filename="bridge/JiraBridge.py" line="135" />
         <source>Comments</source>
         <translation>Comments</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="170" />
+        <location filename="bridge/JiraBridge.py" line="136" />
         <source>No Jira issues matched the current scope.</source>
         <translation>No Jira issues matched the current scope.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="171" />
+        <location filename="bridge/JiraBridge.py" line="137" />
         <source>Jira AI Conversation</source>
         <translation>Jira AI Conversation</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="172" />
+        <location filename="bridge/JiraBridge.py" line="138" />
         <source>Analyzing request: preparing search scope...</source>
         <translation>Analyzing request: preparing search scope...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="173" />
+        <location filename="bridge/JiraBridge.py" line="139" />
         <source>Analyzing request: retrieving Jira issues...</source>
         <translation>Analyzing request: retrieving Jira issues...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="174" />
+        <location filename="bridge/JiraBridge.py" line="140" />
         <source>Analyzing request: generating response...</source>
         <translation>Analyzing request: generating response...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="178" />
+        <location filename="bridge/JiraBridge.py" line="144" />
         <source>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</source>
         <translation>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</translation>
     </message>
@@ -1814,92 +2037,92 @@ Updated content:
 <context>
     <name>RedmineBridge</name>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="296" />
+        <location filename="bridge/RedmineBridge.py" line="287" />
         <source>Attachment %1 is %2 bytes; Jira limit is %3 bytes.</source>
         <translation>Attachment %1 is %2 bytes; Jira limit is %3 bytes.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="307" />
+        <location filename="bridge/RedmineBridge.py" line="298" />
         <source>Jira attachments are disabled for %1.</source>
         <translation>Jira attachments are disabled for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="314" />
+        <location filename="bridge/RedmineBridge.py" line="305" />
         <source>Attachment source URL is unavailable for %1.</source>
         <translation>Attachment source URL is unavailable for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="321" />
+        <location filename="bridge/RedmineBridge.py" line="312" />
         <source>Attachment download failed for %1 (HTTP %2).</source>
         <translation>Attachment download failed for %1 (HTTP %2).</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="328" />
+        <location filename="bridge/RedmineBridge.py" line="319" />
         <source>Attachment download failed for %1: %2</source>
         <translation>Attachment download failed for %1: %2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="335" />
+        <location filename="bridge/RedmineBridge.py" line="326" />
         <source>Attachment source is invalid for %1.</source>
         <translation>Attachment source is invalid for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="342" />
+        <location filename="bridge/RedmineBridge.py" line="333" />
         <source>Jira already has %1 with a different size.</source>
         <translation>Jira already has %1 with a different size.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="349" />
+        <location filename="bridge/RedmineBridge.py" line="340" />
         <source>Could not check Jira attachments for %1: %2</source>
         <translation>Could not check Jira attachments for %1: %2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="356" />
+        <location filename="bridge/RedmineBridge.py" line="347" />
         <source>Attachment upload failed for %1: %2</source>
         <translation>Attachment upload failed for %1: %2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="363" />
+        <location filename="bridge/RedmineBridge.py" line="354" />
         <source>Attachment upload was cancelled for %1.</source>
         <translation>Attachment upload was cancelled for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="370" />
+        <location filename="bridge/RedmineBridge.py" line="361" />
         <source>Attachment downloader is unavailable for %1.</source>
         <translation>Attachment downloader is unavailable for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="377" />
+        <location filename="bridge/RedmineBridge.py" line="368" />
         <source>Jira attachment synchronization failed for %1: %2</source>
         <translation>Jira attachment synchronization failed for %1: %2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="384" />
+        <location filename="bridge/RedmineBridge.py" line="375" />
         <source>Temporary attachment cleanup failed: %1</source>
         <translation>Temporary attachment cleanup failed: %1</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="393" />
+        <location filename="bridge/RedmineBridge.py" line="384" />
         <source>Attachment warning for %1.</source>
         <translation>Attachment warning for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="794" />
+        <location filename="bridge/RedmineBridge.py" line="781" />
         <source>Discovering Redmine projects and issues...</source>
         <translation>Discovering Redmine projects and issues...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="797" />
+        <location filename="bridge/RedmineBridge.py" line="784" />
         <source>Analyzing Redmine issue activity... {loaded}/{total}</source>
         <translation>Analyzing Redmine issue activity... {loaded}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="799" />
+        <location filename="bridge/RedmineBridge.py" line="786" />
         <source>Checking cloned Jira issues... {loaded}/{total}</source>
         <translation>Checking cloned Jira issues... {loaded}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="570" />
+        <location filename="bridge/RedmineBridge.py" line="561" />
         <source>The verification code was rejected. Enter the latest code from your phone.</source>
         <translation>The verification code was rejected. Enter the latest code from your phone.</translation>
     </message>
@@ -1909,165 +2132,163 @@ Updated content:
         <translation>Ready to sign in to Redmine.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="539" />
+        <location filename="bridge/RedmineBridge.py" line="530" />
         <source>Signing in to Redmine...</source>
         <translation>Signing in to Redmine...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="579" />
+        <location filename="bridge/RedmineBridge.py" line="570" />
         <source>Redmine sign-in succeeded.</source>
         <translation>Redmine sign-in succeeded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="572" />
-        <location filename="bridge/RedmineBridge.py" line="580" />
+        <location filename="bridge/RedmineBridge.py" line="563" />
+        <location filename="bridge/RedmineBridge.py" line="571" />
         <source>Redmine needs a different account or password.</source>
         <translation>Redmine needs a different account or password.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="141" />
-        <location filename="bridge/RedmineBridge.py" line="209" />
+        <location filename="bridge/RedmineBridge.py" line="137" />
+        <location filename="bridge/RedmineBridge.py" line="203" />
         <source>Projects are not loaded.</source>
         <translation>Projects are not loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="232" />
+        <location filename="bridge/RedmineBridge.py" line="226" />
         <source>Issues assigned to me</source>
         <translation>Issues assigned to me</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="233" />
+        <location filename="bridge/RedmineBridge.py" line="227" />
         <source>Watched issues</source>
         <translation>Watched issues</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="821" />
+        <location filename="bridge/RedmineBridge.py" line="808" />
         <source>Loading watched issues...</source>
         <translation>Loading watched issues...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="838" />
-        <location filename="bridge/RedmineBridge.py" line="966" />
+        <location filename="bridge/RedmineBridge.py" line="825" />
+        <location filename="bridge/RedmineBridge.py" line="953" />
         <source>Invalid issue IDs: %1</source>
         <translation>Invalid issue IDs: %1</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="958" />
+        <location filename="bridge/RedmineBridge.py" line="945" />
         <source>No valid watched issue IDs were found: %1</source>
         <translation>No valid watched issue IDs were found: %1</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="571" />
-        <location filename="bridge/RedmineBridge.py" line="581" />
+        <location filename="bridge/RedmineBridge.py" line="562" />
+        <location filename="bridge/RedmineBridge.py" line="572" />
         <source>Enter the mobile verification code.</source>
         <translation>Enter the mobile verification code.</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="564" />
+        <location filename="bridge/RedmineBridge.py" line="565" />
+        <location filename="bridge/RedmineBridge.py" line="566" />
+        <location filename="bridge/RedmineBridge.py" line="567" />
         <location filename="bridge/RedmineBridge.py" line="573" />
-        <location filename="bridge/RedmineBridge.py" line="574" />
-        <location filename="bridge/RedmineBridge.py" line="575" />
-        <location filename="bridge/RedmineBridge.py" line="576" />
-        <location filename="bridge/RedmineBridge.py" line="582" />
         <source>Redmine sign-in failed.</source>
         <translation>Redmine sign-in failed.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="608" />
-        <location filename="bridge/RedmineBridge.py" line="931" />
-        <location filename="bridge/RedmineBridge.py" line="952" />
+        <location filename="bridge/RedmineBridge.py" line="599" />
+        <location filename="bridge/RedmineBridge.py" line="918" />
+        <location filename="bridge/RedmineBridge.py" line="939" />
         <source>Issues assigned to me loaded.</source>
         <translation>Issues assigned to me loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="623" />
+        <location filename="bridge/RedmineBridge.py" line="614" />
         <source>Loading Redmine projects...</source>
         <translation>Loading Redmine projects...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="645" />
+        <location filename="bridge/RedmineBridge.py" line="636" />
         <source>Redmine project loading failed.</source>
         <translation>Redmine project loading failed.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="650" />
+        <location filename="bridge/RedmineBridge.py" line="641" />
         <source>Redmine projects loaded.</source>
         <translation>Redmine projects loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="654" />
+        <location filename="bridge/RedmineBridge.py" line="645" />
         <source>No Redmine projects were loaded. Retry project loading.</source>
         <translation>No Redmine projects were loaded. Retry project loading.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="128" />
-        <location filename="bridge/RedmineBridge.py" line="852" />
+        <location filename="bridge/RedmineBridge.py" line="839" />
         <source>All types</source>
         <translation type="unfinished">All types</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="870" />
+        <location filename="bridge/RedmineBridge.py" line="857" />
         <source>Search cancelled.</source>
         <translation>Search cancelled.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="1131" />
+        <location filename="bridge/RedmineBridge.py" line="1118" />
         <source>Redmine sign-in cancelled.</source>
         <translation>Redmine sign-in cancelled.</translation>
     </message>
     <message>
         <location filename="bridge/RedmineBridge.py" line="126" />
-        <location filename="bridge/RedmineBridge.py" line="240" />
-        <location filename="bridge/RedmineBridge.py" line="850" />
+        <location filename="bridge/RedmineBridge.py" line="234" />
+        <location filename="bridge/RedmineBridge.py" line="837" />
         <source>All projects</source>
         <translation>All projects</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="127" />
-        <location filename="bridge/RedmineBridge.py" line="851" />
+        <location filename="bridge/RedmineBridge.py" line="838" />
         <source>All statuses</source>
         <translation>All statuses</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="132" />
-        <location filename="bridge/RedmineBridge.py" line="200" />
+        <location filename="bridge/RedmineBridge.py" line="130" />
+        <location filename="bridge/RedmineBridge.py" line="196" />
         <source>Redmine data is not loaded.</source>
         <translation>Redmine data is not loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="681" />
-        <location filename="bridge/RedmineBridge.py" line="796" />
+        <location filename="bridge/RedmineBridge.py" line="672" />
+        <location filename="bridge/RedmineBridge.py" line="783" />
         <source>Loading issues assigned to me...</source>
         <translation>Loading issues assigned to me...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="801" />
+        <location filename="bridge/RedmineBridge.py" line="788" />
         <source>Loading Redmine data... {loaded}/{total}</source>
         <translation>Loading Redmine data... {loaded}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="779" />
-        <location filename="bridge/RedmineBridge.py" line="804" />
+        <location filename="bridge/RedmineBridge.py" line="768" />
+        <location filename="bridge/RedmineBridge.py" line="791" />
         <source>Loading Redmine data...</source>
         <translation>Loading Redmine data...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="407" />
-        <location filename="bridge/RedmineBridge.py" line="953" />
+        <location filename="bridge/RedmineBridge.py" line="398" />
+        <location filename="bridge/RedmineBridge.py" line="940" />
         <source>Redmine data loaded.</source>
         <translation>Redmine data loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="897" />
+        <location filename="bridge/RedmineBridge.py" line="884" />
         <source>Refreshing Redmine issue detail...</source>
         <translation>Refreshing Redmine issue detail...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="923" />
+        <location filename="bridge/RedmineBridge.py" line="910" />
         <source>Issues assigned to me loading failed.</source>
         <translation>Issues assigned to me loading failed.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="925" />
+        <location filename="bridge/RedmineBridge.py" line="912" />
         <source>Redmine data load failed.</source>
         <translation>Redmine data load failed.</translation>
     </message>
@@ -2076,7 +2297,7 @@ Updated content:
         <translation type="vanished">Redmine issue detail refresh failed.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="938" />
+        <location filename="bridge/RedmineBridge.py" line="925" />
         <source>Redmine issue detail refreshed.</source>
         <translation>Redmine issue detail refreshed.</translation>
     </message>
@@ -5203,99 +5424,130 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Settings</name>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="11" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="13" />
         <source>Settings</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="30" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="55" />
         <source>Current Version</source>
         <translation>Current Version</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="36" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="61" />
         <source>Check for Updates</source>
         <translation>Check for Updates</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="52" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="148" />
         <source>Use System AppBar</source>
         <translation>Use System AppBar</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="68" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="164" />
         <source>Fits AppBar Windows</source>
         <translation>Fits AppBar Windows</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="79" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="175" />
         <source>Friendly Reminder</source>
         <translation>Friendly Reminder</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="80" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="176" />
         <source>This action requires a restart of the program to take effect, is it restarted?</source>
         <translation>This action requires a restart of the program to take effect, is it restarted?</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="82" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="178" />
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="83" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="179" />
         <source>OK</source>
         <translation>OK</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="102" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="198" />
         <source>Dark Mode</source>
         <translation>Dark Mode</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="107" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="203" />
         <source>System</source>
         <translation>System</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="107" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="203" />
         <source>Light</source>
         <translation>Light</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="107" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="203" />
         <source>Dark</source>
         <translation>Dark</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="132" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="228" />
         <source>Navigation View Display Mode</source>
         <translation>Navigation View Display Mode</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="137" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="233" />
         <source>Open</source>
         <translation>Open</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="137" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="233" />
         <source>Compact</source>
         <translation>Compact</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="137" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="233" />
         <source>Minimal</source>
         <translation>Minimal</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="137" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="233" />
         <source>Auto</source>
         <translation>Auto</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="172" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="268" />
         <source>Language</source>
         <translation>Language</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Settings.qml" line="82" />
+        <source>AI Model Configuration</source>
+        <translation>AI Model Configuration</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Settings.qml" line="112" />
+        <source>Configured</source>
+        <translation>Configured</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Settings.qml" line="112" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="115" />
+        <source>Not configured</source>
+        <translation>Not configured</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Settings.qml" line="124" />
+        <source>Enter API key</source>
+        <translation>Enter API key</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Settings.qml" line="127" />
+        <source>Save</source>
+        <translation>Save</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Settings.qml" line="135" />
+        <source>Clear</source>
+        <translation>Clear</translation>
     </message>
 </context>
 <context>
@@ -5835,7 +6087,7 @@ Some contents...</translation>
 <context>
     <name>T_Tool</name>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="8" />
+        <location filename="imports/example/qml/page/T_Tool.qml" line="9" />
         <source>Tool</source>
         <translation>Tool</translation>
     </message>
@@ -5848,7 +6100,7 @@ Some contents...</translation>
         <translation type="vanished">Common Tools</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="84" />
+        <location filename="imports/example/qml/page/T_Tool.qml" line="85" />
         <source>Custom Tools</source>
         <translation>Custom Tools</translation>
     </message>
@@ -5873,12 +6125,12 @@ Some contents...</translation>
         <translation type="vanished">Wi-Fi</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="119" />
+        <location filename="imports/example/qml/page/T_Tool.qml" line="120" />
         <source>Select a tool</source>
         <translation>Select a tool</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="124" />
+        <location filename="imports/example/qml/page/T_Tool.qml" line="125" />
         <source>Tools for this group will appear here.</source>
         <translation>Tools for this group will appear here.</translation>
     </message>
@@ -5887,7 +6139,7 @@ Some contents...</translation>
         <translation type="vanished">Tool workspace</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="183" />
+        <location filename="imports/example/qml/page/T_Tool.qml" line="192" />
         <source>This area is reserved for the selected tool. Execution is not available yet.</source>
         <translation>This area is reserved for the selected tool. Execution is not available yet.</translation>
     </message>
@@ -6477,260 +6729,54 @@ Some contents...</translation>
 <context>
     <name>ToolBridge</name>
     <message>
-        <location filename="bridge/ToolBridge.py" line="150" />
+        <location filename="bridge/ToolBridge.py" line="166" />
         <source>Common Tools</source>
         <translation>Common Tools</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="151" />
+        <location filename="bridge/ToolBridge.py" line="167" />
         <source>STB</source>
         <translation>STB</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="152" />
+        <location filename="bridge/ToolBridge.py" line="168" />
         <source>TV</source>
         <translation>TV</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="153" />
+        <location filename="bridge/ToolBridge.py" line="169" />
         <source>SmartHome</source>
         <translation>SmartHome</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="154" />
+        <location filename="bridge/ToolBridge.py" line="170" />
         <source>IPTV</source>
         <translation>IPTV</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="155" />
+        <location filename="bridge/ToolBridge.py" line="171" />
         <source>Wi-Fi</source>
         <translation>Wi-Fi</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="161" />
+        <location filename="bridge/ToolBridge.py" line="187" />
         <source>redmine</source>
         <translation>redmine</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="162" />
+        <location filename="bridge/ToolBridge.py" line="188" />
         <source>Browse and sign in to SmartHome Redmine.</source>
         <translation>Browse and sign in to SmartHome Redmine.</translation>
     </message>
     <message>
+        <location filename="bridge/ToolBridge.py" line="182" />
         <source>Jira Format Audit</source>
         <translation>Jira Format Audit</translation>
     </message>
     <message>
+        <location filename="bridge/ToolBridge.py" line="183" />
         <source>Review Jira issues against the FAE-QA format rules.</source>
         <translation>Review Jira issues against the FAE-QA format rules.</translation>
     </message>
-</context>
-<context>
-    <name>JiraAuditBridge</name>
-    <message>
-        <source>Ready to review Jira issues.</source>
-        <translation>Ready to review Jira issues.</translation>
-    </message>
-    <message>
-        <source>No AI review was required.</source>
-        <translation>No AI review was required.</translation>
-    </message>
-    <message>
-        <source>Enter JQL or a Jira URL.</source>
-        <translation>Enter JQL or a Jira URL.</translation>
-    </message>
-    <message>
-        <source>Sign in with LDAP again to review Jira issues.</source>
-        <translation>Sign in with LDAP again to review Jira issues.</translation>
-    </message>
-    <message>
-        <source>Validating Jira input...</source>
-        <translation>Validating Jira input...</translation>
-    </message>
-    <message>
-        <source>Complete a Jira audit before confirming it.</source>
-        <translation>Complete a Jira audit before confirming it.</translation>
-    </message>
-    <message>
-        <source>Jira audit confirmed. Export is ready.</source>
-        <translation>Jira audit confirmed. Export is ready.</translation>
-    </message>
-    <message>
-        <source>Confirm the Jira audit before exporting.</source>
-        <translation>Confirm the Jira audit before exporting.</translation>
-    </message>
-    <message>
-        <source>Jira audit completed. Confirm the audit before exporting.</source>
-        <translation>Jira audit completed. Confirm the audit before exporting.</translation>
-    </message>
-    <message>
-        <source>Jira input is invalid. Enter JQL or a Jira issue, filter, or search URL.</source>
-        <translation>Jira input is invalid. Enter JQL or a Jira issue, filter, or search URL.</translation>
-    </message>
-    <message>
-        <source>Jira audit failed. Review the input and sign-in, then try again.</source>
-        <translation>Jira audit failed. Review the input and sign-in, then try again.</translation>
-    </message>
-    <message>
-        <source>Fetching Jira issues...</source>
-        <translation>Fetching Jira issues...</translation>
-    </message>
-    <message>
-        <source>Reviewing Jira issue formats...</source>
-        <translation>Reviewing Jira issue formats...</translation>
-    </message>
-    <message>
-        <source>Reviewing ambiguous results with AI...</source>
-        <translation>Reviewing ambiguous results with AI...</translation>
-    </message>
-    <message>
-        <source>Finalizing Jira audit results...</source>
-        <translation>Finalizing Jira audit results...</translation>
-    </message>
-    <message>
-        <source>AI review is unavailable. Character-rule results were retained.</source>
-        <translation>AI review is unavailable. Character-rule results were retained.</translation>
-    </message>
-    <message>
-        <source>AI review completed.</source>
-        <translation>AI review completed.</translation>
-    </message>
-
-
-    <message>
-        <source>Failed to export the Jira audit workbook.</source>
-        <translation>Failed to export the Jira audit workbook.</translation>
-    </message>
-    <message>
-        <source>Jira audit workbook exported.</source>
-        <translation>Jira audit workbook exported.</translation>
-    </message>
-    <message>
-        <source>The login changed. Start the Jira audit again.</source>
-        <translation>The login changed. Start the Jira audit again.</translation>
-    </message>
-
-
-    <message>
-        <source>Jira URLs must use HTTP or HTTPS.</source>
-        <translation>Jira URLs must use HTTP or HTTPS.</translation>
-    </message>
-    <message>
-        <source>The Jira URL is malformed.</source>
-        <translation>The Jira URL is malformed.</translation>
-    </message>
-    <message>
-        <source>The Jira URL host must match the configured Jira host.</source>
-        <translation>The Jira URL host must match the configured Jira host.</translation>
-    </message>
-    <message>
-        <source>The Jira issue URL contains an invalid issue key.</source>
-        <translation>The Jira issue URL contains an invalid issue key.</translation>
-    </message>
-    <message>
-        <source>Use a Jira issue, filter, or search URL.</source>
-        <translation>Use a Jira issue, filter, or search URL.</translation>
-    </message>
-    <message>
-        <source>The Jira filter could not be loaded. Check its permissions.</source>
-        <translation>The Jira filter could not be loaded. Check its permissions.</translation>
-    </message>
-    <message>
-        <source>The Jira filter does not contain JQL.</source>
-        <translation>The Jira filter does not contain JQL.</translation>
-    </message>
-    <message>
-        <source>JQL validation failed. Check the query and Jira permissions.</source>
-        <translation>JQL validation failed. Check the query and Jira permissions.</translation>
-    </message>
-</context>
-<context>
-    <name>JiraAuditWorkspace</name>
-    <message>
-        <source>JQL or Jira URL</source>
-        <translation>JQL or Jira URL</translation>
-    </message>
-    <message>
-        <source>Paste JQL or a Jira issue, filter, or search URL.</source>
-        <translation>Paste JQL or a Jira issue, filter, or search URL.</translation>
-    </message>
-    <message>
-        <source>Start Audit</source>
-        <translation>Start Audit</translation>
-    </message>
-    <message>
-        <source>Rules</source>
-        <translation>Rules</translation>
-    </message>
-    <message>
-        <source>Audit Progress</source>
-        <translation>Audit Progress</translation>
-    </message>
-    <message>
-        <source>Results</source>
-        <translation>Results</translation>
-    </message>
-    <message>
-        <source>Total</source>
-        <translation>Total</translation>
-    </message>
-    <message>
-        <source>Passed</source>
-        <translation>Passed</translation>
-    </message>
-    <message>
-        <source>Failed</source>
-        <translation>Failed</translation>
-    </message>
-    <message>
-        <source>Violations</source>
-        <translation>Violations</translation>
-    </message>
-    <message>
-        <source>No violations were found.</source>
-        <translation>No violations were found.</translation>
-    </message>
-    <message>
-        <source>AI Review</source>
-        <translation>AI Review</translation>
-    </message>
-    <message>
-        <source>Confirm Audit</source>
-        <translation>Confirm Audit</translation>
-    </message>
-    <message>
-        <source>Export XLSX</source>
-        <translation>Export XLSX</translation>
-    </message>
-    <message>
-        <source>Show in Folder</source>
-        <translation>Show in Folder</translation>
-    </message>
-    <message>
-        <source>Exported file</source>
-        <translation>Exported file</translation>
-    </message>
-    <message>
-        <source>No export has been created.</source>
-        <translation>No export has been created.</translation>
-    </message>
-</context>
-<context>
-    <name>AISettingsBridge</name>
-    <message><source>Company Intranet Kimi</source><translation>Company Intranet Kimi</translation></message>
-    <message><source>Public DeepSeek</source><translation>Public DeepSeek</translation></message>
-    <message><source>Unable to select the AI model. Try again.</source><translation>Unable to select the AI model. Try again.</translation></message>
-    <message><source>Enter an API key.</source><translation>Enter an API key.</translation></message>
-    <message><source>Unable to save the API key. Check the key and try again.</source><translation>Unable to save the API key. Check the key and try again.</translation></message>
-    <message><source>Unable to clear the API key. Try again.</source><translation>Unable to clear the API key. Try again.</translation></message>
-</context>
-<context>
-    <name>T_Settings</name>
-    <message><source>AI Model Configuration</source><translation>AI Model Configuration</translation></message>
-    <message><source>Configured</source><translation>Configured</translation></message>
-    <message><source>Not configured</source><translation>Not configured</translation></message>
-    <message><source>Enter API key</source><translation>Enter API key</translation></message>
-    <message><source>Save</source><translation>Save</translation></message>
-    <message><source>Clear</source><translation>Clear</translation></message>
 </context>
 </TS>
