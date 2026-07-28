@@ -13,6 +13,17 @@ from support.ai import (
 )
 
 
+@pytest.fixture(autouse=True)
+def clear_compatibility_environment(monkeypatch):
+    for name in (
+        "SMARTTEST_AI_API_KEY",
+        "SMARTTEST_KIMI_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "SMARTTEST_DEEPSEEK_API_KEY",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
 def test_builtin_models_are_resolvable_and_unknown_model_is_rejected():
     models = available_models()
 
@@ -25,6 +36,42 @@ def test_builtin_models_are_resolvable_and_unknown_model_is_rejected():
     ).credential_id
     with pytest.raises(AIConfigurationError):
         model_by_id("unknown-model")
+
+
+def test_builtin_model_parameters_are_fixed_and_request_options_are_immutable():
+    kimi = model_by_id("company-kimi")
+    deepseek = model_by_id("public-deepseek")
+
+    assert (
+        kimi.base_url,
+        kimi.model_id,
+        kimi.timeout,
+        kimi.max_tokens,
+        dict(kimi.request_options),
+    ) == (
+        "https://llm.amlogic.com/8d1b5b4c",
+        "Amlogic_Local/Kimi-K2.7-Code",
+        120.0,
+        2048,
+        {"chat_template_kwargs": {"enable_thinking": False}},
+    )
+    assert (
+        deepseek.base_url,
+        deepseek.model_id,
+        deepseek.timeout,
+        deepseek.max_tokens,
+        dict(deepseek.request_options),
+    ) == (
+        "https://api.deepseek.com",
+        "deepseek-v4-flash",
+        120.0,
+        2048,
+        {"thinking": {"type": "disabled"}},
+    )
+    with pytest.raises(TypeError):
+        kimi.request_options["model"] = "replaced"
+    with pytest.raises(TypeError):
+        kimi.request_options["chat_template_kwargs"]["enable_thinking"] = True
 
 
 def test_selected_model_is_persisted_and_unknown_selection_is_rejected(monkeypatch, tmp_path):

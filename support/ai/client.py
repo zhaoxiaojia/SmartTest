@@ -3,8 +3,20 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
+from collections.abc import Mapping
 
-from .core import AIChatMessage, AIChatResponse, AIClientConfig, AIResponseError, AITransportError
+from .core import (
+    AIChatMessage,
+    AIChatResponse,
+    AIClientConfig,
+    AIConfigurationError,
+    AIResponseError,
+    AITransportError,
+)
+
+_RESERVED_REQUEST_OPTION_FIELDS = frozenset(
+    {"model", "messages", "temperature", "max_tokens", "response_format"}
+)
 
 
 class AIChatClient:
@@ -33,8 +45,7 @@ class AIChatClient:
                 self._config.max_tokens if max_tokens is None else int(max_tokens)
             ),
         }
-        if self._config.request_options:
-            payload.update(self._config.request_options)
+        payload.update(_payload_request_options(self._config.request_options))
         if response_format is not None: payload["response_format"] = response_format
         request = urllib.request.Request(self._config.base_url.rstrip("/") + "/chat/completions", data=json.dumps(payload).encode("utf-8"), headers={"Authorization": "Bearer " + self._config.api_key, "Content-Type": "application/json"}, method="POST")
         try:
@@ -77,3 +88,19 @@ class AIChatClient:
             return AIChatResponse(content=content, model=str(body.get("model") or ""), usage=body.get("usage"))
         except Exception:
             raise AIResponseError("AI response is invalid") from None
+
+
+def _payload_request_options(options: Mapping | None) -> dict:
+    if not options:
+        return {}
+    if _RESERVED_REQUEST_OPTION_FIELDS.intersection(options):
+        raise AIConfigurationError("AI request options are invalid")
+    return {key: _payload_value(value) for key, value in options.items()}
+
+
+def _payload_value(value):
+    if isinstance(value, Mapping):
+        return {key: _payload_value(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_payload_value(item) for item in value]
+    return value

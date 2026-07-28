@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping
+from types import MappingProxyType
+from typing import Any
 
 
 class AIError(RuntimeError):
@@ -40,6 +42,11 @@ class AIClientConfig:
     max_tokens: int = 2048
     request_options: Mapping[str, Any] | None = None
 
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "request_options", _freeze_request_options(self.request_options)
+        )
+
 
 @dataclass(frozen=True)
 class AIModelTemplate:
@@ -51,6 +58,33 @@ class AIModelTemplate:
     timeout: float = 120.0
     max_tokens: int = 2048
     request_options: Mapping[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "request_options", _freeze_request_options(self.request_options)
+        )
+
+
+def _freeze_request_options(
+    options: Mapping[str, Any] | None,
+) -> Mapping[str, Any] | None:
+    if options is None:
+        return None
+    if not isinstance(options, Mapping):
+        raise AIConfigurationError("AI request options are invalid")
+    return MappingProxyType(
+        {str(key): _freeze_request_value(value) for key, value in options.items()}
+    )
+
+
+def _freeze_request_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return MappingProxyType(
+            {str(key): _freeze_request_value(item) for key, item in value.items()}
+        )
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_request_value(item) for item in value)
+    return value
 
 
 @dataclass(frozen=True)
