@@ -4,7 +4,11 @@ import re
 from collections.abc import Callable, Sequence
 from typing import Any, NamedTuple
 
-from .models import AuditRule, AuditViolation, IssueAuditResult
+from .models import (
+    AuditRule,
+    AuditViolation,
+    IssueAuditResult,
+)
 
 
 ALLOWED_MODULES = tuple(
@@ -13,6 +17,16 @@ ALLOWED_MODULES = tuple(
      "MS12|DV|NTS|Primevideo").split("|")
 )
 MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+DISABLED_RULE_IDS = frozenset(
+    {
+        "COMPONENT.ALLOWED",
+        "DESCRIPTION.REPRODUCIBILITY_RATE",
+        "ATTACHMENT.MAX_SIZE",
+        "SUMMARY.MODULE",
+        "SUMMARY.CHIP_UPPERCASE",
+        "DESCRIPTION.STEPS_ORDERED",
+    }
+)
 AI_REVIEWABLE_RULE_IDS = frozenset(
     {
         "SUMMARY.PROBABILITY",
@@ -48,11 +62,12 @@ _RULE_DATA = (
     ("REGRESSION.EVIDENCE", "Regression", "description.comparison", "Regression 问题必须同时说明旧版本正常和当前版本异常。", "在 Comparison 中补充旧版本正常与当前版本异常的对照证据。"),
     ("ATTACHMENT.MAX_SIZE", "Attachment", "attachment", "单个附件不得超过 10 MiB。", "压缩、拆分附件或改用链接。"),
 )
-_RULES = tuple(AuditRule(*row) for row in _RULE_DATA)
-
-_SUMMARY_STRUCTURE = re.compile(
-    r"((?:\[[^\]\r\n]*\]){4,6})\s*[:：]\s*(.+)"
+_ALL_RULES = tuple(AuditRule(*row) for row in _RULE_DATA)
+_RULES = tuple(
+    rule for rule in _ALL_RULES
+    if rule.rule_id not in DISABLED_RULE_IDS
 )
+
 _SUMMARY_RATE_AT_END = re.compile(
     r"(?P<rate>(?:100|\d{1,2})(?:\.\d+)?%|\d+\s*/\s*\d+)"
     r"\s*[.。]?\s*$"
@@ -100,7 +115,6 @@ _DESCRIPTION_SECTION_ALIASES = {
         "出现概率",
     ),
     "comparison": (
-        "Comparision",
         "Compare info",
         "Comparison",
         "Comparison info",
@@ -167,6 +181,8 @@ def audit_issue(
     violations: list[AuditViolation] = []
 
     def fail(rule_id: str, observed: Any, reason: str) -> None:
+        if rule_id in DISABLED_RULE_IDS:
+            return
         rule = selected.get(rule_id)
         if rule:
             violations.append(
@@ -189,9 +205,14 @@ def audit_issue(
             )
 
     return IssueAuditResult(
-        normalized.key, normalized.url, normalized.summary,
-        normalized.reporter, not violations, tuple(violations),
-        bool(_ai_reviewable_violations(violations)),
+        key=normalized.key,
+        url=normalized.url,
+        summary=normalized.summary,
+        reporter=normalized.reporter,
+        passed=not violations,
+        violations=tuple(violations),
+        has_ai_candidates=bool(_ai_reviewable_violations(violations)),
+        _ai_description=normalized.description,
     )
 
 
@@ -268,28 +289,16 @@ def _normalize_issue(issue: dict[str, Any], base_url: str) -> _Issue:
 
 
 def _audit_summary(summary: str, fail: _Failure) -> None:
-    match = _SUMMARY_STRUCTURE.fullmatch(summary.strip())
-    if not match:
+    groups, description, probability, errors = _parse_summary_format(summary)
+    if errors:
         fail(
             "SUMMARY.FORMAT",
             summary,
-            "Summary 不符合 4–6 个分组、冒号、英文描述和最终复现概率的格式。",
+            "；".join(errors) + "。",
         )
         return
 
-    groups = [item.strip() for item in re.findall(r"\[([^\]]*)\]", match.group(1))]
     customer, chip, version, module = groups[-4:]
-    body = match.group(2).strip()
-    rate_match = _SUMMARY_RATE_AT_END.search(body)
-    probability = rate_match.group("rate").strip() if rate_match else ""
-    description = (
-        body[:rate_match.start()].rstrip().rstrip(",，").rstrip()
-        if rate_match
-        else body.rstrip(",，").rstrip()
-    )
-    if not description:
-        fail("SUMMARY.FORMAT", summary, "Summary 的问题描述为空。")
-        return
     for rule_id, value, reason in (
         ("SUMMARY.CUSTOMER", customer, "客户名称为空。"),
         ("SUMMARY.CHIP", chip, "CHIP 为空。"),
@@ -307,6 +316,74 @@ def _audit_summary(summary: str, fail: _Failure) -> None:
         fail("SUMMARY.DESCRIPTION_ENGLISH", description, "问题描述不是有效的英文内容。")
     if not _valid_rate(probability):
         fail("SUMMARY.PROBABILITY", probability, f"复现概率“{probability}”格式无效。")
+
+
+def _parse_summary_format(
+    value: str,
+) -> tuple[list[str], str, str, list[str]]:
+    text = str(value or "").strip()
+    groups: list[str] = []
+    errors: list[str] = []
+    position = 0
+    bracket_pairs = {"[": "]", "【": "】"}
+    while position < len(text):
+        while position < len(text) and text[position].isspace():
+            position += 1
+        opening = text[position] if position < len(text) else ""
+        if opening not in bracket_pairs:
+            break
+        closing = bracket_pairs[opening]
+        closing_position = text.find(closing, position + 1)
+        if closing_position < 0:
+            errors.append(
+                f"第 {len(groups) + 1} 个字段缺少右方括号“{closing}”"
+            )
+            return groups, "", "", errors
+        groups.append(text[position + 1:closing_position].strip())
+        position = closing_position + 1
+
+    group_count_error = ""
+    if not 4 <= len(groups) <= 6:
+        group_count_error = f"方括号字段数量为 {len(groups)}，要求 4–6 个"
+        errors.append(group_count_error)
+    empty_groups = [
+        str(index) for index, group in enumerate(groups, 1)
+        if not group
+    ]
+    if empty_groups:
+        errors.append(f"第 {', '.join(empty_groups)} 个方括号字段为空")
+
+    while position < len(text) and text[position].isspace():
+        position += 1
+    if position >= len(text) or text[position] not in (":", "："):
+        errors.append("方括号字段后缺少必需的冒号（允许“:”或“：”）")
+        return groups, "", "", errors
+
+    body = text[position + 1:].strip()
+    misplaced_group = re.match(r"^(\[([^\]]+)\]|【([^】]+)】)", body)
+    misplaced_module = (
+        (misplaced_group.group(2) or misplaced_group.group(3)).strip()
+        if misplaced_group
+        else ""
+    )
+    if len(groups) == 3 and misplaced_module.casefold() in {
+        module.casefold() for module in ALLOWED_MODULES
+    }:
+        errors.remove(group_count_error)
+        errors.append(
+            f"Bug 模块字段“{misplaced_group.group(1)}”位于冒号后，"
+            f"导致冒号前只有 3 个字段；应将“{misplaced_group.group(1)}”移到冒号前"
+        )
+    rate_match = _SUMMARY_RATE_AT_END.search(body)
+    probability = rate_match.group("rate").strip() if rate_match else ""
+    description = (
+        body[:rate_match.start()].rstrip().rstrip(",，").rstrip()
+        if rate_match
+        else body
+    )
+    if not description:
+        errors.append("冒号后的问题描述为空")
+    return groups, description, probability, errors
 
 
 def _audit_components(components: tuple[str, ...], fail: _Failure) -> None:

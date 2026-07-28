@@ -136,6 +136,8 @@ class JiraAuditService:
         for index, issue in enumerate(raw_issues, 1):
             results.append(audit_issue(issue, base_url=self._base_url))
             progress("rule_auditing", index, len(raw_issues))
+        if not raw_issues:
+            progress("rule_auditing", 0, 0)
 
         candidate_indexes = [
             index for index, result in enumerate(results)
@@ -239,13 +241,15 @@ def _review_prompt(
     rules_by_id = {rule.rule_id: rule for rule in active_rules()}
     payload = {
         "issue_key": result.key,
-        "summary": result.summary,
+        "jira_fields": {
+            "Summary": result.summary,
+            "Description": result._ai_description,
+        },
         "violations": [
             {
                 "rule_id": item.rule_id,
-                "field": item.field,
-                "observed": item.observed,
                 "requirement": rules_by_id[item.rule_id].requirement,
+                "jira_field": item.field,
                 "initial_reason": item.reason,
             }
             for item in candidates
@@ -254,6 +258,8 @@ def _review_prompt(
     return (
         "你只复核输入中字符规则无法确定的 Jira 模糊边界，不新增任何规则。"
         "人类能够清楚理解且语义满足规范时判定 PASS；确实缺少必需信息时判定 FAIL。"
+        "应结合 jira_fields 中全部自然语言判断，不要求信息必须出现在初筛指定位置；"
+        "只要 Jira 整体已经明确表达所需信息就判定 PASS。"
         "返回一个 JSON 对象，issue_key 必须与输入相同；decisions 必须为每个输入规则"
         "返回且只返回一次。每项包含 rule_id、result（PASS 或 FAIL）、reason 和 guidance；"
         "FAIL 必须提供非空 reason。\n"
@@ -316,16 +322,13 @@ def _merge_review(
 ) -> IssueAuditResult:
     candidate_ids = {item.rule_id for item in candidates}
     final_violations = []
-    passed_count = failed_count = 0
     for violation in result.violations:
         if violation.rule_id not in candidate_ids:
             final_violations.append(violation)
             continue
         decision = decisions[violation.rule_id]
         if decision["result"] == "PASS":
-            passed_count += 1
             continue
-        failed_count += 1
         final_violations.append(
             replace(
                 violation,
@@ -339,8 +342,6 @@ def _merge_review(
         violations=tuple(final_violations),
         ai_review_status=AIReviewStatus.COMPLETED,
         ai_failure_category=None,
-        ai_passed_count=passed_count,
-        ai_failed_count=failed_count,
     )
 
 

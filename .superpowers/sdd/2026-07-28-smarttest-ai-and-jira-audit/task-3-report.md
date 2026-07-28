@@ -32,3 +32,18 @@
 - 起始工作区中的 docs、版本、翻译及未跟踪用户文件均保持未修改；提交仅包含上述 Task 3 文件。
 - 未执行真实 Jira 或真实 AI 联网验收；外部边界由分页 Jira 假件和统一 AI 客户端假件覆盖。
 - 新进度阶段到 UI 的映射属于 Task 4；本任务未修改 UI/QML/TS、版本、Redmine、根 `jira_handler.py` 或用户文件。
+
+## Review rework round 1
+
+- 身份：`Mason-JiraReview`；任务：`/root/mason_jira_review_core`
+- 变更文件：`models.py`、`rules.py`、`service.py`、两份 Jira audit self-test 与本报告。
+- 验证：
+  - 聚焦 Jira audit：exit `0`，`40 passed`
+  - `testing/self_tests/support/ai`：exit `0`，`18 passed`
+  - `testing/self_tests/support`：exit `0`，`101 passed`
+  - audit `compileall` 与 `git diff --check`：exit `0`
+- Acceptance / quality：Functional Acceptance `PASS`；Code Quality `PASS`。
+- 复用决策：继续扩展既有 audit owner 与统一 `support.ai`；完整 Description 仅保存在 `repr=False` 私有字段，结合公开 Summary 构造根行为一致的 `jira_fields`，未增加导出/前端字段或原始响应存储。
+- 清理：删除无消费者的 AI 通过/失败计数、旧 `Comparision` 兼容和重复 context 结构；根 `DISABLED_RULE_IDS` 同时约束 `active_rules()` 与执行。
+- rework 生产代码净增 `81` 行（新增 `116`、删除 `35`），测试净增 `102` 行（新增 `121`、删除 `19`）；Task 3 累计生产净增 `522` 行、测试净增 `473` 行。增量主要为根 Summary 字符解析、禁用规则一致性及完整上下文/不泄露边界。
+- 状态/限制：未修改或提交起始 docs、版本、翻译和其他未跟踪用户文件；未执行真实 Jira/AI 联网验收。

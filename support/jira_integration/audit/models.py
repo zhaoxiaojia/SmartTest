@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
@@ -42,8 +42,11 @@ class IssueAuditResult:
     has_ai_candidates: bool = False
     ai_review_status: AIReviewStatus = AIReviewStatus.NOT_REQUIRED
     ai_failure_category: str | None = None
-    ai_passed_count: int = 0
-    ai_failed_count: int = 0
+    _ai_description: str = field(
+        default="",
+        repr=False,
+        compare=False,
+    )
 
 
 @dataclass(frozen=True)

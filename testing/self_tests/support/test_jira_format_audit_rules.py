@@ -21,13 +21,12 @@ from support.jira_integration.core.models import SearchPage
 RULE_IDS = tuple(
     """
     SUMMARY.FORMAT SUMMARY.CUSTOMER SUMMARY.CHIP SUMMARY.VERSION
-    SUMMARY.CUSTOMER_ENGLISH SUMMARY.CHIP_UPPERCASE SUMMARY.MODULE
+    SUMMARY.CUSTOMER_ENGLISH
     SUMMARY.DESCRIPTION_ENGLISH SUMMARY.PROBABILITY COMPONENT.REQUIRED
-    COMPONENT.ALLOWED DESCRIPTION.STEPS_TO_REPRODUCE DESCRIPTION.ACTUAL_RESULTS
-    DESCRIPTION.EXPECTED_RESULTS DESCRIPTION.REPRODUCIBILITY_RATE
-    DESCRIPTION.COMPARISON DESCRIPTION.NOTES DESCRIPTION.STEPS_ORDERED
+    DESCRIPTION.STEPS_TO_REPRODUCE DESCRIPTION.ACTUAL_RESULTS
+    DESCRIPTION.EXPECTED_RESULTS DESCRIPTION.COMPARISON DESCRIPTION.NOTES
     DESCRIPTION.RATE_FORMAT DESCRIPTION.NOTES_HW DESCRIPTION.NOTES_SW
-    REGRESSION.EVIDENCE ATTACHMENT.MAX_SIZE
+    REGRESSION.EVIDENCE
     """.split()
 )
 
@@ -46,7 +45,7 @@ def _description(
         ("Actual results", actual),
         ("Expected results", expected),
         ("Reproducibility rate", rate),
-        ("Comparision", comparison),
+        ("Comparison", comparison),
         ("Notes", notes),
     )
     return "\n".join(f"[{heading}]:\n{value}" for heading, value in values)
@@ -86,6 +85,7 @@ def test_complete_issue_accepts_four_five_and_six_summary_groups():
         "[ACME][T7][V1.1][Video]: Video freezes,50%",
         "[SH-1][ACME][T7][V1.1][Video]: Video freezes,1/2",
         "[SH-1][BUG-2][ACME][T7][V1.1][Video]: Video freezes,100%.",
+        "【ACME】 [T7] 【V1.1】 [Video]： Video freezes,50%",
     )
 
     assert tuple(rule.rule_id for rule in active_rules()) == RULE_IDS
@@ -109,27 +109,21 @@ EMPTY_DESCRIPTION = _description(
         ({"summary": "invalid"}, {"SUMMARY.FORMAT"}),
         (
             {"summary": "[ ][ ][ ][Video]: Video freezes,50%"},
-            {"SUMMARY.CUSTOMER", "SUMMARY.CHIP", "SUMMARY.VERSION"},
+            {"SUMMARY.FORMAT"},
         ),
         ({"summary": "[客户][T7][V1][Video]: 播放冻结,50%"},
          {"SUMMARY.CUSTOMER_ENGLISH", "SUMMARY.DESCRIPTION_ENGLISH"}),
         (
             {"summary": "[ACME][t7][V1][Unknown]: Video freezes,3/2"},
-            {
-                "SUMMARY.CHIP_UPPERCASE",
-                "SUMMARY.MODULE",
-                "SUMMARY.PROBABILITY",
-            },
+            {"SUMMARY.PROBABILITY"},
         ),
         ({"components": ()}, {"COMPONENT.REQUIRED"}),
-        ({"components": ("Video", "Unknown")}, {"COMPONENT.ALLOWED"}),
         (
             {"description": EMPTY_DESCRIPTION, "labels": ()},
             {
                 "DESCRIPTION.STEPS_TO_REPRODUCE",
                 "DESCRIPTION.ACTUAL_RESULTS",
                 "DESCRIPTION.EXPECTED_RESULTS",
-                "DESCRIPTION.REPRODUCIBILITY_RATE",
                 "DESCRIPTION.COMPARISON",
                 "DESCRIPTION.NOTES",
                 "DESCRIPTION.NOTES_HW",
@@ -146,7 +140,6 @@ EMPTY_DESCRIPTION = _description(
                 "labels": (),
             },
             {
-                "DESCRIPTION.STEPS_ORDERED",
                 "DESCRIPTION.RATE_FORMAT",
                 "DESCRIPTION.NOTES_HW",
                 "DESCRIPTION.NOTES_SW",
@@ -154,12 +147,45 @@ EMPTY_DESCRIPTION = _description(
         ),
         ({"description": _description(comparison="V1 and V2 compared.")},
          {"REGRESSION.EVIDENCE"}),
-        ({"attachments": ({"filename": "large.bin", "size": 10 * 1024 * 1024 + 1},)},
-         {"ATTACHMENT.MAX_SIZE"}),
     ),
 )
 def test_rule_failure_matrix(changes, expected):
     assert expected <= _violations(**changes)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    (
+        {"summary": "[ACME][t7][V1][Unknown]: Video freezes,50%"},
+        {"components": ("Unknown",)},
+        {"description": _description(rate=""), "labels": ()},
+        {
+            "description": _description(steps="1. Start playback.\n3. Seek."),
+            "labels": (),
+        },
+        {
+            "attachments": (
+                {"filename": "large.bin", "size": 10 * 1024 * 1024 + 1},
+            )
+        },
+    ),
+)
+def test_disabled_rules_are_not_active_or_reported(changes):
+    assert not _violations(**changes)
+
+
+def test_legacy_comparision_heading_is_a_hard_missing_section_violation():
+    description = _description().replace("[Comparison]", "[Comparision]")
+
+    result = audit_issue(
+        _issue(description=description, labels=()),
+        base_url="https://jira.example.com",
+    )
+
+    assert {item.rule_id for item in result.violations} == {
+        "DESCRIPTION.COMPARISON"
+    }
+    assert not result.has_ai_candidates
 
 
 def test_only_declared_ambiguous_violations_become_ai_candidates():
@@ -304,6 +330,22 @@ def test_service_paginates_and_reports_stable_progress_stages():
         ("rule_auditing", 3, 3),
         ("ai_reviewing", 0, 0),
         ("finalizing", 3, 3),
+    ]
+
+
+def test_empty_service_run_reports_every_stable_progress_stage():
+    progress = []
+
+    JiraAuditService(FakeClient(), base_url="https://jira.example.com").run(
+        ResolvedAuditInput("jql", "project = NONE", "project = NONE"),
+        lambda *value: progress.append(value),
+    )
+
+    assert progress == [
+        ("fetching", 0, 0),
+        ("rule_auditing", 0, 0),
+        ("ai_reviewing", 0, 0),
+        ("finalizing", 0, 0),
     ]
 
 

@@ -4,6 +4,7 @@ import json
 import re
 
 import pytest
+from openpyxl import load_workbook
 
 from support.ai import (
     AIChatResponse,
@@ -15,6 +16,7 @@ from support.jira_integration.audit import (
     AIReviewStatus,
     JiraAuditService,
     ResolvedAuditInput,
+    export_audit_xlsx,
 )
 from support.jira_integration.core.models import SearchPage
 
@@ -138,13 +140,71 @@ def test_one_jira_with_multiple_candidates_uses_one_ai_request_and_merges_result
 
     assert len(client.requests) == 1
     assert result.ai_review_status is AIReviewStatus.COMPLETED
-    assert result.ai_passed_count == 1
-    assert result.ai_failed_count == 1
     assert [item.rule_id for item in result.violations] == [
         "DESCRIPTION.RATE_FORMAT"
     ]
     assert result.violations[0].reason == "原文没有明确量化复现概率。"
     assert result.violations[0].guidance == "补充百分比或分数。"
+
+
+def test_ai_receives_full_cross_field_context_without_report_or_export_leak(tmp_path):
+    description_marker = "private-description-context"
+    raw_response_marker = "private-raw-response"
+    description = _description(
+        actual=f"Video freezes; {description_marker}; observed 2/2.",
+        rate="intermittent",
+    )
+    summary = "[ACME][T7][V1.1][Video]: Video freezes,intermittent"
+    client = AIClient(
+        {
+            "SH-1": json.dumps(
+                {
+                    "issue_key": "SH-1",
+                    "decisions": [
+                        {
+                            "rule_id": "SUMMARY.PROBABILITY",
+                            "result": "PASS",
+                            "reason": "",
+                            "guidance": "",
+                        },
+                        {
+                            "rule_id": "DESCRIPTION.RATE_FORMAT",
+                            "result": "PASS",
+                            "reason": "",
+                            "guidance": "",
+                        },
+                    ],
+                    "raw_marker": raw_response_marker,
+                }
+            )
+        }
+    )
+
+    report = _run(
+        [_issue("SH-1", summary=summary, description=description)],
+        lambda: client,
+    )
+    request_payload = json.loads(
+        client.requests[0][0][-1].content.rsplit("\n", 1)[-1]
+    )
+    exported = load_workbook(
+        export_audit_xlsx(report, downloads_dir=tmp_path)
+    )
+    exported_text = " ".join(
+        str(cell.value or "")
+        for sheet in exported.worksheets
+        for row in sheet.iter_rows()
+        for cell in row
+    )
+
+    assert request_payload["jira_fields"] == {
+        "Summary": summary,
+        "Description": description,
+    }
+    assert description_marker not in repr(report.issues[0])
+    assert raw_response_marker not in repr(report.issues[0])
+    assert description_marker not in exported_text
+    assert raw_response_marker not in exported_text
 
 
 def test_hard_violation_does_not_create_ai_client():
