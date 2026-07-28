@@ -8,8 +8,26 @@ import "../global"
 
 FluScrollablePage{
 
+    id: page_root
+
     title: qsTr("Settings")
     launchMode: FluPageType.SingleInstance
+
+    property var aiSettingsState: AISettingsBridge.state()
+
+    function refreshAiSettingsState(){
+        aiSettingsState = AISettingsBridge.state()
+    }
+
+    Connections{
+        target: AISettingsBridge
+        function onStateChanged(){
+            page_root.refreshAiSettingsState()
+        }
+        function onErrorOccurred(message){
+            page_root.showError(message)
+        }
+    }
 
     FluEvent{
         name: "checkUpdateFinish"
@@ -38,6 +56,76 @@ FluScrollablePage{
                 onClicked: {
                     loading = true
                     FluEventBus.post("checkUpdate")
+                }
+            }
+        }
+    }
+
+    FluFrame{
+        Layout.fillWidth: true
+        Layout.topMargin: 20
+        Layout.preferredHeight: 210
+        padding: 10
+
+        ColumnLayout{
+            anchors.fill: parent
+            spacing: 10
+
+            FluText{
+                text: qsTr("AI Model Configuration")
+                font: FluTextStyle.BodyStrong
+            }
+            FluComboBox{
+                id: aiModelCombo
+                Layout.fillWidth: true
+                model: page_root.aiSettingsState.models || []
+                textRole: "display_name"
+                currentIndex: {
+                    var models = page_root.aiSettingsState.models || []
+                    for (var i = 0; i < models.length; ++i) {
+                        if (models[i].id === page_root.aiSettingsState.selected_model_id) {
+                            return i
+                        }
+                    }
+                    return -1
+                }
+                onActivated: function(index) {
+                    var models = page_root.aiSettingsState.models || []
+                    if (index >= 0 && index < models.length) {
+                        AISettingsBridge.selectModel(models[index].id)
+                    }
+                }
+            }
+            FluText{
+                text: {
+                    var models = page_root.aiSettingsState.models || []
+                    for (var i = 0; i < models.length; ++i) {
+                        if (models[i].id === page_root.aiSettingsState.selected_model_id) {
+                            return models[i].configured ? qsTr("Configured") : qsTr("Not configured")
+                        }
+                    }
+                    return qsTr("Not configured")
+                }
+                color: FluTheme.fontSecondaryColor
+            }
+            RowLayout{
+                Layout.fillWidth: true
+                FluPasswordBox{
+                    id: aiApiKeyInput
+                    Layout.fillWidth: true
+                    placeholderText: qsTr("Enter API key")
+                }
+                FluFilledButton{
+                    text: qsTr("Save")
+                    onClicked: {
+                        if (AISettingsBridge.saveApiKey(page_root.aiSettingsState.selected_model_id, aiApiKeyInput.text)) {
+                            aiApiKeyInput.text = ""
+                        }
+                    }
+                }
+                FluButton{
+                    text: qsTr("Clear")
+                    onClicked: AISettingsBridge.clearApiKey(page_root.aiSettingsState.selected_model_id)
                 }
             }
         }

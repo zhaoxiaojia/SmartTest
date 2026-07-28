@@ -6800,4 +6800,20 @@ Some contents...</source>
     <message><source>Exported file</source><translation>导出文件</translation></message>
     <message><source>No export has been created.</source><translation>尚未生成导出文件。</translation></message>
 </context>
+<context>
+    <name>AISettingsBridge</name>
+    <message><source>Unable to select the AI model. Try again.</source><translation>&#x65e0;&#x6cd5;&#x9009;&#x62e9; AI &#x6a21;&#x578b;&#xff0c;&#x8bf7;&#x91cd;&#x8bd5;&#x3002;</translation></message>
+    <message><source>Enter an API key.</source><translation>&#x8bf7;&#x8f93;&#x5165; API Key&#x3002;</translation></message>
+    <message><source>Unable to save the API key. Check the key and try again.</source><translation>&#x65e0;&#x6cd5;&#x4fdd;&#x5b58; API Key&#xff0c;&#x8bf7;&#x68c0;&#x67e5;&#x540e;&#x91cd;&#x8bd5;&#x3002;</translation></message>
+    <message><source>Unable to clear the API key. Try again.</source><translation>&#x65e0;&#x6cd5;&#x6e05;&#x9664; API Key&#xff0c;&#x8bf7;&#x91cd;&#x8bd5;&#x3002;</translation></message>
+</context>
+<context>
+    <name>T_Settings</name>
+    <message><source>AI Model Configuration</source><translation>AI &#x6a21;&#x578b;&#x914d;&#x7f6e;</translation></message>
+    <message><source>Configured</source><translation>&#x5df2;&#x914d;&#x7f6e;</translation></message>
+    <message><source>Not configured</source><translation>&#x672a;&#x914d;&#x7f6e;</translation></message>
+    <message><source>Enter API key</source><translation>&#x8f93;&#x5165; API Key</translation></message>
+    <message><source>Save</source><translation>&#x4fdd;&#x5b58;</translation></message>
+    <message><source>Clear</source><translation>&#x6e05;&#x9664;</translation></message>
+</context>
 </TS>

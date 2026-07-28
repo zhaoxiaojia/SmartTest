@@ -6567,4 +6567,20 @@ Some contents...</translation>
     <message><source>Exported file</source><translation>Exported file</translation></message>
     <message><source>No export has been created.</source><translation>No export has been created.</translation></message>
 </context>
+<context>
+    <name>AISettingsBridge</name>
+    <message><source>Unable to select the AI model. Try again.</source><translation>Unable to select the AI model. Try again.</translation></message>
+    <message><source>Enter an API key.</source><translation>Enter an API key.</translation></message>
+    <message><source>Unable to save the API key. Check the key and try again.</source><translation>Unable to save the API key. Check the key and try again.</translation></message>
+    <message><source>Unable to clear the API key. Try again.</source><translation>Unable to clear the API key. Try again.</translation></message>
+</context>
+<context>
+    <name>T_Settings</name>
+    <message><source>AI Model Configuration</source><translation>AI Model Configuration</translation></message>
+    <message><source>Configured</source><translation>Configured</translation></message>
+    <message><source>Not configured</source><translation>Not configured</translation></message>
+    <message><source>Enter API key</source><translation>Enter API key</translation></message>
+    <message><source>Save</source><translation>Save</translation></message>
+    <message><source>Clear</source><translation>Clear</translation></message>
+</context>
 </TS>

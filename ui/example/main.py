@@ -23,6 +23,7 @@ from example.component.Callback import Callback
 from example.imports import resource_rc as rc
 from example.helper import Async
 from example.bridge.AuthBridge import AuthBridge
+from example.bridge.AISettingsBridge import AISettingsBridge
 from example.bridge.HomeBridge import HomeBridge
 from example.bridge.JiraBridge import JiraBridge
 from example.bridge.JiraAuditBridge import JiraAuditBridge
@@ -124,6 +125,7 @@ def main():
             "InitializrHelper": InitializrHelper(),
             "SettingsHelper": SettingsHelper(),
             "TranslateHelper": translate_helper,
+            "AISettingsBridge": AISettingsBridge(),
             "AuthBridge": auth_bridge,
             "ToolBridge": ToolBridge(runtime_root, auth_bridge),
             "RedmineBridge": redmine_bridge,
