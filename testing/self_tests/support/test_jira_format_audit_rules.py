@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 
 import pytest
@@ -148,7 +148,7 @@ EMPTY_DESCRIPTION = _description(
     ),
 )
 def test_rule_failure_matrix(changes, expected):
-    assert expected <= _violations(**changes)
+    assert expected == _violations(**changes)
 
 
 def test_legacy_comparision_heading_is_a_hard_missing_section_violation():
@@ -317,8 +317,26 @@ def test_empty_service_run_reports_every_stable_progress_stage():
 
 def test_export_is_unique_atomic_openpyxl_workbook_with_links(tmp_path):
     failed = audit_issue(_issue(summary="invalid"), base_url="https://jira.example.com")
+    failed = replace(
+        failed,
+        key="@SH-123",
+        summary="-invalid\x01",
+        reporter="=Coco",
+        violations=(
+            replace(
+                failed.violations[0],
+                observed="@invalid\x02",
+                reason="+invalid",
+                guidance="-invalid",
+            ),
+        ),
+    )
     report = AuditReport(
-        resolved=ResolvedAuditInput("jql", "project = SH", "project = SH"),
+        resolved=ResolvedAuditInput(
+            "jql",
+            "=HYPERLINK(\"https://example.invalid\")",
+            "+project\x01 = SH",
+        ),
         generated_at=datetime(2026, 7, 24, 10, 11, 12),
         rules=active_rules(),
         issues=(failed,),
@@ -333,6 +351,13 @@ def test_export_is_unique_atomic_openpyxl_workbook_with_links(tmp_path):
     assert second.name == "jira_format_audit_20260724_101112_2.xlsx"
     assert not list(tmp_path.glob("*.tmp"))
     assert workbook.sheetnames == ["Summary", "Rules", "Issues", "Violations"]
-    assert workbook["Summary"]["B5"].value == "project = SH"
+    assert workbook["Summary"]["B4"].value.startswith("'=")
+    assert workbook["Summary"]["B5"].value == "'+project = SH"
     assert workbook["Issues"]["B2"].hyperlink.target.endswith("/browse/SH-123")
+    assert workbook["Issues"]["A2"].value == "'@SH-123"
+    assert workbook["Issues"]["C2"].value == "'-invalid"
+    assert workbook["Issues"]["D2"].value == "'=Coco"
     assert workbook["Violations"]["C2"].value == "SUMMARY.FORMAT"
+    assert workbook["Violations"]["F2"].value == "'@invalid"
+    assert workbook["Violations"]["H2"].value == "'+invalid"
+    assert workbook["Violations"]["I2"].value == "'-invalid"

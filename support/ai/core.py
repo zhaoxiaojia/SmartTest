@@ -51,6 +51,7 @@ class AIClientConfig:
 @dataclass(frozen=True)
 class AIModelTemplate:
     id: str
+    display_name: str
     credential_id: str
     base_url: str
     model_id: str

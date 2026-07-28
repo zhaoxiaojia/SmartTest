@@ -12,6 +12,7 @@ bridge_module = importlib.import_module("ui.example.bridge.AISettingsBridge")
 @dataclass(frozen=True)
 class Model:
     id: str
+    display_name: str
     credential_id: str
 
 
@@ -31,8 +32,9 @@ class Resolver:
 
 def build_bridge(monkeypatch):
     models = (
-        Model("company-kimi", "company-kimi"),
-        Model("public-deepseek", "public-deepseek"),
+        Model("company-kimi", "Company Intranet Kimi", "company-kimi"),
+        Model("public-deepseek", "Public DeepSeek", "public-deepseek"),
+        Model("third-model", "Third Model", "third-model"),
     )
     selected = {"id": "company-kimi"}
     resolver = Resolver()
@@ -65,6 +67,7 @@ def test_state_exposes_only_safe_model_configuration_fields(monkeypatch):
     assert state["models"] == [
         {"id": "company-kimi", "display_name": "Company Intranet Kimi", "configured": True},
         {"id": "public-deepseek", "display_name": "Public DeepSeek", "configured": False},
+        {"id": "third-model", "display_name": "Third Model", "configured": False},
     ]
     assert set(state) == {
         "selected_model_id",
@@ -132,6 +135,7 @@ def test_clear_only_affects_the_selected_model_credential(monkeypatch):
     assert bridge.state()["models"] == [
         {"id": "company-kimi", "display_name": "Company Intranet Kimi", "configured": False},
         {"id": "public-deepseek", "display_name": "Public DeepSeek", "configured": True},
+        {"id": "third-model", "display_name": "Third Model", "configured": False},
     ]
 
 

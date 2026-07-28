@@ -173,7 +173,6 @@ def audit_issue(
         reporter=normalized.reporter,
         passed=not violations,
         violations=tuple(violations),
-        description=normalized.description,
     )
 
 
@@ -230,11 +229,17 @@ def _normalize_issue(issue: dict[str, Any], base_url: str) -> _Issue:
         key,
         f"{str(base_url or '').rstrip('/')}/browse/{key}",
         str(fields.get("summary", "") or ""),
-        _plain_text(fields.get("description")),
+        issue_description(issue),
         str(reporter_name),
         components,
         labels,
     )
+
+
+def issue_description(issue: dict[str, Any]) -> str:
+    fields = issue.get("fields") if isinstance(issue, dict) else {}
+    fields = fields if isinstance(fields, dict) else {}
+    return _plain_text(fields.get("description"))
 
 
 def _audit_summary(summary: str, fail: _Failure) -> None:
@@ -247,14 +252,7 @@ def _audit_summary(summary: str, fail: _Failure) -> None:
         )
         return
 
-    customer, chip, version, _module = groups[-4:]
-    for rule_id, value, reason in (
-        ("SUMMARY.CUSTOMER", customer, "客户名称为空。"),
-        ("SUMMARY.CHIP", chip, "CHIP 为空。"),
-        ("SUMMARY.VERSION", version, "系统版本为空。"),
-    ):
-        if not value:
-            fail(rule_id, value, reason)
+    customer, _chip, _version, _module = groups[-4:]
     if customer and not _is_english(customer):
         fail("SUMMARY.CUSTOMER_ENGLISH", customer, "客户名称不是有效的英文内容。")
     if not _is_english(description):
@@ -319,7 +317,8 @@ def _audit_description(description: str, fail: _Failure) -> dict[str, str]:
     sections = _description_sections(description)
     for heading, rule_id in _DESCRIPTION_RULES:
         if not sections.get(heading, "").strip():
-            fail(rule_id, description, f"{heading.title()} 章节缺失或为空。")
+            observed = heading.title() if heading in sections else ""
+            fail(rule_id, observed, f"{heading.title()} 章节缺失或为空。")
 
     rate = sections.get("reproducibility rate", "").splitlines()
     if rate and not _valid_rate(rate[0]):

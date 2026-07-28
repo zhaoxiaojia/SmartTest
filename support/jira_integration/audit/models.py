@@ -39,7 +39,6 @@ class IssueAuditResult:
     reporter: str
     passed: bool
     violations: tuple[AuditViolation, ...]
-    description: str = ""
     ai_review_status: AIReviewStatus = AIReviewStatus.NOT_REQUIRED
 
 

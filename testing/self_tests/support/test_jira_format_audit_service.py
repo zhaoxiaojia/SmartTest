@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-import json
 import importlib
+import json
 import re
+from dataclasses import asdict
 
 import pytest
+from openpyxl import load_workbook
 
 from support.ai import (
     AIChatResponse,
@@ -16,6 +18,7 @@ from support.jira_integration.audit import (
     AIReviewStatus,
     JiraAuditService,
     ResolvedAuditInput,
+    export_audit_xlsx,
 )
 from support.jira_integration.core.models import SearchPage
 
@@ -191,7 +194,33 @@ def test_ai_receives_full_jira_context(monkeypatch):
         "Summary": summary,
         "Description": description,
     }
-    assert report.issues[0].description == ""
+    assert "description" not in asdict(report.issues[0])
+
+
+def test_report_and_workbook_never_retain_full_jira_description(
+    monkeypatch, tmp_path
+):
+    description_marker = "private-description-context"
+    description = _description(actual="") + f"\n{description_marker}"
+    report = _run(
+        monkeypatch,
+        [_issue("SH-1", description=description)],
+        lambda: pytest.fail("hard violations must not create an AI client"),
+    )
+
+    serialized_report = json.dumps(asdict(report), ensure_ascii=False, default=str)
+    assert "description" not in asdict(report.issues[0])
+    assert description_marker not in serialized_report
+
+    exported = export_audit_xlsx(report, downloads_dir=tmp_path)
+    workbook = load_workbook(exported)
+    workbook_text = "\n".join(
+        str(cell.value or "")
+        for sheet in workbook.worksheets
+        for row in sheet.iter_rows()
+        for cell in row
+    )
+    assert description_marker not in workbook_text
 
 
 def test_hard_violation_does_not_create_ai_client(monkeypatch):

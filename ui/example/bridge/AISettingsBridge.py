@@ -39,11 +39,7 @@ class AISettingsBridge(QObject):
             models.append(
                 {
                     "id": template.id,
-                    "display_name": (
-                        self.tr("Company Intranet Kimi")
-                        if template.id == "company-kimi"
-                        else self.tr("Public DeepSeek")
-                    ),
+                    "display_name": self._display_name(template.display_name),
                     "configured": bool(configured),
                 }
             )
@@ -64,6 +60,13 @@ class AISettingsBridge(QObject):
             return False
         self.stateChanged.emit()
         return True
+
+    def _display_name(self, display_name: str) -> str:
+        translations = {
+            "Company Intranet Kimi": self.tr("Company Intranet Kimi"),
+            "Public DeepSeek": self.tr("Public DeepSeek"),
+        }
+        return translations.get(display_name, display_name)
 
     @Slot(str, str, result=bool)
     def saveApiKey(self, model_id: str, key: str) -> bool:

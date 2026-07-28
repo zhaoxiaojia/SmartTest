@@ -53,6 +53,26 @@ def owned_sources(tmp_path_factory):
     }
 
 
+@pytest.fixture(scope="module")
+def owned_qm_files(tmp_path_factory):
+    directory = tmp_path_factory.mktemp("owned-qm")
+    result = {}
+    for locale in ("en_US", "zh_CN"):
+        qm_path = directory / f"example_{locale}.qm"
+        run(
+            [
+                env.pyside6_lrelease(),
+                str(ROOT / "ui/example" / f"example_{locale}.ts"),
+                "-qm",
+                str(qm_path),
+            ],
+            check=True,
+            cwd=ROOT,
+        )
+        result[locale] = qm_path
+    return result
+
+
 def _readable(text: str) -> bool:
     return bool(text and "\ufffd" not in text and text not in {"?", "??", "???"})
 
@@ -72,10 +92,12 @@ def test_owned_fixed_text_is_active_and_translated_in_both_catalogs(owned_source
                 assert _readable((translation.text or "").strip())
 
 
-def test_owned_runtime_qm_translations_are_active_and_readable(owned_sources):
+def test_owned_runtime_qm_translations_are_active_and_readable(
+    owned_sources, owned_qm_files
+):
     for locale in ("en_US", "zh_CN"):
         translator = QTranslator()
-        qm_path = ROOT / "ui/example/imports/example/i18n" / f"example_{locale}.qm"
+        qm_path = owned_qm_files[locale]
         assert translator.load(str(qm_path)), f"failed to load {qm_path}"
         for context, sources in owned_sources.items():
             for source in sources:

@@ -15,6 +15,7 @@ _KIMI_CREDENTIAL_ID = "company-kimi"
 _MODELS = (
     AIModelTemplate(
         id="company-kimi",
+        display_name="Company Intranet Kimi",
         credential_id="company-kimi",
         base_url="https://llm.amlogic.com/8d1b5b4c",
         model_id="Amlogic_Local/Kimi-K2.7-Code",
@@ -22,6 +23,7 @@ _MODELS = (
     ),
     AIModelTemplate(
         id="public-deepseek",
+        display_name="Public DeepSeek",
         credential_id="public-deepseek",
         base_url="https://api.deepseek.com",
         model_id="deepseek-v4-flash",
@@ -142,8 +144,8 @@ class AIKeyResolver:
         return payload
 
 
-def create_chat_client() -> AIChatClient:
-    template = model_by_id(selected_model_id())
+def create_chat_client(model_id: str | None = None) -> AIChatClient:
+    template = model_by_id(selected_model_id() if model_id is None else model_id)
     key = AIKeyResolver().resolve(template.credential_id)
     return AIChatClient(
         AIClientConfig(

@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from threading import Event
 
+import pytest
 from PySide6.QtCore import QCoreApplication, QObject, QStandardPaths, Signal
 
 from support.jira_integration.audit import (
@@ -207,20 +208,48 @@ def test_export_uses_qstandardpaths_download_location(monkeypatch, tmp_path):
     assert bridge.viewState["exportPath"] == str(exported.resolve())
 
 
+def test_export_failure_logging_never_retains_exception_details(monkeypatch):
+    logged = []
+    bridge = JiraAuditBridge(FakeAuth())
+    bridge._generation = 1
+    bridge._on_worker_finished({"generation": 1, "report": _report()})
+    bridge.confirmAudit()
+    monkeypatch.setattr(
+        bridge_module,
+        "export_audit_xlsx",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("private-export-detail")
+        ),
+    )
+    monkeypatch.setattr(
+        bridge_module,
+        "smart_log",
+        lambda *args, **kwargs: logged.append((args, kwargs)),
+    )
+
+    bridge.exportReport()
+
+    assert "private-export-detail" not in repr(logged)
+    assert logged[0][0] == ("Jira audit export failed",)
+    assert "Failed to export" in bridge.viewState["inputError"]
+
+
 def test_progress_and_ai_fallback_are_safe_for_the_view_state():
     bridge = JiraAuditBridge(FakeAuth())
     bridge._generation = 1
-    expected = {
-        "fetching": ("fetching", 0.2),
-        "rule_auditing": ("rule_auditing", 0.5),
-        "ai_reviewing": ("ai_reviewing", 0.75),
-        "finalizing": ("finalizing", 0.9),
-    }
+    progress_events = (
+        ("fetching", 1, 4, 0.05),
+        ("fetching", 2, 4, 0.1),
+        ("rule_auditing", 1, 2, 0.35),
+        ("rule_auditing", 1, 4, 0.35),
+        ("ai_reviewing", 1, 2, 0.625),
+        ("finalizing", 1, 2, 0.825),
+    )
 
-    for stage, (state, progress) in expected.items():
-        bridge._on_worker_progress((1, stage, 1, 2))
-        assert bridge.viewState["state"] == state
-        assert bridge.viewState["progressValue"] == progress
+    for stage, processed, total, progress in progress_events:
+        bridge._on_worker_progress((1, stage, processed, total))
+        assert bridge.viewState["state"] == stage
+        assert bridge.viewState["progressValue"] == pytest.approx(progress)
 
     bridge._on_worker_finished({"generation": 1, "report": _report_with_ai_fallback()})
 

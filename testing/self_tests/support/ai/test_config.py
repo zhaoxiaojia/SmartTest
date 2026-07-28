@@ -38,6 +38,10 @@ def test_builtin_models_are_resolvable_and_unknown_model_is_rejected():
         "company-kimi",
         "public-deepseek",
     ]
+    assert [model.display_name for model in models] == [
+        "Company Intranet Kimi",
+        "Public DeepSeek",
+    ]
     assert model_by_id("company-kimi").credential_id != model_by_id(
         "public-deepseek"
     ).credential_id
@@ -79,6 +83,35 @@ def test_builtin_model_parameters_are_fixed_and_request_options_are_immutable():
         kimi.request_options["model"] = "replaced"
     with pytest.raises(TypeError):
         kimi.request_options["chat_template_kwargs"]["enable_thinking"] = True
+
+
+def test_chat_client_model_selection_is_optional_and_can_be_explicit(monkeypatch):
+    import support.ai.config as config
+
+    credentials = []
+    monkeypatch.setattr(
+        config,
+        "AIKeyResolver",
+        lambda: type(
+            "Resolver",
+            (),
+            {
+                "resolve": lambda _self, credential_id: (
+                    credentials.append(credential_id) or "key"
+                )
+            },
+        )(),
+    )
+
+    explicit = config.create_chat_client("public-deepseek")
+    default = config.create_chat_client()
+
+    assert explicit._config.model == "deepseek-v4-flash"
+    assert default._config.model == model_by_id(selected_model_id()).model_id
+    assert credentials == [
+        "public-deepseek",
+        model_by_id(selected_model_id()).credential_id,
+    ]
 
 
 def test_selected_model_is_persisted_and_unknown_selection_is_rejected(monkeypatch, tmp_path):

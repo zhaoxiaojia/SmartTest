@@ -28,11 +28,11 @@ _BUSY_STATES = {
     "ai_reviewing",
     "finalizing",
 }
-_STAGE_PROGRESS = {
-    "fetching": 0.2,
-    "rule_auditing": 0.5,
-    "ai_reviewing": 0.75,
-    "finalizing": 0.9,
+_STAGE_PROGRESS_RANGES = {
+    "fetching": (0.0, 0.2),
+    "rule_auditing": (0.2, 0.5),
+    "ai_reviewing": (0.5, 0.75),
+    "finalizing": (0.75, 0.9),
 }
 
 
@@ -161,8 +161,8 @@ class JiraAuditBridge(QObject):
             path = Path(
                 export_audit_xlsx(self._report, downloads_dir=downloads_dir)
             ).resolve()
-        except Exception as exc:
-            smart_log("Jira audit export failed: %s", exc, level="error",
+        except Exception:
+            smart_log("Jira audit export failed", level="error",
                       domain="jira", source="JiraAuditBridge")
             self._set(inputError=self.tr("Failed to export the Jira audit workbook."))
             return
@@ -179,12 +179,24 @@ class JiraAuditBridge(QObject):
             return
         stage = str(stage or "")
         processed, total = max(0, int(processed or 0)), max(0, int(total or 0))
-        state = stage if stage in _STAGE_PROGRESS else self._view["state"]
+        state = (
+            stage
+            if stage in _STAGE_PROGRESS_RANGES
+            else self._view["state"]
+        )
+        progress_value = self._view["progressValue"]
+        if stage in _STAGE_PROGRESS_RANGES:
+            start, end = _STAGE_PROGRESS_RANGES[stage]
+            fraction = min(processed / total, 1.0) if total else 1.0
+            progress_value = max(
+                progress_value,
+                start + (end - start) * fraction,
+            )
         self._set(
             state=state,
             processedCount=processed,
             totalCount=total,
-            progressValue=_STAGE_PROGRESS.get(state, self._view["progressValue"]),
+            progressValue=progress_value,
             statusText=self._stage_text(state),
         )
     @Slot(object)

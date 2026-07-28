@@ -4,8 +4,10 @@ import os
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from openpyxl import Workbook
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Alignment, Font, PatternFill
 
 from .models import AuditReport
@@ -102,9 +104,9 @@ def export_audit_xlsx(
 
 def _add_sheet(workbook, name, header, rows, hyperlink_column):
     sheet = workbook.create_sheet(name)
-    sheet.append(header)
+    sheet.append(tuple(_safe_cell_value(value) for value in header))
     for row in rows:
-        sheet.append(row)
+        sheet.append(tuple(_safe_cell_value(value) for value in row))
     sheet.freeze_panes = "A2"
     sheet.auto_filter.ref = sheet.dimensions
     for cell in sheet[1]:
@@ -113,13 +115,31 @@ def _add_sheet(workbook, name, header, rows, hyperlink_column):
     if hyperlink_column:
         for row in range(2, sheet.max_row + 1):
             cell = sheet.cell(row, hyperlink_column)
-            cell.hyperlink = str(cell.value)
-            cell.style = "Hyperlink"
+            target = _safe_hyperlink(cell.value)
+            if target:
+                cell.hyperlink = target
+                cell.style = "Hyperlink"
     for column in sheet.columns:
         width = max(len(str(cell.value or "")) for cell in column)
         sheet.column_dimensions[column[0].column_letter].width = min(max(width + 2, 12), 48)
         for cell in column:
             cell.alignment = Alignment(vertical="top", wrap_text=True)
+
+
+def _safe_cell_value(value):
+    if not isinstance(value, str):
+        return value
+    value = ILLEGAL_CHARACTERS_RE.sub("", value)
+    return f"'{value}" if value.startswith(("=", "+", "-", "@")) else value
+
+
+def _safe_hyperlink(value) -> str:
+    if not isinstance(value, str):
+        return ""
+    parsed = urlsplit(value)
+    if parsed.scheme.casefold() not in {"http", "https"} or not parsed.hostname:
+        return ""
+    return value
 
 
 def _unique_path(directory: Path, filename: str) -> Path:
