@@ -91,7 +91,7 @@ FluWindow {
             color: FluTheme.fontSecondaryColor
         }
 
-        FluAutoSuggestBox{
+        FluAutoSuggestBox{ /* persistence-opt-out: owner:AuthBridge */
             id: textbox_username
             visible: !accountMode
             items: AuthBridge.currentUsername() !== "" ? [{title: AuthBridge.currentUsername()}] : []
@@ -103,7 +103,7 @@ FluWindow {
             }
         }
 
-        FluTextBox{
+        FluTextBox{ /* persistence-opt-out: sensitive */
             id: textbox_password
             visible: !accountMode
             Layout.preferredWidth: 260

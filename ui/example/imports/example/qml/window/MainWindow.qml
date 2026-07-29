@@ -7,6 +7,7 @@ import Qt.labs.platform 1.1
 import FluentUI 1.0
 import example 1.0
 import "../component"
+import "../component/persistence" as Persistence
 import "../global"
 
     FluWindow {
@@ -20,6 +21,33 @@ import "../global"
     launchMode: FluWindowType.SingleTask
     inheritSystemAppBar: false
     fitsAppBarWindows: true
+    property string stateScope: "global"
+    property bool lazyLoaded: false
+    property bool tourShown: false
+    property bool rememberCloseAction: false
+    property string closeAction: ""
+
+    function openTourIfReady() {
+        if (lazyLoaded && windowState.persistenceReady && !tourShown) {
+            tour.open()
+            tourShown = true
+            windowState.valueChanged()
+        }
+    }
+
+    Persistence.PersistGroup {
+        id: windowState
+        target: window
+        stateKey: "windowState"
+        entries: [
+            {key: "tourShown", target: window, propertyName: "tourShown", defaultValue: false},
+            {key: "rememberCloseAction", target: window, propertyName: "rememberCloseAction", defaultValue: false},
+            {key: "closeAction", target: window, propertyName: "closeAction", defaultValue: ""},
+            {key: "fitsAppBarWindows", target: window, propertyName: "fitsAppBarWindows", defaultValue: true}
+        ]
+        onPersistenceReadyChanged: window.openTourIfReady()
+    }
+    onFitsAppBarWindowsChanged: windowState.valueChanged()
     appBar: FluAppBar {
         width: window.width
         height: 36
@@ -96,10 +124,8 @@ import "../global"
     }
 
     onLazyLoad: {
-        if (!SettingsHelper.getTourShown()) {
-            tour.open()
-            SettingsHelper.saveTourShown(true)
-        }
+        lazyLoaded = true
+        openTourIfReady()
     }
 
     Component.onCompleted: {
@@ -152,7 +178,7 @@ import "../global"
             Item{
                 implicitHeight: 42
                 implicitWidth: 400
-                FluCheckBox{
+                FluCheckBox{ /* persistence-opt-out: owner:windowState */
                     id:chk_remember_close_action
                     text: qsTr("Remember my choice")
                     anchors{
@@ -172,8 +198,9 @@ import "../global"
         }
         onNegativeClicked: {
             if(dialog_close.rememberChoice){
-                SettingsHelper.saveRememberCloseAction(true)
-                SettingsHelper.saveCloseAction("minimize")
+                rememberCloseAction = true
+                closeAction = "minimize"
+                windowState.valueChanged()
             }
             minimizeToTray()
         }
@@ -181,8 +208,9 @@ import "../global"
         neutralText: qsTr("Cancel")
         onPositiveClicked:{
             if(dialog_close.rememberChoice){
-                SettingsHelper.saveRememberCloseAction(true)
-                SettingsHelper.saveCloseAction("quit")
+                rememberCloseAction = true
+                closeAction = "quit"
+                windowState.valueChanged()
             }
             quitNow()
         }
@@ -302,7 +330,7 @@ import "../global"
                         clickCount = 0
                     }
                 }
-                autoSuggestBox:FluAutoSuggestBox{
+                autoSuggestBox:FluAutoSuggestBox{ /* persistence-opt-out: transient */
                     iconSource: FluentIcons.Search
                     items: ItemsOriginal.getSearchData()
                     placeholderText: qsTr("Search")
@@ -364,13 +392,12 @@ import "../global"
     }
 
     function handleCloseRequest(){
-        if(SettingsHelper.getRememberCloseAction()){
-            var action = SettingsHelper.getCloseAction()
-            if(action === "minimize"){
+        if(rememberCloseAction){
+            if(closeAction === "minimize"){
                 minimizeToTray()
                 return
             }
-            if(action === "quit"){
+            if(closeAction === "quit"){
                 quitNow()
                 return
             }

@@ -11,6 +11,15 @@
         <file>example/qml/component/ImagePreviewDialog.qml</file>
         <file>example/qml/component/LogListView.qml</file>
         <file>example/qml/component/ToolGroupExpander.qml</file>
+        <file>example/qml/component/persistence/PersistentPage.qml</file>
+        <file>example/qml/component/persistence/PersistBinding.qml</file>
+        <file>example/qml/component/persistence/PersistGroup.qml</file>
+        <file>example/qml/component/persistence/PersistTextBox.qml</file>
+        <file>example/qml/component/persistence/PersistMultilineTextBox.qml</file>
+        <file>example/qml/component/persistence/PersistComboBox.qml</file>
+        <file>example/qml/component/persistence/PersistCheckBox.qml</file>
+        <file>example/qml/component/persistence/PersistSwitch.qml</file>
+        <file>example/qml/component/persistence/PersistSpinBox.qml</file>
         <file>example/qml/component/jiraaudit/JiraAuditWorkspace.qml</file>
         <file>example/qml/component/redmine/RedmineLoginView.qml</file>
         <file>example/qml/component/redmine/RedmineWorkspace.qml</file>

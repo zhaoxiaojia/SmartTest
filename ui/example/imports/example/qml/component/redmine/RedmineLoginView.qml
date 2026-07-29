@@ -49,8 +49,8 @@ FluFrame {
             Layout.fillWidth: true
             spacing: 10
             FluText { text: qsTr("Use a separate Redmine account") ; font: FluTextStyle.Subtitle }
-            FluTextBox { id: usernameInput; Layout.fillWidth: true; placeholderText: qsTr("Username") }
-            FluPasswordBox { id: passwordInput; Layout.fillWidth: true; placeholderText: qsTr("Password") }
+            FluTextBox { /* persistence-opt-out: sensitive */ id: usernameInput; Layout.fillWidth: true; placeholderText: qsTr("Username") }
+            FluPasswordBox { /* persistence-opt-out: sensitive */ id: passwordInput; Layout.fillWidth: true; placeholderText: qsTr("Password") }
             RowLayout {
                 FluFilledButton { text: qsTr("Sign in"); onClicked: root.credentialsSubmitRequested(usernameInput.text, passwordInput.text) }
                 FluButton { text: qsTr("Cancel"); onClicked: root.cancelRequested() }
@@ -63,7 +63,7 @@ FluFrame {
             spacing: 10
             FluText { text: qsTr("Mobile verification"); font: FluTextStyle.Subtitle }
             FluText { Layout.fillWidth: true; text: qsTr("Enter the verification code shown on your phone."); wrapMode: Text.WordWrap }
-            FluTextBox { id: verificationInput; Layout.fillWidth: true; placeholderText: qsTr("Verification code") }
+            FluTextBox { /* persistence-opt-out: sensitive */ id: verificationInput; Layout.fillWidth: true; placeholderText: qsTr("Verification code") }
             RowLayout {
                 FluFilledButton { text: qsTr("Verify"); onClicked: root.verificationSubmitRequested(verificationInput.text) }
                 FluButton { text: qsTr("Cancel"); onClicked: root.cancelRequested() }

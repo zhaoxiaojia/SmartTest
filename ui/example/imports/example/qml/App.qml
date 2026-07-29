@@ -3,33 +3,47 @@ import QtQuick.Window 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import FluentUI 1.0
+import "component/persistence" as Persistence
 
 FluLauncher {
     id: app
+    property string stateScope: "global"
+
+    Persistence.PersistBinding {
+        id: darkModeState
+        target: app
+        stateKey: "darkMode"
+        valueType: "int"
+        defaultValue: 0
+        readValue: function() { return FluTheme.darkMode }
+        writeValue: function(value) { FluTheme.darkMode = value }
+    }
+    Persistence.PersistBinding {
+        id: systemAppBarState
+        target: app
+        stateKey: "useSystemAppBar"
+        valueType: "bool"
+        defaultValue: false
+        readValue: function() { return FluApp.useSystemAppBar }
+        writeValue: function(value) { FluApp.useSystemAppBar = value }
+    }
+
     Connections{
         target: FluTheme
         function onDarkModeChanged(){
-            SettingsHelper.saveDarkMode(FluTheme.darkMode)
+            darkModeState.valueChanged()
         }
     }
     Connections{
         target: FluApp
         function onUseSystemAppBarChanged(){
-            SettingsHelper.saveUseSystemAppBar(FluApp.useSystemAppBar)
-        }
-    }
-    Connections{
-        target: TranslateHelper
-        function onCurrentChanged(){
-            SettingsHelper.saveLanguage(TranslateHelper.current)
+            systemAppBarState.valueChanged()
         }
     }
     Component.onCompleted: {
         FluApp.init(app,Qt.locale(TranslateHelper.current))
         // Window/taskbar icon (keep separate from the small navigation logo).
         FluApp.windowIcon = "qrc:/example/res/image/taskbar_icon.png"
-        FluApp.useSystemAppBar = SettingsHelper.getUseSystemAppBar()
-        FluTheme.darkMode = SettingsHelper.getDarkMode()
         FluTheme.animationEnabled = true
         // Reduce text "ghosting" at non-integer split sizes on Windows by using
         // native text rendering for all FluentUI text controls.

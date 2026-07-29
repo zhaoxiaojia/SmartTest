@@ -3,9 +3,11 @@ import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import FluentUI 1.0
 import "../global"
+import "../component/persistence" as Persistence
 
-FluPage {
+Persistence.PersistentPage {
     id: page
+    stateScope: "jira"
     title: qsTr("Jira")
     launchMode: FluPageType.SingleInstance
 
@@ -49,7 +51,6 @@ FluPage {
     property var selectedAssignees: []
     property var selectedReporters: []
     property var selectedLabels: []
-    property bool filterStateReady: false
     property color jiraChatPrimaryText: "#111111"
     property color jiraChatSecondaryText: "#6b7280"
     property color jiraChatHoverBg: "#ececec"
@@ -57,6 +58,40 @@ FluPage {
     property color jiraChatAccentColor: "#ff5a1f"
     property int jiraChatFontSize: 16
     property real jiraChatLineHeight: 1.45
+    property bool pageReady: false
+    property bool initialQueryStarted: false
+
+    Persistence.PersistGroup {
+        id: filterState
+        target: page
+        stateKey: "filterState"
+        debounceMs: 300
+        entries: [
+            {key: "projects", target: page, propertyName: "selectedProjects", defaultValue: ["all_supported_projects"]},
+            {key: "statuses", target: page, propertyName: "selectedStatuses", defaultValue: []},
+            {key: "priorities", target: page, propertyName: "selectedPriorities", defaultValue: []},
+            {key: "issueTypes", target: page, propertyName: "selectedIssueTypes", defaultValue: ["bug"]},
+            {key: "assignees", target: page, propertyName: "selectedAssignees", defaultValue: []},
+            {key: "reporters", target: page, propertyName: "selectedReporters", defaultValue: []},
+            {key: "labels", target: page, propertyName: "selectedLabels", defaultValue: []},
+            {key: "boardIndex", target: combo_board, propertyName: "currentIndex", defaultValue: 0},
+            {key: "timeframeIndex", target: combo_timeframe, propertyName: "currentIndex", defaultValue: 1},
+            {key: "rawJql", target: textbox_jql, propertyName: "text", defaultValue: ""},
+            {key: "keyword", target: textbox_keyword, propertyName: "text", defaultValue: ""}
+        ]
+        onPersistenceReadyChanged: page.startInitialQueryIfReady()
+    }
+
+    Connections {
+        target: page
+        function onSelectedProjectsChanged() { filterState.valueChanged() }
+        function onSelectedStatusesChanged() { filterState.valueChanged() }
+        function onSelectedPrioritiesChanged() { filterState.valueChanged() }
+        function onSelectedIssueTypesChanged() { filterState.valueChanged() }
+        function onSelectedAssigneesChanged() { filterState.valueChanged() }
+        function onSelectedReportersChanged() { filterState.valueChanged() }
+        function onSelectedLabelsChanged() { filterState.valueChanged() }
+    }
 
     function issueStatusColor(status){
         if(status === "Done" || status === "Closed"){
@@ -237,7 +272,6 @@ FluPage {
 
     function applySavedFilter(filterRow){
         textbox_jql.text = (filterRow.query || filterRow.jql || "").trim()
-        persistFilterState()
         refreshCurrentScopeIfReady()
     }
 
@@ -302,21 +336,27 @@ FluPage {
         return values
     }
 
-    function keepExistingSelections(currentSelections, availableOptions){
+    function keepExistingSelections(propertyName, availableOptions){
         if(availableOptions.length === 0){
-            return currentSelections.slice()
+            return
         }
+        var currentSelections = page[propertyName]
         var availableIds = availableOptions.map(function(option){ return option.id })
-        return currentSelections.filter(function(item){ return availableIds.indexOf(item) !== -1 })
+        var kept = currentSelections.filter(function(item){
+            return availableIds.indexOf(item) !== -1
+        })
+        if(kept.length !== currentSelections.length){
+            page[propertyName] = kept
+        }
     }
 
     function rebuildDynamicFilterOptions(){
         assigneeFilterOptions = optionListFromStrings(distinctIssueValues("assignee"))
         reporterFilterOptions = optionListFromStrings(distinctIssueValues("reporter"))
         labelFilterOptions = optionListFromStrings(distinctIssueListValues("labels"))
-        selectedAssignees = keepExistingSelections(selectedAssignees, assigneeFilterOptions)
-        selectedReporters = keepExistingSelections(selectedReporters, reporterFilterOptions)
-        selectedLabels = keepExistingSelections(selectedLabels, labelFilterOptions)
+        keepExistingSelections("selectedAssignees", assigneeFilterOptions)
+        keepExistingSelections("selectedReporters", reporterFilterOptions)
+        keepExistingSelections("selectedLabels", labelFilterOptions)
     }
 
     function hasId(values, id){
@@ -330,7 +370,6 @@ FluPage {
             if(selectedProjects.length === 0){
                 selectedProjects = ["all_supported_projects"]
             }
-            persistFilterState()
             return
         }
         var allIndex = next.indexOf("all_supported_projects")
@@ -348,7 +387,6 @@ FluPage {
             next = ["all_supported_projects"]
         }
         selectedProjects = next
-        persistFilterState()
     }
 
     function toggleSelection(values, id, checked){
@@ -389,38 +427,6 @@ FluPage {
         return labels.join(", ")
     }
 
-    function loadPersistedState(){
-        selectedProjects = selectedCsvToArray(SettingsHelper.getString("jira/projects", "all_supported_projects"), ["all_supported_projects"])
-        selectedStatuses = selectedCsvToArray(SettingsHelper.getString("jira/statuses", ""), [])
-        selectedPriorities = selectedCsvToArray(SettingsHelper.getString("jira/priorities", ""), [])
-        selectedIssueTypes = selectedCsvToArray(SettingsHelper.getString("jira/issue_types", "bug"), ["bug"])
-        selectedAssignees = selectedCsvToArray(SettingsHelper.getString("jira/assignees", ""), [])
-        selectedReporters = selectedCsvToArray(SettingsHelper.getString("jira/reporters", ""), [])
-        selectedLabels = selectedCsvToArray(SettingsHelper.getString("jira/labels", ""), [])
-        combo_board.currentIndex = Math.max(0, Math.min(SettingsHelper.getInt("jira/board_index", 0), combo_board.model.length - 1))
-        combo_timeframe.currentIndex = Math.max(0, Math.min(SettingsHelper.getInt("jira/timeframe_index", 1), combo_timeframe.model.length - 1))
-        textbox_jql.text = SettingsHelper.getString("jira/raw_jql", "")
-        textbox_keyword.text = SettingsHelper.getString("jira/keyword", "")
-        filterStateReady = true
-    }
-
-    function persistFilterState(){
-        if(!filterStateReady){
-            return
-        }
-        SettingsHelper.saveString("jira/projects", selectedCsv(selectedProjects))
-        SettingsHelper.saveString("jira/statuses", selectedCsv(selectedStatuses))
-        SettingsHelper.saveString("jira/priorities", selectedCsv(selectedPriorities))
-        SettingsHelper.saveString("jira/issue_types", selectedCsv(selectedIssueTypes))
-        SettingsHelper.saveString("jira/assignees", selectedCsv(selectedAssignees))
-        SettingsHelper.saveString("jira/reporters", selectedCsv(selectedReporters))
-        SettingsHelper.saveString("jira/labels", selectedCsv(selectedLabels))
-        SettingsHelper.saveInt("jira/board_index", combo_board.currentIndex)
-        SettingsHelper.saveInt("jira/timeframe_index", combo_timeframe.currentIndex)
-        SettingsHelper.saveString("jira/raw_jql", textbox_jql.text)
-        SettingsHelper.saveString("jira/keyword", textbox_keyword.text)
-    }
-
     function refreshCurrentScope(){
         JiraBridge.refreshScope(
             textbox_jql.text,
@@ -441,7 +447,7 @@ FluPage {
     }
 
     function refreshCurrentScopeIfReady(){
-        if(!filterStateReady || JiraBridge.loading){
+        if(!filterState.persistenceReady || JiraBridge.loading){
             return
         }
         if(!AuthBridge.isAuthenticated() || !AuthBridge.hasCredential()){
@@ -450,16 +456,16 @@ FluPage {
         refreshCurrentScope()
     }
 
-    function selectedCsvToArray(csv, fallback){
-        var values = []
-        var text = (csv || "").trim()
-        if(text.length > 0){
-            values = text.split(",").map(function(item){ return item.trim() }).filter(function(item){ return item.length > 0 })
+    function startInitialQueryIfReady(){
+        if(initialQueryStarted || !pageReady || !filterState.persistenceReady
+                || JiraBridge.loading){
+            return
         }
-        if(values.length === 0){
-            return fallback.slice()
+        if(!AuthBridge.isAuthenticated() || !AuthBridge.hasCredential()){
+            return
         }
-        return values
+        initialQueryStarted = true
+        refreshCurrentScope()
     }
 
     function submitPrompt(){
@@ -488,13 +494,11 @@ FluPage {
     }
 
     Component.onCompleted: {
-        refreshOptionModels(true)
-        loadPersistedState()
+        refreshOptionModels(false)
         JiraBridge.bootstrap()
         syncBridgeState()
-        if(AuthBridge.isAuthenticated() && AuthBridge.hasCredential()){
-            refreshCurrentScope()
-        }
+        pageReady = true
+        startInitialQueryIfReady()
     }
 
     Connections{
@@ -943,11 +947,12 @@ FluPage {
                                     Layout.fillWidth: true
                                 }
 
-                                FluTextBox{
+                                FluTextBox{ /* persistence-opt-out: owner:filterState */
                                     id: textbox_jql
+                                    objectName: "rawJql"
                                     Layout.fillWidth: true
                                     placeholderText: qsTr("Paste a Jira filter, for example: project = TV ORDER BY created DESC")
-                                    onEditingFinished: persistFilterState()
+                                    onTextChanged: filterState.valueChanged()
                                 }
 
                                 FluText{
@@ -979,7 +984,7 @@ FluPage {
                                             Repeater{
                                                 model: projectFilterOptions
 
-                                                FluCheckBox{
+                                                FluCheckBox{ /* persistence-opt-out: owner:filterState */
                                                     text: modelData.label
                                                     checked: hasId(selectedProjects, modelData.id)
                                                     onClicked: toggleProject(modelData.id, checked)
@@ -999,12 +1004,15 @@ FluPage {
                                         width: parent.width
                                         implicitHeight: combo_board.implicitHeight + 20
 
-                                        FluComboBox{
+                                        FluComboBox{ /* persistence-opt-out: owner:filterState */
                                             id: combo_board
+                                            objectName: "boardIndex"
                                             x: 12
                                             y: 10
                                             width: parent.width - 24
-                                            onCurrentIndexChanged: persistFilterState()
+                                            model: JiraBridge.boardOptions()
+                                            currentIndex: 0
+                                            onCurrentIndexChanged: filterState.valueChanged()
                                         }
                                     }
                                 }
@@ -1019,12 +1027,15 @@ FluPage {
                                         width: parent.width
                                         implicitHeight: combo_timeframe.implicitHeight + 20
 
-                                        FluComboBox{
+                                        FluComboBox{ /* persistence-opt-out: owner:filterState */
                                             id: combo_timeframe
+                                            objectName: "timeframeIndex"
                                             x: 12
                                             y: 10
                                             width: parent.width - 24
-                                            onCurrentIndexChanged: persistFilterState()
+                                            model: JiraBridge.timeframeOptions()
+                                            currentIndex: 1
+                                            onCurrentIndexChanged: filterState.valueChanged()
                                         }
                                     }
                                 }
@@ -1050,12 +1061,11 @@ FluPage {
                                             Repeater{
                                                 model: statusFilterOptions
 
-                                                FluCheckBox{
+                                                FluCheckBox{ /* persistence-opt-out: owner:filterState */
                                                     text: modelData.label
                                                     checked: hasId(selectedStatuses, modelData.id)
                                                     onClicked: {
                                                         selectedStatuses = toggleSelection(selectedStatuses, modelData.id, checked)
-                                                        persistFilterState()
                                                     }
                                                 }
                                             }
@@ -1084,12 +1094,11 @@ FluPage {
                                             Repeater{
                                                 model: priorityFilterOptions
 
-                                                FluCheckBox{
+                                                FluCheckBox{ /* persistence-opt-out: owner:filterState */
                                                     text: modelData.label
                                                     checked: hasId(selectedPriorities, modelData.id)
                                                     onClicked: {
                                                         selectedPriorities = toggleSelection(selectedPriorities, modelData.id, checked)
-                                                        persistFilterState()
                                                     }
                                                 }
                                             }
@@ -1118,7 +1127,7 @@ FluPage {
                                             Repeater{
                                                 model: issueTypeFilterOptions
 
-                                                FluCheckBox{
+                                                FluCheckBox{ /* persistence-opt-out: owner:filterState */
                                                     text: modelData.label
                                                     checked: hasId(selectedIssueTypes, modelData.id)
                                                     onClicked: {
@@ -1126,7 +1135,6 @@ FluPage {
                                                         if(selectedIssueTypes.length === 0){
                                                             selectedIssueTypes = ["bug"]
                                                         }
-                                                        persistFilterState()
                                                     }
                                                 }
                                             }
@@ -1145,13 +1153,14 @@ FluPage {
                                         width: parent.width
                                         implicitHeight: textbox_keyword.implicitHeight + 20
 
-                                        FluTextBox{
+                                        FluTextBox{ /* persistence-opt-out: owner:filterState */
                                             id: textbox_keyword
+                                            objectName: "keyword"
                                             x: 12
                                             y: 10
                                             width: parent.width - 24
                                             placeholderText: qsTr("Keyword text")
-                                            onTextChanged: persistFilterState()
+                                            onTextChanged: filterState.valueChanged()
                                         }
                                     }
                                 }
@@ -1184,12 +1193,11 @@ FluPage {
                                             Repeater{
                                                 model: assigneeFilterOptions
 
-                                                FluCheckBox{
+                                                FluCheckBox{ /* persistence-opt-out: owner:filterState */
                                                     text: modelData.label
                                                     checked: hasId(selectedAssignees, modelData.id)
                                                     onClicked: {
                                                         selectedAssignees = toggleSelection(selectedAssignees, modelData.id, checked)
-                                                        persistFilterState()
                                                     }
                                                 }
                                             }
@@ -1225,12 +1233,11 @@ FluPage {
                                             Repeater{
                                                 model: reporterFilterOptions
 
-                                                FluCheckBox{
+                                                FluCheckBox{ /* persistence-opt-out: owner:filterState */
                                                     text: modelData.label
                                                     checked: hasId(selectedReporters, modelData.id)
                                                     onClicked: {
                                                         selectedReporters = toggleSelection(selectedReporters, modelData.id, checked)
-                                                        persistFilterState()
                                                     }
                                                 }
                                             }
@@ -1266,12 +1273,11 @@ FluPage {
                                             Repeater{
                                                 model: labelFilterOptions
 
-                                                FluCheckBox{
+                                                FluCheckBox{ /* persistence-opt-out: owner:filterState */
                                                     text: modelData.label
                                                     checked: hasId(selectedLabels, modelData.id)
                                                     onClicked: {
                                                         selectedLabels = toggleSelection(selectedLabels, modelData.id, checked)
-                                                        persistFilterState()
                                                     }
                                                 }
                                             }
@@ -1732,7 +1738,7 @@ FluPage {
                             border.width: 2
                             border.color: jiraChatAccentColor
 
-                            FluMultilineTextBox{
+                            FluMultilineTextBox{ /* persistence-opt-out: transient */
                                 id: input_prompt
                                 anchors.left: parent.left
                                 anchors.right: parent.right

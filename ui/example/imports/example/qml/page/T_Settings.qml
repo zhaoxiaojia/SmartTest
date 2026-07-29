@@ -82,7 +82,7 @@ FluScrollablePage{
                 text: qsTr("AI Model Configuration")
                 font: FluTextStyle.BodyStrong
             }
-            FluComboBox{
+            FluComboBox{ /* persistence-opt-out: owner:AISettingsBridge */
                 id: aiModelCombo
                 Layout.fillWidth: true
                 model: page_root.aiSettingsState.models || []
@@ -103,7 +103,7 @@ FluScrollablePage{
             }
             RowLayout{
                 Layout.fillWidth: true
-                FluPasswordBox{
+                FluPasswordBox{ /* persistence-opt-out: sensitive */
                     id: aiApiKeyInput
                     Layout.fillWidth: true
                     placeholderText: qsTr("Enter API key")
@@ -129,7 +129,7 @@ FluScrollablePage{
         Layout.topMargin: 20
         height: 50
         padding: 10
-        FluCheckBox{
+        FluCheckBox{ /* persistence-opt-out: owner:systemAppBarState */
             text: qsTr("Use System AppBar")
             checked: FluApp.useSystemAppBar
             anchors.verticalCenter: parent.verticalCenter
@@ -145,7 +145,7 @@ FluScrollablePage{
         Layout.topMargin: 20
         height: 50
         padding: 10
-        FluCheckBox{
+        FluCheckBox{ /* persistence-opt-out: owner:windowState */
             text:qsTr("Fits AppBar Windows")
             checked: window.fitsAppBarWindows
             anchors.verticalCenter: parent.verticalCenter

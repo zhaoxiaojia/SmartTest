@@ -17,12 +17,12 @@ from example.component.CircularReveal import CircularReveal
 from example.component.FileWatcher import FileWatcher
 from example.component.OpenGLItem import OpenGLItem
 from example.helper.InitializrHelper import InitializrHelper
-from example.helper.SettingsHelper import SettingsHelper
 from example.helper.TranslateHelper import TranslateHelper
 from example.component.Callback import Callback
 from example.imports import resource_rc as rc
 from example.helper import Async
 from example.bridge.AuthBridge import AuthBridge
+from example.bridge.FrontendStateBridge import FrontendStateBridge
 from example.bridge.AISettingsBridge import AISettingsBridge
 from example.bridge.HomeBridge import HomeBridge
 from example.bridge.JiraBridge import JiraBridge
@@ -36,6 +36,8 @@ from example.bridge.DebugBridge import DebugBridge
 from example.bridge.BootVideoBridge import BootVideoBridge
 from example.context_registry import register_context_objects
 from support.logging import smart_log
+from ui.frontend_state import FrontendStateStore
+from ui.jsonTool import app_data_dir
 
 _uri = "example"
 _major = 1
@@ -114,16 +116,24 @@ def main():
         extra={"runtime_root": str(runtime_root), "entrypoint": str(Path(sys.argv[0]).resolve())},
     )
     auth_bridge = AuthBridge()
+    frontend_state_store = FrontendStateStore(
+        app_data_dir() / "frontend_state.json"
+    )
+    frontend_state_bridge = FrontendStateBridge(
+        auth_bridge,
+        frontend_state_store,
+        legacy_path=app_data_dir() / "example.ini",
+    )
     redmine_bridge = RedmineBridge(auth_bridge)
     jira_audit_bridge = JiraAuditBridge(auth_bridge)
-    translate_helper = TranslateHelper()
+    translate_helper = TranslateHelper(frontend_state_store)
     translate_helper.init(engine)
     register_context_objects(
         engine,
         {
             "AppInfo": AppInfo(),
             "InitializrHelper": InitializrHelper(),
-            "SettingsHelper": SettingsHelper(),
+            "FrontendStateBridge": frontend_state_bridge,
             "TranslateHelper": translate_helper,
             "AISettingsBridge": AISettingsBridge(),
             "AuthBridge": auth_bridge,

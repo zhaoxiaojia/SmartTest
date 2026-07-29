@@ -182,7 +182,7 @@ Item {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    FluComboBox {
+                    FluComboBox { /* persistence-opt-out: transient */
                         id: projectFilter
                         Layout.preferredWidth: 420
                         Layout.minimumWidth: 320
@@ -193,10 +193,10 @@ Item {
                         ToolTip.visible: hovered
                         ToolTip.text: displayText
                     }
-                    FluComboBox { id: statusFilter; Layout.preferredWidth: 140; model: safeCount(root.statusFilters) ? root.statusFilters : [qsTr("All statuses")] }
-                    FluComboBox { id: typeFilter; Layout.preferredWidth: 130; model: safeCount(root.typeFilters) ? root.typeFilters : [qsTr("All types")] }
-                    FluTextBox { id: subjectFilter; Layout.preferredWidth: 180; placeholderText: qsTr("Subject") }
-                    FluTextBox { id: textFilter; Layout.fillWidth: true; placeholderText: qsTr("Contains text") }
+                    FluComboBox { /* persistence-opt-out: transient */ id: statusFilter; Layout.preferredWidth: 140; model: safeCount(root.statusFilters) ? root.statusFilters : [qsTr("All statuses")] }
+                    FluComboBox { /* persistence-opt-out: transient */ id: typeFilter; Layout.preferredWidth: 130; model: safeCount(root.typeFilters) ? root.typeFilters : [qsTr("All types")] }
+                    FluTextBox { /* persistence-opt-out: transient */ id: subjectFilter; Layout.preferredWidth: 180; placeholderText: qsTr("Subject") }
+                    FluTextBox { /* persistence-opt-out: transient */ id: textFilter; Layout.fillWidth: true; placeholderText: qsTr("Contains text") }
                     FluFilledButton {
                         text: qsTr("Search")
                         disabled: root.searchLoading || root.projectsLoading || !root.projectsReady
@@ -212,7 +212,7 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     visible: root.activeQuickViewId === "watched"
-                    FluTextBox { id: watchedIds; Layout.fillWidth: true; text: root.watchedIssueText; placeholderText: qsTr("Watched issue IDs") }
+                    FluTextBox { /* persistence-opt-out: owner:JiraIssueBrowser */ id: watchedIds; Layout.fillWidth: true; text: root.watchedIssueText; placeholderText: qsTr("Watched issue IDs") }
                     FluFilledButton { text: qsTr("Save watched IDs"); onClicked: root.watchedIssueIdsSaved(watchedIds.text) }
                     FluText { visible: root.watchedIssueError.length > 0; text: root.watchedIssueError; color: "#D13438"; wrapMode: Text.Wrap }
                 }
@@ -340,7 +340,7 @@ Item {
                             contentItem: RowLayout {
                                 spacing: 8
                                 property bool cloneSelectable: modelData.cloneStatus !== "cloned" && !modelData.clonedIssueKey
-                                FluCheckBox {
+                                FluCheckBox { /* persistence-opt-out: transient */
                                     visible: root.cloneSelectionMode
                                     disabled: !parent.cloneSelectable
                                     checked: root.cloneSelectedIds.indexOf(String(modelData.id || modelData.key || "")) >= 0

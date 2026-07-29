@@ -14,13 +14,21 @@ description: Use when changing SmartTest ui/, QML/FluentUI pages, Python bridge 
 
 ## State And Dynamic Options
 
-- Persist user-visible selections unless explicitly transient. Use `SettingsHelper` for local ini-backed UI preferences and `testing/state/local_store.py` for bridge-owned JSON preferences.
+- Persist user-visible selections unless explicitly transient. Frontend display preferences use `FrontendStateStore`; bridge-owned business state keeps its existing owner.
 - User-configured test parameters have one source of truth: `%LOCALAPPDATA%\Amlogic\SmartTest\test_page_state.json` through `ui/jsonTool.py`. Bridges may keep short render/edit mirrors; cross-layer calls pass identities such as nodeid/source/DUT, not parameter values.
 - Render cached selectable data first, then refresh external data asynchronously.
 - DUT refresh uses contracts in `testing/params/contracts.py` and `testing/tool/dut_tool/parameter_helper.py`. The bridge derives needed parameter/env sources from selected cases; do not hard-code case/field refresh paths.
 - Declare dependencies between dynamic sources in schema. Refresh a dependent source for its nodeid only after upstream state is persisted; include nodeid in parameter-dependent cache identity.
 - Refreshed scalar/path facts may replace stale persisted values. Multi-select refresh updates candidates only; user selection owns the persisted run value.
 - Render normal numeric/equipment inputs as text boxes unless incremental controls are requested. Use compact bounded inputs for short values and full width for paths/long/multiline values.
+
+### 前端显示状态持久化
+
+- 新增普通用户可编辑控件时，页面使用 `PersistentPage`，控件默认使用对应的 `Persist*` 包装并声明稳定 `objectName`；明确不需要恢复的临时输入必须声明 `persistEnabled: false`。
+- 同一组紧密关联的页面筛选使用一个 `PersistGroup` schema 和一个稳定 `stateKey`，不要为每个字段复制注册、恢复、保存或 ready 生命周期。
+- 只保存前端显示偏好。测试参数、认证、密码、API Key、Token、临时凭据、运行进度、服务端结果、日志和报告继续由原业务 owner 管理；禁止建立第二套状态。
+- 敏感值不得进入 `FrontendStateStore`。密码式输入必须保持敏感标记，聚合 object 中也不得包含敏感字段。
+- 页面不得重新引入 `SettingsHelper.save/get`、`persistReady/persistValue` 或同类手写兼容流；登录账号切换、类型回退、恢复零回写和缺少稳定身份由公共组件处理。
 
 ## Text, Theme, And Resources
 

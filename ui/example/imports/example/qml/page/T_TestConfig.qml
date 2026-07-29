@@ -198,7 +198,7 @@ FluPage {
                         wrapMode: Text.WordWrap
                     }
                 }
-                FluTextBox{
+                FluTextBox{ /* persistence-opt-out: owner:TestPageBridge */
                     id: compact_text_param
                     enabled: fieldData.readonly !== true
                     Layout.fillWidth: !compactEditorInline(editorWidth)
@@ -282,7 +282,7 @@ FluPage {
                 wrapMode: Text.WordWrap
             }
 
-            FluTextBox{
+            FluTextBox{ /* persistence-opt-out: owner:TestPageBridge */
                 id: text_param
                 visible: !readonlyField && fieldData.type === "path"
                 enabled: fieldData.readonly !== true
@@ -328,7 +328,7 @@ FluPage {
                 }
             }
 
-            FluComboBox{
+            FluComboBox{ /* persistence-opt-out: owner:TestPageBridge */
                 visible: !readonlyField && fieldData.type === "enum"
                 Layout.fillWidth: true
                 model: fieldData.enum_values || []
@@ -360,7 +360,7 @@ FluPage {
                 spacing: 2
                 Repeater{
                     model: fieldData.enum_values || []
-                    FluCheckBox{
+                    FluCheckBox{ /* persistence-opt-out: owner:TestPageBridge */
                         Layout.alignment: Qt.AlignLeft
                         Layout.preferredHeight: 24
                         size: 16
@@ -377,7 +377,7 @@ FluPage {
                 }
             }
 
-            FluToggleSwitch{
+            FluToggleSwitch{ /* persistence-opt-out: owner:TestPageBridge */
                 visible: !readonlyField && fieldData.type === "bool"
                 enabled: fieldData.readonly !== true
                 checked: fieldBoolValue(fieldData)
@@ -385,7 +385,7 @@ FluPage {
                 onClicked: setValue(checked)
             }
 
-            FluMultilineTextBox{
+            FluMultilineTextBox{ /* persistence-opt-out: owner:TestPageBridge */
                 id: multiline_text_param
                 visible: !readonlyField && fieldData.type === "multiline"
                 enabled: fieldData.readonly !== true
@@ -521,7 +521,7 @@ FluPage {
                         text: qsTr("Test Cases")
                         font: FluTextStyle.Subtitle
                     }
-                    FluTextBox{
+                    FluTextBox{ /* persistence-opt-out: owner:TestPageBridge */
                         id: txt_filter
                         placeholderText: qsTr("Filter by file...")
                         Layout.fillWidth: true
@@ -864,7 +864,7 @@ FluPage {
                                                 anchors.leftMargin: 4
                                                 anchors.rightMargin: 4
                                                 spacing: 8
-                                                FluCheckBox{
+                                                FluCheckBox{ /* persistence-opt-out: owner:TestPageBridge */
                                                     id: dut_check
                                                     checked: dutChecked(modelData)
                                                     onClicked: TestPageBridge.setDutSelected(modelData, checked)
@@ -878,7 +878,7 @@ FluPage {
                                         }
                                     }
                                 }
-                                FluComboBox{
+                                FluComboBox{ /* persistence-opt-out: owner:TestPageBridge */
                                     id: combo_global_param
                                     visible: fieldData.type === "enum" && fieldData.key !== "dut"
                                     Layout.fillWidth: true
@@ -909,7 +909,7 @@ FluPage {
                                     color: FluTheme.fontSecondaryColor
                                     wrapMode: Text.WordWrap
                                 }
-                                FluTextBox{
+                                FluTextBox{ /* persistence-opt-out: owner:TestPageBridge */
                                     id: text_global_param
                                     visible: fieldData.type !== "enum"
                                     Layout.fillWidth: true
@@ -1070,7 +1070,7 @@ FluPage {
                                             elide: Text.ElideRight
                                         }
 
-                                        FluComboBox{
+                                        FluComboBox{ /* persistence-opt-out: owner:TestPageBridge */
                                             id: combo_env_equipment_type
                                             Layout.fillWidth: true
                                             textRole: "label"
@@ -1149,7 +1149,7 @@ FluPage {
                                                         }
                                                     }
 
-                                                    FluTextBox{
+                                                    FluTextBox{ /* persistence-opt-out: owner:TestPageBridge */
                                                         id: text_env_equipment_compact
                                                         visible: fieldData.type === "string" || fieldData.type === "int"
                                                         Layout.fillWidth: !compactEditorInline(col_env.width)
@@ -1234,7 +1234,7 @@ FluPage {
                                                     wrapMode: Text.WordWrap
                                                 }
 
-                                                FluComboBox{
+                                                FluComboBox{ /* persistence-opt-out: owner:TestPageBridge */
                                                     id: combo_env_equipment_field
                                                     visible: fieldData.type === "enum"
                                                     Layout.fillWidth: true
@@ -1303,7 +1303,7 @@ FluPage {
                                                                 color: FluTheme.fontSecondaryColor
                                                             }
 
-                                                            FluTextBox{
+                                                            FluTextBox{ /* persistence-opt-out: owner:TestPageBridge */
                                                                 Layout.preferredWidth: 54
                                                                 Layout.maximumWidth: 54
                                                                 cleanEnabled: false
@@ -1322,7 +1322,7 @@ FluPage {
                                                                 color: FluTheme.fontSecondaryColor
                                                             }
 
-                                                            FluComboBox{
+                                                            FluComboBox{ /* persistence-opt-out: owner:TestPageBridge */
                                                                 Layout.preferredWidth: 82
                                                                 Layout.maximumWidth: 82
                                                                 model: fieldData.enum_values || ["NO", "NC"]
@@ -1341,7 +1341,7 @@ FluPage {
                                                                 color: FluTheme.fontSecondaryColor
                                                             }
 
-                                                            FluTextBox{
+                                                            FluTextBox{ /* persistence-opt-out: owner:TestPageBridge */
                                                                 Layout.preferredWidth: 72
                                                                 Layout.maximumWidth: 72
                                                                 cleanEnabled: false

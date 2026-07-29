@@ -53,7 +53,7 @@ ColumnLayout {
 
     Component {
         id: textEditor
-        FluTextBox {
+        FluTextBox { /* persistence-opt-out: transient */
             objectName: "jiraCreateText_" + (root.field.fieldId || "")
             text: root.field.value === undefined || root.field.value === null ? "" : String(root.field.value)
             disabled: root.disabled
@@ -62,7 +62,7 @@ ColumnLayout {
     }
     Component {
         id: multilineEditor
-        FluMultilineTextBox {
+        FluMultilineTextBox { /* persistence-opt-out: transient */
             objectName: "jiraCreateMultiline_" + (root.field.fieldId || "")
             text: root.field.value || ""
             disabled: root.disabled
@@ -72,7 +72,7 @@ ColumnLayout {
     }
     Component {
         id: singleEditor
-        FluComboBox {
+        FluComboBox { /* persistence-opt-out: transient */
             objectName: "jiraCreateSingle_" + (root.field.fieldId || "")
             model: root.field.options || []
             textRole: "label"
@@ -97,14 +97,14 @@ ColumnLayout {
         RowLayout {
             property var parentValue: (root.field.value || {}).parent || ""
             property var childValue: (root.field.value || {}).child || ""
-            FluComboBox {
+            FluComboBox { /* persistence-opt-out: transient */
                 Layout.fillWidth: true
                 model: root.field.options || []
                 textRole: "label"; valueRole: "value"; disabled: root.disabled
                 Component.onCompleted: currentIndex = root.optionIndex(model, parent.parentValue)
                 onActivated: root.valueChanged(root.issueId, root.field.fieldId || "", {"parent": currentValue, "child": ""})
             }
-            FluComboBox {
+            FluComboBox { /* persistence-opt-out: transient */
                 Layout.fillWidth: true
                 model: root.childrenFor(root.field.options, parent.parentValue)
                 textRole: "label"; valueRole: "value"; disabled: root.disabled
@@ -115,7 +115,7 @@ ColumnLayout {
     }
     Component {
         id: userEditor
-        FluAutoSuggestBox {
+        FluAutoSuggestBox { /* persistence-opt-out: transient */
             objectName: "jiraCreateUser_" + (root.field.fieldId || "")
             text: ""
             items: root.userSuggestions(root.field.options)

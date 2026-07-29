@@ -198,7 +198,7 @@ FluScrollablePage {
                 Layout.fillWidth: true
                 spacing: 8
 
-                FluTextBox {
+                FluTextBox { /* persistence-opt-out: transient */
                     id: videoPath
                     Layout.fillWidth: true
                     placeholderText: qsTr("Select a recorded video")
@@ -275,7 +275,7 @@ FluScrollablePage {
                         onClicked: stepFrame(-1)
                     }
 
-                    FluTextBox {
+                    FluTextBox { /* persistence-opt-out: transient */
                         Layout.preferredWidth: 110
                         text: frameJumpText
                         placeholderText: "frame"

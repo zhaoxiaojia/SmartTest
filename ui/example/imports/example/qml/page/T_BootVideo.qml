@@ -256,7 +256,7 @@ FluScrollablePage {
                 FluText { text: qsTr("Camera"); font: FluTextStyle.Subtitle }
                 RowLayout {
                     Layout.fillWidth: true
-                    FluTextBox { id: deviceId; Layout.fillWidth: true; placeholderText: qsTr("Device ID") }
+                    FluTextBox { /* persistence-opt-out: transient */ id: deviceId; Layout.fillWidth: true; placeholderText: qsTr("Device ID") }
                     FluButton {
                         text: qsTr("Refresh")
                         onClicked: {
@@ -272,7 +272,7 @@ FluScrollablePage {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    FluComboBox {
+                    FluComboBox { /* persistence-opt-out: transient */
                         id: modeCombo
                         Layout.fillWidth: true
                         model: ListModel { id: modeModel }
@@ -328,37 +328,37 @@ FluScrollablePage {
             FluText { text: qsTr("Analysis Settings"); font: FluTextStyle.Subtitle }
             RowLayout {
                 Layout.fillWidth: true
-                FluTextBox { id: roiX; Layout.fillWidth: true; placeholderText: "ROI X" }
-                FluTextBox { id: roiY; Layout.fillWidth: true; placeholderText: "ROI Y" }
-                FluTextBox { id: roiW; Layout.fillWidth: true; placeholderText: qsTr("ROI Width") }
-                FluTextBox { id: roiH; Layout.fillWidth: true; placeholderText: qsTr("ROI Height") }
+                FluTextBox { /* persistence-opt-out: transient */ id: roiX; Layout.fillWidth: true; placeholderText: "ROI X" }
+                FluTextBox { /* persistence-opt-out: transient */ id: roiY; Layout.fillWidth: true; placeholderText: "ROI Y" }
+                FluTextBox { /* persistence-opt-out: transient */ id: roiW; Layout.fillWidth: true; placeholderText: qsTr("ROI Width") }
+                FluTextBox { /* persistence-opt-out: transient */ id: roiH; Layout.fillWidth: true; placeholderText: qsTr("ROI Height") }
             }
             RowLayout {
                 Layout.fillWidth: true
-                FluTextBox { id: logoTemplate; Layout.fillWidth: true; placeholderText: qsTr("Logo template path") }
+                FluTextBox { /* persistence-opt-out: transient */ id: logoTemplate; Layout.fillWidth: true; placeholderText: qsTr("Logo template path") }
                 FluButton { text: qsTr("Browse"); onClicked: logoDialog.open() }
                 FluButton { text: qsTr("Capture"); onClicked: BootVideoBridge.captureTemplate("logo", collectSettings()) }
             }
             RowLayout {
                 Layout.fillWidth: true
-                FluTextBox { id: homeTemplate; Layout.fillWidth: true; placeholderText: qsTr("Home template path") }
+                FluTextBox { /* persistence-opt-out: transient */ id: homeTemplate; Layout.fillWidth: true; placeholderText: qsTr("Home template path") }
                 FluButton { text: qsTr("Browse"); onClicked: homeDialog.open() }
                 FluButton { text: qsTr("Capture"); onClicked: BootVideoBridge.captureTemplate("home", collectSettings()) }
             }
             RowLayout {
                 Layout.fillWidth: true
-                FluTextBox { id: logoThreshold; Layout.fillWidth: true; placeholderText: qsTr("Logo threshold") }
-                FluTextBox { id: homeThreshold; Layout.fillWidth: true; placeholderText: qsTr("Home threshold") }
-                FluTextBox { id: logoFrames; Layout.fillWidth: true; placeholderText: qsTr("Logo frames") }
-                FluTextBox { id: homeFrames; Layout.fillWidth: true; placeholderText: qsTr("Home frames") }
+                FluTextBox { /* persistence-opt-out: transient */ id: logoThreshold; Layout.fillWidth: true; placeholderText: qsTr("Logo threshold") }
+                FluTextBox { /* persistence-opt-out: transient */ id: homeThreshold; Layout.fillWidth: true; placeholderText: qsTr("Home threshold") }
+                FluTextBox { /* persistence-opt-out: transient */ id: logoFrames; Layout.fillWidth: true; placeholderText: qsTr("Logo frames") }
+                FluTextBox { /* persistence-opt-out: transient */ id: homeFrames; Layout.fillWidth: true; placeholderText: qsTr("Home frames") }
             }
             RowLayout {
                 Layout.fillWidth: true
-                FluTextBox { id: homeStable; Layout.fillWidth: true; placeholderText: qsTr("Home stable seconds") }
-                FluTextBox { id: powerDelayInput; Layout.fillWidth: true; placeholderText: qsTr("Power delay seconds") }
-                FluTextBox { id: glareSkipInput; Layout.fillWidth: true; placeholderText: qsTr("Glare skip ratio") }
-                FluTextBox { id: timeoutInput; Layout.fillWidth: true; placeholderText: qsTr("Timeout seconds") }
-                FluTextBox { id: analysisFpsInput; Layout.fillWidth: true; placeholderText: qsTr("Analysis FPS") }
+                FluTextBox { /* persistence-opt-out: transient */ id: homeStable; Layout.fillWidth: true; placeholderText: qsTr("Home stable seconds") }
+                FluTextBox { /* persistence-opt-out: transient */ id: powerDelayInput; Layout.fillWidth: true; placeholderText: qsTr("Power delay seconds") }
+                FluTextBox { /* persistence-opt-out: transient */ id: glareSkipInput; Layout.fillWidth: true; placeholderText: qsTr("Glare skip ratio") }
+                FluTextBox { /* persistence-opt-out: transient */ id: timeoutInput; Layout.fillWidth: true; placeholderText: qsTr("Timeout seconds") }
+                FluTextBox { /* persistence-opt-out: transient */ id: analysisFpsInput; Layout.fillWidth: true; placeholderText: qsTr("Analysis FPS") }
             }
             RowLayout {
                 Layout.fillWidth: true
