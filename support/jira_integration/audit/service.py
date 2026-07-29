@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
 from datetime import datetime
 from typing import Protocol
@@ -28,13 +29,21 @@ from .rules import (
     active_rules,
     ai_reviewable_violations,
     audit_issue,
+    is_audit_eligible,
     issue_description,
 )
 
 
 _URL = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
 _ISSUE_KEY = re.compile(r"^[A-Z][A-Z0-9]+-\d+$")
-_FIELDS = ("summary", "description", "reporter", "components", "labels")
+_FIELDS = (
+    "creator",
+    "summary",
+    "description",
+    "reporter",
+    "components",
+)
+_AI_MAX_WORKERS = 6
 
 
 class _AuditClient(Protocol):
@@ -58,6 +67,7 @@ def resolve_audit_input(
             resolved.jql,
             start_at=0,
             max_results=1,
+            fields=_FIELDS,
             validate_query="strict",
         )
     except Exception as exc:
@@ -120,7 +130,11 @@ class JiraAuditService:
     def run(
         self, resolved: ResolvedAuditInput, progress: Callable[[str, int, int], None]
     ) -> AuditReport:
-        raw_issues = []
+        seen_issue_keys = set()
+        results = []
+        candidate_indexes = []
+        candidate_descriptions = {}
+        eligible_count = 0
         start_at = 0
         while True:
             page = self._client.search_page(
@@ -129,25 +143,44 @@ class JiraAuditService:
                 fields=_FIELDS,
                 validate_query="strict",
             )
-            raw_issues.extend(page.issues)
-            progress("fetching", len(raw_issues), page.total)
-            if page.is_last or not page.issues or len(raw_issues) >= page.total:
+            page_issues = page.issues
+            page_total = page.total
+            page_size = len(page_issues)
+            page_is_last = page.is_last
+            del page
+            for offset in range(page_size):
+                issue = page_issues[offset]
+                page_issues[offset] = None
+                issue_key = str(issue.get("key", "") or "").strip().casefold()
+                if issue_key and issue_key in seen_issue_keys:
+                    del issue
+                    continue
+                if issue_key:
+                    seen_issue_keys.add(issue_key)
+                if not is_audit_eligible(issue):
+                    del issue
+                    continue
+                eligible_count += 1
+                description = issue_description(issue)
+                result = audit_issue(issue, base_url=self._base_url)
+                result_index = len(results)
+                results.append(result)
+                if ai_reviewable_violations(result, description=description):
+                    candidate_indexes.append(result_index)
+                    candidate_descriptions[result_index] = description
+                del description, issue, result
+            del page_issues
+            next_start = start_at + page_size
+            progress("fetching", min(next_start, page_total), page_total)
+            if page_is_last or not page_size or next_start >= page_total:
                 break
-            start_at = page.start_at + len(page.issues)
+            start_at = next_start
 
-        results = []
-        descriptions = []
-        for index, issue in enumerate(raw_issues, 1):
-            results.append(audit_issue(issue, base_url=self._base_url))
-            descriptions.append(issue_description(issue))
-            progress("rule_auditing", index, len(raw_issues))
-        if not raw_issues:
+        if eligible_count:
+            progress("rule_auditing", eligible_count, eligible_count)
+        else:
             progress("rule_auditing", 0, 0)
 
-        candidate_indexes = [
-            index for index, result in enumerate(results)
-            if ai_reviewable_violations(result)
-        ]
         if not candidate_indexes:
             progress("ai_reviewing", 0, 0)
         else:
@@ -159,17 +192,48 @@ class JiraAuditService:
                 failure_status = AIReviewStatus.FAILED
             else:
                 failure_status = None
-            for completed, index in enumerate(candidate_indexes, 1):
-                results[index] = (
-                    _review_failure(results[index], failure_status)
-                    if failure_status
-                    else _review_issue(
+            if failure_status:
+                candidate_descriptions.clear()
+                for completed, index in enumerate(candidate_indexes, 1):
+                    results[index] = _review_failure(
                         results[index],
-                        ai_client,
-                        descriptions[index],
+                        failure_status,
                     )
-                )
-                progress("ai_reviewing", completed, len(candidate_indexes))
+                    progress(
+                        "ai_reviewing",
+                        completed,
+                        len(candidate_indexes),
+                    )
+            else:
+                worker_count = min(_AI_MAX_WORKERS, len(candidate_indexes))
+                with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                    futures = {
+                        executor.submit(
+                            _review_issue,
+                            results[index],
+                            ai_client,
+                            candidate_descriptions[index],
+                        ): index
+                        for index in candidate_indexes
+                    }
+                    for completed, future in enumerate(
+                        as_completed(futures),
+                        1,
+                    ):
+                        index = futures[future]
+                        try:
+                            results[index] = future.result()
+                        except Exception:
+                            results[index] = _review_failure(
+                                results[index],
+                                AIReviewStatus.FAILED,
+                            )
+                        progress(
+                            "ai_reviewing",
+                            completed,
+                            len(candidate_indexes),
+                        )
+                candidate_descriptions.clear()
         progress("finalizing", len(results), len(results))
         return AuditReport(
             resolved,
@@ -178,12 +242,16 @@ class JiraAuditService:
             tuple(results),
         )
 
+
 def _review_issue(
     result: IssueAuditResult,
     client: AIChatClient,
     description: str,
 ) -> IssueAuditResult:
-    candidates = ai_reviewable_violations(result)
+    candidates = ai_reviewable_violations(
+        result,
+        description=description,
+    )
     try:
         response = client.chat_completion(
             [

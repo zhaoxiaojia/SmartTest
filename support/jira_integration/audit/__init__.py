@@ -9,5 +9,8 @@ from .models import (
     IssueAuditResult,
     ResolvedAuditInput,
 )
-from .rules import active_rules, audit_issue
-from .service import JiraAuditService, resolve_audit_input
+from .rules import active_rules, audit_issue, is_audit_eligible
+from .service import (
+    JiraAuditService,
+    resolve_audit_input,
+)

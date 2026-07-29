@@ -3,7 +3,9 @@ from __future__ import annotations
 import importlib
 import json
 import re
+import weakref
 from dataclasses import asdict
+from threading import Barrier, Lock
 
 import pytest
 from openpyxl import load_workbook
@@ -24,6 +26,7 @@ from support.jira_integration.core.models import SearchPage
 
 
 service_module = importlib.import_module("support.jira_integration.audit.service")
+_DEFAULT_CREATOR = object()
 
 
 def _description(
@@ -49,6 +52,7 @@ def _issue(
     *,
     summary="[ACME][T7][V1.1][Video]: Video freezes after seeking,2/2",
     description=None,
+    creator=_DEFAULT_CREATOR,
 ):
     return {
         "key": key,
@@ -56,6 +60,11 @@ def _issue(
             "summary": summary,
             "description": _description() if description is None else description,
             "reporter": {"displayName": "Coco"},
+            "creator": (
+                {"displayName": "Chao Li"}
+                if creator is _DEFAULT_CREATOR
+                else creator
+            ),
             "components": [{"name": "Video"}],
             "labels": [],
             "attachment": [],
@@ -90,6 +99,30 @@ class AIClient:
         if isinstance(response, BaseException):
             raise response
         return AIChatResponse(content=response, model="test-model")
+
+
+class ConcurrentAIClient(AIClient):
+    def __init__(self, responses):
+        super().__init__(responses)
+        self._barrier = Barrier(6)
+        self._lock = Lock()
+        self._started = 0
+        self._active = 0
+        self.max_active = 0
+
+    def chat_completion(self, messages, **kwargs):
+        with self._lock:
+            self._started += 1
+            self._active += 1
+            self.max_active = max(self.max_active, self._active)
+            wait_for_peers = self._started <= 6
+        try:
+            if wait_for_peers:
+                self._barrier.wait(timeout=1)
+            return super().chat_completion(messages, **kwargs)
+        finally:
+            with self._lock:
+                self._active -= 1
 
 
 def _run(monkeypatch, issues, factory, progress=None):
@@ -197,7 +230,7 @@ def test_ai_receives_full_jira_context(monkeypatch):
     assert "description" not in asdict(report.issues[0])
 
 
-def test_report_and_workbook_never_retain_full_jira_description(
+def test_report_and_workbook_retain_description_only_as_violation_observed(
     monkeypatch, tmp_path
 ):
     description_marker = "private-description-context"
@@ -208,9 +241,8 @@ def test_report_and_workbook_never_retain_full_jira_description(
         lambda: pytest.fail("hard violations must not create an AI client"),
     )
 
-    serialized_report = json.dumps(asdict(report), ensure_ascii=False, default=str)
     assert "description" not in asdict(report.issues[0])
-    assert description_marker not in serialized_report
+    assert report.issues[0].violations[0].observed == description
 
     exported = export_audit_xlsx(report, downloads_dir=tmp_path)
     workbook = load_workbook(exported)
@@ -220,7 +252,7 @@ def test_report_and_workbook_never_retain_full_jira_description(
         for row in sheet.iter_rows()
         for cell in row
     )
-    assert description_marker not in workbook_text
+    assert description_marker in workbook_text
 
 
 def test_hard_violation_does_not_create_ai_client(monkeypatch):
@@ -328,31 +360,39 @@ def test_invalid_ai_decision_payload_degrades_without_changing_violations(
     ]
 
 
-def test_one_failed_jira_does_not_prevent_other_ai_reviews(monkeypatch):
-    client = AIClient(
-        {
-            "SH-1": "{}",
-            "SH-2": _review(
-                "SH-2",
-                ("SUMMARY.PROBABILITY", "PASS", "", ""),
-            ),
-        }
-    )
+def test_ai_reviews_use_six_workers_preserve_order_and_isolate_failures(monkeypatch):
+    keys = [f"SH-{index}" for index in range(1, 8)]
+    responses = {
+        key: _review(key, ("SUMMARY.PROBABILITY", "PASS", "", ""))
+        for key in keys
+    }
+    responses["SH-1"] = "{}"
+    client = ConcurrentAIClient(responses)
     issues = [
         _issue(
             key,
             summary=f"[ACME][T7][V1.1][Video]: Video freezes {key},often",
         )
-        for key in ("SH-1", "SH-2")
+        for key in keys
     ]
+    progress = []
+    report = _run(
+        monkeypatch,
+        issues,
+        lambda: client,
+        lambda *value: progress.append(value),
+    )
 
-    report = _run(monkeypatch, issues, lambda: client)
-
+    assert client.max_active == 6
+    assert [item.key for item in report.issues] == keys
     assert [item.ai_review_status for item in report.issues] == [
         AIReviewStatus.FAILED,
-        AIReviewStatus.COMPLETED,
+        *([AIReviewStatus.COMPLETED] * 6),
     ]
-    assert [item.passed for item in report.issues] == [False, True]
+    assert [item.passed for item in report.issues] == [False, *([True] * 6)]
+    assert [
+        value[1:] for value in progress if value[0] == "ai_reviewing"
+    ] == [(completed, 7) for completed in range(1, 8)]
 
 
 def test_progress_uses_candidate_issue_count_for_ai_stage(monkeypatch):
@@ -365,13 +405,11 @@ def test_progress_uses_candidate_issue_count_for_ai_stage(monkeypatch):
             )
         }
     )
-    issues = [
-        _issue("SH-1"),
-        _issue(
-            "SH-2",
-            summary="[ACME][T7][V1.1][Video]: Video freezes,often",
-        ),
-    ]
+    candidate = _issue(
+        "SH-2",
+        summary="[ACME][T7][V1.1][Video]: Video freezes,often",
+    )
+    issues = [_issue("SH-1"), candidate, candidate]
 
     _run(
         monkeypatch,
@@ -380,10 +418,138 @@ def test_progress_uses_candidate_issue_count_for_ai_stage(monkeypatch):
         lambda *value: progress.append(value),
     )
 
+    assert len(client.requests) == 1
     assert progress == [
-        ("fetching", 2, 2),
-        ("rule_auditing", 1, 2),
+        ("fetching", 3, 3),
         ("rule_auditing", 2, 2),
         ("ai_reviewing", 1, 1),
         ("finalizing", 2, 2),
     ]
+
+
+def test_large_rule_audit_releases_processed_raw_payloads():
+    class HeavyDescription(str):
+        pass
+
+    class HeavyIssue(dict):
+        pass
+
+    total = 256
+    issue_refs = []
+    description_refs = []
+
+    def heavy_issues(start, stop):
+        for index in range(start, stop):
+            description = HeavyDescription(_description())
+            issue = HeavyIssue(
+                _issue(f"SH-{index + 1}", description=description)
+            )
+            issue_refs.append(weakref.ref(issue))
+            description_refs.append(weakref.ref(description))
+            yield issue
+
+    class ReleasingClient:
+        page_size = 32
+
+        def search_page(self, _jql, **kwargs):
+            start = kwargs.get("start_at", 0)
+            stop = min(start + self.page_size, total)
+            return SearchPage(
+                list(heavy_issues(start, stop)),
+                start,
+                self.page_size,
+                total,
+                stop >= total,
+            )
+
+    halfway_liveness = []
+    post_rule_liveness = []
+
+    def record_liveness(stage, processed, _total):
+        current = (
+            sum(reference() is not None for reference in issue_refs),
+            sum(reference() is not None for reference in description_refs),
+        )
+        if stage == "fetching" and processed == total // 2:
+            halfway_liveness.append(current)
+        if stage == "ai_reviewing":
+            post_rule_liveness.append(current)
+
+    JiraAuditService(ReleasingClient(), base_url="https://jira.example.com").run(
+        ResolvedAuditInput("jql", "project = SH", "project = SH"),
+        record_liveness,
+    )
+
+    assert halfway_liveness == [(0, 0)]
+    assert post_rule_liveness == [(0, 0)]
+
+
+def test_large_query_filters_before_rules_and_requests_only_required_fields(
+    monkeypatch,
+):
+    class ForbiddenDescription:
+        def __str__(self):
+            raise AssertionError("rejected descriptions must not be normalized")
+
+    class LargePagedClient:
+        total = 6484
+        eligible = 177
+        page_size = 100
+
+        def __init__(self):
+            self.search_calls = []
+
+        def search_page(self, _jql, **kwargs):
+            self.search_calls.append(kwargs)
+            start = kwargs.get("start_at", 0)
+            stop = min(start + self.page_size, self.total)
+            issues = [
+                _issue(
+                    f"SH-{index + 1}",
+                    creator={"displayName": (
+                        "Chao Li" if index < self.eligible else "Someone Else"
+                    )},
+                    description=(
+                        _description()
+                        if index < self.eligible
+                        else ForbiddenDescription()
+                    ),
+                )
+                for index in range(start, stop)
+            ]
+            return SearchPage(
+                issues,
+                start,
+                self.page_size,
+                self.total,
+                stop >= self.total,
+            )
+
+    monkeypatch.setattr(
+        service_module,
+        "create_chat_client",
+        lambda: pytest.fail("passing eligible issues do not require AI"),
+    )
+    client = LargePagedClient()
+
+    report = JiraAuditService(
+        client,
+        base_url="https://jira.example.com",
+    ).run(
+        ResolvedAuditInput(
+            "jql",
+            "private query marker",
+            "private query marker",
+        ),
+        lambda *_value: None,
+    )
+
+    assert report.total_count == 177
+    assert [item.key for item in report.issues[:2]] == ["SH-1", "SH-2"]
+    assert report.issues[-1].key == "SH-177"
+    assert {
+        tuple(call["fields"])
+        for call in client.search_calls
+    } == {
+        ("creator", "summary", "description", "reporter", "components")
+    }

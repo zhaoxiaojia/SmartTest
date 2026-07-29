@@ -40,7 +40,10 @@ def test_tool_bridge_survives_runtime_context_registration_and_exposes_redmine()
     assert smart_home["tools"][0]["title"] == "redmine"
 
 
-def test_production_context_ownership_survives_gc_and_tool_dialogs_are_warning_free():
+def test_production_context_ownership_survives_gc_and_tool_dialogs_are_warning_free(
+    tmp_path,
+):
+    state_path = tmp_path / "frontend_state.json"
     probe = f'''
 import gc, sys
 sys.path.insert(0, r"{ROOT / 'ui'}")
@@ -50,12 +53,15 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtTest import QTest
 from FluentUI import FluentUI
 from example.imports import resource_rc
+from example.bridge.FrontendStateBridge import FrontendStateBridge
 from example.bridge.JiraAuditBridge import JiraAuditBridge
 from example.bridge.ToolBridge import ToolBridge
 from example.context_registry import register_context_objects
+from ui.frontend_state import FrontendStateStore
 class Auth(QObject):
     authChanged = Signal()
     username = Property(str, lambda self: "chao.li", notify=authChanged)
+    def currentUsername(self): return self.username
 class Redmine(QObject):
     changed = Signal(); credentialsRequired = Signal(); verificationRequired = Signal()
     state = Property(str, lambda self: "idle", notify=changed)
@@ -72,7 +78,8 @@ class Redmine(QObject):
     def cancelLogin(self): pass
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
 auth=Auth(); redmine=Redmine()
-register_context_objects(engine, {{"AuthBridge": auth, "ToolBridge": ToolBridge(r"{ROOT}", auth), "RedmineBridge": redmine, "JiraAuditBridge": JiraAuditBridge(auth)}})
+frontend=FrontendStateBridge(auth, FrontendStateStore(r"{state_path}"))
+register_context_objects(engine, {{"AuthBridge": auth, "FrontendStateBridge": frontend, "ToolBridge": ToolBridge(r"{ROOT}", auth), "RedmineBridge": redmine, "JiraAuditBridge": JiraAuditBridge(auth)}})
 del auth; gc.collect()
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1200; height: 800; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/page/T_Tool.qml" }} }}')
@@ -98,7 +105,7 @@ print(selected.get("id"), redmine.calls, len(engine._context_objects), len(bad),
         capture_output=True, text=True, timeout=20,
     )
     assert result.returncode == 0, result.stderr + result.stdout
-    assert "redmine 1 4 0 []" in result.stdout
+    assert "redmine 1 5 0 []" in result.stdout
 
 
 def test_context_registry_releases_objects_when_engine_is_destroyed():
@@ -151,13 +158,17 @@ class Redmine(QObject):
     def cancelLogin(self): pass
 class JiraAudit(QObject):
     changed = Signal()
-    viewState = Property("QVariantMap", lambda self: {{"state":"idle","statusText":"","inputError":"","progressValue":0.0,"processedCount":0,"totalCount":0,"ruleRows":[],"resultSummary":{{}},"violationRows":[],"aiReviewText":"","exportPath":"","canStart":True,"canConfirm":False,"canExport":False}}, notify=changed)
+    viewState = Property("QVariantMap", lambda self: {{"state":"idle","statusText":"","inputError":"","progressValue":0.0,"processedCount":0,"totalCount":0,"ruleRows":[],"resultSummary":{{}},"violationRows":[],"violationRowCount":0,"violationPage":0,"violationPageCount":0,"aiReviewText":"","exportPath":"","canStart":True,"canConfirm":False,"canExport":False}}, notify=changed)
     @Slot(str)
     def startAudit(self, _text): pass
     @Slot()
     def confirmAudit(self): pass
     @Slot()
     def exportReport(self): pass
+    @Slot()
+    def previousViolationPage(self): pass
+    @Slot()
+    def nextViolationPage(self): pass
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
 auth=Auth(); tools=ToolBridge(r"{ROOT}", auth); redmine=Redmine(); jira=JiraAudit()
 if {developer!r}:
@@ -488,15 +499,24 @@ print(len(engine.rootObjects()), len(warnings), warnings)
     assert "1 0 []" in result.stdout
 
 
-def test_jira_audit_workspace_qrc_loads_review_identity_without_qml_warnings():
+def test_jira_audit_workspace_qrc_persists_input_and_loads_without_warnings(
+    tmp_path,
+):
+    state_path = tmp_path / "frontend_state.json"
     probe = f'''
-import sys
+import sys, time
 sys.path.insert(0, r"{ROOT / 'ui'}")
-from PySide6.QtCore import QObject, Property, Signal, Slot
+sys.path.insert(0, r"{ROOT}")
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from FluentUI import FluentUI
+from example.bridge.FrontendStateBridge import FrontendStateBridge
 from example.imports import resource_rc
+from ui.frontend_state import FrontendStateStore
+class Auth(QObject):
+    authChanged = Signal()
+    def currentUsername(self): return "alice"
 class JiraAudit(QObject):
     changed = Signal()
     def __init__(self):
@@ -505,7 +525,8 @@ class JiraAudit(QObject):
         "state": "awaiting_confirmation", "statusText": "ready", "inputError": "",
         "progressValue": 1.0, "processedCount": 1, "totalCount": 1,
         "ruleRows": [], "resultSummary": {{"totalCount": 1, "passedCount": 0, "failedCount": 1, "violationCount": 1}},
-        "violationRows": [{{"issueKey": "SH-123", "issueUrl": "https://jira.example.com/browse/SH-123", "rule_id": "description-steps", "field": "Description", "reason": "Steps are required.", "guidance": "Add steps."}}],
+        "violationRows": [{{"issueKey": "SH-123", "issueUrl": "https://jira.example.com/browse/SH-123", "rule_id": "description-steps", "field": "Description", "observed": "[ACME][T7][V1.1][Video]: Video freezes,2/2", "reason": "Steps are required.", "guidance": "Add steps."}}],
+        "violationRowCount": 205, "violationPage": 1, "violationPageCount": 3,
         "aiReviewText": "Character-rule results were retained.",
         "exportPath": "", "canStart": True, "canConfirm": True, "canExport": False,
         }}
@@ -518,20 +539,66 @@ class JiraAudit(QObject):
     def confirmAudit(self): pass
     @Slot()
     def exportReport(self): pass
+    @Slot()
+    def previousViolationPage(self):
+        self.setView(violationPage=max(1, self._view["violationPage"] - 1))
+    @Slot()
+    def nextViolationPage(self):
+        self.setView(violationPage=min(self._view["violationPageCount"], self._view["violationPage"] + 1))
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]
 engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
 jira=JiraAudit(); engine.rootContext().setContextProperty("JiraAuditBridge", jira)
+store=FrontendStateStore(r"{state_path}"); auth=Auth()
+frontend=FrontendStateBridge(auth, store)
+engine.rootContext().setContextProperty("FrontendStateBridge", frontend)
 FluentUI.registerTypes(engine)
-engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 900; height: 700; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" }} }}')
+engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 900; height: 700; Loader {{ objectName: "workspaceLoader"; anchors.fill: parent; source: "qrc:/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" }} }}')
 app.processEvents()
 window=engine.rootObjects()[0]
+def find_by_object_name(name):
+    pending=[window.contentItem()]
+    while pending:
+        item=pending.pop()
+        if item.objectName()==name:
+            return item
+        pending.extend(item.children())
+        if hasattr(item, "childItems"):
+            pending.extend(item.childItems())
+    return None
 buttons=[window.findChild(QObject, name) for name in ("confirmAuditButton", "exportAuditButton", "showAuditExportButton")]
 assert all(buttons)
+page_buttons=[window.findChild(QObject, name) for name in ("previousViolationPageButton", "nextViolationPageButton")]
+assert all(page_buttons)
+progress=find_by_object_name("jiraAuditDeterminateProgress")
+progress_fill=find_by_object_name("jiraAuditProgressFill")
+assert progress and progress_fill, (progress, progress_fill)
 print(*[button.property("disabled") for button in buttons])
+print("progress", progress.property("value"), progress.property("visible"), abs(progress_fill.width()-progress_fill.parentItem().width()) < 0.5)
+print("pages", *[button.property("disabled") for button in page_buttons])
+jira.nextViolationPage(); app.processEvents()
+print("page", jira._view["violationPage"], *[button.property("disabled") for button in page_buttons])
+jira.setView(violationPage=3); app.processEvents()
+print("page", jira._view["violationPage"], *[button.property("disabled") for button in page_buttons])
 jira.setView(canConfirm=False, canExport=True); app.processEvents()
 print(*[button.property("disabled") for button in buttons])
 jira.setView(exportPath="C:/Users/test/Downloads/audit.xlsx"); app.processEvents()
 print(*[button.property("disabled") for button in buttons])
+audit_input=window.findChild(QObject, "jiraAuditInput")
+audit_input.setProperty("text", "project = TV")
+deadline=time.monotonic()+0.4
+while time.monotonic()<deadline:
+    app.processEvents(); time.sleep(0.01)
+saved=store.load("alice", "jiraAudit", "jiraAuditInput", "string", "")
+loader=window.findChild(QObject, "workspaceLoader")
+loader.setProperty("active", False)
+QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+app.processEvents()
+loader.setProperty("active", True)
+deadline=time.monotonic()+0.4
+while time.monotonic()<deadline:
+    app.processEvents(); time.sleep(0.01)
+restored=window.findChild(QObject, "jiraAuditInput").property("text")
+print("persist", saved, restored)
 print(len(warnings), warnings)
 '''
     result = subprocess.run(
@@ -541,8 +608,13 @@ print(len(warnings), warnings)
     )
     assert result.returncode == 0, result.stderr + result.stdout
     assert "False True True" in result.stdout
+    assert "progress 1.0 True True" in result.stdout
+    assert "pages True False" in result.stdout
+    assert "page 2 False False" in result.stdout
+    assert "page 3 False True" in result.stdout
     assert "True False True" in result.stdout
     assert "True False False" in result.stdout
+    assert "persist project = TV project = TV" in result.stdout
     assert "0 []" in result.stdout
 
 

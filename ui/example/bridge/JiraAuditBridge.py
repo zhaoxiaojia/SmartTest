@@ -34,6 +34,7 @@ _STAGE_PROGRESS_RANGES = {
     "ai_reviewing": (0.5, 0.75),
     "finalizing": (0.75, 0.9),
 }
+_VIOLATION_PAGE_SIZE = 100
 
 
 class JiraAuditBridge(QObject):
@@ -61,6 +62,9 @@ class JiraAuditBridge(QObject):
             "ruleRows": [asdict(rule) for rule in active_rules()],
             "resultSummary": {},
             "violationRows": [],
+            "violationRowCount": 0,
+            "violationPage": 0,
+            "violationPageCount": 0,
             "aiReviewText": self.tr("No AI review was required."),
             "exportPath": "",
             "canStart": True,
@@ -108,6 +112,9 @@ class JiraAuditBridge(QObject):
             progressValue=0.0,
             resultSummary={},
             violationRows=[],
+            violationRowCount=0,
+            violationPage=0,
+            violationPageCount=0,
             aiReviewText=self.tr("No AI review was required."),
             exportPath="",
         )
@@ -121,11 +128,30 @@ class JiraAuditBridge(QObject):
                 JiraBasicAuth(username=username, password=password),
             )
             resolved = resolve_audit_input(text, base_url=self._base_url, client=client)
+            last_progress = None
+
+            def emit_progress(stage, processed, total):
+                nonlocal last_progress
+                current = (str(stage or ""), int(processed), int(total))
+                if current == last_progress:
+                    return
+                if last_progress and current[0] == last_progress[0]:
+                    if current[1] < last_progress[1]:
+                        return
+                    step = max(1, (max(current[2], 0) + 99) // 100)
+                    if not (
+                        current[1] == 0
+                        or current[1] >= current[2] > 0
+                        or current[2] != last_progress[2]
+                        or current[1] - last_progress[1] >= step
+                    ):
+                        return
+                last_progress = current
+                self._workerProgress.emit((generation, *current))
+
             report = JiraAuditService(client, base_url=self._base_url).run(
                 resolved,
-                lambda stage, processed, total: self._workerProgress.emit(
-                    (generation, stage, processed, total)
-                ),
+                emit_progress,
             )
             self._workerFinished.emit({"generation": generation, "report": report})
         except ValueError as exc:
@@ -172,6 +198,26 @@ class JiraAuditBridge(QObject):
             inputError="",
             statusText=self.tr("Jira audit workbook exported."),
         )
+
+    @Slot()
+    def previousViolationPage(self) -> None:
+        if self._report is None:
+            return
+        page = int(self._view["violationPage"] or 0)
+        if page <= 1:
+            return
+        self._set(**self._violation_page_view(self._report, page - 1))
+
+    @Slot()
+    def nextViolationPage(self) -> None:
+        if self._report is None:
+            return
+        page = int(self._view["violationPage"] or 0)
+        page_count = int(self._view["violationPageCount"] or 0)
+        if page <= 0 or page >= page_count:
+            return
+        self._set(**self._violation_page_view(self._report, page + 1))
+
     @Slot(object)
     def _on_worker_progress(self, payload) -> None:
         generation, stage, processed, total = payload
@@ -209,6 +255,7 @@ class JiraAuditBridge(QObject):
                 {"generation": self._generation, "kind": "audit"}
             )
             return
+        violation_view = self._violation_page_view(report, 1)
         self._report = report
         self._set(
             state="awaiting_confirmation",
@@ -223,18 +270,7 @@ class JiraAuditBridge(QObject):
                 "failedCount": report.failed_count,
                 "violationCount": report.violation_count,
             },
-            violationRows=[
-                {
-                    "issueKey": issue.key,
-                    "issueUrl": issue.url,
-                    "rule_id": violation.rule_id,
-                    "field": violation.field,
-                    "reason": violation.reason,
-                    "guidance": violation.guidance,
-                }
-                for issue in report.issues
-                for violation in issue.violations
-            ],
+            **violation_view,
             **self._ai_review_view(report),
         )
     @Slot(object)
@@ -260,6 +296,9 @@ class JiraAuditBridge(QObject):
             totalCount=0,
             resultSummary={},
             violationRows=[],
+            violationRowCount=0,
+            violationPage=0,
+            violationPageCount=0,
             aiReviewText=self.tr("No AI review was required."),
             exportPath="",
         )
@@ -291,6 +330,54 @@ class JiraAuditBridge(QObject):
             }
         return {
             "aiReviewText": self.tr("AI review completed."),
+        }
+
+    def _violation_page_view(
+        self,
+        report: AuditReport,
+        page: int,
+    ) -> dict[str, Any]:
+        row_count = report.violation_count
+        page_count = (
+            (row_count + _VIOLATION_PAGE_SIZE - 1)
+            // _VIOLATION_PAGE_SIZE
+        )
+        if page_count == 0:
+            return {
+                "violationRows": [],
+                "violationRowCount": 0,
+                "violationPage": 0,
+                "violationPageCount": 0,
+            }
+        current_page = min(max(int(page), 1), page_count)
+        start = (current_page - 1) * _VIOLATION_PAGE_SIZE
+        stop = min(start + _VIOLATION_PAGE_SIZE, row_count)
+        rows = []
+        row_index = 0
+        for issue in report.issues:
+            for violation in issue.violations:
+                if row_index >= stop:
+                    break
+                if row_index >= start:
+                    rows.append(
+                        {
+                            "issueKey": issue.key,
+                            "issueUrl": issue.url,
+                            "rule_id": violation.rule_id,
+                            "field": violation.field,
+                            "observed": violation.observed,
+                            "reason": violation.reason,
+                            "guidance": violation.guidance,
+                        }
+                    )
+                row_index += 1
+            if row_index >= stop:
+                break
+        return {
+            "violationRows": rows,
+            "violationRowCount": row_count,
+            "violationPage": current_page,
+            "violationPageCount": page_count,
         }
 
     def _input_error_text(self, message: str) -> str:

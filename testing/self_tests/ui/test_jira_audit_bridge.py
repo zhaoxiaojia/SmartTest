@@ -83,7 +83,7 @@ def _report_with_ai_fallback():
         rule_id="description-steps",
         section="Description",
         field="Description",
-        observed="Sensitive description must not reach the view state.",
+        observed="Original Jira description content.",
         reason="Steps are required.",
         guidance="Add reproduction steps.",
     )
@@ -101,6 +101,34 @@ def _report_with_ai_fallback():
         generated_at=datetime(2026, 7, 24, 10, 0, 0),
         rules=active_rules(),
         issues=(issue,),
+    )
+
+
+def _report_with_violation_count(count):
+    violation = AuditViolation(
+        rule_id="description-steps",
+        section="Description",
+        field="Description",
+        observed="",
+        reason="Steps are required.",
+        guidance="Add reproduction steps.",
+    )
+    issues = tuple(
+        IssueAuditResult(
+            key=f"SH-{index}",
+            url=f"https://jira.example.com/browse/SH-{index}",
+            summary="Safe summary",
+            reporter="safe-reporter",
+            passed=False,
+            violations=(violation,),
+        )
+        for index in range(1, count + 1)
+    )
+    return AuditReport(
+        resolved=ResolvedAuditInput("jql", "project = SH", "project = SH"),
+        generated_at=datetime(2026, 7, 24, 10, 0, 0),
+        rules=active_rules(),
+        issues=issues,
     )
 
 
@@ -163,6 +191,55 @@ def test_async_completion_reuses_auth_and_reports_progress(monkeypatch):
     assert bridge.viewState["state"] == "awaiting_confirmation"
     assert bridge.viewState["canConfirm"] is True
     assert bridge.viewState["canExport"] is False
+
+
+def test_worker_coalesces_large_progress_burst_and_preserves_stage_boundaries(
+    monkeypatch,
+):
+    total = 6485
+
+    class Service:
+        def run(self, _resolved, progress):
+            progress("fetching", 0, total)
+            progress("fetching", total, total)
+            for processed in range(1, total + 1):
+                progress("rule_auditing", processed, total)
+            progress("ai_reviewing", 0, 0)
+            progress("finalizing", total, total)
+            return _report()
+
+    monkeypatch.setattr(bridge_module, "JiraClient", lambda *_args: FakeClient())
+    monkeypatch.setattr(
+        bridge_module,
+        "resolve_audit_input",
+        lambda *_args, **_kwargs: ResolvedAuditInput(
+            "jql", "project = SH", "project = SH"
+        ),
+    )
+    monkeypatch.setattr(
+        bridge_module,
+        "JiraAuditService",
+        lambda *_args, **_kwargs: Service(),
+    )
+    bridge = JiraAuditBridge(FakeAuth())
+    bridge._generation = 1
+    emitted = []
+    bridge._workerProgress.connect(emitted.append)
+
+    bridge._run_audit(1, "project = SH", "chao.li", "secret")
+
+    by_stage = {
+        stage: [(processed, total_count) for _, current, processed, total_count in emitted
+                if current == stage]
+        for stage in ("fetching", "rule_auditing", "ai_reviewing", "finalizing")
+    }
+    assert by_stage["fetching"] == [(0, total), (total, total)]
+    assert by_stage["rule_auditing"][0] == (1, total)
+    assert by_stage["rule_auditing"][-1] == (total, total)
+    assert len(by_stage["rule_auditing"]) <= 110
+    assert by_stage["rule_auditing"] == sorted(set(by_stage["rule_auditing"]))
+    assert by_stage["ai_reviewing"] == [(0, 0)]
+    assert by_stage["finalizing"] == [(total, total)]
 
 
 def test_stale_generation_cannot_replace_current_state(monkeypatch):
@@ -260,9 +337,42 @@ def test_progress_and_ai_fallback_are_safe_for_the_view_state():
         "issueUrl": "https://jira.example.com/browse/SH-123",
         "rule_id": "description-steps",
         "field": "Description",
+        "observed": "Original Jira description content.",
         "reason": "Steps are required.",
         "guidance": "Add reproduction steps.",
     }]
+
+
+def test_violation_view_model_is_bounded_and_paged_while_report_stays_complete(
+):
+    bridge = JiraAuditBridge(FakeAuth())
+    bridge._generation = 1
+    report = _report_with_violation_count(205)
+
+    bridge._on_worker_finished({"generation": 1, "report": report})
+
+    assert bridge._report is report
+    assert bridge.viewState["violationRowCount"] == 205
+    assert bridge.viewState["violationPage"] == 1
+    assert bridge.viewState["violationPageCount"] == 3
+    assert len(bridge.viewState["violationRows"]) == 100
+    assert bridge.viewState["violationRows"][0]["issueKey"] == "SH-1"
+    assert bridge.viewState["violationRows"][-1]["issueKey"] == "SH-100"
+
+    bridge.nextViolationPage()
+
+    assert bridge.viewState["violationPage"] == 2
+    assert len(bridge.viewState["violationRows"]) == 100
+    assert bridge.viewState["violationRows"][0]["issueKey"] == "SH-101"
+    assert bridge.viewState["violationRows"][-1]["issueKey"] == "SH-200"
+
+    bridge.nextViolationPage()
+    assert bridge.viewState["violationPage"] == 3
+    assert len(bridge.viewState["violationRows"]) == 5
+    assert bridge.viewState["violationRows"][0]["issueKey"] == "SH-201"
+
+    bridge.previousViolationPage()
+    assert bridge.viewState["violationPage"] == 2
 
 
 def test_confirmation_requires_current_report_and_auth_change_revokes_it():

@@ -19,25 +19,102 @@ AI_REVIEWABLE_RULE_IDS = frozenset(
         "DESCRIPTION.NOTES_SW",
     }
 )
+QA_CREATOR_NAMES = frozenset(
+    {
+        "Xiuyue Zhang",
+        "Junjie Li",
+        "Mao Ma",
+        "Changwen Dai",
+        "Xiangqun Li",
+        "Leping Lei",
+        "Jianfan Ai",
+        "Jinbo Du",
+        "Shaojun Chen",
+        "Kai Ni",
+        "Shuangxiao Hu",
+        "Chunyan Liu",
+        "Xinying Yang",
+        "Bo Ren",
+        "Zhangxian Chen",
+        "Zhenhua Xiao",
+        "Zanbo Huang",
+        "Lingguo Bu",
+        "Haolin Li",
+        "Chenghua Liu",
+        "Yongqi Liang",
+        "Menghui Liu",
+        "Jianhua Huang",
+        "Maoguo Xie",
+        "Cong Zhang",
+        "Jie Xiong",
+        "Jianhui Peng",
+        "Ling Chen",
+        "Zhewu Tao",
+        "Meng Wang",
+        "Binbin Gao",
+        "Jiajia Mu",
+        "Zhendong Zhou",
+        "Yanyan Deng",
+        "Xiaoli Peng",
+        "Xing Fan",
+        "Zhaoqun Wang",
+        "Zijie Chen",
+        "Bo Meng",
+        "Yu Zhang",
+        "Yonghua Wu",
+        "Jian Zhong",
+        "Yan Wu",
+        "Ping Xiong",
+        "Lingling Yu",
+        "Pan Xu",
+        "Fan Xu",
+        "Chen Chen",
+        "Dan Chen",
+        "Chao Lu",
+        "Chao Li",
+        "Nannan Meng",
+        "Kang Jiang",
+        "Yanqing Tang",
+        "Weiting Feng",
+        "Taoqing Miao",
+        "Chuanyang Hu",
+        "Qianyi Liu",
+        "Zhuhui Zhang",
+        "Jinhuan Yi",
+        "Yifeng Xu",
+        "Shouneng Chou",
+        "Mennan Hu",
+        "Hanpeng Su",
+        "Haobo Ren",
+        "Meiling Zhu",
+        "Xiaofeng Li",
+        "Qin Zhang",
+        "Xuejiao Li",
+        "Mingdong Wang",
+        "Zongwu Ma",
+        "Yunzhu Zhang",
+        "Zhijie Yang",
+        "Tianwei Xie",
+        "Bing Song",
+        "Qiaowei Tian",
+    }
+)
+_QA_CREATOR_NAME_KEYS = frozenset(
+    name.casefold() for name in QA_CREATOR_NAMES
+)
 
 _RULE_DATA = (
-    ("SUMMARY.FORMAT", "Summary", "summary", "Summary 必须包含 4–6 个方括号分组，最后四组依次为客户、CHIP、系统版本和模块，随后填写英文问题描述与复现概率。", "使用“[客户][CHIP][版本][模块]: 英文问题描述,复现概率”；前面可选增加公共 Jira ID 和客户 Bug ID。"),
-    ("SUMMARY.CUSTOMER", "Summary", "summary.customer", "Summary 必须填写客户英文名。", "填写客户英文名或英文项目代号。"),
-    ("SUMMARY.CHIP", "Summary", "summary.chip", "Summary 必须填写 CHIP。", "填写大写 CHIP 名称。"),
-    ("SUMMARY.VERSION", "Summary", "summary.version", "Summary 必须填写系统版本。", "填写明确的系统版本。"),
-    ("SUMMARY.CUSTOMER_ENGLISH", "Summary", "summary.customer", "客户名称必须使用英文名或英文项目代号。", "将客户名称改为英文名或英文项目代号。"),
-    ("SUMMARY.DESCRIPTION_ENGLISH", "Summary", "summary.description", "Summary 的问题描述必须使用英文。", "使用英文描述问题现象。"),
-    ("SUMMARY.PROBABILITY", "Summary", "summary.probability", "Summary 的复现概率必须是百分比或分数。", "使用 50% 或 1/2 等格式。"),
-    ("COMPONENT.REQUIRED", "Component", "components", "至少填写一个 Component。", "选择一个或多个与问题相关的 Component。"),
-    ("DESCRIPTION.STEPS_TO_REPRODUCE", "Description", "description.steps_to_reproduce", "Description 必须包含非空的 Steps to reproduce。", "补充可执行的复现步骤。"),
-    ("DESCRIPTION.ACTUAL_RESULTS", "Description", "description.actual_results", "Description 必须包含非空的 Actual results。", "补充实际发生的结果。"),
-    ("DESCRIPTION.EXPECTED_RESULTS", "Description", "description.expected_results", "Description 必须包含非空的 Expected results。", "补充预期结果。"),
-    ("DESCRIPTION.COMPARISON", "Description", "description.comparison", "Description 必须包含非空的 Comparison。", "补充版本或平台对比信息。"),
-    ("DESCRIPTION.NOTES", "Description", "description.notes", "Description 必须包含非空的 Notes。", "补充包含软硬件信息的备注。"),
-    ("DESCRIPTION.RATE_FORMAT", "Description", "description.reproducibility_rate", "Description 中的复现概率必须是百分比或分数。", "使用 50% 或 1/2 等格式。"),
-    ("DESCRIPTION.NOTES_HW", "Description", "description.notes", "Notes 必须包含已填写的“HW info: ...”。", "在 Notes 中补充 HW info。"),
-    ("DESCRIPTION.NOTES_SW", "Description", "description.notes", "Notes 必须包含已填写的“SW info: ...”。", "在 Notes 中补充 SW info。"),
-    ("REGRESSION.EVIDENCE", "Regression", "description.comparison", "Regression 问题必须同时说明旧版本正常和当前版本异常。", "在 Comparison 中补充旧版本正常与当前版本异常的对照证据。"),
+    ("SUMMARY.FORMAT", "Summary", "Summary", "Summary 必须包含 4–6 个方括号分组，最后四组依次为客户、CHIP、系统版本和模块，冒号后填写问题描述与复现概率。", "使用“[客户][CHIP][版本][模块]: 问题描述,复现概率”；前面可选增加公共 Jira ID 和客户 Bug ID。"),
+    ("SUMMARY.PROBABILITY", "Summary", "Summary.Probability", "复现概率必须是百分比或分数，例如 50% 或 1/2。", "改为百分比或分数。"),
+    ("COMPONENT.REQUIRED", "Component", "Component", "至少填写一个 Component。", "填写与问题对应的 Component。"),
+    ("DESCRIPTION.STEPS_TO_REPRODUCE", "Description", "Description", "Description 必须包含非空的 Steps to reproduce。", "补充可执行的复现步骤。"),
+    ("DESCRIPTION.ACTUAL_RESULTS", "Description", "Description", "Description 必须包含非空的 Actual results。", "补充实际发生的结果。"),
+    ("DESCRIPTION.EXPECTED_RESULTS", "Description", "Description", "Description 必须包含非空的 Expected results。", "补充预期结果。"),
+    ("DESCRIPTION.COMPARISON", "Description", "Description", "Description 必须包含非空的 Comparison。", "补充版本对比信息。"),
+    ("DESCRIPTION.NOTES", "Description", "Description", "Description 必须包含非空的 Notes。", "补充包含软硬件信息的备注。"),
+    ("DESCRIPTION.RATE_FORMAT", "Description", "Description.Reproducibility rate", "复现概率必须是百分比或分数，例如 50% 或 1/2。", "改为百分比或分数。"),
+    ("DESCRIPTION.NOTES_HW", "Description", "Description.Notes", "Notes 必须包含“HW info: ...”。", "补充 HW info。"),
+    ("DESCRIPTION.NOTES_SW", "Description", "Description.Notes", "Notes 必须包含“SW info: ...”。", "补充 SW info。"),
 )
 _RULES = tuple(AuditRule(*row) for row in _RULE_DATA)
 
@@ -134,11 +211,45 @@ class _Issue(NamedTuple):
     description: str
     reporter: str
     components: tuple[str, ...]
-    labels: tuple[str, ...]
 
 
 def active_rules() -> tuple[AuditRule, ...]:
     return _RULES
+
+
+def is_audit_eligible(issue: dict[str, Any]) -> bool:
+    fields = issue.get("fields") if isinstance(issue, dict) else {}
+    fields = fields if isinstance(fields, dict) else {}
+    creator = fields.get("creator")
+    if isinstance(creator, dict):
+        username = _normalize_username(
+            creator.get("name")
+            or creator.get("key")
+            or creator.get("accountId")
+        )
+        display_name = " ".join(
+            str(creator.get("displayName") or "").split()
+        )
+        creator_name = display_name or _name_from_username(username)
+    else:
+        creator_name = str(creator or "").strip()
+    match_name = " ".join(creator_name.split()).casefold()
+    return match_name in _QA_CREATOR_NAME_KEYS
+
+
+def _normalize_username(username: Any) -> str:
+    value = str(username or "").strip().lower()
+    if "\\" in value:
+        value = value.rsplit("\\", 1)[-1]
+    return value.split("@", 1)[0]
+
+
+def _name_from_username(username: Any) -> str:
+    return " ".join(
+        part.capitalize()
+        for part in _normalize_username(username).split(".")
+        if part
+    )
 
 
 def audit_issue(
@@ -162,9 +273,8 @@ def audit_issue(
 
     _audit_summary(normalized.summary, fail)
     if not normalized.components:
-        fail("COMPONENT.REQUIRED", "", "Component 为空。")
-    sections = _audit_description(normalized.description, fail)
-    _audit_regression(normalized.labels, sections.get("comparison", ""), fail)
+        fail("COMPONENT.REQUIRED", "[]", "Component 为空。")
+    _audit_description(normalized.description, fail)
 
     return IssueAuditResult(
         key=normalized.key,
@@ -178,15 +288,24 @@ def audit_issue(
 
 def ai_reviewable_violations(
     result: IssueAuditResult,
+    *,
+    description: str | None = None,
 ) -> tuple[AuditViolation, ...]:
     return tuple(
         violation
         for violation in result.violations
-        if _is_ai_reviewable_violation(violation)
+        if _is_ai_reviewable_violation(
+            violation,
+            description=description,
+        )
     )
 
 
-def _is_ai_reviewable_violation(violation: AuditViolation) -> bool:
+def _is_ai_reviewable_violation(
+    violation: AuditViolation,
+    *,
+    description: str | None = None,
+) -> bool:
     if violation.rule_id not in AI_REVIEWABLE_RULE_IDS:
         return False
     if violation.rule_id in {
@@ -199,7 +318,11 @@ def _is_ai_reviewable_violation(violation: AuditViolation) -> bool:
         "DESCRIPTION.NOTES_HW": _NOTES_INFO_ALIASES["hw"],
         "DESCRIPTION.NOTES_SW": _NOTES_INFO_ALIASES["sw"],
     }[violation.rule_id]
-    observed = violation.observed.casefold()
+    observed = (
+        violation.observed
+        if description is None
+        else description
+    ).casefold()
     return any(alias.casefold() in observed for alias in aliases)
 
 
@@ -214,11 +337,6 @@ def _normalize_issue(issue: dict[str, Any], base_url: str) -> _Issue:
         for item in fields.get("components") or ()
         if (value := _item_text(item, "name"))
     )
-    labels = tuple(
-        value
-        for item in fields.get("labels") or ()
-        if (value := _item_text(item))
-    )
     reporter_name = (
         reporter.get("displayName")
         or reporter.get("name")
@@ -232,7 +350,6 @@ def _normalize_issue(issue: dict[str, Any], base_url: str) -> _Issue:
         issue_description(issue),
         str(reporter_name),
         components,
-        labels,
     )
 
 
@@ -243,7 +360,7 @@ def issue_description(issue: dict[str, Any]) -> str:
 
 
 def _audit_summary(summary: str, fail: _Failure) -> None:
-    groups, description, probability, errors = _parse_summary_format(summary)
+    _groups, _description, probability, errors = _parse_summary_format(summary)
     if errors:
         fail(
             "SUMMARY.FORMAT",
@@ -252,13 +369,8 @@ def _audit_summary(summary: str, fail: _Failure) -> None:
         )
         return
 
-    customer, _chip, _version, _module = groups[-4:]
-    if customer and not _is_english(customer):
-        fail("SUMMARY.CUSTOMER_ENGLISH", customer, "客户名称不是有效的英文内容。")
-    if not _is_english(description):
-        fail("SUMMARY.DESCRIPTION_ENGLISH", description, "问题描述不是有效的英文内容。")
     if not _valid_rate(probability):
-        fail("SUMMARY.PROBABILITY", probability, f"复现概率“{probability}”格式无效。")
+        fail("SUMMARY.PROBABILITY", summary, f"复现概率“{probability}”格式无效。")
 
 
 def _parse_summary_format(
@@ -317,14 +429,13 @@ def _audit_description(description: str, fail: _Failure) -> dict[str, str]:
     sections = _description_sections(description)
     for heading, rule_id in _DESCRIPTION_RULES:
         if not sections.get(heading, "").strip():
-            observed = heading.title() if heading in sections else ""
-            fail(rule_id, observed, f"{heading.title()} 章节缺失或为空。")
+            fail(rule_id, description, f"{heading.title()} 章节缺失或为空。")
 
     rate = sections.get("reproducibility rate", "").splitlines()
     if rate and not _valid_rate(rate[0]):
         fail(
             "DESCRIPTION.RATE_FORMAT",
-            rate[0].strip(),
+            description,
             f"Description 中的复现概率“{rate[0].strip()}”格式无效。",
         )
     notes = sections.get("notes", "")
@@ -334,32 +445,12 @@ def _audit_description(description: str, fail: _Failure) -> dict[str, str]:
     ):
         if not _notes_have_info(notes, info_kind):
             marker = "HW info" if info_kind == "hw" else "SW info"
-            fail(rule_id, notes, f"Notes 缺少已填写的{label}信息“{marker}: ...”。")
+            fail(
+                rule_id,
+                description,
+                f"Notes 缺少已填写的{label}信息“{marker}: ...”。",
+            )
     return sections
-
-
-def _audit_regression(
-    labels: tuple[str, ...], comparison: str, fail: _Failure
-) -> None:
-    if not any(label.casefold() == "regression" for label in labels):
-        return
-    previous = re.search(
-        r"(?i)(?:previous|prior|older|baseline|old|last)\s+"
-        r"(?:normal\s+)?(?:build|version)|"
-        r"(?:build|version)\s*[\w.-]+.*(?:normal|pass|work)",
-        comparison,
-    )
-    current = re.search(
-        r"(?i)(?:current|new|broken|failing)\s+(?:build|version)|"
-        r"(?:build|version)\s*[\w.-]+.*(?:broken|fail|issue)",
-        comparison,
-    )
-    if not previous or not current:
-        fail(
-            "REGRESSION.EVIDENCE",
-            comparison,
-            "Regression 对比未同时说明旧版本正常和当前版本异常。",
-        )
 
 
 def _description_sections(description: str) -> dict[str, str]:
@@ -443,10 +534,6 @@ def _valid_rate(value: str) -> bool:
         and int(fraction.group(2)) > 0
         and int(fraction.group(1)) <= int(fraction.group(2))
     )
-
-
-def _is_english(value: str) -> bool:
-    return value.isascii() and re.search(r"[A-Za-z]", value) is not None
 
 
 def _item_text(item: Any, key: str | None = None) -> str:
