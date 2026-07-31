@@ -244,6 +244,359 @@
     </message>
 </context>
 <context>
+    <name>ConfluenceAuditBridge</name>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="108" />
+        <source>Ready to audit all Confluence projects.</source>
+        <translation>准备审查全部 Confluence 项目。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="312" />
+        <source>Cached Project Space data is ready.</source>
+        <translation>已加载 Project Space 缓存数据。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="313" />
+        <source>Loading Project Space for the first time.</source>
+        <translation>正在首次加载 Project Space。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="314" />
+        <source>Refreshing Project Space in the background.</source>
+        <translation>正在后台刷新 Project Space。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="315" />
+        <source>Project Space updated.</source>
+        <translation>Project Space 已更新。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="318" />
+        <source>Refresh failed; using cached Project Space data.</source>
+        <translation>刷新失败，继续使用 Project Space 缓存数据。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="320" />
+        <source>Project Space could not be loaded. Retry after checking LDAP and network access.</source>
+        <translation>无法加载 Project Space。请检查 LDAP 登录和网络连接后重试。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="325" />
+        <source>Confluence support is unavailable. Install project dependencies in the project .venv.</source>
+        <translation>Confluence 支持不可用。请在项目 .venv 中安装项目依赖。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="413" />
+        <source>Project Space options refreshed with {count} inaccessible or unreadable project pages.</source>
+        <translation>Project Space 选项已刷新，其中 {count} 个项目页面无权访问或无法读取。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="568" />
+        <source>Sign in with LDAP again to audit Confluence projects.</source>
+        <translation>请重新使用 LDAP 登录后审查 Confluence 项目。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="585" />
+        <source>Discovering all A-level development projects...</source>
+        <translation>正在发现全部 A 级开发中项目...</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="686" />
+        <source>Apply project filters before enabling the weekly plan.</source>
+        <translation>启用每周计划前，请先应用项目筛选条件。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="689" />
+        <source>Select at least one project before enabling the weekly plan.</source>
+        <translation>启用每周计划前，请至少选择一个项目。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="691" />
+        <source>Confluence weekly project audit</source>
+        <translation>Confluence 项目每周审查</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="859" />
+        <source>Auditing Confluence project content...</source>
+        <translation>正在审查 Confluence 项目内容...</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="859" />
+        <source>Discovering project pages...</source>
+        <translation>正在发现项目页面...</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="901" />
+        <source>Review completed. No projects require follow-up.</source>
+        <translation>审查已完成，没有需要跟进的项目。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="903" />
+        <source>Confluence audit completed.</source>
+        <translation>Confluence 审查已完成。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="899" />
+        <source>No eligible A-level development projects were found.</source>
+        <translation>未发现符合条件的 A 级开发中项目。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="635" />
+        <source>Confluence audit Excel workbook exported.</source>
+        <translation>Confluence 审查 Excel 工作簿已导出。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="641" />
+        <source>Failed to export the Confluence audit Excel workbook.</source>
+        <translation>Confluence 审查 Excel 工作簿导出失败。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="652" />
+        <source>Exported report file was not found.</source>
+        <translation>未找到已导出的报告文件。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="656" />
+        <source>Failed to open the report directory.</source>
+        <translation>打开报告目录失败。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="941" />
+        <source>Confluence authentication failed. Sign in with LDAP again.</source>
+        <translation>Confluence 认证失败，请重新使用 LDAP 登录。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="942" />
+        <source>Confluence network access failed. Check the network or VPN, then try again.</source>
+        <translation>Confluence 网络访问失败，请检查网络或 VPN 后重试。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="947" />
+        <source>Confluence audit failed. Review the application log, then try again.</source>
+        <translation>Confluence 审查失败，请查看应用日志后重试。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="946" />
+        <source>Confluence support is missing. Start SmartTest with the project .venv or run support/scripts/script-init-venv.py.</source>
+        <translation>缺少 Confluence 运行依赖。请使用项目 .venv 启动 SmartTest，或运行 support/scripts/script-init-venv.py。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="178" />
+        <source>Invalid Confluence project filter.</source>
+        <translation>Confluence 项目筛选条件无效。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="849" />
+        <source>Failed to update weekly audit plans.</source>
+        <translation>无法更新每周审查计划。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="829" />
+        <source>Any</source>
+        <translation>任意</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="833" />
+        <source>Years: {years}; support modes: {support_modes}; project statuses: {project_statuses}; selected projects: {selected_count}</source>
+        <translation>年份：{years}；支持模式：{support_modes}；项目状态：{project_statuses}；已选项目：{selected_count}</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="415" />
+        <source>Project Space filter options refreshed.</source>
+        <translation>Project Space 筛选项已刷新。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="435" />
+        <source>Refresh Project Space options before applying filters.</source>
+        <translation>请先刷新 Project Space 筛选项，再应用筛选。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="463" />
+        <source>Project filters applied.</source>
+        <translation>项目筛选已应用。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="973" />
+        <source>The login changed. Refreshing Project Space options.</source>
+        <translation>登录账户已变更，正在刷新 Project Space 筛选项。</translation>
+    </message>
+</context>
+<context>
+    <name>ConfluenceAuditWorkspace</name>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="368" />
+        <source>Audit All Projects Now</source>
+        <translation>立即审查全部项目</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="374" />
+        <source>Export Excel</source>
+        <translation>导出 Excel</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="271" />
+        <source>Year</source>
+        <translation>年份</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="276" />
+        <source>Project name</source>
+        <translation>项目名称</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="380" />
+        <source>Open report directory</source>
+        <translation>打开报告目录</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="391" />
+        <source>Audit Period (Monday–Thursday)</source>
+        <translation>审查周期（周一至周四）</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="397" />
+        <source>Reviewed</source>
+        <translation>已审查</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="398" />
+        <source>Follow-up</source>
+        <translation>需跟进</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="399" />
+        <source>Risk</source>
+        <translation>风险</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="400" />
+        <source>Failed</source>
+        <translation>不通过</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="401" />
+        <source>Unknown</source>
+        <translation>未知</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="485" />
+        <source>Reason</source>
+        <translation>原因</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="491" />
+        <source>Why it failed</source>
+        <translation>失败说明</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="496" />
+        <source>Adjustment</source>
+        <translation>调整建议</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="501" />
+        <source>Open Confluence</source>
+        <translation>打开 Confluence</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="512" />
+        <source>No projects require follow-up.</source>
+        <translation>没有需要跟进的项目。</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="110" />
+        <source>Project collection</source>
+        <translation>项目集合</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="114" />
+        <source>Source</source>
+        <translation>来源</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="127" />
+        <source>Refresh filter options</source>
+        <translation>刷新筛选项</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="150" />
+        <source>Years</source>
+        <translation>年份</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="152" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="181" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="210" />
+        <source>available</source>
+        <translation>可选</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="179" />
+        <source>Support modes</source>
+        <translation>支持模式</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="208" />
+        <source>Project statuses</source>
+        <translation>项目状态</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="233" />
+        <source>Apply filters</source>
+        <translation>应用筛选</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="40" />
+        <source>Any</source>
+        <translation>任意</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="242" />
+        <source>Candidate projects</source>
+        <translation>候选项目</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="247" />
+        <source>Select all</source>
+        <translation>全选</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="253" />
+        <source>Clear selection</source>
+        <translation>清除选择</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="259" />
+        <source>Selected</source>
+        <translation>已选择</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="57" />
+        <source>Weekly plans</source>
+        <translation>每周计划</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="61" />
+        <source>A weekly plan is enabled</source>
+        <translation>已有每周计划启用</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="62" />
+        <source>No weekly plan is enabled</source>
+        <translation>当前没有启用的每周计划</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="66" />
+        <source>Enable weekly plan</source>
+        <translation>启用每周计划</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="88" />
+        <source>Disable</source>
+        <translation>关闭</translation>
+    </message>
+</context>
+<context>
     <name>CrashWindow</name>
     <message>
         <location filename="imports/example/qml/window/CrashWindow.qml" line="11" />
@@ -6962,37 +7315,48 @@ Some contents...</source>
 <context>
     <name>ToolBridge</name>
     <message>
-        <location filename="bridge/ToolBridge.py" line="166" />
+        <location filename="bridge/ToolBridge.py" line="157" />
         <source>Common Tools</source>
         <translation>通用工具</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="167" />
+        <location filename="bridge/ToolBridge.py" line="158" />
         <source>STB</source>
         <translation>STB</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="168" />
+        <location filename="bridge/ToolBridge.py" line="159" />
         <source>TV</source>
         <translation>TV</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="169" />
+        <location filename="bridge/ToolBridge.py" line="160" />
         <source>SmartHome</source>
         <translation>智能家居</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="170" />
+        <location filename="bridge/ToolBridge.py" line="161" />
         <source>IPTV</source>
         <translation>IPTV</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="171" />
+        <location filename="bridge/ToolBridge.py" line="162" />
         <source>Wi-Fi</source>
         <translation>Wi-Fi</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="187" />
+        <location filename="bridge/ToolBridge.py" line="179" />
+        <source>Project Weekly Audit</source>
+        <oldsource>Confluence Project Weekly Audit</oldsource>
+        <translation>项目周审</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="180" />
+        <source>Check every A-level project in development against the project page content standards.</source>
+        <translation>按项目页面内容规范检查全部 A 级开发中项目。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="184" />
         <source>redmine</source>
         <translation>redmine</translation>
     </message>

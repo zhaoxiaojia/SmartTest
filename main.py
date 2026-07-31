@@ -1,6 +1,19 @@
 from __future__ import annotations
 
 
+def _background_command(argv, runner=None) -> int | None:
+    switch = "--project-weekly-audit-plan"
+    arguments = list(argv)
+    if switch not in arguments[1:]:
+        return None
+    if len(arguments) != 3 or arguments[1] != switch or not arguments[2]:
+        return 2
+    if runner is None:
+        from support.confluence_audit.command import run_plan
+        runner = run_plan
+    return int(runner(arguments[2]))
+
+
 def _runtime_root():
     import sys
     from pathlib import Path
@@ -19,6 +32,10 @@ def main() -> int:
     """
     import sys
     from pathlib import Path
+
+    background_result = _background_command(sys.argv)
+    if background_result is not None:
+        return background_result
 
     root = _runtime_root()
     ui_root = root / "ui"

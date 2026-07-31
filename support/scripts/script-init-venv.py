@@ -6,6 +6,7 @@ import env
 if __name__ == "__main__":
     subprocess.run([sys.executable, "-m", "venv", "venv"])
     subprocess.run([env.pip(), "install", "PySide6==6.7.2"])
+    subprocess.run([env.pip(), "install", "pywin32==311"])
     subprocess.run([env.pip(), "install", "nuitka==2.3.2"])
     subprocess.run([env.pip(), "install", "PyInstaller==6.8.0"])
     subprocess.run([env.pip(), "install", "qasync==0.27.1"])
@@ -21,5 +22,7 @@ if __name__ == "__main__":
     subprocess.run([env.pip(), "install", "ldap3==2.9.1"])
     subprocess.run([env.pip(), "install", "pycryptodome==3.23.0"])
     subprocess.run([env.pip(), "install", "openpyxl==3.1.5"])
+    subprocess.run([env.pip(), "install", "atlassian-python-api==4.0.7"])
+    subprocess.run([env.pip(), "install", "tzdata==2025.2"])
     subprocess.run([env.pip(), "install", "playwright==1.54.0"], check=True)
     subprocess.run([env.python(), "-m", "playwright", "install", "chromium"], check=True)

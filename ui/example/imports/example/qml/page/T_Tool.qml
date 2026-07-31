@@ -4,6 +4,7 @@ import FluentUI 1.0
 import "../component"
 import "../component/redmine"
 import "../component/jiraaudit"
+import "../component/confluenceaudit"
 
 FluPage {
     title: qsTr("Tool")
@@ -140,6 +141,14 @@ FluPage {
                     sourceComponent: JiraAuditWorkspace {}
                 }
                 Loader {
+                    id: confluenceAuditWorkspace
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    active: selectedTool.id === "confluence_audit"
+                    visible: active
+                    sourceComponent: ConfluenceAuditWorkspace {}
+                }
+                Loader {
                     id: redmineLogin
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -189,6 +198,7 @@ FluPage {
                 FluText {
                     Layout.fillHeight: true
                     visible: selectedTool.id !== "redmine" && selectedTool.id !== "jira_audit"
+                             && selectedTool.id !== "confluence_audit"
                     text: qsTr("This area is reserved for the selected tool. Execution is not available yet.")
                     color: FluTheme.fontSecondaryColor
                 }

@@ -260,5 +260,6 @@
         <file>example/res/template/project/imports/project/qml/main.qml.in</file>
         <file>example/qml/page/T_Icons.qml</file>
         <file>example/qml/page/T_OpenGL.qml</file>
+        <file>example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml</file>
     </qresource>
 </RCC>

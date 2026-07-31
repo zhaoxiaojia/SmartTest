@@ -116,6 +116,15 @@ a = Analysis(
         ),
     ],
     hiddenimports=[
+        "atlassian",
+        "atlassian.confluence",
+        "pythoncom",
+        "pywintypes",
+        "win32com",
+        "win32com.client",
+        "win32cred",
+        "support.confluence_audit.command",
+        "support.confluence_audit.scheduler",
         # Ensure UI packages are discoverable even if imports are indirect.
         "example.main",
         "FluentUI.FluentUI",

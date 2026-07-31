@@ -64,7 +64,7 @@ def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str,
         {
             "id": "common",
             "available": True,
-            "tools": [{"id": "jira_audit"}] if jira_audit_available else [],
+            "tools": [{"id": "jira_audit"}, {"id": "confluence_audit"}] if jira_audit_available else [],
         }
     ]
     assigned_ids = {
@@ -172,6 +172,12 @@ class ToolBridge(QObject):
                 **tool,
                 "title": self.tr("Jira Format Audit"),
                 "description": self.tr("Review Jira issues against the FAE-QA format rules."),
+            }
+        if tool.get("id") == "confluence_audit":
+            return {
+                **tool,
+                "title": self.tr("Project Weekly Audit"),
+                "description": self.tr("Check every A-level project in development against the project page content standards."),
             }
         return {
             **tool,

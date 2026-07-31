@@ -40,6 +40,15 @@ def test_tool_bridge_survives_runtime_context_registration_and_exposes_redmine()
     assert smart_home["tools"][0]["title"] == "redmine"
 
 
+def test_confluence_tool_visible_title_is_project_weekly_audit():
+    class ManagerAuth(RuntimeAuth):
+        username = Property(str, lambda self: "chao.li", notify=RuntimeAuth.authChanged)
+    bridge = ToolBridge(ROOT, ManagerAuth())
+    common = next(group for group in bridge.groups if group["id"] == "common")
+    tool = next(item for item in common["tools"] if item["id"] == "confluence_audit")
+    assert tool["title"] == "Project Weekly Audit"
+
+
 def test_production_context_ownership_survives_gc_and_tool_dialogs_are_warning_free(
     tmp_path,
 ):
@@ -259,7 +268,7 @@ def test_tool_groups_keep_fixed_layout_and_filter_child_tools_by_account():
 
     tv_groups = build_tool_groups(personnel, "jianfan.ai")
     assert tv_groups[0]["id"] == "common"
-    assert tv_groups[0]["tools"] == [{"id": "jira_audit"}]
+    assert tv_groups[0]["tools"] == [{"id": "jira_audit"}, {"id": "confluence_audit"}]
     assert tv_groups[2]["available"] is True
 
     wifi_groups = build_tool_groups(personnel, "zijie.chen")
@@ -370,11 +379,11 @@ def test_jira_audit_common_tool_permission_matrix():
     }
     assert {
         account: build_tool_groups(personnel, account)[0]["tools"]
-        == [{"id": "jira_audit"}]
+        == [{"id": "jira_audit"}, {"id": "confluence_audit"}]
         for account in expected
     } == expected
     assert build_tool_groups(load_tool_access(PERSONNEL_PATH), "chao.li")[0]["tools"] == [
-        {"id": "jira_audit"}
+        {"id": "jira_audit"}, {"id": "confluence_audit"}
     ]
 
 
@@ -788,3 +797,327 @@ def test_shared_issue_browser_exposes_quick_views_project_options_and_search_can
     assert 'text: "×"' in source
     assert "onClicked: root.cancelSearchRequested()" in source
     assert "disabled: root.searchLoading || root.projectsLoading || !root.projectsReady" in source
+
+
+def test_confluence_audit_tool_exposes_collection_plan_and_xlsx_content_contracts():
+    workspace = (
+        ROOT
+        / "ui/example/imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml"
+    ).read_text(encoding="utf-8")
+    compact = " ".join(workspace.split())
+    for name in (
+            "confluenceAuditSourceLabel",
+        "confluenceAuditYearFilter",
+        "confluenceAuditSupportModeFilter",
+        "confluenceAuditProjectStatusFilter",
+        "confluenceAuditYearDropDown",
+        "confluenceAuditSupportModeDropDown",
+        "confluenceAuditProjectStatusDropDown",
+        "confluenceAuditApplyFilterButton",
+        "confluenceAuditRefreshCollectionButton",
+        "confluenceAuditProjectChecklist",
+        "confluenceAuditSimplePlan",
+        "confluenceAuditEnableWeeklyPlanButton",
+        "exportConfluenceAuditExcelButton",
+        "openConfluenceAuditReportDirectoryButton",
+    ):
+        assert f'objectName: "{name}"' in workspace
+    for text in (
+        "Project collection",
+        "Source",
+        "Years",
+        "Support modes",
+        "Project statuses",
+        "Refresh filter options",
+        "Apply filters",
+        "Select all",
+        "Weekly plans",
+        "Enable weekly plan",
+        "Disable",
+        "Export Excel",
+        "Open report directory",
+    ):
+        assert f'qsTr("{text}")' in workspace
+    assert "ConfluenceAuditBridge.startAudit()" in workspace
+    assert "ConfluenceAuditBridge.refreshCollection()" in workspace
+    assert "ConfluenceAuditBridge.applyCollectionFilter()" in workspace
+    assert "Component.onCompleted" in workspace
+    assert "ConfluenceAuditBridge.refreshPlans()" in workspace
+    assert 'ConfluenceAuditBridge.toggleFilterValue( "years", modelData)' in compact
+    assert 'ConfluenceAuditBridge.toggleFilterValue( "supportModes", modelData)' in compact
+    assert "ConfluenceAuditBridge.toggleProject(modelData.projectIdentity)" in workspace
+    assert "ConfluenceAuditBridge.selectAllProjects()" in workspace
+    assert "ConfluenceAuditBridge.clearSelectedProjects()" in workspace
+    assert "ConfluenceAuditBridge.enableWeeklyPlan()" in workspace
+    assert "ConfluenceAuditBridge.setPlanEnabled(" in workspace
+    assert "ConfluenceAuditBridge.exportExcel()" in workspace
+    assert "ConfluenceAuditBridge.openReportDirectory()" in workspace
+    assert "modelData.collectionSummary" in workspace
+    assert 'qsTr("Configured collection")' not in workspace
+    assert "function changedValues" not in workspace
+    assert "function setFilterValue" not in workspace
+    assert "function setProjectSelected" not in workspace
+    assert "loadedPlanId" not in workspace
+    assert "confluenceAuditHistory" not in workspace
+    assert "selectHistory" not in workspace
+    assert 'qsTr("History")' not in workspace
+    assert "confluenceAuditCurrentStageFilter" not in workspace
+    assert '"currentStages"' not in workspace
+    assert workspace.count("FluDropDownButton") == 3
+    assert 'qsTr("Export XLSX")' not in workspace
+    jira_workspace = (
+        ROOT / "ui/example/imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml"
+    ).read_text(encoding="utf-8")
+    assert 'qsTr("Export XLSX")' in jira_workspace
+    assert "deletePlan" not in workspace
+    assert 'qsTr("Delete")' not in workspace
+    assert "ConfluenceAuditBridge" in (
+        ROOT / "ui/example/main.py"
+    ).read_text(encoding="utf-8")
+
+
+def test_confluence_workspace_declares_responsive_candidate_grid_contract():
+    workspace = (
+        ROOT / "ui/example/imports/example/qml/component/confluenceaudit/"
+        "ConfluenceAuditWorkspace.qml"
+    ).read_text(encoding="utf-8")
+
+    assert workspace.index("id: simplePlanFrame") < workspace.index("id: collectionFrame")
+    assert "flickableDirection: Flickable.VerticalFlick" in workspace
+    assert "contentWidth: width" in workspace
+    assert "id: candidateGrid" in workspace
+    assert "candidateColumnCount" in workspace
+    assert "candidateVisibleRowCount" in workspace
+    assert "width < 800 ? 1 : (width < 1200 ? 2 : 3)" in workspace
+    assert "text: modelData.displayName || modelData.name" in workspace
+    assert "modelData.projectId + \")\"" not in workspace
+    assert "wrapMode: Text.Wrap" in workspace
+    assert "confluenceAuditEnableWeeklyPlanButton" in workspace
+    assert "ConfluenceAuditBridge.enableWeeklyPlan()" in workspace
+
+
+def test_confluence_audit_workspace_runtime_events_and_wrapped_filters_are_accessible():
+    probe = f'''
+import sys, shiboken6
+sys.path.insert(0, r"{ROOT / 'ui'}")
+from PySide6.QtCore import QObject, QPoint, QPointF, Property, QMetaObject, Signal, Slot, Qt
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtTest import QTest
+from FluentUI import FluentUI
+from example.imports import resource_rc
+class Bridge(QObject):
+    changed = Signal()
+    def __init__(self):
+        super().__init__(); self.calls=[]
+        many=[f"MODE-{{i}}" for i in range(18)]
+        self._view={{
+            "state":"idle", "statusText":"ready", "canStart":True, "canExport":False,
+            "sourceLabel":"DOPL + SDPL Project Spaces",
+            "filter":{{"years":[2025,2026],
+                       "supportModes":many, "projectStatuses":[]}},
+            "availableFilterValues":{{"years":[2025,2026], "supportModes":many,
+                       "projectStatuses":["Active"]}},
+            "candidateProjects":[
+                {{"projectId":("M1" if i == 0 else f"M{{i+1}}"),
+                  "projectIdentity":f"DOPL:{{i+1}}",
+                  "name":f"Project {{i+1}}",
+                  "displayName":(
+                      "超长中文 English project name for responsive row layout "
+                      f"candidate {{i+1}} with complete business title "
+                      "and additional long suffix that must remain fully visible"),
+                  "year":2026, "matchingYears":[2024,2025,2026]}}
+                for i in range(40)
+            ],
+            "selectedProjectIds":[], "collectionSummary":{{"candidateCount":1}},
+            "plans":[{{"planId":"weekly-a","name":"Weekly A",
+                       "collectionSummary":"2025, 2026 · A", "enabled":False,
+                       "registered":True, "reconciliation":"ok", "nextRunAt":"",
+                       "lastRunAt":"", "lastStatus":"", "lastResultCode":0,
+                       "lastReportPath":""}}],
+            "period":{{}}, "progress":{{}}, "summary":{{}}, "projects":[],
+            "selectedProject":"", "findings":[]
+        }}
+    viewState=Property("QVariantMap",lambda self:self._view,notify=changed)
+    def set_view(self, **changes):
+        self._view={{**self._view, **changes}}; self.changed.emit()
+    @Slot()
+    def initializeCollection(self): self.calls.append(("initialize",))
+    @Slot()
+    def refreshCollection(self):
+        self.calls.append(("refresh",))
+        options={{**self._view["availableFilterValues"],
+                 "supportModes":["A","B","C"]}}
+        self.set_view(availableFilterValues=options, catalogStatus="updated")
+    @Slot()
+    def refreshPlans(self): self.calls.append(("refresh_plans",))
+    @Slot()
+    def applyCollectionFilter(self): self.calls.append(("apply",))
+    @Slot(str, str)
+    @Slot(str, int)
+    def toggleFilterValue(self, group, value):
+        self.calls.append(("filter", group, value))
+    @Slot(str)
+    def toggleProject(self, value):
+        self.calls.append(("project", value))
+    @Slot()
+    def selectAllProjects(self):
+        self.calls.append(("select_all",)); self.set_view(selectedProjectIds=["M1"])
+    @Slot()
+    def clearSelectedProjects(self):
+        self.calls.append(("clear_selected",)); self.set_view(selectedProjectIds=[])
+    @Slot()
+    def enableWeeklyPlan(self):
+        self.calls.append(("enable_weekly",))
+    @Slot(str, bool)
+    def setPlanEnabled(self, plan_id, enabled):
+        self.calls.append(("enabled", plan_id, enabled))
+app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; bridge=Bridge()
+engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
+engine.rootContext().setContextProperty("ConfluenceAuditBridge", bridge)
+FluentUI.registerTypes(engine)
+engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1500; height: 1000; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" }} }}')
+app.processEvents(); QTest.qWait(100); app.processEvents(); window=engine.rootObjects()[0]
+def item(name):
+    direct=window.findChild(QObject,name)
+    if direct: return direct
+    pending=[window.contentItem()]; seen=set()
+    while pending:
+        current=pending.pop()
+        pointer=shiboken6.getCppPointer(current)[0]
+        if pointer in seen: continue
+        seen.add(pointer)
+        if current.objectName()==name: return current
+        pending.extend(current.children())
+        if hasattr(current,"childItems"): pending.extend(current.childItems())
+def click(control):
+    point=control.mapToScene(QPointF(control.width()/2,control.height()/2))
+    QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,
+                     QPoint(round(point.x()),round(point.y())))
+    app.processEvents()
+refresh=item("confluenceAuditRefreshCollectionButton")
+controls={{name:item(name) for name in (
+    "confluenceAuditYearDropDown", "confluenceAuditSupportModeDropDown",
+    "confluenceAuditProjectStatusDropDown", "confluenceAuditApplyFilterButton",
+    "confluenceAuditYearOption_2025", "confluenceAuditProjectOption_DOPL:1",
+    "confluenceAuditSelectAllProjectsButton",
+    "confluenceAuditClearSelectedProjectsButton",
+    "confluenceAuditEnableWeeklyPlanButton")}}
+assert refresh, (bool(refresh), warnings)
+assert all(controls.values()), {{key:bool(value) for key,value in controls.items()}}
+for key in ("confluenceAuditRefreshCollectionButton",):
+    click(refresh)
+assert item("confluenceAuditSupportModeOption_C")
+controls["confluenceAuditYearOption_2025"].triggered.emit()
+app.processEvents()
+click(controls["confluenceAuditApplyFilterButton"])
+click(controls["confluenceAuditProjectOption_DOPL:1"])
+click(controls["confluenceAuditSelectAllProjectsButton"])
+click(controls["confluenceAuditEnableWeeklyPlanButton"])
+click(controls["confluenceAuditClearSelectedProjectsButton"])
+widths=[controls[name].width() for name in (
+    "confluenceAuditYearDropDown", "confluenceAuditSupportModeDropDown",
+    "confluenceAuditProjectStatusDropDown")]
+assert min(widths) > 180, widths
+checklist=item("confluenceAuditProjectChecklist")
+window.setWidth(520); app.processEvents(); QTest.qWait(50); app.processEvents()
+narrowWidths=[controls[name].width() for name in (
+    "confluenceAuditYearDropDown", "confluenceAuditSupportModeDropDown",
+    "confluenceAuditProjectStatusDropDown")]
+assert max(narrowWidths) <= 500, narrowWidths
+assert controls["confluenceAuditApplyFilterButton"].property("visible") is True
+assert checklist.width() <= 520, checklist.width()
+candidateControls=[item("confluenceAuditProjectOption_" + f"DOPL:{{i+1}}")
+                   for i in range(40)]
+assert all(candidateControls), [bool(value) for value in candidateControls]
+candidateRows=[item("confluenceAuditProjectRow_" + f"DOPL:{{i+1}}")
+               for i in range(40)]
+assert all(row.width() <= checklist.width() for row in candidateRows), [
+    (row.width(), checklist.width()) for row in candidateRows]
+assert max(row.height() for row in candidateRows) > 42, [
+    (row.height(),
+     item("confluenceAuditProjectName_" + f"DOPL:{{i+1}}").width(),
+     item("confluenceAuditProjectName_" + f"DOPL:{{i+1}}").property("contentHeight"),
+     item("confluenceAuditProjectName_" + f"DOPL:{{i+1}}").property("text"))
+    for i,row in enumerate(candidateRows)]
+def assert_grid(width, expected_columns, count):
+    window.setWidth(width); app.processEvents(); QTest.qWait(50); app.processEvents()
+    assert checklist.property("candidateColumnCount") == expected_columns
+    expected_rows=(count + expected_columns - 1) // expected_columns
+    assert checklist.property("candidateVisibleRowCount") == min(6, expected_rows)
+    rows=[item("confluenceAuditProjectRow_" + f"DOPL:{{i+1}}")
+          for i in range(count)]
+    rects=[(row.x(), row.y(), row.width(), row.height()) for row in rows]
+    assert all(x >= 0 and y >= 0 and x + w <= checklist.width() + 0.5
+               for x,y,w,h in rects), rects
+    for left_index,left in enumerate(rects):
+        lx,ly,lw,lh=left
+        for right in rects[left_index+1:]:
+            rx,ry,rw,rh=right
+            assert lx + lw <= rx or rx + rw <= lx or ly + lh <= ry or ry + rh <= ly
+    assert checklist.property("contentWidth") <= checklist.width()
+    if expected_rows > 6:
+        assert checklist.property("contentHeight") > checklist.height()
+    elif count:
+        assert checklist.property("contentHeight") <= checklist.height() + 0.5
+
+allCandidates=bridge._view["candidateProjects"]
+for count in (0,1,6,18,40):
+    bridge.set_view(candidateProjects=allCandidates[:count])
+    app.processEvents(); QTest.qWait(30); app.processEvents()
+    assert_grid(520,1,count)
+    assert_grid(1000,2,count)
+    assert_grid(1500,3,count)
+print(bridge.calls, widths, narrowWidths, len(warnings), warnings)
+'''
+    result = subprocess.run(
+        [sys.executable, "-c", probe], cwd=ROOT,
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
+        capture_output=True, text=True, timeout=20,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    for expected in (
+        "('refresh',)", "('filter', 'years', 2025)", "('project', 'DOPL:1')",
+        "('refresh_plans',)", "('apply',)",
+        "('select_all',)", "('enable_weekly',)", "('clear_selected',)",
+    ):
+        assert expected in result.stdout
+    assert " 0 []" in result.stdout
+
+
+def test_confluence_audit_project_names_wrap_instead_of_truncating():
+    workspace = (
+        ROOT
+        / "ui/example/imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml"
+    ).read_text(encoding="utf-8")
+    assert 'objectName: "confluenceAuditProjectName"' in workspace
+    assert "wrapMode: Text.WrapAnywhere" in workspace
+    assert 'objectName: "confluenceAuditProjectStatus"' in workspace
+
+
+def test_confluence_audit_workspace_labels_follow_up_projection_and_action_fields():
+    workspace = (
+        ROOT
+        / "ui/example/imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml"
+    ).read_text(encoding="utf-8")
+    for text in (
+        'qsTr("Audit Period (Monday–Thursday)")',
+        "root.shortDate(root.view.period.displayEnd)",
+        'qsTr("Reviewed")',
+        'qsTr("Follow-up")',
+        'qsTr("Reason")',
+        'qsTr("Adjustment")',
+        'qsTr("Open Confluence")',
+    ):
+        assert text in workspace
+    assert "modelData.ruleId" in workspace
+
+
+def test_confluence_audit_failure_card_has_text_explanation():
+    workspace = (
+        ROOT
+        / "ui/example/imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml"
+    ).read_text(encoding="utf-8")
+    assert 'objectName: "confluenceAuditExplanation"' in workspace
+    assert "modelData.explanation" in workspace
+    assert "evidenceUrl" not in workspace

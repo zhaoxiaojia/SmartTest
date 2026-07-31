@@ -47,6 +47,19 @@ testing/self_tests/
 testing/self_tests/*
 !testing/self_tests/support/
 testing/self_tests/support/*
+!testing/self_tests/support/test_confluence_client.py
+!testing/self_tests/support/test_confluence_audit_rules.py
+!testing/self_tests/support/test_confluence_audit_service.py
+!testing/self_tests/support/test_confluence_audit_scheduler.py
+!testing/self_tests/support/test_confluence_audit_command.py
+!testing/self_tests/support/test_confluence_project_collection.py
+!testing/self_tests/support/test_confluence_project_discovery.py
+!testing/self_tests/support/test_confluence_audit_report.py
+!testing/self_tests/support/test_confluence_audit_plans.py
+!testing/self_tests/support/test_windows_credentials.py
+!testing/self_tests/support/test_report.py
+!testing/self_tests/support/test_account_dynamic_source.py
+!testing/self_tests/support/test_account_snapshot_cache.py
 !testing/self_tests/support/ai/
 testing/self_tests/support/ai/*
 !testing/self_tests/support/ai/*.py
@@ -61,6 +74,7 @@ testing/self_tests/tool/smarthome/redmine/*
 !testing/self_tests/tool/smarthome/redmine/test_attachment_transfer.py
 !testing/self_tests/ui/
 testing/self_tests/ui/*
+!testing/self_tests/ui/test_confluence_audit_bridge.py
 !testing/self_tests/ui/test_auth_bridge_profile.py
 !testing/self_tests/ui/test_jira_conversation_controller.py
 !testing/self_tests/ui/test_tool_page.py

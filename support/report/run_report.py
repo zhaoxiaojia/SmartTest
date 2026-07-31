@@ -8,6 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 from testing.reporting.store import ReportStore
+from .pdf import render_html_to_pdf
 
 
 REPORT_SCHEMA_VERSION = 1
@@ -153,6 +154,8 @@ def report_html_url(run_id: str, *, reports_dir: Path) -> str:
 
 
 def export_pdf_report(run_id: str, *, reports_dir: Path, output_path: Path | None = None) -> Path:
+    from PySide6.QtCore import QUrl
+
     normalized_run_id = _safe_text(run_id)
     if not normalized_run_id:
         raise ValueError("run_id is required")
@@ -164,58 +167,12 @@ def export_pdf_report(run_id: str, *, reports_dir: Path, output_path: Path | Non
         generate_html_report(report, html_path=html_path)
     pdf_path = output_path or report_pdf_path(normalized_run_id, reports_dir=reports_dir)
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
-    _render_html_to_pdf(html_path, pdf_path)
+    render_html_to_pdf(
+        html_path.read_text(encoding="utf-8"),
+        pdf_path,
+        base_url=QUrl.fromLocalFile(str(html_path.resolve())),
+    )
     return pdf_path
-
-
-def _render_html_to_pdf(html_path: Path, pdf_path: Path) -> None:
-    try:
-        _render_html_to_pdf_with_qt(html_path, pdf_path)
-    except ImportError as exc:
-        raise RuntimeError("PDF export requires PySide6 QtWebEngine in the SmartTest runtime.") from exc
-
-
-def _render_html_to_pdf_with_qt(html_path: Path, pdf_path: Path) -> None:
-    from PySide6.QtCore import QEventLoop, QTimer, QUrl
-    from PySide6.QtGui import QGuiApplication
-    from PySide6.QtWebEngineCore import QWebEnginePage
-    from PySide6.QtWebEngineQuick import QtWebEngineQuick
-
-    app = QGuiApplication.instance()
-    owns_app = app is None
-    if owns_app:
-        QtWebEngineQuick.initialize()
-        app = QGuiApplication([])
-
-    page = QWebEnginePage()
-    loop = QEventLoop()
-    result: dict[str, Any] = {"ok": False, "error": ""}
-
-    def finish(ok: bool, error: str = "") -> None:
-        result["ok"] = ok
-        result["error"] = error
-        if loop.isRunning():
-            loop.quit()
-
-    def on_pdf_finished(path: str, success: bool) -> None:
-        finish(bool(success), "" if success else f"Qt failed to write PDF: {path}")
-
-    def on_load_finished(success: bool) -> None:
-        if not success:
-            finish(False, f"Failed to load report HTML: {html_path}")
-            return
-        page.pdfPrintingFinished.connect(on_pdf_finished)
-        page.printToPdf(str(pdf_path))
-
-    page.loadFinished.connect(on_load_finished)
-    QTimer.singleShot(30000, lambda: finish(False, f"Timed out exporting PDF: {html_path}"))
-    page.load(QUrl.fromLocalFile(str(html_path.resolve())))
-    loop.exec()
-    page.deleteLater()
-    if owns_app:
-        app.quit()
-    if not result["ok"]:
-        raise RuntimeError(str(result["error"] or "Failed to export PDF"))
 
 
 def generate_html_report(report: dict[str, Any], *, html_path: Path) -> Path:
