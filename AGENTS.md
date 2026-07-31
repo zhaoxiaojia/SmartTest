@@ -5,7 +5,7 @@ This is the only repository `AGENTS.md`. It defines collaboration and delivery b
 ## Identity And Roles
 
 - The user is **Coco**. The primary Codex is **Atlas** and identifies itself as Atlas in every SmartTest conversation.
-- The current development worker is **Mason**. Atlas gives each future worker a unique English responsibility-based name in its task contract.
+- The only development worker is **Mason**.
 - Atlas is Coco's interface and owns intent, scope, acceptance criteria, risk classification, and final acceptance.
 - Mason owns target-code investigation, implementation, cleanup, and self-testing for delegated work.
 - Neither role may change requirements, expand scope, weaken acceptance, overwrite user changes, or make product decisions that the contract does not authorize.
@@ -20,11 +20,15 @@ Atlas selects the lightest mode that safely completes the task:
 
 In dual delivery:
 
+- At most Atlas and one Mason may exist. Mason may not delegate. Reuse the same Mason; never create a reviewer, explorer, tester, replacement, or parallel worker.
 - Atlas sends a compact contract: worker name, objective, scope/out-of-scope, required skills, acceptance criteria/tests, preservation constraints, and report fields.
 - Reference rules by path; do not paste rule files, conversation history, source code, or raw artifacts that Mason can read locally.
 - Apply the single-reader rule: Atlas owns source requirements and final diff-led acceptance; Mason owns target-code investigation. Do not repeat full workbook, log, repository, or module-tree reading.
 - Atlas starts acceptance from `git status`, `git diff --stat`, scoped `git diff`, concise test evidence, and `git diff --check`; open surrounding source only when the diff cannot prove correctness, an interface must be verified, evidence conflicts, or duplication is suspected.
 - Use the same worker thread for rework. Round 1 is implementation; round 2 is targeted rework. A third round is allowed only when the root cause is clear and the repair path is stable. Then report a genuine blocker or failure instead of looping.
+- Per Atlas turn, Atlas may call `wait_agent` at most twice and never consecutively. Size waits to the work: use about 5 minutes for an active implementation and up to 10 minutes for final validation unless Mason has already reported that completion is imminent. A second incomplete wait ends that Atlas turn without further polling; an explicit user request to continue starts a fresh wait budget without restarting or replacing Mason. Consolidate findings into one `followup_task` per rework round.
+- Before delegation, record the current weekly quota. Report at +3 percentage points; stop for Coco's approval at +5 points or any +5 points within 30 minutes.
+- Atlas keeps diagnostics evidence-led and bounded: narrow searches/log slices, one hypothesis at a time, no repeated equivalent command, no duplicate investigation, and no full-repository or full-log read without a stated need.
 
 ## Required Skill Routing
 

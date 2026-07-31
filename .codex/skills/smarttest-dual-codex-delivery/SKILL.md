@@ -7,7 +7,7 @@ description: Use when a bounded SmartTest implementation is medium/high risk, cr
 
 ## Core Contract
 
-Coco is the user, Atlas is the primary Codex, and Mason is the current worker. Atlas owns requirements and diff-led acceptance; Mason owns target-code investigation, implementation, cleanup, and self-test. Assign every future worker a unique responsibility-based English name.
+Coco is the user, Atlas is the primary Codex, and Mason is the only worker. Atlas owns requirements and diff-led acceptance; Mason owns target-code investigation, implementation, cleanup, and self-test.
 
 This skill applies Scheme B. Small low-risk edits stay with Atlas. Delegation buys independent implementation only when its quality value exceeds its context cost.
 
@@ -41,6 +41,15 @@ Mason:
 5. Returns compact evidence; never pushes, merges, resets, weakens tests, or exposes secrets.
 
 Apply the single-reader rule: Atlas owns source requirements and the acceptance view; Mason owns implementation context. Neither repeats the other's full workbook, logs, repository, or module-tree investigation.
+
+## Resource Guard
+
+- Maximum team: Atlas plus one Mason. Mason may not delegate. Never create parallel, reviewer, explorer, tester, or replacement agents.
+- Spawn Mason at most once per task and reuse that thread for all rework.
+- Per Atlas turn, call `wait_agent` at most twice and never consecutively. Size waits to the work: use about 5 minutes for active implementation and up to 10 minutes for final validation unless Mason has already reported that completion is imminent. If the second wait is incomplete, stop that Atlas turn; an explicit user request to continue starts a fresh wait budget without restarting or replacing Mason.
+- Send at most one consolidated `followup_task` per rework round.
+- Record weekly quota before delegation. Report at +3 percentage points; stop for Coco's approval at +5 points or any +5 points within 30 minutes.
+- Atlas diagnostics use bounded searches/log slices and one hypothesis at a time. Do not repeat equivalent commands, duplicate Mason's investigation, or read full repositories/logs without a stated need.
 
 ## Compact Task Contract
 
