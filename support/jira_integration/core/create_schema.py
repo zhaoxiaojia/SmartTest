@@ -30,3 +30,4 @@ class CreateFieldSchema:
     options: tuple[CreateFieldOption, ...] = ()
     value: Any = None
     children: tuple["CreateFieldSchema", ...] = ()
+    child_required: bool = False

@@ -71,16 +71,40 @@ class RedmineIssueController:
 
     @property
     def snapshot(self) -> IssueSnapshot:
-        records = self._store.issue_list
-        selected_id = str(self._store.selected_id or "")
         return IssueSnapshot(
-            filters=dict(self._filters),
-            project_filter_labels=self._project_filter_labels,
-            issue_rows=tuple(issue_row_from_unified(issue) for issue in records),
-            selected_issue=detail_row_from_unified(self._store.selected_issue),
-            actionable_issues=tuple(actionable_rows(records)),
-            selected_id=selected_id,
+            filters=self.filters,
+            project_filter_labels=self.project_filter_labels,
+            issue_rows=self.issue_rows,
+            selected_issue=self.selected_issue,
+            actionable_issues=self.actionable_issues,
+            selected_id=self.selected_id,
         )
+
+    @property
+    def filters(self) -> dict[str, str]:
+        return dict(self._filters)
+
+    @property
+    def project_filter_labels(self) -> tuple[str, ...]:
+        return self._project_filter_labels
+
+    @property
+    def issue_rows(self) -> tuple[dict[str, Any], ...]:
+        return tuple(
+            issue_row_from_unified(issue) for issue in self._store.issue_list
+        )
+
+    @property
+    def selected_issue(self) -> dict[str, Any]:
+        return detail_row_from_unified(self._store.selected_issue)
+
+    @property
+    def actionable_issues(self) -> tuple[dict[str, Any], ...]:
+        return tuple(actionable_rows(self._store.issue_list))
+
+    @property
+    def selected_id(self) -> str:
+        return str(self._store.selected_id or "")
 
     def reset(self, account: str = "") -> IssueSnapshot:
         self._account = str(account or "")

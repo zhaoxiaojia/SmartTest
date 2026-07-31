@@ -1,5 +1,6 @@
 ﻿import asyncio
 import time
+from dataclasses import replace
 from pathlib import Path
 from threading import Event
 
@@ -356,10 +357,24 @@ CLONE_SCHEMA = (
 )
 
 
+def visible_clone_field_ids(schema=CLONE_SCHEMA):
+    field_ids = [
+        item.field_id
+        for item in schema
+        if item.required
+        or item.name.casefold() == "fae coworker"
+        or item.field_id == "priority"
+        or item.name.casefold() == "attachment links"
+    ]
+    return field_ids
+
+
 class CloneJiraClient:
     def __init__(self, account="defeng.zhai"):
         self.account = account
         self.search_calls = []
+        self.user_results = {}
+        self.search_error = None
         self.current_user_calls = 0
 
     def current_user(self):
@@ -368,7 +383,16 @@ class CloneJiraClient:
 
     def search_users(self, query, *, project_key="SH"):
         self.search_calls.append((query, project_key))
-        return [{"account": self.account, "display_name": "Current User", "avatar_url": "avatar"}]
+        if self.search_error is not None:
+            raise self.search_error
+        return self.user_results.get(
+            query,
+            [{
+                "account": self.account,
+                "display_name": "Current User",
+                "avatar_url": "avatar",
+            }],
+        )
 
 
 class CloneSchemaService:
@@ -497,10 +521,9 @@ def test_prepare_clone_drafts_has_no_create_calls_and_uses_identity_department_a
     assert "loading" in states and states[-1] == "editing"
     assert bridge._jira_create_service.creates == []
     assert [item["issueId"] for item in bridge.cloneDrafts] == ["2", "1"]
-    assert [item["fieldId"] for item in bridge.cloneDrafts[0]["fields"]] == [
-        item.field_id for item in CLONE_SCHEMA
-        if item.required or item.field_id == "priority" or item.name.casefold() == "attachment links"
-    ]
+    assert [
+        item["fieldId"] for item in bridge.cloneDrafts[0]["fields"]
+    ] == visible_clone_field_ids()
     assert bridge._batch_controller._draft_service.calls[0]["account"] == "defeng.zhai"
     assert bridge._batch_controller._draft_service.calls[0]["department"] == "FAE-SW"
     assert bridge.cloneDrafts[0]["fields"][4]["value"] == "defeng.zhai"
@@ -645,13 +668,13 @@ def test_submit_downloads_attachment_through_authenticated_page_and_hands_off_fi
     bridge.prepareCloneDrafts()
     wait_for(lambda: bridge.cloneBatchState == "editing")
     bridge.submitCloneBatch()
-    wait_for(lambda: bridge.cloneBatchState == "completed")
+    wait_for(lambda: bridge.cloneBatchState == "idle")
 
     assert bridge._jira_create_service.requests[0].attachments == ()
     assert bridge._jira_create_service.synced == [
         ("SH-1", "trace.log", b"jira attachment", 15)
     ]
-    assert "attachments" not in bridge.cloneDrafts[0]
+    assert bridge.cloneDrafts == []
     bridge.close()
 
 
@@ -845,7 +868,7 @@ def test_bridge_close_timeout_defers_cleanup_until_upload_thread_finishes(
     assert not (tmp_path / "deferred-upload.log").exists()
 
 
-def test_clone_editor_exposes_required_fields_and_priority_but_hides_optional_extras():
+def test_clone_editor_exposes_fae_coworker_required_fields_and_priority_but_hides_optional_extras():
     bridge = clone_bridge()
     bridge.prepareCloneDrafts()
     wait_for(lambda: bridge.cloneBatchState == "editing")
@@ -853,10 +876,7 @@ def test_clone_editor_exposes_required_fields_and_priority_but_hides_optional_ex
     field_ids = [item["fieldId"] for item in bridge.cloneDrafts[0]["fields"]]
     assert "labels" not in field_ids
     assert "customfield_attachment_real" in field_ids
-    assert field_ids == [
-        item.field_id for item in CLONE_SCHEMA
-        if item.required or item.field_id == "priority" or item.name.casefold() == "attachment links"
-    ]
+    assert field_ids == visible_clone_field_ids()
     bridge.close()
 
 
@@ -896,6 +916,12 @@ def test_required_draft_error_blocks_every_create_and_user_update_revalidates():
     )
     bridge = clone_bridge(schema=required)
     bridge.prepareCloneDrafts(); wait_for(lambda: bridge.cloneBatchState == "editing")
+    focus_requests = []
+    bridge.cloneInvalidFieldRequested.connect(
+        lambda issue_id, field_id: focus_requests.append(
+            (issue_id, field_id)
+        )
+    )
 
     bridge.submitCloneBatch()
 
@@ -903,9 +929,154 @@ def test_required_draft_error_blocks_every_create_and_user_update_revalidates():
     assert bridge.firstInvalidIssueId == "1"
     assert bridge.firstInvalidFieldId == "customfield_required"
     assert bridge._jira_create_service.creates == []
+    assert focus_requests == [("1", "customfield_required")]
     bridge.updateCloneDraft("1", "customfield_required", "reviewed")
     assert bridge.firstInvalidIssueId == ""
     assert next(item for item in bridge.cloneDrafts[0]["fields"] if item["fieldId"] == "customfield_required")["error"] == ""
+    bridge.close()
+
+
+def test_loaded_issue_selection_does_not_reproject_or_replace_issue_list(
+    monkeypatch,
+):
+    bridge = clone_bridge()
+    bridge._state = AuthState.AUTHENTICATED
+    projections = []
+    original = __import__(
+        "tool.SmartHome.redmine.issue_controller",
+        fromlist=["issue_row_from_unified"],
+    ).issue_row_from_unified
+    monkeypatch.setattr(
+        "tool.SmartHome.redmine.issue_controller.issue_row_from_unified",
+        lambda issue: (projections.append(issue.id), original(issue))[1],
+    )
+    list_signals = []
+    selection_signals = []
+    bridge.issueRowsChanged.connect(lambda: list_signals.append(True))
+    bridge.issueSelectionChanged.connect(
+        lambda: selection_signals.append(bridge.selectedIssue["id"])
+    )
+
+    bridge.selectIssue("1")
+
+    assert selection_signals == ["1"]
+    assert list_signals == []
+    assert projections == []
+    bridge.close()
+
+
+def test_clone_narrow_field_update_does_not_refresh_issue_list():
+    bridge = clone_bridge()
+    bridge.prepareCloneDrafts()
+    wait_for(lambda: bridge.cloneBatchState == "editing")
+    list_signals = []
+    bridge.issueRowsChanged.connect(lambda: list_signals.append(True))
+
+    bridge.updateCloneDraft("1", "summary", "Edited")
+
+    assert list_signals == []
+    bridge.close()
+
+
+def test_cascade_qjsvalue_updates_real_ids_and_emits_only_narrow_field_patch():
+    channel = CreateFieldSchema(
+        "customfield_12200",
+        "Channel of Reporter",
+        True,
+        CreateFieldControl.CASCADE,
+        options=(
+            CreateFieldOption(
+                "13251",
+                "Customer-Feedback",
+                (CreateFieldOption("13253", "reason2_Customer-Demand"),),
+            ),
+        ),
+        value={"parent": "13251", "child": ""},
+        child_required=True,
+    )
+    bridge = clone_bridge(
+        issue_ids=("1", "2"), schema=CLONE_SCHEMA + (channel,)
+    )
+    bridge.prepareCloneDrafts()
+    wait_for(lambda: bridge.cloneBatchState == "editing")
+    schema_calls = list(bridge._jira_schema_service.calls)
+    search_calls = list(bridge._jira_client.search_calls)
+    untouched = next(
+        item for item in bridge.cloneDrafts if item["issueId"] == "2"
+    )
+    broad = []
+    narrow = []
+    bridge.changed.connect(lambda: broad.append(True))
+    bridge.cloneDraftFieldChanged.connect(
+        lambda issue_id, field: narrow.append((issue_id, field))
+    )
+
+    class QjsValue:
+        def toVariant(self):
+            return {"parent": "13251", "child": "13253"}
+
+    bridge.updateCloneDraft("1", "customfield_12200", QjsValue())
+
+    projected = next(
+        item
+        for item in bridge.cloneDrafts[0]["fields"]
+        if item["fieldId"] == "customfield_12200"
+    )
+    assert projected["value"] == {"parent": "13251", "child": "13253"}
+    assert projected["error"] == ""
+    assert narrow == [("1", projected)]
+    assert broad == []
+    assert bridge._jira_schema_service.calls == schema_calls
+    assert bridge._jira_client.search_calls == search_calls
+    assert next(
+        item for item in bridge.cloneDrafts if item["issueId"] == "2"
+    ) == untouched
+    bridge.close()
+
+
+def test_async_user_result_patches_suggestions_without_clearing_value_or_broad_refresh():
+    bridge = clone_bridge()
+    bridge.prepareCloneDrafts()
+    wait_for(lambda: bridge.cloneBatchState == "editing")
+    bridge._batch_controller.apply_result(
+        "users",
+        (
+            "1",
+            "customfield_10409",
+            [{"account": "selected.user", "display_name": "Selected User"}],
+        ),
+    )
+    bridge.updateCloneDraft("1", "customfield_10409", "selected.user")
+    broad = []
+    narrow = []
+    bridge.changed.connect(lambda: broad.append(True))
+    bridge.cloneDraftFieldChanged.connect(
+        lambda issue_id, field: narrow.append((issue_id, field))
+    )
+    old_account_generation = bridge._generation
+    bridge.searchCloneUsers("1", "customfield_10409", "sel")
+    generation = bridge._batch_controller._user_searches[
+        ("1", "customfield_10409")
+    ][1]
+
+    bridge._apply_clone_result(
+        generation,
+        old_account_generation,
+        "users",
+        (
+            "1",
+            "customfield_10409",
+            [{"account": "second.user", "display_name": "Second User"}],
+        ),
+    )
+
+    assert narrow[-1][0] == "1"
+    assert narrow[-1][1]["value"] == "selected.user"
+    assert {
+        "second.user",
+        "selected.user",
+    } <= {item["value"] for item in narrow[-1][1]["options"]}
+    assert broad == []
     bridge.close()
 
 
@@ -921,7 +1092,7 @@ def test_submit_continues_updates_clone_owner_and_retry_sends_failed_only():
     assert creator.creates == ["1", "3"]
     assert [item["state"] for item in bridge.cloneDrafts] == ["created", "duplicate", "failed"]
     assert [row["cloneStatus"] for row in bridge.issueRows] == ["cloned", "cloned", "not_cloned"]
-    bridge.retryFailedClones(); wait_for(lambda: bridge.cloneBatchState == "completed")
+    bridge.retryFailedClones(); wait_for(lambda: bridge.cloneBatchState == "idle")
     assert creator.creates == ["1", "3", "3"]
     assert all(row["cloneStatus"] == "cloned" for row in bridge.issueRows)
     bridge.close()
@@ -932,7 +1103,7 @@ def test_attachment_link_edit_changes_payload_but_duplicate_identity_stays_fixed
     creator = bridge._jira_create_service
     bridge.prepareCloneDrafts(); wait_for(lambda: bridge.cloneBatchState == "editing")
     bridge.updateCloneDraft("1", "customfield_attachment_real", "https://edited.example/link")
-    bridge.submitCloneBatch(); wait_for(lambda: bridge.cloneBatchState == "completed")
+    bridge.submitCloneBatch(); wait_for(lambda: bridge.cloneBatchState == "idle")
     assert creator.rechecks == [("SH", "https://redmine/issues/1")]
     assert creator.requests[0].source_url == "https://redmine/issues/1"
     assert creator.requests[0].extra_fields["customfield_attachment_real"] == "https://edited.example/link"
@@ -942,10 +1113,12 @@ def test_attachment_link_edit_changes_payload_but_duplicate_identity_stays_fixed
 def test_clone_account_and_user_search_generations_reject_late_results():
     bridge = clone_bridge()
     bridge.prepareCloneDrafts(); wait_for(lambda: bridge.cloneBatchState == "editing")
-    old_clone_generation = bridge._batch_controller.generation
     old_account_generation = bridge._generation
     bridge.searchCloneUsers("1", "reporter", "fred")
-    current_generation = bridge._batch_controller.generation
+    current_generation = bridge._batch_controller._user_searches[
+        ("1", "reporter")
+    ][1]
+    old_clone_generation = current_generation - 1
     bridge._apply_clone_result(old_clone_generation, old_account_generation, "users", ("1", "reporter", [{"account": "old", "display_name": "Old"}]))
     assert all(item.get("value") != "old" for item in bridge.cloneDrafts[0]["fields"][4]["options"])
     bridge._apply_clone_result(current_generation, old_account_generation, "users", ("1", "reporter", [{"account": "fred", "display_name": "Fred", "avatar_url": "a"}]))

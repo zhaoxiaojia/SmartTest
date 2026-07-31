@@ -85,10 +85,10 @@ def _context_field(
         options=(CreateFieldOption(value=value, label=label),),
         value=value,
     )
-
-
 def _field_schema(field_id: str, metadata: dict[str, Any]) -> CreateFieldSchema:
     name = str(metadata.get("name") or field_id)
+    field_name = name.strip().casefold()
+    child_required = field_name == "channel of reporter"
     control = _control(field_id, name, metadata)
     options = tuple(
         _option(item)
@@ -96,12 +96,18 @@ def _field_schema(field_id: str, metadata: dict[str, Any]) -> CreateFieldSchema:
         if isinstance(item, dict)
     )
     if control == CreateFieldControl.CASCADE:
-        options = tuple(_with_empty_cascade_child(option) for option in options)
+        options = tuple(
+            _without_empty_cascade_child(option)
+            if child_required
+            else _with_empty_cascade_child(option)
+            for option in options
+        )
     return CreateFieldSchema(
         field_id=field_id,
         name=name,
         required=bool(metadata.get("required", False)),
         control=control,
+        child_required=child_required,
         options=options,
         value=_default_value(metadata.get("defaultValue"), control, options),
     )
@@ -126,6 +132,10 @@ def _control(
         or field_name in _USER_FIELD_NAMES
     ):
         return CreateFieldControl.USER
+    if "multiselect" in schema_custom:
+        return CreateFieldControl.MULTI
+    if "select" in schema_custom:
+        return CreateFieldControl.SINGLE
     if schema_type == "array":
         return CreateFieldControl.MULTI
     if metadata.get("allowedValues"):
@@ -161,6 +171,13 @@ def _with_empty_cascade_child(option: CreateFieldOption) -> CreateFieldOption:
     return replace(
         option,
         children=(CreateFieldOption(value="", label="None"), *option.children),
+    )
+
+
+def _without_empty_cascade_child(option: CreateFieldOption) -> CreateFieldOption:
+    return replace(
+        option,
+        children=tuple(child for child in option.children if child.value),
     )
 
 

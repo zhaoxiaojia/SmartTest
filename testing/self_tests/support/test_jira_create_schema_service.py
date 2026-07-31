@@ -24,7 +24,7 @@ CREATE_META = {
                     "name": "Channel of Reporter",
                     "required": True,
                     "schema": {"type": "option", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:cascadingselect"},
-                    "allowedValues": [{"id": "", "value": "None"}, {"id": "13251", "value": "Customer-Feedback", "children": [{"id": None, "value": "None"}]}, {"id": "13261", "value": "Self-Test"}],
+                    "allowedValues": [{"id": "", "value": "None"}, {"id": "13251", "value": "Customer-Feedback", "children": [{"id": None, "value": "None"}, {"id": "17011", "value": "Requirement unclear"}]}, {"id": "13261", "value": "Self-Test"}],
                     "defaultValue": {"id": "13251", "child": {"id": ""}},
                 },
                 "components": {
@@ -40,6 +40,11 @@ CREATE_META = {
                     "schema": {"type": "string", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:userpicker"},
                     "defaultValue": {"name": "fred.chen", "displayName": "Fred Chen"},
                 },
+                "assignee": {
+                    "name": "Assignee",
+                    "required": False,
+                    "schema": {"type": "user", "system": "assignee"},
+                },
                 "priority": {
                     "name": "Priority",
                     "required": True,
@@ -48,6 +53,16 @@ CREATE_META = {
                     "defaultValue": {"id": "2"},
                 },
                 "labels": {"name": "Labels", "required": False, "schema": {"type": "array", "items": "string"}},
+                "customfield_multi": {
+                    "name": "Multi Select",
+                    "required": False,
+                    "schema": {
+                        "type": "array",
+                        "items": "option",
+                        "custom": "com.atlassian.jira.plugin.system.customfieldtypes:multiselect",
+                    },
+                    "allowedValues": [{"id": "16000", "value": "One"}],
+                },
             },
         }],
     }],
@@ -152,10 +167,14 @@ def test_schema_maps_jira_native_controls_required_options_and_order():
     assert fields["summary"].control == "text" and fields["summary"].required
     assert fields["description"].control == "multiline"
     assert fields["customfield_12200"].control == "cascade"
+    assert fields["customfield_12200"].child_required
     assert fields["components"].control == "multi"
     assert fields["customfield_10700"].control == "user"
+    assert fields["assignee"].control == "user"
     assert fields["priority"].control == "single"
     assert fields["labels"].control == "multi"
+    assert fields["customfield_multi"].control == "multi"
+    assert not fields["labels"].required
     assert fields["description"].value == "Jira template"
     assert fields["priority"].value == "2"
     assert fields["components"].value == ["20"]
@@ -166,7 +185,9 @@ def test_schema_maps_jira_native_controls_required_options_and_order():
     none_option, cascade, self_test = fields["customfield_12200"].options
     assert none_option.value == "" and none_option.label == "None"
     assert cascade.value == "13251" and cascade.label == "Customer-Feedback"
-    assert cascade.children[0].value == "" and cascade.children[0].label == "None"
+    assert [(item.value, item.label) for item in cascade.children] == [
+        ("17011", "Requirement unclear")
+    ]
     assert self_test.value == "13261"
 
     assert {item.value for item in CreateFieldControl} == {
@@ -176,10 +197,11 @@ def test_schema_maps_jira_native_controls_required_options_and_order():
         fields["summary"].required = False
 
 
-def test_cascade_schema_injects_selectable_empty_child_when_jira_metadata_omits_placeholder():
+def test_ordinary_cascade_schema_injects_selectable_empty_child_when_metadata_omits_placeholder():
     import copy
     payload = copy.deepcopy(CREATE_META)
     channel = payload["projects"][0]["issuetypes"][0]["fields"]["customfield_12200"]
+    channel["name"] = "Other Cascade"
     customer = next(item for item in channel["allowedValues"] if item.get("value") == "Customer-Feedback")
     customer["children"] = [
         {"id": "reason1", "value": "Reason 1"},
@@ -192,6 +214,7 @@ def test_cascade_schema_injects_selectable_empty_child_when_jira_metadata_omits_
     )
     customer_option = next(item for item in field.options if item.label == "Customer-Feedback")
 
+    assert not field.child_required
     assert [(item.value, item.label) for item in customer_option.children] == [
         ("", "None"), ("reason1", "Reason 1"), ("reason2", "Reason 2")
     ]

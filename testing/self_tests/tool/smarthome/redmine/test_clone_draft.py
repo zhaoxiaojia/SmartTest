@@ -65,7 +65,13 @@ PROJECT = RedmineProject(
 )
 
 
-def build(*, issue=REDMINE_BUG, schema=SCHEMA, account="defeng.zhai", department="FAE-SW"):
+def build(
+    *,
+    issue=REDMINE_BUG,
+    schema=SCHEMA,
+    account="defeng.zhai",
+    department="FAE-SW",
+):
     return RedmineCloneDraftService().build(
         issue=issue,
         project=PROJECT,
@@ -176,6 +182,7 @@ def test_user_edits_replace_initial_values_and_payload_shapes_are_owned_by_creat
     draft.update("customfield_10107", ["30"])
     draft.update("customfield_12200", {"parent": "13251", "child": ""})
     draft.update("customfield_10700", "other.user")
+    draft.update("customfield_10409", "selected.coworker")
     draft.update("customfield_attachment_real", "https://edited.example/link")
     request = draft.to_request()
 
@@ -207,6 +214,7 @@ def test_user_edits_replace_initial_values_and_payload_shapes_are_owned_by_creat
     assert fields["customfield_10107"] == [{"id": "30"}]
     assert fields["customfield_12200"] == {"id": "13251"}
     assert fields["customfield_10700"] == {"name": "other.user"}
+    assert fields["customfield_10409"] == {"name": "selected.coworker"}
     assert fields["customfield_attachment_real"] == "https://edited.example/link"
     assert {"clone_external", "source_redmine", "redmine_61043"} <= set(fields["labels"])
 
@@ -234,3 +242,44 @@ def test_channel_child_can_select_reason_then_return_to_empty_none_value():
     draft.update("customfield_12200", {"parent": "13251", "child": ""})
     assert draft.value("customfield_12200") == {"parent": "13251", "child": ""}
     assert not draft.errors
+
+
+def test_channel_requires_real_child_and_serializes_parent_with_child():
+    channel_schema = tuple(
+        replace(
+            item,
+            child_required=True,
+            options=(
+                option(
+                    "13251",
+                    "Customer-Feedback",
+                    (option("reason1", "Requirement unclear"),),
+                ),
+            ),
+        ) if item.name == "Channel of Reporter" else item
+        for item in SCHEMA
+    )
+    draft = build(schema=channel_schema)
+
+    assert draft.value("customfield_12200") == {
+        "parent": "13251",
+        "child": "",
+    }
+    assert any(
+        error.field_id == "customfield_12200" and error.blocking
+        for error in draft.errors
+    )
+
+    draft.update(
+        "customfield_12200",
+        {"parent": "13251", "child": "reason1"},
+    )
+    assert not any(
+        error.field_id == "customfield_12200" for error in draft.errors
+    )
+    client = PayloadClient()
+    CreateIssueService(client).create_issue(draft.to_request())
+    assert client.payload["fields"]["customfield_12200"] == {
+        "id": "13251",
+        "child": {"id": "reason1"},
+    }

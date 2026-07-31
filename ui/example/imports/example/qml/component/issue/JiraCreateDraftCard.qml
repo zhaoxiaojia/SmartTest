@@ -58,12 +58,26 @@ FluFrame {
         return ""
     }
     function focusField(fieldId) {
+        var editor = fieldEditor(fieldId)
+        if (editor) {
+            editor.focusEditor()
+            return true
+        }
+        return false
+    }
+    function fieldEditor(fieldId) {
         for (var i = 0; i < fieldRepeater.count; ++i) {
             var editor = fieldRepeater.itemAt(i)
-            if (editor && (editor.field.fieldId || "") === fieldId) {
-                editor.focusEditor()
-                return true
-            }
+            if (editor && (editor.field.fieldId || "") === fieldId)
+                return editor
+        }
+        return null
+    }
+    function updateField(field) {
+        var editor = fieldEditor(field.fieldId || "")
+        if (editor) {
+            editor.field = field
+            return true
         }
         return false
     }

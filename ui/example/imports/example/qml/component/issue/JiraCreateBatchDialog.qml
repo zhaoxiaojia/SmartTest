@@ -110,6 +110,32 @@ Item {
             }
         }
     }
+    function focusInvalidField(issueId, fieldId) {
+        root.firstInvalidIssueId = issueId
+        root.firstInvalidFieldId = fieldId
+        Qt.callLater(focusFirstInvalidField)
+    }
+    function updateDraftField(issueId, field) {
+        for (var i = 0; i < draftRepeater.count; ++i) {
+            var card = draftRepeater.itemAt(i)
+            if (card && String(card.draft.issueId || "") === String(issueId || ""))
+                return card.updateField(field)
+        }
+        return false
+    }
+    function fieldState(issueId, fieldId) {
+        for (var i = 0; i < draftRepeater.count; ++i) {
+            var card = draftRepeater.itemAt(i)
+            if (card && String(card.draft.issueId || "") === String(issueId || "")) {
+                var editor = card.fieldEditor(fieldId)
+                return editor ? {
+                    "value": editor.field.value,
+                    "error": editor.field.error || ""
+                } : null
+            }
+        }
+        return null
+    }
     function draftCardWidth() {
         var count = (root.cloneDrafts || []).length
         if (count <= 1) return draftScroll.availableWidth

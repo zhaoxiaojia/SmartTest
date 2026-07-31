@@ -8,6 +8,7 @@ T.ComboBox {
     id: control
     signal commit(string text)
     property bool disabled: false
+    property int popupMaximumVisibleItems: 0
     property color normalColor: FluTheme.dark ? Qt.rgba(38/255,45/255,52/255,1) : Qt.rgba(250/255,253/255,255/255,1)
     property color hoverColor: FluTheme.dark ? Qt.rgba(44/255,58/255,66/255,1) : Qt.rgba(236/255,250/255,255/255,1)
     property color disableColor: FluTheme.dark ? Qt.rgba(59/255,59/255,59/255,1) : Qt.rgba(252/255,252/255,252/255,1)
@@ -118,7 +119,13 @@ T.ComboBox {
     popup: T.Popup {
         y: control.height
         width: control.width
-        height: Math.min(contentItem.implicitHeight, control.Window.height - topMargin - bottomMargin)
+        height: Math.min(
+            contentItem.implicitHeight,
+            control.Window.height - topMargin - bottomMargin,
+            control.popupMaximumVisibleItems > 0
+                ? control.popupMaximumVisibleItems * 40
+                : Number.POSITIVE_INFINITY
+        )
         topMargin: 6
         bottomMargin: 6
         modal: true

@@ -37,12 +37,26 @@ JiraIssueBrowserLayout {
     Connections {
         target: cloneBatchLoader.item
         ignoreUnknownSignals: true
-        function onUpdateCloneDraft(issueId, fieldId, value) { RedmineBridge.updateCloneDraft(issueId, fieldId, value) }
+        function onUpdateCloneDraft(issueId, fieldId, value) {
+            RedmineBridge.updateCloneDraft(issueId, fieldId, value)
+        }
         function onSubmitCloneBatch() { RedmineBridge.submitCloneBatch() }
         function onRetryFailedClones() { RedmineBridge.retryFailedClones() }
         function onRetryPrepareCloneDrafts() { RedmineBridge.prepareCloneDrafts() }
         function onCloseCloneBatch() { RedmineBridge.closeCloneBatch() }
         function onSearchCloneUsers(issueId, fieldId, query) { RedmineBridge.searchCloneUsers(issueId, fieldId, query) }
         function onSourceLinkRequested(url) { RedmineBridge.openWebUrl(url) }
+    }
+    Connections {
+        target: typeof RedmineBridge !== "undefined" ? RedmineBridge : null
+        ignoreUnknownSignals: true
+        function onCloneDraftFieldChanged(issueId, field) {
+            if (cloneBatchLoader.item)
+                cloneBatchLoader.item.updateDraftField(issueId, field)
+        }
+        function onCloneInvalidFieldRequested(issueId, fieldId) {
+            if (cloneBatchLoader.item)
+                cloneBatchLoader.item.focusInvalidField(issueId, fieldId)
+        }
     }
 }

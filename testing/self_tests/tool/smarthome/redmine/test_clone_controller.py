@@ -56,6 +56,12 @@ def draft(issue_id="1", *, required_value="ready", source_attachments=()):
             ),
             CloneDraftField(
                 CreateFieldSchema(
+                    "coworker", "FAE Coworker", False, CreateFieldControl.USER
+                ),
+                "",
+            ),
+            CloneDraftField(
+                CreateFieldSchema(
                     "attachment", "Attachment links", False, CreateFieldControl.TEXT
                 ),
                 f"https://redmine/issues/{issue_id}",
@@ -107,6 +113,7 @@ def test_prepare_result_owns_visible_schema_projection_and_seeded_user_options()
     assert [item["fieldId"] for item in snapshot.drafts[0]["fields"]] == [
         "summary",
         "reporter",
+        "coworker",
         "attachment",
     ]
     reporter = snapshot.drafts[0]["fields"][1]
@@ -118,6 +125,80 @@ def test_prepare_result_owns_visible_schema_projection_and_seeded_user_options()
             "children": [],
         }
     ]
+
+
+def test_async_user_suggestions_preserve_selected_value_and_display_name():
+    async def _pending():
+        return None
+
+    controller = RedmineCloneController(
+        IssueOwner(),
+        search_users=lambda issue_id, field_id, query: _pending(),
+    )
+    controller.apply_result("prepare", (records(draft()), {}))
+
+    operation = controller.start_user_search("1", "reporter", "fr")
+    assert operation is not None
+
+    controller.apply_result(
+        "users",
+        ("1", "reporter", [
+            {"account": "fred.chen", "display_name": "Fred Chen"}
+        ]),
+    )
+    field = next(
+        item for item in controller.snapshot.drafts[0]["fields"]
+        if item["fieldId"] == "reporter"
+    )
+    assert field["options"][0]["value"] == "fred.chen"
+
+    assert controller.update_draft("1", "reporter", "fred.chen")
+    controller.apply_result(
+        "users",
+        ("1", "reporter", [
+            {"account": "barry.sun", "display_name": "Barry Sun"}
+        ]),
+    )
+    field = next(
+        item for item in controller.snapshot.drafts[0]["fields"]
+        if item["fieldId"] == "reporter"
+    )
+    assert field["value"] == "fred.chen"
+    assert next(
+        item["label"] for item in field["options"]
+        if item["value"] == field["value"]
+    ) == "Fred Chen"
+    operation.awaitable.close()
+
+
+def test_user_search_deduplicates_per_field_and_keeps_other_fields_current():
+    async def pending(issue_id, field_id, query):
+        return issue_id, field_id, [{"account": query, "display_name": query}]
+
+    controller = RedmineCloneController(IssueOwner(), search_users=pending)
+    controller.apply_result("prepare", (records(draft("1"), draft("2")), {}))
+
+    first = controller.start_user_search("1", "reporter", "alice")
+    duplicate = controller.start_user_search("1", "reporter", "alice")
+    second = controller.start_user_search("2", "reporter", "bob")
+
+    assert first is not None and duplicate is None and second is not None
+    first_result = asyncio.run(first.awaitable)
+    second_result = asyncio.run(second.awaitable)
+    assert controller.accepts_result(first.generation, first.kind, first_result)
+    assert controller.accepts_result(second.generation, second.kind, second_result)
+
+
+def test_status_read_does_not_project_drafts_and_field_updates_are_isolated():
+    controller = RedmineCloneController(IssueOwner())
+    controller.apply_result("prepare", (records(draft("1"), draft("2")), {}))
+
+    assert controller.status.drafts == ()
+    before = controller.snapshot.drafts[1]
+    assert controller.update_draft("1", "summary", "changed")
+
+    assert controller.field_payload("1", "summary")["value"] == "changed"
+    assert controller.snapshot.drafts[1] == before
 
 
 def test_local_validation_identifies_first_invalid_field_before_submit():

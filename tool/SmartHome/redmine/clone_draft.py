@@ -257,6 +257,8 @@ def _validate_value(schema: CreateFieldSchema, value: Any) -> str:
             return f"Invalid option for {schema.name}"
         parent = _find_option(schema.options, str(value.get("parent") or ""))
         child_value = str(value.get("child") or "")
+        if parent and schema.child_required and not child_value:
+            return f"{schema.name} child is required"
         child = _find_option(parent.children, child_value) if parent and child_value else None
         return "" if parent and (not child_value or child) else f"Invalid option for {schema.name}"
     if schema.control == CreateFieldControl.MULTI:

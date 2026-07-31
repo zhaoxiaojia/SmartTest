@@ -82,6 +82,8 @@ class RedmineCloneController:
         self._first_invalid_issue_id = ""
         self._first_invalid_field_id = ""
         self._user_options: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        self._user_search_generation = 0
+        self._user_searches: dict[tuple[str, str], tuple[str, int]] = {}
 
     @property
     def generation(self) -> int:
@@ -89,16 +91,23 @@ class RedmineCloneController:
 
     @property
     def snapshot(self) -> CloneBatchSnapshot:
+        return replace(self.status, drafts=self.draft_payloads())
+
+    @property
+    def status(self) -> CloneBatchSnapshot:
         return CloneBatchSnapshot(
             state=self._state,
             selected_ids=tuple(self._selected_ids),
-            drafts=tuple(self._record_payload(item) for item in self._records),
+            drafts=(),
             loaded=self._loaded,
             total=self._total,
             error=self._error,
             first_invalid_issue_id=self._first_invalid_issue_id,
             first_invalid_field_id=self._first_invalid_field_id,
         )
+
+    def draft_payloads(self) -> tuple[dict[str, Any], ...]:
+        return tuple(self._record_payload(item) for item in self._records)
 
     def reset(self) -> None:
         self._generation += 1
@@ -111,6 +120,7 @@ class RedmineCloneController:
         self._first_invalid_issue_id = ""
         self._first_invalid_field_id = ""
         self._user_options = {}
+        self._user_searches = {}
 
     def begin_selection(self) -> bool:
         if self._state != "idle":
@@ -188,6 +198,16 @@ class RedmineCloneController:
         self._first_invalid_field_id = ""
         return True
 
+    def field_payload(
+        self, issue_id: str, field_id: str
+    ) -> dict[str, Any] | None:
+        record = self._record(issue_id)
+        if record is None:
+            return None
+        draft = record["draft"]
+        field = draft._field(str(field_id or ""))
+        return self._field_payload(draft, field) if field is not None else None
+
     def start_submit(self) -> CloneOperation | None:
         if self._state != "editing":
             return None
@@ -239,14 +259,38 @@ class RedmineCloneController:
     def start_user_search(
         self, issue_id: str, field_id: str, query: str
     ) -> CloneOperation | None:
-        if self._state != "editing" or self._record(issue_id) is None:
+        issue_id = str(issue_id or "")
+        field_id = str(field_id or "")
+        query = str(query or "").strip()
+        key = (issue_id, field_id)
+        if (
+            self._state != "editing"
+            or self._record(issue_id) is None
+            or self._user_searches.get(key, ("", 0))[0] == query
+        ):
             return None
+        self._user_search_generation += 1
+        generation = self._user_search_generation
+        self._user_searches[key] = (query, generation)
         awaitable = (
             self._search_users_override(issue_id, field_id, query)
             if self._search_users_override is not None
             else self._search_users(issue_id, field_id, query)
         )
-        return self._operation("users", awaitable)
+        return CloneOperation(generation, "users", awaitable)
+
+    def accepts_result(self, generation: int, kind: str, result: Any) -> bool:
+        if kind != "users":
+            return generation == self._generation
+        if isinstance(result, Exception):
+            return any(
+                active_generation == generation
+                for _query, active_generation in self._user_searches.values()
+            )
+        issue_id, field_id, _users = result
+        return self._user_searches.get(
+            (str(issue_id), str(field_id)), ("", 0)
+        )[1] == generation
 
     def apply_error(self, kind: str, error: Exception) -> None:
         self._error = str(error)
@@ -609,35 +653,14 @@ class RedmineCloneController:
         for field in clone_draft.fields:
             if (
                 not field.schema.required
+                and str(field.schema.name or "").strip().casefold()
+                != "fae coworker"
                 and field.field_id != "priority"
                 and str(field.schema.name or "").strip().casefold()
                 != "attachment links"
             ):
                 continue
-            options = self._user_options.get(
-                (clone_draft.source_id, field.field_id),
-                [_option_payload(item) for item in field.schema.options],
-            )
-            fields.append(
-                {
-                    "fieldId": field.field_id,
-                    "name": field.schema.name,
-                    "required": field.schema.required,
-                    "control": field.schema.control.value,
-                    "options": options,
-                    "value": field.value,
-                    "displayValue": next(
-                        (
-                            str(item.get("label") or item.get("value") or "")
-                            for item in options
-                            if str(item.get("value") or "")
-                            == str(field.value or "")
-                        ),
-                        str(field.value or ""),
-                    ),
-                    "error": field.error,
-                }
-            )
+            fields.append(self._field_payload(clone_draft, field))
         return {
             "issueId": clone_draft.source_id,
             "sourceUrl": clone_draft.source_url,
@@ -674,6 +697,21 @@ class RedmineCloneController:
                 if result is not None
                 else []
             ),
+        }
+
+    def _field_payload(self, clone_draft, field) -> dict[str, Any]:
+        options = self._user_options.get(
+            (clone_draft.source_id, field.field_id),
+            [_option_payload(item) for item in field.schema.options],
+        )
+        return {
+            "fieldId": field.field_id,
+            "name": field.schema.name,
+            "required": field.schema.required,
+            "control": field.schema.control.value,
+            "options": options,
+            "value": field.value,
+            "error": field.error,
         }
 
 

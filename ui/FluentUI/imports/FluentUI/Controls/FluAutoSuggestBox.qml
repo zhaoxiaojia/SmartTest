@@ -8,7 +8,8 @@ FluTextBox{
     property int autoSuggestBoxReplacement: FluentIcons.Search
     property string textRole: "title"
     property var filter: function(item){
-        if(item.title.indexOf(control.text)!==-1){
+        if(String(item.title || "").toLowerCase().indexOf(
+                    String(control.text || "").toLowerCase()) !== -1){
             return true
         }
         return false
@@ -18,6 +19,7 @@ FluTextBox{
     Component.onCompleted: {
         d.loadData()
     }
+    onItemsChanged: d.loadData()
     Item{
         id:d
         property bool flagVisible: true

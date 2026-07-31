@@ -82,6 +82,10 @@ class _AsyncLoopWorker:
 
 class RedmineBridge(QObject):
     changed = Signal()
+    issueRowsChanged = Signal()
+    issueSelectionChanged = Signal()
+    cloneDraftFieldChanged = Signal(str, "QVariantMap")
+    cloneInvalidFieldRequested = Signal(str, str)
     credentialsRequired = Signal()
     verificationRequired = Signal()
     resultReady = Signal(int, object)
@@ -200,6 +204,7 @@ class RedmineBridge(QObject):
         self._projects_loading = False
         self._projects_ready = False
         self._projects_status = self.tr("Projects are not loaded.")
+        self._emit_issue_projection()
         self.changed.emit()
 
     async def _close_account_flow(self, service, account):
@@ -239,26 +244,26 @@ class RedmineBridge(QObject):
     projectsStatusText = Property(str, lambda self: self._projects_status, notify=changed)
     searchLoading = Property(bool, lambda self: self._data_loading and self._data_operation_kind == "search", notify=changed)
     searchCanCancel = Property(bool, lambda self: self._data_loading and self._data_operation_kind == "search" and self._data_future is not None, notify=changed)
-    projectFilterLabels = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.project_filter_labels), notify=changed)
-    filters = Property("QVariantMap", lambda self: self._issue_controller.snapshot.filters, notify=changed)
-    issueRows = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.issue_rows), notify=changed)
-    selectedIssue = Property("QVariantMap", lambda self: self._issue_controller.snapshot.selected_issue, notify=changed)
-    actionableIssues = Property("QVariantList", lambda self: list(self._issue_controller.snapshot.actionable_issues), notify=changed)
-    cloneSelectionMode = Property(bool, lambda self: self._batch_controller.snapshot.state == "selecting", notify=changed)
-    cloneSelectedIds = Property("QVariantList", lambda self: list(self._batch_controller.snapshot.selected_ids), notify=changed)
+    projectFilterLabels = Property("QVariantList", lambda self: list(self._issue_controller.project_filter_labels), notify=changed)
+    filters = Property("QVariantMap", lambda self: self._issue_controller.filters, notify=changed)
+    issueRows = Property("QVariantList", lambda self: list(self._issue_controller.issue_rows), notify=issueRowsChanged)
+    selectedIssue = Property("QVariantMap", lambda self: self._issue_controller.selected_issue, notify=issueSelectionChanged)
+    actionableIssues = Property("QVariantList", lambda self: list(self._issue_controller.actionable_issues), notify=issueRowsChanged)
+    cloneSelectionMode = Property(bool, lambda self: self._batch_controller.status.state == "selecting", notify=changed)
+    cloneSelectedIds = Property("QVariantList", lambda self: list(self._batch_controller.status.selected_ids), notify=changed)
     cloneDrafts = Property(
         "QVariantList",
         lambda self: self._localized_clone_drafts(
-            self._batch_controller.snapshot.drafts
+            self._batch_controller.draft_payloads()
         ),
         notify=changed,
     )
-    cloneBatchState = Property(str, lambda self: self._batch_controller.snapshot.state, notify=changed)
-    cloneBatchLoaded = Property(int, lambda self: self._batch_controller.snapshot.loaded, notify=changed)
-    cloneBatchTotal = Property(int, lambda self: self._batch_controller.snapshot.total, notify=changed)
-    cloneBatchError = Property(str, lambda self: self._batch_controller.snapshot.error, notify=changed)
-    firstInvalidIssueId = Property(str, lambda self: self._batch_controller.snapshot.first_invalid_issue_id, notify=changed)
-    firstInvalidFieldId = Property(str, lambda self: self._batch_controller.snapshot.first_invalid_field_id, notify=changed)
+    cloneBatchState = Property(str, lambda self: self._batch_controller.status.state, notify=changed)
+    cloneBatchLoaded = Property(int, lambda self: self._batch_controller.status.loaded, notify=changed)
+    cloneBatchTotal = Property(int, lambda self: self._batch_controller.status.total, notify=changed)
+    cloneBatchError = Property(str, lambda self: self._batch_controller.status.error, notify=changed)
+    firstInvalidIssueId = Property(str, lambda self: self._batch_controller.status.first_invalid_issue_id, notify=changed)
+    firstInvalidFieldId = Property(str, lambda self: self._batch_controller.status.first_invalid_field_id, notify=changed)
 
     def _localized_clone_drafts(self, drafts):
         projected = []
@@ -395,7 +400,12 @@ class RedmineBridge(QObject):
         if not self._issue_controller.load_cached():
             return
         self._data_status = self.tr("Redmine data loaded.")
+        self._emit_issue_projection()
         self.changed.emit()
+
+    def _emit_issue_projection(self):
+        self.issueRowsChanged.emit()
+        self.issueSelectionChanged.emit()
 
     def _checker(self):
         if self._clone_checker is not None:
@@ -596,6 +606,7 @@ class RedmineBridge(QObject):
         if not self._issue_controller.load_cached():
             return False
         self._data_status = self.tr("Issues assigned to me loaded.")
+        self._emit_issue_projection()
         self.changed.emit()
         return True
 
@@ -864,13 +875,12 @@ class RedmineBridge(QObject):
         selection = self._issue_controller.select_issue(issue_id)
         if selection.issue is None or selection.project is None or selection.item is None:
             return
+        self.issueSelectionChanged.emit()
         if not selection.needs_detail:
-            self.changed.emit()
             return
 
         if self._data_loading and self._data_operation_kind == "search":
             self._pending_detail_issue_id = issue_id
-            self.changed.emit()
             return
 
         async def operation():
@@ -915,6 +925,7 @@ class RedmineBridge(QObject):
             self._issue_controller.activate_view("my_assigned")
             self._issue_controller.clear_active_view()
             self._data_status = self.tr("Issues assigned to me loaded.")
+            self._emit_issue_projection()
             self.changed.emit()
             return
         if isinstance(result, tuple) and len(result) == 3 and result[0] == "detail":
@@ -922,6 +933,7 @@ class RedmineBridge(QObject):
             if not self._issue_controller.apply_selected_detail(issue_id, detail):
                 return
             self._data_status = self.tr("Redmine issue detail refreshed.")
+            self._emit_issue_projection()
             self.changed.emit()
             return
         watched_submission = ()
@@ -932,7 +944,7 @@ class RedmineBridge(QObject):
         else:
             context, _project_identifier, detail, filters, clone_status = result
         if operation_kind == "search" and not self._active_search_filter_requested:
-            wanted_id = self._issue_controller.snapshot.selected_id
+            wanted_id = self._issue_controller.selected_id
             detail = next((item for item in context.issues if item.id == wanted_id), detail if not wanted_id else None)
         self._data_loaded = sum(len(project.issues) for project in context.projects)
         self._data_total = self._data_loaded
@@ -957,13 +969,13 @@ class RedmineBridge(QObject):
             selected_detail=detail,
             clone_status=clone_status,
         )
+        self._emit_issue_projection()
         if operation_kind == "search" and self._active_search_filter_requested:
-            snapshot = self._issue_controller.snapshot
-            smart_log("[REDMINE_FILTER] refresh applied", domain="tool", source="RedmineBridge", level="info", extra={"project": bool(filters.get("project")), "status": filters.get("status", ""), "type": filters.get("type", ""), "text_present": bool(filters.get("text")), "result_count": len(snapshot.issue_rows), "actionable_count": len(snapshot.actionable_issues)})
+            smart_log("[REDMINE_FILTER] refresh applied", domain="tool", source="RedmineBridge", level="info", extra={"project": bool(filters.get("project")), "status": filters.get("status", ""), "type": filters.get("type", ""), "text_present": bool(filters.get("text")), "result_count": len(self._issue_controller.issue_rows), "actionable_count": len(self._issue_controller.actionable_issues)})
             self._active_search_filter_requested = False
         self.changed.emit()
         pending_issue_id, self._pending_detail_issue_id = self._pending_detail_issue_id, ""
-        selected_issue_id = self._issue_controller.snapshot.selected_id
+        selected_issue_id = self._issue_controller.selected_id
         detail_issue_id = pending_issue_id or selected_issue_id
         if operation_kind == "search" and detail_issue_id and detail_issue_id == selected_issue_id and not any(item.id == detail_issue_id for item in context.issues):
             self.selectIssue(detail_issue_id)
@@ -995,7 +1007,7 @@ class RedmineBridge(QObject):
     @Slot(str, bool)
     def toggleCloneSelection(self, issue_id, selected):
         if self._batch_controller.toggle_selection(
-            issue_id, selected, self._issue_controller.snapshot.issue_rows
+            issue_id, selected, self._issue_controller.issue_rows
         ):
             self.changed.emit()
 
@@ -1038,8 +1050,11 @@ class RedmineBridge(QObject):
 
     @Slot(str, str, "QVariant")
     def updateCloneDraft(self, issue_id, field_id, value):
+        if hasattr(value, "toVariant"):
+            value = value.toVariant()
         if self._batch_controller.update_draft(issue_id, field_id, value):
-            self.changed.emit()
+            field = self._batch_controller.field_payload(issue_id, field_id)
+            self._emit_clone_draft_field(issue_id, field_id, field)
 
     @Slot()
     def submitCloneBatch(self):
@@ -1047,6 +1062,13 @@ class RedmineBridge(QObject):
         self.changed.emit()
         if operation is not None:
             self._launch_batch_operation(operation)
+            return
+        status = self._batch_controller.status
+        if status.first_invalid_issue_id and status.first_invalid_field_id:
+            self.cloneInvalidFieldRequested.emit(
+                status.first_invalid_issue_id,
+                status.first_invalid_field_id,
+            )
 
     @Slot()
     def retryFailedClones(self):
@@ -1075,17 +1097,35 @@ class RedmineBridge(QObject):
     def _apply_clone_result(self, clone_generation, account_generation, kind, result):
         if (
             self._closed
-            or clone_generation != self._batch_controller.generation
             or account_generation != self._generation
+            or not self._batch_controller.accepts_result(
+                clone_generation, kind, result
+            )
         ):
             return
         self._batch_future = None
         self._batch_done_event = None
+        if kind == "users" and isinstance(result, Exception):
+            return
         if isinstance(result, Exception):
             self._batch_controller.apply_error(kind, result)
         else:
             self._batch_controller.apply_result(kind, result)
+        if kind == "submit" and not isinstance(result, Exception):
+            self._emit_issue_projection()
+            if self._batch_controller.status.state == "completed":
+                self._batch_controller.close_batch()
+        if kind == "users" and not isinstance(result, Exception):
+            issue_id, field_id, _users = result
+            self._emit_clone_draft_field(issue_id, field_id)
+            return
         self.changed.emit()
+
+    def _emit_clone_draft_field(self, issue_id, field_id, field=None):
+        if field is None:
+            field = self._batch_controller.field_payload(issue_id, field_id)
+        if field is not None:
+            self.cloneDraftFieldChanged.emit(str(issue_id or ""), field)
     async def _close_flow(self):
         service, self._service = self._service, None
         if service is not None:
