@@ -105,21 +105,25 @@ _QA_CREATOR_NAME_KEYS = frozenset(
 
 _RULE_DATA = (
     ("SUMMARY.FORMAT", "Summary", "Summary", "Summary 必须包含 4–6 个方括号分组，最后四组依次为客户、CHIP、系统版本和模块，冒号后填写问题描述与复现概率。", "使用“[客户][CHIP][版本][模块]: 问题描述,复现概率”；前面可选增加公共 Jira ID 和客户 Bug ID。"),
-    ("SUMMARY.PROBABILITY", "Summary", "Summary.Probability", "复现概率必须是百分比或分数，例如 50% 或 1/2。", "改为百分比或分数。"),
+    ("SUMMARY.PROBABILITY", "Summary", "Summary.Probability", "Summary 的复现概率必须是百分比、分数或明确的文字次数，例如 50%、1/2、出现一次或复现2次。", "改为百分比、分数或“出现/复现 + 数字 + 次”的文字次数。"),
     ("COMPONENT.REQUIRED", "Component", "Component", "至少填写一个 Component。", "填写与问题对应的 Component。"),
     ("DESCRIPTION.STEPS_TO_REPRODUCE", "Description", "Description", "Description 必须包含非空的 Steps to reproduce。", "补充可执行的复现步骤。"),
     ("DESCRIPTION.ACTUAL_RESULTS", "Description", "Description", "Description 必须包含非空的 Actual results。", "补充实际发生的结果。"),
     ("DESCRIPTION.EXPECTED_RESULTS", "Description", "Description", "Description 必须包含非空的 Expected results。", "补充预期结果。"),
     ("DESCRIPTION.COMPARISON", "Description", "Description", "Description 必须包含非空的 Comparison。", "补充版本对比信息。"),
     ("DESCRIPTION.NOTES", "Description", "Description", "Description 必须包含非空的 Notes。", "补充包含软硬件信息的备注。"),
-    ("DESCRIPTION.RATE_FORMAT", "Description", "Description.Reproducibility rate", "复现概率必须是百分比或分数，例如 50% 或 1/2。", "改为百分比或分数。"),
+    ("DESCRIPTION.RATE_FORMAT", "Description", "Description.Reproducibility rate", "复现概率必须是百分比、分数或明确的文字次数，例如 50%、1/2 或出现一次。", "改为百分比、分数或“出现/复现 + 数字 + 次”；文字次数后可补充一组半角或全角括号说明。"),
     ("DESCRIPTION.NOTES_HW", "Description", "Description.Notes", "Notes 必须包含“HW info: ...”。", "补充 HW info。"),
     ("DESCRIPTION.NOTES_SW", "Description", "Description.Notes", "Notes 必须包含“SW info: ...”。", "补充 SW info。"),
 )
 _RULES = tuple(AuditRule(*row) for row in _RULE_DATA)
 
+_TEXTUAL_OCCURRENCE_RATE = (
+    r"(?:出现|复现)\s*(?:\d+|[零〇一二两三四五六七八九十百千万]+)\s*次"
+)
 _SUMMARY_RATE_AT_END = re.compile(
-    r"(?P<rate>(?:100|\d{1,2})(?:\.\d+)?%|\d+\s*/\s*\d+)"
+    rf"(?P<rate>(?:100|\d{{1,2}})(?:\.\d+)?%|\d+\s*/\s*\d+|"
+    rf"{_TEXTUAL_OCCURRENCE_RATE})"
     r"\s*[.。]?\s*$"
 )
 _DESCRIPTION_RULES = (
@@ -414,9 +418,15 @@ def _parse_summary_format(
 
     body = text[position + 1:].strip()
     rate_match = _SUMMARY_RATE_AT_END.search(body)
+    if (
+        rate_match
+        and re.fullmatch(_TEXTUAL_OCCURRENCE_RATE, rate_match.group("rate"))
+        and body[:rate_match.start()].rstrip()[-1:] not in ",，;；"
+    ):
+        rate_match = None
     probability = rate_match.group("rate").strip() if rate_match else ""
     description = (
-        body[:rate_match.start()].rstrip().rstrip(",，").rstrip()
+        body[:rate_match.start()].rstrip().rstrip(",，;；").rstrip()
         if rate_match
         else body
     )
@@ -432,7 +442,20 @@ def _audit_description(description: str, fail: _Failure) -> dict[str, str]:
             fail(rule_id, description, f"{heading.title()} 章节缺失或为空。")
 
     rate = sections.get("reproducibility rate", "").splitlines()
-    if rate and not _valid_rate(rate[0]):
+    rate_value = rate[0].strip() if rate else ""
+    rate_note = re.fullmatch(
+        r"(?P<rate>.+?)\s*(?:\([^()]+\)|（[^（）]+）)",
+        rate_value,
+    )
+    if (
+        rate_note
+        and re.fullmatch(
+            _TEXTUAL_OCCURRENCE_RATE,
+            rate_note.group("rate").strip(),
+        )
+    ):
+        rate_value = rate_note.group("rate").strip()
+    if rate and not _valid_rate(rate_value):
         fail(
             "DESCRIPTION.RATE_FORMAT",
             description,
@@ -526,6 +549,8 @@ def _normalize_label(value: str) -> str:
 
 def _valid_rate(value: str) -> bool:
     text = value.strip().rstrip(".")
+    if re.fullmatch(_TEXTUAL_OCCURRENCE_RATE, text):
+        return True
     if re.fullmatch(r"(?:100|\d{1,2})(?:\.\d+)?%", text):
         return True
     fraction = re.fullmatch(r"(\d+)\s*/\s*(\d+)", text)

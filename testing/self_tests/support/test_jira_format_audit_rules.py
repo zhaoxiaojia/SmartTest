@@ -18,7 +18,6 @@ from support.jira_integration.audit import (
     resolve_audit_input,
 )
 from support.jira_integration.audit.rules import (
-    QA_CREATOR_NAMES,
     ai_reviewable_violations,
     is_audit_eligible,
 )
@@ -100,6 +99,74 @@ def test_complete_issue_accepts_four_five_and_six_summary_groups():
     assert tuple(rule.rule_id for rule in active_rules()) == RULE_IDS
     assert all(audit_issue(_issue(summary=value), base_url="https://jira.example.com").passed
                for value in summaries)
+
+
+@pytest.mark.parametrize(
+    "rate",
+    ("出现一次", "复现2次", "出现三次"),
+)
+def test_summary_accepts_textual_occurrence_count_at_end(rate):
+    result = audit_issue(
+        _issue(summary=f"[ACME][T7][V1.1][Video]: Video freezes,{rate}"),
+        base_url="https://jira.example.com",
+    )
+
+    assert "SUMMARY.PROBABILITY" not in {
+        violation.rule_id for violation in result.violations
+    }
+
+
+@pytest.mark.parametrize("separator", (",", "，", ";", "；"))
+def test_summary_textual_occurrence_count_requires_a_separator(separator):
+    summary = f"[ACME][T7][V1.1][Audio]: 语音唤醒异常{separator}出现一次"
+
+    assert "SUMMARY.PROBABILITY" not in _violations(summary=summary)
+
+
+def test_summary_does_not_take_textual_count_from_description_suffix():
+    summary = "[ACME][T7][V1.1][Audio]: 问题出现一次"
+
+    assert "SUMMARY.PROBABILITY" in _violations(summary=summary)
+
+
+@pytest.mark.parametrize(
+    "summary",
+    (
+        "[ACME][T7][V1.1][Video]: 每次播放视频都会卡顿",
+        "[ACME][T7][V1.1][Video]: Video freezes,偶现",
+        "[ACME][T7][V1.1][Video]: Video freezes,出现2",
+    ),
+)
+def test_summary_rejects_non_count_text_at_end(summary):
+    assert "SUMMARY.PROBABILITY" in _violations(summary=summary)
+
+
+@pytest.mark.parametrize(
+    "rate",
+    (
+        "50%",
+        "1/2",
+        "出现一次",
+        "复现2次",
+        "出现三次",
+        "出现一次（问题出现后一直不能恢复）",
+        "复现2次(problem remains)",
+    ),
+)
+def test_description_accepts_supported_occurrence_rates(rate):
+    assert "DESCRIPTION.RATE_FORMAT" not in _violations(
+        description=_description(rate=rate)
+    )
+
+
+@pytest.mark.parametrize(
+    "rate",
+    ("偶现", "出现2", "出现一次 problem remains"),
+)
+def test_description_rejects_ambiguous_or_unbounded_rate_text(rate):
+    assert "DESCRIPTION.RATE_FORMAT" in _violations(
+        description=_description(rate=rate)
+    )
 
 
 EMPTY_DESCRIPTION = _description(
@@ -300,49 +367,11 @@ def test_only_declared_ambiguous_violations_become_ai_candidates():
     )] == ["DESCRIPTION.NOTES_HW"]
 
 
-def test_active_rules_and_validation_match_root_effective_behavior():
-    import jira_handler
-
-    probes = (
-        _issue(),
-        _issue(summary="invalid"),
-        _issue(summary="[ ][ ][ ][Video]: Video freezes,50%"),
-        _issue(summary="[客户][T7][V1][Video]: 播放冻结,50%"),
-        _issue(summary="[ACME][T7][V1][Video]: Video freezes,often"),
-        _issue(components=()),
-        _issue(description=""),
-        _issue(description=_description(rate="often")),
-        _issue(description=_description(notes="")),
-        _issue(description=_description(comparison="V1 and V2 compared.")),
-    )
-    root_emitted = set()
-    mismatches = []
-    for issue in probes:
-        root_rule_ids = {
-            violation["rule_id"]
-            for violation in jira_handler.validate_issue(
-                issue,
-                base_url="https://jira.example.com",
-            )["violations"]
-        } - {"REGRESSION.EVIDENCE"}
-        smarttest_rule_ids = {
-            violation.rule_id
-            for violation in audit_issue(
-                issue,
-                base_url="https://jira.example.com",
-            ).violations
-        }
-        root_emitted.update(root_rule_ids)
-        if smarttest_rule_ids != root_rule_ids:
-            mismatches.append((root_rule_ids, smarttest_rule_ids))
-
-    assert mismatches == []
-    assert {rule.rule_id for rule in active_rules()} == root_emitted
-
-
 def test_active_rule_text_does_not_reintroduce_english_only_semantics():
     rules = {rule.rule_id: rule for rule in active_rules()}
     summary_format = rules["SUMMARY.FORMAT"]
+    summary_rate = rules["SUMMARY.PROBABILITY"]
+    description_rate = rules["DESCRIPTION.RATE_FORMAT"]
 
     assert summary_format.requirement == (
         "Summary 必须包含 4–6 个方括号分组，最后四组依次为客户、CHIP、"
@@ -357,37 +386,33 @@ def test_active_rule_text_does_not_reintroduce_english_only_semantics():
         and "English" not in rule.requirement + rule.guidance
         for rule in rules.values()
     )
+    assert any(
+        example in summary_rate.requirement + summary_rate.guidance
+        for example in ("出现一次", "复现2次")
+    )
+    assert "文字次数" in summary_rate.requirement
+    assert "百分比、分数或明确的文字次数" in description_rate.requirement
+    assert "出现一次" in (
+        description_rate.requirement + description_rate.guidance
+    )
+    assert "括号" in description_rate.guidance
 
 
 @pytest.mark.parametrize(
-    "creator",
+    ("creator", "expected"),
     (
-        {"displayName": "  CHAO   LI  "},
-        {"name": r"AMLOGIC\chao.li"},
-        {"key": "chao.li@example.com"},
-        {"accountId": "chao.li"},
-        "Chao Li",
-        {"displayName": "Someone Else", "name": "chao.li"},
-        {"displayName": "Someone Else"},
-        None,
+        ({"displayName": "  CHAO   LI  "}, True),
+        ({"name": r"AMLOGIC\chao.li"}, True),
+        ({"key": "chao.li@example.com"}, True),
+        ({"accountId": "chao.li"}, True),
+        ("Chao Li", True),
+        ({"displayName": "Someone Else", "name": "chao.li"}, False),
+        ({"displayName": "Someone Else"}, False),
+        (None, False),
     ),
 )
-def test_creator_eligibility_matches_portable_root_handler(creator):
-    import jira_handler
-
-    issue = _issue(creator=creator)
-    normalized = jira_handler.normalize_issue(issue)
-    expected = normalized["creator_match_name"] in {
-        name.casefold() for name in jira_handler.QA_CREATOR_NAMES
-    }
-
-    assert is_audit_eligible(issue) is expected
-
-
-def test_creator_allowlist_matches_portable_root_handler():
-    import jira_handler
-
-    assert QA_CREATOR_NAMES == jira_handler.QA_CREATOR_NAMES
+def test_creator_eligibility_uses_the_smarttest_allowlist(creator, expected):
+    assert is_audit_eligible(_issue(creator=creator)) is expected
 
 
 @dataclass
@@ -499,9 +524,7 @@ def test_empty_service_run_reports_every_stable_progress_stage():
     ]
 
 
-def test_openpyxl_export_matches_root_reader_visible_report_contract(tmp_path):
-    import jira_handler
-
+def test_openpyxl_export_preserves_reader_visible_report_contract(tmp_path):
     summary = "[ACME][T7][V1.1][Video]: Video freezes,often"
     dynamic_reason = "Summary probability is invalid."
     dynamic_guidance = "Use a percentage or fraction."
@@ -557,30 +580,6 @@ def test_openpyxl_export_matches_root_reader_visible_report_contract(tmp_path):
             (),
         ),
     )
-    root_rows = [
-        {
-            "key": issue.key,
-            "url": issue.url,
-            "reporter": issue.reporter,
-            "overall_result": "PASS" if issue.passed else "FAIL",
-            "violations": [
-                {
-                    "rule_id": violation.rule_id,
-                    "spec_section": violation.section,
-                    "jira_field": {
-                        "COMPONENT.REQUIRED": "Component",
-                        "SUMMARY.PROBABILITY": "Summary.Probability",
-                        "SUMMARY.FORMAT": "Summary",
-                    }[violation.rule_id],
-                    "jira_value": violation.observed,
-                    "failure_reason": violation.reason,
-                    "correction_guidance": violation.guidance,
-                }
-                for violation in issue.violations
-            ],
-        }
-        for issue in issues
-    ]
     generated_at = datetime(2026, 7, 24, 10, 11, 12, tzinfo=timezone.utc)
     jql = "=project = SH"
     report = AuditReport(
@@ -589,56 +588,32 @@ def test_openpyxl_export_matches_root_reader_visible_report_contract(tmp_path):
         rules=active_rules(),
         issues=issues,
     )
-    root_path = jira_handler.export_xlsx(
-        root_rows,
-        tmp_path / "root.xlsx",
-        jql=jql,
-        generated_at=generated_at.isoformat(),
-    )
     smart_dir = tmp_path / "smart"
     first = export_audit_xlsx(report, downloads_dir=smart_dir, now=generated_at)
     second = export_audit_xlsx(report, downloads_dir=smart_dir, now=generated_at)
-    root_workbook = load_workbook(root_path)
     smart_workbook = load_workbook(first)
-    root_detail = root_workbook["违规明细"]
-    format_row = next(
-        row for row in range(2, root_detail.max_row + 1)
-        if root_detail.cell(row, 4).value == "SUMMARY.FORMAT"
+    assert smart_workbook.sheetnames == ["汇总", "违规明细"]
+    summary_sheet = smart_workbook["汇总"]
+    detail_sheet = smart_workbook["违规明细"]
+    assert tuple(summary_sheet.values)[:10] == (
+        ("指标", "值", None),
+        ("生成时间", generated_at.isoformat(), None),
+        ("JQL 查询条件", jql, None),
+        ("问题总数", 3, None),
+        ("通过 Jira 数", 1, None),
+        ("不通过 Jira 数", 2, None),
+        ("通过率", "33.33%", None),
+        (None, None, None),
+        ("报告人", "违规 Jira 数量", "违规 Jira 号"),
+        ("Bob", 2, "SH-1、SH-2"),
     )
-    assert "英文问题描述" in root_detail.cell(format_row, 6).value
-    root_detail.cell(format_row, 6).value = format_rule.requirement
-
-    def values(sheet):
-        return tuple(
-            tuple(None if cell.value == "" else cell.value for cell in row)
-            for row in sheet.iter_rows()
-        )
-
-    assert smart_workbook.sheetnames == root_workbook.sheetnames
-    for sheet_name in root_workbook.sheetnames:
-        smart_sheet = smart_workbook[sheet_name]
-        root_sheet = root_workbook[sheet_name]
-        assert values(smart_sheet) == values(root_sheet)
-        assert smart_sheet.freeze_panes == root_sheet.freeze_panes == "A2"
-        assert smart_sheet.auto_filter.ref == root_sheet.auto_filter.ref
-        assert {
-            str(value) for value in smart_sheet.merged_cells.ranges
-        } == {str(value) for value in root_sheet.merged_cells.ranges}
-        columns = "ABC" if sheet_name == "汇总" else "ABCDEFGHIJ"
-        assert tuple(
-            smart_sheet.column_dimensions[column].width for column in columns
-        ) == tuple(
-            root_sheet.column_dimensions[column].width for column in columns
-        )
-        for address in ("A1", "A2"):
-            smart_cell, root_cell = smart_sheet[address], root_sheet[address]
-            assert smart_cell.font.name == root_cell.font.name == "Calibri"
-            assert smart_cell.font.sz == root_cell.font.sz == 11
-            assert smart_cell.font.bold == root_cell.font.bold
-            assert smart_cell.fill.fgColor.rgb == root_cell.fill.fgColor.rgb
-            assert smart_cell.alignment.horizontal == root_cell.alignment.horizontal
-            assert smart_cell.alignment.vertical == root_cell.alignment.vertical
-            assert smart_cell.alignment.wrap_text == root_cell.alignment.wrap_text
+    assert detail_sheet.freeze_panes == summary_sheet.freeze_panes == "A2"
+    assert detail_sheet.auto_filter.ref == "A1:J5"
+    assert {
+        str(value) for value in detail_sheet.merged_cells.ranges
+    } == {"A2:A4", "B2:B4", "C2:C4"}
+    assert detail_sheet["A1"].font.bold
+    assert not detail_sheet["A2"].font.bold
     assert first.name == "jira_format_audit_20260724_101112.xlsx"
     assert second.name == "jira_format_audit_20260724_101112_2.xlsx"
     assert not list(smart_dir.glob("*.tmp"))
