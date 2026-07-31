@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import os
-import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from openpyxl import Workbook
-from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+
+from support.report.excel import clean_excel_value, write_excel_workbook
 
 from .models import AuditReport
 from .rules import QA_CREATOR_NAMES
@@ -57,39 +55,26 @@ def export_audit_xlsx(
 
     summary_rows, summary_headers = _summary_rows(report)
     detail_rows, detail_merges = _detail_rows(report)
-    workbook = Workbook()
-    summary = workbook.active
-    summary.title = "汇总"
-    detail = workbook.create_sheet("违规明细")
-    _populate_sheet(
-        summary,
-        summary_rows,
-        widths=_SUMMARY_WIDTHS,
-        header_rows=summary_headers,
-    )
-    _populate_sheet(
-        detail,
-        detail_rows,
-        widths=_DETAIL_WIDTHS,
-        header_rows={1},
-        auto_filter=True,
-        merged_ranges=detail_merges,
-    )
+    def populate(workbook):
+        summary = workbook.active
+        summary.title = "汇总"
+        detail = workbook.create_sheet("违规明细")
+        _populate_sheet(
+            summary,
+            summary_rows,
+            widths=_SUMMARY_WIDTHS,
+            header_rows=summary_headers,
+        )
+        _populate_sheet(
+            detail,
+            detail_rows,
+            widths=_DETAIL_WIDTHS,
+            header_rows={1},
+            auto_filter=True,
+            merged_ranges=detail_merges,
+        )
 
-    handle, temporary_name = tempfile.mkstemp(
-        prefix=".jira_format_audit_",
-        suffix=".tmp",
-        dir=directory,
-    )
-    os.close(handle)
-    temporary = Path(temporary_name)
-    try:
-        workbook.save(temporary)
-        os.replace(temporary, target)
-    finally:
-        if temporary.exists():
-            temporary.unlink()
-    return target.resolve()
+    return write_excel_workbook(target, populate)
 
 
 def _summary_rows(report: AuditReport) -> tuple[list[list[object]], set[int]]:
@@ -185,7 +170,7 @@ def _populate_sheet(
     merged_ranges: tuple[str, ...] = (),
 ) -> None:
     for row_number, row in enumerate(rows, 1):
-        cleaned = [_clean_value(value) for value in row]
+        cleaned = [clean_excel_value(value) for value in row]
         sheet.append(cleaned)
         content_length = max((len(str(value)) for value in cleaned), default=0)
         sheet.row_dimensions[row_number].height = (
@@ -210,14 +195,6 @@ def _populate_sheet(
         sheet.auto_filter.ref = f"A1:{get_column_letter(len(widths))}{len(rows)}"
     for merged_range in merged_ranges:
         sheet.merge_cells(merged_range)
-
-
-def _clean_value(value):
-    return (
-        ILLEGAL_CHARACTERS_RE.sub("", value)
-        if isinstance(value, str)
-        else value
-    )
 
 
 def _unique_path(directory: Path, filename: str) -> Path:

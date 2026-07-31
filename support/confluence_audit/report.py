@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 from pathlib import Path
 
-from support.report.xlsx import write_xlsx_sections
+from support.report.excel import write_xlsx_sections
 
 
 PROJECT_AUDIT_HEADERS = (

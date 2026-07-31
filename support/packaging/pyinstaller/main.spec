@@ -139,6 +139,7 @@ a = Analysis(
         "serial.tools.list_ports",
         "cv2",
         "numpy",
+        "matplotlib",
         "ui.example.bridge.BootVideoBridge",
         "testing.tool.boot_video",
         "testing.tool.boot_video.analyzer",

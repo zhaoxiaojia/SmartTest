@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-import os
-from pathlib import Path
-import tempfile
-
-from openpyxl import Workbook
-from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+
+from .workbook import clean_excel_value, write_excel_workbook
 
 
 _HEADER_FILL = PatternFill("solid", fgColor="FF1F4E78")
@@ -28,14 +24,24 @@ def write_xlsx_table(
     hyperlinks=None,
 ):
     """Write one reusable, styled XLSX table through the global report owner."""
-    target = Path(output_path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    workbook = Workbook()
+    def populate(workbook):
+        _populate_table(
+            workbook,
+            sheet_name=sheet_name,
+            headers=headers,
+            rows=rows,
+            hyperlinks=hyperlinks,
+        )
+
+    return write_excel_workbook(output_path, populate)
+
+
+def _populate_table(workbook, *, sheet_name, headers, rows, hyperlinks):
     sheet = workbook.active
     sheet.title = str(sheet_name)
-    sheet.append([_clean(value) for value in headers])
+    sheet.append([clean_excel_value(value) for value in headers])
     for row in rows:
-        sheet.append([_clean(value) for value in row])
+        sheet.append([clean_excel_value(value) for value in row])
 
     sheet.freeze_panes = "A2"
     sheet.auto_filter.ref = sheet.dimensions
@@ -64,27 +70,29 @@ def write_xlsx_table(
             45, max(12, width + 2),
         )
 
-    _save_workbook(workbook, target)
-    return target.resolve()
 
 
 def write_xlsx_sections(output_path, *, sheet_name, sections):
     """Write repeated group/header/data sections with one global XLSX owner."""
-    target = Path(output_path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    workbook = Workbook()
+    def populate(workbook):
+        _populate_sections(workbook, sheet_name=sheet_name, sections=sections)
+
+    return write_excel_workbook(output_path, populate)
+
+
+def _populate_sections(workbook, *, sheet_name, sections):
     sheet = workbook.active
     sheet.title = str(sheet_name)
     hyperlinks = {}
     header_rows = []
     group_rows = []
     for section in sections:
-        sheet.append([_clean(value) for value in section["group"]])
+        sheet.append([clean_excel_value(value) for value in section["group"]])
         group_rows.append(sheet.max_row)
-        sheet.append([_clean(value) for value in section["headers"]])
+        sheet.append([clean_excel_value(value) for value in section["headers"]])
         header_rows.append(sheet.max_row)
         for row_index, row in enumerate(section["rows"]):
-            sheet.append([_clean(value) for value in row])
+            sheet.append([clean_excel_value(value) for value in row])
             for column, url in section.get("hyperlinks", {}).get(row_index, {}).items():
                 hyperlinks[(sheet.max_row, column)] = url
 
@@ -117,23 +125,3 @@ def write_xlsx_sections(output_path, *, sheet_name, sections):
         sheet.column_dimensions[get_column_letter(index)].width = min(
             55, max(12, width + 2),
         )
-    _save_workbook(workbook, target)
-    return target.resolve()
-
-
-def _save_workbook(workbook, target):
-    handle, temporary_name = tempfile.mkstemp(
-        prefix=f".{target.stem}-", suffix=".tmp", dir=target.parent,
-    )
-    os.close(handle)
-    temporary = Path(temporary_name)
-    try:
-        workbook.save(temporary)
-        os.replace(temporary, target)
-    finally:
-        if temporary.exists():
-            temporary.unlink()
-
-
-def _clean(value):
-    return ILLEGAL_CHARACTERS_RE.sub("", value) if isinstance(value, str) else value

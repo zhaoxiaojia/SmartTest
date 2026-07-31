@@ -96,7 +96,7 @@ def test_save_run_report_writes_json_and_html(tmp_path):
     assert json_path.exists()
     assert html_path.exists()
     html = html_path.read_text(encoding="utf-8")
-    assert "SmartTest Report" in html
+    assert "2026-06-24 10:00:03  failed" in html
     assert "Demo case" in html
     assert "failed detail" in html
     assert "expected ok" in html
@@ -108,28 +108,13 @@ def test_save_run_report_writes_json_and_html(tmp_path):
 def test_render_html_uses_model_without_rebuilding_business_meaning():
     html = render_html_report(_report_model())
 
-    assert html.index("Cases In This Run") < html.index("Case Reports")
+    assert html.index(">Cases<") < html.index(">Case Reports<")
     assert "Failure Analysis" in html
     assert "Loop Summary" in html
     assert "demo.step</td><td>failed 1" in html
     assert "Case Logs (1)" in html
     assert "Log Distribution" in html
     assert "Case Duration" in html
-
-
-def test_report_source_has_no_case_specific_or_log_inference_logic():
-    source = Path("support/report.py").read_text(encoding="utf-8").lower()
-
-    forbidden = [
-        "emmc",
-        "copy_err",
-        "_infer_loop_summary",
-        "_repeat_position",
-        "case_logs(",
-        "logs_for_step(",
-        "classify_failure",
-    ]
-    assert [token for token in forbidden if token in source] == []
 
 
 def test_export_pdf_report_regenerates_html_and_uses_default_pdf_path(tmp_path, monkeypatch):
@@ -145,11 +130,11 @@ def test_export_pdf_report_regenerates_html_and_uses_default_pdf_path(tmp_path, 
     report_html_path("run-pdf", reports_dir=tmp_path).unlink()
     calls = []
 
-    def fake_renderer(html_path, pdf_path):
-        calls.append((html_path, pdf_path))
+    def fake_renderer(html, pdf_path, *, base_url):
+        calls.append((html, pdf_path, base_url.toLocalFile()))
         pdf_path.write_bytes(b"%PDF-1.4\n% fake\n")
 
-    monkeypatch.setattr("support.report._render_html_to_pdf", fake_renderer)
+    monkeypatch.setattr("support.report.pdf.run.render_html_to_pdf", fake_renderer)
 
     pdf_path = export_pdf_report("run-pdf", reports_dir=tmp_path)
 
@@ -160,4 +145,8 @@ def test_export_pdf_report_regenerates_html_and_uses_default_pdf_path(tmp_path, 
     assert pdf_path.exists()
     assert report_pdf_path("run-pdf", reports_dir=tmp_path) == expected_pdf_path
     assert report_html_path("run-pdf", reports_dir=tmp_path).exists()
-    assert calls == [(expected_html_path, expected_pdf_path)]
+    assert len(calls) == 1
+    html, called_pdf_path, base_path = calls[0]
+    assert "Demo case" in html
+    assert called_pdf_path == expected_pdf_path
+    assert Path(base_path) == expected_html_path

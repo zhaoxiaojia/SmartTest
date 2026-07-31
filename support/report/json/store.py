@@ -6,9 +6,7 @@ from uuid import uuid4
 
 from ui import jsonTool
 
-
-def _safe_text(value: Any) -> str:
-    return str(value or "").strip()
+from ..core import _safe_text
 
 
 class ReportStore:
@@ -30,19 +28,17 @@ class ReportStore:
     def list_reports(self) -> list[dict[str, Any]]:
         if not self._reports_dir.exists():
             return []
-        reports: list[dict[str, Any]] = []
-        for path in self._reports_dir.glob("*.json"):
-            report = self.load_by_path(path)
-            if report:
-                reports.append(report)
+        reports = [
+            report
+            for path in self._reports_dir.glob("*.json")
+            if (report := self.load_by_path(path))
+        ]
         reports.sort(key=lambda item: _safe_text(item.get("finished_at")), reverse=True)
         return reports
 
     def load(self, run_id: str) -> dict[str, Any] | None:
         normalized = _safe_text(run_id)
-        if not normalized:
-            return None
-        return self.load_by_path(self.path_for(normalized))
+        return self.load_by_path(self.path_for(normalized)) if normalized else None
 
     def path_for(self, run_id: str) -> Path:
         return self._reports_dir / f"{_safe_text(run_id)}.json"
@@ -54,6 +50,16 @@ class ReportStore:
             data = jsonTool.read_json(path, {})
         except ValueError:
             return None
-        if not isinstance(data, dict):
-            return None
-        return data
+        return data if isinstance(data, dict) else None
+
+
+def list_reports(*, reports_dir: Path) -> list[dict[str, Any]]:
+    return ReportStore(reports_dir).list_reports()
+
+
+def load_report(run_id: str, *, reports_dir: Path) -> dict[str, Any] | None:
+    return ReportStore(reports_dir).load(run_id)
+
+
+def report_json_path(run_id: str, *, reports_dir: Path) -> Path:
+    return ReportStore(reports_dir).path_for(run_id)

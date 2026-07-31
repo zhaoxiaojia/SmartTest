@@ -1,7 +1,16 @@
+import struct
 from pathlib import Path
 
+import matplotlib
+from matplotlib import pyplot as plt
 from openpyxl import load_workbook
+import pytest
 
+from support.report.excel import clean_excel_value, write_excel_workbook
+from support.report.html import generate_html_report as generate_html_report_from_package
+from support.report.image import DEFAULT_LINE_CHART_STYLE, LineSeries, render_line_chart
+from support.report.json import ReportStore
+from support.report.pdf import export_pdf_report as export_pdf_report_from_package
 from support.report import (
     build_run_report,
     duration_text,
@@ -45,3 +54,144 @@ def test_global_xlsx_owner_writes_filtered_frozen_wrapped_table(tmp_path):
     assert sheet.auto_filter.ref == "A1:C2"
     assert sheet["A1"].alignment.wrap_text is True
     assert sheet["C2"].hyperlink.target == "https://c/project"
+
+
+def test_format_packages_expose_public_behaviors(tmp_path):
+    assert ReportStore(tmp_path).reports_dir == tmp_path
+    assert generate_html_report_from_package is generate_html_report
+    assert export_pdf_report_from_package is export_pdf_report
+
+
+def test_excel_workbook_driver_populates_cleans_and_saves_real_file(tmp_path):
+    def populate(workbook):
+        summary = workbook.active
+        summary.title = "Summary"
+        summary["A1"] = clean_excel_value("bad\x00value")
+        workbook.create_sheet("Details")
+
+    output = write_excel_workbook(tmp_path / "audit.xlsx", populate)
+
+    workbook = load_workbook(output)
+    assert output == (tmp_path / "audit.xlsx").resolve()
+    assert workbook.sheetnames == ["Summary", "Details"]
+    assert workbook["Summary"]["A1"].value == "badvalue"
+
+
+def test_report_html_url_regenerates_missing_html_from_saved_json(tmp_path):
+    report = build_run_report(run_id="r1", status="passed")
+    save_run_report(report, reports_dir=tmp_path)
+    html_path = report_html_path("r1", reports_dir=tmp_path)
+    html_path.unlink()
+
+    url = report_html_url("r1", reports_dir=tmp_path)
+
+    assert html_path.exists()
+    assert url == html_path.resolve().as_uri()
+
+
+def test_line_chart_writes_real_png_with_configured_dimensions(tmp_path):
+    output = render_line_chart(
+        ("Jan", "Feb", "Mar"),
+        (
+            LineSeries("Actual", (10, 14, 12), fill=True),
+            LineSeries("Target", (11, 11, 11), color="#D97706"),
+        ),
+        tmp_path / "trend.png",
+        title="Monthly quality",
+        highlight_series="Actual",
+        kpi_label="Pass rate",
+    )
+
+    data = output.read_bytes()
+    width, height = struct.unpack(">II", data[16:24])
+    assert output == (tmp_path / "trend.png").resolve()
+    assert data.startswith(b"\x89PNG\r\n\x1a\n")
+    assert (width, height) == (2420, 1100)
+    assert len(data) > 1_000
+
+
+def test_default_line_chart_style_preserves_visual_language():
+    style = DEFAULT_LINE_CHART_STYLE
+
+    assert style.palette[:3] == ("#4F8EF7", "#2CB67D", "#F59E0B")
+    assert style.figure_size == (11.0, 5.0)
+    assert (style.figure_dpi, style.save_dpi) == (220, 220)
+    assert style.grid_alpha == 0.15
+    assert (style.line_width, style.highlight_line_width) == (2.8, 3.0)
+    assert style.x_rotation == 20.0
+
+
+@pytest.mark.parametrize(
+    ("labels", "series", "highlight", "message"),
+    (
+        ((), (LineSeries("Actual", ()),), None, "labels"),
+        (("Jan",), (), None, "series"),
+        (("Jan", "Feb"), (LineSeries("Actual", (1,)),), None, "length"),
+        (("Jan",), (LineSeries("Actual", (1,)),), "Missing", "highlight"),
+        (("Jan",), (LineSeries("Actual", (1,)),), None, "kpi.*highlight"),
+    ),
+)
+def test_line_chart_rejects_invalid_input(labels, series, highlight, message, tmp_path):
+    with pytest.raises(ValueError, match=message):
+        render_line_chart(
+            labels,
+            series,
+            tmp_path / "invalid.png",
+            highlight_series=highlight,
+            kpi_label="Rate" if message == "kpi.*highlight" else None,
+        )
+
+
+def test_line_chart_does_not_pollute_matplotlib_rcparams(tmp_path):
+    keys = ("font.family", "figure.facecolor", "axes.facecolor", "axes.grid")
+    before = {key: matplotlib.rcParams[key] for key in keys}
+    open_figures = plt.get_fignums()
+
+    render_line_chart(
+        ("Jan", "Feb"),
+        (LineSeries("Actual", (1, 2)),),
+        tmp_path / "isolated.png",
+    )
+
+    assert {key: matplotlib.rcParams[key] for key in keys} == before
+    assert plt.get_fignums() == open_figures
+
+
+def test_line_chart_places_title_kpi_and_highlight_at_chart_top(monkeypatch, tmp_path):
+    captured = {}
+
+    def capture_figure(figure, *_args, **_kwargs):
+        axes = figure.axes[0]
+        captured["title"] = axes.title
+        captured["texts"] = tuple(axes.texts)
+        captured["lines"] = tuple(axes.lines)
+
+    monkeypatch.setattr("matplotlib.figure.Figure.savefig", capture_figure)
+
+    render_line_chart(
+        ("Jan", "Feb", "Mar"),
+        (
+            LineSeries("Actual", (10, 14, 12)),
+            LineSeries("Target", (11, 11, 11)),
+        ),
+        tmp_path / "captured.png",
+        title="Monthly quality",
+        highlight_series="Actual",
+        kpi_label="Pass rate",
+    )
+
+    assert captured["title"].get_horizontalalignment() == "left"
+    assert captured["title"].get_position()[0] == 0
+    assert any(
+        text.get_text() == "Pass rate\n12" and text.get_horizontalalignment() == "right"
+        for text in captured["texts"]
+    )
+    highlight_points = [
+        line
+        for line in captured["lines"]
+        if tuple(line.get_xdata()) == (2,)
+        and tuple(line.get_ydata()) == (12,)
+        and line.get_markeredgecolor() == "white"
+    ]
+    assert len(highlight_points) == 1
+    assert highlight_points[0].get_markersize() > 5
