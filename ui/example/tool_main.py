@@ -10,7 +10,7 @@ from example.imports import tool_resource_rc as _tool_resource_rc
 
 
 TOOL_CONTEXT_NAMES = (
-    "AppInfo", "FrontendStateBridge", "TranslateHelper", "AISettingsBridge",
+    "AppInfo", "TranslateHelper", "AISettingsBridge",
     "AuthBridge", "ToolBridge", "RedmineBridge", "JiraAuditBridge",
     "ConfluenceAuditBridge", "DailyReportBridge", "ScheduleBridge",
 )
@@ -69,27 +69,29 @@ def create_context_objects(engine) -> dict[str, object]:
     from example.bridge.AuthBridge import AuthBridge
     from example.bridge.ConfluenceAuditBridge import ConfluenceAuditBridge
     from example.bridge.DailyReportBridge import create_daily_report_bridge
-    from example.bridge.FrontendStateBridge import FrontendStateBridge
     from example.bridge.JiraAuditBridge import JiraAuditBridge
     from example.bridge.RedmineBridge import RedmineBridge
     from example.bridge.ScheduleBridge import ScheduleBridge
     from example.bridge.ToolBridge import ToolBridge
     from example.helper.TranslateHelper import TranslateHelper
-    from ui.frontend_state import FrontendStateStore
     from ui.jsonTool import app_data_dir
+    from ui.page_state_migration import migrate_frontend_state
+
+    from PySide6.QtCore import QCoreApplication
+    if not QCoreApplication.organizationName():
+        QCoreApplication.setOrganizationName("Amlogic")
+    if not QCoreApplication.applicationName():
+        QCoreApplication.setApplicationName("SmartTest")
 
     root = runtime_root()
     auth = AuthBridge()
-    store = FrontendStateStore(app_data_dir() / "frontend_state.json")
-    translate = TranslateHelper(store)
+    migrate_frontend_state(app_data_dir() / "frontend_state.json")
+    translate = TranslateHelper()
     translate.init(engine)
     confluence = ConfluenceAuditBridge(auth)
     daily_report = create_daily_report_bridge(auth, app_data_dir(), root)
     return {
         "AppInfo": AppInfo(),
-        "FrontendStateBridge": FrontendStateBridge(
-            auth, store, legacy_path=app_data_dir() / "example.ini"
-        ),
         "TranslateHelper": translate,
         "AISettingsBridge": AISettingsBridge(),
         "AuthBridge": auth,

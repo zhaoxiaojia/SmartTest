@@ -1,12 +1,10 @@
-from PySide6.QtCore import QObject, Signal, Property, QTranslator
+from PySide6.QtCore import QObject, Signal, Property, QTranslator, QSettings
 from PySide6.QtCore import QLocale
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlEngine
 
 from FluentUI.FluApp import FluApp
 from FluentUI.Singleton import Singleton
-from ui.frontend_state import FrontendStateStore
-from ui.jsonTool import app_data_dir
 
 
 @Singleton
@@ -14,23 +12,15 @@ class TranslateHelper(QObject):
     currentChanged = Signal()
     languagesChanged = Signal()
 
-    def __init__(self, store: FrontendStateStore | None = None):
+    def __init__(self):
         QObject.__init__(self, QGuiApplication.instance())
         self._engine = None
         self._translator = None
-        self._store = store or FrontendStateStore(
-            app_data_dir() / "frontend_state.json"
-        )
+        self._settings = QSettings()
         self._current = None
         self._languages = None
         self._languages = ['en_US', 'zh_CN']
-        self._current = self._store.load(
-            "global",
-            "global",
-            "language",
-            "string",
-            "en_US",
-        )
+        self._current = str(self._settings.value("global/application/language", "en_US"))
 
     @Property(str, notify=currentChanged)
     def current(self):
@@ -42,13 +32,8 @@ class TranslateHelper(QObject):
         if next_value == "" or next_value == self._current:
             return
         self._current = next_value
-        self._store.save(
-            "global",
-            "global",
-            "language",
-            "string",
-            self._current,
-        )
+        self._settings.setValue("global/application/language", self._current)
+        self._settings.sync()
         self._reload_translator()
         FluApp().applyLocale(QLocale(self._current))
         self.currentChanged.emit()

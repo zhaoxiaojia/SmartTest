@@ -3,12 +3,30 @@ import QtQuick.Controls 2.15
 import QtQuick.Controls.Basic 2.15 as Basic
 import QtQuick.Layouts 1.15
 import FluentUI 1.0
-import "../persistence" as Persistence
+import "../../state"
 
 Item {
     id: root
-    property string stateScope: "jiraAudit"
+    Loader {
+        id: auditStateLoader
+        active: AuthBridge.authenticated === true
+                && (AuthBridge.pageStateAccount || "").length > 0
+        sourceComponent: Component {
+            JiraAuditWorkspaceState { account: AuthBridge.pageStateAccount }
+        }
+        onLoaded: auditInput.text = item.auditInput
+        onActiveChanged: if (!active) {
+            auditSaveTimer.stop()
+            auditInput.text = ""
+        }
+    }
     readonly property var view: JiraAuditBridge.viewState
+    Component.onDestruction: {
+        if (auditSaveTimer.running && auditStateLoader.item) {
+            auditStateLoader.item.auditInput = auditInput.text
+            auditStateLoader.item.sync()
+        }
+    }
     component AuditSection: FluFrame {
         default property alias sectionData: sectionColumn.data
         Layout.fillWidth: true
@@ -63,13 +81,26 @@ Item {
                 font: FluTextStyle.BodyStrong
             }
 
-            Persistence.PersistMultilineTextBox {
+            FluMultilineTextBox { /* persistence-opt-out: owner:auditStateLoader */
                 id: auditInput
                 objectName: "jiraAuditInput"
                 Layout.fillWidth: true
                 Layout.preferredHeight: 92
                 placeholderText: qsTr("Paste JQL or a Jira issue, filter, or search URL.")
                 enabled: root.view.canStart
+                onTextChanged: if (activeFocus) auditSaveTimer.restart()
+            }
+
+            Timer {
+                id: auditSaveTimer
+                objectName: "auditSaveTimer"
+                interval: 700
+                onTriggered: {
+                    if (auditStateLoader.item) {
+                        auditStateLoader.item.auditInput = auditInput.text
+                        auditStateLoader.item.sync()
+                    }
+                }
             }
 
             RowLayout {

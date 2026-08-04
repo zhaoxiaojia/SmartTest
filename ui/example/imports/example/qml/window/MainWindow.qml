@@ -7,7 +7,7 @@ import Qt.labs.platform 1.1
 import FluentUI 1.0
 import example 1.0
 import "../component"
-import "../component/persistence" as Persistence
+import "../state"
 import "../global"
 
     FluWindow {
@@ -21,33 +21,26 @@ import "../global"
     launchMode: FluWindowType.SingleTask
     inheritSystemAppBar: false
     fitsAppBarWindows: true
-    property string stateScope: "global"
     property bool lazyLoaded: false
     property bool tourShown: false
     property bool rememberCloseAction: false
     property string closeAction: ""
+    property bool restoringWindowState: true
 
     function openTourIfReady() {
-        if (lazyLoaded && windowState.persistenceReady && !tourShown) {
+        if (lazyLoaded && !tourShown) {
             tour.open()
             tourShown = true
-            windowState.valueChanged()
+            windowState.tourShown = true
         }
     }
 
-    Persistence.PersistGroup {
+    WindowState {
         id: windowState
-        target: window
-        stateKey: "windowState"
-        entries: [
-            {key: "tourShown", target: window, propertyName: "tourShown", defaultValue: false},
-            {key: "rememberCloseAction", target: window, propertyName: "rememberCloseAction", defaultValue: false},
-            {key: "closeAction", target: window, propertyName: "closeAction", defaultValue: ""},
-            {key: "fitsAppBarWindows", target: window, propertyName: "fitsAppBarWindows", defaultValue: true}
-        ]
-        onPersistenceReadyChanged: window.openTourIfReady()
     }
-    onFitsAppBarWindowsChanged: windowState.valueChanged()
+    onFitsAppBarWindowsChanged: {
+        if (!restoringWindowState) windowState.fitsAppBarWindows = fitsAppBarWindows
+    }
     appBar: FluAppBar {
         width: window.width
         height: 36
@@ -129,6 +122,12 @@ import "../global"
     }
 
     Component.onCompleted: {
+        tourShown = windowState.tourShown
+        rememberCloseAction = windowState.rememberCloseAction
+        closeAction = windowState.closeAction
+        fitsAppBarWindows = windowState.fitsAppBarWindows
+        restoringWindowState = false
+        openTourIfReady()
         checkUpdate(true)
     }
 
@@ -200,7 +199,8 @@ import "../global"
             if(dialog_close.rememberChoice){
                 rememberCloseAction = true
                 closeAction = "minimize"
-                windowState.valueChanged()
+                windowState.rememberCloseAction = rememberCloseAction
+                windowState.closeAction = closeAction
             }
             minimizeToTray()
         }
@@ -210,7 +210,8 @@ import "../global"
             if(dialog_close.rememberChoice){
                 rememberCloseAction = true
                 closeAction = "quit"
-                windowState.valueChanged()
+                windowState.rememberCloseAction = rememberCloseAction
+                windowState.closeAction = closeAction
             }
             quitNow()
         }

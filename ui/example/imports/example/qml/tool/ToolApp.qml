@@ -1,19 +1,20 @@
 import QtQuick 2.15
 import FluentUI 1.0
-import "../component/persistence" as Persistence
+import "../state"
 
 FluLauncher {
     id: app
-    property string stateScope: "global"
-    Persistence.PersistBinding {
-        target: app
-        stateKey: "darkMode"
-        valueType: "int"
-        defaultValue: 0
-        readValue: function() { return FluTheme.darkMode }
-        writeValue: function(value) { FluTheme.darkMode = value }
+    property bool restoringApplicationState: true
+    ApplicationState { id: applicationState }
+    Connections {
+        target: FluTheme
+        function onDarkModeChanged() {
+            if (!restoringApplicationState) applicationState.darkMode = FluTheme.darkMode
+        }
     }
     Component.onCompleted: {
+        FluTheme.darkMode = applicationState.darkMode
+        restoringApplicationState = false
         FluApp.init(app, Qt.locale(TranslateHelper.current))
         FluApp.windowIcon = "qrc:/example/res/image/taskbar_icon.png"
         FluTheme.animationEnabled = true

@@ -27,7 +27,7 @@ def test_tool_portable_entry_has_an_independent_minimal_context_contract():
     from example import tool_main
 
     assert set(tool_main.TOOL_CONTEXT_NAMES) == {
-        "AppInfo", "FrontendStateBridge", "TranslateHelper",
+        "AppInfo", "TranslateHelper",
         "AISettingsBridge", "AuthBridge", "ToolBridge", "RedmineBridge",
         "JiraAuditBridge", "ConfluenceAuditBridge", "DailyReportBridge",
         "ScheduleBridge",
@@ -292,7 +292,6 @@ def test_confluence_tool_visible_title_is_project_weekly_audit():
 def test_production_context_ownership_survives_gc_and_tool_dialogs_are_warning_free(
     tmp_path,
 ):
-    state_path = tmp_path / "frontend_state.json"
     probe = f'''
 import gc, sys
 sys.path.insert(0, r"{ROOT / 'ui'}")
@@ -302,12 +301,10 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtTest import QTest
 from FluentUI import FluentUI
 from example.imports import resource_rc
-from example.bridge.FrontendStateBridge import FrontendStateBridge
 from example.bridge.JiraAuditBridge import JiraAuditBridge
 from example.bridge.ScheduleBridge import ScheduleBridge
 from example.bridge.ToolBridge import ToolBridge
 from example.context_registry import register_context_objects
-from ui.frontend_state import FrontendStateStore
 class Auth(QObject):
     authChanged = Signal()
     username = Property(str, lambda self: "chao.li", notify=authChanged)
@@ -328,8 +325,7 @@ class Redmine(QObject):
     def cancelLogin(self): pass
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
 auth=Auth(); redmine=Redmine(); daily=QObject()
-frontend=FrontendStateBridge(auth, FrontendStateStore(r"{state_path}"))
-register_context_objects(engine, {{"AuthBridge": auth, "FrontendStateBridge": frontend, "ToolBridge": ToolBridge(r"{ROOT}", auth), "ScheduleBridge": ScheduleBridge({{}}), "RedmineBridge": redmine, "JiraAuditBridge": JiraAuditBridge(auth), "DailyReportBridge": daily}})
+register_context_objects(engine, {{"AuthBridge": auth, "ToolBridge": ToolBridge(r"{ROOT}", auth), "ScheduleBridge": ScheduleBridge({{}}), "RedmineBridge": redmine, "JiraAuditBridge": JiraAuditBridge(auth), "DailyReportBridge": daily}})
 del auth; gc.collect()
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1200; height: 800; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/page/T_Tool.qml" }} }}')
@@ -356,7 +352,7 @@ engine.deleteLater(); app.processEvents(); app.quit()
         capture_output=True, text=True, timeout=60,
     )
     assert result.returncode == 0, result.stderr + result.stdout
-    assert "redmine 1 7 0 []" in result.stdout
+    assert "redmine 1 6 0 []" in result.stdout
 
 
 def test_context_registry_releases_objects_when_engine_is_destroyed():
@@ -824,21 +820,19 @@ print(len(engine.rootObjects()), len(warnings), warnings)
 def test_jira_audit_workspace_qrc_persists_input_and_loads_without_warnings(
     tmp_path,
 ):
-    state_path = tmp_path / "frontend_state.json"
     probe = f'''
 import sys, time
 sys.path.insert(0, r"{ROOT / 'ui'}")
 sys.path.insert(0, r"{ROOT}")
-from PySide6.QtCore import QCoreApplication, QEvent, QObject, Property, Signal, Slot
+from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, QObject, Property, QSettings, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from FluentUI import FluentUI
-from example.bridge.FrontendStateBridge import FrontendStateBridge
 from example.imports import resource_rc
-from ui.frontend_state import FrontendStateStore
 class Auth(QObject):
     authChanged = Signal()
-    def currentUsername(self): return "alice"
+    authenticated = Property(bool, lambda self: True, notify=authChanged)
+    pageStateAccount = Property(str, lambda self: "alice", notify=authChanged)
 class JiraAudit(QObject):
     changed = Signal()
     def __init__(self):
@@ -867,12 +861,12 @@ class JiraAudit(QObject):
     @Slot()
     def nextViolationPage(self):
         self.setView(violationPage=min(self._view["violationPageCount"], self._view["violationPage"] + 1))
-app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]
+QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, r"{tmp_path}")
+app=QGuiApplication([]); app.setOrganizationName("Amlogic"); app.setApplicationName("SmartTest"); engine=QQmlApplicationEngine(); warnings=[]
 engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
 jira=JiraAudit(); engine.rootContext().setContextProperty("JiraAuditBridge", jira)
-store=FrontendStateStore(r"{state_path}"); auth=Auth()
-frontend=FrontendStateBridge(auth, store)
-engine.rootContext().setContextProperty("FrontendStateBridge", frontend)
+auth=Auth(); engine.rootContext().setContextProperty("AuthBridge", auth)
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 900; height: 700; Loader {{ objectName: "workspaceLoader"; anchors.fill: parent; source: "qrc:/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" }} }}')
 app.processEvents()
@@ -907,14 +901,16 @@ jira.setView(exportPath="C:/Users/test/Downloads/audit.xlsx"); app.processEvents
 print(*[button.property("disabled") for button in buttons])
 audit_input=window.findChild(QObject, "jiraAuditInput")
 audit_input.setProperty("text", "project = TV")
-deadline=time.monotonic()+0.4
+save_timer=window.findChild(QObject, "auditSaveTimer")
+QMetaObject.invokeMethod(save_timer, "restart")
+deadline=time.monotonic()+0.9
 while time.monotonic()<deadline:
     app.processEvents(); time.sleep(0.01)
-saved=store.load("alice", "jiraAudit", "jiraAuditInput", "string", "")
 loader=window.findChild(QObject, "workspaceLoader")
 loader.setProperty("active", False)
 QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 app.processEvents()
+saved=QSettings().value("users/alice/jiraAudit/auditInput", "")
 loader.setProperty("active", True)
 deadline=time.monotonic()+0.4
 while time.monotonic()<deadline:

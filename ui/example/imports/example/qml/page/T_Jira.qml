@@ -3,11 +3,10 @@ import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import FluentUI 1.0
 import "../global"
-import "../component/persistence" as Persistence
+import "../state"
 
-Persistence.PersistentPage {
+FluPage {
     id: page
-    stateScope: "jira"
     title: qsTr("Jira")
     launchMode: FluPageType.SingleInstance
 
@@ -61,36 +60,61 @@ Persistence.PersistentPage {
     property bool pageReady: false
     property bool initialQueryStarted: false
 
-    Persistence.PersistGroup {
-        id: filterState
-        target: page
-        stateKey: "filterState"
-        debounceMs: 300
-        entries: [
-            {key: "projects", target: page, propertyName: "selectedProjects", defaultValue: ["all_supported_projects"]},
-            {key: "statuses", target: page, propertyName: "selectedStatuses", defaultValue: []},
-            {key: "priorities", target: page, propertyName: "selectedPriorities", defaultValue: []},
-            {key: "issueTypes", target: page, propertyName: "selectedIssueTypes", defaultValue: ["bug"]},
-            {key: "assignees", target: page, propertyName: "selectedAssignees", defaultValue: []},
-            {key: "reporters", target: page, propertyName: "selectedReporters", defaultValue: []},
-            {key: "labels", target: page, propertyName: "selectedLabels", defaultValue: []},
-            {key: "boardIndex", target: combo_board, propertyName: "currentIndex", defaultValue: 0},
-            {key: "timeframeIndex", target: combo_timeframe, propertyName: "currentIndex", defaultValue: 1},
-            {key: "rawJql", target: textbox_jql, propertyName: "text", defaultValue: ""},
-            {key: "keyword", target: textbox_keyword, propertyName: "text", defaultValue: ""}
-        ]
-        onPersistenceReadyChanged: page.startInitialQueryIfReady()
+    Loader {
+        id: filterStateLoader
+        active: AuthBridge.authenticated === true
+                && (AuthBridge.pageStateAccount || "").length > 0
+        sourceComponent: Component {
+            JiraPageState { account: AuthBridge.pageStateAccount }
+        }
+        onLoaded: page.restoreFilterState()
+        onActiveChanged: {
+            if (!active) page.clearFilterState()
+        }
     }
 
-    Connections {
-        target: page
-        function onSelectedProjectsChanged() { filterState.valueChanged() }
-        function onSelectedStatusesChanged() { filterState.valueChanged() }
-        function onSelectedPrioritiesChanged() { filterState.valueChanged() }
-        function onSelectedIssueTypesChanged() { filterState.valueChanged() }
-        function onSelectedAssigneesChanged() { filterState.valueChanged() }
-        function onSelectedReportersChanged() { filterState.valueChanged() }
-        function onSelectedLabelsChanged() { filterState.valueChanged() }
+    readonly property var filterState: filterStateLoader.item
+
+    function boardId(index) { return ["open_work", "ready_for_test", "closed_bugs"][index] || "open_work" }
+    function timeframeId(index) { return ["last_7_days", "last_30_days", "last_90_days", "this_year"][index] || "last_30_days" }
+    function idIndex(values, value, fallback) { var index = values.indexOf(value); return index < 0 ? fallback : index }
+    function restoreFilterState() {
+        if (!filterState) return
+        selectedProjects = filterState.projects
+        selectedStatuses = filterState.statuses
+        selectedPriorities = filterState.priorities
+        selectedIssueTypes = filterState.issueTypes
+        selectedAssignees = filterState.assignees
+        selectedReporters = filterState.reporters
+        selectedLabels = filterState.labels
+        combo_board.currentIndex = idIndex(["open_work", "ready_for_test", "closed_bugs"], filterState.selectedBoardId, 0)
+        combo_timeframe.currentIndex = idIndex(["last_7_days", "last_30_days", "last_90_days", "this_year"], filterState.selectedTimeframeId, 1)
+        textbox_jql.text = filterState.rawJql
+        textbox_keyword.text = filterState.keyword
+        startInitialQueryIfReady()
+    }
+    function clearFilterState() {
+        selectedProjects = ["all_supported_projects"]
+        selectedStatuses = []; selectedPriorities = []; selectedIssueTypes = ["bug"]
+        selectedAssignees = []; selectedReporters = []; selectedLabels = []
+        combo_board.currentIndex = 0; combo_timeframe.currentIndex = 1
+        textbox_jql.text = ""; textbox_keyword.text = ""
+        initialQueryStarted = false
+    }
+    function saveFilterState() {
+        if (!filterState) return
+        filterState.projects = selectedProjects
+        filterState.statuses = selectedStatuses
+        filterState.priorities = selectedPriorities
+        filterState.issueTypes = selectedIssueTypes
+        filterState.assignees = selectedAssignees
+        filterState.reporters = selectedReporters
+        filterState.labels = selectedLabels
+        filterState.selectedBoardId = boardId(combo_board.currentIndex)
+        filterState.selectedTimeframeId = timeframeId(combo_timeframe.currentIndex)
+        filterState.rawJql = textbox_jql.text
+        filterState.keyword = textbox_keyword.text
+        filterState.sync()
     }
 
     function issueStatusColor(status){
@@ -370,6 +394,7 @@ Persistence.PersistentPage {
             if(selectedProjects.length === 0){
                 selectedProjects = ["all_supported_projects"]
             }
+            saveFilterState()
             return
         }
         var allIndex = next.indexOf("all_supported_projects")
@@ -387,6 +412,7 @@ Persistence.PersistentPage {
             next = ["all_supported_projects"]
         }
         selectedProjects = next
+        saveFilterState()
     }
 
     function toggleSelection(values, id, checked){
@@ -447,7 +473,7 @@ Persistence.PersistentPage {
     }
 
     function refreshCurrentScopeIfReady(){
-        if(!filterState.persistenceReady || JiraBridge.loading){
+        if(!filterState || JiraBridge.loading){
             return
         }
         if(!AuthBridge.isAuthenticated() || !AuthBridge.hasCredential()){
@@ -457,7 +483,7 @@ Persistence.PersistentPage {
     }
 
     function startInitialQueryIfReady(){
-        if(initialQueryStarted || !pageReady || !filterState.persistenceReady
+        if(initialQueryStarted || !pageReady || !filterState
                 || JiraBridge.loading){
             return
         }
@@ -952,7 +978,7 @@ Persistence.PersistentPage {
                                     objectName: "rawJql"
                                     Layout.fillWidth: true
                                     placeholderText: qsTr("Paste a Jira filter, for example: project = TV ORDER BY created DESC")
-                                    onTextChanged: filterState.valueChanged()
+                                    onEditingFinished: page.saveFilterState()
                                 }
 
                                 FluText{
@@ -1012,7 +1038,7 @@ Persistence.PersistentPage {
                                             width: parent.width - 24
                                             model: JiraBridge.boardOptions()
                                             currentIndex: 0
-                                            onCurrentIndexChanged: filterState.valueChanged()
+                                            onActivated: page.saveFilterState()
                                         }
                                     }
                                 }
@@ -1035,7 +1061,7 @@ Persistence.PersistentPage {
                                             width: parent.width - 24
                                             model: JiraBridge.timeframeOptions()
                                             currentIndex: 1
-                                            onCurrentIndexChanged: filterState.valueChanged()
+                                            onActivated: page.saveFilterState()
                                         }
                                     }
                                 }
@@ -1066,6 +1092,7 @@ Persistence.PersistentPage {
                                                     checked: hasId(selectedStatuses, modelData.id)
                                                     onClicked: {
                                                         selectedStatuses = toggleSelection(selectedStatuses, modelData.id, checked)
+                                                        page.saveFilterState()
                                                     }
                                                 }
                                             }
@@ -1099,6 +1126,7 @@ Persistence.PersistentPage {
                                                     checked: hasId(selectedPriorities, modelData.id)
                                                     onClicked: {
                                                         selectedPriorities = toggleSelection(selectedPriorities, modelData.id, checked)
+                                                        page.saveFilterState()
                                                     }
                                                 }
                                             }
@@ -1135,6 +1163,7 @@ Persistence.PersistentPage {
                                                         if(selectedIssueTypes.length === 0){
                                                             selectedIssueTypes = ["bug"]
                                                         }
+                                                        page.saveFilterState()
                                                     }
                                                 }
                                             }
@@ -1160,7 +1189,7 @@ Persistence.PersistentPage {
                                             y: 10
                                             width: parent.width - 24
                                             placeholderText: qsTr("Keyword text")
-                                            onTextChanged: filterState.valueChanged()
+                                            onEditingFinished: page.saveFilterState()
                                         }
                                     }
                                 }
@@ -1198,6 +1227,7 @@ Persistence.PersistentPage {
                                                     checked: hasId(selectedAssignees, modelData.id)
                                                     onClicked: {
                                                         selectedAssignees = toggleSelection(selectedAssignees, modelData.id, checked)
+                                                        page.saveFilterState()
                                                     }
                                                 }
                                             }
@@ -1238,6 +1268,7 @@ Persistence.PersistentPage {
                                                     checked: hasId(selectedReporters, modelData.id)
                                                     onClicked: {
                                                         selectedReporters = toggleSelection(selectedReporters, modelData.id, checked)
+                                                        page.saveFilterState()
                                                     }
                                                 }
                                             }
@@ -1278,6 +1309,7 @@ Persistence.PersistentPage {
                                                     checked: hasId(selectedLabels, modelData.id)
                                                     onClicked: {
                                                         selectedLabels = toggleSelection(selectedLabels, modelData.id, checked)
+                                                        page.saveFilterState()
                                                     }
                                                 }
                                             }

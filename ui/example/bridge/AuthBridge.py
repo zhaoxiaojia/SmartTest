@@ -445,6 +445,12 @@ class AuthBridge(QObject):
     def _get_username(self) -> str:
         return self._username
 
+    def _get_page_state_account(self) -> str:
+        if not self._authenticated:
+            return ""
+        account = str(self._username or "").strip().casefold().rsplit("\\", 1)[-1]
+        return account.split("@", 1)[0].strip()
+
     def _get_avatar_url(self) -> str:
         return self._avatar_url
 
@@ -553,6 +559,7 @@ class AuthBridge(QObject):
 
     authenticated = Property(bool, _get_authenticated, notify=authChanged)
     username = Property(str, _get_username, notify=authChanged)
+    pageStateAccount = Property(str, _get_page_state_account, notify=authChanged)
     avatarUrl = Property(str, _get_avatar_url, notify=authChanged)
     displayName = Property(str, _get_display_name, notify=authChanged)
     initials = Property(str, _get_initials, notify=authChanged)

@@ -1,259 +1,188 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
-import re
 
-import pytest
+from PySide6.QtCore import QSettings
+
+from ui import page_state_migration
+from ui.page_state_migration import migrate_frontend_state
 
 
 ROOT = Path(__file__).resolve().parents[3]
-QML_ROOT = ROOT / "ui/example/imports/example/qml"
-APP_QML = QML_ROOT / "App.qml"
-NATIVE_EDITABLE_TYPES = (
-    "FluTextBox",
-    "FluMultilineTextBox",
-    "FluComboBox",
-    "FluCheckBox",
-    "FluToggleSwitch",
-    "FluSpinBox",
-    "FluPasswordBox",
-    "FluAutoSuggestBox",
-)
-NATIVE_EDITABLE = re.compile(
-    rf"(?m)^[ \t]*(?:[A-Za-z_]\w*\s*:\s*)?"
-    rf"(?P<type>{'|'.join(NATIVE_EDITABLE_TYPES)})\s*\{{"
-)
-OPT_OUT = re.compile(
-    r"^\s*/\*\s*persistence-opt-out:\s*"
-    r"(?:sensitive|transient|owner:[A-Za-z][A-Za-z0-9_.-]*)\s*\*/"
-)
-DEMO_FILE_MARKER = "persistence-scan: demo"
+QML = ROOT / "ui/example/imports/example/qml"
 
 
-def _code_mask(source: str) -> str:
-    masked = list(source)
-    state = "code"
-    quote = ""
-    index = 0
-    while index < len(source):
-        char = source[index]
-        pair = source[index : index + 2]
-        if state == "code":
-            if pair == "//":
-                masked[index : index + 2] = "  "
-                state = "line-comment"
-                index += 2
-                continue
-            if pair == "/*":
-                masked[index : index + 2] = "  "
-                state = "block-comment"
-                index += 2
-                continue
-            if char in "\"'":
-                masked[index] = " "
-                quote = char
-                state = "string"
-        elif state == "line-comment":
-            if char == "\n":
-                state = "code"
-            else:
-                masked[index] = " "
-        elif state == "block-comment":
-            masked[index] = " "
-            if pair == "*/":
-                masked[index : index + 2] = "  "
-                state = "code"
-                index += 2
-                continue
-        else:
-            masked[index] = " "
-            if char == "\\":
-                if index + 1 < len(source):
-                    masked[index + 1] = " "
-                    index += 2
-                    continue
-            elif char == quote:
-                state = "code"
-        index += 1
-    return "".join(masked)
+class MemorySettings:
+    def __init__(self, values=None, *, fail_sync=False, corrupt_readback=False, fail_rollback=False):
+        self.values = dict(values or {})
+        self.fail_sync = fail_sync
+        self.corrupt_readback = corrupt_readback
+        self.fail_rollback = fail_rollback
+        self.synced = False
+        self.sync_calls = 0
+
+    def contains(self, key):
+        return key in self.values
+
+    def value(self, key):
+        value = self.values.get(key)
+        if self.corrupt_readback and self.synced and key.endswith("/darkMode"):
+            self.corrupt_readback = False
+            return -1
+        return value
+
+    def setValue(self, key, value):
+        self.values[key] = value
+
+    def remove(self, key):
+        self.values.pop(key, None)
+
+    def sync(self):
+        self.sync_calls += 1
+        if self.fail_rollback and self.sync_calls >= 2:
+            raise OSError("rollback sync failed")
+        self.synced = True
+
+    def status(self):
+        if self.fail_sync:
+            self.fail_sync = False
+            return QSettings.Status.AccessError
+        return QSettings.Status.NoError
 
 
-def _qml_blocks(source: str, pattern: re.Pattern[str]):
-    masked = _code_mask(source)
-    depths = []
-    depth = 0
-    for char in masked:
-        depths.append(depth)
-        if char == "{":
-            depth += 1
-        elif char == "}":
-            depth -= 1
-
-    for match in pattern.finditer(masked):
-        opening = masked.find("{", match.start(), match.end())
-        depth = 1
-        closing = opening + 1
-        while closing < len(masked) and depth:
-            if masked[closing] == "{":
-                depth += 1
-            elif masked[closing] == "}":
-                depth -= 1
-            closing += 1
-        yield (
-            match,
-            depths[match.start()],
-            source[match.start() : closing],
-            source.count("\n", 0, match.start()) + 1,
-        )
+def _global_fixture(path):
+    path.write_bytes(b'{"version":1,"users":{"global":{"global":{"darkMode":{"type":"int","value":2},"language":{"type":"string","value":"zh_CN"}}}}}')
 
 
-def _business_qml_paths(qml_root: Path) -> tuple[Path, ...]:
-    paths = set()
-    app = qml_root / "App.qml"
-    if app.exists():
-        paths.add(app)
-
-    component_root = qml_root / "component"
-    if component_root.exists():
-        paths.update(
-            path
-            for path in component_root.rglob("*.qml")
-            if "persistence" not in path.relative_to(component_root).parts
-        )
-
-    window_root = qml_root / "window"
-    if window_root.exists():
-        paths.update(window_root.glob("*.qml"))
-
-    navigation_files = (
-        qml_root / "global/ItemsOriginal.qml",
-        qml_root / "global/ItemsFooter.qml",
-    )
-    for navigation in navigation_files:
-        if not navigation.exists():
-            continue
-        source = navigation.read_text(encoding="utf-8-sig")
-        pane_item = re.compile(r"(?m)^[ \t]*FluPaneItem\s*\{")
-        for _match, depth, block, _line in _qml_blocks(source, pane_item):
-            if depth != 1:
-                continue
-            url = re.search(
-                r'url:\s*"qrc:/example/qml/(?P<path>[^"]+\.qml)"',
-                block,
-            )
-            if url:
-                paths.add(qml_root / url.group("path"))
-
-    return tuple(
-        sorted(
-            path
-            for path in paths
-            if path.exists()
-            and DEMO_FILE_MARKER
-            not in path.read_text(encoding="utf-8-sig")
-        )
-    )
+def test_explicit_qml_schemas_have_stable_business_keys():
+    jira = (QML / "state/JiraPageState.qml").read_text(encoding="utf-8")
+    assert 'category: "users/" + account + "/jira"' in jira
+    assert "selectedBoardId" in jira and "selectedTimeframeId" in jira
+    assert "currentIndex" not in jira and "objectName" not in jira
 
 
-def _native_editable_violations(path: Path, qml_root: Path):
-    source = path.read_text(encoding="utf-8-sig")
-    for match, _depth, block, line in _qml_blocks(source, NATIVE_EDITABLE):
-        header_end = source.find("\n", match.end())
-        if header_end < 0:
-            header_end = len(source)
-        header = source[match.end() : header_end]
-        if not OPT_OUT.match(header):
-            yield (
-                f"{path.relative_to(qml_root).as_posix()}:{line}: "
-                f"{match.group('type')}"
-            )
+def test_user_settings_are_lifecycle_guarded_and_logout_clears_ui():
+    jira = (QML / "page/T_Jira.qml").read_text(encoding="utf-8")
+    assert "active: AuthBridge.authenticated" in jira
+    assert 'pageStateAccount || ""' in jira
+    assert "onActiveChanged" in jira and "clearFilterState()" in jira
+    assert "users/anonymous" not in jira and "FrontendStateBridge" not in jira
 
 
-def test_app_global_state_uses_the_shared_persistence_lifecycle():
-    source = APP_QML.read_text(encoding="utf-8-sig")
-
-    assert "Persistence.PersistBinding {" in source
-    for forbidden in (
-        "frontendStateReady",
-        "restoreGlobalState",
-        "FrontendStateBridge.restore(",
-        "FrontendStateBridge.save(",
-        "onStateContextChanged",
-    ):
-        assert forbidden not in source
-
-
-def test_all_business_qml_uses_persistent_controls_or_explicit_opt_out():
-    paths = _business_qml_paths(QML_ROOT)
-    relative_paths = {path.relative_to(QML_ROOT).as_posix() for path in paths}
-    assert "component/jiraaudit/JiraAuditWorkspace.qml" in relative_paths
-    assert "page/T_Jira.qml" in relative_paths
-    assert "page/T_TextBox.qml" not in relative_paths
-
-    offenders = [
-        offender
-        for path in paths
-        for offender in _native_editable_violations(path, QML_ROOT)
-    ]
-
-    assert offenders == [], "\n" + "\n".join(offenders)
+def test_legacy_migration_covers_users_and_converts_indices_to_ids(tmp_path):
+    source = tmp_path / "frontend_state.json"
+    source.write_text(json.dumps({"version": 1, "users": {
+        "global": {"global": {
+            "darkMode": {"type": "int", "value": 2},
+            "windowState": {"type": "object", "value": {"tourShown": True}},
+        }},
+        "Alice@example.com": {"jira": {"filterState": {"type": "object", "value": {
+            "boardIndex": 1, "timeframeIndex": 2, "projects": ["tv"],
+        }}}},
+        "BOB": {"jiraAudit": {"jiraAuditInput": {"type": "string", "value": "project = TV"}}},
+    }}), encoding="utf-8")
+    settings = QSettings(str(tmp_path / "state.ini"), QSettings.Format.IniFormat)
+    report = migrate_frontend_state(source, settings)
+    assert report.deleted and report.users == 2 and not source.exists()
+    assert settings.value("users/alice/jira/selectedBoardId") == "ready_for_test"
+    assert settings.value("users/alice/jira/selectedTimeframeId") == "last_90_days"
+    assert settings.value("users/bob/jiraAudit/auditInput") == "project = TV"
 
 
-@pytest.mark.parametrize("control_type", NATIVE_EDITABLE_TYPES)
-def test_unlisted_native_business_input_is_rejected(
-    tmp_path,
-    control_type,
-):
-    qml_root = tmp_path / "qml"
-    fixture = qml_root / "component/FutureBusinessControl.qml"
-    fixture.parent.mkdir(parents=True)
-    fixture.write_text(
-        f"import FluentUI 1.0\nItem {{\n    {control_type} {{}}\n}}\n",
-        encoding="utf-8",
-    )
-
-    paths = _business_qml_paths(qml_root)
-
-    assert paths == (fixture,)
-    assert list(_native_editable_violations(fixture, qml_root)) == [
-        f"component/FutureBusinessControl.qml:3: {control_type}"
-    ]
+def test_unknown_scope_preserves_legacy_bytes(tmp_path):
+    source = tmp_path / "frontend_state.json"
+    original = b'{"version":1,"users":{"alice":{"unknown":{"x":{"type":"string","value":"x"}}}}}'
+    source.write_bytes(original)
+    report = migrate_frontend_state(source, QSettings(str(tmp_path / "state.ini"), QSettings.Format.IniFormat))
+    assert report.attempted and report.status == "failed"
+    assert report.failure_reason == "transform_failed"
+    assert not report.deleted and source.read_bytes() == original
 
 
-def test_persistent_control_and_explicit_opt_out_satisfy_contract(tmp_path):
-    qml_root = tmp_path / "qml"
-    fixture = qml_root / "component/FutureBusinessControl.qml"
-    fixture.parent.mkdir(parents=True)
-    fixture.write_text(
-        """
-import FluentUI 1.0
-Item {
-    Persistence.PersistTextBox {}
-    FluTextBox { /* persistence-opt-out: transient */ }
-    FluComboBox { /* persistence-opt-out: owner:RuntimeParameters */ }
-    FluPasswordBox { /* persistence-opt-out: sensitive */ }
-}
-""",
-        encoding="utf-8",
-    )
-
-    assert list(_native_editable_violations(fixture, qml_root)) == []
+def test_unmappable_index_preserves_legacy_bytes(tmp_path):
+    source = tmp_path / "frontend_state.json"
+    original = json.dumps({"version": 1, "users": {"alice": {"jira": {"filterState": {
+        "type": "object", "value": {"boardIndex": 99},
+    }}}}}).encode()
+    source.write_bytes(original)
+    report = migrate_frontend_state(source, QSettings(str(tmp_path / "state.ini"), QSettings.Format.IniFormat))
+    assert not report.deleted and source.read_bytes() == original
 
 
-def test_nested_control_opt_out_does_not_exempt_parent(tmp_path):
-    qml_root = tmp_path / "qml"
-    fixture = qml_root / "component/FutureBusinessControl.qml"
-    fixture.parent.mkdir(parents=True)
-    fixture.write_text(
-        """
-import FluentUI 1.0
-FluTextBox {
-    FluCheckBox { /* persistence-opt-out: transient */ }
-}
-""",
-        encoding="utf-8",
-    )
+def test_production_migration_covers_both_application_namespaces_before_delete(tmp_path, monkeypatch):
+    source = tmp_path / "frontend_state.json"
+    _global_fixture(source)
+    desktop = QSettings(str(tmp_path / "SmartTest.ini"), QSettings.Format.IniFormat)
+    tool = QSettings(str(tmp_path / "SmartTestTool.ini"), QSettings.Format.IniFormat)
+    monkeypatch.setattr(page_state_migration, "_production_targets", lambda: (desktop, tool))
+    report = migrate_frontend_state(source)
+    assert report.deleted and report.verified == 4 and not source.exists()
+    for target in (desktop, tool):
+        assert target.value("global/application/darkMode") == 2
+        assert target.value("global/application/language") == "zh_CN"
 
-    assert list(_native_editable_violations(fixture, qml_root)) == [
-        "component/FutureBusinessControl.qml:3: FluTextBox"
-    ]
+
+def test_sync_failure_rolls_back_all_targets_and_preserves_source(tmp_path):
+    source = tmp_path / "frontend_state.json"
+    _global_fixture(source)
+    original = source.read_bytes()
+    existing = {"global/application/darkMode": 1}
+    desktop = MemorySettings(existing)
+    tool = MemorySettings(existing, fail_sync=True)
+    report = migrate_frontend_state(source, settings_targets=(desktop, tool))
+    assert not report.deleted and source.read_bytes() == original
+    assert desktop.values == existing and tool.values == existing
+
+
+def test_readback_failure_restores_preexisting_values_and_removes_new_keys(tmp_path):
+    source = tmp_path / "frontend_state.json"
+    _global_fixture(source)
+    original = source.read_bytes()
+    existing = {"global/application/darkMode": 0}
+    target = MemorySettings(existing, corrupt_readback=True)
+    report = migrate_frontend_state(source, settings_targets=(target,))
+    assert not report.deleted and source.read_bytes() == original
+    assert target.values == existing
+
+
+def test_no_source_is_distinct_from_attempted_failure(tmp_path):
+    report = migrate_frontend_state(tmp_path / "missing.json", settings_targets=(MemorySettings(),))
+    assert not report.attempted
+    assert report.status == "not_needed" and report.failure_reason == ""
+
+
+def test_failure_log_contains_only_fixed_status_and_counts(tmp_path, monkeypatch):
+    source = tmp_path / "frontend_state.json"
+    secret_value = "do-not-log-this-value"
+    source.write_text(secret_value, encoding="utf-8")
+    records = []
+    monkeypatch.setattr(page_state_migration, "smart_log", lambda message, **kwargs: records.append((message, kwargs)))
+    report = migrate_frontend_state(source, settings_targets=(MemorySettings(),))
+    rendered = repr(records)
+    assert report.failure_reason == "parse_failed"
+    assert records and secret_value not in rendered
+    assert "parse_failed" in rendered and "failed" in rendered
+
+
+def test_rollback_failure_has_distinct_status_and_preserves_source(tmp_path):
+    source = tmp_path / "frontend_state.json"
+    _global_fixture(source)
+    original = source.read_bytes()
+    target = MemorySettings(corrupt_readback=True, fail_rollback=True)
+    report = migrate_frontend_state(source, settings_targets=(target,))
+    assert report.failure_reason == "rollback_failed"
+    assert report.rollback_clean is False
+    assert source.read_bytes() == original
+
+
+def test_anonymous_legacy_state_is_not_written(tmp_path):
+    source = tmp_path / "frontend_state.json"
+    source.write_text(json.dumps({"version": 1, "users": {"anonymous": {"jiraAudit": {
+        "jiraAuditInput": {"type": "string", "value": "project = SECRET"},
+    }}}}), encoding="utf-8")
+    target = MemorySettings()
+    report = migrate_frontend_state(source, settings_targets=(target,))
+    assert report.deleted and report.skipped == 1
+    assert target.values == {}
+    assert not any(key.startswith("users/anonymous/") for key in target.values)

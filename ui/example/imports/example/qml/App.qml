@@ -3,44 +3,29 @@ import QtQuick.Window 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import FluentUI 1.0
-import "component/persistence" as Persistence
+import "state"
 
 FluLauncher {
     id: app
-    property string stateScope: "global"
-
-    Persistence.PersistBinding {
-        id: darkModeState
-        target: app
-        stateKey: "darkMode"
-        valueType: "int"
-        defaultValue: 0
-        readValue: function() { return FluTheme.darkMode }
-        writeValue: function(value) { FluTheme.darkMode = value }
-    }
-    Persistence.PersistBinding {
-        id: systemAppBarState
-        target: app
-        stateKey: "useSystemAppBar"
-        valueType: "bool"
-        defaultValue: false
-        readValue: function() { return FluApp.useSystemAppBar }
-        writeValue: function(value) { FluApp.useSystemAppBar = value }
-    }
+    property bool restoringApplicationState: true
+    ApplicationState { id: applicationState }
 
     Connections{
         target: FluTheme
         function onDarkModeChanged(){
-            darkModeState.valueChanged()
+            if (!restoringApplicationState) applicationState.darkMode = FluTheme.darkMode
         }
     }
     Connections{
         target: FluApp
         function onUseSystemAppBarChanged(){
-            systemAppBarState.valueChanged()
+            if (!restoringApplicationState) applicationState.useSystemAppBar = FluApp.useSystemAppBar
         }
     }
     Component.onCompleted: {
+        FluTheme.darkMode = applicationState.darkMode
+        FluApp.useSystemAppBar = applicationState.useSystemAppBar
+        restoringApplicationState = false
         FluApp.init(app,Qt.locale(TranslateHelper.current))
         // Window/taskbar icon (keep separate from the small navigation logo).
         FluApp.windowIcon = "qrc:/example/res/image/taskbar_icon.png"

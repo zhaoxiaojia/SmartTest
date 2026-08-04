@@ -28,15 +28,10 @@
 <file>example/qml/component/issue/JiraIssueDetailLayout.qml</file>
 <file>example/qml/component/issue/JiraIssueSection.qml</file>
 <file>example/qml/component/issue/JiraOptionMultiPicker.qml</file>
-<file>example/qml/component/persistence/PersistBinding.qml</file>
-<file>example/qml/component/persistence/PersistCheckBox.qml</file>
-<file>example/qml/component/persistence/PersistComboBox.qml</file>
-<file>example/qml/component/persistence/PersistentPage.qml</file>
-<file>example/qml/component/persistence/PersistGroup.qml</file>
-<file>example/qml/component/persistence/PersistMultilineTextBox.qml</file>
-<file>example/qml/component/persistence/PersistSpinBox.qml</file>
-<file>example/qml/component/persistence/PersistSwitch.qml</file>
-<file>example/qml/component/persistence/PersistTextBox.qml</file>
+<file>example/qml/state/ApplicationState.qml</file>
+<file>example/qml/state/WindowState.qml</file>
+<file>example/qml/state/JiraPageState.qml</file>
+<file>example/qml/state/JiraAuditWorkspaceState.qml</file>
 <file alias="example/res/image/app_icon.png">../../src/amlogic_icon.png</file>
 <file alias="example/res/image/taskbar_icon.png">../../src/smarttest_icon.png</file>
 <file>example/i18n/example_en_US.qm</file>
