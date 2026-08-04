@@ -74,7 +74,7 @@ def migrate_frontend_state(
                 raise OSError("QSettings sync failed")
             phase = "readback_failed"
             for key, expected in manifest.items():
-                if _plain(target.value(key)) != _plain(expected):
+                if not _settings_value_matches(expected, target.value(key)):
                     raise OSError(f"QSettings readback failed for {key}")
         phase = "delete_failed"
         source.unlink()
@@ -266,3 +266,14 @@ def _plain(value: Any) -> Any:
     if isinstance(value, dict):
         return {str(key): _plain(child) for key, child in value.items()}
     return value
+
+
+def _settings_value_matches(expected: Any, actual: Any) -> bool:
+    """Accept only Qt's known scalar bool text representation on readback."""
+    actual = _plain(actual)
+    expected = _plain(expected)
+    if type(expected) is bool and isinstance(actual, str):
+        normalized = actual.casefold()
+        if normalized in {"true", "false"}:
+            return expected is (normalized == "true")
+    return actual == expected

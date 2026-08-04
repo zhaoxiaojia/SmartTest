@@ -14,11 +14,16 @@ QML = ROOT / "ui/example/imports/example/qml"
 
 
 class MemorySettings:
-    def __init__(self, values=None, *, fail_sync=False, corrupt_readback=False, fail_rollback=False):
+    def __init__(
+        self, values=None, *, fail_sync=False, corrupt_readback=False,
+        fail_rollback=False, bool_as_string=False, list_as_string=False,
+    ):
         self.values = dict(values or {})
         self.fail_sync = fail_sync
         self.corrupt_readback = corrupt_readback
         self.fail_rollback = fail_rollback
+        self.bool_as_string = bool_as_string
+        self.list_as_string = list_as_string
         self.synced = False
         self.sync_calls = 0
 
@@ -30,6 +35,10 @@ class MemorySettings:
         if self.corrupt_readback and self.synced and key.endswith("/darkMode"):
             self.corrupt_readback = False
             return -1
+        if self.bool_as_string and self.synced and type(value) is bool:
+            return "true" if value else "false"
+        if self.list_as_string and self.synced and isinstance(value, list):
+            return ",".join(map(str, value))
         return value
 
     def setValue(self, key, value):
@@ -186,3 +195,41 @@ def test_anonymous_legacy_state_is_not_written(tmp_path):
     assert report.deleted and report.skipped == 1
     assert target.values == {}
     assert not any(key.startswith("users/anonymous/") for key in target.values)
+
+
+def test_windows_bool_string_readback_verifies_tour_shown_migration(tmp_path):
+    source = tmp_path / "frontend_state.json"
+    source.write_text(json.dumps({"version": 1, "users": {"global": {"global": {
+        "windowState": {"type": "object", "value": {"tourShown": True}},
+    }}}}), encoding="utf-8")
+    target = MemorySettings(bool_as_string=True)
+
+    report = migrate_frontend_state(source, settings_targets=(target,))
+
+    assert report.status == "success" and report.deleted
+    assert target.values["global/window/tourShown"] is True
+    assert not source.exists()
+
+
+def test_qt_bool_compatibility_does_not_weaken_list_verification(tmp_path):
+    source = tmp_path / "frontend_state.json"
+    original = json.dumps({"version": 1, "users": {"alice": {"jira": {"filterState": {
+        "type": "object", "value": {"projects": ["tv", "ott"]},
+    }}}}}).encode()
+    source.write_bytes(original)
+    target = MemorySettings(list_as_string=True)
+
+    report = migrate_frontend_state(source, settings_targets=(target,))
+
+    assert report.failure_reason == "readback_failed"
+    assert source.read_bytes() == original
+    assert target.values == {}
+
+
+def test_main_window_lazy_load_reads_the_persisted_tour_owner_directly():
+    source = (QML / "window/MainWindow.qml").read_text(encoding="utf-8")
+
+    assert "property bool tourShown" not in source
+    assert "if (lazyLoaded && !windowState.tourShown)" in source
+    assert "windowState.tourShown = true" in source
+    assert "tourShown = windowState.tourShown" not in source

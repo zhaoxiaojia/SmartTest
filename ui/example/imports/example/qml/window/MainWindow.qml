@@ -22,15 +22,13 @@ import "../global"
     inheritSystemAppBar: false
     fitsAppBarWindows: true
     property bool lazyLoaded: false
-    property bool tourShown: false
     property bool rememberCloseAction: false
     property string closeAction: ""
     property bool restoringWindowState: true
 
     function openTourIfReady() {
-        if (lazyLoaded && !tourShown) {
+        if (lazyLoaded && !windowState.tourShown) {
             tour.open()
-            tourShown = true
             windowState.tourShown = true
         }
     }
@@ -122,7 +120,6 @@ import "../global"
     }
 
     Component.onCompleted: {
-        tourShown = windowState.tourShown
         rememberCloseAction = windowState.rememberCloseAction
         closeAction = windowState.closeAction
         fitsAppBarWindows = windowState.fitsAppBarWindows
