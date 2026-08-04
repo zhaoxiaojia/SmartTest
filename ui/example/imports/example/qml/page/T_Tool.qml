@@ -6,8 +6,10 @@ import "../component/redmine"
 import "../component/jiraaudit"
 import "../component/confluenceaudit"
 import "../component/dailyreport"
+import "../global"
 
 FluPage {
+    id: page
     title: qsTr("Tool")
     launchMode: FluPageType.SingleInstance
 
@@ -150,13 +152,17 @@ FluPage {
             }
         }
 
-        RowLayout {
+        GridLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 0
+            columns: ResponsiveMetrics.isCompact(page.width) ? 1 : 3
+            columnSpacing: 0
+            rowSpacing: 0
 
         Rectangle {
             Layout.preferredWidth: 216
+            Layout.fillWidth: ResponsiveMetrics.isCompact(page.width)
+            Layout.preferredHeight: ResponsiveMetrics.isCompact(page.width) ? 190 : -1
             Layout.fillHeight: true
             color: FluTheme.dark ? "#202020" : "#f7f7f7"
             border.color: FluTheme.frameColor
@@ -203,6 +209,7 @@ FluPage {
 
         Item {
             Layout.preferredWidth: 20
+            Layout.preferredHeight: ResponsiveMetrics.isCompact(page.width) ? 12 : 0
         }
 
         FluFrame {

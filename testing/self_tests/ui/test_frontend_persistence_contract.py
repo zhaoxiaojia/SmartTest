@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 
 from PySide6.QtCore import QSettings
 
@@ -11,6 +14,125 @@ from ui.page_state_migration import migrate_frontend_state
 
 ROOT = Path(__file__).resolve().parents[3]
 QML = ROOT / "ui/example/imports/example/qml"
+
+
+def test_responsive_metrics_and_login_scroll_react_at_runtime():
+    probe = f"""
+import os, sys
+sys.path.insert(0, r"{ROOT / 'ui'}")
+from PySide6.QtCore import QObject, QUrl
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine, QQmlExpression
+from FluentUI import FluentUI
+from example.imports import resource_rc
+from example.bridge.AuthBridge import AuthBridge
+app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]
+engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
+engine.rootContext().setContextProperty("AuthBridge", AuthBridge(project_root=r"{ROOT}"))
+FluentUI.registerTypes(engine); engine.load(QUrl("qrc:/example/qml/window/LoginWindow.qml")); app.processEvents()
+window=engine.rootObjects()[0]; window.setWidth(360); window.setHeight(300); app.processEvents()
+scroll=window.findChild(QObject,"loginScroll"); content=window.findChild(QObject,"loginContent")
+size=QQmlExpression(engine.rootContext(),window,"fittedSizeForGeometry(Qt.rect(1920,0,500,400), true)").evaluate()[0]
+print(bool(scroll), scroll.property("contentHeight") >= scroll.property("height"),
+      scroll.property("contentWidth") <= scroll.property("width"),
+      content.property("width") <= scroll.property("width"), size.width(), size.height(), len(warnings))
+"""
+    result = subprocess.run(
+        [str(ROOT / ".venv/Scripts/python.exe"), "-c", probe], cwd=ROOT,
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"), capture_output=True,
+        text=True, timeout=20,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "True True True True 460.0 368.0 0" in result.stdout
+
+
+def test_actual_qml_layout_families_resize_at_supported_widths():
+    probe = f"""
+import json, sys
+from pathlib import Path
+sys.path.insert(0, r"{ROOT / 'ui'}"); sys.path.insert(0, r"{ROOT}")
+from PySide6.QtCore import QUrl
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine, QQmlComponent
+from FluentUI import FluentUI
+from example.imports import resource_rc
+from example.bridge.HomeBridge import HomeBridge
+from example.bridge.RunBridge import RunBridge
+from example.bridge.DebugBridge import DebugBridge
+from example.bridge.TestPageBridge import TestPageBridge
+from example import tool_main
+from example.context_registry import register_context_objects
+app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]
+engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
+objects=tool_main.create_context_objects(engine)
+objects.update({{"HomeBridge":HomeBridge(),"RunBridge":RunBridge(Path(r"{ROOT}")),"DebugBridge":DebugBridge(Path(r"{ROOT}")),"TestPageBridge":TestPageBridge(Path(r"{ROOT}"))}})
+register_context_objects(engine,objects); FluentUI.registerTypes(engine)
+widths=[960,1024,1366,1920]
+def probe(source, prop):
+ c=QQmlComponent(engine,QUrl(source)); item=c.create(); assert item is not None,[x.toString() for x in c.errors()]
+ rows=[]
+ for width in widths:
+  item.setWidth(width); item.setHeight(640); app.processEvents(); rows.append(item.property(prop))
+ item.deleteLater(); app.processEvents(); return rows
+result={{
+ "cards":probe("qrc:/example/qml/page/T_Home.qml","responsiveMetricColumns"),
+ "testconfig":probe("qrc:/example/qml/page/T_TestConfig.qml","responsiveOrientation"),
+ "master":probe("qrc:/example/qml/component/issue/JiraIssueBrowserLayout.qml","responsiveOrientation"),
+ "log":probe("qrc:/example/qml/page/T_Run.qml","responsiveHeaderColumns"),
+ "panels":probe("qrc:/example/qml/page/T_Debug.qml","responsivePanelColumns"),
+ "audit":probe("qrc:/example/qml/component/jiraaudit/JiraAuditWorkspace.qml","responsiveLayout"),
+ "dialog":probe("qrc:/example/qml/component/issue/JiraCreateBatchDialog.qml","responsivePanelWidth")}}
+objects["RedmineBridge"].close(); print(json.dumps(result),len(warnings),warnings)
+"""
+    result = subprocess.run(
+        [str(ROOT / ".venv/Scripts/python.exe"), "-c", probe], cwd=ROOT,
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"), capture_output=True,
+        text=True, timeout=40,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    payload = json.loads(result.stdout.splitlines()[-1].rsplit(" ", 2)[0])
+    assert payload == {
+        "cards": [2, 2, 4, 4],
+        "testconfig": [1, 1, 1, 1],
+        "master": [1, 1, 1, 1],
+        "log": [5, 5, 5, 5],
+        "panels": [2, 2, 2, 2],
+        "audit": [1, 1, 2, 2],
+        "dialog": [864.0, 921.6, 1229.4, 1728.0],
+    }
+    assert " 0 []" in result.stdout.splitlines()[-1]
+
+
+def test_adaptive_window_selects_saved_screen_and_clamps_oversized_geometry():
+    probe = f"""
+import sys
+sys.path.insert(0, r"{ROOT / 'ui'}")
+from PySide6.QtCore import QUrl
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from FluentUI import FluentUI
+from example.imports import resource_rc
+app=QGuiApplication([]); engine=QQmlApplicationEngine(); FluentUI.registerTypes(engine)
+engine.loadData(b'''import QtQuick 2.15; import QtQuick.Window 2.15; import "qrc:/example/qml/global";
+Window {{ id:w; width:1000; height:700; visible:false
+ AdaptiveWindow {{ id:a; target:w; availableRatio:0.8 }}
+ property rect primary: a.selectGeometry([Qt.rect(0,0,1920,1080),Qt.rect(1920,0,2560,1440)],100,100,900,600,Qt.rect(0,0,1920,1080))
+ property rect external: a.selectGeometry([Qt.rect(0,0,1920,1080),Qt.rect(1920,0,2560,1440)],2100,100,1200,800,Qt.rect(0,0,1920,1080))
+ property rect disconnected: a.selectGeometry([Qt.rect(0,0,1920,1080)],2500,100,1200,800,Qt.rect(0,0,1920,1080))
+ property size oversized: a.boundedSize(4000,3000,Qt.rect(1920,0,1000,600))
+}}''')
+root=engine.rootObjects()[0]
+print(root.property("primary").x(), root.property("external").x(),
+      root.property("disconnected").x(), root.property("oversized").width(),
+      root.property("oversized").height())
+"""
+    result = subprocess.run(
+        [str(ROOT / ".venv/Scripts/python.exe"), "-c", probe], cwd=ROOT,
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"), capture_output=True,
+        text=True, timeout=20,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "0.0 1920.0 0.0 800.0 480.0" in result.stdout
 
 
 class MemorySettings:

@@ -9,8 +9,8 @@ FluPopup {
     property string imageSource: ""
     property string imageTitle: ""
 
-    width: Math.min(Math.max(720, previewImage.implicitWidth + 16), parent ? parent.width * 0.98 : 1320)
-    height: Math.min(Math.max(480, previewImage.implicitHeight + header.height + 16), parent ? parent.height * 0.98 : 860)
+    width: Math.min(Math.max(320, previewImage.implicitWidth + 16), parent ? parent.width * 0.9 : 1320)
+    height: Math.min(Math.max(240, previewImage.implicitHeight + header.height + 16), parent ? parent.height * 0.9 : 860)
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
     function showImage(source, title) {

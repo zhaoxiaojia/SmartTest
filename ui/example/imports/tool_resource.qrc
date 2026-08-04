@@ -6,6 +6,9 @@
 <file>example/qml/window/LoginWindow.qml</file>
 <file>example/qml/window/AboutWindow.qml</file>
 <file>example/qml/global/GlobalModel.qml</file>
+<file>example/qml/global/ResponsiveMetrics.qml</file>
+<file>example/qml/global/AdaptiveWindow.qml</file>
+<file>example/qml/global/AdaptiveSizing.js</file>
 <file alias="example/qml/global/qmldir">example/qml/tool/global_qmldir</file>
 <file>example/qml/component/ToolGroupExpander.qml</file>
 <file>example/qml/component/jiraaudit/JiraAuditWorkspace.qml</file>

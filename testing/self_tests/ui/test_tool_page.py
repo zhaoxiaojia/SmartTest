@@ -771,7 +771,7 @@ def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():
     assert 'valueRole: safeCount(root.projectOptions) ? "id" : ""' in browser
     assert "projectFilter.currentValue" in browser
     assert browser.count("id: projectFilter") == 1
-    assert "popup.width: Math.max(width, 640)" in browser
+    assert "popup.width: Math.min(root.width * 0.9, Math.max(width, 420))" in browser
     assert "ToolTip.text: displayText" in browser
     assert "selectedProjectId()" in browser
     assert "signal issueSelected" in browser
@@ -1193,7 +1193,7 @@ def test_confluence_workspace_declares_responsive_candidate_grid_contract():
     assert "id: candidateGrid" in workspace
     assert "candidateColumnCount" in workspace
     assert "candidateVisibleRowCount" in workspace
-    assert "width < 800 ? 1 : (width < 1200 ? 2 : 3)" in workspace
+    assert "ResponsiveMetrics.columnsForWidth(width, 3)" in workspace
     assert "text: modelData.displayName || modelData.name" in workspace
     assert "modelData.projectId + \")\"" not in workspace
     assert "wrapMode: Text.Wrap" in workspace

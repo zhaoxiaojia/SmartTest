@@ -9,6 +9,7 @@ FluPage {
     id: page
     title: qsTr("Jira")
     launchMode: FluPageType.SingleInstance
+    property int responsiveLayout: ResponsiveMetrics.layoutForWidth(width)
 
     property var promptSuggestions: [
         qsTr("Show the issues assigned to me this week and point out blockers."),
@@ -933,11 +934,12 @@ FluPage {
         FluSplitLayout{
             Layout.fillWidth: true
             Layout.fillHeight: true
-            orientation: Qt.Horizontal
+            orientation: page.responsiveLayout === ResponsiveMetrics.compact ? Qt.Vertical : Qt.Horizontal
 
             FluFrame{
                 SplitView.preferredWidth: 300
-                SplitView.minimumWidth: 260
+                SplitView.minimumWidth: page.responsiveLayout === ResponsiveMetrics.compact ? 0 : 260
+                SplitView.minimumHeight: page.responsiveLayout === ResponsiveMetrics.compact ? 180 : 0
                 SplitView.maximumWidth: 380
                 SplitView.fillHeight: true
                 padding: 10
@@ -1539,7 +1541,8 @@ FluPage {
 
             FluFrame{
                 SplitView.fillWidth: true
-                SplitView.minimumWidth: 420
+                SplitView.minimumWidth: page.responsiveLayout === ResponsiveMetrics.compact ? 0 : 420
+                SplitView.minimumHeight: page.responsiveLayout === ResponsiveMetrics.compact ? 240 : 0
                 SplitView.fillHeight: true
                 padding: 0
 
@@ -1884,7 +1887,8 @@ FluPage {
 
             FluFrame{
                 SplitView.preferredWidth: 360
-                SplitView.minimumWidth: 300
+                SplitView.minimumWidth: page.responsiveLayout === ResponsiveMetrics.compact ? 0 : 300
+                SplitView.minimumHeight: page.responsiveLayout === ResponsiveMetrics.compact ? 180 : 0
                 SplitView.maximumWidth: 460
                 SplitView.fillHeight: true
                 padding: 10

@@ -5,6 +5,8 @@ import FluentUI 1.0
 
 Item {
     id: root
+    readonly property real responsivePanelWidth: dialogPanel.width
+    readonly property real responsivePanelHeight: dialogPanel.height
     property var cloneDrafts: []
     property string batchState: "idle"
     property int loaded: 0
@@ -27,9 +29,10 @@ Item {
 
     Rectangle { anchors.fill: parent; color: FluTheme.dark ? "#CC111111" : "#99000000" }
     FluFrame {
+        id: dialogPanel
         anchors.centerIn: parent
-        width: Math.max(0, parent.width - 32)
-        height: Math.max(0, parent.height - 32)
+        width: Math.max(0, parent.width * 0.9)
+        height: Math.max(0, parent.height * 0.9)
         padding: 0
         ColumnLayout {
             anchors.fill: parent

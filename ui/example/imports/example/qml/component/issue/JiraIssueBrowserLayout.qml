@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import FluentUI 1.0
+import "../../global"
 
 Item {
     id: root
@@ -31,6 +32,7 @@ Item {
     property bool cloneSelectionMode: false
     property bool cloneSelectable: false
     property var cloneSelectedIds: []
+    readonly property int responsiveOrientation: issueSplit.orientation
 
     signal searchRequested(var filters)
     signal quickViewRequested(string quickViewId)
@@ -171,8 +173,9 @@ Item {
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 8
-                RowLayout {
+                GridLayout {
                     Layout.fillWidth: true
+                    columns: ResponsiveMetrics.isCompact(root.width) ? 1 : (ResponsiveMetrics.isMedium(root.width) ? 2 : 5)
                     visible: safeCount(root.quickViews) > 0
                     FluText { text: qsTr("Quick views"); font: FluTextStyle.Caption }
                     Repeater {
@@ -184,18 +187,19 @@ Item {
                     Layout.fillWidth: true
                     FluComboBox { /* persistence-opt-out: transient */
                         id: projectFilter
-                        Layout.preferredWidth: 420
-                        Layout.minimumWidth: 320
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: ResponsiveMetrics.isWide(root.width) ? 420 : 240
+                        Layout.minimumWidth: 0
                         textRole: safeCount(root.projectOptions) ? "label" : ""
                         valueRole: safeCount(root.projectOptions) ? "id" : ""
                         model: safeCount(root.projectOptions) ? root.projectOptions : (safeCount(root.projectFilters) ? root.projectFilters : [qsTr("All projects")])
-                        popup.width: Math.max(width, 640)
+                        popup.width: Math.min(root.width * 0.9, Math.max(width, 420))
                         ToolTip.visible: hovered
                         ToolTip.text: displayText
                     }
-                    FluComboBox { /* persistence-opt-out: transient */ id: statusFilter; Layout.preferredWidth: 140; model: safeCount(root.statusFilters) ? root.statusFilters : [qsTr("All statuses")] }
-                    FluComboBox { /* persistence-opt-out: transient */ id: typeFilter; Layout.preferredWidth: 130; model: safeCount(root.typeFilters) ? root.typeFilters : [qsTr("All types")] }
-                    FluTextBox { /* persistence-opt-out: transient */ id: subjectFilter; Layout.preferredWidth: 180; placeholderText: qsTr("Subject") }
+                    FluComboBox { /* persistence-opt-out: transient */ id: statusFilter; Layout.fillWidth: true; Layout.preferredWidth: 140; model: safeCount(root.statusFilters) ? root.statusFilters : [qsTr("All statuses")] }
+                    FluComboBox { /* persistence-opt-out: transient */ id: typeFilter; Layout.fillWidth: true; Layout.preferredWidth: 130; model: safeCount(root.typeFilters) ? root.typeFilters : [qsTr("All types")] }
+                    FluTextBox { /* persistence-opt-out: transient */ id: subjectFilter; Layout.fillWidth: true; Layout.preferredWidth: 180; placeholderText: qsTr("Subject") }
                     FluTextBox { /* persistence-opt-out: transient */ id: textFilter; Layout.fillWidth: true; placeholderText: qsTr("Contains text") }
                     FluFilledButton {
                         text: qsTr("Search")
@@ -239,9 +243,10 @@ Item {
         }
 
         SplitView {
+            id: issueSplit
             Layout.fillWidth: true
             Layout.fillHeight: true
-            orientation: Qt.Horizontal
+            orientation: ResponsiveMetrics.isCompact(root.width) ? Qt.Vertical : Qt.Horizontal
 
             FluFrame {
                 visible: !root.issueListCollapsed

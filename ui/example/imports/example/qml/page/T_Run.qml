@@ -3,6 +3,7 @@ import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import FluentUI 1.0
 import "../component"
+import "../global"
 
 FluPage {
     id: page_root
@@ -10,6 +11,8 @@ FluPage {
     launchMode: FluPageType.SingleInstance
 
     property int footerHeight: 30
+    property int responsiveLayout: ResponsiveMetrics.layoutForWidth(width)
+    readonly property int responsiveHeaderColumns: runHeader.columns
     property int runVersion: 0
     property var dutRowsModel: []
     property string validationDialogMessage: ""
@@ -74,11 +77,14 @@ FluPage {
             border.width: 1
             border.color: FluTheme.dark ? "#3c3c3c" : "#e5e7eb"
 
-            RowLayout{
+            GridLayout{
+                id: runHeader
                 anchors.fill: parent
                 anchors.leftMargin: 12
                 anchors.rightMargin: 12
-                spacing: 12
+                columns: page_root.responsiveLayout === ResponsiveMetrics.compact ? 2 : 5
+                columnSpacing: 12
+                rowSpacing: 4
 
                 FluText{
                     text: qsTr("DUT Progress")

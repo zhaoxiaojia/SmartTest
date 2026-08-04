@@ -12,6 +12,17 @@ FluWindow {
     minimumHeight: 480
     launchMode: FluWindowType.SingleTask
 
+    AdaptiveWindow {
+        id: adaptiveWindow
+        target: window
+        designWidth: 1100
+        designHeight: 720
+        preferredMinimumWidth: 760
+        preferredMinimumHeight: 480
+    }
+    onScreenChanged: Qt.callLater(adaptiveWindow.constrainToAvailableGeometry)
+    Component.onCompleted: adaptiveWindow.constrainToAvailableGeometry()
+
     FluWindowResultLauncher {
         id: loginLauncher
         objectName: "toolLoginLauncher"

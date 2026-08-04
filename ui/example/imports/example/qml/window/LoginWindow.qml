@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import FluentUI 1.0
+import "../global/AdaptiveSizing.js" as AdaptiveSizing
 
 FluWindow {
 
@@ -13,10 +14,40 @@ FluWindow {
     fixSize: false
     modality: Qt.ApplicationModal
     property bool accountMode: false
+    property rect availableGeometrySnapshot: Qt.rect(0, 0, 960, 540)
+
+    function refreshAvailableGeometrySnapshot() {
+        var currentScreen = window.screen
+        var geometry = currentScreen ? currentScreen.availableGeometry : null
+        if ((!geometry || geometry.width <= 0 || geometry.height <= 0)
+                && Qt.application.primaryScreen)
+            geometry = Qt.application.primaryScreen.availableGeometry
+        if (geometry && geometry.width > 0 && geometry.height > 0)
+            availableGeometrySnapshot = Qt.rect(geometry.x, geometry.y, geometry.width, geometry.height)
+        else
+            availableGeometrySnapshot = Qt.rect(0, 0, 960, 540)
+    }
+
+    onScreenChanged: {
+        refreshAvailableGeometrySnapshot()
+        Qt.callLater(function() { applyModeSize(accountMode) })
+    }
+
+    function fittedSizeForGeometry(geometry, nextAccountMode) {
+        var targetWidth = nextAccountMode ? 460 : 400
+        var targetHeight = nextAccountMode ? 560 : 320
+        return AdaptiveSizing.fittedSize(targetWidth, targetHeight,
+                                         geometry.width, geometry.height)
+    }
 
     function applyModeSize(nextAccountMode){
         var targetWidth = nextAccountMode ? 460 : 400
         var targetHeight = nextAccountMode ? 560 : 320
+        refreshAvailableGeometrySnapshot()
+        var availableGeometry = availableGeometrySnapshot
+        var fitted = fittedSizeForGeometry(availableGeometry, nextAccountMode)
+        targetWidth = fitted.width
+        targetHeight = fitted.height
         window.fixSize = false
         window.minimumWidth = 0
         window.minimumHeight = 0
@@ -76,13 +107,23 @@ FluWindow {
             refreshMode(argument)
         }
 
-    ColumnLayout{
-        anchors{
-            left: parent.left
-            right: parent.right
-            verticalCenter: parent.verticalCenter
-        }
-        spacing: 10
+    Flickable {
+        id: loginScroll
+        objectName: "loginScroll"
+        anchors.fill: parent
+        clip: true
+        contentWidth: width
+        contentHeight: Math.max(height, loginContent.implicitHeight + 40)
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: FluScrollBar {}
+
+        ColumnLayout{
+            id: loginContent
+            objectName: "loginContent"
+            property real safeFormWidth: Math.max(0, loginScroll.width - 40)
+            width: loginScroll.width
+            y: Math.max(20, (loginScroll.height - implicitHeight) / 2)
+            spacing: 10
 
         FluText{
             visible: !accountMode
@@ -97,7 +138,7 @@ FluWindow {
             visible: !accountMode
             items: AuthBridge.currentUsername() !== "" ? [{title: AuthBridge.currentUsername()}] : []
             placeholderText: qsTr("Please enter the account")
-            Layout.preferredWidth: 260
+            Layout.preferredWidth: Math.min(260, loginContent.safeFormWidth)
             Layout.alignment: Qt.AlignHCenter
             onCommit: {
                 textbox_password.forceActiveFocus()
@@ -107,7 +148,7 @@ FluWindow {
         FluTextBox{ /* persistence-opt-out: sensitive */
             id: textbox_password
             visible: !accountMode
-            Layout.preferredWidth: 260
+            Layout.preferredWidth: Math.min(260, loginContent.safeFormWidth)
             placeholderText: qsTr("Please enter your password")
             echoMode:TextInput.Password
             Layout.alignment: Qt.AlignHCenter
@@ -129,7 +170,7 @@ FluWindow {
 
         Rectangle {
             visible: accountMode
-            Layout.preferredWidth: 420
+            Layout.preferredWidth: Math.min(420, loginContent.safeFormWidth)
             Layout.preferredHeight: 520
             Layout.alignment: Qt.AlignHCenter
             radius: 12
@@ -308,6 +349,7 @@ FluWindow {
                     }
                 }
             }
+        }
         }
     }
 }

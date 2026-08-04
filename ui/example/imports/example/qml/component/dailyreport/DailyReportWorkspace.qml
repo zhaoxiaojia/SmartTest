@@ -3,9 +3,11 @@ pragma ComponentBehavior: Bound
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import FluentUI 1.0
+import "../../global"
 
 FluFrame {
     id: root
+    property int responsiveLayout: ResponsiveMetrics.layoutForWidth(width)
     objectName: "dailyReportWorkspace"
     padding: 16
     property string editingId: ""
@@ -13,6 +15,8 @@ FluFrame {
     property bool scheduling: false
 
     Flickable {
+        id: rootFlickable
+        objectName: "dailyReportScrollOwner"
         anchors.fill: parent
         contentWidth: width
         contentHeight: content.implicitHeight
@@ -23,7 +27,9 @@ FluFrame {
             spacing: 10
 
             FluText { text: qsTr("%1 projects · %2 enabled").arg(DailyReportBridge.projectCount).arg(DailyReportBridge.enabledProjectCount); color: FluTheme.fontSecondaryColor }
-            RowLayout {
+            GridLayout {
+                Layout.fillWidth: true
+                columns: root.responsiveLayout === ResponsiveMetrics.compact ? 1 : 4
                 FluButton { text: qsTr("New project"); onClicked: { root.editingId = ""; root.adding = true } }
                 FluButton { objectName: "dailyReportGeneratePreview"; text: qsTr("Generate previews"); enabled: DailyReportBridge.state !== "running"; onClicked: DailyReportBridge.generatePreview() }
                 FluButton { objectName: "dailyReportSendNow"; text: qsTr("Send now"); enabled: DailyReportBridge.previewValid && DailyReportBridge.state !== "running"; onClicked: DailyReportBridge.sendPreview() }

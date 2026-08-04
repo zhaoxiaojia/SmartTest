@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import FluentUI 1.0
+import "../../global"
 
 Flickable {
     id: root
@@ -40,10 +41,11 @@ Flickable {
         width: root.width - 40
         x: 20; y: 16; spacing: 18
         IssueHeader { Layout.fillWidth: true; issue: root.issue; onOpenRequested: (key,url) => root.openIssueRequested(key,url); onExternalLinkRequested: url => root.externalLinkRequested(url) }
-        RowLayout {
-            Layout.fillWidth: true; spacing: 24; Layout.alignment: Qt.AlignTop
-            ColumnLayout { id: left; objectName: "issueDetailLeftColumn"; Layout.preferredWidth: (content.width - 24) * 0.68; Layout.maximumWidth: Layout.preferredWidth; Layout.alignment: Qt.AlignTop; IssueFieldSection { Layout.fillWidth: true; title: qsTr("Details"); fields: root.issue.detailsFields || []; onExternalLinkRequested: url => root.externalLinkRequested(url) } }
-            ColumnLayout { id: right; objectName: "issueDetailRightColumn"; Layout.preferredWidth: (content.width - 24) * 0.32; Layout.maximumWidth: Layout.preferredWidth; Layout.alignment: Qt.AlignTop; IssueFieldSection { Layout.fillWidth: true; title: qsTr("People"); fields: root.issue.peopleFields || []; onExternalLinkRequested: url => root.externalLinkRequested(url) } IssueFieldSection { Layout.fillWidth: true; title: qsTr("Dates"); fields: root.issue.dateFields || []; onExternalLinkRequested: url => root.externalLinkRequested(url) } Repeater { model: root.issue.extraSections || []; IssueFieldSection { Layout.fillWidth: true; title: modelData.title || ""; fields: modelData.fields || []; onExternalLinkRequested: url => root.externalLinkRequested(url) } } }
+        GridLayout {
+            Layout.fillWidth: true; columnSpacing: 24; rowSpacing: 18; Layout.alignment: Qt.AlignTop
+            columns: ResponsiveMetrics.isCompact(root.width) ? 1 : 2
+            ColumnLayout { id: left; objectName: "issueDetailLeftColumn"; Layout.fillWidth: true; Layout.preferredWidth: ResponsiveMetrics.isCompact(root.width) ? content.width : (content.width - 24) * 0.68; Layout.maximumWidth: Layout.preferredWidth; Layout.alignment: Qt.AlignTop; IssueFieldSection { Layout.fillWidth: true; title: qsTr("Details"); fields: root.issue.detailsFields || []; onExternalLinkRequested: url => root.externalLinkRequested(url) } }
+            ColumnLayout { id: right; objectName: "issueDetailRightColumn"; Layout.fillWidth: true; Layout.preferredWidth: ResponsiveMetrics.isCompact(root.width) ? content.width : (content.width - 24) * 0.32; Layout.maximumWidth: Layout.preferredWidth; Layout.alignment: Qt.AlignTop; IssueFieldSection { Layout.fillWidth: true; title: qsTr("People"); fields: root.issue.peopleFields || []; onExternalLinkRequested: url => root.externalLinkRequested(url) } IssueFieldSection { Layout.fillWidth: true; title: qsTr("Dates"); fields: root.issue.dateFields || []; onExternalLinkRequested: url => root.externalLinkRequested(url) } Repeater { model: root.issue.extraSections || []; IssueFieldSection { Layout.fillWidth: true; title: modelData.title || ""; fields: modelData.fields || []; onExternalLinkRequested: url => root.externalLinkRequested(url) } } }
         }
         IssueDescription { Layout.fillWidth: true; description: root.issue.description || "" }
         IssueAttachments { id: attachmentsView; Layout.fillWidth: true; issueKey: root.issue.key || ""; attachments: root.attachments; loading: root.attachmentsLoading; uploading: root.attachmentUploading; error: root.attachmentError; onFilesSelected: (key,urls) => root.attachmentFilesSelected(key,urls); onAttachmentOpenRequested: (key,row) => root.attachmentOpenRequested(key,row) }

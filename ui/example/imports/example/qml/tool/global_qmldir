@@ -1,1 +1,3 @@
 singleton GlobalModel 1.0 GlobalModel.qml
+singleton ResponsiveMetrics 1.0 ResponsiveMetrics.qml
+AdaptiveWindow 1.0 AdaptiveWindow.qml

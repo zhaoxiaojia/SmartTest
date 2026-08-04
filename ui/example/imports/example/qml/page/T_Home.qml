@@ -16,8 +16,9 @@ FluScrollablePage {
     property color mutedTextColor: FluTheme.dark ? "#b6b6b6" : "#667085"
     property color strongTextColor: FluTheme.dark ? "#ffffff" : "#101828"
     property string fallbackWallpaper: "qrc:/example/res/image/bg_home_header.png"
-    property bool compactLayout: page.width < 760
-    property bool wideLayout: page.width > 1180
+    property bool compactLayout: ResponsiveMetrics.isCompact(page.width)
+    property bool wideLayout: ResponsiveMetrics.isWide(page.width)
+    readonly property int responsiveMetricColumns: metricGrid.columns
     property var metricRows: [
         { "label": qsTr("My Jira"), "value": "12", "trend": qsTr("3 waiting for test"), "accent": "#0C66E4" },
         { "label": qsTr("Confluence"), "value": "6", "trend": qsTr("new hot pages"), "accent": "#36B37E" },
@@ -111,11 +112,12 @@ FluScrollablePage {
     }
 
     GridLayout {
+        id: metricGrid
         Layout.fillWidth: true
         Layout.leftMargin: 10
         Layout.rightMargin: 10
         Layout.topMargin: 14
-        columns: page.wideLayout ? 4 : page.width > 520 ? 2 : 1
+        columns: ResponsiveMetrics.columnsForWidth(page.width, 4)
         columnSpacing: 12
         rowSpacing: 12
 
@@ -138,13 +140,13 @@ FluScrollablePage {
         Layout.rightMargin: 10
         Layout.topMargin: 14
         Layout.bottomMargin: 18
-        columns: page.width > 1080 ? 3 : 1
+        columns: page.wideLayout ? 3 : 1
         columnSpacing: 12
         rowSpacing: 12
 
         DashboardPanel {
             Layout.fillWidth: true
-            Layout.preferredHeight: page.width > 1080 ? 390 : 330
+            Layout.preferredHeight: page.wideLayout ? 390 : 330
             title: qsTr("My Jira")
             subtitle: qsTr("Personal issues from intranet MCP")
 
@@ -176,7 +178,7 @@ FluScrollablePage {
 
         DashboardPanel {
             Layout.fillWidth: true
-            Layout.preferredHeight: page.width > 1080 ? 390 : 310
+            Layout.preferredHeight: page.wideLayout ? 390 : 310
             title: qsTr("Confluence Hotspots")
             subtitle: qsTr("Pages likely useful for today's work")
 
@@ -209,7 +211,7 @@ FluScrollablePage {
 
         DashboardPanel {
             Layout.fillWidth: true
-            Layout.preferredHeight: page.width > 1080 ? 390 : 310
+            Layout.preferredHeight: page.wideLayout ? 390 : 310
             title: qsTr("Internal Signals")
             subtitle: qsTr("Company and lab information")
 

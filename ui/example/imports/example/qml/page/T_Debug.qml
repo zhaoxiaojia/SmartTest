@@ -6,11 +6,14 @@ import FluentUI 1.0
 import "../global"
 
 FluScrollablePage {
+    id: page_root
     title: qsTr("Debug")
     launchMode: FluPageType.SingleInstance
     focus: true
 
     property bool loadingVideo: false
+    property int responsiveLayout: ResponsiveMetrics.layoutForWidth(width)
+    readonly property int responsivePanelColumns: debugPanelGrid.columns
     property var reviewSession: ({})
     property var currentFrame: ({})
     property var eventRows: []
@@ -176,9 +179,11 @@ FluScrollablePage {
             anchors.fill: parent
             spacing: 10
 
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
+        GridLayout {
+            Layout.fillWidth: true
+            columns: page_root.responsiveLayout === ResponsiveMetrics.compact ? 1 : 2
+                columnSpacing: 8
+                rowSpacing: 8
 
                 FluText {
                     text: qsTr("KPI Video Tool")
@@ -247,15 +252,18 @@ FluScrollablePage {
         Layout.preferredHeight: 760
         padding: 8
 
-        RowLayout {
+        GridLayout {
+            id: debugPanelGrid
             anchors.fill: parent
-            spacing: 8
+            columns: page_root.responsiveLayout === ResponsiveMetrics.compact ? 1 : 2
+            columnSpacing: 8
+            rowSpacing: 8
 
             Rectangle {
                 id: videoCanvas
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.minimumWidth: 640
+                Layout.minimumWidth: page_root.responsiveLayout === ResponsiveMetrics.compact ? 0 : 640
                 color: FluTheme.dark ? "#101010" : "#f6f6f6"
                 border.width: 1
                 border.color: FluTheme.frameColor

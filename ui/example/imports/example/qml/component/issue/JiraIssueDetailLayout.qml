@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import FluentUI 1.0
+import "../../global"
 
 Flickable {
     id: root
@@ -125,12 +126,15 @@ Flickable {
             }
         }
 
-        RowLayout {
+        GridLayout {
             Layout.fillWidth: true
-            spacing: 24
+            columnSpacing: 24
+            rowSpacing: 18
             Layout.alignment: Qt.AlignTop
+            columns: ResponsiveMetrics.isCompact(root.width) ? 1 : 2
             ColumnLayout {
-                Layout.preferredWidth: (content.width - 24) * 0.68
+                Layout.fillWidth: true
+                Layout.preferredWidth: ResponsiveMetrics.isCompact(root.width) ? content.width : (content.width - 24) * 0.68
                 Layout.maximumWidth: Layout.preferredWidth
                 Layout.alignment: Qt.AlignTop
                 spacing: 18
@@ -160,7 +164,8 @@ Flickable {
                 }
             }
             ColumnLayout {
-                Layout.preferredWidth: (content.width - 24) * 0.32
+                Layout.fillWidth: true
+                Layout.preferredWidth: ResponsiveMetrics.isCompact(root.width) ? content.width : (content.width - 24) * 0.32
                 Layout.maximumWidth: Layout.preferredWidth
                 Layout.alignment: Qt.AlignTop
                 spacing: 18

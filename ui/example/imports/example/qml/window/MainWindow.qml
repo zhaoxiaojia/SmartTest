@@ -26,6 +26,15 @@ import "../global"
     property string closeAction: ""
     property bool restoringWindowState: true
 
+    AdaptiveWindow {
+        id: adaptiveWindow
+        target: window
+        designWidth: 1000
+        designHeight: 668
+        preferredMinimumWidth: 668
+        preferredMinimumHeight: 320
+    }
+
     function openTourIfReady() {
         if (lazyLoaded && !windowState.tourShown) {
             tour.open()
@@ -123,10 +132,23 @@ import "../global"
         rememberCloseAction = windowState.rememberCloseAction
         closeAction = windowState.closeAction
         fitsAppBarWindows = windowState.fitsAppBarWindows
+        adaptiveWindow.restoreGeometry(windowState.windowX, windowState.windowY,
+                                       windowState.windowWidth, windowState.windowHeight)
+        if (windowState.windowMaximized)
+            window.showMaximized()
+        GlobalModel.displayMode = windowState.navigationExpanded
+                ? FluNavigationViewType.Open : FluNavigationViewType.Compact
         restoringWindowState = false
         openTourIfReady()
         checkUpdate(true)
     }
+
+    onXChanged: if (!restoringWindowState && visibility === Window.Windowed) windowState.windowX = x
+    onYChanged: if (!restoringWindowState && visibility === Window.Windowed) windowState.windowY = y
+    onWidthChanged: if (!restoringWindowState && visibility === Window.Windowed) windowState.windowWidth = width
+    onHeightChanged: if (!restoringWindowState && visibility === Window.Windowed) windowState.windowHeight = height
+    onVisibilityChanged: if (!restoringWindowState) windowState.windowMaximized = visibility === Window.Maximized
+    onScreenChanged: Qt.callLater(adaptiveWindow.constrainToAvailableGeometry)
 
     Component.onDestruction: {
         FluRouter.exit()
@@ -317,6 +339,7 @@ import "../global"
                 title:"SmartTest"
                 onCollapseRequested: (collapsed)=>{
                     GlobalModel.displayMode = collapsed ? FluNavigationViewType.Compact : FluNavigationViewType.Open
+                    windowState.navigationExpanded = !collapsed
                 }
                 onDisplayModeChanged: ItemsFooter.compact = displayMode === FluNavigationViewType.Compact
                 onLogoClicked:{
