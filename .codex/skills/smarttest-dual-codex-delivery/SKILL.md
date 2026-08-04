@@ -46,9 +46,9 @@ Apply the single-reader rule: Atlas owns source requirements and the acceptance 
 
 - Maximum team: Atlas plus one Mason. Mason may not delegate. Never create parallel, reviewer, explorer, tester, or replacement agents.
 - Spawn Mason at most once per task and reuse that thread for all rework.
-- Per Atlas turn, call `wait_agent` at most twice and never consecutively. Size waits to the work: use about 5 minutes for active implementation and up to 10 minutes for final validation unless Mason has already reported that completion is imminent. If the second wait is incomplete, stop that Atlas turn; an explicit user request to continue starts a fresh wait budget without restarting or replacing Mason.
+- Per Atlas turn, call `wait_agent` at most six times and never consecutively; check and communicate status between waits. Size waits to the work: use about 5 minutes for active implementation and up to 10 minutes for final validation unless Mason has already reported that completion is imminent. If the sixth wait is incomplete, stop that Atlas turn; an explicit user request to continue starts a fresh wait budget without restarting or replacing Mason.
 - Send at most one consolidated `followup_task` per rework round.
-- Record weekly quota before delegation. Report at +3 percentage points; stop for Coco's approval at +5 points or any +5 points within 30 minutes.
+- Ask for and record weekly quota only when the work is expected to need multiple Mason rounds, including a new business implementation or a substantial slimming/refactor plan. Do not ask for small bounded changes, Atlas-only work, or work expected to finish in one Mason round. If a small task expands and needs another Mason round, ask before that next round. Once a baseline is recorded, report at +3 percentage points; stop for Coco's approval at +5 points or any +5 points within 30 minutes.
 - Atlas diagnostics use bounded searches/log slices and one hypothesis at a time. Do not repeat equivalent commands, duplicate Mason's investigation, or read full repositories/logs without a stated need.
 
 ## Compact Task Contract
