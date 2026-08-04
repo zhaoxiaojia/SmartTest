@@ -1,69 +1,35 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
 <TS version="2.1" language="en_US">
-<context>
-    <name>AIBridge</name>
-    <message>
-        <source>Ready</source>
-        <translation type="vanished">Ready</translation>
-    </message>
-    <message>
-        <source>Thinking...</source>
-        <translation type="vanished">Thinking...</translation>
-    </message>
-    <message>
-        <source>AI request failed: {message}</source>
-        <translation type="vanished">AI request failed: {message}</translation>
-    </message>
-    <message>
-        <source>New chat</source>
-        <translation type="vanished">New chat</translation>
-    </message>
-    <message>
-        <source>Attachment is only available for text-like files.</source>
-        <translation type="vanished">Attachment is only available for text-like files.</translation>
-    </message>
-    <message>
-        <source>Attachment is too large. Keep files under 1 MB for this preview.</source>
-        <translation type="vanished">Attachment is too large. Keep files under 1 MB for this preview.</translation>
-    </message>
-    <message>
-        <source>Attachment could not be read: {message}</source>
-        <translation type="vanished">Attachment could not be read: {message}</translation>
-    </message>
-    <message>
-        <source>No response content was returned.</source>
-        <translation type="vanished">No response content was returned.</translation>
-    </message>
-</context>
 <context>
     <name>AISettingsBridge</name>
     <message>
-        <location filename="bridge/AISettingsBridge.py" line="66" />
+        <location filename="bridge/AISettingsBridge.py" line="66"/>
         <source>Company Intranet Kimi</source>
         <translation>Company Intranet Kimi</translation>
     </message>
     <message>
-        <location filename="bridge/AISettingsBridge.py" line="67" />
+        <location filename="bridge/AISettingsBridge.py" line="67"/>
         <source>Public DeepSeek</source>
         <translation>Public DeepSeek</translation>
     </message>
     <message>
-        <location filename="bridge/AISettingsBridge.py" line="59" />
+        <location filename="bridge/AISettingsBridge.py" line="59"/>
         <source>Unable to select the AI model. Try again.</source>
         <translation>Unable to select the AI model. Try again.</translation>
     </message>
     <message>
-        <location filename="bridge/AISettingsBridge.py" line="75" />
+        <location filename="bridge/AISettingsBridge.py" line="75"/>
         <source>Enter an API key.</source>
         <translation>Enter an API key.</translation>
     </message>
     <message>
-        <location filename="bridge/AISettingsBridge.py" line="81" />
+        <location filename="bridge/AISettingsBridge.py" line="81"/>
         <source>Unable to save the API key. Check the key and try again.</source>
         <translation>Unable to save the API key. Check the key and try again.</translation>
     </message>
     <message>
-        <location filename="bridge/AISettingsBridge.py" line="92" />
+        <location filename="bridge/AISettingsBridge.py" line="92"/>
         <source>Unable to clear the API key. Try again.</source>
         <translation>Unable to clear the API key. Try again.</translation>
     </message>
@@ -71,37 +37,37 @@
 <context>
     <name>AboutWindow</name>
     <message>
-        <location filename="imports/example/qml/window/AboutWindow.qml" line="8" />
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="9"/>
         <source>About</source>
         <translation type="unfinished">About</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/AboutWindow.qml" line="25" />
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="26"/>
         <source>Version: %1</source>
         <translation>Version: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/AboutWindow.qml" line="30" />
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="31"/>
         <source>Build time: %1</source>
         <translation>Build time: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/AboutWindow.qml" line="30" />
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="31"/>
         <source>Build time: unavailable</source>
         <translation>Build time: unavailable</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/AboutWindow.qml" line="35" />
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="36"/>
         <source>Update checks and external links are disabled by default.</source>
         <translation>Update checks and external links are disabled by default.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/AboutWindow.qml" line="41" />
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="42"/>
         <source>about.release.v1_1_0.fixes.title</source>
         <translation>v1.1.0 Fixes</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/AboutWindow.qml" line="47" />
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="48"/>
         <source>about.release.v1_1_0.fixes.body</source>
         <translation>1. Fixed report export not responding.
 2. Fixed missing report details.
@@ -110,19 +76,19 @@
 5. Fixed CPU frequency write failures being reported as success.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/AboutWindow.qml" line="54" />
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="55"/>
         <source>about.release.v1_1_0.new.title</source>
         <translation>v1.1.0 New</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/AboutWindow.qml" line="60" />
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="61"/>
         <source>about.release.v1_1_0.new.body</source>
         <translation>1. Added interval settings for Wi-Fi/Bluetooth on-off cases.
 2. Added log color assignment by domain and level.
 3. Changed test reports to HTML format.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/AboutWindow.qml" line="73" />
+        <location filename="imports/example/qml/window/AboutWindow.qml" line="74"/>
         <source>OK</source>
         <translation>OK</translation>
     </message>
@@ -130,47 +96,47 @@
 <context>
     <name>App</name>
     <message>
-        <location filename="imports/example/qml/App.qml" line="74" />
+        <location filename="imports/example/qml/App.qml" line="74"/>
         <source>Quit</source>
         <translation>Quit</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/App.qml" line="81" />
+        <location filename="imports/example/qml/App.qml" line="81"/>
         <source>Test1</source>
         <translation>Test1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/App.qml" line="88" />
+        <location filename="imports/example/qml/App.qml" line="88"/>
         <source>Test2</source>
         <translation>Test2</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/App.qml" line="95" />
+        <location filename="imports/example/qml/App.qml" line="95"/>
         <source>Test3</source>
         <translation>Test3</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/App.qml" line="102" />
+        <location filename="imports/example/qml/App.qml" line="102"/>
         <source>Test4</source>
         <translation>Test4</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/App.qml" line="109" />
+        <location filename="imports/example/qml/App.qml" line="109"/>
         <source>Test5</source>
         <translation>Test5</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/App.qml" line="116" />
+        <location filename="imports/example/qml/App.qml" line="116"/>
         <source>Test6</source>
         <translation>Test6</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/App.qml" line="123" />
+        <location filename="imports/example/qml/App.qml" line="123"/>
         <source>Test7</source>
         <translation>Test7</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/App.qml" line="130" />
+        <location filename="imports/example/qml/App.qml" line="130"/>
         <source>Test8</source>
         <translation>Test8</translation>
     </message>
@@ -178,27 +144,27 @@
 <context>
     <name>AuthBridge</name>
     <message>
-        <location filename="bridge/AuthBridge.py" line="503" />
+        <location filename="bridge/AuthBridge.py" line="503"/>
         <source>Account or password cannot be empty.</source>
         <translation>Account or password cannot be empty.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="510" />
+        <location filename="bridge/AuthBridge.py" line="510"/>
         <source>ldap3 is not installed in the current Python environment.</source>
         <translation>ldap3 is not installed in the current Python environment.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="521" />
+        <location filename="bridge/AuthBridge.py" line="521"/>
         <source>LDAP sign-in failed. {detail}</source>
         <translation>LDAP sign-in failed. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="524" />
+        <location filename="bridge/AuthBridge.py" line="524"/>
         <source>LDAP sign-in failed. Please check your account or password.</source>
         <translation>LDAP sign-in failed. Please check your account or password.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="545" />
+        <location filename="bridge/AuthBridge.py" line="545"/>
         <source>Sign-in successful. Welcome, {username}</source>
         <translation>Sign-in successful. Welcome, {username}</translation>
     </message>
@@ -206,39 +172,45 @@
 <context>
     <name>BootVideoBridge</name>
     <message>
+        <location filename="bridge/BootVideoBridge.py" line="202"/>
         <source>Boot video test is already running.</source>
-        <translation type="vanished">Boot video test is already running.</translation>
+        <translation>Boot video test is already running.</translation>
     </message>
     <message>
+        <location filename="bridge/BootVideoBridge.py" line="237"/>
         <source>Open the camera before capturing a template.</source>
-        <translation type="vanished">Open the camera before capturing a template.</translation>
+        <translation>Open the camera before capturing a template.</translation>
     </message>
     <message>
+        <location filename="bridge/BootVideoBridge.py" line="258"/>
         <source>No boot video result folder is available.</source>
-        <translation type="vanished">No boot video result folder is available.</translation>
+        <translation>No boot video result folder is available.</translation>
     </message>
     <message>
+        <location filename="bridge/BootVideoBridge.py" line="469"/>
         <source>Logo template is not configured.</source>
-        <translation type="vanished">Logo template is not configured.</translation>
+        <translation>Logo template is not configured.</translation>
     </message>
     <message>
+        <location filename="bridge/BootVideoBridge.py" line="471"/>
         <source>Home template is not configured.</source>
-        <translation type="vanished">Home template is not configured.</translation>
+        <translation>Home template is not configured.</translation>
     </message>
     <message>
+        <location filename="bridge/BootVideoBridge.py" line="208"/>
         <source>Logo and Home templates must be different.</source>
-        <translation type="vanished">Logo and Home templates must be different.</translation>
+        <translation>Logo and Home templates must be different.</translation>
     </message>
 </context>
 <context>
     <name>CodeExpander</name>
     <message>
-        <location filename="imports/example/qml/component/CodeExpander.qml" line="11" />
+        <location filename="imports/example/qml/component/CodeExpander.qml" line="11"/>
         <source>Source</source>
         <translation>Source</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/CodeExpander.qml" line="37" />
+        <location filename="imports/example/qml/component/CodeExpander.qml" line="37"/>
         <source>The Copy is Successful</source>
         <translation>The Copy is Successful</translation>
     </message>
@@ -246,177 +218,183 @@
 <context>
     <name>ConfluenceAuditBridge</name>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="108" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="110"/>
         <source>Ready to audit all Confluence projects.</source>
         <translation>Ready to audit all Confluence projects.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="312" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="314"/>
         <source>Cached Project Space data is ready.</source>
         <translation>Cached Project Space data is ready.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="313" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="315"/>
         <source>Loading Project Space for the first time.</source>
         <translation>Loading Project Space for the first time.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="314" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="316"/>
         <source>Refreshing Project Space in the background.</source>
         <translation>Refreshing Project Space in the background.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="315" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="317"/>
         <source>Project Space updated.</source>
         <translation>Project Space updated.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="318" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="320"/>
         <source>Refresh failed; using cached Project Space data.</source>
         <translation>Refresh failed; using cached Project Space data.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="320" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="322"/>
         <source>Project Space could not be loaded. Retry after checking LDAP and network access.</source>
         <translation>Project Space could not be loaded. Retry after checking LDAP and network access.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="325" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="327"/>
         <source>Confluence support is unavailable. Install project dependencies in the project .venv.</source>
         <translation>Confluence support is unavailable. Install project dependencies in the project .venv.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="413" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="415"/>
         <source>Project Space options refreshed with {count} inaccessible or unreadable project pages.</source>
         <translation>Project Space options refreshed with {count} inaccessible or unreadable project pages.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="568" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="570"/>
         <source>Sign in with LDAP again to audit Confluence projects.</source>
         <translation>Sign in with LDAP again to audit Confluence projects.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="585" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="587"/>
         <source>Discovering all A-level development projects...</source>
         <translation>Discovering all A-level development projects...</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="686" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="688"/>
         <source>Apply project filters before enabling the weekly plan.</source>
         <translation>Apply project filters before enabling the weekly plan.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="689" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="691"/>
         <source>Select at least one project before enabling the weekly plan.</source>
         <translation>Select at least one project before enabling the weekly plan.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="691" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="693"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="808"/>
         <source>Confluence weekly project audit</source>
         <translation>Confluence weekly project audit</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="859" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="805"/>
+        <source>Project Weekly Audit</source>
+        <translation>Project Weekly Audit</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="871"/>
         <source>Auditing Confluence project content...</source>
         <translation>Auditing Confluence project content...</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="859" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="871"/>
         <source>Discovering project pages...</source>
         <translation>Discovering project pages...</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="901" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="913"/>
         <source>Review completed. No projects require follow-up.</source>
         <translation>Review completed. No projects require follow-up.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="903" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="915"/>
         <source>Confluence audit completed.</source>
         <translation>Confluence audit completed.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="899" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="911"/>
         <source>No eligible A-level development projects were found.</source>
         <translation>No eligible A-level development projects were found.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="635" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="637"/>
         <source>Confluence audit Excel workbook exported.</source>
         <translation>Confluence audit Excel workbook exported.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="641" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="643"/>
         <source>Failed to export the Confluence audit Excel workbook.</source>
         <translation>Failed to export the Confluence audit Excel workbook.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="652" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="654"/>
         <source>Exported report file was not found.</source>
         <translation>Exported report file was not found.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="656" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="658"/>
         <source>Failed to open the report directory.</source>
         <translation>Failed to open the report directory.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="941" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="953"/>
         <source>Confluence authentication failed. Sign in with LDAP again.</source>
         <translation>Confluence authentication failed. Sign in with LDAP again.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="942" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="954"/>
         <source>Confluence network access failed. Check the network or VPN, then try again.</source>
         <translation>Confluence network access failed. Check the network or VPN, then try again.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="947" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="959"/>
         <source>Confluence audit failed. Review the application log, then try again.</source>
         <translation>Confluence audit failed. Review the application log, then try again.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="946" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="958"/>
         <source>Confluence support is missing. Start SmartTest with the project .venv or run support/scripts/script-init-venv.py.</source>
         <translation>Confluence support is missing. Start SmartTest with the project .venv or run support/scripts/script-init-venv.py.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="178" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="180"/>
         <source>Invalid Confluence project filter.</source>
         <translation>Invalid Confluence project filter.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="849" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="861"/>
         <source>Failed to update weekly audit plans.</source>
         <translation>Failed to update weekly audit plans.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="829" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="840"/>
         <source>Any</source>
         <translation>Any</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="833" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="844"/>
         <source>Years: {years}; support modes: {support_modes}; project statuses: {project_statuses}; selected projects: {selected_count}</source>
         <translation>Years: {years}; support modes: {support_modes}; project statuses: {project_statuses}; selected projects: {selected_count}</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="415" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="417"/>
         <source>Project Space filter options refreshed.</source>
         <translation>Project Space filter options refreshed.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="435" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="437"/>
         <source>Refresh Project Space options before applying filters.</source>
         <translation>Refresh Project Space options before applying filters.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="463" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="465"/>
         <source>Project filters applied.</source>
         <translation>Project filters applied.</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="973" />
+        <location filename="bridge/ConfluenceAuditBridge.py" line="985"/>
         <source>The login changed. Refreshing Project Space options.</source>
         <translation>The login changed. Refreshing Project Space options.</translation>
     </message>
@@ -424,222 +402,449 @@
 <context>
     <name>ConfluenceAuditWorkspace</name>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="368" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="331"/>
         <source>Audit All Projects Now</source>
         <translation>Audit All Projects Now</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="374" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="337"/>
         <source>Export Excel</source>
         <translation>Export Excel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="271" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="234"/>
         <source>Year</source>
         <translation>Year</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="276" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="239"/>
         <source>Project name</source>
         <translation>Project name</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="380" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="343"/>
         <source>Open report directory</source>
         <translation>Open report directory</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="391" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="354"/>
         <source>Audit Period (Monday–Thursday)</source>
         <translation>Audit Period (Monday–Thursday)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="397" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="360"/>
         <source>Reviewed</source>
         <translation>Reviewed</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="398" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="361"/>
         <source>Follow-up</source>
         <translation>Follow-up</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="399" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="362"/>
         <source>Risk</source>
         <translation>Risk</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="400" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="363"/>
         <source>Failed</source>
         <translation>Failed</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="401" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="364"/>
         <source>Unknown</source>
         <translation>Unknown</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="485" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="448"/>
         <source>Reason</source>
         <translation>Reason</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="491" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="454"/>
         <source>Why it failed</source>
         <translation>Why it failed</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="496" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="459"/>
         <source>Adjustment</source>
         <translation>Adjustment</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="501" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="464"/>
         <source>Open Confluence</source>
         <translation>Open Confluence</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="512" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="475"/>
         <source>No projects require follow-up.</source>
         <translation>No projects require follow-up.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="110" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="60"/>
         <source>Project collection</source>
         <translation>Project collection</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="114" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="64"/>
         <source>Source</source>
         <translation>Source</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="127" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="77"/>
         <source>Refresh filter options</source>
         <translation>Refresh filter options</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="150" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="100"/>
         <source>Years</source>
         <translation>Years</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="152" />
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="181" />
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="210" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="102"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="131"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="160"/>
         <source>available</source>
         <translation>available</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="179" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="129"/>
         <source>Support modes</source>
         <translation>Support modes</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="208" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="158"/>
         <source>Project statuses</source>
         <translation>Project statuses</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="233" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="183"/>
         <source>Apply filters</source>
         <translation>Apply filters</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="40" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="39"/>
         <source>Any</source>
         <translation>Any</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="242" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="192"/>
         <source>Candidate projects</source>
         <translation>Candidate projects</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="247" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="197"/>
         <source>Select all</source>
         <translation>Select all</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="253" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="203"/>
         <source>Clear selection</source>
         <translation>Clear selection</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="259" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="209"/>
         <source>Selected</source>
         <translation>Selected</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="57" />
-        <source>Weekly plans</source>
-        <translation>Weekly plans</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="61" />
-        <source>A weekly plan is enabled</source>
-        <translation>A weekly plan is enabled</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="62" />
-        <source>No weekly plan is enabled</source>
-        <translation>No weekly plan is enabled</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="66" />
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="220"/>
         <source>Enable weekly plan</source>
         <translation>Enable weekly plan</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="88" />
-        <source>Disable</source>
-        <translation>Disable</translation>
     </message>
 </context>
 <context>
     <name>CrashWindow</name>
     <message>
-        <location filename="imports/example/qml/window/CrashWindow.qml" line="11" />
+        <location filename="imports/example/qml/window/CrashWindow.qml" line="11"/>
         <source>Friendly Reminder</source>
         <translation>Friendly Reminder</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/CrashWindow.qml" line="50" />
+        <location filename="imports/example/qml/window/CrashWindow.qml" line="50"/>
         <source>We apologize for the inconvenience caused by an unexpected error</source>
         <translation>We apologize for the inconvenience caused by an unexpected error</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/CrashWindow.qml" line="62" />
+        <location filename="imports/example/qml/window/CrashWindow.qml" line="62"/>
         <source>Report Logs</source>
         <translation>Report Logs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/CrashWindow.qml" line="72" />
+        <location filename="imports/example/qml/window/CrashWindow.qml" line="72"/>
         <source>Restart Program</source>
         <translation>Restart Program</translation>
     </message>
 </context>
 <context>
+    <name>DailyReportBridge</name>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="85"/>
+        <source>Daily Report</source>
+        <translation>Daily Report</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="86"/>
+        <source>Daily Report batch</source>
+        <translation>Daily Report batch</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="101"/>
+        <source>Generating report previews...</source>
+        <translation>Generating report previews...</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="110"/>
+        <source>Sending reports now...</source>
+        <translation>Sending reports now...</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="116"/>
+        <source>Project configuration saved.</source>
+        <translation>Project configuration saved.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="123"/>
+        <source>Project deleted.</source>
+        <translation>Project deleted.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="130"/>
+        <source>Project status updated.</source>
+        <translation>Project status updated.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="150"/>
+        <location filename="bridge/DailyReportBridge.py" line="161"/>
+        <source>Saving batch schedule...</source>
+        <translation>Saving batch schedule...</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="195"/>
+        <source>Report previews generated.</source>
+        <translation>Report previews generated.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="196"/>
+        <source>Immediate delivery completed.</source>
+        <translation>Immediate delivery completed.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="199"/>
+        <source>Immediate delivery completed with failures.</source>
+        <translation>Immediate delivery completed with failures.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="201"/>
+        <location filename="bridge/DailyReportBridge.py" line="204"/>
+        <source>Batch schedule saved.</source>
+        <translation>Batch schedule saved.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="212"/>
+        <source>Daily Report access denied.</source>
+        <translation>Daily Report access denied.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="214"/>
+        <source>Daily Report configuration or operation failed.</source>
+        <translation>Daily Report configuration or operation failed.</translation>
+    </message>
+</context>
+<context>
+    <name>DailyReportPreview</name>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportPreview.qml" line="20"/>
+        <source>Loading preview...</source>
+        <translation>Loading preview...</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportPreview.qml" line="21"/>
+        <source>Preview ready</source>
+        <translation>Preview ready</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportPreview.qml" line="22"/>
+        <source>Failed to load preview.</source>
+        <translation>Failed to load preview.</translation>
+    </message>
+</context>
+<context>
+    <name>DailyReportWorkspace</name>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="25"/>
+        <source>%1 projects · %2 enabled</source>
+        <translation>%1 projects · %2 enabled</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="28"/>
+        <source>Generate previews</source>
+        <translation>Generate previews</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="29"/>
+        <source>Send now</source>
+        <translation>Send now</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="30"/>
+        <source>Schedule delivery</source>
+        <translation>Schedule delivery</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="41"/>
+        <source>Project name</source>
+        <translation>Project name</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="43"/>
+        <source>JQL</source>
+        <translation>JQL</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="44"/>
+        <source>To recipients</source>
+        <translation>To recipients</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="45"/>
+        <source>Cc recipients</source>
+        <translation>Cc recipients</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="46"/>
+        <source>Enabled</source>
+        <translation>Enabled</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="49"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="86"/>
+        <source>Save project</source>
+        <translation>Save project</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="27"/>
+        <source>New project</source>
+        <translation>New project</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="64"/>
+        <source>Daily</source>
+        <translation>Daily</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="64"/>
+        <source>Weekly</source>
+        <translation>Weekly</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="67"/>
+        <source>Monday</source>
+        <translation>Monday</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="67"/>
+        <source>Tuesday</source>
+        <translation>Tuesday</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="67"/>
+        <source>Wednesday</source>
+        <translation>Wednesday</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="67"/>
+        <source>Thursday</source>
+        <translation>Thursday</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="67"/>
+        <source>Friday</source>
+        <translation>Friday</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="67"/>
+        <source>Saturday</source>
+        <translation>Saturday</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="67"/>
+        <source>Sunday</source>
+        <translation>Sunday</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="68"/>
+        <source>Save schedule</source>
+        <translation>Save schedule</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="86"/>
+        <source>Edit</source>
+        <translation>Edit</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="97"/>
+        <source>Delete</source>
+        <translation>Delete</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="101"/>
+        <source>JQL: %1</source>
+        <translation>JQL: %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="103"/>
+        <source>To: %1</source>
+        <translation>To: %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="105"/>
+        <source>CC: %1</source>
+        <translation>CC: %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="107"/>
+        <source>View preview</source>
+        <translation>View preview</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="42"/>
+        <source>Email subject (optional)</source>
+        <translation>Email subject (optional)</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="99"/>
+        <source>Subject: %1</source>
+        <translation>Subject: %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="100"/>
+        <source>Email subject</source>
+        <translation>Email subject</translation>
+    </message>
+</context>
+<context>
     <name>DebugBridge</name>
     <message>
-        <location filename="bridge/DebugBridge.py" line="66" />
-        <location filename="bridge/DebugBridge.py" line="78" />
-        <location filename="bridge/DebugBridge.py" line="91" />
+        <location filename="bridge/DebugBridge.py" line="66"/>
+        <location filename="bridge/DebugBridge.py" line="78"/>
+        <location filename="bridge/DebugBridge.py" line="91"/>
         <source>Load a KPI video first.</source>
-        <translation type="unfinished" />
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="bridge/DebugBridge.py" line="82" />
+        <location filename="bridge/DebugBridge.py" line="82"/>
         <source>No frames available in current video.</source>
-        <translation type="unfinished" />
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="bridge/DebugBridge.py" line="105" />
+        <location filename="bridge/DebugBridge.py" line="105"/>
         <source>Select a video file first.</source>
         <translation>Select a video file first.</translation>
     </message>
     <message>
-        <location filename="bridge/DebugBridge.py" line="39" />
+        <location filename="bridge/DebugBridge.py" line="39"/>
         <source>KPI video loading is already running.</source>
         <oldsource>KPI video analysis is already running.</oldsource>
         <translation type="unfinished">KPI video analysis is already running.</translation>
@@ -648,33 +853,33 @@
 <context>
     <name>FluentInitializrWindow</name>
     <message>
-        <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="12" />
-        <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="31" />
+        <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="12"/>
+        <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="31"/>
         <source>FluentUI Initializr</source>
         <translation>FluentUI Initializr</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="52" />
+        <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="52"/>
         <source>Name</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="60" />
+        <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="60"/>
         <source>Create In</source>
         <translation>Create In</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="64" />
+        <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="64"/>
         <source>Browse</source>
         <translation>Browse</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="94" />
+        <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="94"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="102" />
+        <location filename="imports/example/qml/window/FluentInitializrWindow.qml" line="102"/>
         <source>Create</source>
         <translation>Create</translation>
     </message>
@@ -682,7 +887,7 @@
 <context>
     <name>HotkeyWindow</name>
     <message>
-        <location filename="imports/example/qml/window/HotkeyWindow.qml" line="11" />
+        <location filename="imports/example/qml/window/HotkeyWindow.qml" line="11"/>
         <source>Hotkey</source>
         <translation>Hotkey</translation>
     </message>
@@ -690,69 +895,46 @@
 <context>
     <name>HotloadWindow</name>
     <message>
-        <location filename="imports/example/qml/window/HotloadWindow.qml" line="11" />
+        <location filename="imports/example/qml/window/HotloadWindow.qml" line="11"/>
         <source>Hot Loader</source>
         <translation>Hot Loader</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/HotloadWindow.qml" line="43" />
+        <location filename="imports/example/qml/window/HotloadWindow.qml" line="43"/>
         <source>Drag in a qml file</source>
         <translation>Drag in a qml file</translation>
     </message>
 </context>
 <context>
-    <name>InitializrHelper</name>
-    <message>
-        <location filename="helper/InitializrHelper.py" line="99" />
-        <source>The name cannot be empty</source>
-        <translation>The name cannot be empty</translation>
-    </message>
-    <message>
-        <location filename="helper/InitializrHelper.py" line="102" />
-        <source>The creation path cannot be empty</source>
-        <translation>The creation path cannot be empty</translation>
-    </message>
-    <message>
-        <location filename="helper/InitializrHelper.py" line="106" />
-        <source>The path does not exist</source>
-        <translation>The path does not exist</translation>
-    </message>
-    <message>
-        <location filename="helper/InitializrHelper.py" line="111" />
-        <source>%1 folder already exists</source>
-        <translation>%1 folder already exists</translation>
-    </message>
-</context>
-<context>
     <name>IssueAttachments</name>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="20" />
+        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="20"/>
         <source>Attachments</source>
         <translation type="unfinished">Attachments</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="20" />
-        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="21" />
+        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="20"/>
+        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="21"/>
         <source>Select files</source>
         <translation type="unfinished">Select files</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="23" />
+        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="23"/>
         <source>Select attachments</source>
         <translation type="unfinished">Select attachments</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="31" />
+        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="31"/>
         <source>Uploading...</source>
         <translation type="unfinished">Uploading...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="31" />
+        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="31"/>
         <source>Drop files here or select files</source>
         <translation type="unfinished">Drop files here or select files</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="34" />
+        <location filename="imports/example/qml/component/issue/IssueAttachments.qml" line="34"/>
         <source>Loading attachments...</source>
         <translation type="unfinished">Loading attachments...</translation>
     </message>
@@ -760,43 +942,43 @@
 <context>
     <name>IssueComments</name>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="16" />
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="16"/>
         <source>Comments</source>
         <translation type="unfinished">Comments</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="16" />
-        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="17" />
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="16"/>
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="17"/>
         <source>Comment</source>
         <translation type="unfinished">Comment</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="19" />
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="19"/>
         <source>Loading comments...</source>
         <translation type="unfinished">Loading comments...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="20" />
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="20"/>
         <source>No comments yet.</source>
         <translation type="unfinished">No comments yet.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="34" />
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="34"/>
         <source>Add a comment</source>
         <translation type="unfinished">Add a comment</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="34" />
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="34"/>
         <source>Submitting...</source>
         <translation type="unfinished">Submitting...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="34" />
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="34"/>
         <source>Submit</source>
         <translation type="unfinished">Submit</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="34" />
+        <location filename="imports/example/qml/component/issue/IssueComments.qml" line="34"/>
         <source>Cancel</source>
         <translation type="unfinished">Cancel</translation>
     </message>
@@ -804,12 +986,12 @@
 <context>
     <name>IssueDescription</name>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueDescription.qml" line="9" />
+        <location filename="imports/example/qml/component/issue/IssueDescription.qml" line="9"/>
         <source>Description</source>
         <translation type="unfinished">Description</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueDescription.qml" line="11" />
+        <location filename="imports/example/qml/component/issue/IssueDescription.qml" line="11"/>
         <source>No description.</source>
         <translation type="unfinished">No description.</translation>
     </message>
@@ -817,102 +999,50 @@
 <context>
     <name>IssueDetailView</name>
     <message>
-        <source>Add a comment</source>
-        <translation type="vanished">Add a comment</translation>
-    </message>
-    <message>
-        <source>Attachments</source>
-        <translation type="vanished">Attachments</translation>
-    </message>
-    <message>
-        <source>Comment</source>
-        <translation type="vanished">Comment</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="37" />
+        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="37"/>
         <source>Confirm upload</source>
         <translation>Confirm upload</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="37" />
+        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="37"/>
         <source>Upload</source>
         <translation type="unfinished">Upload</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="37" />
+        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="37"/>
         <source>Cancel</source>
         <translation type="unfinished">Cancel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="46" />
+        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="46"/>
         <source>Dates</source>
         <translation>Dates</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="45" />
+        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="45"/>
         <source>Details</source>
         <translation>Details</translation>
     </message>
     <message>
-        <source>Loading attachments...</source>
-        <translation type="vanished">Loading attachments...</translation>
-    </message>
-    <message>
-        <source>Loading comments...</source>
-        <translation type="vanished">Loading comments...</translation>
-    </message>
-    <message>
-        <source>No description.</source>
-        <translation type="vanished">No description.</translation>
-    </message>
-    <message>
-        <source>Open project</source>
-        <translation type="vanished">Open project</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="46" />
+        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="46"/>
         <source>People</source>
         <translation>People</translation>
     </message>
     <message>
-        <source>Select attachments</source>
-        <translation type="vanished">Select attachments</translation>
-    </message>
-    <message>
-        <source>Select files</source>
-        <translation type="vanished">Select files</translation>
-    </message>
-    <message>
-        <source>Submit</source>
-        <translation type="vanished">Submit</translation>
-    </message>
-    <message>
-        <source>Submitting...</source>
-        <translation type="vanished">Submitting...</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="37" />
+        <location filename="imports/example/qml/component/issue/IssueDetailView.qml" line="37"/>
         <source>Upload the dropped files?</source>
         <translation>Upload the dropped files?</translation>
-    </message>
-    <message>
-        <source>Drop files here or select files</source>
-        <translation type="vanished">Drop files here or select files</translation>
-    </message>
-    <message>
-        <source>Uploading...</source>
-        <translation type="vanished">Uploading...</translation>
     </message>
 </context>
 <context>
     <name>ItemsFooter</name>
     <message>
-        <location filename="imports/example/qml/global/ItemsFooter.qml" line="19" />
+        <location filename="imports/example/qml/global/ItemsFooter.qml" line="19"/>
         <source>Account</source>
         <translation>Account</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsFooter.qml" line="104" />
+        <location filename="imports/example/qml/global/ItemsFooter.qml" line="104"/>
         <source>Settings</source>
         <translation>Settings</translation>
     </message>
@@ -920,427 +1050,427 @@
 <context>
     <name>ItemsOriginal</name>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="109" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="109"/>
         <source>Home</source>
         <translation>Home</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="126" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="126"/>
         <source>Test</source>
         <translation>Test</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="135" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="135"/>
         <source>Run</source>
         <translation>Run</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="144" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="144"/>
         <source>Tool</source>
         <translation>Tool</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="153" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="153"/>
         <source>Report</source>
         <translation>Report</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="162" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="162"/>
         <source>AI</source>
         <translation>AI</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="177" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="177"/>
         <source>Debug</source>
         <translation>Debug</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="186" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="186"/>
         <source>Boot Video</source>
         <translation>Boot Video</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="195" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="195"/>
         <source>Jira</source>
         <translation>Jira</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="209" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="209"/>
         <source>PaneItemExpander Disabled</source>
         <translation>PaneItemExpander Disabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="216" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="216"/>
         <source>Basic Input</source>
         <translation>Basic Input</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="224" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="224"/>
         <source>Buttons</source>
         <translation>Buttons</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="226" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="226"/>
         <source>A control that responds to user input and raisesa Click event.</source>
         <translation>A control that responds to user input and raisesa Click event.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="235" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="235"/>
         <source>Text</source>
         <translation>Text</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="249" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="249"/>
         <source>Image</source>
         <translation>Image</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="255" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="255"/>
         <source>Slider</source>
         <translation>Slider</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="257" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="257"/>
         <source>A control that lets the user select from a rangeof values by moving a Thumb control along atrack.</source>
         <translation>A control that lets the user select from a rangeof values by moving a Thumb control along atrack.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="262" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="262"/>
         <source>CheckBox</source>
         <translation>CheckBox</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="264" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="264"/>
         <source>A control that a user can select or clear.</source>
         <translation>A control that a user can select or clear.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="269" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="269"/>
         <source>RadioButton</source>
         <translation>RadioButton</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="275" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="275"/>
         <source>ToggleSwitch</source>
         <translation>ToggleSwitch</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="281" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="281"/>
         <source>GroupBox</source>
         <translation>GroupBox</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="287" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="287"/>
         <source>PaneItem Disabled</source>
         <translation>PaneItem Disabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="294" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="294"/>
         <source>Form</source>
         <translation>Form</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="297" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="297"/>
         <source>TextBox</source>
         <translation>TextBox</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="303" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="303"/>
         <source>TimePicker</source>
         <translation>TimePicker</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="309" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="309"/>
         <source>DatePicker</source>
         <translation>DatePicker</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="315" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="315"/>
         <source>CalendarPicker</source>
         <translation>CalendarPicker</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="321" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="321"/>
         <source>ColorPicker</source>
         <translation>ColorPicker</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="327" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="327"/>
         <source>ShortcutPicker</source>
         <translation>ShortcutPicker</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="335" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="335"/>
         <source>Surface</source>
         <translation>Surface</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="338" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="338"/>
         <source>InfoBar</source>
         <translation>InfoBar</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="340" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="340"/>
         <source>An inline message to display app-wide statuschange information.</source>
         <translation>An inline message to display app-wide statuschange information.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="345" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="345"/>
         <source>Progress</source>
         <translation>Progress</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="351" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="351"/>
         <source>RatingControl</source>
         <translation>RatingControl</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="357" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="357"/>
         <source>Badge</source>
         <translation>Badge</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="363" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="363"/>
         <source>Rectangle</source>
         <translation>Rectangle</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="369" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="369"/>
         <source>Clip</source>
         <translation>Clip</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="375" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="375"/>
         <source>Carousel</source>
         <translation>Carousel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="381" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="381"/>
         <source>Expander</source>
         <translation>Expander</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="387" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="387"/>
         <source>Watermark</source>
         <translation>Watermark</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="395" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="395"/>
         <source>Layout</source>
         <translation>Layout</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="398" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="398"/>
         <source>StaggeredLayout</source>
         <translation>StaggeredLayout</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="404" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="404"/>
         <source>SplitLayout</source>
         <translation>SplitLayout</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="410" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="410"/>
         <source>StatusLayout</source>
         <translation>StatusLayout</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="418" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="418"/>
         <source>Popus</source>
         <translation>Popus</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="421" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="421"/>
         <source>Dialog</source>
         <translation>Dialog</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="428" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="428"/>
         <source>ComboBox</source>
         <translation>ComboBox</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="442" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="442"/>
         <source>Tooltip</source>
         <translation>Tooltip</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="448" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="448"/>
         <source>Menu</source>
         <translation>Menu</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="454" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="454"/>
         <source>Sheet</source>
         <translation>Sheet</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="462" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="462"/>
         <source>Navigation</source>
         <translation>Navigation</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="465" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="465"/>
         <source>Pivot</source>
         <translation>Pivot</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="467" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="467"/>
         <source>Presents information from different sources in a tabbed view.</source>
         <translation>Presents information from different sources in a tabbed view.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="472" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="472"/>
         <source>BreadcrumbBar</source>
         <translation>BreadcrumbBar</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="478" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="478"/>
         <source>TabView</source>
         <translation>TabView</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="480" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="480"/>
         <source>A control that displays a collection of tabs thatcan be used to display several documents.</source>
         <translation>A control that displays a collection of tabs thatcan be used to display several documents.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="485" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="485"/>
         <source>TreeView</source>
         <translation>TreeView</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="491" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="491"/>
         <source>TableView</source>
         <translation>TableView</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="493" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="493"/>
         <source>The TableView control provides a flexible way to display a collection of data in rows and columns</source>
         <translation>The TableView control provides a flexible way to display a collection of data in rows and columns</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="498" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="498"/>
         <source>Pagination</source>
         <translation>Pagination</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="504" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="504"/>
         <source>MultiWindow</source>
         <translation>MultiWindow</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="510" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="510"/>
         <source>FlipView</source>
         <translation>FlipView</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="512" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="512"/>
         <source>Presents a collection of items that the user canflip through, one item at a time.</source>
         <translation>Presents a collection of items that the user canflip through, one item at a time.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="519" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="519"/>
         <source>Theming</source>
         <translation>Theming</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="522" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="522"/>
         <source>Acrylic</source>
         <translation>Acrylic</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="528" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="528"/>
         <source>Theme</source>
         <translation>Theme</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="534" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="534"/>
         <source>Typography</source>
         <translation>Typography</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="540" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="540"/>
         <source>Icons</source>
         <translation>Icons</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="548" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="548"/>
         <source>Chart</source>
         <translation>Chart</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="551" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="551"/>
         <source>Bar Chart</source>
         <translation>Bar Chart</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="557" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="557"/>
         <source>Line Chart</source>
         <translation>Line Chart</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="563" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="563"/>
         <source>Pie Chart</source>
         <translation>Pie Chart</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="569" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="569"/>
         <source>Polar Area Chart</source>
         <translation>Polar Area Chart</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="575" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="575"/>
         <source>Bubble Chart</source>
         <translation>Bubble Chart</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="581" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="581"/>
         <source>Scatter Chart</source>
         <translation>Scatter Chart</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="587" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="587"/>
         <source>Radar Chart</source>
         <translation>Radar Chart</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="600" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="600"/>
         <source>Other</source>
         <translation>Other</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="603" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="603"/>
         <source>OpenGL</source>
         <translation>OpenGL</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="609" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="609"/>
         <source>QRCode</source>
         <translation>QRCode</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="615" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="615"/>
         <source>Tour</source>
         <translation>Tour</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="621" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="621"/>
         <source>Timeline</source>
         <translation>Timeline</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="627" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="627"/>
         <source>Captcha</source>
         <translation>Captcha</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="634" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="634"/>
         <source>Remote Loader</source>
         <translation>Remote Loader</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="648" />
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="648"/>
         <source>Hot Loader</source>
         <translation>Hot Loader</translation>
     </message>
@@ -1348,145 +1478,145 @@
 <context>
     <name>JiraAuditBridge</name>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="57" />
+        <location filename="bridge/JiraAuditBridge.py" line="57"/>
         <source>Ready to review Jira issues.</source>
         <translation>Ready to review Jira issues.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="68" />
-        <location filename="bridge/JiraAuditBridge.py" line="118" />
-        <location filename="bridge/JiraAuditBridge.py" line="302" />
-        <location filename="bridge/JiraAuditBridge.py" line="323" />
+        <location filename="bridge/JiraAuditBridge.py" line="68"/>
+        <location filename="bridge/JiraAuditBridge.py" line="118"/>
+        <location filename="bridge/JiraAuditBridge.py" line="302"/>
+        <location filename="bridge/JiraAuditBridge.py" line="323"/>
         <source>No AI review was required.</source>
         <translation>No AI review was required.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="84" />
+        <location filename="bridge/JiraAuditBridge.py" line="84"/>
         <source>Enter JQL or a Jira URL.</source>
         <translation>Enter JQL or a Jira URL.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="100" />
+        <location filename="bridge/JiraAuditBridge.py" line="100"/>
         <source>Sign in with LDAP again to review Jira issues.</source>
         <translation>Sign in with LDAP again to review Jira issues.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="108" />
+        <location filename="bridge/JiraAuditBridge.py" line="108"/>
         <source>Validating Jira input...</source>
         <translation>Validating Jira input...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="171" />
+        <location filename="bridge/JiraAuditBridge.py" line="171"/>
         <source>Complete a Jira audit before confirming it.</source>
         <translation>Complete a Jira audit before confirming it.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="176" />
+        <location filename="bridge/JiraAuditBridge.py" line="176"/>
         <source>Jira audit confirmed. Export is ready.</source>
         <translation>Jira audit confirmed. Export is ready.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="182" />
+        <location filename="bridge/JiraAuditBridge.py" line="182"/>
         <source>Confirm the Jira audit before exporting.</source>
         <translation>Confirm the Jira audit before exporting.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="265" />
+        <location filename="bridge/JiraAuditBridge.py" line="265"/>
         <source>Jira audit completed. Confirm the audit before exporting.</source>
         <translation>Jira audit completed. Confirm the audit before exporting.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="396" />
+        <location filename="bridge/JiraAuditBridge.py" line="396"/>
         <source>Jira input is invalid. Enter JQL or a Jira issue, filter, or search URL.</source>
         <translation>Jira input is invalid. Enter JQL or a Jira issue, filter, or search URL.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="284" />
+        <location filename="bridge/JiraAuditBridge.py" line="284"/>
         <source>Jira audit failed. Review the input and sign-in, then try again.</source>
         <translation>Jira audit failed. Review the input and sign-in, then try again.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="308" />
+        <location filename="bridge/JiraAuditBridge.py" line="308"/>
         <source>Fetching Jira issues...</source>
         <translation>Fetching Jira issues...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="309" />
+        <location filename="bridge/JiraAuditBridge.py" line="309"/>
         <source>Reviewing Jira issue formats...</source>
         <translation>Reviewing Jira issue formats...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="310" />
+        <location filename="bridge/JiraAuditBridge.py" line="310"/>
         <source>Reviewing ambiguous results with AI...</source>
         <translation>Reviewing ambiguous results with AI...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="311" />
+        <location filename="bridge/JiraAuditBridge.py" line="311"/>
         <source>Finalizing Jira audit results...</source>
         <translation>Finalizing Jira audit results...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="329" />
+        <location filename="bridge/JiraAuditBridge.py" line="329"/>
         <source>AI review is unavailable. Character-rule results were retained.</source>
         <translation>AI review is unavailable. Character-rule results were retained.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="332" />
+        <location filename="bridge/JiraAuditBridge.py" line="332"/>
         <source>AI review completed.</source>
         <translation>AI review completed.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="193" />
+        <location filename="bridge/JiraAuditBridge.py" line="193"/>
         <source>Failed to export the Jira audit workbook.</source>
         <translation>Failed to export the Jira audit workbook.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="199" />
+        <location filename="bridge/JiraAuditBridge.py" line="199"/>
         <source>Jira audit workbook exported.</source>
         <translation>Jira audit workbook exported.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="292" />
+        <location filename="bridge/JiraAuditBridge.py" line="292"/>
         <source>The login changed. Start the Jira audit again.</source>
         <translation>The login changed. Start the Jira audit again.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="385" />
+        <location filename="bridge/JiraAuditBridge.py" line="385"/>
         <source>Jira URLs must use HTTP or HTTPS.</source>
         <translation>Jira URLs must use HTTP or HTTPS.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="386" />
+        <location filename="bridge/JiraAuditBridge.py" line="386"/>
         <source>The Jira URL is malformed.</source>
         <translation>The Jira URL is malformed.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="387" />
+        <location filename="bridge/JiraAuditBridge.py" line="387"/>
         <source>The Jira URL host must match the configured Jira host.</source>
         <translation>The Jira URL host must match the configured Jira host.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="388" />
+        <location filename="bridge/JiraAuditBridge.py" line="388"/>
         <source>The Jira issue URL contains an invalid issue key.</source>
         <translation>The Jira issue URL contains an invalid issue key.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="389" />
+        <location filename="bridge/JiraAuditBridge.py" line="389"/>
         <source>Use a Jira issue, filter, or search URL.</source>
         <translation>Use a Jira issue, filter, or search URL.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="390" />
+        <location filename="bridge/JiraAuditBridge.py" line="390"/>
         <source>The Jira filter could not be loaded. Check its permissions.</source>
         <translation>The Jira filter could not be loaded. Check its permissions.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="391" />
+        <location filename="bridge/JiraAuditBridge.py" line="391"/>
         <source>The Jira filter does not contain JQL.</source>
         <translation>The Jira filter does not contain JQL.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraAuditBridge.py" line="392" />
+        <location filename="bridge/JiraAuditBridge.py" line="392"/>
         <source>JQL validation failed. Check the query and Jira permissions.</source>
         <translation>JQL validation failed. Check the query and Jira permissions.</translation>
     </message>
@@ -1494,87 +1624,87 @@
 <context>
     <name>JiraAuditWorkspace</name>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="62" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="62"/>
         <source>JQL or Jira URL</source>
         <translation>JQL or Jira URL</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="71" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="71"/>
         <source>Paste JQL or a Jira issue, filter, or search URL.</source>
         <translation>Paste JQL or a Jira issue, filter, or search URL.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="79" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="79"/>
         <source>Start Audit</source>
         <translation>Start Audit</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="269" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="269"/>
         <source>Rules</source>
         <translation>Rules</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="93" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="93"/>
         <source>Audit Progress</source>
         <translation>Audit Progress</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="181" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="181"/>
         <source>Results</source>
         <translation>Results</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="185" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="185"/>
         <source>Total</source>
         <translation>Total</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="186" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="186"/>
         <source>Passed</source>
         <translation>Passed</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="187" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="187"/>
         <source>Failed</source>
         <translation>Failed</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="188" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="188"/>
         <source>Violations</source>
         <translation>Violations</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="193" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="193"/>
         <source>No violations were found.</source>
         <translation>No violations were found.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="199" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="199"/>
         <source>AI Review</source>
         <translation>AI Review</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="152" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="152"/>
         <source>Confirm Audit</source>
         <translation>Confirm Audit</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="158" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="158"/>
         <source>Export XLSX</source>
         <translation>Export XLSX</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="164" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="164"/>
         <source>Show in Folder</source>
         <translation>Show in Folder</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="170" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="170"/>
         <source>Exported file</source>
         <translation>Exported file</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="174" />
+        <location filename="imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml" line="174"/>
         <source>No export has been created.</source>
         <translation>No export has been created.</translation>
     </message>
@@ -1582,377 +1712,377 @@
 <context>
     <name>JiraBridge</name>
     <message>
-        <location filename="bridge/JiraBridge.py" line="61" />
+        <location filename="bridge/JiraBridge.py" line="61"/>
         <source>Ready</source>
         <translation>Ready</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="62" />
+        <location filename="bridge/JiraBridge.py" line="62"/>
         <source>Run a Jira query to get a live AI summary.</source>
         <translation>Run a Jira query to get a live AI summary.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="66" />
+        <location filename="bridge/JiraBridge.py" line="66"/>
         <source>Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</source>
         <translation>Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="67" />
+        <location filename="bridge/JiraBridge.py" line="67"/>
         <source>Workspace ready</source>
         <translation>Workspace ready</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="68" />
+        <location filename="bridge/JiraBridge.py" line="68"/>
         <source>Session cleared. Ask a new Jira question when ready.</source>
         <translation>Session cleared. Ask a new Jira question when ready.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="69" />
+        <location filename="bridge/JiraBridge.py" line="69"/>
         <source>Reset</source>
         <translation>Reset</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="70" />
+        <location filename="bridge/JiraBridge.py" line="70"/>
         <source>Jira request failed. Check the connection message above and sign in again if needed.</source>
         <translation>Jira request failed. Check the connection message above and sign in again if needed.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="71" />
+        <location filename="bridge/JiraBridge.py" line="71"/>
         <source>Error</source>
         <translation>Error</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="72" />
+        <location filename="bridge/JiraBridge.py" line="72"/>
         <source>All Supported Projects</source>
         <translation>All Supported Projects</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="73" />
+        <location filename="bridge/JiraBridge.py" line="73"/>
         <source>Open Work</source>
         <translation>Open Work</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="74" />
+        <location filename="bridge/JiraBridge.py" line="74"/>
         <source>Ready for Test</source>
         <translation>Ready for Test</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="75" />
+        <location filename="bridge/JiraBridge.py" line="75"/>
         <source>Closed Bugs</source>
         <translation>Closed Bugs</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="76" />
+        <location filename="bridge/JiraBridge.py" line="76"/>
         <source>Last 7 Days</source>
         <translation>Last 7 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="77" />
+        <location filename="bridge/JiraBridge.py" line="77"/>
         <source>Last 30 Days</source>
         <translation>Last 30 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="78" />
+        <location filename="bridge/JiraBridge.py" line="78"/>
         <source>Last 90 Days</source>
         <translation>Last 90 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="79" />
+        <location filename="bridge/JiraBridge.py" line="79"/>
         <source>This Year</source>
         <translation>This Year</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="80" />
+        <location filename="bridge/JiraBridge.py" line="80"/>
         <source>Open</source>
         <translation>Open</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="81" />
+        <location filename="bridge/JiraBridge.py" line="81"/>
         <source>In Progress</source>
         <translation>In Progress</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="82" />
+        <location filename="bridge/JiraBridge.py" line="82"/>
         <source>Verified</source>
         <translation>Verified</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="83" />
+        <location filename="bridge/JiraBridge.py" line="83"/>
         <source>Resolved</source>
         <translation>Resolved</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="84" />
+        <location filename="bridge/JiraBridge.py" line="84"/>
         <source>Closed</source>
         <translation>Closed</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="85" />
+        <location filename="bridge/JiraBridge.py" line="85"/>
         <source>Highest</source>
         <translation>Highest</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="86" />
+        <location filename="bridge/JiraBridge.py" line="86"/>
         <source>Critical</source>
         <translation>Critical</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="87" />
+        <location filename="bridge/JiraBridge.py" line="87"/>
         <source>High</source>
         <translation>High</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="88" />
+        <location filename="bridge/JiraBridge.py" line="88"/>
         <source>Medium</source>
         <translation>Medium</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="89" />
+        <location filename="bridge/JiraBridge.py" line="89"/>
         <source>Low</source>
         <translation>Low</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="90" />
+        <location filename="bridge/JiraBridge.py" line="90"/>
         <source>Bug</source>
         <translation>Bug</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="91" />
+        <location filename="bridge/JiraBridge.py" line="91"/>
         <source>Task</source>
         <translation>Task</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="92" />
+        <location filename="bridge/JiraBridge.py" line="92"/>
         <source>Story</source>
         <translation>Story</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="93" />
+        <location filename="bridge/JiraBridge.py" line="93"/>
         <source>Improvement</source>
         <translation>Improvement</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="94" />
+        <location filename="bridge/JiraBridge.py" line="94"/>
         <source>Unassigned</source>
         <translation>Unassigned</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="95" />
+        <location filename="bridge/JiraBridge.py" line="95"/>
         <source>LDAP session is missing Jira credentials. Please sign in again.</source>
         <translation>LDAP session is missing Jira credentials. Please sign in again.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="96" />
+        <location filename="bridge/JiraBridge.py" line="96"/>
         <source>Connected to {base_url} | loaded {loaded} of {total}</source>
         <translation>Connected to {base_url} | loaded {loaded} of {total}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="100" />
+        <location filename="bridge/JiraBridge.py" line="100"/>
         <source>Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</source>
         <translation>Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="101" />
+        <location filename="bridge/JiraBridge.py" line="101"/>
         <source>Connected to {base_url} | analyzed {returned} of {total}</source>
         <translation>Connected to {base_url} | analyzed {returned} of {total}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="102" />
+        <location filename="bridge/JiraBridge.py" line="102"/>
         <source>Just now</source>
         <translation>Just now</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="103" />
+        <location filename="bridge/JiraBridge.py" line="103"/>
         <source>Sign in to load Jira data.</source>
         <translation>Sign in to load Jira data.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="104" />
+        <location filename="bridge/JiraBridge.py" line="104"/>
         <source>Sign in with LDAP first, then Jira results and AI analysis will load here.</source>
         <translation>Sign in with LDAP first, then Jira results and AI analysis will load here.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="105" />
+        <location filename="bridge/JiraBridge.py" line="105"/>
         <source>Loading Jira results...</source>
         <translation>Loading Jira results...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="106" />
+        <location filename="bridge/JiraBridge.py" line="106"/>
         <source>Analyzing Jira request...</source>
         <translation>Analyzing Jira request...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="107" />
+        <location filename="bridge/JiraBridge.py" line="107"/>
         <source>Sign in again to restore Jira access.</source>
         <translation>Sign in again to restore Jira access.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="108" />
+        <location filename="bridge/JiraBridge.py" line="108"/>
         <source>Signed out</source>
         <translation>Signed out</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="109" />
+        <location filename="bridge/JiraBridge.py" line="109"/>
         <source>Unknown Jira error</source>
         <translation>Unknown Jira error</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="110" />
+        <location filename="bridge/JiraBridge.py" line="110"/>
         <source>Jira request failed: {message}</source>
         <translation>Jira request failed: {message}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="111" />
+        <location filename="bridge/JiraBridge.py" line="111"/>
         <source>Matched</source>
         <translation>Matched</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="112" />
+        <location filename="bridge/JiraBridge.py" line="112"/>
         <source>{displayed} displayed in the current view</source>
         <translation>{displayed} displayed in the current view</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="113" />
+        <location filename="bridge/JiraBridge.py" line="113"/>
         <source>High Priority</source>
         <translation>High Priority</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="114" />
+        <location filename="bridge/JiraBridge.py" line="114"/>
         <source>Highest, critical, or high in the current result set</source>
         <translation>Highest, critical, or high in the current result set</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="115" />
+        <location filename="bridge/JiraBridge.py" line="115"/>
         <source>Blocked</source>
         <translation>Blocked</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="116" />
+        <location filename="bridge/JiraBridge.py" line="116"/>
         <source>Blocked items from the displayed Jira scope</source>
         <translation>Blocked items from the displayed Jira scope</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="117" />
+        <location filename="bridge/JiraBridge.py" line="117"/>
         <source>Projects</source>
         <translation>Projects</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="118" />
+        <location filename="bridge/JiraBridge.py" line="118"/>
         <source>Workflow Preset</source>
         <translation>Workflow Preset</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="119" />
+        <location filename="bridge/JiraBridge.py" line="119"/>
         <source>Time Window</source>
         <translation>Time Window</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="120" />
+        <location filename="bridge/JiraBridge.py" line="120"/>
         <source>Statuses</source>
         <translation>Statuses</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="121" />
+        <location filename="bridge/JiraBridge.py" line="121"/>
         <source>Priorities</source>
         <translation>Priorities</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="122" />
+        <location filename="bridge/JiraBridge.py" line="122"/>
         <source>Issue Types</source>
         <translation>Issue Types</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="123" />
+        <location filename="bridge/JiraBridge.py" line="123"/>
         <source>Keyword text</source>
         <translation>Keyword text</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="124" />
+        <location filename="bridge/JiraBridge.py" line="124"/>
         <source>Assignee</source>
         <translation>Assignee</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="125" />
+        <location filename="bridge/JiraBridge.py" line="125"/>
         <source>Reporter</source>
         <translation>Reporter</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="126" />
+        <location filename="bridge/JiraBridge.py" line="126"/>
         <source>Labels</source>
         <translation>Labels</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="127" />
+        <location filename="bridge/JiraBridge.py" line="127"/>
         <source>Not limited</source>
         <translation>Not limited</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="128" />
+        <location filename="bridge/JiraBridge.py" line="128"/>
         <source>Current user</source>
         <translation>Current user</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="129" />
+        <location filename="bridge/JiraBridge.py" line="129"/>
         <source>JQL</source>
         <translation>JQL</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="130" />
+        <location filename="bridge/JiraBridge.py" line="130"/>
         <source>Useful candidates for the next regression batch</source>
         <translation>Useful candidates for the next regression batch</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="131" />
+        <location filename="bridge/JiraBridge.py" line="131"/>
         <source>My Filters</source>
         <translation>My Filters</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="132" />
+        <location filename="bridge/JiraBridge.py" line="132"/>
         <source>Loading your Jira filters...</source>
         <translation>Loading your Jira filters...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="133" />
+        <location filename="bridge/JiraBridge.py" line="133"/>
         <source>No favourite filters were found for this account.</source>
         <translation>No favourite filters were found for this account.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="134" />
+        <location filename="bridge/JiraBridge.py" line="134"/>
         <source>Click to apply this filter to the current JQL box.</source>
         <translation>Click to apply this filter to the current JQL box.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="135" />
+        <location filename="bridge/JiraBridge.py" line="135"/>
         <source>Comments</source>
         <translation>Comments</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="136" />
+        <location filename="bridge/JiraBridge.py" line="136"/>
         <source>No Jira issues matched the current scope.</source>
         <translation>No Jira issues matched the current scope.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="137" />
+        <location filename="bridge/JiraBridge.py" line="137"/>
         <source>Jira AI Conversation</source>
         <translation>Jira AI Conversation</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="138" />
+        <location filename="bridge/JiraBridge.py" line="138"/>
         <source>Analyzing request: preparing search scope...</source>
         <translation>Analyzing request: preparing search scope...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="139" />
+        <location filename="bridge/JiraBridge.py" line="139"/>
         <source>Analyzing request: retrieving Jira issues...</source>
         <translation>Analyzing request: retrieving Jira issues...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="140" />
+        <location filename="bridge/JiraBridge.py" line="140"/>
         <source>Analyzing request: generating response...</source>
         <translation>Analyzing request: generating response...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="144" />
+        <location filename="bridge/JiraBridge.py" line="144"/>
         <source>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</source>
         <translation>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</translation>
     </message>
@@ -1960,42 +2090,42 @@
 <context>
     <name>JiraCreateBatchDialog</name>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="39" />
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="39"/>
         <source>Clone Redmine issues to Jira</source>
         <translation>Clone Redmine issues to Jira</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="41" />
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="41"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="50" />
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="50"/>
         <source>Preparing drafts %1/%2</source>
         <translation>Preparing drafts %1/%2</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="92" />
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="92"/>
         <source>%1 drafts</source>
         <translation>%1 drafts</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="94" />
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="94"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="95" />
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="95"/>
         <source>Retry failed</source>
         <translation>Retry failed</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="96" />
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="96"/>
         <source>Retry preparation</source>
         <translation>Retry preparation</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="97" />
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="97"/>
         <source>Batch Create</source>
         <translation>Batch Create</translation>
     </message>
@@ -2003,27 +2133,27 @@
 <context>
     <name>JiraCreateDraftCard</name>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateDraftCard.qml" line="24" />
+        <location filename="imports/example/qml/component/issue/JiraCreateDraftCard.qml" line="24"/>
         <source>Redmine #%1</source>
         <translation>Redmine #%1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateDraftCard.qml" line="25" />
+        <location filename="imports/example/qml/component/issue/JiraCreateDraftCard.qml" line="25"/>
         <source>Open source</source>
         <translation>Open source</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateDraftCard.qml" line="61" />
+        <location filename="imports/example/qml/component/issue/JiraCreateDraftCard.qml" line="55"/>
         <source>Created: %1</source>
         <translation>Created: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateDraftCard.qml" line="62" />
+        <location filename="imports/example/qml/component/issue/JiraCreateDraftCard.qml" line="56"/>
         <source>Duplicate: %1</source>
         <translation>Duplicate: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateDraftCard.qml" line="63" />
+        <location filename="imports/example/qml/component/issue/JiraCreateDraftCard.qml" line="57"/>
         <source>Failed</source>
         <translation>Failed</translation>
     </message>
@@ -2031,12 +2161,12 @@
 <context>
     <name>JiraCreateField</name>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateField.qml" line="145" />
+        <location filename="imports/example/qml/component/issue/JiraCreateField.qml" line="145"/>
         <source>Search Jira users</source>
         <translation>Search Jira users</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateField.qml" line="95" />
+        <location filename="imports/example/qml/component/issue/JiraCreateField.qml" line="95"/>
         <source>Select options</source>
         <translation>Select options</translation>
     </message>
@@ -2044,124 +2174,124 @@
 <context>
     <name>JiraIssueBrowserLayout</name>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="55" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="55"/>
         <source>Unassigned</source>
         <translation>Unassigned</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="56" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="56"/>
         <source>Customer inactivity</source>
         <translation>Customer inactivity</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="57" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="57"/>
         <source>AML inactivity</source>
         <translation>AML inactivity</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="62" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="62"/>
         <source>Stale AML issue</source>
         <translation>Stale AML issue</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="63" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="63"/>
         <source>Stale customer issue</source>
         <translation>Stale customer issue</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="12" />
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="139" />
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="149" />
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="191" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="12"/>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="139"/>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="149"/>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="191"/>
         <source>All projects</source>
         <translation type="unfinished">All projects</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="13" />
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="144" />
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="196" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="13"/>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="144"/>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="196"/>
         <source>All statuses</source>
         <translation type="unfinished">All statuses</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="14" />
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="145" />
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="197" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="14"/>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="145"/>
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="197"/>
         <source>All types</source>
         <translation type="unfinished">All types</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="107" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="107"/>
         <source>%1 of %2</source>
         <translation type="unfinished">%1 of %2</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="177" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="177"/>
         <source>Quick views</source>
         <translation>Quick views</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="199" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="199"/>
         <source>Contains text</source>
         <translation type="unfinished">Contains text</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="198" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="198"/>
         <source>Subject</source>
         <translation>Subject</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="215" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="215"/>
         <source>Watched issue IDs</source>
         <translation>Watched issue IDs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="216" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="216"/>
         <source>Save watched IDs</source>
         <translation>Save watched IDs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="201" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="201"/>
         <source>Search</source>
         <translation type="unfinished">Search</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="236" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="236"/>
         <source>Cancel search</source>
         <translation>Cancel search</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="257" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="257"/>
         <source>Issues</source>
         <translation type="unfinished">Issues</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="385" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="385"/>
         <source>Not cloned</source>
         <translation type="unfinished">Not cloned</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="393" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="393"/>
         <source>No issues loaded</source>
         <translation type="unfinished">No issues loaded</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="270" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="270"/>
         <source>%1 selected</source>
         <translation>%1 selected</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="273" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="273"/>
         <source>Prepare drafts</source>
         <translation>Prepare drafts</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="278" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="278"/>
         <source>Clone to Jira</source>
         <translation>Clone to Jira</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="272" />
+        <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="272"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
@@ -2169,57 +2299,57 @@
 <context>
     <name>JiraIssueDetailLayout</name>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="45" />
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="45"/>
         <source>Confirm upload</source>
         <translation type="unfinished">Confirm upload</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="45" />
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="45"/>
         <source>Upload the dropped files?</source>
         <translation type="unfinished">Upload the dropped files?</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="45" />
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="45"/>
         <source>Upload</source>
         <translation type="unfinished">Upload</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="45" />
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="45"/>
         <source>Cancel</source>
         <translation type="unfinished">Cancel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="119" />
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="119"/>
         <source>No issue selected</source>
         <translation type="unfinished">No issue selected</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="140" />
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="140"/>
         <source>Details</source>
         <translation type="unfinished">Details</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="146" />
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="146"/>
         <source>Description</source>
         <translation type="unfinished">Description</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="152" />
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="152"/>
         <source>Attachments</source>
         <translation type="unfinished">Attachments</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="158" />
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="158"/>
         <source>Activity</source>
-        <translation type="unfinished" />
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="170" />
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="170"/>
         <source>People</source>
         <translation type="unfinished">People</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="176" />
+        <location filename="imports/example/qml/component/issue/JiraIssueDetailLayout.qml" line="176"/>
         <source>Dates</source>
         <translation type="unfinished">Dates</translation>
     </message>
@@ -2227,70 +2357,66 @@
 <context>
     <name>LoginWindow</name>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="9" />
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="121" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="10"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="122"/>
         <source>Login</source>
         <translation>Login</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="9" />
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="148" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="10"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="149"/>
         <source>Account</source>
         <translation>Account</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="55" />
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="98" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="56"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="99"/>
         <source>Please enter the account</source>
         <translation>Please enter the account</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="60" />
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="110" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="61"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="111"/>
         <source>Please enter your password</source>
         <translation>Please enter your password</translation>
     </message>
     <message>
-        <source>Signed in as %1</source>
-        <translation type="vanished">Signed in as %1</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="88" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="89"/>
         <source>LDAP Server: %1</source>
         <translation>LDAP Server: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="301" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="302"/>
         <source>Logout</source>
         <translation>Logout</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="306" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="307"/>
         <source>Signed out</source>
         <translation>Signed out</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="223" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="224"/>
         <source>Grade</source>
         <translation>Grade</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="236" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="237"/>
         <source>Department</source>
         <translation>Department</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="246" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="247"/>
         <source>Team</source>
         <translation>Team</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="271" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="272"/>
         <source>Product Line</source>
         <translation>Product Line</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="255" />
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="256"/>
         <source>Reports To</source>
         <translation>Reports To</translation>
     </message>
@@ -2298,114 +2424,114 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="94" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="94"/>
         <source>About</source>
         <translation>About</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="173" />
-        <location filename="imports/example/qml/window/MainWindow.qml" line="207" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="173"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="207"/>
         <source>Quit</source>
         <translation>Quit</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="174" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="174"/>
         <source>Are you sure you want to exit the program?</source>
         <translation>Are you sure you want to exit the program?</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="175" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="175"/>
         <source>Minimize</source>
         <translation>Minimize</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="183" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="183"/>
         <source>Remember my choice</source>
         <translation>Remember my choice</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="208" />
-        <location filename="imports/example/qml/window/MainWindow.qml" line="483" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="208"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="483"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="224" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="224"/>
         <source>Open in Separate Window</source>
         <translation>Open in Separate Window</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="326" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="326"/>
         <source>Click Time</source>
         <translation>Click Time</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="336" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="336"/>
         <source>Search</source>
         <translation>Search</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="386" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="386"/>
         <source>Friendly Reminder</source>
         <translation>Friendly Reminder</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="386" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="386"/>
         <source>SmartTest is hidden from the tray, click on the tray to activate the window again</source>
         <translation>SmartTest is hidden from the tray, click on the tray to activate the window again</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="463" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="463"/>
         <source>Finish</source>
         <translation>Finish</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="464" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="464"/>
         <source>Next</source>
         <translation>Next</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="465" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="465"/>
         <source>Previous</source>
         <translation>Previous</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="469" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="469"/>
         <source>Dark Mode</source>
         <translation>Dark Mode</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="469" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="469"/>
         <source>Here you can switch to night mode.</source>
         <translation>Here you can switch to night mode.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="471" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="471"/>
         <source>Hide Easter eggs</source>
         <translation>Hide Easter eggs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="471" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="471"/>
         <source>Try a few more clicks!!</source>
         <translation>Try a few more clicks!!</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="480" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="480"/>
         <source>Upgrade Tips</source>
         <translation>Upgrade Tips</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="481" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="481"/>
         <source>SmartTest update </source>
         <translation>SmartTest update </translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="481" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="481"/>
         <source> -- Current version </source>
         <translation> -- Current version </translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="481" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="481"/>
         <source> 
 
 Updated content: 
@@ -2416,17 +2542,17 @@ Updated content:
 </translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="484" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="484"/>
         <source>OK</source>
         <translation>OK</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="513" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="513"/>
         <source>The current version is already the latest</source>
         <translation>The current version is already the latest</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="520" />
+        <location filename="imports/example/qml/window/MainWindow.qml" line="520"/>
         <source>Update service is not configured</source>
         <translation>Update service is not configured</translation>
     </message>
@@ -2434,267 +2560,263 @@ Updated content:
 <context>
     <name>RedmineBridge</name>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="297" />
+        <location filename="bridge/RedmineBridge.py" line="292"/>
         <source>Attachment %1 is %2 bytes; Jira limit is %3 bytes.</source>
         <translation>Attachment %1 is %2 bytes; Jira limit is %3 bytes.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="308" />
+        <location filename="bridge/RedmineBridge.py" line="303"/>
         <source>Jira attachments are disabled for %1.</source>
         <translation>Jira attachments are disabled for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="315" />
+        <location filename="bridge/RedmineBridge.py" line="310"/>
         <source>Attachment source URL is unavailable for %1.</source>
         <translation>Attachment source URL is unavailable for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="322" />
+        <location filename="bridge/RedmineBridge.py" line="317"/>
         <source>Attachment download failed for %1 (HTTP %2).</source>
         <translation>Attachment download failed for %1 (HTTP %2).</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="329" />
+        <location filename="bridge/RedmineBridge.py" line="324"/>
         <source>Attachment download failed for %1: %2</source>
         <translation>Attachment download failed for %1: %2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="336" />
+        <location filename="bridge/RedmineBridge.py" line="331"/>
         <source>Attachment source is invalid for %1.</source>
         <translation>Attachment source is invalid for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="343" />
+        <location filename="bridge/RedmineBridge.py" line="338"/>
         <source>Jira already has %1 with a different size.</source>
         <translation>Jira already has %1 with a different size.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="350" />
+        <location filename="bridge/RedmineBridge.py" line="345"/>
         <source>Could not check Jira attachments for %1: %2</source>
         <translation>Could not check Jira attachments for %1: %2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="357" />
+        <location filename="bridge/RedmineBridge.py" line="352"/>
         <source>Attachment upload failed for %1: %2</source>
         <translation>Attachment upload failed for %1: %2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="364" />
+        <location filename="bridge/RedmineBridge.py" line="359"/>
         <source>Attachment upload was cancelled for %1.</source>
         <translation>Attachment upload was cancelled for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="371" />
+        <location filename="bridge/RedmineBridge.py" line="366"/>
         <source>Attachment downloader is unavailable for %1.</source>
         <translation>Attachment downloader is unavailable for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="378" />
+        <location filename="bridge/RedmineBridge.py" line="373"/>
         <source>Jira attachment synchronization failed for %1: %2</source>
         <translation>Jira attachment synchronization failed for %1: %2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="385" />
+        <location filename="bridge/RedmineBridge.py" line="380"/>
         <source>Temporary attachment cleanup failed: %1</source>
         <translation>Temporary attachment cleanup failed: %1</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="394" />
+        <location filename="bridge/RedmineBridge.py" line="389"/>
         <source>Attachment warning for %1.</source>
         <translation>Attachment warning for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="808" />
+        <location filename="bridge/RedmineBridge.py" line="792"/>
         <source>Discovering Redmine projects and issues...</source>
         <translation>Discovering Redmine projects and issues...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="811" />
+        <location filename="bridge/RedmineBridge.py" line="795"/>
         <source>Analyzing Redmine issue activity... {loaded}/{total}</source>
         <translation>Analyzing Redmine issue activity... {loaded}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="813" />
+        <location filename="bridge/RedmineBridge.py" line="797"/>
         <source>Checking cloned Jira issues... {loaded}/{total}</source>
         <translation>Checking cloned Jira issues... {loaded}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="587" />
+        <location filename="bridge/RedmineBridge.py" line="571"/>
         <source>The verification code was rejected. Enter the latest code from your phone.</source>
         <translation>The verification code was rejected. Enter the latest code from your phone.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="132" />
+        <location filename="bridge/RedmineBridge.py" line="127"/>
         <source>Ready to sign in to Redmine.</source>
         <translation>Ready to sign in to Redmine.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="556" />
+        <location filename="bridge/RedmineBridge.py" line="540"/>
         <source>Signing in to Redmine...</source>
         <translation>Signing in to Redmine...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="596" />
+        <location filename="bridge/RedmineBridge.py" line="580"/>
         <source>Redmine sign-in succeeded.</source>
         <translation>Redmine sign-in succeeded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="589" />
-        <location filename="bridge/RedmineBridge.py" line="597" />
+        <location filename="bridge/RedmineBridge.py" line="573"/>
+        <location filename="bridge/RedmineBridge.py" line="581"/>
         <source>Redmine needs a different account or password.</source>
         <translation>Redmine needs a different account or password.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="145" />
-        <location filename="bridge/RedmineBridge.py" line="212" />
+        <location filename="bridge/RedmineBridge.py" line="141"/>
+        <location filename="bridge/RedmineBridge.py" line="207"/>
         <source>Projects are not loaded.</source>
         <translation>Projects are not loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="236" />
+        <location filename="bridge/RedmineBridge.py" line="231"/>
         <source>Issues assigned to me</source>
         <translation>Issues assigned to me</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="237" />
+        <location filename="bridge/RedmineBridge.py" line="232"/>
         <source>Watched issues</source>
         <translation>Watched issues</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="835" />
+        <location filename="bridge/RedmineBridge.py" line="819"/>
         <source>Loading watched issues...</source>
         <translation>Loading watched issues...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="852" />
-        <location filename="bridge/RedmineBridge.py" line="981" />
+        <location filename="bridge/RedmineBridge.py" line="836"/>
+        <location filename="bridge/RedmineBridge.py" line="965"/>
         <source>Invalid issue IDs: %1</source>
         <translation>Invalid issue IDs: %1</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="973" />
+        <location filename="bridge/RedmineBridge.py" line="957"/>
         <source>No valid watched issue IDs were found: %1</source>
         <translation>No valid watched issue IDs were found: %1</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="588" />
-        <location filename="bridge/RedmineBridge.py" line="598" />
+        <location filename="bridge/RedmineBridge.py" line="572"/>
+        <location filename="bridge/RedmineBridge.py" line="582"/>
         <source>Enter the mobile verification code.</source>
         <translation>Enter the mobile verification code.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="590" />
-        <location filename="bridge/RedmineBridge.py" line="591" />
-        <location filename="bridge/RedmineBridge.py" line="592" />
-        <location filename="bridge/RedmineBridge.py" line="593" />
-        <location filename="bridge/RedmineBridge.py" line="599" />
+        <location filename="bridge/RedmineBridge.py" line="574"/>
+        <location filename="bridge/RedmineBridge.py" line="575"/>
+        <location filename="bridge/RedmineBridge.py" line="576"/>
+        <location filename="bridge/RedmineBridge.py" line="577"/>
+        <location filename="bridge/RedmineBridge.py" line="583"/>
         <source>Redmine sign-in failed.</source>
         <translation>Redmine sign-in failed.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="625" />
-        <location filename="bridge/RedmineBridge.py" line="944" />
-        <location filename="bridge/RedmineBridge.py" line="967" />
+        <location filename="bridge/RedmineBridge.py" line="609"/>
+        <location filename="bridge/RedmineBridge.py" line="928"/>
+        <location filename="bridge/RedmineBridge.py" line="951"/>
         <source>Issues assigned to me loaded.</source>
         <translation>Issues assigned to me loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="641" />
+        <location filename="bridge/RedmineBridge.py" line="625"/>
         <source>Loading Redmine projects...</source>
         <translation>Loading Redmine projects...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="663" />
+        <location filename="bridge/RedmineBridge.py" line="647"/>
         <source>Redmine project loading failed.</source>
         <translation>Redmine project loading failed.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="668" />
+        <location filename="bridge/RedmineBridge.py" line="652"/>
         <source>Redmine projects loaded.</source>
         <translation>Redmine projects loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="672" />
+        <location filename="bridge/RedmineBridge.py" line="656"/>
         <source>No Redmine projects were loaded. Retry project loading.</source>
         <translation>No Redmine projects were loaded. Retry project loading.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="866" />
+        <location filename="bridge/RedmineBridge.py" line="850"/>
         <source>All types</source>
         <translation type="unfinished">All types</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="884" />
+        <location filename="bridge/RedmineBridge.py" line="868"/>
         <source>Search cancelled.</source>
         <translation>Search cancelled.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="1190" />
+        <location filename="bridge/RedmineBridge.py" line="1158"/>
         <source>Redmine sign-in cancelled.</source>
         <translation>Redmine sign-in cancelled.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="135" />
-        <location filename="bridge/RedmineBridge.py" line="244" />
-        <location filename="bridge/RedmineBridge.py" line="864" />
+        <location filename="bridge/RedmineBridge.py" line="130"/>
+        <location filename="bridge/RedmineBridge.py" line="239"/>
+        <location filename="bridge/RedmineBridge.py" line="848"/>
         <source>All projects</source>
         <translation>All projects</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="865" />
+        <location filename="bridge/RedmineBridge.py" line="849"/>
         <source>All statuses</source>
         <translation>All statuses</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="138" />
-        <location filename="bridge/RedmineBridge.py" line="205" />
+        <location filename="bridge/RedmineBridge.py" line="134"/>
+        <location filename="bridge/RedmineBridge.py" line="200"/>
         <source>Redmine data is not loaded.</source>
         <translation>Redmine data is not loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="699" />
-        <location filename="bridge/RedmineBridge.py" line="810" />
+        <location filename="bridge/RedmineBridge.py" line="683"/>
+        <location filename="bridge/RedmineBridge.py" line="794"/>
         <source>Loading issues assigned to me...</source>
         <translation>Loading issues assigned to me...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="815" />
+        <location filename="bridge/RedmineBridge.py" line="799"/>
         <source>Loading Redmine data... {loaded}/{total}</source>
         <translation>Loading Redmine data... {loaded}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="795" />
-        <location filename="bridge/RedmineBridge.py" line="818" />
+        <location filename="bridge/RedmineBridge.py" line="779"/>
+        <location filename="bridge/RedmineBridge.py" line="802"/>
         <source>Loading Redmine data...</source>
         <translation>Loading Redmine data...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="408" />
-        <location filename="bridge/RedmineBridge.py" line="968" />
+        <location filename="bridge/RedmineBridge.py" line="403"/>
+        <location filename="bridge/RedmineBridge.py" line="952"/>
         <source>Redmine data loaded.</source>
         <translation>Redmine data loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="910" />
+        <location filename="bridge/RedmineBridge.py" line="894"/>
         <source>Refreshing Redmine issue detail...</source>
         <translation>Refreshing Redmine issue detail...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="936" />
+        <location filename="bridge/RedmineBridge.py" line="920"/>
         <source>Issues assigned to me loading failed.</source>
         <translation>Issues assigned to me loading failed.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="938" />
+        <location filename="bridge/RedmineBridge.py" line="922"/>
         <source>Redmine data load failed.</source>
         <translation>Redmine data load failed.</translation>
     </message>
     <message>
-        <source>Redmine issue detail refresh failed.</source>
-        <translation type="vanished">Redmine issue detail refresh failed.</translation>
-    </message>
-    <message>
-        <location filename="bridge/RedmineBridge.py" line="952" />
+        <location filename="bridge/RedmineBridge.py" line="936"/>
         <source>Redmine issue detail refreshed.</source>
         <translation>Redmine issue detail refreshed.</translation>
     </message>
@@ -2702,64 +2824,64 @@ Updated content:
 <context>
     <name>RedmineLoginView</name>
     <message>
-        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="30" />
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="30"/>
         <source>Redmine sign in</source>
         <translation>Redmine sign in</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="44" />
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="44"/>
         <source>Signing in with the SmartTest LDAP account...</source>
         <translation>Signing in with the SmartTest LDAP account...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="51" />
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="51"/>
         <source>Use a separate Redmine account</source>
         <translation>Use a separate Redmine account</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="52" />
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="52"/>
         <source>Username</source>
         <translation>Username</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="53" />
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="53"/>
         <source>Password</source>
         <translation>Password</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="55" />
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="55"/>
         <source>Sign in</source>
         <translation>Sign in</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="56" />
-        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="69" />
-        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="76" />
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="56"/>
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="69"/>
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="76"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="64" />
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="64"/>
         <source>Mobile verification</source>
         <translation>Mobile verification</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="65" />
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="65"/>
         <source>Enter the verification code shown on your phone.</source>
         <translation>Enter the verification code shown on your phone.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="66" />
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="66"/>
         <source>Verification code</source>
         <translation>Verification code</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="68" />
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="68"/>
         <source>Verify</source>
         <translation>Verify</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="75" />
+        <location filename="imports/example/qml/component/redmine/RedmineLoginView.qml" line="75"/>
         <source>Retry</source>
         <translation>Retry</translation>
     </message>
@@ -2767,74 +2889,30 @@ Updated content:
 <context>
     <name>RedmineWorkspace</name>
     <message>
-        <source>Project</source>
-        <translation type="vanished">Project</translation>
-    </message>
-    <message>
-        <source>All projects</source>
-        <translation type="vanished">All projects</translation>
-    </message>
-    <message>
-        <source>Status</source>
-        <translation type="vanished">Status</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/component/redmine/RedmineWorkspace.qml" line="12" />
+        <location filename="imports/example/qml/component/redmine/RedmineWorkspace.qml" line="12"/>
         <source>All statuses</source>
         <translation>All statuses</translation>
     </message>
     <message>
-        <source>Issue type</source>
-        <translation type="vanished">Issue type</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/component/redmine/RedmineWorkspace.qml" line="13" />
+        <location filename="imports/example/qml/component/redmine/RedmineWorkspace.qml" line="13"/>
         <source>All types</source>
         <translation>All types</translation>
-    </message>
-    <message>
-        <source>Bug</source>
-        <translation type="vanished">Bug</translation>
-    </message>
-    <message>
-        <source>Assignee</source>
-        <translation type="vanished">Assignee</translation>
-    </message>
-    <message>
-        <source>Contains text</source>
-        <translation type="vanished">Contains text</translation>
-    </message>
-    <message>
-        <source>Search</source>
-        <translation type="vanished">Search</translation>
-    </message>
-    <message>
-        <source>Issues</source>
-        <translation type="vanished">Issues</translation>
-    </message>
-    <message>
-        <source>Not cloned</source>
-        <translation type="vanished">Not cloned</translation>
-    </message>
-    <message>
-        <source>No issues loaded</source>
-        <translation type="vanished">No issues loaded</translation>
     </message>
 </context>
 <context>
     <name>ReportBridge</name>
     <message>
-        <location filename="bridge/ReportBridge.py" line="53" />
+        <location filename="bridge/ReportBridge.py" line="53"/>
         <source>{count} DUTs: {serials}</source>
         <translation>{count} DUTs: {serials}</translation>
     </message>
     <message>
-        <location filename="bridge/ReportBridge.py" line="54" />
+        <location filename="bridge/ReportBridge.py" line="54"/>
         <source>{count} DUTs</source>
         <translation>{count} DUTs</translation>
     </message>
     <message>
-        <location filename="bridge/ReportBridge.py" line="63" />
+        <location filename="bridge/ReportBridge.py" line="63"/>
         <source>No DUT</source>
         <translation>No DUT</translation>
     </message>
@@ -2842,42 +2920,42 @@ Updated content:
 <context>
     <name>RunBridge</name>
     <message>
-        <location filename="bridge/RunBridge.py" line="253" />
+        <location filename="bridge/RunBridge.py" line="253"/>
         <source>Failed to start test run. {detail}</source>
-        <translation type="unfinished" />
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="354" />
+        <location filename="bridge/RunBridge.py" line="354"/>
         <source>Failed to save run report. {detail}</source>
         <translation>Failed to save run report. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="357" />
+        <location filename="bridge/RunBridge.py" line="357"/>
         <source>Failed to finish test run. {detail}</source>
-        <translation type="unfinished" />
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="499" />
+        <location filename="bridge/RunBridge.py" line="499"/>
         <source>No selected test cases to run.</source>
         <translation>No selected test cases to run.</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="535" />
+        <location filename="bridge/RunBridge.py" line="535"/>
         <source>Failed to start pytest run. {detail}</source>
         <translation>Failed to start pytest run. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="122" />
+        <location filename="bridge/RunBridge.py" line="122"/>
         <source>Select a DUT before starting the selected test cases.</source>
         <translation>Select a DUT before starting the selected test cases.</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="126" />
+        <location filename="bridge/RunBridge.py" line="126"/>
         <source>Missing required parameter: {param} ({case})</source>
         <translation>Missing required parameter: {param} ({case})</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="134" />
+        <location filename="bridge/RunBridge.py" line="134"/>
         <source>Fix required test parameters before starting.</source>
         <translation>Fix required test parameters before starting.</translation>
     </message>
@@ -2885,472 +2963,140 @@ Updated content:
 <context>
     <name>SingleInstanceWindow</name>
     <message>
-        <location filename="imports/example/qml/window/SingleInstanceWindow.qml" line="11" />
+        <location filename="imports/example/qml/window/SingleInstanceWindow.qml" line="11"/>
         <source>SingleInstance</source>
         <translation>SingleInstance</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/SingleInstanceWindow.qml" line="34" />
-        <source>I'm a SingleInstance window, and if I exist, I'll destroy the previous window and create a new one</source>
-        <translation>I'm a SingleInstance window, and if I exist, I'll destroy the previous window and create a new one</translation>
+        <location filename="imports/example/qml/window/SingleInstanceWindow.qml" line="34"/>
+        <source>I&apos;m a SingleInstance window, and if I exist, I&apos;ll destroy the previous window and create a new one</source>
+        <translation>I&apos;m a SingleInstance window, and if I exist, I&apos;ll destroy the previous window and create a new one</translation>
     </message>
 </context>
 <context>
     <name>SingleTaskWindow</name>
     <message>
-        <location filename="imports/example/qml/window/SingleTaskWindow.qml" line="10" />
+        <location filename="imports/example/qml/window/SingleTaskWindow.qml" line="10"/>
         <source>SingleTask</source>
         <translation>SingleTask</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/SingleTaskWindow.qml" line="18" />
-        <source>I'm a SingleTask mode window, and if I exist, I activate the window</source>
-        <translation>I'm a SingleTask mode window, and if I exist, I activate the window</translation>
+        <location filename="imports/example/qml/window/SingleTaskWindow.qml" line="18"/>
+        <source>I&apos;m a SingleTask mode window, and if I exist, I activate the window</source>
+        <translation>I&apos;m a SingleTask mode window, and if I exist, I activate the window</translation>
     </message>
 </context>
 <context>
     <name>StandardWindow</name>
     <message>
-        <location filename="imports/example/qml/window/StandardWindow.qml" line="18" />
+        <location filename="imports/example/qml/window/StandardWindow.qml" line="18"/>
         <source>File</source>
         <translation>File</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/StandardWindow.qml" line="19" />
+        <location filename="imports/example/qml/window/StandardWindow.qml" line="19"/>
         <source>New...</source>
         <translation>New...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/StandardWindow.qml" line="20" />
+        <location filename="imports/example/qml/window/StandardWindow.qml" line="20"/>
         <source>Open...</source>
         <translation>Open...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/StandardWindow.qml" line="21" />
+        <location filename="imports/example/qml/window/StandardWindow.qml" line="21"/>
         <source>Save</source>
         <translation>Save</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/StandardWindow.qml" line="22" />
+        <location filename="imports/example/qml/window/StandardWindow.qml" line="22"/>
         <source>Save As...</source>
         <translation>Save As...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/StandardWindow.qml" line="24" />
+        <location filename="imports/example/qml/window/StandardWindow.qml" line="24"/>
         <source>Quit</source>
         <translation>Quit</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/StandardWindow.qml" line="27" />
+        <location filename="imports/example/qml/window/StandardWindow.qml" line="27"/>
         <source>Edit</source>
         <translation>Edit</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/StandardWindow.qml" line="28" />
+        <location filename="imports/example/qml/window/StandardWindow.qml" line="28"/>
         <source>Cut</source>
         <translation>Cut</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/StandardWindow.qml" line="29" />
+        <location filename="imports/example/qml/window/StandardWindow.qml" line="29"/>
         <source>Copy</source>
         <translation>Copy</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/StandardWindow.qml" line="30" />
+        <location filename="imports/example/qml/window/StandardWindow.qml" line="30"/>
         <source>Paste</source>
         <translation>Paste</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/StandardWindow.qml" line="33" />
+        <location filename="imports/example/qml/window/StandardWindow.qml" line="33"/>
         <source>Help</source>
         <translation>Help</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/StandardWindow.qml" line="34" />
+        <location filename="imports/example/qml/window/StandardWindow.qml" line="34"/>
         <source>About</source>
         <translation>About</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/StandardWindow.qml" line="40" />
-        <source>I'm a Standard mode window, and every time I create a new window</source>
-        <translation>I'm a Standard mode window, and every time I create a new window</translation>
+        <location filename="imports/example/qml/window/StandardWindow.qml" line="40"/>
+        <source>I&apos;m a Standard mode window, and every time I create a new window</source>
+        <translation>I&apos;m a Standard mode window, and every time I create a new window</translation>
     </message>
 </context>
 <context>
     <name>T_AI</name>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="9" />
+        <location filename="imports/example/qml/page/T_AI.qml" line="9"/>
         <source>AI Assistant</source>
         <translation>AI Assistant</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="67" />
+        <location filename="imports/example/qml/page/T_AI.qml" line="67"/>
         <source>DeepSeek</source>
-        <translation type="unfinished" />
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="74" />
-        <location filename="imports/example/qml/page/T_AI.qml" line="108" />
+        <location filename="imports/example/qml/page/T_AI.qml" line="74"/>
+        <location filename="imports/example/qml/page/T_AI.qml" line="108"/>
         <source>Loading...</source>
         <translation type="unfinished">Loading...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="82" />
+        <location filename="imports/example/qml/page/T_AI.qml" line="82"/>
         <source>Reload</source>
         <translation type="unfinished">Reload</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="89" />
+        <location filename="imports/example/qml/page/T_AI.qml" line="89"/>
         <source>Open in browser</source>
         <translation type="unfinished">Open in browser</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="104" />
+        <location filename="imports/example/qml/page/T_AI.qml" line="104"/>
         <source>Ready</source>
         <translation type="unfinished">Ready</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_AI.qml" line="106" />
+        <location filename="imports/example/qml/page/T_AI.qml" line="106"/>
         <source>Failed to load DeepSeek. Check intranet/VPN.</source>
-        <translation type="unfinished" />
-    </message>
-    <message>
-        <source>Attach File</source>
-        <translation type="vanished">Attach File</translation>
-    </message>
-    <message>
-        <source>Text files</source>
-        <translation type="vanished">Text files</translation>
-    </message>
-    <message>
-        <source>All files</source>
-        <translation type="vanished">All files</translation>
-    </message>
-    <message>
-        <source>Add Source</source>
-        <translation type="vanished">Add Source</translation>
-    </message>
-    <message>
-        <source>Choose MCP sources for this chat.</source>
-        <translation type="vanished">Choose MCP sources for this chat.</translation>
-    </message>
-    <message>
-        <source>Start group chat</source>
-        <translation type="vanished">Start group chat</translation>
-    </message>
-    <message>
-        <source>View files in chat</source>
-        <translation type="vanished">View files in chat</translation>
-    </message>
-    <message>
-        <source>Move to project</source>
-        <translation type="vanished">Move to project</translation>
-    </message>
-    <message>
-        <source>Pin chat</source>
-        <translation type="vanished">Pin chat</translation>
-    </message>
-    <message>
-        <source>Archive</source>
-        <translation type="vanished">Archive</translation>
-    </message>
-    <message>
-        <source>Rename</source>
-        <translation type="vanished">Rename</translation>
-    </message>
-    <message>
-        <source>Rename project</source>
-        <translation type="vanished">Rename project</translation>
-    </message>
-    <message>
-        <source>Delete project</source>
-        <translation type="vanished">Delete project</translation>
-    </message>
-    <message>
-        <source>Rename chat</source>
-        <translation type="vanished">Rename chat</translation>
-    </message>
-    <message>
-        <source>Cancel</source>
-        <translation type="vanished">Cancel</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="vanished">Save</translation>
-    </message>
-    <message>
-        <source>Delete chat?</source>
-        <translation type="vanished">Delete chat?</translation>
-    </message>
-    <message>
-        <source>This chat will be removed from SmartTest chat history.</source>
-        <translation type="vanished">This chat will be removed from SmartTest chat history.</translation>
-    </message>
-    <message>
-        <source>Delete "%1" from SmartTest chat history?</source>
-        <translation type="vanished">Delete "%1" from SmartTest chat history?</translation>
-    </message>
-    <message>
-        <source>Delete project?</source>
-        <translation type="vanished">Delete project?</translation>
-    </message>
-    <message>
-        <source>Project chats will remain in chat history.</source>
-        <translation type="vanished">Project chats will remain in chat history.</translation>
-    </message>
-    <message>
-        <source>Delete "%1"? Project chats will remain in chat history.</source>
-        <translation type="vanished">Delete "%1"? Project chats will remain in chat history.</translation>
-    </message>
-    <message>
-        <source>Share chat</source>
-        <translation type="vanished">Share chat</translation>
-    </message>
-    <message>
-        <source>Close</source>
-        <translation type="vanished">Close</translation>
-    </message>
-    <message>
-        <source>Copy Link</source>
-        <translation type="vanished">Copy Link</translation>
-    </message>
-    <message>
-        <source>Create Link</source>
-        <translation type="vanished">Create Link</translation>
-    </message>
-    <message>
-        <source>A local HTML snapshot will be created. Anyone who can access the copied file link can view this chat snapshot.</source>
-        <translation type="vanished">A local HTML snapshot will be created. Anyone who can access the copied file link can view this chat snapshot.</translation>
-    </message>
-    <message>
-        <source>Create a link to copy it</source>
-        <translation type="vanished">Create a link to copy it</translation>
-    </message>
-    <message>
-        <source>Delete shared link</source>
-        <translation type="vanished">Delete shared link</translation>
-    </message>
-    <message>
-        <source>Create project</source>
-        <translation type="vanished">Create project</translation>
-    </message>
-    <message>
-        <source>Project name</source>
-        <translation type="vanished">Project name</translation>
-    </message>
-    <message>
-        <source>This project collects chats, shared context, and uploaded files.</source>
-        <translation type="vanished">This project collects chats, shared context, and uploaded files.</translation>
-    </message>
-    <message>
-        <source>Projects can collect chats and custom context for continued work.</source>
-        <translation type="vanished">Projects can collect chats and custom context for continued work.</translation>
-    </message>
-    <message>
-        <source>Search chats...</source>
-        <translation type="vanished">Search chats...</translation>
-    </message>
-    <message>
-        <source>Today</source>
-        <translation type="vanished">Today</translation>
-    </message>
-    <message>
-        <source>Collapse Sidebar</source>
-        <translation type="vanished">Collapse Sidebar</translation>
-    </message>
-    <message>
-        <source>Search Chats</source>
-        <translation type="vanished">Search Chats</translation>
-    </message>
-    <message>
-        <source>New chat in %1</source>
-        <translation type="vanished">New chat in %1</translation>
-    </message>
-    <message>
-        <source>Sources</source>
-        <translation type="vanished">Sources</translation>
-    </message>
-    <message>
-        <source>No chats in this project yet.</source>
-        <translation type="vanished">No chats in this project yet.</translation>
-    </message>
-    <message>
-        <source>Chats in this project</source>
-        <translation type="vanished">Chats in this project</translation>
-    </message>
-    <message>
-        <source>No preview</source>
-        <translation type="vanished">No preview</translation>
-    </message>
-    <message>
-        <source>%1 chats are available here.</source>
-        <translation type="vanished">%1 chats are available here.</translation>
-    </message>
-    <message>
-        <source>Hide chat list</source>
-        <translation type="vanished">Hide chat list</translation>
-    </message>
-    <message>
-        <source>Manage chats</source>
-        <translation type="vanished">Manage chats</translation>
-    </message>
-    <message>
-        <source>Select chats to include in this project</source>
-        <translation type="vanished">Select chats to include in this project</translation>
-    </message>
-    <message>
-        <source> messages</source>
-        <translation type="vanished"> messages</translation>
-    </message>
-    <message>
-        <source>Ask this project</source>
-        <translation type="vanished">Ask this project</translation>
-    </message>
-    <message>
-        <source>%1 chats will appear here.</source>
-        <translation type="vanished">%1 chats will appear here.</translation>
-    </message>
-    <message>
-        <source>Codex</source>
-        <translation type="vanished">Codex</translation>
-    </message>
-    <message>
-        <source>More</source>
-        <translation type="vanished">More</translation>
-    </message>
-    <message>
-        <source>Projects</source>
-        <translation type="vanished">Projects</translation>
-    </message>
-    <message>
-        <source>New Project</source>
-        <translation type="vanished">New Project</translation>
-    </message>
-    <message>
-        <source>Test Notes</source>
-        <translation type="vanished">Test Notes</translation>
-    </message>
-    <message>
-        <source>Projects are collections of chats. They can share context and uploaded files for continued work.</source>
-        <translation type="vanished">Projects are collections of chats. They can share context and uploaded files for continued work.</translation>
-    </message>
-    <message>
-        <source>Recent</source>
-        <translation type="vanished">Recent</translation>
-    </message>
-    <message>
-        <source>Untitled Chat</source>
-        <translation type="vanished">Untitled Chat</translation>
-    </message>
-    <message>
-        <source>Me</source>
-        <translation type="vanished">Me</translation>
-    </message>
-    <message>
-        <source>SmartTest</source>
-        <translation type="vanished">SmartTest</translation>
-    </message>
-    <message>
-        <source>Pro</source>
-        <translation type="vanished">Pro</translation>
-    </message>
-    <message>
-        <source>DeepSeek Chat</source>
-        <translation type="vanished">DeepSeek Chat</translation>
-    </message>
-    <message>
-        <source>Preview</source>
-        <translation type="vanished">Preview</translation>
-    </message>
-    <message>
-        <source>Memory Off</source>
-        <translation type="vanished">Memory Off</translation>
-    </message>
-    <message>
-        <source>Share</source>
-        <translation type="vanished">Share</translation>
-    </message>
-    <message>
-        <source>Copy</source>
-        <translation type="vanished">Copy</translation>
-    </message>
-    <message>
-        <source>Retry</source>
-        <translation type="vanished">Retry</translation>
-    </message>
-    <message>
-        <source>Developer Mode</source>
-        <translation type="vanished">Developer Mode</translation>
-    </message>
-    <message>
-        <source>Ask anything</source>
-        <translation type="vanished">Ask anything</translation>
-    </message>
-    <message>
-        <source>Quick</source>
-        <translation type="vanished">Quick</translation>
-    </message>
-    <message>
-        <source>Notion</source>
-        <translation type="vanished">Notion</translation>
-    </message>
-    <message>
-        <source>Voice</source>
-        <translation type="vanished">Voice</translation>
-    </message>
-    <message>
-        <source>SmartTest AI can make mistakes. Verify important information.</source>
-        <translation type="vanished">SmartTest AI can make mistakes. Verify important information.</translation>
-    </message>
-    <message>
-        <source>Chats</source>
-        <translation type="vanished">Chats</translation>
-    </message>
-    <message>
-        <source>New Chat</source>
-        <translation type="vanished">New Chat</translation>
-    </message>
-    <message>
-        <source>%1 messages</source>
-        <translation type="vanished">%1 messages</translation>
-    </message>
-    <message>
-        <source>Delete</source>
-        <translation type="vanished">Delete</translation>
-    </message>
-    <message>
-        <source>SmartTest AI</source>
-        <translation type="vanished">SmartTest AI</translation>
-    </message>
-    <message>
-        <source>Attach</source>
-        <translation type="vanished">Attach</translation>
-    </message>
-    <message>
-        <source>You</source>
-        <translation type="vanished">You</translation>
-    </message>
-    <message>
-        <source>Thinking...</source>
-        <translation type="vanished">Thinking...</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Remove</translation>
-    </message>
-    <message>
-        <source>Ask about logs, Jira, test failures, adb, pytest, or SmartTest...</source>
-        <translation type="vanished">Ask about logs, Jira, test failures, adb, pytest, or SmartTest...</translation>
-    </message>
-    <message>
-        <source>Send</source>
-        <translation type="vanished">Send</translation>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>T_Acrylic</name>
     <message>
-        <location filename="imports/example/qml/page/T_Acrylic.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Acrylic.qml" line="10"/>
         <source>Acrylic</source>
         <translation>Acrylic</translation>
     </message>
@@ -3358,12 +3104,12 @@ Updated content:
 <context>
     <name>T_Badge</name>
     <message>
-        <location filename="imports/example/qml/page/T_Badge.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Badge.qml" line="10"/>
         <source>Badge</source>
         <translation>Badge</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Badge.qml" line="27" />
+        <location filename="imports/example/qml/page/T_Badge.qml" line="27"/>
         <source>It usually appears in the upper right corner of the notification icon or avatar to display the number of messages that need to be processed</source>
         <translation>It usually appears in the upper right corner of the notification icon or avatar to display the number of messages that need to be processed</translation>
     </message>
@@ -3371,7 +3117,7 @@ Updated content:
 <context>
     <name>T_BarChart</name>
     <message>
-        <location filename="imports/example/qml/chart/T_BarChart.qml" line="10" />
+        <location filename="imports/example/qml/chart/T_BarChart.qml" line="10"/>
         <source>Bar Chart</source>
         <translation>Bar Chart</translation>
     </message>
@@ -3379,248 +3125,236 @@ Updated content:
 <context>
     <name>T_BootVideo</name>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="8" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="8"/>
         <source>Boot Video</source>
         <translation>Boot Video</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="93" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="93"/>
         <source>%1 ms</source>
         <translation>%1 ms</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="145" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="145"/>
         <source>Boot video test completed.</source>
         <translation>Boot video test completed.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="147" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="147"/>
         <source>Boot video test timed out.</source>
         <translation>Boot video test timed out.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="149" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="149"/>
         <source>Boot video test cancelled.</source>
         <translation>Boot video test cancelled.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="161" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="161"/>
         <source>Select Logo Template</source>
         <translation>Select Logo Template</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="162" />
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="169" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="162"/>
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="169"/>
         <source>Image files (*.png *.jpg *.jpeg *.bmp)</source>
         <translation>Image files (*.png *.jpg *.jpeg *.bmp)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="162" />
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="169" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="162"/>
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="169"/>
         <source>All files (*)</source>
         <translation>All files (*)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="168" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="168"/>
         <source>Select Home Template</source>
         <translation>Select Home Template</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="224" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="224"/>
         <source>Camera preview</source>
         <translation>Camera preview</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="244" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="244"/>
         <source>State: %1</source>
         <translation>State: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="245" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="245"/>
         <source>Logo Score: %1</source>
         <translation>Logo Score: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="246" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="246"/>
         <source>Home Score: %1</source>
         <translation>Home Score: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="247" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="247"/>
         <source>Glare: %1%</source>
         <translation>Glare: %1%</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="256" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="256"/>
         <source>Camera</source>
         <translation>Camera</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="259" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="259"/>
         <source>Device ID</source>
         <translation>Device ID</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="261" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="261"/>
         <source>Refresh</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="292" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="292"/>
         <source>Refresh Modes</source>
         <translation>Refresh Modes</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="269" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="269"/>
         <source>%1 camera(s) found</source>
         <translation>%1 camera(s) found</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="269" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="269"/>
         <source>No camera detected</source>
         <translation>No camera detected</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="269" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="269"/>
         <source>Detecting camera modes...</source>
         <translation>Detecting camera modes...</translation>
     </message>
     <message>
-        <source>Width</source>
-        <translation type="vanished">Width</translation>
-    </message>
-    <message>
-        <source>Height</source>
-        <translation type="vanished">Height</translation>
-    </message>
-    <message>
-        <source>FPS</source>
-        <translation type="vanished">FPS</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="298" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="298"/>
         <source>Open Camera</source>
         <translation>Open Camera</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="299" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="299"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="305" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="305"/>
         <source>Result</source>
         <translation>Result</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="306" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="306"/>
         <source>Logo: %1</source>
         <translation>Logo: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="307" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="307"/>
         <source>Home: %1</source>
         <translation>Home: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="308" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="308"/>
         <source>Total: %1</source>
         <translation>Total: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="311" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="311"/>
         <source>Open Result Folder</source>
         <translation>Open Result Folder</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="328" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="328"/>
         <source>Analysis Settings</source>
         <translation>Analysis Settings</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="333" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="333"/>
         <source>ROI Width</source>
         <translation>ROI Width</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="334" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="334"/>
         <source>ROI Height</source>
         <translation>ROI Height</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="338" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="338"/>
         <source>Logo template path</source>
         <translation>Logo template path</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="339" />
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="345" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="339"/>
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="345"/>
         <source>Browse</source>
         <translation>Browse</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="340" />
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="346" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="340"/>
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="346"/>
         <source>Capture</source>
         <translation>Capture</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="344" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="344"/>
         <source>Home template path</source>
         <translation>Home template path</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="350" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="350"/>
         <source>Logo threshold</source>
         <translation>Logo threshold</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="351" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="351"/>
         <source>Home threshold</source>
         <translation>Home threshold</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="352" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="352"/>
         <source>Logo frames</source>
         <translation>Logo frames</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="353" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="353"/>
         <source>Home frames</source>
         <translation>Home frames</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="357" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="357"/>
         <source>Home stable seconds</source>
         <translation>Home stable seconds</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="358" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="358"/>
         <source>Power delay seconds</source>
         <translation>Power delay seconds</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="359" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="359"/>
         <source>Glare skip ratio</source>
         <translation>Glare skip ratio</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="360" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="360"/>
         <source>Timeout seconds</source>
         <translation>Timeout seconds</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="361" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="361"/>
         <source>Analysis FPS</source>
         <translation>Analysis FPS</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="366" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="366"/>
         <source>Start Boot Test</source>
         <translation>Start Boot Test</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BootVideo.qml" line="371" />
+        <location filename="imports/example/qml/page/T_BootVideo.qml" line="371"/>
         <source>Stop Test</source>
         <translation>Stop Test</translation>
     </message>
@@ -3628,12 +3362,12 @@ Updated content:
 <context>
     <name>T_BreadcrumbBar</name>
     <message>
-        <location filename="imports/example/qml/page/T_BreadcrumbBar.qml" line="10" />
+        <location filename="imports/example/qml/page/T_BreadcrumbBar.qml" line="10"/>
         <source>BreadcurmbBar</source>
         <translation>BreadcurmbBar</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_BreadcrumbBar.qml" line="50" />
+        <location filename="imports/example/qml/page/T_BreadcrumbBar.qml" line="50"/>
         <source>Reset sample</source>
         <translation>Reset sample</translation>
     </message>
@@ -3641,7 +3375,7 @@ Updated content:
 <context>
     <name>T_BubbleChart</name>
     <message>
-        <location filename="imports/example/qml/chart/T_BubbleChart.qml" line="10" />
+        <location filename="imports/example/qml/chart/T_BubbleChart.qml" line="10"/>
         <source>Bubble Chart</source>
         <translation>Bubble Chart</translation>
     </message>
@@ -3649,154 +3383,154 @@ Updated content:
 <context>
     <name>T_Buttons</name>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="10"/>
         <source>Buttons</source>
         <translation>Buttons</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="13" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="13"/>
         <source>Support the Tab key to switch focus, and the Space key to perform click events</source>
         <translation>Support the Tab key to switch focus, and the Space key to perform click events</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="24" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="24"/>
         <source>Text Button</source>
         <translation>Text Button</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="39" />
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="76" />
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="113" />
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="147" />
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="199" />
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="320" />
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="368" />
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="421" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="39"/>
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="76"/>
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="113"/>
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="147"/>
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="199"/>
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="320"/>
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="368"/>
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="421"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="61" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="61"/>
         <source>Standard Button</source>
         <translation>Standard Button</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="63" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="63"/>
         <source>Click StandardButton</source>
         <translation>Click StandardButton</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="98" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="98"/>
         <source>Filled Button</source>
         <translation>Filled Button</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="100" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="100"/>
         <source>Click FilledButton</source>
         <translation>Click FilledButton</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="135" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="135"/>
         <source>Toggle Button</source>
         <translation>Toggle Button</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="183" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="183"/>
         <source>Progress Button</source>
         <translation>Progress Button</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="222" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="222"/>
         <source>Loading Button</source>
         <translation>Loading Button</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="238" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="238"/>
         <source>Loading</source>
         <translation>Loading</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="270" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="270"/>
         <source>Click IconButton</source>
         <translation>Click IconButton</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="277" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="277"/>
         <source>IconOnly</source>
         <translation>IconOnly</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="280" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="280"/>
         <source>Button.IconOnly</source>
         <translation>Button.IconOnly</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="287" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="287"/>
         <source>TextOnly</source>
         <translation>TextOnly</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="290" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="290"/>
         <source>Button.TextOnly</source>
         <translation>Button.TextOnly</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="297" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="297"/>
         <source>TextBesideIcon</source>
         <translation>TextBesideIcon</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="300" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="300"/>
         <source>Button.TextBesideIcon</source>
         <translation>Button.TextBesideIcon</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="307" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="307"/>
         <source>TextUnderIcon</source>
         <translation>TextUnderIcon</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="310" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="310"/>
         <source>Button.TextUnderIcon</source>
         <translation>Button.TextUnderIcon</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="341" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="341"/>
         <source>DropDownButton</source>
         <translation>DropDownButton</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="347" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="347"/>
         <source>Menu_1</source>
         <translation>Menu_1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="350" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="350"/>
         <source>Menu_2</source>
         <translation>Menu_2</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="353" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="353"/>
         <source>Menu_3</source>
         <translation>Menu_3</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="356" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="356"/>
         <source>Menu_4</source>
         <translation>Menu_4</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="404" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="404"/>
         <source>Radio Button_1</source>
         <translation>Radio Button_1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="408" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="408"/>
         <source>Radio Button_2</source>
         <translation>Radio Button_2</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Buttons.qml" line="412" />
+        <location filename="imports/example/qml/page/T_Buttons.qml" line="412"/>
         <source>Radio Button_3</source>
         <translation>Radio Button_3</translation>
     </message>
@@ -3804,7 +3538,7 @@ Updated content:
 <context>
     <name>T_CalendarPicker</name>
     <message>
-        <location filename="imports/example/qml/page/T_CalendarPicker.qml" line="10" />
+        <location filename="imports/example/qml/page/T_CalendarPicker.qml" line="10"/>
         <source>CalendarPicker</source>
         <translation>CalendarPicker</translation>
     </message>
@@ -3812,32 +3546,32 @@ Updated content:
 <context>
     <name>T_Captcha</name>
     <message>
-        <location filename="imports/example/qml/page/T_Captcha.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Captcha.qml" line="10"/>
         <source>Captcha</source>
         <translation>Captcha</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Captcha.qml" line="25" />
+        <location filename="imports/example/qml/page/T_Captcha.qml" line="25"/>
         <source>Refresh</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Captcha.qml" line="34" />
+        <location filename="imports/example/qml/page/T_Captcha.qml" line="34"/>
         <source>Ignore Case</source>
         <translation>Ignore Case</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Captcha.qml" line="44" />
+        <location filename="imports/example/qml/page/T_Captcha.qml" line="44"/>
         <source>Please enter a verification code</source>
         <translation>Please enter a verification code</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Captcha.qml" line="52" />
+        <location filename="imports/example/qml/page/T_Captcha.qml" line="52"/>
         <source>The verification code is correct</source>
         <translation>The verification code is correct</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Captcha.qml" line="54" />
+        <location filename="imports/example/qml/page/T_Captcha.qml" line="54"/>
         <source>Error validation, please re-enter</source>
         <translation>Error validation, please re-enter</translation>
     </message>
@@ -3845,12 +3579,12 @@ Updated content:
 <context>
     <name>T_Carousel</name>
     <message>
-        <location filename="imports/example/qml/page/T_Carousel.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Carousel.qml" line="10"/>
         <source>Carousel</source>
         <translation>Carousel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Carousel.qml" line="36" />
+        <location filename="imports/example/qml/page/T_Carousel.qml" line="36"/>
         <source>Carousel map, support infinite carousel, infinite swipe, and components implemented with ListView</source>
         <translation>Carousel map, support infinite carousel, infinite swipe, and components implemented with ListView</translation>
     </message>
@@ -3858,38 +3592,38 @@ Updated content:
 <context>
     <name>T_CheckBox</name>
     <message>
-        <location filename="imports/example/qml/page/T_CheckBox.qml" line="10" />
+        <location filename="imports/example/qml/page/T_CheckBox.qml" line="10"/>
         <source>CheckBox</source>
         <translation>CheckBox</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_CheckBox.qml" line="18" />
+        <location filename="imports/example/qml/page/T_CheckBox.qml" line="18"/>
         <source>A 2-state CheckBox</source>
         <translation>A 2-state CheckBox</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_CheckBox.qml" line="32" />
+        <location filename="imports/example/qml/page/T_CheckBox.qml" line="32"/>
         <source>Right</source>
         <translation>Right</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_CheckBox.qml" line="36" />
+        <location filename="imports/example/qml/page/T_CheckBox.qml" line="36"/>
         <source>Left</source>
         <translation>Left</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_CheckBox.qml" line="46" />
-        <location filename="imports/example/qml/page/T_CheckBox.qml" line="101" />
+        <location filename="imports/example/qml/page/T_CheckBox.qml" line="46"/>
+        <location filename="imports/example/qml/page/T_CheckBox.qml" line="101"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_CheckBox.qml" line="64" />
+        <location filename="imports/example/qml/page/T_CheckBox.qml" line="64"/>
         <source>A 3-state CheckBox</source>
         <translation>A 3-state CheckBox</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_CheckBox.qml" line="75" />
+        <location filename="imports/example/qml/page/T_CheckBox.qml" line="75"/>
         <source>Three State</source>
         <translation>Three State</translation>
     </message>
@@ -3897,12 +3631,12 @@ Updated content:
 <context>
     <name>T_Clip</name>
     <message>
-        <location filename="imports/example/qml/page/T_Clip.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Clip.qml" line="10"/>
         <source>Clip</source>
         <translation>Clip</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Clip.qml" line="24" />
+        <location filename="imports/example/qml/page/T_Clip.qml" line="24"/>
         <source>Use with images (this component will have no effect under software rendering)</source>
         <translation>Use with images (this component will have no effect under software rendering)</translation>
     </message>
@@ -3910,12 +3644,12 @@ Updated content:
 <context>
     <name>T_ColorPicker</name>
     <message>
-        <location filename="imports/example/qml/page/T_ColorPicker.qml" line="10" />
+        <location filename="imports/example/qml/page/T_ColorPicker.qml" line="10"/>
         <source>ColorPicker</source>
         <translation>ColorPicker</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_ColorPicker.qml" line="18" />
+        <location filename="imports/example/qml/page/T_ColorPicker.qml" line="18"/>
         <source>Click to Select a Color - &gt;</source>
         <translation>Click to Select a Color - &gt;</translation>
     </message>
@@ -3923,7 +3657,7 @@ Updated content:
 <context>
     <name>T_ComboBox</name>
     <message>
-        <location filename="imports/example/qml/page/T_ComboBox.qml" line="10" />
+        <location filename="imports/example/qml/page/T_ComboBox.qml" line="10"/>
         <source>ComboBox</source>
         <translation>ComboBox</translation>
     </message>
@@ -3931,17 +3665,17 @@ Updated content:
 <context>
     <name>T_DatePicker</name>
     <message>
-        <location filename="imports/example/qml/page/T_DatePicker.qml" line="10" />
+        <location filename="imports/example/qml/page/T_DatePicker.qml" line="10"/>
         <source>DatePicker</source>
         <translation>DatePicker</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_DatePicker.qml" line="22" />
+        <location filename="imports/example/qml/page/T_DatePicker.qml" line="22"/>
         <source>showYear=true</source>
         <translation>showYear=true</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_DatePicker.qml" line="51" />
+        <location filename="imports/example/qml/page/T_DatePicker.qml" line="51"/>
         <source>showYear=false</source>
         <translation>showYear=false</translation>
     </message>
@@ -3949,297 +3683,156 @@ Updated content:
 <context>
     <name>T_Debug</name>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="9" />
+        <location filename="imports/example/qml/page/T_Debug.qml" line="9"/>
         <source>Debug</source>
         <translation>Debug</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="165" />
+        <location filename="imports/example/qml/page/T_Debug.qml" line="165"/>
         <source>Select video</source>
         <translation>Select video</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="166" />
+        <location filename="imports/example/qml/page/T_Debug.qml" line="166"/>
         <source>Video files (*.mp4 *.mov *.mkv *.avi *.webm)</source>
         <translation>Video files (*.mp4 *.mov *.mkv *.avi *.webm)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="166" />
+        <location filename="imports/example/qml/page/T_Debug.qml" line="166"/>
         <source>All files (*)</source>
         <translation>All files (*)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="184" />
+        <location filename="imports/example/qml/page/T_Debug.qml" line="184"/>
         <source>KPI Video Tool</source>
-        <translation type="unfinished" />
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="223" />
+        <location filename="imports/example/qml/page/T_Debug.qml" line="223"/>
         <source>%1 / %2 frames | %3%</source>
-        <translation type="unfinished" />
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="298" />
+        <location filename="imports/example/qml/page/T_Debug.qml" line="298"/>
         <source>%1 / %2  |  %3s  |  %4</source>
-        <translation type="unfinished" />
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="473" />
+        <location filename="imports/example/qml/page/T_Debug.qml" line="473"/>
         <source>#%1  start %2  end %3</source>
-        <translation type="unfinished" />
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="494" />
+        <location filename="imports/example/qml/page/T_Debug.qml" line="494"/>
         <source>%1s -&gt; %2s</source>
-        <translation type="unfinished" />
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>KPI Video Frame Counter</source>
-        <translation type="vanished">KPI Video Frame Counter</translation>
-    </message>
-    <message>
-        <source>Video path, for example a.mp4</source>
-        <translation type="vanished">Video path, for example a.mp4</translation>
-    </message>
-    <message>
-        <source>A</source>
-        <translation type="vanished">A</translation>
-    </message>
-    <message>
-        <source>B</source>
-        <translation type="vanished">B</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="204" />
+        <location filename="imports/example/qml/page/T_Debug.qml" line="204"/>
         <source>Select a recorded video</source>
         <translation>Select a recorded video</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Debug.qml" line="208" />
+        <location filename="imports/example/qml/page/T_Debug.qml" line="208"/>
         <source>Browse</source>
         <translation>Browse</translation>
-    </message>
-    <message>
-        <source>Analyzing</source>
-        <translation type="vanished">Analyzing</translation>
-    </message>
-    <message>
-        <source>Analyze</source>
-        <translation type="vanished">Analyze</translation>
-    </message>
-    <message>
-        <source>Reading frames and detecting visual state transitions...</source>
-        <translation type="vanished">Reading frames and detecting visual state transitions...</translation>
-    </message>
-    <message>
-        <source>The tool estimates start/end frames from visual state changes. Review the candidates before using the result.</source>
-        <translation type="vanished">The tool estimates start/end frames from visual state changes. Review the candidates before using the result.</translation>
-    </message>
-    <message>
-        <source>Estimated Result</source>
-        <translation type="vanished">Estimated Result</translation>
-    </message>
-    <message>
-        <source>The tool detects repeated red-light actions and playback start frames for review.</source>
-        <translation type="vanished">The tool detects repeated red-light actions and playback start frames for review.</translation>
-    </message>
-    <message>
-        <source>Detected Summary</source>
-        <translation type="vanished">Detected Summary</translation>
-    </message>
-    <message>
-        <source>Start Frame</source>
-        <translation type="vanished">Start Frame</translation>
-    </message>
-    <message>
-        <source>End Frame</source>
-        <translation type="vanished">End Frame</translation>
-    </message>
-    <message>
-        <source>Elapsed Frames</source>
-        <translation type="vanished">Elapsed Frames</translation>
-    </message>
-    <message>
-        <source>Elapsed</source>
-        <translation type="vanished">Elapsed</translation>
-    </message>
-    <message>
-        <source>Actions</source>
-        <translation type="vanished">Actions</translation>
-    </message>
-    <message>
-        <source>FPS</source>
-        <translation type="vanished">FPS</translation>
-    </message>
-    <message>
-        <source>Frames</source>
-        <translation type="vanished">Frames</translation>
-    </message>
-    <message>
-        <source>Repeated Action Detections</source>
-        <translation type="vanished">Repeated Action Detections</translation>
-    </message>
-    <message>
-        <source>time %1s -&gt; %2s | red light score %3  playback score %4</source>
-        <translation type="vanished">time %1s -&gt; %2s | red light score %3  playback score %4</translation>
-    </message>
-    <message>
-        <source>Size</source>
-        <translation type="vanished">Size</translation>
-    </message>
-    <message>
-        <source>Duration</source>
-        <translation type="vanished">Duration</translation>
-    </message>
-    <message>
-        <source>Candidates</source>
-        <translation type="vanished">Candidates</translation>
-    </message>
-    <message>
-        <source>start %1  end %2  delta %3 frames  %4 ms</source>
-        <translation type="vanished">start %1  end %2  delta %3 frames  %4 ms</translation>
-    </message>
-    <message>
-        <source>time %1s -&gt; %2s | %3</source>
-        <translation type="vanished">time %1s -&gt; %2s | %3</translation>
-    </message>
-    <message>
-        <source>red light at %1,%2 area %3 | transition frame %4 | luminance %5-&gt;%6</source>
-        <oldsource>start score %1  end score %2  luminance %3-&gt;%4 / %5-&gt;%6</oldsource>
-        <translation type="vanished">red light at %1,%2 area %3 | transition frame %4 | luminance %5-&gt;%6</translation>
-    </message>
-    <message>
-        <source>Top Candidate Evidence</source>
-        <translation type="vanished">Top Candidate Evidence</translation>
-    </message>
-    <message>
-        <source>Start frame %1</source>
-        <translation type="vanished">Start frame %1</translation>
-    </message>
-    <message>
-        <source>End frame %1</source>
-        <translation type="vanished">End frame %1</translation>
-    </message>
-    <message>
-        <source>Detected State Changes</source>
-        <translation type="vanished">Detected State Changes</translation>
-    </message>
-    <message>
-        <source>frame %1</source>
-        <translation type="vanished">frame %1</translation>
-    </message>
-    <message>
-        <source>score %1</source>
-        <translation type="vanished">score %1</translation>
-    </message>
-    <message>
-        <source>luma %1 -&gt; %2  sat %3 -&gt; %4</source>
-        <translation type="vanished">luma %1 -&gt; %2  sat %3 -&gt; %4</translation>
-    </message>
-    <message>
-        <source>Debug Tools</source>
-        <translation type="vanished">Debug Tools</translation>
-    </message>
-    <message>
-        <source>Diagnostics, logs, and utilities go here.</source>
-        <translation type="vanished">Diagnostics, logs, and utilities go here.</translation>
     </message>
 </context>
 <context>
     <name>T_Dialog</name>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="10"/>
         <source>Dialog</source>
         <translation>Dialog</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="18" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="18"/>
         <source>Show Double Button Dialog</source>
         <translation>Show Double Button Dialog</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="46" />
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="99" />
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="168" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="46"/>
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="99"/>
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="168"/>
         <source>Friendly Reminder</source>
         <translation>Friendly Reminder</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="47" />
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="100" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="47"/>
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="100"/>
         <source>Are you sure you want to opt out?</source>
         <translation>Are you sure you want to opt out?</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="49" />
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="102" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="49"/>
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="102"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="51" />
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="104" />
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="181" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="51"/>
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="104"/>
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="181"/>
         <source>Click the Cancel Button</source>
         <translation>Click the Cancel Button</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="53" />
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="106" />
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="183" />
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="226" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="53"/>
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="106"/>
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="183"/>
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="226"/>
         <source>OK</source>
         <translation>OK</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="55" />
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="108" />
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="228" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="55"/>
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="108"/>
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="228"/>
         <source>Click the OK Button</source>
         <translation>Click the OK Button</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="66" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="66"/>
         <source>Show Triple Button Dialog</source>
         <translation>Show Triple Button Dialog</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="110" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="110"/>
         <source>Minimize</source>
         <translation>Minimize</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="112" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="112"/>
         <source>Click Minimize</source>
         <translation>Click Minimize</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="124" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="124"/>
         <source>Custom Content Dialog</source>
         <translation>Custom Content Dialog</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="132" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="132"/>
         <source>Custom Content Dialog2</source>
         <translation>Custom Content Dialog2</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="169" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="169"/>
         <source>Data is loading, please wait...</source>
         <translation>Data is loading, please wait...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="170" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="170"/>
         <source>Unload</source>
         <translation>Unload</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="185" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="185"/>
         <source>Test the InfoBar level on top of the Popup</source>
         <translation>Test the InfoBar level on top of the Popup</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Dialog.qml" line="191" />
+        <location filename="imports/example/qml/page/T_Dialog.qml" line="191"/>
         <source>Line Chart</source>
         <translation>Line Chart</translation>
     </message>
@@ -4247,22 +3840,22 @@ Updated content:
 <context>
     <name>T_Expander</name>
     <message>
-        <location filename="imports/example/qml/page/T_Expander.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Expander.qml" line="10"/>
         <source>Expander</source>
         <translation>Expander</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Expander.qml" line="25" />
+        <location filename="imports/example/qml/page/T_Expander.qml" line="25"/>
         <source>Open a radio box</source>
         <translation>Open a radio box</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Expander.qml" line="52" />
+        <location filename="imports/example/qml/page/T_Expander.qml" line="52"/>
         <source>Open a sliding text box</source>
         <translation>Open a sliding text box</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Expander.qml" line="68" />
+        <location filename="imports/example/qml/page/T_Expander.qml" line="68"/>
         <source>Permit me to observe: the late emperor was taken from us before he could finish his life`s work, the restoration of Han. Today, the empire is still divided in three, and our very survival is threatened. Yet still the officials at court and the soldiers throughout the realm remain loyal to you, your majesty. Because they remember the late emperor, all of them, and they wish to repay his kindness in service to you. This is the moment to extend your divine influence, to honour the memory of the late Emperor and strengthen the morale of your officers. It is not time to listen to bad advice, or close your ears to the suggestions of loyal men.
 The court and the administration are as one. Both must be judged by one standard. Those who are loyal and good must get what they deserve, but so must the evil-doers who break the law. This will demonstrate the justice of your rule. There cannot be one law for the court and another for the administration.
 Counselors and attendants like Guo Youzhi, Fei Yi, and Dong Yun are all reliable men, loyal of purpose and pure in motive. The late Emperor selected them for office so that they would serve you after his death.These are the men who should be consulted on all palace affairs. Xiang Chong has proved himself a fine general in battle, and the late Emperor believed in him. That is why the assembly has recommended him for overall command. It will keep the troops happy if he is consulted on all military matters.
@@ -4284,17 +3877,17 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_FlipView</name>
     <message>
-        <location filename="imports/example/qml/page/T_FlipView.qml" line="10" />
+        <location filename="imports/example/qml/page/T_FlipView.qml" line="10"/>
         <source>FlipView</source>
         <translation>FlipView</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_FlipView.qml" line="19" />
+        <location filename="imports/example/qml/page/T_FlipView.qml" line="19"/>
         <source>Horizontal FlipView</source>
         <translation>Horizontal FlipView</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_FlipView.qml" line="71" />
+        <location filename="imports/example/qml/page/T_FlipView.qml" line="71"/>
         <source>Vertical FlipView</source>
         <translation>Vertical FlipView</translation>
     </message>
@@ -4302,40 +3895,40 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_GroupBox</name>
     <message>
-        <location filename="imports/example/qml/page/T_GroupBox.qml" line="10" />
+        <location filename="imports/example/qml/page/T_GroupBox.qml" line="10"/>
         <source>GroupBox</source>
         <translation>GroupBox</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_GroupBox.qml" line="13" />
+        <location filename="imports/example/qml/page/T_GroupBox.qml" line="13"/>
         <source>CheckBox Group</source>
         <translation>CheckBox Group</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_GroupBox.qml" line="17" />
-        <location filename="imports/example/qml/page/T_GroupBox.qml" line="35" />
+        <location filename="imports/example/qml/page/T_GroupBox.qml" line="17"/>
+        <location filename="imports/example/qml/page/T_GroupBox.qml" line="35"/>
         <source>E-mail</source>
         <translation>E-mail</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_GroupBox.qml" line="18" />
-        <location filename="imports/example/qml/page/T_GroupBox.qml" line="36" />
+        <location filename="imports/example/qml/page/T_GroupBox.qml" line="18"/>
+        <location filename="imports/example/qml/page/T_GroupBox.qml" line="36"/>
         <source>Calendar</source>
         <translation>Calendar</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_GroupBox.qml" line="19" />
-        <location filename="imports/example/qml/page/T_GroupBox.qml" line="37" />
+        <location filename="imports/example/qml/page/T_GroupBox.qml" line="19"/>
+        <location filename="imports/example/qml/page/T_GroupBox.qml" line="37"/>
         <source>Contacts</source>
         <translation>Contacts</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_GroupBox.qml" line="24" />
+        <location filename="imports/example/qml/page/T_GroupBox.qml" line="24"/>
         <source>RadioButton Group</source>
         <translation>RadioButton Group</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_GroupBox.qml" line="46" />
+        <location filename="imports/example/qml/page/T_GroupBox.qml" line="46"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
@@ -4343,225 +3936,225 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Home</name>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="22" />
-        <location filename="imports/example/qml/page/T_Home.qml" line="148" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="22"/>
+        <location filename="imports/example/qml/page/T_Home.qml" line="148"/>
         <source>My Jira</source>
         <translation>My Jira</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="22" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="22"/>
         <source>3 waiting for test</source>
         <translation>3 waiting for test</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="23" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="23"/>
         <source>Confluence</source>
         <translation>Confluence</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="23" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="23"/>
         <source>new hot pages</source>
         <translation>new hot pages</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="24" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="24"/>
         <source>DUT Online</source>
         <translation>DUT Online</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="24" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="24"/>
         <source>latest device alive</source>
         <translation>latest device alive</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="25" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="25"/>
         <source>Failed Runs</source>
         <translation>Failed Runs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="25" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="25"/>
         <source>need review</source>
         <translation>need review</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="28" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="28"/>
         <source>Auto reboot case loses client status after DUT reboot</source>
         <translation>Auto reboot case loses client status after DUT reboot</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="28" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="28"/>
         <source>In Progress</source>
         <translation>In Progress</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="28" />
-        <location filename="imports/example/qml/page/T_Home.qml" line="388" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="28"/>
+        <location filename="imports/example/qml/page/T_Home.qml" line="388"/>
         <source>High</source>
         <translation>High</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="29" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="29"/>
         <source>Packaged runner cannot locate Android signing resources</source>
         <translation>Packaged runner cannot locate Android signing resources</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="29" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="29"/>
         <source>Ready</source>
         <translation>Ready</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="29" />
-        <location filename="imports/example/qml/page/T_Home.qml" line="388" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="29"/>
+        <location filename="imports/example/qml/page/T_Home.qml" line="388"/>
         <source>Medium</source>
         <translation>Medium</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="30" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="30"/>
         <source>Report logs should preserve scrollable full output</source>
         <translation>Report logs should preserve scrollable full output</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="30" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="30"/>
         <source>Review</source>
         <translation>Review</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="30" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="30"/>
         <source>Low</source>
         <translation>Low</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="33" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="33"/>
         <source>S6 U1 platform test checklist</source>
         <translation>S6 U1 platform test checklist</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="33" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="33"/>
         <source>updated today</source>
         <translation>updated today</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="34" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="34"/>
         <source>ADB privileged app install flow</source>
         <translation>ADB privileged app install flow</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="34" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="34"/>
         <source>14 readers</source>
         <translation>14 readers</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="35" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="35"/>
         <source>SmartTest packaged runtime notes</source>
         <translation>SmartTest packaged runtime notes</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="35" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="35"/>
         <source>new comment</source>
         <translation>new comment</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="38" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="38"/>
         <source>IPTV daily build is green</source>
         <translation>IPTV daily build is green</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="38" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="38"/>
         <source>Jenkins signal</source>
         <translation>Jenkins signal</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="39" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="39"/>
         <source>Two DUTs need USB reconnection</source>
         <translation>Two DUTs need USB reconnection</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="39" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="39"/>
         <source>lab status</source>
         <translation>lab status</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="40" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="40"/>
         <source>MCP connector health check pending</source>
         <translation>MCP connector health check pending</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="40" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="40"/>
         <source>intranet</source>
         <translation>intranet</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="88" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="88"/>
         <source>Intranet first</source>
         <translation>Intranet first</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="89" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="89"/>
         <source>MCP ready layout</source>
         <translation>MCP ready layout</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="90" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="90"/>
         <source>Bing daily wallpaper</source>
         <translation>Bing daily wallpaper</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="95" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="95"/>
         <source>SmartTest Workbench</source>
         <translation>SmartTest Workbench</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="103" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="103"/>
         <source>Focused view for tests, issues, knowledge and internal signals.</source>
         <translation>Focused view for tests, issues, knowledge and internal signals.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="149" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="149"/>
         <source>Personal issues from intranet MCP</source>
         <translation>Personal issues from intranet MCP</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="167" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="167"/>
         <source>Open Jira</source>
         <translation>Open Jira</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="180" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="180"/>
         <source>Confluence Hotspots</source>
         <translation>Confluence Hotspots</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="181" />
-        <source>Pages likely useful for today's work</source>
-        <translation>Pages likely useful for today's work</translation>
+        <location filename="imports/example/qml/page/T_Home.qml" line="181"/>
+        <source>Pages likely useful for today&apos;s work</source>
+        <translation>Pages likely useful for today&apos;s work</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="203" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="203"/>
         <source>Search knowledge base</source>
         <translation>Search knowledge base</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="204" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="204"/>
         <source>Reserved for Confluence MCP</source>
         <translation>Reserved for Confluence MCP</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="213" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="213"/>
         <source>Internal Signals</source>
         <translation>Internal Signals</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="214" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="214"/>
         <source>Company and lab information</source>
         <translation>Company and lab information</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="236" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="236"/>
         <source>Continue test workflow</source>
         <translation>Continue test workflow</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Home.qml" line="237" />
+        <location filename="imports/example/qml/page/T_Home.qml" line="237"/>
         <source>Open Test, Run or Report from the sidebar</source>
         <translation>Open Test, Run or Report from the sidebar</translation>
     </message>
@@ -4569,17 +4162,17 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Icons</name>
     <message>
-        <location filename="imports/example/qml/page/T_Icons.qml" line="9" />
+        <location filename="imports/example/qml/page/T_Icons.qml" line="9"/>
         <source>Icons</source>
         <translation>Icons</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Icons.qml" line="13" />
+        <location filename="imports/example/qml/page/T_Icons.qml" line="13"/>
         <source>Please enter a keyword</source>
         <translation>Please enter a keyword</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Icons.qml" line="51" />
+        <location filename="imports/example/qml/page/T_Icons.qml" line="51"/>
         <source>You Copied </source>
         <translation>You Copied </translation>
     </message>
@@ -4587,12 +4180,12 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Image</name>
     <message>
-        <location filename="imports/example/qml/page/T_Image.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Image.qml" line="10"/>
         <source>Image</source>
         <translation>Image</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Image.qml" line="28" />
+        <location filename="imports/example/qml/page/T_Image.qml" line="28"/>
         <source>The image failed to load, please reload</source>
         <translation>The image failed to load, please reload</translation>
     </message>
@@ -4600,79 +4193,79 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_InfoBar</name>
     <message>
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="10" />
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="10"/>
         <source>InfoBar</source>
         <translation>InfoBar</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="27" />
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="27"/>
         <source>Info</source>
         <translation>Info</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="29" />
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="53" />
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="29"/>
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="53"/>
         <source>This is an InfoBar in the Info Style</source>
         <translation>This is an InfoBar in the Info Style</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="33" />
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="33"/>
         <source>Warning</source>
         <translation>Warning</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="35" />
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="35"/>
         <source>This is an InfoBar in the Warning Style</source>
         <translation>This is an InfoBar in the Warning Style</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="41" />
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="41"/>
         <source>This is an InfoBar in the Error Style</source>
         <translation>This is an InfoBar in the Error Style</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="47" />
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="47"/>
         <source>This is an InfoBar in the Success Style</source>
         <translation>This is an InfoBar in the Success Style</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="51" />
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="51"/>
         <source>InfoBar that needs to be turned off manually</source>
         <translation>InfoBar that needs to be turned off manually</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="53" />
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="53"/>
         <source>Manual shutdown is supported</source>
         <translation>Manual shutdown is supported</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="59" />
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="59"/>
         <source>Manually close the info message box</source>
         <translation>Manually close the info message box</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="64" />
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="74" />
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="84" />
-        <source>close '%1'</source>
-        <translation>close '%1'</translation>
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="64"/>
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="74"/>
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="84"/>
+        <source>close &apos;%1&apos;</source>
+        <translation>close &apos;%1&apos;</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="64" />
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="74" />
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="84" />
-        <source>show '%1</source>
-        <translation>show '%1</translation>
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="64"/>
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="74"/>
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="84"/>
+        <source>show &apos;%1</source>
+        <translation>show &apos;%1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="70" />
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="80" />
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="90" />
-        <source>This is an '%1'</source>
-        <translation>This is an '%1'</translation>
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="70"/>
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="80"/>
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="90"/>
+        <source>This is an &apos;%1&apos;</source>
+        <translation>This is an &apos;%1&apos;</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_InfoBar.qml" line="94" />
+        <location filename="imports/example/qml/page/T_InfoBar.qml" line="94"/>
         <source>clear all info</source>
         <translation>clear all info</translation>
     </message>
@@ -4680,511 +4273,439 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Jira</name>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="11" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="11"/>
         <source>Jira</source>
         <translation>Jira</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="15" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="15"/>
         <source>Show the issues assigned to me this week and point out blockers.</source>
         <translation>Show the issues assigned to me this week and point out blockers.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="16" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="16"/>
         <source>Analyze open bugs related to Wi-Fi stability and summarize the hotspots.</source>
         <translation>Analyze open bugs related to Wi-Fi stability and summarize the hotspots.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="17" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="17"/>
         <source>Find high-priority Jira tickets that may affect the next regression run.</source>
         <translation>Find high-priority Jira tickets that may affect the next regression run.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="20" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="20"/>
         <source>Sprint risk review</source>
         <translation>Sprint risk review</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="20" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="20"/>
         <source>Critical and blocked items</source>
         <translation>Critical and blocked items</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="21" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="21"/>
         <source>Wi-Fi defect analysis</source>
         <translation>Wi-Fi defect analysis</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="21" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="21"/>
         <source>Cluster by component</source>
         <translation>Cluster by component</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="22" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="22"/>
         <source>Ready-for-test triage</source>
         <translation>Ready-for-test triage</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="22" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="22"/>
         <source>Focus on next regression</source>
         <translation>Focus on next regression</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="543" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="543"/>
         <source>Add Source</source>
         <translation>Add Source</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="572" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1791" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="572"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1791"/>
         <source>Sources</source>
         <translation>Sources</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="578" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="578"/>
         <source>Jira MCP is enabled by default for Jira AI.</source>
         <translation>Jira MCP is enabled by default for Jira AI.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="677" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="677"/>
         <source>Conversation History</source>
         <translation>Conversation History</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="686" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="686"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="748" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="748"/>
         <source>%1 messages</source>
         <translation>%1 messages</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="770" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="770"/>
         <source>No conversation history yet.</source>
         <translation>No conversation history yet.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="800" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="800"/>
         <source>Jira AI Workspace</source>
         <translation>Jira AI Workspace</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="806" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="806"/>
         <source>Signed in as %1. LDAP credentials are reused directly for Jira access.</source>
         <translation>Signed in as %1. LDAP credentials are reused directly for Jira access.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="832" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="832"/>
         <source>Connection</source>
         <translation>Connection</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="850" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="850"/>
         <source>Loading</source>
         <translation>Loading</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="851" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="851"/>
         <source>Connected</source>
         <translation>Connected</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="851" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="851"/>
         <source>Waiting</source>
         <translation>Waiting</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="945" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="945"/>
         <source>JQL Filter</source>
         <translation>JQL Filter</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="954" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="954"/>
         <source>Paste a Jira filter, for example: project = TV ORDER BY created DESC</source>
         <translation>Paste a Jira filter, for example: project = TV ORDER BY created DESC</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="960" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="960"/>
         <source>When this field is filled, SmartTest uses this JQL directly and skips the common Jira filters below.</source>
         <translation>When this field is filled, SmartTest uses this JQL directly and skips the common Jira filters below.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1298" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1298"/>
         <source>Filters</source>
-        <translation type="unfinished" />
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1308" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1308"/>
         <source>Quick views</source>
         <translation>Quick views</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1551" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1551"/>
         <source>Jira AI Chat</source>
         <translation>Jira AI Chat</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1557" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1557"/>
         <source>Preview</source>
         <translation>Preview</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1584" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1777" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1584"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1777"/>
         <source>More</source>
         <translation>More</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1617" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1617"/>
         <source>Thinking...</source>
         <translation>Thinking...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1681" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1681"/>
         <source>Copy</source>
         <translation>Copy</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1690" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1690"/>
         <source>Resend</source>
         <translation>Resend</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1751" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1751"/>
         <source>Ask anything</source>
         <translation>Ask anything</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1785" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1785"/>
         <source>Quick</source>
         <translation>Quick</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1815" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1815"/>
         <source>Voice</source>
         <translation>Voice</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1845" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1845"/>
         <source>SmartTest AI can make mistakes. Verify important information.</source>
         <translation>SmartTest AI can make mistakes. Verify important information.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="931" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="931"/>
         <source>Search Scope</source>
         <translation>Search Scope</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="936" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="936"/>
         <source>Common Jira Filters</source>
         <translation>Common Jira Filters</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="968" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="968"/>
         <source>Projects</source>
         <translation>Projects</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="969" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="969"/>
         <source>All Supported Projects</source>
         <translation>All Supported Projects</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="969" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1046" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1079" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1112" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1148" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1171" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1211" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1251" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="969"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1046"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1079"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1112"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1148"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1171"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1211"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1251"/>
         <source>Not limited</source>
         <translation>Not limited</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="999" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="999"/>
         <source>Workflow Preset</source>
         <translation>Workflow Preset</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1022" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1022"/>
         <source>Time Window</source>
         <translation>Time Window</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1045" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1045"/>
         <source>Statuses</source>
         <translation>Statuses</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1078" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1078"/>
         <source>Priorities</source>
         <translation>Priorities</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1111" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1111"/>
         <source>Issue Types</source>
         <translation>Issue Types</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1147" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1162" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1147"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1162"/>
         <source>Keyword text</source>
         <translation>Keyword text</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1170" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2153" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1170"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2153"/>
         <source>Assignee</source>
         <translation>Assignee</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1188" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1228" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1268" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1188"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1228"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1268"/>
         <source>No options in current result set</source>
         <translation>No options in current result set</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1210" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2156" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1210"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2156"/>
         <source>Reporter</source>
         <translation>Reporter</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1250" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2087" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2159" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1250"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2087"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2159"/>
         <source>Labels</source>
         <translation>Labels</translation>
     </message>
     <message>
-        <source>Components</source>
-        <translation type="vanished">Components</translation>
-    </message>
-    <message>
-        <source>Assignee, comma separated</source>
-        <translation type="vanished">Assignee, comma separated</translation>
-    </message>
-    <message>
-        <source>Reporter, comma separated</source>
-        <translation type="vanished">Reporter, comma separated</translation>
-    </message>
-    <message>
-        <source>Labels, comma separated</source>
-        <translation type="vanished">Labels, comma separated</translation>
-    </message>
-    <message>
-        <source>Components, comma separated</source>
-        <translation type="vanished">Components, comma separated</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1290" />
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1980" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1290"/>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1980"/>
         <source>Loading...</source>
         <translation>Loading...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1290" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1290"/>
         <source>Refresh Results</source>
         <translation>Refresh Results</translation>
     </message>
     <message>
-        <source>Analysis Options</source>
-        <translation type="vanished">Analysis Options</translation>
-    </message>
-    <message>
-        <source>Include comments</source>
-        <translation type="vanished">Include comments</translation>
-    </message>
-    <message>
-        <source>Include linked issues</source>
-        <translation type="vanished">Include linked issues</translation>
-    </message>
-    <message>
-        <source>Limit to my tickets</source>
-        <translation type="vanished">Limit to my tickets</translation>
-    </message>
-    <message>
-        <source>My Filters</source>
-        <translation type="vanished">My Filters</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1316" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1316"/>
         <source>Loading your Jira filters...</source>
         <translation>Loading your Jira filters...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1325" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1325"/>
         <source>No favourite filters were found for this account.</source>
         <translation>No favourite filters were found for this account.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1373" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1373"/>
         <source>Click to apply this filter to the current JQL box.</source>
         <translation>Click to apply this filter to the current JQL box.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1391" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1391"/>
         <source>Suggested Queries</source>
         <translation>Suggested Queries</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1430" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1430"/>
         <source>Click to place this prompt into the AI input box.</source>
         <translation>Click to place this prompt into the AI input box.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1448" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1448"/>
         <source>Recent Sessions</source>
         <translation>Recent Sessions</translation>
     </message>
     <message>
-        <source>AI Conversation</source>
-        <translation type="vanished">AI Conversation</translation>
-    </message>
-    <message>
-        <source>Use plain language. Jira search and AI analysis are both driven from this workspace.</source>
-        <translation type="vanished">Use plain language. Jira search and AI analysis are both driven from this workspace.</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1572" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1572"/>
         <source>History</source>
         <translation>History</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="523" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="523"/>
         <source>Clear Session</source>
         <translation>Clear Session</translation>
     </message>
     <message>
-        <source>Ask Jira in natural language. Example: summarize blocked issues related to WPA this sprint.</source>
-        <translation type="vanished">Ask Jira in natural language. Example: summarize blocked issues related to WPA this sprint.</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="533" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="533"/>
         <source>Use Selected Issue</source>
         <translation>Use Selected Issue</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="537" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="537"/>
         <source>Analyze %1 and tell me the risk for testing.</source>
         <translation>Analyze %1 and tell me the risk for testing.</translation>
     </message>
     <message>
-        <source>Running...</source>
-        <translation type="vanished">Running...</translation>
-    </message>
-    <message>
-        <source>Send</source>
-        <translation type="vanished">Send</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1865" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1865"/>
         <source>Structured Results</source>
         <translation>Structured Results</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1874" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1874"/>
         <source>Issues</source>
         <translation>Issues</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="1980" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="1980"/>
         <source>Load More</source>
         <translation>Load More</translation>
     </message>
     <message>
-        <source>%1 of %2</source>
-        <translation type="vanished">%1 of %2</translation>
-    </message>
-    <message>
-        <source>TV Projects</source>
-        <translation type="vanished">TV Projects</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2012" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2012"/>
         <source>Selected Issue</source>
         <translation>Selected Issue</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2020" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2020"/>
         <source>Click to collapse</source>
         <translation>Click to collapse</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2020" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2020"/>
         <source>Click to expand</source>
         <translation>Click to expand</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2037" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2037"/>
         <source>No issue selected</source>
         <translation>No issue selected</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2073" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2073"/>
         <source>| Updated %1 | %2 comments | %3 links</source>
         <translation>| Updated %1 | %2 comments | %3 links</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2131" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2131"/>
         <source>Bug Status</source>
         <translation>Bug Status</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2141" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2141"/>
         <source>Type</source>
         <translation>Type</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2144" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2144"/>
         <source>Priority</source>
         <translation>Priority</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2147" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2147"/>
         <source>Status</source>
         <translation>Status</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2150" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2150"/>
         <source>Resolution</source>
         <translation>Resolution</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2166" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2166"/>
         <source>Description</source>
         <translation>Description</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2198" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2198"/>
         <source>Comments</source>
         <translation>Comments</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2205" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2205"/>
         <source>No comments yet.</source>
         <translation>No comments yet.</translation>
     </message>
     <message>
-        <source>%1 | Updated %2 | %3 comments | %4 links</source>
-        <translation type="vanished">%1 | Updated %2 | %3 comments | %4 links</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2247" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2247"/>
         <source>Analysis</source>
         <translation>Analysis</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2272" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2272"/>
         <source>AI Summary</source>
         <translation>AI Summary</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Jira.qml" line="2293" />
+        <location filename="imports/example/qml/page/T_Jira.qml" line="2293"/>
         <source>Suggested Next Actions</source>
         <translation>Suggested Next Actions</translation>
     </message>
@@ -5192,7 +4713,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_LineChart</name>
     <message>
-        <location filename="imports/example/qml/chart/T_LineChart.qml" line="11" />
+        <location filename="imports/example/qml/chart/T_LineChart.qml" line="11"/>
         <source>Line Chart</source>
         <translation>Line Chart</translation>
     </message>
@@ -5200,114 +4721,114 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Menu</name>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="10" />
-        <location filename="imports/example/qml/page/T_Menu.qml" line="63" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="10"/>
+        <location filename="imports/example/qml/page/T_Menu.qml" line="63"/>
         <source>Menu</source>
         <translation>Menu</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="14" />
-        <location filename="imports/example/qml/page/T_Menu.qml" line="120" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="14"/>
+        <location filename="imports/example/qml/page/T_Menu.qml" line="120"/>
         <source>File</source>
         <translation>File</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="15" />
-        <location filename="imports/example/qml/page/T_Menu.qml" line="121" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="15"/>
+        <location filename="imports/example/qml/page/T_Menu.qml" line="121"/>
         <source>New...</source>
         <translation>New...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="16" />
-        <location filename="imports/example/qml/page/T_Menu.qml" line="122" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="16"/>
+        <location filename="imports/example/qml/page/T_Menu.qml" line="122"/>
         <source>Open...</source>
         <translation>Open...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="17" />
-        <location filename="imports/example/qml/page/T_Menu.qml" line="123" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="17"/>
+        <location filename="imports/example/qml/page/T_Menu.qml" line="123"/>
         <source>Save</source>
         <translation>Save</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="20" />
-        <location filename="imports/example/qml/page/T_Menu.qml" line="125" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="20"/>
+        <location filename="imports/example/qml/page/T_Menu.qml" line="125"/>
         <source>Quit</source>
         <translation>Quit</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="26" />
-        <location filename="imports/example/qml/page/T_Menu.qml" line="30" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="26"/>
+        <location filename="imports/example/qml/page/T_Menu.qml" line="30"/>
         <source>Search</source>
         <translation>Search</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="34" />
-        <location filename="imports/example/qml/page/T_Menu.qml" line="37" />
-        <location filename="imports/example/qml/page/T_Menu.qml" line="127" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="34"/>
+        <location filename="imports/example/qml/page/T_Menu.qml" line="37"/>
+        <location filename="imports/example/qml/page/T_Menu.qml" line="127"/>
         <source>Disable</source>
         <translation>Disable</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="41" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="41"/>
         <source>Check</source>
         <translation>Check</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="43" />
-        <location filename="imports/example/qml/page/T_Menu.qml" line="131" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="43"/>
+        <location filename="imports/example/qml/page/T_Menu.qml" line="131"/>
         <source>Save As...</source>
         <translation>Save As...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="44" />
-        <location filename="imports/example/qml/page/T_Menu.qml" line="132" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="44"/>
+        <location filename="imports/example/qml/page/T_Menu.qml" line="132"/>
         <source>Doc</source>
         <translation>Doc</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="45" />
-        <location filename="imports/example/qml/page/T_Menu.qml" line="133" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="45"/>
+        <location filename="imports/example/qml/page/T_Menu.qml" line="133"/>
         <source>PDF</source>
         <translation>PDF</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="67" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="67"/>
         <source>Show Menu Popup</source>
         <translation>Show Menu Popup</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="114" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="114"/>
         <source>MenuBar</source>
         <translation>MenuBar</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="137" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="137"/>
         <source>Edit</source>
         <translation>Edit</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="138" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="138"/>
         <source>Cut</source>
         <translation>Cut</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="139" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="139"/>
         <source>Copy</source>
         <translation>Copy</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="140" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="140"/>
         <source>Paste</source>
         <translation>Paste</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="143" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="143"/>
         <source>Help</source>
         <translation>Help</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Menu.qml" line="144" />
+        <location filename="imports/example/qml/page/T_Menu.qml" line="144"/>
         <source>About</source>
         <translation>About</translation>
     </message>
@@ -5315,46 +4836,46 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_MultiWindow</name>
     <message>
-        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="12" />
+        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="12"/>
         <source>MultiWindow</source>
         <translation>MultiWindow</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="35" />
-        <source>&lt;font color='red'&gt;Standard&lt;/font&gt; mode window，a new window is created every time</source>
-        <translation>&lt;font color='red'&gt;Standard&lt;/font&gt; mode window，a new window is created every time</translation>
+        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="35"/>
+        <source>&lt;font color=&apos;red&apos;&gt;Standard&lt;/font&gt; mode window，a new window is created every time</source>
+        <translation>&lt;font color=&apos;red&apos;&gt;Standard&lt;/font&gt; mode window，a new window is created every time</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="38" />
-        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="62" />
-        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="85" />
-        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="119" />
-        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="154" />
+        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="38"/>
+        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="62"/>
+        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="85"/>
+        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="119"/>
+        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="154"/>
         <source>Create Window</source>
         <translation>Create Window</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="58" />
-        <source>&lt;font color='red'&gt;SingleTask&lt;/font&gt; mode window，If a window exists, this activates the window</source>
-        <translation>&lt;font color='red'&gt;SingleTask&lt;/font&gt; mode window，If a window exists, this activates the window</translation>
+        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="58"/>
+        <source>&lt;font color=&apos;red&apos;&gt;SingleTask&lt;/font&gt; mode window，If a window exists, this activates the window</source>
+        <translation>&lt;font color=&apos;red&apos;&gt;SingleTask&lt;/font&gt; mode window，If a window exists, this activates the window</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="82" />
-        <source>&lt;font color='red'&gt;SingleInstance&lt;/font&gt; mode window，If the window exists, destroy the window and create a new window</source>
-        <translation>&lt;font color='red'&gt;SingleInstance&lt;/font&gt; mode window，If the window exists, destroy the window and create a new window</translation>
+        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="82"/>
+        <source>&lt;font color=&apos;red&apos;&gt;SingleInstance&lt;/font&gt; mode window，If the window exists, destroy the window and create a new window</source>
+        <translation>&lt;font color=&apos;red&apos;&gt;SingleInstance&lt;/font&gt; mode window，If the window exists, destroy the window and create a new window</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="116" />
+        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="116"/>
         <source>Create the window without carrying any parameters</source>
         <translation>Create the window without carrying any parameters</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="151" />
+        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="151"/>
         <source>Create a window with the parameter username: zhuzichu</source>
         <translation>Create a window with the parameter username: zhuzichu</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="160" />
+        <location filename="imports/example/qml/page/T_MultiWindow.qml" line="160"/>
         <source>Login Window Returned Password - &gt;</source>
         <translation>Login Window Returned Password - &gt;</translation>
     </message>
@@ -5362,7 +4883,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_OpenGL</name>
     <message>
-        <location filename="imports/example/qml/page/T_OpenGL.qml" line="11" />
+        <location filename="imports/example/qml/page/T_OpenGL.qml" line="11"/>
         <source>OpenGL</source>
         <translation>OpenGL</translation>
     </message>
@@ -5370,7 +4891,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Pagination</name>
     <message>
-        <location filename="imports/example/qml/page/T_Pagination.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Pagination.qml" line="10"/>
         <source>Pagination</source>
         <translation>Pagination</translation>
     </message>
@@ -5378,7 +4899,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_PieChart</name>
     <message>
-        <location filename="imports/example/qml/chart/T_PieChart.qml" line="10" />
+        <location filename="imports/example/qml/chart/T_PieChart.qml" line="10"/>
         <source>Pie Chart</source>
         <translation>Pie Chart</translation>
     </message>
@@ -5386,47 +4907,47 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Pivot</name>
     <message>
-        <location filename="imports/example/qml/page/T_Pivot.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Pivot.qml" line="10"/>
         <source>Pivot</source>
         <translation>Pivot</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Pivot.qml" line="22" />
+        <location filename="imports/example/qml/page/T_Pivot.qml" line="22"/>
         <source>All</source>
         <translation>All</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Pivot.qml" line="24" />
+        <location filename="imports/example/qml/page/T_Pivot.qml" line="24"/>
         <source>All emails go here.</source>
         <translation>All emails go here.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Pivot.qml" line="28" />
+        <location filename="imports/example/qml/page/T_Pivot.qml" line="28"/>
         <source>Unread</source>
         <translation>Unread</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Pivot.qml" line="30" />
+        <location filename="imports/example/qml/page/T_Pivot.qml" line="30"/>
         <source>Unread emails go here.</source>
         <translation>Unread emails go here.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Pivot.qml" line="34" />
+        <location filename="imports/example/qml/page/T_Pivot.qml" line="34"/>
         <source>Flagged</source>
         <translation>Flagged</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Pivot.qml" line="36" />
+        <location filename="imports/example/qml/page/T_Pivot.qml" line="36"/>
         <source>Flagged emails go here.</source>
         <translation>Flagged emails go here.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Pivot.qml" line="40" />
+        <location filename="imports/example/qml/page/T_Pivot.qml" line="40"/>
         <source>Urgent</source>
         <translation>Urgent</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Pivot.qml" line="42" />
+        <location filename="imports/example/qml/page/T_Pivot.qml" line="42"/>
         <source>Urgent emails go here.</source>
         <translation>Urgent emails go here.</translation>
     </message>
@@ -5434,7 +4955,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_PolarAreaChart</name>
     <message>
-        <location filename="imports/example/qml/chart/T_PolarAreaChart.qml" line="10" />
+        <location filename="imports/example/qml/chart/T_PolarAreaChart.qml" line="10"/>
         <source>Polar Area Chart</source>
         <translation>Polar Area Chart</translation>
     </message>
@@ -5442,7 +4963,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Progress</name>
     <message>
-        <location filename="imports/example/qml/page/T_Progress.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Progress.qml" line="10"/>
         <source>Progress</source>
         <translation>Progress</translation>
     </message>
@@ -5450,7 +4971,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_QRCode</name>
     <message>
-        <location filename="imports/example/qml/page/T_QRCode.qml" line="10" />
+        <location filename="imports/example/qml/page/T_QRCode.qml" line="10"/>
         <source>QRCode</source>
         <translation>QRCode</translation>
     </message>
@@ -5458,7 +4979,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_RadarChart</name>
     <message>
-        <location filename="imports/example/qml/chart/T_RadarChart.qml" line="10" />
+        <location filename="imports/example/qml/chart/T_RadarChart.qml" line="10"/>
         <source>Radar Chart</source>
         <translation>Radar Chart</translation>
     </message>
@@ -5466,46 +4987,46 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_RadioButton</name>
     <message>
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="10" />
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="10"/>
         <source>RadioButton</source>
         <translation>RadioButton</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="24" />
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="24"/>
         <source>Right</source>
         <translation>Right</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="28" />
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="28"/>
         <source>Left</source>
         <translation>Left</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="38" />
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="79" />
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="130" />
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="181" />
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="38"/>
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="79"/>
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="130"/>
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="181"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="64" />
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="115" />
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="166" />
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="64"/>
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="115"/>
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="166"/>
         <source>Radio Button_1</source>
         <translation>Radio Button_1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="67" />
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="118" />
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="169" />
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="67"/>
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="118"/>
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="169"/>
         <source>Radio Button_2</source>
         <translation>Radio Button_2</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="70" />
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="121" />
-        <location filename="imports/example/qml/page/T_RadioButton.qml" line="172" />
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="70"/>
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="121"/>
+        <location filename="imports/example/qml/page/T_RadioButton.qml" line="172"/>
         <source>Radio Button_3</source>
         <translation>Radio Button_3</translation>
     </message>
@@ -5513,7 +5034,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_RatingControl</name>
     <message>
-        <location filename="imports/example/qml/page/T_RatingControl.qml" line="10" />
+        <location filename="imports/example/qml/page/T_RatingControl.qml" line="10"/>
         <source>RatingControl</source>
         <translation>RatingControl</translation>
     </message>
@@ -5521,7 +5042,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Rectangle</name>
     <message>
-        <location filename="imports/example/qml/page/T_Rectangle.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Rectangle.qml" line="10"/>
         <source>Rectangle</source>
         <translation>Rectangle</translation>
     </message>
@@ -5529,291 +5050,175 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Report</name>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="8" />
+        <location filename="imports/example/qml/page/T_Report.qml" line="8"/>
         <source>Report</source>
         <translation>Report</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="49" />
-        <location filename="imports/example/qml/page/T_Report.qml" line="211" />
-        <location filename="imports/example/qml/page/T_Report.qml" line="252" />
+        <location filename="imports/example/qml/page/T_Report.qml" line="49"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="211"/>
+        <location filename="imports/example/qml/page/T_Report.qml" line="252"/>
         <source>Loading...</source>
         <translation>Loading...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="114" />
+        <location filename="imports/example/qml/page/T_Report.qml" line="114"/>
         <source>Runs</source>
         <translation>Runs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="118" />
+        <location filename="imports/example/qml/page/T_Report.qml" line="118"/>
         <source>Refresh</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="124" />
+        <location filename="imports/example/qml/page/T_Report.qml" line="124"/>
         <source>Open report folder</source>
         <translation>Open report folder</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="215" />
+        <location filename="imports/example/qml/page/T_Report.qml" line="215"/>
         <source>Reload</source>
         <translation>Reload</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="222" />
+        <location filename="imports/example/qml/page/T_Report.qml" line="222"/>
         <source>Export HTML</source>
         <translation>Export HTML</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="229" />
+        <location filename="imports/example/qml/page/T_Report.qml" line="229"/>
         <source>Open in browser</source>
         <translation>Open in browser</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="248" />
+        <location filename="imports/example/qml/page/T_Report.qml" line="248"/>
         <source>Ready</source>
         <translation>Ready</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="250" />
+        <location filename="imports/example/qml/page/T_Report.qml" line="250"/>
         <source>Failed to load report.</source>
         <translation>Failed to load report.</translation>
     </message>
     <message>
-        <source>No reports yet.</source>
-        <translation type="vanished">No reports yet.</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="157" />
+        <location filename="imports/example/qml/page/T_Report.qml" line="157"/>
         <source>Unknown time</source>
         <translation>Unknown time</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="168" />
+        <location filename="imports/example/qml/page/T_Report.qml" line="168"/>
         <source>Total %1  Passed %2  Failed %3</source>
         <translation>Total %1  Passed %2  Failed %3</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="174" />
+        <location filename="imports/example/qml/page/T_Report.qml" line="174"/>
         <source>No DUT</source>
         <translation>No DUT</translation>
     </message>
     <message>
-        <source>DUT</source>
-        <translation type="vanished">DUT</translation>
-    </message>
-    <message>
-        <source>Run Status</source>
-        <translation type="vanished">Run Status</translation>
-    </message>
-    <message>
-        <source>Return Code</source>
-        <translation type="vanished">Return Code</translation>
-    </message>
-    <message>
-        <source>Stopped</source>
-        <translation type="vanished">Stopped</translation>
-    </message>
-    <message>
-        <source>Yes</source>
-        <translation type="vanished">Yes</translation>
-    </message>
-    <message>
-        <source>No</source>
-        <translation type="vanished">No</translation>
-    </message>
-    <message>
-        <source>Step Status</source>
-        <translation type="vanished">Step Status</translation>
-    </message>
-    <message>
-        <source>Kind</source>
-        <translation type="vanished">Kind</translation>
-    </message>
-    <message>
-        <source>Definition</source>
-        <translation type="vanished">Definition</translation>
-    </message>
-    <message>
-        <source>Case</source>
-        <translation type="vanished">Case</translation>
-    </message>
-    <message>
-        <source>Error</source>
-        <translation type="vanished">Error</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Report.qml" line="35" />
+        <location filename="imports/example/qml/page/T_Report.qml" line="35"/>
         <source>Run a test to generate the first report.</source>
         <translation>Run a test to generate the first report.</translation>
-    </message>
-    <message>
-        <source>Total</source>
-        <translation type="vanished">Total</translation>
-    </message>
-    <message>
-        <source>Passed</source>
-        <translation type="vanished">Passed</translation>
-    </message>
-    <message>
-        <source>Failed</source>
-        <translation type="vanished">Failed</translation>
-    </message>
-    <message>
-        <source>Skipped</source>
-        <translation type="vanished">Skipped</translation>
-    </message>
-    <message>
-        <source>Duration</source>
-        <translation type="vanished">Duration</translation>
-    </message>
-    <message>
-        <source>Steps</source>
-        <translation type="vanished">Steps</translation>
-    </message>
-    <message>
-        <source>Step Detail</source>
-        <translation type="vanished">Step Detail</translation>
-    </message>
-    <message>
-        <source>Cases</source>
-        <translation type="vanished">Cases</translation>
-    </message>
-    <message>
-        <source>Logs</source>
-        <translation type="vanished">Logs</translation>
-    </message>
-    <message>
-        <source>Reports</source>
-        <translation type="vanished">Reports</translation>
-    </message>
-    <message>
-        <source>Browse historical runs and export reports.</source>
-        <translation type="vanished">Browse historical runs and export reports.</translation>
     </message>
 </context>
 <context>
     <name>T_Run</name>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="9" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="9"/>
         <source>Run</source>
         <translation>Run</translation>
     </message>
     <message>
-        <source>Run Tests</source>
-        <translation type="vanished">Run Tests</translation>
-    </message>
-    <message>
-        <source>Steps</source>
-        <translation type="vanished">Steps</translation>
-    </message>
-    <message>
-        <source>Logs</source>
-        <translation type="vanished">Logs</translation>
-    </message>
-    <message>
-        <source>Follow Latest</source>
-        <translation type="vanished">Follow Latest</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="272" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="272"/>
         <source>Start</source>
         <translation>Start</translation>
     </message>
     <message>
-        <source>Stop</source>
-        <translation type="vanished">Stop</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="84" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="84"/>
         <source>DUT Progress</source>
         <translation>DUT Progress</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="89" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="89"/>
         <source>Total %1</source>
         <translation>Total %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="93" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="93"/>
         <source>Running %1</source>
         <translation>Running %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="97" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="97"/>
         <source>Failed %1</source>
         <translation>Failed %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="101" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="101"/>
         <source>Passed %1</source>
         <translation>Passed %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="152" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="152"/>
         <source>No DUT</source>
         <translation type="unfinished">No DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="170" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="170"/>
         <source>Collapse</source>
         <translation>Collapse</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="170" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="170"/>
         <source>Expand</source>
         <translation>Expand</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="205" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="205"/>
         <source>case</source>
         <translation>case</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="205" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="205"/>
         <source>step</source>
         <translation>step</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="236" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="236"/>
         <source>Logs (%1)</source>
         <translation>Logs (%1)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="245" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="245"/>
         <source>Hide logs</source>
         <translation>Hide logs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="245" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="245"/>
         <source>Show logs</source>
         <translation>Show logs</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="272" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="272"/>
         <source>Stop All</source>
         <translation>Stop All</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="278" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="278"/>
         <source>Required Parameters</source>
         <translation>Required Parameters</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Run.qml" line="280" />
+        <location filename="imports/example/qml/page/T_Run.qml" line="280"/>
         <source>OK</source>
         <translation>OK</translation>
-    </message>
-    <message>
-        <source>Execution output and progress will appear here.</source>
-        <translation type="vanished">Execution output and progress will appear here.</translation>
     </message>
 </context>
 <context>
     <name>T_ScatterChart</name>
     <message>
-        <location filename="imports/example/qml/chart/T_ScatterChart.qml" line="10" />
+        <location filename="imports/example/qml/chart/T_ScatterChart.qml" line="10"/>
         <source>Scatter Chart</source>
         <translation>Scatter Chart</translation>
     </message>
@@ -5821,127 +5226,127 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Settings</name>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="13" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="14"/>
         <source>Settings</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="55" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="56"/>
         <source>Current Version</source>
         <translation>Current Version</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="61" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="62"/>
         <source>Check for Updates</source>
         <translation>Check for Updates</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="133" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="134"/>
         <source>Use System AppBar</source>
         <translation>Use System AppBar</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="149" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="150"/>
         <source>Fits AppBar Windows</source>
         <translation>Fits AppBar Windows</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="160" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="161"/>
         <source>Friendly Reminder</source>
         <translation>Friendly Reminder</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="161" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="162"/>
         <source>This action requires a restart of the program to take effect, is it restarted?</source>
         <translation>This action requires a restart of the program to take effect, is it restarted?</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="163" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="164"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="164" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="165"/>
         <source>OK</source>
         <translation>OK</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="183" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="184"/>
         <source>Dark Mode</source>
         <translation>Dark Mode</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="188" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="189"/>
         <source>System</source>
         <translation>System</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="188" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="189"/>
         <source>Light</source>
         <translation>Light</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="188" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="189"/>
         <source>Dark</source>
         <translation>Dark</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="213" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="214"/>
         <source>Navigation View Display Mode</source>
         <translation>Navigation View Display Mode</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="218" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="219"/>
         <source>Open</source>
         <translation>Open</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="218" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="219"/>
         <source>Compact</source>
         <translation>Compact</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="218" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="219"/>
         <source>Minimal</source>
         <translation>Minimal</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="218" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="219"/>
         <source>Auto</source>
         <translation>Auto</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="253" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="254"/>
         <source>Language</source>
         <translation>Language</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="82" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="83"/>
         <source>AI Model Configuration</source>
         <translation>AI Model Configuration</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="101" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="102"/>
         <source>Configured</source>
         <translation>Configured</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="101" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="102"/>
         <source>Not configured</source>
         <translation>Not configured</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="109" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="110"/>
         <source>Enter API key</source>
         <translation>Enter API key</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="112" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="113"/>
         <source>Save</source>
         <translation>Save</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Settings.qml" line="120" />
+        <location filename="imports/example/qml/page/T_Settings.qml" line="121"/>
         <source>Clear</source>
         <translation>Clear</translation>
     </message>
@@ -5949,17 +5354,17 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
 <context>
     <name>T_Sheet</name>
     <message>
-        <location filename="imports/example/qml/page/T_Sheet.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Sheet.qml" line="10"/>
         <source>Sheet</source>
         <translation>Sheet</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Sheet.qml" line="14" />
+        <location filename="imports/example/qml/page/T_Sheet.qml" line="14"/>
         <source>Title</source>
         <translation>Title</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Sheet.qml" line="16" />
+        <location filename="imports/example/qml/page/T_Sheet.qml" line="16"/>
         <source>Some contents...
 Some contents...
 Some contents...</source>
@@ -5968,22 +5373,22 @@ Some contents...
 Some contents...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Sheet.qml" line="36" />
+        <location filename="imports/example/qml/page/T_Sheet.qml" line="36"/>
         <source>top</source>
         <translation>top</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Sheet.qml" line="44" />
+        <location filename="imports/example/qml/page/T_Sheet.qml" line="44"/>
         <source>right</source>
         <translation>right</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Sheet.qml" line="55" />
+        <location filename="imports/example/qml/page/T_Sheet.qml" line="55"/>
         <source>bottom</source>
         <translation>bottom</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Sheet.qml" line="63" />
+        <location filename="imports/example/qml/page/T_Sheet.qml" line="63"/>
         <source>left</source>
         <translation>left</translation>
     </message>
@@ -5991,7 +5396,7 @@ Some contents...</translation>
 <context>
     <name>T_ShortcutPicker</name>
     <message>
-        <location filename="imports/example/qml/page/T_ShortcutPicker.qml" line="10" />
+        <location filename="imports/example/qml/page/T_ShortcutPicker.qml" line="10"/>
         <source>ShortcutPicker</source>
         <translation>ShortcutPicker</translation>
     </message>
@@ -5999,7 +5404,7 @@ Some contents...</translation>
 <context>
     <name>T_Slider</name>
     <message>
-        <location filename="imports/example/qml/page/T_Slider.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Slider.qml" line="10"/>
         <source>Slider</source>
         <translation>Slider</translation>
     </message>
@@ -6007,7 +5412,7 @@ Some contents...</translation>
 <context>
     <name>T_SplitLayout</name>
     <message>
-        <location filename="imports/example/qml/page/T_SplitLayout.qml" line="10" />
+        <location filename="imports/example/qml/page/T_SplitLayout.qml" line="10"/>
         <source>SplitLayout</source>
         <translation>SplitLayout</translation>
     </message>
@@ -6015,7 +5420,7 @@ Some contents...</translation>
 <context>
     <name>T_StaggeredLayout</name>
     <message>
-        <location filename="imports/example/qml/page/T_StaggeredLayout.qml" line="10" />
+        <location filename="imports/example/qml/page/T_StaggeredLayout.qml" line="10"/>
         <source>StaggeredLayout</source>
         <translation>StaggeredLayout</translation>
     </message>
@@ -6023,7 +5428,7 @@ Some contents...</translation>
 <context>
     <name>T_StatusLayout</name>
     <message>
-        <location filename="imports/example/qml/page/T_StatusLayout.qml" line="10" />
+        <location filename="imports/example/qml/page/T_StatusLayout.qml" line="10"/>
         <source>StatusLayout</source>
         <translation>StatusLayout</translation>
     </message>
@@ -6031,12 +5436,12 @@ Some contents...</translation>
 <context>
     <name>T_TabView</name>
     <message>
-        <location filename="imports/example/qml/page/T_TabView.qml" line="12" />
+        <location filename="imports/example/qml/page/T_TabView.qml" line="12"/>
         <source>TabView</source>
         <translation>TabView</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TabView.qml" line="23" />
+        <location filename="imports/example/qml/page/T_TabView.qml" line="23"/>
         <source>Document </source>
         <translation>Document </translation>
     </message>
@@ -6044,113 +5449,113 @@ Some contents...</translation>
 <context>
     <name>T_TableView</name>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="11" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="11"/>
         <source>TableView</source>
         <translation>TableView</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="73" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="73"/>
         <source>Modify the column name</source>
         <translation>Modify the column name</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="74" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="74"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="92" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="92"/>
         <source>OK</source>
         <translation>OK</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="134" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="134"/>
         <source>Search</source>
         <translation>Search</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="177" />
-        <location filename="imports/example/qml/page/T_TableView.qml" line="509" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="177"/>
+        <location filename="imports/example/qml/page/T_TableView.qml" line="509"/>
         <source>Name</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="211" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="211"/>
         <source>Delete</source>
         <translation>Delete</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="218" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="218"/>
         <source>Edit</source>
         <translation>Edit</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="237" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="237"/>
         <source>Select All</source>
         <translation>Select All</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="365" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="365"/>
         <source>Age</source>
         <translation>Age</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="440" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="440"/>
         <source>Clear All</source>
         <translation>Clear All</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="447" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="447"/>
         <source>Delete Selection</source>
         <translation>Delete Selection</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="470" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="470"/>
         <source>Add a row of Data</source>
         <translation>Add a row of Data</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="476" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="476"/>
         <source>Insert a Row</source>
         <translation>Insert a Row</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="483" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="483"/>
         <source>Focus not acquired: Please click any item in the form as the target for insertion!</source>
         <translation>Focus not acquired: Please click any item in the form as the target for insertion!</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="514" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="514"/>
         <source>Avatar</source>
         <translation>Avatar</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="528" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="528"/>
         <source>Address</source>
         <translation>Address</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="536" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="536"/>
         <source>Nickname</source>
         <translation>Nickname</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="543" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="543"/>
         <source>Long String</source>
         <translation>Long String</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="551" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="551"/>
         <source>Options</source>
         <translation>Options</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="569" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="569"/>
         <source>&lt;Previous</source>
         <translation>&lt;Previous</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TableView.qml" line="570" />
+        <location filename="imports/example/qml/page/T_TableView.qml" line="570"/>
         <source>Next&gt;</source>
         <translation>Next&gt;</translation>
     </message>
@@ -6158,151 +5563,139 @@ Some contents...</translation>
 <context>
     <name>T_TestConfig</name>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="10" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="10"/>
         <source>Test</source>
         <oldsource>TestConfig</oldsource>
         <translation>Test</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="106" />
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="422" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="106"/>
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="422"/>
         <source>Configured under DUT.</source>
         <translation>Configured under DUT.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="521" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="521"/>
         <source>Test Cases</source>
         <translation>Test Cases</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="526" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="526"/>
         <source>Filter by file...</source>
         <translation>Filter by file...</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="575" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="575"/>
         <source>Selected (%1)</source>
         <translation>Selected (%1)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="695" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="695"/>
         <source>Case Parameters (%1)</source>
         <translation>Case Parameters (%1)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="711" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="711"/>
         <source>Select one or more test files to inspect the required parameters for each case.</source>
         <translation>Select one or more test files to inspect the required parameters for each case.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="762" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="762"/>
         <source>No configurable parameters are required for this case.</source>
         <translation>No configurable parameters are required for this case.</translation>
     </message>
     <message>
-        <source>No connected Bluetooth devices found on the current DUT.</source>
-        <translation type="vanished">No connected Bluetooth devices found on the current DUT.</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="384" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="384"/>
         <source>Enabled</source>
         <translation>Enabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="384" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="384"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="818" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="818"/>
         <source>DUT</source>
         <translation>DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="827" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="827"/>
         <source>Refresh</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="907" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="907"/>
         <source>No DUT</source>
         <translation>No DUT</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="968" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="968"/>
         <source>Dynamic</source>
         <translation>Dynamic</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="973" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="973"/>
         <source>DUT scoped</source>
         <translation>DUT scoped</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1285" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1285"/>
         <source>Add terminal</source>
         <translation type="unfinished">Add terminal</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1301" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1301"/>
         <source>Terminal</source>
         <translation type="unfinished">Terminal</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1320" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1320"/>
         <source>Wiring mode</source>
         <translation type="unfinished">Wiring mode</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1339" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1339"/>
         <source>Press seconds</source>
         <translation type="unfinished">Press seconds</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1363" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1363"/>
         <source>Remove terminal</source>
         <translation type="unfinished">Remove terminal</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1392" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1392"/>
         <source>Stop</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1392" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1392"/>
         <source>Start</source>
         <translation>Start</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1399" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1399"/>
         <source>Run</source>
         <translation>Run</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1406" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1406"/>
         <source>Required Parameters</source>
         <translation>Required Parameters</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1408" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1408"/>
         <source>OK</source>
         <translation>OK</translation>
     </message>
     <message>
-        <source>Global (DUT / Environment)</source>
-        <translation type="vanished">Global (DUT / Environment)</translation>
-    </message>
-    <message>
-        <source>Special Params (by Case Type)</source>
-        <translation type="vanished">Special Params (by Case Type)</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1040" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1040"/>
         <source>Env</source>
         <translation>Env</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1068" />
+        <location filename="imports/example/qml/page/T_TestConfig.qml" line="1068"/>
         <source>Type</source>
         <translation>Type</translation>
     </message>
@@ -6310,12 +5703,12 @@ Some contents...</translation>
 <context>
     <name>T_Text</name>
     <message>
-        <location filename="imports/example/qml/page/T_Text.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Text.qml" line="10"/>
         <source>Text</source>
         <translation>Text</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Text.qml" line="18" />
+        <location filename="imports/example/qml/page/T_Text.qml" line="18"/>
         <source>This is a text that can be copied</source>
         <translation>This is a text that can be copied</translation>
     </message>
@@ -6323,36 +5716,36 @@ Some contents...</translation>
 <context>
     <name>T_TextBox</name>
     <message>
-        <location filename="imports/example/qml/page/T_TextBox.qml" line="10" />
+        <location filename="imports/example/qml/page/T_TextBox.qml" line="10"/>
         <source>TextBox</source>
         <translation>TextBox</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TextBox.qml" line="18" />
+        <location filename="imports/example/qml/page/T_TextBox.qml" line="18"/>
         <source>Single-line Input Box</source>
         <translation>Single-line Input Box</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TextBox.qml" line="33" />
-        <location filename="imports/example/qml/page/T_TextBox.qml" line="64" />
-        <location filename="imports/example/qml/page/T_TextBox.qml" line="97" />
-        <location filename="imports/example/qml/page/T_TextBox.qml" line="128" />
-        <location filename="imports/example/qml/page/T_TextBox.qml" line="157" />
+        <location filename="imports/example/qml/page/T_TextBox.qml" line="33"/>
+        <location filename="imports/example/qml/page/T_TextBox.qml" line="64"/>
+        <location filename="imports/example/qml/page/T_TextBox.qml" line="97"/>
+        <location filename="imports/example/qml/page/T_TextBox.qml" line="128"/>
+        <location filename="imports/example/qml/page/T_TextBox.qml" line="157"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TextBox.qml" line="51" />
+        <location filename="imports/example/qml/page/T_TextBox.qml" line="51"/>
         <source>Please enter your password</source>
         <translation>Please enter your password</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TextBox.qml" line="83" />
+        <location filename="imports/example/qml/page/T_TextBox.qml" line="83"/>
         <source>Multi-line Input Box</source>
         <translation>Multi-line Input Box</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TextBox.qml" line="114" />
+        <location filename="imports/example/qml/page/T_TextBox.qml" line="114"/>
         <source>AutoSuggestBox</source>
         <translation>AutoSuggestBox</translation>
     </message>
@@ -6360,37 +5753,37 @@ Some contents...</translation>
 <context>
     <name>T_Theme</name>
     <message>
-        <location filename="imports/example/qml/page/T_Theme.qml" line="12" />
+        <location filename="imports/example/qml/page/T_Theme.qml" line="12"/>
         <source>Theme</source>
         <translation>Theme</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Theme.qml" line="25" />
+        <location filename="imports/example/qml/page/T_Theme.qml" line="25"/>
         <source>Theme colors</source>
         <translation>Theme colors</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Theme.qml" line="60" />
+        <location filename="imports/example/qml/page/T_Theme.qml" line="60"/>
         <source>Customize the Theme Color</source>
         <translation>Customize the Theme Color</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Theme.qml" line="86" />
+        <location filename="imports/example/qml/page/T_Theme.qml" line="86"/>
         <source>Dark Mode</source>
         <translation>Dark Mode</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Theme.qml" line="101" />
+        <location filename="imports/example/qml/page/T_Theme.qml" line="101"/>
         <source>Native Text</source>
         <translation>Native Text</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Theme.qml" line="112" />
+        <location filename="imports/example/qml/page/T_Theme.qml" line="112"/>
         <source>Open Animation</source>
         <translation>Open Animation</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Theme.qml" line="123" />
+        <location filename="imports/example/qml/page/T_Theme.qml" line="123"/>
         <source>Open Blur Window</source>
         <translation>Open Blur Window</translation>
     </message>
@@ -6398,53 +5791,53 @@ Some contents...</translation>
 <context>
     <name>T_TimePicker</name>
     <message>
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="10" />
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="10"/>
         <source>TimePicker</source>
         <translation>TimePicker</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="25" />
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="25"/>
         <source>hourFormat=FluTimePickerType.H</source>
         <translation>hourFormat=FluTimePickerType.H</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="30" />
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="70" />
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="30"/>
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="70"/>
         <source>AM</source>
         <translation>AM</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="31" />
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="71" />
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="31"/>
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="71"/>
         <source>PM</source>
         <translation>PM</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="32" />
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="72" />
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="32"/>
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="72"/>
         <source>Hour</source>
         <translation>Hour</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="33" />
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="73" />
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="33"/>
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="73"/>
         <source>Minute</source>
         <translation>Minute</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="34" />
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="74" />
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="34"/>
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="74"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="35" />
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="75" />
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="35"/>
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="75"/>
         <source>OK</source>
         <translation>OK</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TimePicker.qml" line="65" />
+        <location filename="imports/example/qml/page/T_TimePicker.qml" line="65"/>
         <source>hourFormat=FluTimePickerType.HH</source>
         <translation>hourFormat=FluTimePickerType.HH</translation>
     </message>
@@ -6452,7 +5845,7 @@ Some contents...</translation>
 <context>
     <name>T_Timeline</name>
     <message>
-        <location filename="imports/example/qml/page/T_Timeline.qml" line="6" />
+        <location filename="imports/example/qml/page/T_Timeline.qml" line="6"/>
         <source>Timeline</source>
         <translation>Timeline</translation>
     </message>
@@ -6460,22 +5853,22 @@ Some contents...</translation>
 <context>
     <name>T_ToggleSwitch</name>
     <message>
-        <location filename="imports/example/qml/page/T_ToggleSwitch.qml" line="10" />
+        <location filename="imports/example/qml/page/T_ToggleSwitch.qml" line="10"/>
         <source>ToggleSwitch</source>
         <translation>ToggleSwitch</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_ToggleSwitch.qml" line="24" />
+        <location filename="imports/example/qml/page/T_ToggleSwitch.qml" line="24"/>
         <source>Right</source>
         <translation>Right</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_ToggleSwitch.qml" line="28" />
+        <location filename="imports/example/qml/page/T_ToggleSwitch.qml" line="28"/>
         <source>Left</source>
         <translation>Left</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_ToggleSwitch.qml" line="38" />
+        <location filename="imports/example/qml/page/T_ToggleSwitch.qml" line="38"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
@@ -6483,130 +5876,101 @@ Some contents...</translation>
 <context>
     <name>T_Tool</name>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Tool.qml" line="11"/>
         <source>Tool</source>
         <translation>Tool</translation>
     </message>
     <message>
-        <source>Tools</source>
-        <translation type="vanished">Tools</translation>
-    </message>
-    <message>
-        <source>Common Tools</source>
-        <translation type="vanished">Common Tools</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="86" />
+        <location filename="imports/example/qml/page/T_Tool.qml" line="183"/>
         <source>Custom Tools</source>
         <translation>Custom Tools</translation>
     </message>
     <message>
-        <source>STB</source>
-        <translation type="vanished">STB</translation>
-    </message>
-    <message>
-        <source>TV</source>
-        <translation type="vanished">TV</translation>
-    </message>
-    <message>
-        <source>SmartHome</source>
-        <translation type="vanished">SmartHome</translation>
-    </message>
-    <message>
-        <source>IPTV</source>
-        <translation type="vanished">IPTV</translation>
-    </message>
-    <message>
-        <source>Wi-Fi</source>
-        <translation type="vanished">Wi-Fi</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="121" />
+        <location filename="imports/example/qml/page/T_Tool.qml" line="218"/>
         <source>Select a tool</source>
         <translation>Select a tool</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="126" />
+        <location filename="imports/example/qml/page/T_Tool.qml" line="223"/>
         <source>Tools for this group will appear here.</source>
         <translation>Tools for this group will appear here.</translation>
     </message>
     <message>
-        <source>Tool workspace</source>
-        <translation type="vanished">Tool workspace</translation>
-    </message>
-    <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="202" />
+        <location filename="imports/example/qml/page/T_Tool.qml" line="308"/>
         <source>This area is reserved for the selected tool. Execution is not available yet.</source>
         <translation>This area is reserved for the selected tool. Execution is not available yet.</translation>
     </message>
     <message>
-        <source>Redmine credentials</source>
-        <translation type="vanished">Redmine credentials</translation>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="94"/>
+        <source>Schedule</source>
+        <translation>Schedule</translation>
     </message>
     <message>
-        <source>Sign in</source>
-        <translation type="vanished">Sign in</translation>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="98"/>
+        <source>No SmartTest Windows schedules are currently enabled.</source>
+        <translation>No SmartTest Windows schedules are currently enabled.</translation>
     </message>
     <message>
-        <source>Username</source>
-        <translation type="vanished">Username</translation>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="131"/>
+        <source>Registered</source>
+        <translation>Registered</translation>
     </message>
     <message>
-        <source>Password</source>
-        <translation type="vanished">Password</translation>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="131"/>
+        <source>Not registered</source>
+        <translation>Not registered</translation>
     </message>
     <message>
-        <source>Mobile verification</source>
-        <translation type="vanished">Mobile verification</translation>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="137"/>
+        <source>Open</source>
+        <translation>Open</translation>
     </message>
     <message>
-        <source>Enter the verification code shown on your phone.</source>
-        <translation type="vanished">Enter the verification code shown on your phone.</translation>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="142"/>
+        <source>Disable</source>
+        <translation>Disable</translation>
     </message>
-    <message>
-        <source>Verify</source>
-        <translation type="vanished">Verify</translation>
-    </message>
-    <message>
-        <source>Verification code</source>
-        <translation type="vanished">Verification code</translation>
-    </message>
+    <message><source>STB</source><translation>STB</translation></message>
+    <message><source>TV</source><translation>TV</translation></message>
+    <message><source>SmartHome</source><translation>SmartHome</translation></message>
+    <message><source>IPTV</source><translation>IPTV</translation></message>
+    <message><source>Wi-Fi</source><translation>Wi-Fi</translation></message>
 </context>
 <context>
     <name>T_Tooltip</name>
     <message>
-        <location filename="imports/example/qml/page/T_Tooltip.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Tooltip.qml" line="10"/>
         <source>Tooltip</source>
         <translation>Tooltip</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tooltip.qml" line="13" />
+        <location filename="imports/example/qml/page/T_Tooltip.qml" line="13"/>
         <source>Hover over Tultip and it pops up</source>
         <translation>Hover over Tultip and it pops up</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tooltip.qml" line="29" />
+        <location filename="imports/example/qml/page/T_Tooltip.qml" line="29"/>
         <source>Text properties of FluIconButton support the Tooltip pop-up window by default</source>
         <translation>Text properties of FluIconButton support the Tooltip pop-up window by default</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tooltip.qml" line="34" />
-        <location filename="imports/example/qml/page/T_Tooltip.qml" line="72" />
+        <location filename="imports/example/qml/page/T_Tooltip.qml" line="34"/>
+        <location filename="imports/example/qml/page/T_Tooltip.qml" line="72"/>
         <source>Delete</source>
         <translation>Delete</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tooltip.qml" line="36" />
+        <location filename="imports/example/qml/page/T_Tooltip.qml" line="36"/>
         <source>Click IconButton</source>
         <translation>Click IconButton</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tooltip.qml" line="68" />
+        <location filename="imports/example/qml/page/T_Tooltip.qml" line="68"/>
         <source>Add a Tooltip pop-up to a Button</source>
         <translation>Add a Tooltip pop-up to a Button</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tooltip.qml" line="74" />
+        <location filename="imports/example/qml/page/T_Tooltip.qml" line="74"/>
         <source>Click Button</source>
         <translation>Click Button</translation>
     </message>
@@ -6614,55 +5978,55 @@ Some contents...</translation>
 <context>
     <name>T_Tour</name>
     <message>
-        <location filename="imports/example/qml/page/T_Tour.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Tour.qml" line="10"/>
         <source>Tour</source>
         <translation>Tour</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tour.qml" line="15" />
+        <location filename="imports/example/qml/page/T_Tour.qml" line="15"/>
         <source>Upload File</source>
         <translation>Upload File</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tour.qml" line="15" />
+        <location filename="imports/example/qml/page/T_Tour.qml" line="15"/>
         <source>Put your files here.</source>
         <translation>Put your files here.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tour.qml" line="16" />
-        <location filename="imports/example/qml/page/T_Tour.qml" line="52" />
-        <location filename="imports/example/qml/page/T_Tour.qml" line="54" />
+        <location filename="imports/example/qml/page/T_Tour.qml" line="16"/>
+        <location filename="imports/example/qml/page/T_Tour.qml" line="52"/>
+        <location filename="imports/example/qml/page/T_Tour.qml" line="54"/>
         <source>Save</source>
         <translation>Save</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tour.qml" line="16" />
+        <location filename="imports/example/qml/page/T_Tour.qml" line="16"/>
         <source>Save your changes.</source>
         <translation>Save your changes.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tour.qml" line="17" />
+        <location filename="imports/example/qml/page/T_Tour.qml" line="17"/>
         <source>Other Actions</source>
         <translation>Other Actions</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tour.qml" line="17" />
+        <location filename="imports/example/qml/page/T_Tour.qml" line="17"/>
         <source>Click to see other actions.</source>
         <translation>Click to see other actions.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tour.qml" line="31" />
+        <location filename="imports/example/qml/page/T_Tour.qml" line="31"/>
         <source>Begin Tour</source>
         <translation>Begin Tour</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tour.qml" line="45" />
-        <location filename="imports/example/qml/page/T_Tour.qml" line="47" />
+        <location filename="imports/example/qml/page/T_Tour.qml" line="45"/>
+        <location filename="imports/example/qml/page/T_Tour.qml" line="47"/>
         <source>Upload</source>
         <translation>Upload</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tour.qml" line="61" />
+        <location filename="imports/example/qml/page/T_Tour.qml" line="61"/>
         <source>More</source>
         <translation>More</translation>
     </message>
@@ -6670,27 +6034,27 @@ Some contents...</translation>
 <context>
     <name>T_TreeView</name>
     <message>
-        <location filename="imports/example/qml/page/T_TreeView.qml" line="10" />
+        <location filename="imports/example/qml/page/T_TreeView.qml" line="10"/>
         <source>TreeView</source>
         <translation>TreeView</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TreeView.qml" line="183" />
+        <location filename="imports/example/qml/page/T_TreeView.qml" line="183"/>
         <source>Title</source>
         <translation>Title</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TreeView.qml" line="187" />
+        <location filename="imports/example/qml/page/T_TreeView.qml" line="187"/>
         <source>Name</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TreeView.qml" line="191" />
+        <location filename="imports/example/qml/page/T_TreeView.qml" line="191"/>
         <source>Avatar</source>
         <translation>Avatar</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_TreeView.qml" line="195" />
+        <location filename="imports/example/qml/page/T_TreeView.qml" line="195"/>
         <source>Address</source>
         <translation>Address</translation>
     </message>
@@ -6698,7 +6062,7 @@ Some contents...</translation>
 <context>
     <name>T_Typography</name>
     <message>
-        <location filename="imports/example/qml/page/T_Typography.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Typography.qml" line="10"/>
         <source>Typography</source>
         <translation>Typography</translation>
     </message>
@@ -6706,484 +6070,82 @@ Some contents...</translation>
 <context>
     <name>T_Watermark</name>
     <message>
-        <location filename="imports/example/qml/page/T_Watermark.qml" line="10" />
+        <location filename="imports/example/qml/page/T_Watermark.qml" line="10"/>
         <source>Watermark</source>
         <translation>Watermark</translation>
     </message>
 </context>
 <context>
-    <name>TestPageBridge</name>
-    <message>
-        <source>test.schema.global_context.title</source>
-        <translation>Global</translation>
-    </message>
-    <message>
-        <source>test.schema.case_type_default.title</source>
-        <translation>Default</translation>
-    </message>
-    <message>
-        <source>test.param.scope.global_context</source>
-        <translation>Global</translation>
-    </message>
-    <message>
-        <source>test.param.scope.case_type_shared</source>
-        <translation>Case Type</translation>
-    </message>
-    <message>
-        <source>test.param.scope.case</source>
-        <translation>Per Case</translation>
-    </message>
-    <message>
-        <source>test.param.dut.label</source>
-        <translation>DUT</translation>
-    </message>
-    <message>
-        <source>test.param.dut.description</source>
-        <translation>Selected device under test.</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.cycle_count.label</source>
-        <translation>Cycle count</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.cycle_count.description</source>
-        <translation>Number of relay power cycles.</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_off_sec.label</source>
-        <translation>Power off seconds</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_off_sec.description</source>
-        <translation>Seconds to keep the relay powered off in each cycle.</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_off_step_sec.label</source>
-        <translation>Power off step seconds</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_off_step_sec.description</source>
-        <translation>Seconds added to the relay power-off time after each cycle. Use negative values to decrease.</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_on_wait_sec.label</source>
-        <translation>Power on wait seconds</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_on_wait_sec.description</source>
-        <translation>Seconds to wait after relay power on before checkpoints.</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_on_wait_step_sec.label</source>
-        <translation>Power on wait step seconds</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.power_on_wait_step_sec.description</source>
-        <translation>Seconds added to the post-power-on wait after each cycle. Use negative values to decrease.</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.ping_target.label</source>
-        <translation>Ping target</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.ping_target.description</source>
-        <translation>DUT-side ping target used as the Wi-Fi reconnect checkpoint.</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.bt_target.label</source>
-        <translation>Bluetooth target</translation>
-    </message>
-    <message>
-        <source>test.param.ac_onoff.bt_target.description</source>
-        <translation>Bluetooth device target used as the reconnect checkpoint.</translation>
-    </message>
-    <message>
-        <source>test.param.cpu_frequency.loop_count.label</source>
-        <translation>Loop Count</translation>
-    </message>
-    <message>
-        <source>test.param.cpu_frequency.loop_count.description</source>
-        <translation>How many times to repeat the CPU frequency switching cycle.</translation>
-    </message>
-    <message>
-        <source>test.param.cpu_frequency.frequencies.label</source>
-        <translation>CPU frequencies</translation>
-    </message>
-    <message>
-        <source>test.param.cpu_frequency.frequencies.description</source>
-        <translation>Select the CPU frequencies to switch through.</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.bt_target.label</source>
-        <translation>Bluetooth Target</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.bt_target.description</source>
-        <translation>Optional target MAC or None</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.cycle_count.label</source>
-        <translation>Cycle Count</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.cycle_count.description</source>
-        <translation>Default 20</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.interval_sec.label</source>
-        <translation>Interval (s)</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.interval_sec.description</source>
-        <translation>Default 100</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.ping_target.label</source>
-        <translation>Ping Target</translation>
-    </message>
-    <message>
-        <source>test.param.auto_reboot.ping_target.description</source>
-        <translation>Optional ping target</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.bt_target.label</source>
-        <translation>Bluetooth Target</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.bt_target.description</source>
-        <translation>Optional target MAC or None</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.cycle_count.label</source>
-        <translation>Cycle Count</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.cycle_count.description</source>
-        <translation>Default 20</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.interval_sec.label</source>
-        <translation>Interval (s)</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.interval_sec.description</source>
-        <translation>Default 100</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.ping_target.label</source>
-        <translation>Ping Target</translation>
-    </message>
-    <message>
-        <source>test.param.auto_suspend.ping_target.description</source>
-        <translation>Optional ping target</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.bt_target.label</source>
-        <translation>Bluetooth Target</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.bt_target.description</source>
-        <translation>Required target MAC or None</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.cycle_count.label</source>
-        <translation>Cycle Count</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.cycle_count.description</source>
-        <translation>Default 2</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.on_wait_sec.label</source>
-        <translation>On wait seconds</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.on_wait_sec.description</source>
-        <translation>Seconds to wait after Bluetooth turns on before reconnect checks or the next off step.</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.off_wait_sec.label</source>
-        <translation>Off wait seconds</translation>
-    </message>
-    <message>
-        <source>test.param.bt_onoff_scan.off_wait_sec.description</source>
-        <translation>Seconds to wait after Bluetooth turns off before the next on step.</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.loop_count.label</source>
-        <translation>Loop Count</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.loop_count.description</source>
-        <translation>Default 180</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.min_free_kb.label</source>
-        <translation>Minimum Free Space (KB)</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.min_free_kb.description</source>
-        <translation>Default 307200</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.source_profile.label</source>
-        <translation>Source Profile</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.source_profile.description</source>
-        <translation>random1 / random2</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.source_size_kb.label</source>
-        <translation>Source Size (KB)</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.source_size_kb.description</source>
-        <translation>Default 51200</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.work_dir.label</source>
-        <translation>Working Directory</translation>
-    </message>
-    <message>
-        <source>test.param.emmc_rw.work_dir.description</source>
-        <translation>Default /data/local/tmp/smarttest/emmc_rw</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.media_dir.label</source>
-        <translation>Media directory</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.media_dir.description</source>
-        <translation>DUT directories to scan at runtime when no files are selected. Default /storage/*/Movies /storage/*/Video.</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.media_files.label</source>
-        <translation>Playback files</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.media_files.description</source>
-        <translation>Files discovered from DUT internal Movies and USB Movies directories. Select at least one file before starting.</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.actions.label</source>
-        <translation>Stress actions</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.actions.description</source>
-        <translation>Playback operations sent to ExoPlayer through Android media key events.</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.loop_count.label</source>
-        <translation>Loop count</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.loop_count.description</source>
-        <translation>Number of times to repeat the selected file and action configuration.</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.random_playback.label</source>
-        <translation>Random playback</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.random_playback.description</source>
-        <translation>Shuffle selected files in each loop.</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.action_interval_sec.label</source>
-        <translation>Action interval seconds</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.action_interval_sec.description</source>
-        <translation>Wait time after each playback action.</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.start_wait_sec.label</source>
-        <translation>Start wait seconds</translation>
-    </message>
-    <message>
-        <source>test.param.local_playback_stress.start_wait_sec.description</source>
-        <translation>Wait time after launching each media file before sending stress actions.</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.cycle_count.label</source>
-        <translation>Cycle Count</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.cycle_count.description</source>
-        <translation>Default 2</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.on_wait_sec.label</source>
-        <translation>On wait seconds</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.on_wait_sec.description</source>
-        <translation>Seconds to wait after Wi-Fi turns on before reconnect checks or the next off step.</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.off_wait_sec.label</source>
-        <translation>Off wait seconds</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.off_wait_sec.description</source>
-        <translation>Seconds to wait after Wi-Fi turns off before the next on step.</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.ping_target.label</source>
-        <translation>Ping Target</translation>
-    </message>
-    <message>
-        <source>test.param.wifi_onoff_scan.ping_target.description</source>
-        <translation>Required for reconnect check</translation>
-    </message>
-    <message>
-        <source>test.env.relay.label</source>
-        <translation type="vanished">Relay</translation>
-    </message>
-    <message>
-        <source>test.env.equipment.type.label</source>
-        <translation type="vanished">Type</translation>
-    </message>
-    <message>
-        <source>test.env.relay.type.snmp_pdu</source>
-        <translation type="vanished">SNMP PDU</translation>
-    </message>
-    <message>
-        <source>test.env.relay.type.usb_relay</source>
-        <translation type="vanished">USB Relay</translation>
-    </message>
-    <message>
-        <source>test.env.relay.snmp_pdu.ip.label</source>
-        <translation type="vanished">IP Address</translation>
-    </message>
-    <message>
-        <source>test.env.relay.snmp_pdu.ip.description</source>
-        <translation type="vanished">SNMP PDU address.</translation>
-    </message>
-    <message>
-        <source>test.env.relay.snmp_pdu.port.label</source>
-        <translation type="vanished">Outlet Port</translation>
-    </message>
-    <message>
-        <source>test.env.relay.usb_relay.port.label</source>
-        <translation type="vanished">Serial Port</translation>
-    </message>
-    <message>
-        <source>test.env.relay.usb_relay.port.description</source>
-        <translation type="vanished">USB relay serial port, for example COM4.</translation>
-    </message>
-    <message>
-        <source>test.env.relay.usb_relay.terminals.label</source>
-        <translation type="vanished">Terminals</translation>
-    </message>
-    <message>
-        <source>test.env.relay.usb_relay.terminals.description</source>
-        <translation type="vanished">Add one row for each relay terminal on the selected serial port.</translation>
-    </message>
-    <message>
-        <source>Add terminal</source>
-        <translation type="vanished">Add terminal</translation>
-    </message>
-    <message>
-        <source>Terminal</source>
-        <translation type="vanished">Terminal</translation>
-    </message>
-    <message>
-        <source>Wiring mode</source>
-        <translation type="vanished">Wiring mode</translation>
-    </message>
-    <message>
-        <source>Press seconds</source>
-        <translation type="vanished">Press seconds</translation>
-    </message>
-    <message>
-        <source>Remove terminal</source>
-        <translation type="vanished">Remove terminal</translation>
-    </message>
-    <message>
-        <source>test.env.serial.label</source>
-        <translation type="vanished">Serial</translation>
-    </message>
-    <message>
-        <source>test.env.serial.type.uart</source>
-        <translation type="vanished">UART</translation>
-    </message>
-    <message>
-        <source>test.env.serial.port.label</source>
-        <translation type="vanished">Serial Tool</translation>
-    </message>
-    <message>
-        <source>test.env.serial.port.description</source>
-        <translation type="vanished">Select a mounted serial port, for example COM3.</translation>
-    </message>
-    <message>
-        <source>test.env.serial.baud.label</source>
-        <translation type="vanished">Baud Rate</translation>
-    </message>
-</context>
-<context>
     <name>ToolBridge</name>
     <message>
-        <location filename="bridge/ToolBridge.py" line="157" />
+        <location filename="bridge/ToolBridge.py" line="181"/>
         <source>Common Tools</source>
         <translation>Common Tools</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="158" />
+        <location filename="bridge/ToolBridge.py" line="182"/>
         <source>STB</source>
         <translation>STB</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="159" />
+        <location filename="bridge/ToolBridge.py" line="183"/>
         <source>TV</source>
         <translation>TV</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="160" />
+        <location filename="bridge/ToolBridge.py" line="184"/>
         <source>SmartHome</source>
         <translation>SmartHome</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="161" />
+        <location filename="bridge/ToolBridge.py" line="185"/>
         <source>IPTV</source>
         <translation>IPTV</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="162" />
+        <location filename="bridge/ToolBridge.py" line="186"/>
         <source>Wi-Fi</source>
         <translation>Wi-Fi</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="179" />
-        <source>Project Weekly Audit</source>
-        <oldsource>Confluence Project Weekly Audit</oldsource>
-        <translation>Project Weekly Audit</translation>
-    </message>
-    <message>
-        <location filename="bridge/ToolBridge.py" line="180" />
-        <source>Check every A-level project in development against the project page content standards.</source>
-        <translation>Check every A-level project in development against the project page content standards.</translation>
-    </message>
-    <message>
-        <location filename="bridge/ToolBridge.py" line="184" />
-        <source>redmine</source>
-        <translation>redmine</translation>
-    </message>
-    <message>
-        <location filename="bridge/ToolBridge.py" line="185" />
-        <source>Browse and sign in to SmartHome Redmine.</source>
-        <translation>Browse and sign in to SmartHome Redmine.</translation>
-    </message>
-    <message>
-        <location filename="bridge/ToolBridge.py" line="173" />
+        <location filename="bridge/ToolBridge.py" line="197"/>
         <source>Jira Format Audit</source>
         <translation>Jira Format Audit</translation>
     </message>
     <message>
-        <location filename="bridge/ToolBridge.py" line="174" />
+        <location filename="bridge/ToolBridge.py" line="198"/>
         <source>Review Jira issues against the FAE-QA format rules.</source>
         <translation>Review Jira issues against the FAE-QA format rules.</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="203"/>
+        <source>Project Weekly Audit</source>
+        <translation>Project Weekly Audit</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="204"/>
+        <source>Check every A-level project in development against the project page content standards.</source>
+        <translation>Check every A-level project in development against the project page content standards.</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="209"/>
+        <source>Daily Report</source>
+        <translation>Daily Report</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="212"/>
+        <source>Generate, review, and send the fixed four-project status reports.</source>
+        <translation>Generate, review, and send the fixed four-project status reports.</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="216"/>
+        <source>redmine</source>
+        <translation>redmine</translation>
+    </message>
+    <message>
+        <location filename="bridge/ToolBridge.py" line="217"/>
+        <source>Browse and sign in to SmartHome Redmine.</source>
+        <translation>Browse and sign in to SmartHome Redmine.</translation>
     </message>
 </context>
 </TS>

@@ -17,6 +17,7 @@ android_client/signapk/
 android_client/signapk.zip
 
 # Local packaged/build output and temporary diagnostics
+/dist_tool/
 _internal/
 AutoSuspend-master/
 _tmp_kpi_review/

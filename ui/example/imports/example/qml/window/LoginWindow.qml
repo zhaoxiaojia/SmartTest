@@ -6,6 +6,7 @@ import FluentUI 1.0
 FluWindow {
 
     id: window
+    objectName: "toolLoginWindow"
     title: accountMode ? qsTr("Account") : qsTr("Login")
     width: 400
     height: 320

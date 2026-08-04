@@ -9,6 +9,7 @@ import "../global"
 FluScrollablePage{
 
     id: page_root
+    objectName: "toolSettingsPage"
 
     title: qsTr("Settings")
     launchMode: FluPageType.SingleInstance

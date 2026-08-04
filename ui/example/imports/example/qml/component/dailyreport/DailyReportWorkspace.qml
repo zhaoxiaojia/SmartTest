@@ -38,12 +38,12 @@ FluFrame {
                 padding: 12
                 ColumnLayout {
                     anchors.fill: parent
-                    FluTextBox { id: newProjectName; Layout.fillWidth: true; placeholderText: qsTr("Project name") }
-                    FluTextBox { id: newProjectSubject; Layout.fillWidth: true; placeholderText: qsTr("Email subject (optional)") }
-                    FluMultilineTextBox { id: newProjectJql; Layout.fillWidth: true; placeholderText: qsTr("JQL") }
-                    FluMultilineTextBox { id: newProjectTo; Layout.fillWidth: true; placeholderText: qsTr("To recipients") }
-                    FluMultilineTextBox { id: newProjectCc; Layout.fillWidth: true; placeholderText: qsTr("Cc recipients") }
-                    FluToggleSwitch { id: newProjectEnabled; text: qsTr("Enabled"); checked: true }
+                    FluTextBox { /* persistence-opt-out: owner:DailyReportBridge */ id: newProjectName; Layout.fillWidth: true; placeholderText: qsTr("Project name") }
+                    FluTextBox { /* persistence-opt-out: owner:DailyReportBridge */ id: newProjectSubject; Layout.fillWidth: true; placeholderText: qsTr("Email subject (optional)") }
+                    FluMultilineTextBox { /* persistence-opt-out: owner:DailyReportBridge */ id: newProjectJql; Layout.fillWidth: true; placeholderText: qsTr("JQL") }
+                    FluMultilineTextBox { /* persistence-opt-out: owner:DailyReportBridge */ id: newProjectTo; Layout.fillWidth: true; placeholderText: qsTr("To recipients") }
+                    FluMultilineTextBox { /* persistence-opt-out: owner:DailyReportBridge */ id: newProjectCc; Layout.fillWidth: true; placeholderText: qsTr("Cc recipients") }
+                    FluToggleSwitch { /* persistence-opt-out: owner:DailyReportBridge */ id: newProjectEnabled; text: qsTr("Enabled"); checked: true }
                     RowLayout {
                         FluButton {
                             text: qsTr("Save project")
@@ -61,10 +61,10 @@ FluFrame {
                 Layout.fillWidth: true
                 padding: 12
                 RowLayout {
-                    FluComboBox { id: cadence; model: [qsTr("Daily"), qsTr("Weekly")] }
-                    FluSpinBox { id: hour; from: 0; to: 23; value: 18 }
-                    FluSpinBox { id: minute; from: 0; to: 59; value: 0 }
-                    FluComboBox { id: weekday; visible: cadence.currentIndex === 1; model: [qsTr("Monday"), qsTr("Tuesday"), qsTr("Wednesday"), qsTr("Thursday"), qsTr("Friday"), qsTr("Saturday"), qsTr("Sunday")] }
+                    FluComboBox { /* persistence-opt-out: owner:DailyReportBridge */ id: cadence; model: [qsTr("Daily"), qsTr("Weekly")] }
+                    FluSpinBox { /* persistence-opt-out: owner:DailyReportBridge */ id: hour; from: 0; to: 23; value: 18 }
+                    FluSpinBox { /* persistence-opt-out: owner:DailyReportBridge */ id: minute; from: 0; to: 59; value: 0 }
+                    FluComboBox { /* persistence-opt-out: owner:DailyReportBridge */ id: weekday; visible: cadence.currentIndex === 1; model: [qsTr("Monday"), qsTr("Tuesday"), qsTr("Wednesday"), qsTr("Thursday"), qsTr("Friday"), qsTr("Saturday"), qsTr("Sunday")] }
                     FluButton { text: qsTr("Save schedule"); onClicked: DailyReportBridge.saveSchedule({cadence: cadence.currentIndex === 0 ? "daily" : "weekly", hour: hour.value, minute: minute.value, weekday: weekday.currentIndex}) }
                 }
             }
@@ -80,8 +80,8 @@ FluFrame {
                         anchors.fill: parent
                         RowLayout {
                             FluText { visible: !editing; Layout.fillWidth: true; text: modelData.projectName; font: FluTextStyle.Subtitle }
-                            FluTextBox { id: editName; visible: editing; Layout.fillWidth: true; text: modelData.projectName }
-                            FluToggleSwitch { id: editEnabled; checked: modelData.enabled; onClicked: if (!editing) DailyReportBridge.setProjectEnabled(modelData.projectId, checked) }
+                            FluTextBox { /* persistence-opt-out: owner:DailyReportBridge */ id: editName; visible: editing; Layout.fillWidth: true; text: modelData.projectName }
+                            FluToggleSwitch { /* persistence-opt-out: owner:DailyReportBridge */ id: editEnabled; checked: modelData.enabled; onClicked: if (!editing) DailyReportBridge.setProjectEnabled(modelData.projectId, checked) }
                             FluButton {
                                 text: editing ? qsTr("Save project") : qsTr("Edit")
                                 onClicked: {
@@ -97,13 +97,13 @@ FluFrame {
                             FluButton { visible: !editing; text: qsTr("Delete"); onClicked: DailyReportBridge.deleteProject(modelData.projectId) }
                         }
                         FluText { visible: !editing; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; text: qsTr("Subject: %1").arg(modelData.subject) }
-                        FluTextBox { id: editSubject; visible: editing; Layout.fillWidth: true; text: modelData.subject; placeholderText: qsTr("Email subject") }
+                        FluTextBox { /* persistence-opt-out: owner:DailyReportBridge */ id: editSubject; visible: editing; Layout.fillWidth: true; text: modelData.subject; placeholderText: qsTr("Email subject") }
                         FluText { visible: !editing; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; text: qsTr("JQL: %1").arg(modelData.jql) }
-                        FluMultilineTextBox { id: editJql; visible: editing; Layout.fillWidth: true; text: modelData.jql }
+                        FluMultilineTextBox { /* persistence-opt-out: owner:DailyReportBridge */ id: editJql; visible: editing; Layout.fillWidth: true; text: modelData.jql }
                         FluText { visible: !editing; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; text: qsTr("To: %1").arg(modelData.to) }
-                        FluMultilineTextBox { id: editTo; visible: editing; Layout.fillWidth: true; text: modelData.to }
+                        FluMultilineTextBox { /* persistence-opt-out: owner:DailyReportBridge */ id: editTo; visible: editing; Layout.fillWidth: true; text: modelData.to }
                         FluText { visible: !editing; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; text: qsTr("CC: %1").arg(modelData.cc) }
-                        FluMultilineTextBox { id: editCc; visible: editing; Layout.fillWidth: true; text: modelData.cc }
+                        FluMultilineTextBox { /* persistence-opt-out: owner:DailyReportBridge */ id: editCc; visible: editing; Layout.fillWidth: true; text: modelData.cc }
                         FluButton { visible: modelData.previewUrl !== ""; text: qsTr("View preview"); onClicked: DailyReportBridge.selectPreview(modelData.projectId) }
                     }
                 }

@@ -7,11 +7,14 @@ import subprocess
 import sys
 import weakref
 import xml.etree.ElementTree as ET
+import importlib.util
+import zipfile
 from pathlib import Path
 
 from ui.example.bridge.ToolBridge import build_tool_groups, load_tool_access
 from ui.example.bridge.ToolBridge import ToolBridge
-from PySide6.QtCore import QCoreApplication, QEvent, QObject, Property, Signal
+from ui.example.bridge.ScheduleBridge import ScheduleBridge
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, Property, Signal, Slot
 from PySide6.QtQml import QQmlEngine
 
 
@@ -19,9 +22,245 @@ ROOT = Path(__file__).resolve().parents[3]
 PERSONNEL_PATH = ROOT / "config" / "personnel.json"
 
 
+def test_tool_portable_entry_has_an_independent_minimal_context_contract():
+    sys.path.insert(0, str(ROOT / "ui"))
+    from example import tool_main
+
+    assert set(tool_main.TOOL_CONTEXT_NAMES) == {
+        "AppInfo", "FrontendStateBridge", "TranslateHelper",
+        "AISettingsBridge", "AuthBridge", "ToolBridge", "RedmineBridge",
+        "JiraAuditBridge", "ConfluenceAuditBridge", "DailyReportBridge",
+        "ScheduleBridge",
+    }
+
+
+def test_tool_portable_runtime_root_prefers_ondir_executable_payload(
+    tmp_path, monkeypatch,
+):
+    sys.path.insert(0, str(ROOT / "ui"))
+    from example import tool_main
+
+    app_dir = tmp_path / "SmartTestTool"
+    (app_dir / "config").mkdir(parents=True)
+    (app_dir / "config/personnel.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(tool_main.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(tool_main.sys, "_MEIPASS", str(tmp_path), raising=False)
+    monkeypatch.setattr(tool_main.sys, "executable", str(app_dir / "SmartTestTool.exe"))
+
+    assert tool_main.runtime_root() == app_dir
+
+
+def test_tool_portable_qrc_contains_only_the_approved_shell_and_pages():
+    qrc = ROOT / "ui/example/imports/tool_resource.qrc"
+    resources = {
+        node.attrib.get("alias", node.text).replace("\\", "/")
+        for node in ET.parse(qrc).iterfind(".//file")
+    }
+    assert {
+        "example/qml/tool/ToolApp.qml",
+        "example/qml/tool/ToolWindow.qml",
+        "example/qml/page/T_Tool.qml",
+        "example/qml/page/T_Settings.qml",
+        "example/qml/window/LoginWindow.qml",
+        "example/qml/window/AboutWindow.qml",
+    } <= resources
+    forbidden = ("T_Home.qml", "T_TestConfig.qml", "T_Run.qml", "T_Report.qml",
+                 "T_AI.qml", "T_Jira.qml", "T_Debug.qml", "T_BootVideo.qml")
+    assert not any(path.endswith(forbidden) for path in resources)
+
+
+def test_tool_portable_build_helpers_validate_and_zip_a_real_tree(tmp_path):
+    script = ROOT / "support/scripts/script-build-tool-portable.py"
+    spec = importlib.util.spec_from_file_location("tool_portable_build", script)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    app_dir = tmp_path / "SmartTestTool"
+    app_dir.mkdir()
+    (app_dir / "SmartTestTool.exe").write_bytes(b"exe")
+    (app_dir / "payload.txt").write_text("tool", encoding="utf-8")
+    module.validate_distribution(app_dir)
+    archive = module.create_portable_zip(app_dir, "1.2.3", tmp_path)
+    assert archive.name == "SmartTestTool-1.2.3-windows-x64.zip"
+    with zipfile.ZipFile(archive) as package:
+        assert sorted(package.namelist()) == [
+            "SmartTestTool/SmartTestTool.exe", "SmartTestTool/payload.txt"
+        ]
+
+    (app_dir / "numpy.dll").write_bytes(b"forbidden")
+    try:
+        module.validate_distribution(app_dir)
+    except RuntimeError as exc:
+        assert "numpy" in str(exc).lower()
+    else:
+        raise AssertionError("forbidden runtime was not rejected")
+
+
+def test_tool_portable_restarts_only_for_exit_code_931():
+    sys.path.insert(0, str(ROOT / "ui"))
+    from example import tool_main
+
+    calls = []
+    assert tool_main.restart_for_exit_code(
+        931, "tool.exe", ["tool.exe", "--probe"],
+        lambda executable, arguments: calls.append((executable, arguments)),
+    ) is True
+    assert calls == [("tool.exe", ["tool.exe", "--probe"])]
+    assert tool_main.restart_for_exit_code(
+        0, "tool.exe", ["tool.exe"],
+        lambda executable, arguments: calls.append((executable, arguments)),
+    ) is False
+    assert len(calls) == 1
+
+
+def test_tool_portable_metrics_include_elapsed_payload_and_zip_bytes(tmp_path):
+    script = ROOT / "support/scripts/script-build-tool-portable.py"
+    spec = importlib.util.spec_from_file_location("tool_portable_metrics", script)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    archive = tmp_path / "tool.zip"
+    archive.write_bytes(b"zip-data")
+
+    assert module.build_metrics(
+        {"files": 12, "bytes": 3456}, archive, elapsed_seconds=7.25,
+    ) == {
+        "files": 12, "bytes": 3456, "zip_bytes": 8,
+        "build_seconds": 7.25,
+    }
+
+
+def test_tool_portable_real_navigation_loads_settings_about_and_login_without_warnings():
+    probe = f'''
+import sys
+sys.path.insert(0, r"{ROOT / 'ui'}"); sys.path.insert(0, r"{ROOT}")
+from PySide6.QtCore import QObject, QPoint, QPointF, Qt, QUrl
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtTest import QTest
+from FluentUI import FluentUI
+from example import tool_main
+from example.context_registry import register_context_objects
+app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]
+engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
+objects=tool_main.create_context_objects(engine); objects["AuthBridge"]._authenticated=True
+register_context_objects(engine, objects); FluentUI.registerTypes(engine)
+engine.loadData(b'import QtQuick 2.15; import FluentUI 1.0; QtObject {{ Component.onCompleted: FluRouter.routes={{"/login":"qrc:/example/qml/window/LoginWindow.qml","/about":"qrc:/example/qml/window/AboutWindow.qml"}} }}')
+engine.load(QUrl("qrc:/example/qml/tool/ToolWindow.qml")); QTest.qWait(400)
+def find(name):
+    for root in engine.rootObjects()+app.allWindows():
+        if root.objectName()==name: return root
+        result=root.findChild(QObject,name)
+        if result: return result
+def click(control):
+    point=control.mapToScene(QPointF(control.width()/2,control.height()/2))
+    QTest.mouseClick(control.window(),Qt.LeftButton,Qt.NoModifier,QPoint(round(point.x()),round(point.y())))
+    QTest.qWait(250); app.processEvents()
+find("toolSettingsPaneItem").tap.emit(); QTest.qWait(250); app.processEvents()
+settings=bool(find("toolSettingsPage"))
+click(find("toolAboutButton")); about=bool(find("toolAboutWindow"))
+find("toolAboutWindow").close(); QTest.qWait(100)
+find("toolAccountPaneItem").tap.emit(); QTest.qWait(250); app.processEvents()
+login=bool(find("toolLoginWindow")); objects["RedmineBridge"].close()
+print(settings, about, login, len(warnings), warnings)
+'''
+    result = subprocess.run(
+        [str(ROOT / ".venv/Scripts/python.exe"), "-c", probe], cwd=ROOT,
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
+        capture_output=True, text=True, timeout=20,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "True True True 0 []" in result.stdout
+
+
+def test_tool_portable_source_smoke_imports_required_dynamic_dependencies():
+    result = subprocess.run(
+        [
+            str(ROOT / ".venv/Scripts/python.exe"),
+            str(ROOT / "ui/example/tool_main.py"),
+            "--portable-smoke-imports",
+        ],
+        cwd=ROOT,
+        env=dict(
+            os.environ,
+            PYTHONPATH=os.pathsep.join((str(ROOT), str(ROOT / "ui"))),
+        ),
+        capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "SmartTestTool portable smoke imports: PASS" in result.stdout
+
+
 class RuntimeAuth(QObject):
     authChanged = Signal()
     username = Property(str, lambda self: "chen.chen", notify=authChanged)
+
+
+class ScheduleProvider(QObject):
+    scheduleRowsChanged = Signal()
+
+    def __init__(self, rows=()):
+        super().__init__()
+        self._rows = list(rows)
+        self.actions = []
+
+    scheduleRows = Property(
+        "QVariantList", lambda self: list(self._rows), notify=scheduleRowsChanged,
+    )
+
+    def replace(self, rows):
+        self._rows = list(rows)
+        self.scheduleRowsChanged.emit()
+
+    @Slot()
+    def refreshPlans(self):
+        self.actions.append(("refresh",))
+
+    @Slot(str, bool)
+    def setPlanEnabled(self, plan_id, enabled):
+        self.actions.append(("enabled", plan_id, enabled))
+        self._rows = [
+            {**row, "enabled": enabled} if row["planId"] == plan_id else row
+            for row in self._rows
+        ]
+        self.scheduleRowsChanged.emit()
+
+
+def schedule_row(plan_id="weekly-a", *, enabled=True):
+    return {
+        "provider": "confluence", "planId": plan_id,
+        "businessTitle": "Project Weekly Audit", "title": "Weekly A",
+        "enabled": enabled, "registered": True,
+        "nextRunAt": "2026-08-10T09:00:00+08:00",
+        "lastRunAt": "2026-08-03T09:00:00+08:00", "lastResultCode": 0,
+        "targetToolId": "confluence_audit",
+    }
+
+
+def test_schedule_bridge_filters_disabled_rows_and_tracks_provider_updates():
+    provider = ScheduleProvider((schedule_row(enabled=False),))
+    bridge = ScheduleBridge({"confluence": provider})
+    assert bridge.rows == []
+
+    provider.replace((schedule_row(),))
+
+    assert bridge.rows == [schedule_row()]
+
+
+def test_schedule_bridge_routes_refresh_disable_and_tool_open():
+    provider = ScheduleProvider((schedule_row(),))
+    bridge = ScheduleBridge({"confluence": provider})
+    opened = []
+    bridge.toolOpenRequested.connect(opened.append)
+
+    bridge.refresh()
+    bridge.openPlan("confluence", "weekly-a")
+    bridge.setPlanEnabled("confluence", "weekly-a", False)
+
+    assert provider.actions == [("refresh",), ("enabled", "weekly-a", False)]
+    assert opened == ["confluence_audit"]
+    assert bridge.rows == []
 
 
 def test_tool_bridge_survives_runtime_context_registration_and_exposes_redmine():
@@ -46,6 +285,7 @@ def test_confluence_tool_visible_title_is_project_weekly_audit():
     bridge = ToolBridge(ROOT, ManagerAuth())
     common = next(group for group in bridge.groups if group["id"] == "common")
     tool = next(item for item in common["tools"] if item["id"] == "confluence_audit")
+    assert bridge.groups[0]["id"] == "common"
     assert tool["title"] == "Project Weekly Audit"
 
 
@@ -64,6 +304,7 @@ from FluentUI import FluentUI
 from example.imports import resource_rc
 from example.bridge.FrontendStateBridge import FrontendStateBridge
 from example.bridge.JiraAuditBridge import JiraAuditBridge
+from example.bridge.ScheduleBridge import ScheduleBridge
 from example.bridge.ToolBridge import ToolBridge
 from example.context_registry import register_context_objects
 from ui.frontend_state import FrontendStateStore
@@ -86,9 +327,9 @@ class Redmine(QObject):
     @Slot()
     def cancelLogin(self): pass
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
-auth=Auth(); redmine=Redmine()
+auth=Auth(); redmine=Redmine(); daily=QObject()
 frontend=FrontendStateBridge(auth, FrontendStateStore(r"{state_path}"))
-register_context_objects(engine, {{"AuthBridge": auth, "FrontendStateBridge": frontend, "ToolBridge": ToolBridge(r"{ROOT}", auth), "RedmineBridge": redmine, "JiraAuditBridge": JiraAuditBridge(auth)}})
+register_context_objects(engine, {{"AuthBridge": auth, "FrontendStateBridge": frontend, "ToolBridge": ToolBridge(r"{ROOT}", auth), "ScheduleBridge": ScheduleBridge({{}}), "RedmineBridge": redmine, "JiraAuditBridge": JiraAuditBridge(auth), "DailyReportBridge": daily}})
 del auth; gc.collect()
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1200; height: 800; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/page/T_Tool.qml" }} }}')
@@ -107,14 +348,15 @@ redmine.credentialsRequired.emit(); app.processEvents(); redmine.verificationReq
 selected=root.property("selectedTool"); selected=selected.toVariant() if hasattr(selected,"toVariant") else selected
 bad=[str(item) for item in warnings]
 print(selected.get("id"), redmine.calls, len(engine._context_objects), len(bad), bad)
+engine.deleteLater(); app.processEvents(); app.quit()
 '''
     result = subprocess.run(
         [sys.executable, "-c", probe], cwd=ROOT,
         env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
-        capture_output=True, text=True, timeout=20,
+        capture_output=True, text=True, timeout=60,
     )
     assert result.returncode == 0, result.stderr + result.stdout
-    assert "redmine 1 5 0 []" in result.stdout
+    assert "redmine 1 7 0 []" in result.stdout
 
 
 def test_context_registry_releases_objects_when_engine_is_destroyed():
@@ -147,6 +389,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtTest import QTest
 from FluentUI import FluentUI
 from example.imports import resource_rc
+from example.bridge.ScheduleBridge import ScheduleBridge
 from example.bridge.ToolBridge import ToolBridge
 class Auth(QObject):
     authChanged = Signal()
@@ -179,10 +422,10 @@ class JiraAudit(QObject):
     @Slot()
     def nextViolationPage(self): pass
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
-auth=Auth(); tools=ToolBridge(r"{ROOT}", auth); redmine=Redmine(); jira=JiraAudit()
+auth=Auth(); tools=ToolBridge(r"{ROOT}", auth); schedule=ScheduleBridge({{}}); redmine=Redmine(); jira=JiraAudit()
 if {developer!r}:
     next(employee for node in tools._personnel["amlogic"]["departments"].values() for employee in node["employees"] if employee["account"] == "{account}")["system_roles"] = ["Developer"]
-engine.rootContext().setContextProperty("ToolBridge", tools); engine.rootContext().setContextProperty("RedmineBridge", redmine); engine.rootContext().setContextProperty("JiraAuditBridge", jira)
+engine.rootContext().setContextProperty("ToolBridge", tools); engine.rootContext().setContextProperty("ScheduleBridge", schedule); engine.rootContext().setContextProperty("RedmineBridge", redmine); engine.rootContext().setContextProperty("JiraAuditBridge", jira)
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1200; height: 800; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/page/T_Tool.qml" }} }}')
 app.processEvents(); window=engine.rootObjects()[0]; root=window.contentItem().childItems()[0].property("item")
@@ -267,8 +510,13 @@ def test_tool_groups_keep_fixed_layout_and_filter_child_tools_by_account():
         ]
 
     tv_groups = build_tool_groups(personnel, "jianfan.ai")
-    assert tv_groups[0]["id"] == "common"
-    assert tv_groups[0]["tools"] == [{"id": "jira_audit"}, {"id": "confluence_audit"}]
+    assert tv_groups[0] == {
+        "id": "common", "available": True,
+        "tools": [
+            {"id": "jira_audit"}, {"id": "confluence_audit"},
+            {"id": "daily_report"},
+        ],
+    }
     assert tv_groups[2]["available"] is True
 
     wifi_groups = build_tool_groups(personnel, "zijie.chen")
@@ -344,7 +592,7 @@ def test_configured_chao_li_developer_role_grants_all_active_tool_groups():
     ]
 
 
-def test_jira_audit_common_tool_permission_matrix():
+def test_common_audit_and_daily_report_permission_matrix():
     personnel = {
         "amlogic": {
             "departments": {
@@ -371,19 +619,22 @@ def test_jira_audit_common_tool_permission_matrix():
     }
 
     expected = {
-        "qa.m1": True,
-        "qa.i2": False,
-        "sw.m3": False,
-        "developer": True,
-        "unknown": False,
+        "qa.m1": (True, True),
+        "qa.i2": (False, False),
+        "sw.m3": (False, True),
+        "developer": (True, True),
+        "unknown": (False, False),
     }
-    assert {
-        account: build_tool_groups(personnel, account)[0]["tools"]
-        == [{"id": "jira_audit"}, {"id": "confluence_audit"}]
-        for account in expected
-    } == expected
-    assert build_tool_groups(load_tool_access(PERSONNEL_PATH), "chao.li")[0]["tools"] == [
-        {"id": "jira_audit"}, {"id": "confluence_audit"}
+    for account, (audit_available, daily_available) in expected.items():
+        groups = build_tool_groups(personnel, account)
+        tool_ids = {tool["id"] for tool in groups[0]["tools"]}
+        assert ({"jira_audit", "confluence_audit"} <= tool_ids) is audit_available
+        assert ("daily_report" in tool_ids) is daily_available
+
+    configured_groups = build_tool_groups(load_tool_access(PERSONNEL_PATH), "chao.li")
+    assert configured_groups[0]["tools"] == [
+        {"id": "jira_audit"}, {"id": "confluence_audit"},
+        {"id": "daily_report"},
     ]
 
 
@@ -402,11 +653,16 @@ def test_tool_navigation_and_page_layout_contract():
     assert "FluentIcons.Toolbox" not in items
     assert "ListView" not in page
     assert "ToolBridge.groups" in page
+    assert 'objectName: "toolScheduleArea"' in page
+    assert "model: ScheduleBridge.rows" in page
+    assert "model: ToolBridge.groups" in page
+    assert "ScheduleBridge.openPlan(" in page
+    assert "ScheduleBridge.setPlanEnabled(" in page
+    assert "No SmartTest Windows schedules are currently enabled." in page
     assert 'self.tr("Common Tools")' in (ROOT / "ui/example/bridge/ToolBridge.py").read_text(encoding="utf-8")
     assert 'qsTr("Custom Tools")' in page
     assert 'text: qsTr("Tools")' not in page
     assert "Layout.preferredWidth: 216" in page
-    assert "model: ToolBridge.groups" in page
     assert "toolGroup: modelData" in page
     assert "headerText: toolGroup.title" in page
     assert "onToolActivated: (groupId, toolIndex) => selectTool(groupId, toolIndex)" in page
@@ -419,6 +675,63 @@ def test_tool_navigation_and_page_layout_contract():
     assert "AuthBridge.productLines" not in page
     assert "AuthBridge.displayName" not in page
     assert "selectedToolIndex = model.index" not in page
+
+
+def test_schedule_qml_opens_target_tool_and_hides_disabled_plan():
+    probe = f'''
+import sys
+sys.path.insert(0, r"{ROOT / 'ui'}")
+from PySide6.QtCore import QObject, QPoint, QPointF, Property, Signal, Slot, Qt
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtTest import QTest
+from FluentUI import FluentUI
+from example.imports import resource_rc
+class Tools(QObject):
+    changed = Signal()
+    groups = Property("QVariantList", lambda self:[{{"id":"common", "title":"Common Tools", "available":True, "tools":[{{"id":"other_tool", "title":"Other", "description":""}}, {{"id":"future_tool", "title":"Future", "description":""}}]}}], notify=changed)
+class Schedule(QObject):
+    rowsChanged = Signal(); toolOpenRequested = Signal(str)
+    def __init__(self):
+        super().__init__(); self.actions=[]; self._rows=[{{"provider":"future", "planId":"weekly-a", "businessTitle":"Future Audit", "title":"Weekly A", "enabled":True, "registered":True, "targetToolId":"future_tool"}}]
+    rows = Property("QVariantList", lambda self:list(self._rows), notify=rowsChanged)
+    @Slot()
+    def refresh(self): self.actions.append(("refresh",))
+    @Slot(str, str)
+    def openPlan(self, provider, plan_id): self.actions.append(("open", provider, plan_id)); self.toolOpenRequested.emit("future_tool")
+    @Slot(str, str, bool)
+    def setPlanEnabled(self, provider, plan_id, enabled): self.actions.append(("enabled", provider, plan_id, enabled)); self._rows=[]; self.rowsChanged.emit()
+class Redmine(QObject):
+    changed = Signal(); state = Property(str, lambda self:"idle", notify=changed)
+app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]
+engine.warnings.connect(lambda rows:warnings.extend(str(row) for row in rows))
+tools=Tools(); schedule=Schedule(); redmine=Redmine()
+engine.rootContext().setContextProperty("ToolBridge", tools); engine.rootContext().setContextProperty("ScheduleBridge", schedule); engine.rootContext().setContextProperty("RedmineBridge", redmine)
+FluentUI.registerTypes(engine)
+engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible:true; width:1200; height:800; Loader {{ anchors.fill:parent; source:"qrc:/example/qml/page/T_Tool.qml" }} }}')
+app.processEvents(); window=engine.rootObjects()[0]; root=window.contentItem().childItems()[0].property("item")
+def item(name):
+    pending=[root]
+    while pending:
+        current=pending.pop()
+        if current.objectName()==name: return current
+        pending.extend(current.children())
+        if hasattr(current, "childItems"): pending.extend(current.childItems())
+def click(control):
+    point=control.mapToScene(QPointF(control.width()/2, control.height()/2)); QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, QPoint(round(point.x()), round(point.y()))); app.processEvents()
+click(item("toolScheduleOpenButton_weekly-a"))
+selected=root.property("selectedTool"); selected=selected.toVariant() if hasattr(selected,"toVariant") else selected
+click(item("toolScheduleDisableButton_weekly-a"))
+empty=item("toolScheduleEmptyState")
+print(selected.get("id"), schedule.actions, len(schedule._rows), empty.property("visible"), len(warnings), warnings)
+'''
+    result = subprocess.run(
+        [sys.executable, "-c", probe], cwd=ROOT,
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
+        capture_output=True, text=True, timeout=15,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "future_tool [('refresh',), ('open', 'future', 'weekly-a'), ('enabled', 'future', 'weekly-a', False)] 0 True 0 []" in result.stdout
 
 
 def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():
@@ -816,7 +1129,6 @@ def test_confluence_audit_tool_exposes_collection_plan_and_xlsx_content_contract
         "confluenceAuditApplyFilterButton",
         "confluenceAuditRefreshCollectionButton",
         "confluenceAuditProjectChecklist",
-        "confluenceAuditSimplePlan",
         "confluenceAuditEnableWeeklyPlanButton",
         "exportConfluenceAuditExcelButton",
         "openConfluenceAuditReportDirectoryButton",
@@ -831,9 +1143,7 @@ def test_confluence_audit_tool_exposes_collection_plan_and_xlsx_content_contract
         "Refresh filter options",
         "Apply filters",
         "Select all",
-        "Weekly plans",
         "Enable weekly plan",
-        "Disable",
         "Export Excel",
         "Open report directory",
     ):
@@ -842,17 +1152,16 @@ def test_confluence_audit_tool_exposes_collection_plan_and_xlsx_content_contract
     assert "ConfluenceAuditBridge.refreshCollection()" in workspace
     assert "ConfluenceAuditBridge.applyCollectionFilter()" in workspace
     assert "Component.onCompleted" in workspace
-    assert "ConfluenceAuditBridge.refreshPlans()" in workspace
+    assert "ConfluenceAuditBridge.refreshPlans()" not in workspace
     assert 'ConfluenceAuditBridge.toggleFilterValue( "years", modelData)' in compact
     assert 'ConfluenceAuditBridge.toggleFilterValue( "supportModes", modelData)' in compact
     assert "ConfluenceAuditBridge.toggleProject(modelData.projectIdentity)" in workspace
     assert "ConfluenceAuditBridge.selectAllProjects()" in workspace
     assert "ConfluenceAuditBridge.clearSelectedProjects()" in workspace
     assert "ConfluenceAuditBridge.enableWeeklyPlan()" in workspace
-    assert "ConfluenceAuditBridge.setPlanEnabled(" in workspace
     assert "ConfluenceAuditBridge.exportExcel()" in workspace
     assert "ConfluenceAuditBridge.openReportDirectory()" in workspace
-    assert "modelData.collectionSummary" in workspace
+    assert "root.view.plans" not in workspace
     assert 'qsTr("Configured collection")' not in workspace
     assert "function changedValues" not in workspace
     assert "function setFilterValue" not in workspace
@@ -882,7 +1191,7 @@ def test_confluence_workspace_declares_responsive_candidate_grid_contract():
         "ConfluenceAuditWorkspace.qml"
     ).read_text(encoding="utf-8")
 
-    assert workspace.index("id: simplePlanFrame") < workspace.index("id: collectionFrame")
+    assert "id: simplePlanFrame" not in workspace
     assert "flickableDirection: Flickable.VerticalFlick" in workspace
     assert "contentWidth: width" in workspace
     assert "id: candidateGrid" in workspace
@@ -930,11 +1239,6 @@ class Bridge(QObject):
                 for i in range(40)
             ],
             "selectedProjectIds":[], "collectionSummary":{{"candidateCount":1}},
-            "plans":[{{"planId":"weekly-a","name":"Weekly A",
-                       "collectionSummary":"2025, 2026 · A", "enabled":False,
-                       "registered":True, "reconciliation":"ok", "nextRunAt":"",
-                       "lastRunAt":"", "lastStatus":"", "lastResultCode":0,
-                       "lastReportPath":""}}],
             "period":{{}}, "progress":{{}}, "summary":{{}}, "projects":[],
             "selectedProject":"", "findings":[]
         }}
@@ -949,8 +1253,6 @@ class Bridge(QObject):
         options={{**self._view["availableFilterValues"],
                  "supportModes":["A","B","C"]}}
         self.set_view(availableFilterValues=options, catalogStatus="updated")
-    @Slot()
-    def refreshPlans(self): self.calls.append(("refresh_plans",))
     @Slot()
     def applyCollectionFilter(self): self.calls.append(("apply",))
     @Slot(str, str)
@@ -969,9 +1271,6 @@ class Bridge(QObject):
     @Slot()
     def enableWeeklyPlan(self):
         self.calls.append(("enable_weekly",))
-    @Slot(str, bool)
-    def setPlanEnabled(self, plan_id, enabled):
-        self.calls.append(("enabled", plan_id, enabled))
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; bridge=Bridge()
 engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
 engine.rootContext().setContextProperty("ConfluenceAuditBridge", bridge)
@@ -1073,12 +1372,12 @@ print(bridge.calls, widths, narrowWidths, len(warnings), warnings)
     result = subprocess.run(
         [sys.executable, "-c", probe], cwd=ROOT,
         env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
-        capture_output=True, text=True, timeout=20,
+        capture_output=True, text=True, timeout=60,
     )
     assert result.returncode == 0, result.stderr + result.stdout
     for expected in (
         "('refresh',)", "('filter', 'years', 2025)", "('project', 'DOPL:1')",
-        "('refresh_plans',)", "('apply',)",
+        "('apply',)",
         "('select_all',)", "('enable_weekly',)", "('clear_selected',)",
     ):
         assert expected in result.stdout

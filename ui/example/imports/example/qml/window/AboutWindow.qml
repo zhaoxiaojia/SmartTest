@@ -5,6 +5,7 @@ import FluentUI 1.0
 
 FluWindow {
     id: window
+    objectName: "toolAboutWindow"
     title: qsTr("About")
     width: 620
     height: 560

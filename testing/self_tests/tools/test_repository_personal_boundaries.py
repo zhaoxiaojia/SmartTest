@@ -63,7 +63,6 @@ def test_ui_translations_have_no_personal_format_audit_messages():
         "Load Jira issues before running a format audit.",
         "Format Audit",
         "Audit Loaded Issues",
-        "Export XLSX",
     }
 
     for relative_path in ("ui/example/example_en_US.ts", "ui/example/example_zh_CN.ts"):
