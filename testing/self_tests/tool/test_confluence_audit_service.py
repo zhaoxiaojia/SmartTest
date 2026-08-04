@@ -1,12 +1,12 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from support.confluence_audit.models import (
+from tool.common.project_weekly_audit.models import (
     AuditExecutionContext, AuditStatus, ConfluenceProject,
     ProjectCollection, ProjectCollectionFilter,
 )
-from support.confluence_audit.period import current_reporting_window
-from support.confluence_audit.service import ConfluenceAuditService
+from tool.common.project_weekly_audit.period import current_reporting_window
+from tool.common.project_weekly_audit.service import ConfluenceAuditService
 from support.confluence_integration.models import (
     ConfluenceAttachment, ConfluencePage,
 )
@@ -97,7 +97,7 @@ def collection():
 def run(monkeypatch, client):
     source = collection()
     monkeypatch.setattr(
-        "support.confluence_audit.service.discover_project_collection",
+        "tool.common.project_weekly_audit.service.discover_project_collection",
         lambda *_args, **_kwargs: source,
     )
     return ConfluenceAuditService(client).run(

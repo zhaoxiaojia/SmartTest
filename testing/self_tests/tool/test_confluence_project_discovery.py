@@ -1,8 +1,8 @@
-from support.confluence_audit.discovery import (
+from tool.common.project_weekly_audit.discovery import (
     discover_project_collection,
     discover_project_pages,
 )
-from support.confluence_audit.models import ProjectCandidate, ProjectCollectionFilter
+from tool.common.project_weekly_audit.models import ProjectCandidate, ProjectCollectionFilter
 from support.confluence_integration.models import ConfluencePage
 
 

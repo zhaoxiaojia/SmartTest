@@ -5,11 +5,11 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from support.confluence_audit.command import CommandDependencies, run_plan
-from support.confluence_audit.models import (
+from tool.common.project_weekly_audit.command import CommandDependencies, run_plan
+from tool.common.project_weekly_audit.models import (
     AuditBatch, AuditExecutionContext, AuditPeriod, ProjectCollectionFilter,
 )
-from support.confluence_audit.plans import AuditPlan
+from tool.common.project_weekly_audit.plans import AuditPlan
 from support.windows_credentials import CredentialNotFoundError
 from main import _background_command
 
@@ -117,7 +117,7 @@ def test_command_never_logs_or_serializes_password(monkeypatch, tmp_path):
     deps, service, xlsx_calls = _dependencies(tmp_path)
     log_calls = []
     monkeypatch.setattr(
-        "support.confluence_audit.command.smart_log",
+        "tool.common.project_weekly_audit.command.smart_log",
         lambda *args, **kwargs: log_calls.append((args, kwargs)),
     )
     run_plan("plan-a", deps)

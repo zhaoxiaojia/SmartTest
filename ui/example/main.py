@@ -28,6 +28,8 @@ from example.bridge.HomeBridge import HomeBridge
 from example.bridge.JiraBridge import JiraBridge
 from example.bridge.JiraAuditBridge import JiraAuditBridge
 from example.bridge.ConfluenceAuditBridge import ConfluenceAuditBridge
+from example.bridge.DailyReportBridge import create_daily_report_bridge
+from example.bridge.ScheduleBridge import ScheduleBridge
 from example.bridge.ReportBridge import ReportBridge
 from example.bridge.RunBridge import RunBridge
 from example.bridge.TestPageBridge import TestPageBridge
@@ -128,6 +130,13 @@ def main():
     redmine_bridge = RedmineBridge(auth_bridge)
     jira_audit_bridge = JiraAuditBridge(auth_bridge)
     confluence_audit_bridge = ConfluenceAuditBridge(auth_bridge)
+    daily_report_bridge = create_daily_report_bridge(
+        auth_bridge, app_data_dir(), runtime_root
+    )
+    schedule_bridge = ScheduleBridge({
+        "confluence": confluence_audit_bridge,
+        "daily_report": daily_report_bridge,
+    })
     translate_helper = TranslateHelper(frontend_state_store)
     translate_helper.init(engine)
     register_context_objects(
@@ -148,6 +157,8 @@ def main():
             "JiraBridge": JiraBridge(auth_bridge),
             "JiraAuditBridge": jira_audit_bridge,
             "ConfluenceAuditBridge": confluence_audit_bridge,
+            "DailyReportBridge": daily_report_bridge,
+            "ScheduleBridge": schedule_bridge,
             "DebugBridge": DebugBridge(runtime_root),
             "BootVideoBridge": BootVideoBridge(runtime_root),
         },

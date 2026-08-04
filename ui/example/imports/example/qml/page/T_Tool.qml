@@ -5,6 +5,7 @@ import "../component"
 import "../component/redmine"
 import "../component/jiraaudit"
 import "../component/confluenceaudit"
+import "../component/dailyreport"
 
 FluPage {
     title: qsTr("Tool")
@@ -40,7 +41,10 @@ FluPage {
 
     onSelectedToolChanged: Qt.callLater(maybeStartRedmineLogin)
     onSelectedGroupChanged: ensureSelectedToolAvailable()
-    Component.onCompleted: Qt.callLater(maybeStartRedmineLogin)
+    Component.onCompleted: {
+        ScheduleBridge.refresh()
+        Qt.callLater(maybeStartRedmineLogin)
+    }
 
     function selectTool(groupId, toolIndex) {
         for (var index = 0; index < ToolBridge.groups.length; ++index) {
@@ -53,10 +57,103 @@ FluPage {
         }
     }
 
-    RowLayout {
+    function selectToolById(toolId) {
+        for (var groupIndex = 0; groupIndex < ToolBridge.groups.length; ++groupIndex) {
+            const tools = ToolBridge.groups[groupIndex].tools || []
+            for (var toolIndex = 0; toolIndex < tools.length; ++toolIndex) {
+                if (tools[toolIndex].id === toolId) {
+                    selectedGroupIndex = groupIndex
+                    selectedToolIndex = toolIndex
+                    Qt.callLater(maybeStartRedmineLogin)
+                    return
+                }
+            }
+        }
+    }
+
+    Connections {
+        target: ScheduleBridge
+        function onToolOpenRequested(toolId) { selectToolById(toolId) }
+    }
+
+    ColumnLayout {
         anchors.fill: parent
         anchors.margins: 20
-        spacing: 0
+        spacing: 12
+
+        FluFrame {
+            objectName: "toolScheduleArea"
+            Layout.fillWidth: true
+            Layout.preferredHeight: 118
+            padding: 10
+
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 8
+
+                FluText { text: qsTr("Schedule"); font: FluTextStyle.Subtitle }
+                FluText {
+                    objectName: "toolScheduleEmptyState"
+                    visible: ScheduleBridge.rows.length === 0
+                    text: qsTr("No SmartTest Windows schedules are currently enabled.")
+                    color: FluTheme.fontSecondaryColor
+                }
+                Flickable {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    visible: ScheduleBridge.rows.length > 0
+                    clip: true
+                    contentWidth: scheduleRow.implicitWidth
+                    contentHeight: height
+                    flickableDirection: Flickable.HorizontalFlick
+
+                    RowLayout {
+                        id: scheduleRow
+                        height: parent.height
+                        spacing: 8
+                        Repeater {
+                            model: ScheduleBridge.rows
+                            FluFrame {
+                                required property var modelData
+                                objectName: "toolScheduleCard_" + modelData.provider + "_" + modelData.planId
+                                Layout.preferredWidth: 340
+                                Layout.fillHeight: true
+                                padding: 8
+                                RowLayout {
+                                    anchors.fill: parent
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+                                        FluText { Layout.fillWidth: true; text: modelData.businessTitle; font: FluTextStyle.BodyStrong; elide: Text.ElideRight }
+                                        FluText { Layout.fillWidth: true; text: modelData.title; color: FluTheme.fontSecondaryColor; elide: Text.ElideRight }
+                                        FluText {
+                                            Layout.fillWidth: true
+                                            text: modelData.registered ? qsTr("Registered") : qsTr("Not registered")
+                                            color: FluTheme.fontSecondaryColor
+                                        }
+                                    }
+                                    FluButton {
+                                        objectName: "toolScheduleOpenButton_" + modelData.planId
+                                        text: qsTr("Open")
+                                        onClicked: ScheduleBridge.openPlan(modelData.provider, modelData.planId)
+                                    }
+                                    FluButton {
+                                        objectName: "toolScheduleDisableButton_" + modelData.planId
+                                        text: qsTr("Disable")
+                                        onClicked: ScheduleBridge.setPlanEnabled(modelData.provider, modelData.planId, false)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 0
 
         Rectangle {
             Layout.preferredWidth: 216
@@ -149,6 +246,14 @@ FluPage {
                     sourceComponent: ConfluenceAuditWorkspace {}
                 }
                 Loader {
+                    id: dailyReportWorkspace
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    active: selectedTool.id === "daily_report"
+                    visible: active
+                    sourceComponent: DailyReportWorkspace {}
+                }
+                Loader {
                     id: redmineLogin
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -199,10 +304,12 @@ FluPage {
                     Layout.fillHeight: true
                     visible: selectedTool.id !== "redmine" && selectedTool.id !== "jira_audit"
                              && selectedTool.id !== "confluence_audit"
+                             && selectedTool.id !== "daily_report"
                     text: qsTr("This area is reserved for the selected tool. Execution is not available yet.")
                     color: FluTheme.fontSecondaryColor
                 }
             }
         }
+    }
     }
 }

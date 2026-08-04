@@ -42,6 +42,24 @@ def employee_department(personnel: dict[str, Any], account: str) -> str:
     return matches[0] if len(matches) == 1 else ""
 
 
+def daily_report_allowed(personnel: dict[str, Any], account: str) -> bool:
+    clean_account = str(account or "").strip()
+    employee = next(
+        (
+            item for item in amlogic_employees(personnel)
+            if str(item.get("account", "") or "").strip() == clean_account
+        ),
+        None,
+    )
+    if employee is None:
+        return False
+    roles = employee.get("system_roles", []) or []
+    grade = str(((employee.get("employment") or {}).get("grade", "")) or "").strip()
+    return grade.startswith("M") or any(
+        str(role or "").strip().casefold() == "developer" for role in roles
+    )
+
+
 def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str, Any]]:
     clean_account = str(account or "").strip()
     employees = amlogic_employees(personnel)
@@ -60,11 +78,17 @@ def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str,
     jira_audit_available = is_developer or (
         department == "FAE-QA" and grade.startswith("M")
     )
+    common_tools = (
+        [{"id": "jira_audit"}, {"id": "confluence_audit"}]
+        if jira_audit_available else []
+    )
+    if daily_report_allowed(personnel, clean_account):
+        common_tools.append({"id": "daily_report"})
     groups: list[dict[str, Any]] = [
         {
             "id": "common",
             "available": True,
-            "tools": [{"id": "jira_audit"}, {"id": "confluence_audit"}] if jira_audit_available else [],
+            "tools": common_tools,
         }
     ]
     assigned_ids = {
@@ -178,6 +202,14 @@ class ToolBridge(QObject):
                 **tool,
                 "title": self.tr("Project Weekly Audit"),
                 "description": self.tr("Check every A-level project in development against the project page content standards."),
+            }
+        if tool.get("id") == "daily_report":
+            return {
+                **tool,
+                "title": self.tr("Daily Report"),
+                "description": self.tr(
+                    "Generate, review, and send the fixed four-project status reports."
+                ),
             }
         return {
             **tool,

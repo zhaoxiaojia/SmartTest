@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import json
 import re
 import weakref
@@ -16,7 +17,7 @@ from support.ai import (
     AIResponseError,
     AITransportError,
 )
-from support.jira_integration.audit import (
+from tool.common.jira_format_audit import (
     AIReviewStatus,
     JiraAuditService,
     ResolvedAuditInput,
@@ -25,8 +26,16 @@ from support.jira_integration.audit import (
 from support.jira_integration.core.models import SearchPage
 
 
-service_module = importlib.import_module("support.jira_integration.audit.service")
+service_module = importlib.import_module("tool.common.jira_format_audit.service")
 _DEFAULT_CREATOR = object()
+
+
+def test_jira_format_audit_is_owned_by_common_tool():
+    module = importlib.import_module("tool.common.jira_format_audit")
+    assert module.JiraAuditService.__module__.startswith(
+        "tool.common.jira_format_audit"
+    )
+    assert importlib.util.find_spec("support.jira_integration." + "audit") is None
 
 
 def _description(

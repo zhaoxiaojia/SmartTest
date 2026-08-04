@@ -1,12 +1,25 @@
 from dataclasses import dataclass
+from functools import lru_cache
 from itertools import cycle
 from pathlib import Path
 from typing import Sequence
 
 import matplotlib
-from matplotlib import pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.figure import Figure
+from matplotlib import font_manager
 
 from .style import DEFAULT_LINE_CHART_STYLE, LineChartStyle
+
+
+_WINDOWS_CJK_FONT_PATHS = (
+    Path("C:/Windows/Fonts/msyh.ttc"),
+    Path("C:/Windows/Fonts/msyhbd.ttc"),
+    Path("C:/Windows/Fonts/simhei.ttf"),
+)
+_PORTABLE_CJK_FAMILIES = (
+    "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "SimHei",
+)
 
 
 @dataclass(frozen=True)
@@ -33,16 +46,19 @@ def render_line_chart(
 
     output = Path(output_path).resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
+    cjk_family = _cjk_font_family()
     rc = {
-        "font.family": list(style.font_families),
+        "font.family": ([cjk_family] if cjk_family else []) + list(style.font_families),
+        "axes.unicode_minus": False,
         "figure.facecolor": style.background_color,
         "axes.facecolor": style.background_color,
         "savefig.facecolor": style.background_color,
     }
-    figure = None
     with matplotlib.rc_context(rc):
+        figure = Figure(figsize=style.figure_size, dpi=style.figure_dpi)
+        FigureCanvasAgg(figure)
+        axes = figure.subplots()
         try:
-            figure, axes = plt.subplots(figsize=style.figure_size, dpi=style.figure_dpi)
             positions = range(len(labels))
             colors = cycle(style.palette)
             for item in series:
@@ -103,9 +119,27 @@ def render_line_chart(
             figure.tight_layout()
             figure.savefig(output, format="png", dpi=style.save_dpi)
         finally:
-            if figure is not None:
-                plt.close(figure)
+            figure.clear()
     return output
+
+
+@lru_cache(maxsize=1)
+def _cjk_font_family() -> str | None:
+    for path in _WINDOWS_CJK_FONT_PATHS:
+        if not path.is_file():
+            continue
+        try:
+            font_manager.fontManager.addfont(path)
+            return font_manager.FontProperties(fname=path).get_name()
+        except (OSError, RuntimeError):
+            continue
+    for family in _PORTABLE_CJK_FAMILIES:
+        try:
+            font_manager.findfont(family, fallback_to_default=False)
+            return family
+        except ValueError:
+            continue
+    return None
 
 
 def _validate_chart(

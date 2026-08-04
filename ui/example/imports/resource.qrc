@@ -261,5 +261,7 @@
         <file>example/qml/page/T_Icons.qml</file>
         <file>example/qml/page/T_OpenGL.qml</file>
         <file>example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml</file>
+        <file>example/qml/component/dailyreport/DailyReportWorkspace.qml</file>
+        <file>example/qml/component/dailyreport/DailyReportPreview.qml</file>
     </qresource>
 </RCC>

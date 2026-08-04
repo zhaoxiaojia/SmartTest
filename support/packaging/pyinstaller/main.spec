@@ -123,8 +123,8 @@ a = Analysis(
         "win32com",
         "win32com.client",
         "win32cred",
-        "support.confluence_audit.command",
-        "support.confluence_audit.scheduler",
+        "tool.common.project_weekly_audit.command",
+        "tool.common.project_weekly_audit.scheduler",
         # Ensure UI packages are discoverable even if imports are indirect.
         "example.main",
         "FluentUI.FluentUI",

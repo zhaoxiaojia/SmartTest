@@ -8,7 +8,7 @@ from typing import Any
 
 from PySide6.QtCore import QObject, Property, QStandardPaths, Signal, Slot
 
-from support.jira_integration.audit import (
+from tool.common.jira_format_audit import (
     AuditReport,
     JiraAuditService,
     active_rules,

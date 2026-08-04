@@ -3,11 +3,11 @@ from zoneinfo import ZoneInfo
 
 from openpyxl import load_workbook
 
-from support.confluence_audit.models import (
+from tool.common.project_weekly_audit.models import (
     AuditBatch, AuditExecutionContext, AuditFinding, AuditPeriod, AuditStatus,
     ProjectAudit, ProjectCandidate, ProjectCollectionFilter,
 )
-from support.confluence_audit.report import export_project_audit_xlsx
+from tool.common.project_weekly_audit.report import export_project_audit_xlsx
 
 
 TZ = ZoneInfo("Asia/Shanghai")

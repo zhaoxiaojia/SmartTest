@@ -1,10 +1,16 @@
 import struct
+import subprocess
+import sys
+import warnings
 from pathlib import Path
 
 import matplotlib
+from matplotlib import font_manager
 from matplotlib import pyplot as plt
 from openpyxl import load_workbook
 import pytest
+
+ROOT = Path(__file__).resolve().parents[3]
 
 from support.report.excel import clean_excel_value, write_excel_workbook
 from support.report.html import generate_html_report as generate_html_report_from_package
@@ -27,6 +33,7 @@ from support.report import (
     save_run_report,
     write_xlsx_table,
 )
+from support.report.image.line import _cjk_font_family
 
 
 def test_report_package_preserves_public_run_report_api():
@@ -108,6 +115,48 @@ def test_line_chart_writes_real_png_with_configured_dimensions(tmp_path):
     assert data.startswith(b"\x89PNG\r\n\x1a\n")
     assert (width, height) == (2420, 1100)
     assert len(data) > 1_000
+
+
+def test_line_chart_prefers_installed_windows_cjk_font_when_available():
+    yahei = Path("C:/Windows/Fonts/msyh.ttc")
+    if not yahei.is_file():
+        pytest.skip("Microsoft YaHei is not installed on this platform")
+    family = _cjk_font_family()
+    resolved = Path(font_manager.findfont(family, fallback_to_default=False))
+    assert family
+    assert resolved.samefile(yahei)
+
+
+def test_line_chart_renders_chinese_without_missing_glyph_warnings(tmp_path):
+    if not _cjk_font_family():
+        pytest.skip("No supported CJK font is installed")
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always")
+        output = render_line_chart(
+            ("08-02", "08-03"),
+            (LineSeries("未关闭 Issue", (120, 126), fill=True),),
+            tmp_path / "中文趋势.png",
+            title="每日未关闭 Issue 趋势",
+            highlight_series="未关闭 Issue",
+            kpi_label="当前未关闭",
+        )
+    assert output.is_file()
+    assert not any("Glyph" in str(item.message) and "missing" in str(item.message) for item in captured)
+
+
+def test_line_chart_does_not_enter_pyplot_gui_path(monkeypatch, tmp_path):
+    def fail_gui_path(*_args, **_kwargs):
+        raise AssertionError("pyplot GUI path must not be used by background reports")
+
+    monkeypatch.setattr(plt, "subplots", fail_gui_path)
+
+    output = render_line_chart(
+        ("Mon", "Tue"),
+        (LineSeries("Open", (3, 4)),),
+        tmp_path / "background.png",
+    )
+
+    assert output.is_file()
 
 
 def test_default_line_chart_style_preserves_visual_language():
@@ -195,3 +244,36 @@ def test_line_chart_places_title_kpi_and_highlight_at_chart_top(monkeypatch, tmp
     ]
     assert len(highlight_points) == 1
     assert highlight_points[0].get_markersize() > 5
+
+def test_excel_import_does_not_require_or_load_matplotlib_in_fresh_process():
+    probe = r'''
+import importlib.abc, sys
+class BlockMatplotlib(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "matplotlib" or fullname.startswith("matplotlib."):
+            raise ModuleNotFoundError(fullname)
+        return None
+sys.meta_path.insert(0, BlockMatplotlib())
+from support.report.excel import write_excel_workbook
+assert callable(write_excel_workbook)
+assert not any(name == "matplotlib" or name.startswith("matplotlib.") for name in sys.modules)
+print("excel-without-matplotlib")
+'''
+    result = subprocess.run(
+        [sys.executable, "-c", probe], cwd=ROOT,
+        capture_output=True, text=True, timeout=15,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "excel-without-matplotlib" in result.stdout
+
+
+def test_report_root_keeps_lazy_image_public_api():
+    from support.report import (
+        DEFAULT_LINE_CHART_STYLE as root_style,
+        LineSeries as root_series,
+        render_line_chart as root_renderer,
+    )
+
+    assert root_style is DEFAULT_LINE_CHART_STYLE
+    assert root_series is LineSeries
+    assert root_renderer is render_line_chart

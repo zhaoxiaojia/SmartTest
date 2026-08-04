@@ -1,11 +1,11 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from support.confluence_audit.models import (
+from tool.common.project_weekly_audit.models import (
     ConfluenceProject,
     ProjectCollectionFilter,
 )
-from support.confluence_audit.project_collection import (
+from tool.common.project_weekly_audit.project_collection import (
     default_project_filter,
     filter_projects,
 )
@@ -177,7 +177,7 @@ def test_filter_applies_year_status_and_selection_with_first_reason_counts():
 def test_filter_diagnostic_counts_each_active_filter_independently(monkeypatch):
     records = []
     monkeypatch.setattr(
-        "support.confluence_audit.project_collection.smart_log",
+        "tool.common.project_weekly_audit.project_collection.smart_log",
         lambda message, **kwargs: records.append((message, kwargs)),
     )
     criteria = ProjectCollectionFilter(

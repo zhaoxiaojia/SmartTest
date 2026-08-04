@@ -3,15 +3,15 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from support.confluence_audit.discovery import (
+from tool.common.project_weekly_audit.discovery import (
     canonical_page_kind,
     discover_project_pages,
 )
-from support.confluence_audit.models import AuditStatus, ProjectCandidate
-from support.confluence_audit.period import (
+from tool.common.project_weekly_audit.models import AuditStatus, ProjectCandidate
+from tool.common.project_weekly_audit.period import (
     current_reporting_window, previous_business_week, scheduled_reporting_window,
 )
-from support.confluence_audit.rules import StaticAuditService
+from tool.common.project_weekly_audit.rules import StaticAuditService
 from support.confluence_integration.models import ConfluenceAttachment, ConfluencePage
 
 TZ = ZoneInfo("Asia/Shanghai")

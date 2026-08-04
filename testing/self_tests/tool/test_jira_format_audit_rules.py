@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import pytest
 from openpyxl import load_workbook
 
-from support.jira_integration.audit import (
+from tool.common.jira_format_audit import (
     AuditReport,
     AuditViolation,
     IssueAuditResult,
@@ -17,7 +17,7 @@ from support.jira_integration.audit import (
     export_audit_xlsx,
     resolve_audit_input,
 )
-from support.jira_integration.audit.rules import (
+from tool.common.jira_format_audit.rules import (
     ai_reviewable_violations,
     is_audit_eligible,
 )

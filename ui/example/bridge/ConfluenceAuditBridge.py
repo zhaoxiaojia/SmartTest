@@ -10,25 +10,25 @@ from threading import Lock, Thread
 from PySide6.QtCore import QObject, Property, QStandardPaths, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 
-from support.confluence_audit.discovery import (
+from tool.common.project_weekly_audit.discovery import (
     UNIFIED_SOURCE, discover_project_collection,
 )
-from support.confluence_audit.models import (
+from tool.common.project_weekly_audit.models import (
     AuditExecutionContext, ConfluenceProject, ProjectCollection,
     ProjectCollectionFilter,
 )
-from support.confluence_audit.period import current_reporting_window
-from support.confluence_audit.project_collection import (
+from tool.common.project_weekly_audit.period import current_reporting_window
+from tool.common.project_weekly_audit.project_collection import (
     default_project_filter, filter_projects,
 )
-from support.confluence_audit.plans import AuditPlan, AuditPlanStore
-from support.confluence_audit.report import (
+from tool.common.project_weekly_audit.plans import AuditPlan, AuditPlanStore
+from tool.common.project_weekly_audit.report import (
     export_project_audit_xlsx,
 )
-from support.confluence_audit.scheduler import (
+from tool.common.project_weekly_audit.scheduler import (
     TASK_PREFIX, WindowsAuditScheduler, resolve_audit_launch_command,
 )
-from support.confluence_audit.service import ConfluenceAuditService
+from tool.common.project_weekly_audit.service import ConfluenceAuditService
 from support.confluence_integration import (
     ConfluenceClient, ConfluenceClientConfig, ConfluenceDependencyError,
 )
@@ -58,6 +58,7 @@ def _period_view(period):
 
 class ConfluenceAuditBridge(QObject):
     viewStateChanged = Signal()
+    scheduleRowsChanged = Signal()
     _workerProgress = Signal(object)
     _workerFinished = Signal(object)
     _workerFailed = Signal(object)
@@ -104,6 +105,7 @@ class ConfluenceAuditBridge(QObject):
         self._catalog = None
         self._catalog_account_hash = ""
         self._catalog_refresh_in_flight = False
+        self._schedule_rows = []
         criteria = default_project_filter(self._now(), PROJECT_SPACE_URL)
         self._view = {"state": "idle", "statusText": self.tr("Ready to audit all Confluence projects."),
                       "period": {}, "progress": {"processed": 0, "total": 0}, "summary": {},
@@ -117,7 +119,7 @@ class ConfluenceAuditBridge(QObject):
                           "projectStatuses": list(criteria.project_statuses),
                       },
                       "candidateProjects": [], "selectedProjectIds": [],
-                      "plans": [], "collectionSummary": {},
+                      "collectionSummary": {},
                       "catalogStatus": "idle", "catalogStatusText": "",
                       "canStart": True, "canExport": False}
         self._workerProgress.connect(self._on_worker_progress)
@@ -798,8 +800,12 @@ class ConfluenceAuditBridge(QObject):
 
     def _plan_row(self, plan, machine):
         return {
+            "provider": "confluence",
             "planId": plan.plan_id if plan else machine.plan_id,
-            "name": plan.name if plan else "",
+            "businessTitle": self.tr("Project Weekly Audit"),
+            "title": (
+                plan.name if plan else self.tr("Confluence weekly project audit")
+            ),
             "collectionSummary": (
                 self._plan_collection_summary(plan.collection_filter)
                 if plan else ""
@@ -822,7 +828,12 @@ class ConfluenceAuditBridge(QObject):
             ),
             "lastStatus": plan.last_status if plan else "",
             "lastReportPath": plan.last_report_path if plan else "",
+            "targetToolId": "confluence_audit",
         }
+
+    @Property("QVariantList", notify=scheduleRowsChanged)
+    def scheduleRows(self):
+        return list(self._schedule_rows)
 
     def _plan_collection_summary(self, criteria):
         any_value = self.tr("Any")
@@ -844,7 +855,8 @@ class ConfluenceAuditBridge(QObject):
             return
         kind = payload.get("kind")
         if kind == "refreshed":
-            self._set(plans=list(payload["plans"]))
+            self._schedule_rows = list(payload["plans"])
+            self.scheduleRowsChanged.emit()
         else:
             self._set(statusText=self.tr("Failed to update weekly audit plans."))
 

@@ -15,11 +15,12 @@ class CredentialNotFoundError(WindowsCredentialError):
 
 
 class WindowsCredentialStore:
-    def __init__(self, native=None):
+    def __init__(self, native=None, *, target_prefix: str = TARGET_PREFIX):
         self._native = native or _PyWin32CredentialAdapter()
+        self._target_prefix = str(target_prefix)
 
     def write(self, credential_ref: str, username: str, password: str) -> None:
-        target = _target(credential_ref)
+        target = _target(credential_ref, self._target_prefix)
         blob = bytearray(str(password).encode("utf-16-le"))
         try:
             self._native.write_generic(target, str(username), blob)
@@ -27,7 +28,7 @@ class WindowsCredentialStore:
             self._native.clear(blob)
 
     def read(self, credential_ref: str) -> tuple[str, str]:
-        target = _target(credential_ref)
+        target = _target(credential_ref, self._target_prefix)
         try:
             username, blob = self._native.read_generic(target)
         except CredentialNotFoundError:
@@ -38,7 +39,7 @@ class WindowsCredentialStore:
             self._native.clear(blob)
 
     def delete(self, credential_ref: str) -> None:
-        self._native.delete_generic(_target(credential_ref))
+        self._native.delete_generic(_target(credential_ref, self._target_prefix))
 
 
 class _PyWin32CredentialAdapter:
@@ -101,8 +102,8 @@ class _PyWin32CredentialAdapter:
             blob[index] = 0
 
 
-def _target(credential_ref) -> str:
+def _target(credential_ref, prefix: str = TARGET_PREFIX) -> str:
     value = str(credential_ref)
     if not re.fullmatch(r"[A-Za-z0-9_-]+", value):
         raise ValueError("Invalid credential reference")
-    return TARGET_PREFIX + value
+    return prefix + value

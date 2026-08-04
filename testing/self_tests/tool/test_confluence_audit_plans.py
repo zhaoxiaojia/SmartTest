@@ -5,9 +5,9 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from support.confluence_audit.models import ProjectCollectionFilter
-from support.confluence_audit.plans import AuditPlan, AuditPlanStore
-from support.confluence_audit.discovery import UNIFIED_SOURCE
+from tool.common.project_weekly_audit.models import ProjectCollectionFilter
+from tool.common.project_weekly_audit.plans import AuditPlan, AuditPlanStore
+from tool.common.project_weekly_audit.discovery import UNIFIED_SOURCE
 
 
 TZ = ZoneInfo("Asia/Shanghai")
@@ -63,7 +63,7 @@ def test_plan_store_atomic_replace_failure_preserves_previous_file(tmp_path, mon
     def fail_replace(source, target):
         raise OSError("replace failed")
 
-    monkeypatch.setattr("support.confluence_audit.plans.Path.replace", fail_replace)
+    monkeypatch.setattr("tool.common.project_weekly_audit.plans.Path.replace", fail_replace)
     with pytest.raises(OSError, match="replace failed"):
         store.save(replace(original, name="Changed"))
     assert store.load(original.plan_id) == original

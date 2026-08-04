@@ -9,7 +9,6 @@ Item {
 
     Component.onCompleted: {
         ConfluenceAuditBridge.initializeCollection()
-        ConfluenceAuditBridge.refreshPlans()
     }
 
     function shortDate(value) {
@@ -43,55 +42,6 @@ Item {
     ColumnLayout {
         anchors.fill: parent
         spacing: 10
-
-        FluFrame {
-            id: simplePlanFrame
-            objectName: "confluenceAuditSimplePlan"
-            Layout.fillWidth: true
-            Layout.preferredHeight: 92
-            padding: 10
-            ColumnLayout {
-                anchors.fill: parent
-                RowLayout {
-                    Layout.fillWidth: true
-                    FluText { text: qsTr("Weekly plans"); font: FluTextStyle.Subtitle }
-                    FluText {
-                        Layout.fillWidth: true
-                        text: (root.view.plans || []).some(function(plan) { return plan.enabled })
-                              ? qsTr("A weekly plan is enabled")
-                              : qsTr("No weekly plan is enabled")
-                    }
-                    FluFilledButton {
-                        objectName: "confluenceAuditEnableWeeklyPlanButton"
-                        text: qsTr("Enable weekly plan")
-                        disabled: !root.view.canStart
-                                  || !(root.view.collectionSummary.candidateCount || 0)
-                                  || !(root.view.selectedProjectIds || []).length
-                        onClicked: ConfluenceAuditBridge.enableWeeklyPlan()
-                    }
-                }
-                Repeater {
-                    model: (root.view.plans || []).filter(function(plan) { return plan.enabled })
-                    RowLayout {
-                        required property var modelData
-                        Layout.fillWidth: true
-                        FluText {
-                            Layout.fillWidth: true
-                            text: modelData.collectionSummary + " · "
-                                  + (modelData.lastStatus || modelData.reconciliation || "")
-                            elide: Text.ElideRight
-                            ToolTip.visible: truncated && planSummaryHover.hovered
-                            ToolTip.text: text
-                            HoverHandler { id: planSummaryHover }
-                        }
-                        FluButton {
-                            text: qsTr("Disable")
-                            onClicked: ConfluenceAuditBridge.setPlanEnabled(modelData.planId, false)
-                        }
-                    }
-                }
-            }
-        }
 
         FluFrame {
             id: collectionFrame
@@ -259,6 +209,19 @@ Item {
                         text: qsTr("Selected") + ": "
                               + (root.view.selectedProjectIds || []).length
                         color: FluTheme.fontSecondaryColor
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Item { Layout.fillWidth: true }
+                    FluFilledButton {
+                        objectName: "confluenceAuditEnableWeeklyPlanButton"
+                        text: qsTr("Enable weekly plan")
+                        disabled: !root.view.canStart
+                                  || !(root.view.collectionSummary.candidateCount || 0)
+                                  || !(root.view.selectedProjectIds || []).length
+                        onClicked: ConfluenceAuditBridge.enableWeeklyPlan()
                     }
                 }
 

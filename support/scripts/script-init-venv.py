@@ -25,5 +25,6 @@ if __name__ == "__main__":
     subprocess.run([env.pip(), "install", "openpyxl==3.1.5"])
     subprocess.run([env.pip(), "install", "atlassian-python-api==4.0.7"])
     subprocess.run([env.pip(), "install", "tzdata==2025.2"])
+    subprocess.run([env.pip(), "install", "Markdown==3.10.2"])
     subprocess.run([env.pip(), "install", "playwright==1.54.0"], check=True)
     subprocess.run([env.python(), "-m", "playwright", "install", "chromium"], check=True)

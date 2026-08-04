@@ -5,13 +5,13 @@ from zoneinfo import ZoneInfo
 
 from PySide6.QtCore import QCoreApplication, QObject, Signal
 
-from support.confluence_audit.models import (
+from tool.common.project_weekly_audit.models import (
     AuditBatch, AuditExecutionContext, AuditFinding, AuditPeriod, ProjectAudit,
     ConfluenceProject, ProjectCandidate, ProjectCollection, ProjectCollectionFilter,
 )
-from support.confluence_audit.models import AuditStatus
-from support.confluence_audit.plans import AuditPlan, AuditPlanStore
-from support.confluence_audit.scheduler import ScheduledPlanState
+from tool.common.project_weekly_audit.models import AuditStatus
+from tool.common.project_weekly_audit.plans import AuditPlan, AuditPlanStore
+from tool.common.project_weekly_audit.scheduler import ScheduledPlanState
 from support.account_dynamic_source import DynamicSourceEvent, RefreshState
 from ui.example.bridge.ConfluenceAuditBridge import (
     PROJECT_SPACE_URL, ConfluenceAuditBridge,
@@ -846,7 +846,12 @@ def test_refresh_plans_uses_reconciled_machine_state(monkeypatch, tmp_path):
         ),
     ]
     bridge.refreshPlans()
-    row = bridge.viewState["plans"][0]
+    row = bridge.scheduleRows[0]
+    assert "plans" not in bridge.viewState
+    assert row["provider"] == "confluence"
+    assert row["businessTitle"] == "Project Weekly Audit"
+    assert row["title"] == "Weekly A"
+    assert row["targetToolId"] == "confluence_audit"
     assert row["enabled"] is False
     assert row["registered"] is False
     assert row["reconciliation"] == "task_missing"
@@ -867,7 +872,7 @@ def test_stopping_plan_disables_scheduler_and_keeps_plan_row(monkeypatch, tmp_pa
     bridge.setPlanEnabled("weekly-a", False)
     assert scheduler.enabled[-1] == ("weekly-a", False)
     assert store.load("weekly-a").enabled is False
-    assert bridge.viewState["plans"][0]["planId"] == "weekly-a"
+    assert bridge.scheduleRows[0]["planId"] == "weekly-a"
 
 
 def test_refresh_collection_does_not_cancel_running_audit(monkeypatch, tmp_path):
@@ -963,8 +968,8 @@ def test_stale_plan_refresh_cannot_overwrite_newer_save(monkeypatch, tmp_path):
     bridge.saveWeeklyPlan("weekly-a", "Weekly A")
     assert len(ControlledThread.pending) == 1
     ControlledThread.run()
-    assert bridge.viewState["plans"][0]["registered"] is True
-    assert bridge.viewState["plans"][0]["reconciliation"] == "ok"
+    assert bridge.scheduleRows[0]["registered"] is True
+    assert bridge.scheduleRows[0]["reconciliation"] == "ok"
 
 
 def test_overlapping_save_and_disable_are_serialized_in_request_order(monkeypatch, tmp_path):
@@ -988,7 +993,7 @@ def test_overlapping_save_and_disable_are_serialized_in_request_order(monkeypatc
     ControlledThread.run()
     assert store.load("weekly-a").enabled is False
     assert scheduler.enabled == [("weekly-a", False)]
-    assert bridge.viewState["plans"][0]["enabled"] is False
+    assert bridge.scheduleRows[0]["enabled"] is False
 
 
 def test_refresh_requested_after_save_cannot_read_pre_save_rows(monkeypatch, tmp_path):
@@ -1007,8 +1012,8 @@ def test_refresh_requested_after_save_cannot_read_pre_save_rows(monkeypatch, tmp
     bridge.refreshPlans()
     assert len(ControlledThread.pending) == 1
     ControlledThread.run()
-    assert bridge.viewState["plans"][0]["planId"] == "weekly-a"
-    assert bridge.viewState["plans"][0]["registered"] is True
+    assert bridge.scheduleRows[0]["planId"] == "weekly-a"
+    assert bridge.scheduleRows[0]["registered"] is True
 
 
 def test_plan_row_exposes_collection_summary_from_saved_filter(monkeypatch, tmp_path):
@@ -1026,7 +1031,7 @@ def test_plan_row_exposes_collection_summary_from_saved_filter(monkeypatch, tmp_
     })
     bridge.setSelectedProjects(["M1", "M2"])
     bridge.saveWeeklyPlan("weekly-a", "Weekly A")
-    summary = bridge.viewState["plans"][0]["collectionSummary"]
+    summary = bridge.scheduleRows[0]["collectionSummary"]
     for value in ("2025", "2026", "A", "Active", "2"):
         assert value in summary
     assert "current stages" not in summary.casefold()

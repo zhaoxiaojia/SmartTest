@@ -1,7 +1,6 @@
 from .core import REPORT_SCHEMA_VERSION, build_run_report, duration_text, report_file_stem
 from .excel import write_xlsx_table
 from .html import generate_html_report, render_html_report, report_html_url
-from .image import DEFAULT_LINE_CHART_STYLE, LineChartStyle, LineSeries, render_line_chart
 from .json import list_reports, load_report, report_json_path
 from .paths import report_html_path, report_pdf_path
 from .pdf import export_pdf_report
@@ -28,3 +27,20 @@ __all__ = [
     "save_run_report",
     "write_xlsx_table",
 ]
+
+_IMAGE_EXPORTS = {
+    "DEFAULT_LINE_CHART_STYLE",
+    "LineChartStyle",
+    "LineSeries",
+    "render_line_chart",
+}
+
+
+def __getattr__(name: str):
+    if name not in _IMAGE_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    from . import image
+
+    value = getattr(image, name)
+    globals()[name] = value
+    return value

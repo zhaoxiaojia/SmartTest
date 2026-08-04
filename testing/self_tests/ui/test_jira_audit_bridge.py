@@ -9,7 +9,7 @@ from threading import Event
 import pytest
 from PySide6.QtCore import QCoreApplication, QObject, QStandardPaths, Signal
 
-from support.jira_integration.audit import (
+from tool.common.jira_format_audit import (
     AIReviewStatus,
     AuditReport,
     AuditViolation,
