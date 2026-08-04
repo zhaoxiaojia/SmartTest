@@ -221,6 +221,54 @@ def test_ordinary_cascade_schema_injects_selectable_empty_child_when_metadata_om
     assert field.value == {"parent": "13251", "child": ""}
 
 
+def test_software_release_is_single_select_despite_jira_multiselect_metadata():
+    import copy
+    payload = copy.deepcopy(CREATE_META)
+    fields = payload["projects"][0]["issuetypes"][0]["fields"]
+    fields["customfield_release"] = {
+        "name": "Software Release",
+        "required": True,
+        "schema": {
+            "type": "string",
+            "custom": "com.atlassian.jira.plugin.system.customfieldtypes:multiselect",
+        },
+        "allowedValues": [
+            {"id": "release-1", "value": "Release 1"},
+            {"id": "release-2", "value": "Release 2"},
+        ],
+    }
+
+    field = next(
+        item for item in JiraCreateSchemaService(RecordingClient(payload)).schema("SH", "Bug")
+        if item.field_id == "customfield_release"
+    )
+
+    assert field.control == CreateFieldControl.SINGLE
+
+
+def test_compare_status_is_required_single_select_even_when_metadata_is_optional():
+    import copy
+    payload = copy.deepcopy(CREATE_META)
+    fields = payload["projects"][0]["issuetypes"][0]["fields"]
+    fields["customfield_compare"] = {
+        "name": "Compare Status",
+        "required": False,
+        "schema": {
+            "type": "string",
+            "custom": "com.atlassian.jira.plugin.system.customfieldtypes:multiselect",
+        },
+        "allowedValues": [{"id": "same", "value": "Same"}],
+    }
+
+    field = next(
+        item for item in JiraCreateSchemaService(RecordingClient(payload)).schema("SH", "Bug")
+        if item.field_id == "customfield_compare"
+    )
+
+    assert field.required
+    assert field.control == CreateFieldControl.SINGLE
+
+
 @pytest.mark.parametrize(
     "payload, project_key, issue_type",
     [({"projects": []}, "SH", "Bug"), (CREATE_META, "MISSING", "Bug"), (CREATE_META, "SH", "Support")],

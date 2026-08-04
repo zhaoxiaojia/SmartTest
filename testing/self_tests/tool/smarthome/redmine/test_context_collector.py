@@ -35,9 +35,9 @@ def test_collect_query_executes_union_branches_pages_and_dedupes_descending():
             url = self.urls[-1]
             if "page=1&" in url:
                 ids = ["10", "9"] if "any_searchable" in url else ["10"]
-                total = 101 if "any_searchable" in url else 1
+                total = 3 if "any_searchable" in url else 1
             else:
-                ids, total = ["8"], 101
+                ids, total = ["8"], 3
             return {"total": total, "rows": [
                 {"id": f"issue-{issue_id}", "cells": [
                     {"className": "id", "text": issue_id, "links": [{"href": f"https://support.amlogic.com/issues/{issue_id}"}]},
@@ -52,6 +52,42 @@ def test_collect_query_executes_union_branches_pages_and_dedupes_descending():
         assert sum("any_searchable" in url for url in page.urls) == 2
         assert sum("issue_id" in url for url in page.urls) == 1
         assert context.projects[0].project_id == ""
+    asyncio.run(scenario())
+
+
+def test_child_project_all_statuses_collects_every_server_capped_page():
+    class Page:
+        def __init__(self): self.urls = []
+        async def goto(self, url, **_kwargs): self.urls.append(url)
+        async def wait_for_selector(self, *_args, **_kwargs): pass
+        async def evaluate(self, _script):
+            from urllib.parse import parse_qs, urlsplit
+            page = int(parse_qs(urlsplit(self.urls[-1]).query)["page"][0])
+            start = (page - 1) * 25 + 1
+            ids = range(start, min(start + 25, 158))
+            return {"total": 157, "rows": [
+                {"id": f"issue-{issue_id}", "cells": [
+                    {"className": "id", "text": str(issue_id), "links": [{"href": f"https://support.amlogic.com/issues/{issue_id}"}]},
+                ]} for issue_id in ids
+            ]}
+
+    async def scenario():
+        from urllib.parse import parse_qs, urlsplit
+        page = Page()
+        context = await RedmineContextCollector(page).collect_query(
+            RedmineQuery(project="avt-cultraview-edla-a311d2")
+        )
+        assert len(page.urls) == 7
+        assert all(
+            urlsplit(url).path
+            == "/projects/avt-cultraview-edla-a311d2/issues"
+            for url in page.urls
+        )
+        assert all(parse_qs(urlsplit(url).query)["status_id"] == ["*"] for url in page.urls)
+        assert context.projects[0].identifier == "avt-cultraview-edla-a311d2"
+        assert len(context.projects[0].issues) == 157
+        assert len({issue.id for issue in context.projects[0].issues}) == 157
+
     asyncio.run(scenario())
 
 
@@ -115,6 +151,18 @@ def test_parse_project_options_keeps_every_accessible_project_and_project_id():
     assert [project.identifier for project in projects] == ["avt-cultraview-bds", "avt-cultraview-edla-a311d2", "cultraview-a311d2-android-16"]
     assert projects[1].project_id == "AN40BF-A311D2"
     assert projects[2].project_id == "AN40CY-A311D2"
+    from tool.SmartHome.redmine.collector import project_options
+    options = project_options(projects)
+    assert options[0] == {
+        "id": "avt-cultraview-bds",
+        "label": "BDS.Cultraview",
+        "projectId": "",
+    }
+    assert options[1] == {
+        "id": "avt-cultraview-edla-a311d2",
+        "label": "BDS.Cultraview.EDLA.A311D2 [AN40BF-A311D2]",
+        "projectId": "AN40BF-A311D2",
+    }
 
 
 def test_project_dom_script_collects_all_project_links_without_hierarchy_inference():
@@ -147,7 +195,7 @@ def test_project_options_preserve_all_projects_in_source_order():
         RedmineProject(name="B", identifier="b", url="/projects/b"),
     )
     assert project_options(projects) == [
-        {"id": "a", "label": "A", "projectId": "A-ID"},
+        {"id": "a", "label": "A [A-ID]", "projectId": "A-ID"},
         {"id": "a1", "label": "A1", "projectId": ""},
         {"id": "a2", "label": "A2", "projectId": ""},
         {"id": "b", "label": "B", "projectId": ""},

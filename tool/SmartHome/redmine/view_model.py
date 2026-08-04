@@ -4,7 +4,6 @@ from typing import Any
 
 from support.jira_integration.core import UnifiedIssue
 from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineProject
-from tool.SmartHome.redmine.overdue import OverduePolicy
 
 
 def view(
@@ -24,7 +23,6 @@ def view(
     }
     projects = [project for project in context.projects if project.project_id]
     analysis = dict(context.raw.get("issue_analysis") or {})
-    policy = OverduePolicy()
     details = {detail.id: detail for detail in context.issues}
     if selected_detail is not None:
         details[selected_detail.id] = selected_detail
@@ -37,7 +35,6 @@ def view(
         )
         for project in projects
         for issue in project.issues
-        if _monitored(issue, analysis.get(issue.id) or {}, policy)
     ]
     selected_id = (
         selected_detail.id
@@ -268,23 +265,6 @@ def detail_row(issue: RedmineIssueDetail | None = None, *, item: RedmineIssueLis
         "comments": comments,
         "attachments": attachments,
     }
-
-
-def _monitored(issue: RedmineIssueListItem, analysis: dict[str, Any], policy: OverduePolicy) -> bool:
-    tracker = str(issue.tracker or "").strip().casefold()
-    status = str(issue.status or "").strip().casefold()
-    subject = "".join(str(issue.subject or "").casefold().split())
-    if tracker and tracker not in policy.trackers:
-        return False
-    if status in policy.excluded_statuses:
-        return False
-    if any("".join(value.casefold().split()) in subject for value in policy.title_exclusions):
-        return False
-    if analysis.get("reason") in {"filtered", "due_date_not_reached"}:
-        return False
-    if analysis and analysis.get("risk") == "unknown" and not analysis.get("responsibility_type") and not analysis.get("stale_type"):
-        return False
-    return True
 
 
 def _project_label(project: RedmineProject) -> str:

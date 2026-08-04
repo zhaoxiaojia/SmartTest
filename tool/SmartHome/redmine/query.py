@@ -20,6 +20,8 @@ class RedmineQueryBranch:
         for name, operator, values in self.conditions:
             params.extend((("f[]", name), (f"op[{name}]", operator)))
             params.extend((f"v[{name}][]", value) for value in values)
+        if not any(name == "status_id" for name, _operator, _values in self.conditions):
+            params.append(("status_id", "*"))
         params.extend((
             ("sort", "id:desc"),
             ("page", str(page)),

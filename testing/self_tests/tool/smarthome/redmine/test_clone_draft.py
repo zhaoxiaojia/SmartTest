@@ -44,6 +44,7 @@ SCHEMA = (
     field("customfield_10407", "Project ID", "multi", required=True, options=(option("50", "AN40BF-A311D2"), option("51", "WRONG-NAME-GUESS"))),
     field("customfield_10300", "Software Release", "multi"),
     field("reporter", "Reporter", "user"),
+    field("assignee", "Assignee", "user"),
     field("customfield_10700", "Manager", "user", required=True),
     field("customfield_10409", "FAE Coworker", "user"),
     field("customfield_11002", "FAE Manager", "user", required=True),
@@ -71,6 +72,7 @@ def build(
     schema=SCHEMA,
     account="defeng.zhai",
     department="FAE-SW",
+    assignee_account="defeng.zhai",
 ):
     return RedmineCloneDraftService().build(
         issue=issue,
@@ -78,6 +80,7 @@ def build(
         schema=schema,
         account=account,
         department=department,
+        assignee_account=assignee_account,
         prepared_description=render_notes_description(issue.description),
     )
 
@@ -97,6 +100,7 @@ def test_clone_draft_prefills_confirmed_mappings_with_current_option_ids(tracker
     assert draft.value("customfield_10407") == ["50"]
     assert draft.value("customfield_10300") == []
     assert draft.value("reporter") == "defeng.zhai"
+    assert draft.value("assignee") == "defeng.zhai"
     assert draft.value("customfield_10700") == "fred.chen"
     assert draft.value("customfield_10409") == "defeng.zhai"
     assert draft.value("customfield_11002") == "fred.chen"
@@ -104,6 +108,10 @@ def test_clone_draft_prefills_confirmed_mappings_with_current_option_ids(tracker
     assert "Source" not in draft.value("description")
     assert REDMINE_BUG.url not in draft.value("description")
     assert not draft.errors
+
+
+def test_clone_draft_uses_controller_resolved_assignee_account():
+    assert build(assignee_account="recognized.employee").value("assignee") == "recognized.employee"
 
 
 @pytest.mark.parametrize("department", ["FAE-QA", "FAE-HW", "", "fae-sw"])

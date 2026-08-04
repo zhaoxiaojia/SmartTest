@@ -4,6 +4,7 @@ import FluentUI 1.0
 
 ColumnLayout {
     id: root
+    objectName: "jiraCreateField_" + String(field.fieldId || "")
     property var field: ({})
     property string issueId: ""
     property bool disabled: false

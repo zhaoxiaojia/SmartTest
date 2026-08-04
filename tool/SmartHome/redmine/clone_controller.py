@@ -165,6 +165,21 @@ class RedmineCloneController:
         self.reset()
         return True
 
+    def reconcile_selection(self, rows: Iterable[dict[str, Any]]) -> bool:
+        if self._state != "selecting":
+            return False
+        available_ids = {
+            str(item.get("id") or item.get("key") or "")
+            for item in rows
+        }
+        selected_ids = [
+            issue_id for issue_id in self._selected_ids if issue_id in available_ids
+        ]
+        if selected_ids == self._selected_ids:
+            return False
+        self._selected_ids = selected_ids
+        return True
+
     def start_prepare(self) -> CloneOperation | None:
         if self._state not in ("selecting", "prepare_failed") or not self._selected_ids:
             return None
@@ -403,6 +418,12 @@ class RedmineCloneController:
                 project=project,
                 schema=schemas[issue_type],
                 account=reporter,
+                assignee_account=_assignee_account(
+                    detail.attr("Assignee")
+                    or (detail.list_item.assignee if detail.list_item else ""),
+                    reporter,
+                    display_names,
+                ),
                 department=department,
                 prepared_description=render_notes_description(detail.description),
             )
@@ -649,18 +670,24 @@ class RedmineCloneController:
     def _record_payload(self, record: dict[str, Any]) -> dict[str, Any]:
         clone_draft = record["draft"]
         result = record["result"]
-        fields = []
+        visible_fields = []
         for field in clone_draft.fields:
             if (
                 not field.schema.required
                 and str(field.schema.name or "").strip().casefold()
                 != "fae coworker"
+                and str(field.schema.name or "").strip().casefold()
+                != "assignee"
                 and field.field_id != "priority"
                 and str(field.schema.name or "").strip().casefold()
                 != "attachment links"
             ):
                 continue
-            fields.append(self._field_payload(clone_draft, field))
+            visible_fields.append(field)
+        fields = [
+            self._field_payload(clone_draft, field)
+            for field in _order_people_fields(visible_fields)
+        ]
         return {
             "issueId": clone_draft.source_id,
             "sourceUrl": clone_draft.source_url,
@@ -713,6 +740,45 @@ class RedmineCloneController:
             "value": field.value,
             "error": field.error,
         }
+
+
+def _assignee_account(
+    redmine_assignee: str,
+    reporter_account: str,
+    display_names: dict[str, str],
+) -> str:
+    wanted = " ".join(str(redmine_assignee or "").split()).casefold()
+    if wanted:
+        for account, display_name in display_names.items():
+            normalized_account = " ".join(str(account or "").split()).casefold()
+            normalized_name = " ".join(str(display_name or "").split()).casefold()
+            if wanted in {normalized_account, normalized_name}:
+                return str(account or "").strip()
+    return str(reporter_account or "").strip()
+
+
+def _order_people_fields(fields):
+    names = {
+        str(field.schema.name or "").strip().casefold(): field
+        for field in fields
+        if str(field.schema.name or "").strip().casefold()
+        in {"reporter", "assignee", "manager"}
+    }
+    if set(names) != {"reporter", "assignee", "manager"}:
+        return fields
+    ordered = []
+    inserted = False
+    for field in fields:
+        name = str(field.schema.name or "").strip().casefold()
+        if name in names:
+            if not inserted:
+                ordered.extend(
+                    names[item] for item in ("reporter", "assignee", "manager")
+                )
+                inserted = True
+            continue
+        ordered.append(field)
+    return ordered
 
 
 def _new_record(clone_draft: CloneDraft) -> dict[str, Any]:

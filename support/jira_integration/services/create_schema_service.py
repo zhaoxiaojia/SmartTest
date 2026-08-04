@@ -105,7 +105,8 @@ def _field_schema(field_id: str, metadata: dict[str, Any]) -> CreateFieldSchema:
     return CreateFieldSchema(
         field_id=field_id,
         name=name,
-        required=bool(metadata.get("required", False)),
+        required=bool(metadata.get("required", False))
+        or field_name == "compare status",
         control=control,
         child_required=child_required,
         options=options,
@@ -132,6 +133,8 @@ def _control(
         or field_name in _USER_FIELD_NAMES
     ):
         return CreateFieldControl.USER
+    if field_name in {"software release", "compare status"}:
+        return CreateFieldControl.SINGLE
     if "multiselect" in schema_custom:
         return CreateFieldControl.MULTI
     if "select" in schema_custom:

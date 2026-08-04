@@ -1152,6 +1152,17 @@ def test_clone_batch_close_returns_loading_preview_to_selection_but_not_submissi
     bridge.close()
 
 
+def test_issue_projection_removes_clone_selections_missing_from_result_rows():
+    bridge = clone_bridge()
+    bridge._batch_controller._state = "selecting"
+    bridge._batch_controller._selected_ids = ["missing"]
+
+    bridge._emit_issue_projection()
+
+    assert bridge.cloneSelectedIds == []
+    bridge.close()
+
+
 def test_failed_auth_result_logs_state_reason_without_credentials(monkeypatch):
     logs = []
     monkeypatch.setattr(
@@ -1327,7 +1338,7 @@ def test_project_refresh_cache_keeps_project_id_without_extra_collection(monkeyp
     bridge.refreshProjects()
     wait_for(lambda: bridge.projectsReadyState)
 
-    assert calls == ["projects", [{"id": "an40bf", "label": "AN40BF", "projectId": "AN40BF-A311D2"}]]
+    assert calls == ["projects", [{"id": "an40bf", "label": "AN40BF [AN40BF-A311D2]", "projectId": "AN40BF-A311D2"}]]
     bridge.close()
 
 
@@ -1654,7 +1665,7 @@ def test_existing_analysis_detail_keeps_full_panel_content_without_refetch(monke
     bridge.close()
 
 
-def test_search_completion_with_closed_filter_has_no_monitor_selection(monkeypatch):
+def test_search_completion_with_closed_filter_keeps_returned_issue(monkeypatch):
     from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueListItem, RedmineProject
     bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
     bridge._state = AuthState.AUTHENTICATED
@@ -1666,8 +1677,8 @@ def test_search_completion_with_closed_filter_has_no_monitor_selection(monkeypat
     selected = []
     monkeypatch.setattr(bridge, "selectIssue", lambda issue_id: selected.append(issue_id))
     bridge._apply_data(4, (context, "p", None, {"status": "Closed"}, {}))
-    assert selected == []
-    assert bridge.issueRows == []
+    assert selected == ["closed"]
+    assert [row["id"] for row in bridge.issueRows] == ["closed"]
     assert bridge.dataLoading is False
     assert bridge._data_operation_kind == ""
     bridge.close()
@@ -2100,7 +2111,41 @@ def test_fresh_search_result_applies_requested_filters_not_cached_filters(monkey
     bridge.close()
 
 
-def test_clone_work_uses_preanalysis_plan_when_due_row_becomes_hidden():
+def test_all_status_projection_keeps_closed_rows_already_returned_by_redmine():
+    issues = tuple(
+        RedmineIssueListItem(
+            id=str(index),
+            url=f"u{index}",
+            tracker="Bug",
+            status="New" if index <= 4 else "Closed",
+            subject=f"issue {index}",
+        )
+        for index in range(1, 158)
+    )
+    project = RedmineProject(
+        name="BDS.Cultraview.EDLA.A311D2",
+        identifier="avt-cultraview-edla-a311d2",
+        url="p",
+        project_id="AN40BF-A311D2",
+        issues=issues,
+    )
+
+    all_statuses = view(
+        RedmineContext(projects=(project,)),
+        all_projects="All projects",
+        filters={"project": project.identifier, "status": "", "type": ""},
+    )
+    open_only = view(
+        RedmineContext(projects=(replace(project, issues=issues[:4]),)),
+        all_projects="All projects",
+        filters={"project": project.identifier, "status": "Open", "type": ""},
+    )
+
+    assert len(all_statuses["issue_list"]) == 157
+    assert len(open_only["issue_list"]) == 4
+
+
+def test_clone_work_checks_due_row_without_hiding_it_from_issue_list():
     from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueListItem, RedmineProject
     from tool.SmartHome.redmine.view_model import view
     class RecordingChecker:
@@ -2119,7 +2164,7 @@ def test_clone_work_uses_preanalysis_plan_when_due_row_becomes_hidden():
     assert [
         row["id"]
         for row in controller.enrichment_projection(final_context, {}).issue_rows
-    ] == ["ok"]
+    ] == ["ok", "due"]
     checker = RecordingChecker()
     bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)), clone_checker=checker)
     bridge._data_loading = True

@@ -404,6 +404,9 @@ class RedmineBridge(QObject):
         self.changed.emit()
 
     def _emit_issue_projection(self):
+        self._batch_controller.reconcile_selection(
+            self._issue_controller.issue_rows
+        )
         self.issueRowsChanged.emit()
         self.issueSelectionChanged.emit()
 

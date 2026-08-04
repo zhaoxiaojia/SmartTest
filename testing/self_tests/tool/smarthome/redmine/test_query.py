@@ -33,6 +33,7 @@ def test_status_semantics_use_native_operator_without_value():
     assert ("f[]", "status_id") in closed and ("op[status_id]", "c") in closed
     assert not any(key == "v[status_id][]" for key, _ in opened + closed)
     assert not any(value == "status_id" for key, value in all_statuses if key == "f[]")
+    assert ("status_id", "*") in all_statuses
 
 
 def test_unknown_status_and_noncanonical_tracker_are_rejected():

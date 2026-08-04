@@ -249,6 +249,51 @@ print(updated, summary_editor_before == summary_editor_after, priority_editor_be
     assert result.stdout.strip() == "True True True"
 
 
+def test_clone_card_renders_reporter_assignee_manager_in_projected_order():
+    probe = f"""
+import sys
+sys.path.insert(0, r"{ROOT / 'ui'}")
+from PySide6.QtCore import QObject
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtTest import QTest
+from FluentUI import FluentUI
+from example.imports import resource_rc
+app=QGuiApplication([]); engine=QQmlApplicationEngine(); FluentUI.registerTypes(engine)
+engine.loadData(b'''import QtQuick 2.15; import QtQuick.Window 2.15; import "file:///{ISSUE_ROOT.as_posix()}";
+Window {{ visible:true; width:800; height:600
+ JiraCreateDraftCard {{ id:card; objectName:"peopleOrderCard"; anchors.fill:parent
+  draft: ({{issueId:"1", state:"editing", fields:[
+   {{fieldId:"reporter",name:"Reporter",control:"user",required:true,value:"alice",options:[],error:""}},
+   {{fieldId:"assignee",name:"Assignee",control:"user",required:false,value:"bob",options:[],error:""}},
+   {{fieldId:"manager",name:"Manager",control:"user",required:true,value:"fred",options:[],error:""}}
+  ]}})
+ }}
+}}'''); app.processEvents(); QTest.qWait(100); app.processEvents()
+window=engine.rootObjects()[0]
+def item(name):
+ pending=[window.contentItem()]; seen=set()
+ while pending:
+  current=pending.pop()
+  if id(current) in seen: continue
+  seen.add(id(current))
+  if current.objectName()==name: return current
+  pending.extend(current.children())
+  if hasattr(current,"childItems"): pending.extend(current.childItems())
+editors=[item("jiraCreateField_" + name) for name in ("reporter","assignee","manager")]
+print(all(editors), [editor.y() for editor in editors])
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", probe], cwd=ROOT,
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
+        capture_output=True, text=True, timeout=20,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    marker, positions = result.stdout.strip().split(" ", 1)
+    assert marker == "True"
+    assert eval(positions) == sorted(eval(positions))
+
+
 def test_combo_popup_limits_long_model_and_first_option_clicks():
     probe = f'''
 import sys
@@ -551,7 +596,7 @@ Window {{
         }}
         JiraCreateField {{
             issueId: "1"
-            field: ({{"fieldId": "compare", "name": "Review Status",
+            field: ({{"fieldId": "compare", "name": "Compare Status",
                 "control": "single", "required": true, "error": "required",
                 "value": "", "options": [{{"label": "Same", "value": "same"}}]}})
             onValueChanged: (issueId, fieldId, value) =>
@@ -647,7 +692,7 @@ release = CreateFieldSchema(
     options=(CreateFieldOption("release", "Release"),),
 )
 compare = CreateFieldSchema(
-    "customfield_compare", "Review Status", True,
+    "customfield_compare", "Compare Status", True,
     CreateFieldControl.SINGLE,
     options=(CreateFieldOption("same", "Same"),),
 )

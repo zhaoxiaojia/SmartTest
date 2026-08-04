@@ -7,6 +7,7 @@ import pytest
 
 from support.jira_integration.core.create_schema import (
     CreateFieldControl,
+    CreateFieldOption,
     CreateFieldSchema,
 )
 from support.jira_integration.core.models import (
@@ -18,7 +19,10 @@ from support.jira_integration.core.models import (
 )
 from support.jira_integration.core.third_party_bug import ThirdPartyBugAttachment
 from tool.SmartHome.redmine.attachment_transfer import duplicate_upload_filename
-from tool.SmartHome.redmine.clone_controller import RedmineCloneController
+from tool.SmartHome.redmine.clone_controller import (
+    RedmineCloneController,
+    _assignee_account,
+)
 from tool.SmartHome.redmine.clone_draft import CloneDraft, CloneDraftField
 
 
@@ -47,6 +51,18 @@ def draft(issue_id="1", *, required_value="ready", source_attachments=()):
                     "reporter", "Reporter", True, CreateFieldControl.USER
                 ),
                 "alice",
+            ),
+            CloneDraftField(
+                CreateFieldSchema(
+                    "manager", "Manager", True, CreateFieldControl.USER
+                ),
+                "fred.chen",
+            ),
+            CloneDraftField(
+                CreateFieldSchema(
+                    "assignee", "Assignee", False, CreateFieldControl.USER
+                ),
+                "bob",
             ),
             CloneDraftField(
                 CreateFieldSchema(
@@ -100,6 +116,24 @@ def test_selection_rejects_cloned_rows_and_preserves_source_order():
     assert controller.snapshot.selected_ids == ("3", "2")
 
 
+def test_selection_reconciles_with_replaced_issue_rows():
+    controller = RedmineCloneController(IssueOwner())
+    original_rows = [
+        {"id": "3", "cloneStatus": "not_cloned"},
+        {"id": "2", "cloneStatus": "not_cloned"},
+    ]
+
+    assert controller.begin_selection()
+    controller.toggle_selection("3", True, original_rows)
+    controller.toggle_selection("2", True, original_rows)
+
+    assert controller.reconcile_selection([original_rows[1]])
+    assert controller.snapshot.selected_ids == ("2",)
+    assert controller.reconcile_selection([])
+    assert controller.snapshot.selected_ids == ()
+    assert not controller.reconcile_selection([])
+
+
 def test_prepare_result_owns_visible_schema_projection_and_seeded_user_options():
     controller = RedmineCloneController(IssueOwner())
 
@@ -113,6 +147,8 @@ def test_prepare_result_owns_visible_schema_projection_and_seeded_user_options()
     assert [item["fieldId"] for item in snapshot.drafts[0]["fields"]] == [
         "summary",
         "reporter",
+        "assignee",
+        "manager",
         "coworker",
         "attachment",
     ]
@@ -125,6 +161,55 @@ def test_prepare_result_owns_visible_schema_projection_and_seeded_user_options()
             "children": [],
         }
     ]
+
+
+def test_assignee_maps_recognized_redmine_employee_to_configured_account():
+    assert _assignee_account(
+        "Bob Employee", "ldap.current",
+        {"bob.employee": "Bob Employee", "ldap.current": "Current User"},
+    ) == "bob.employee"
+
+
+def test_assignee_falls_back_to_current_ldap_account_for_external_person():
+    assert _assignee_account(
+        "External Partner", "ldap.current",
+        {"bob.employee": "Bob Employee", "ldap.current": "Current User"},
+    ) == "ldap.current"
+
+
+def test_required_compare_status_shows_error_and_selection_clears_it_immediately():
+    base = draft()
+    compare = CloneDraftField(
+        CreateFieldSchema(
+            "customfield_compare", "Compare Status", True,
+            CreateFieldControl.SINGLE,
+            options=(CreateFieldOption("same", "Same"),),
+        ),
+        "",
+        "Compare Status is required",
+    )
+    clone = CloneDraft(
+        source_id=base.source_id,
+        source_url=base.source_url,
+        fields=base.fields + (compare,),
+        source_attachments=base.source_attachments,
+    )
+    controller = RedmineCloneController(IssueOwner())
+
+    controller.apply_result("prepare", (records(clone), {}))
+
+    fields = controller.snapshot.drafts[0]["fields"]
+    projected = next(
+        item for item in fields if item["fieldId"] == "customfield_compare"
+    )
+    assert projected["control"] == "single"
+    assert projected["required"] is True
+    assert projected["error"] == "Compare Status is required"
+
+    assert controller.update_draft("1", "customfield_compare", "same")
+    updated = controller.field_payload("1", "customfield_compare")
+    assert updated["value"] == "same"
+    assert updated["error"] == ""
 
 
 def test_async_user_suggestions_preserve_selected_value_and_display_name():

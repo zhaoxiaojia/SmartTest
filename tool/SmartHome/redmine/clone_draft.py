@@ -116,6 +116,7 @@ class RedmineCloneDraftService:
         account: str,
         department: str,
         prepared_description: str,
+        assignee_account: str = "",
     ) -> CloneDraft:
         fields = tuple(
             _draft_field(
@@ -124,6 +125,7 @@ class RedmineCloneDraftService:
                 project=project,
                 account=str(account or "").strip(),
                 department=str(department or "").strip(),
+                assignee_account=str(assignee_account or "").strip(),
                 prepared_description=str(prepared_description or ""),
             )
             for item in schema
@@ -143,6 +145,7 @@ def _draft_field(
     project: RedmineProject,
     account: str,
     department: str,
+    assignee_account: str,
     prepared_description: str,
 ) -> CloneDraftField:
     initial = _initial_value(
@@ -151,6 +154,7 @@ def _draft_field(
         project=project,
         account=account,
         department=department,
+        assignee_account=assignee_account,
         prepared_description=prepared_description,
     )
     value, option_error = _resolve_options(schema, initial)
@@ -165,6 +169,7 @@ def _initial_value(
     project: RedmineProject,
     account: str,
     department: str,
+    assignee_account: str,
     prepared_description: str,
 ) -> Any:
     field_id = schema.field_id
@@ -193,6 +198,8 @@ def _initial_value(
         return [project.project_id] if project.project_id else []
     if field_id == "reporter" or name == "reporter":
         return account
+    if field_id == "assignee" or name == "assignee":
+        return assignee_account or account
     if name in {"manager", "fae manager"}:
         return "fred.chen"
     if name == "fae coworker":

@@ -124,7 +124,11 @@ def project_options(projects: tuple[RedmineProject, ...]) -> list[dict[str, str]
     return [
         {
             "id": project.identifier,
-            "label": project.name or project.identifier,
+            "label": (
+                f"{project.name or project.identifier} [{project.project_id}]"
+                if project.project_id
+                else project.name or project.identifier
+            ),
             "projectId": project.project_id,
         }
         for project in projects
@@ -269,14 +273,16 @@ class RedmineContextCollector:
         merged: dict[str, tuple[RedmineIssueListItem, str, str]] = {}
         for branch in query.branches():
             page_number = 1
+            fetched_rows = 0
             while True:
                 payload = await self._fetch_query_page(branch, page_number=page_number, per_page=100)
                 raw_rows = list(payload.get("rows") or [])
+                fetched_rows += len(raw_rows)
                 for raw, issue in zip(raw_rows, parse_issue_list(raw_rows)):
                     identifier, name = self._query_row_project(raw, branch.project)
                     merged.setdefault(issue.id, (issue, identifier, name))
                 total = int(payload.get("total") or len(raw_rows))
-                if page_number * 100 >= total or not raw_rows:
+                if fetched_rows >= total or not raw_rows:
                     break
                 page_number += 1
         grouped: dict[str, list[RedmineIssueListItem]] = {}
