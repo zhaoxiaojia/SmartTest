@@ -81,6 +81,42 @@ def test_summary_tables_are_the_only_catalog_source_and_merge_spaces():
     assert client.urls == [dopl_url, sdpl_url]
 
 
+def test_export_view_is_the_authoritative_table_filter_catalog():
+    source_urls = {}
+    for space_key in ("DOPL", "SDPL"):
+        source_url = (
+            f"https://confluence.amlogic.com/display/{space_key}/Project+Space"
+        )
+        visible = (
+            f'<a href="/pages/viewpage.action?pageId={space_key}1">'
+            f"{space_key} Visible</a>",
+            "2026-01-02", "A", "NORMAL", f"{space_key}-VISIBLE",
+        )
+        storage_only = (
+            f'<a href="/pages/viewpage.action?pageId={space_key}2">'
+            f"{space_key} Storage Only</a>",
+            "2026-01-02", "B", "PLANNING", f"{space_key}-STORAGE",
+        )
+        source_urls[source_url] = ConfluencePage(
+            space_key.casefold(), "Project Space", source_url,
+            body=summary_table([visible, storage_only]),
+            view_body=summary_table([visible]),
+        )
+
+    class Client:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            assert prefer_export is True
+            return source_urls[url]
+
+    collection = discover_project_collection(
+        Client(), ProjectCollectionFilter("legacy-source", ()),
+    )
+
+    assert [row.project_id for row in collection.projects] == [
+        "DOPL-VISIBLE", "SDPL-VISIBLE",
+    ]
+
+
 def test_unified_discovery_keeps_readable_space_and_marks_partial_errors():
     dopl_url = "https://confluence.amlogic.com/display/DOPL/Project+Space"
     dopl = ConfluencePage(

@@ -53,7 +53,7 @@ def _period_view(period):
     return {
         "start": period.start.isoformat(),
         "end": period.end.isoformat(),
-        "displayEnd": (period.end - timedelta(microseconds=1)).date().isoformat(),
+        "displayEnd": period.end.date().isoformat(),
     }
 
 class ConfluenceAuditBridge(QObject):
@@ -892,7 +892,7 @@ class ConfluenceAuditBridge(QObject):
         self._apply_batch(self._batch)
 
     def _apply_batch(self, batch):
-        actionable = {"failed", "risk", "unknown"}
+        actionable = {"not_updated", "invalid_format"}
         projects = [
             {
                 "projectId": row.project.project_id,
@@ -919,10 +919,9 @@ class ConfluenceAuditBridge(QObject):
                   progress={"processed": len(batch.projects), "total": len(batch.projects)},
                   summary={"reviewedCount": len(batch.projects),
                            "followUpCount": len(projects),
-                           "failedCount": sum(row["status"] == "failed" for row in projects),
-                           "riskCount": sum(row["status"] == "risk" for row in projects),
-                           "unknownCount": sum(row["status"] == "unknown" for row in projects),
-                           "passedCount": sum(row["status"] == "passed" for row in projects)},
+                           "invalidFormatCount": sum(row["status"] == "invalid_format" for row in projects),
+                           "notUpdatedCount": sum(row["status"] == "not_updated" for row in projects),
+                           "updatedCount": sum(row.status.value == "updated" for row in batch.projects)},
                   projects=projects, selectedProject=selected,
                   findings=self._finding_rows(selected, batch))
 
@@ -935,12 +934,12 @@ class ConfluenceAuditBridge(QObject):
             if row.project.project_id != project_id:
                 continue
             for finding in row.findings:
-                if finding.status.value not in {"failed", "risk", "unknown"}:
+                if finding.status.value not in {"not_updated", "invalid_format"}:
                     continue
                 result.append({
                     "pageTitle": finding.page_title, "ruleId": finding.rule_id,
                     "status": finding.status.value, "reason": finding.reason,
-                    "explanation": finding.explanation, "guidance": finding.guidance,
+                    "explanation": finding.explanation,
                     "url": finding.page_url,
                 })
         return result

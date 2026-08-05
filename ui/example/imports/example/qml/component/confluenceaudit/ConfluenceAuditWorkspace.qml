@@ -16,11 +16,11 @@ Item {
     }
 
     function statusColor(status) {
-        if (status === "failed")
+        if (status === "invalid_format")
             return FluTheme.dark ? "#FF99A4" : "#D13438"
-        if (status === "risk")
+        if (status === "not_updated")
             return FluTheme.dark ? "#FCE100" : "#986F0B"
-        if (status === "passed")
+        if (status === "updated")
             return FluTheme.dark ? "#7EE787" : "#107C10"
         return FluTheme.fontSecondaryColor
     }
@@ -359,9 +359,6 @@ Item {
         FluText {
             text: qsTr("Reviewed") + ": " + (root.view.summary.reviewedCount || 0)
                   + "  " + qsTr("Follow-up") + ": " + (root.view.summary.followUpCount || 0)
-                  + "  " + qsTr("Risk") + ": " + (root.view.summary.riskCount || 0)
-                  + "  " + qsTr("Failed") + ": " + (root.view.summary.failedCount || 0)
-                  + "  " + qsTr("Unknown") + ": " + (root.view.summary.unknownCount || 0)
         }
         FluProgressBar {
             Layout.fillWidth: true
@@ -451,12 +448,8 @@ Item {
                         FluText {
                             objectName: "confluenceAuditExplanation"
                             Layout.fillWidth: true
-                            text: qsTr("Why it failed") + ": " + (modelData.explanation || "")
-                            wrapMode: Text.WordWrap
-                        }
-                        FluText {
-                            Layout.fillWidth: true
-                            text: qsTr("Adjustment") + ": " + (modelData.guidance || "")
+                            visible: (modelData.explanation || "").length > 0
+                            text: modelData.explanation || ""
                             wrapMode: Text.WordWrap
                             color: FluTheme.fontSecondaryColor
                         }

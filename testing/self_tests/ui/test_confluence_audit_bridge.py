@@ -100,22 +100,19 @@ def test_bridge_projects_and_details_include_only_actionable_follow_up(tmp_path)
     follow = ProjectCandidate("1", "M1", "Needs Follow Up", "https://c/status/1", "https://c/home/1")
     clean = ProjectCandidate("2", "M2", "Fully Reviewed", "https://c/status/2", "https://c/home/2")
     findings = [
-        AuditFinding("M1", "Test Plan", "plan.weekly", AuditStatus.FAILED,
-                     "No weekly plan.", "Add Monday–Thursday test work.", page_url="https://c/plan"),
-        AuditFinding("M1", "Test Information", "test.metrics", AuditStatus.RISK,
-                     "Metrics may be stale.", "Update current metrics.", page_url="https://c/info"),
-        AuditFinding("M1", "Report Store", "report.weekly", AuditStatus.UNKNOWN,
-                     "Page could not be read.", "Check permissions.", page_url="https://c/report"),
-        AuditFinding("M1", "Environment", "environment.complete", AuditStatus.PASSED, "Complete."),
-        AuditFinding("M1", "Experience", "experience.development", AuditStatus.NOT_APPLICABLE, "Later."),
+        AuditFinding("M1", "Test Plan", "plan.test", AuditStatus.NOT_UPDATED,
+                     "Page not updated in audit period.", page_url="https://c/plan"),
+        AuditFinding("M1", "Test Information", "test.summary", AuditStatus.INVALID_FORMAT,
+                     "PermissionError", page_url="https://c/info", explanation="pageId=42; HTTP 403"),
+        AuditFinding("M1", "Report Store", "report.weekly", AuditStatus.UPDATED,
+                     "Page updated in audit period.", page_url="https://c/report"),
     ]
     batch = AuditBatch(
         "mixed", period, datetime(2026, 7, 31, tzinfo=tz),
         [
             ProjectAudit(follow, findings),
             ProjectAudit(clean, [
-                AuditFinding("M2", "Test Plan", "plan.weekly", AuditStatus.PASSED, "Complete."),
-                AuditFinding("M2", "Experience", "experience.development", AuditStatus.NOT_APPLICABLE, "Later."),
+                AuditFinding("M2", "Test Plan", "plan.test", AuditStatus.UPDATED, "Updated."),
             ]),
         ],
     )
@@ -123,12 +120,12 @@ def test_bridge_projects_and_details_include_only_actionable_follow_up(tmp_path)
     bridge._generation = 9
     bridge._on_worker_finished({"generation": 9, "batch": batch})
     assert bridge.viewState["period"]["end"] == "2026-07-31T00:00:00+08:00"
-    assert bridge.viewState["period"]["displayEnd"] == "2026-07-30"
+    assert bridge.viewState["period"]["displayEnd"] == "2026-07-31"
     assert bridge.viewState["summary"]["reviewedCount"] == 2
     assert bridge.viewState["summary"]["followUpCount"] == 1
     assert [row["projectId"] for row in bridge.viewState["projects"]] == ["M1"]
-    assert {row["status"] for row in bridge.viewState["findings"]} == {"failed", "risk", "unknown"}
-    assert all(row["pageTitle"] and row["reason"] and row["guidance"] and row["url"]
+    assert {row["status"] for row in bridge.viewState["findings"]} == {"not_updated", "invalid_format"}
+    assert all(row["pageTitle"] and row["reason"] and row["url"]
                for row in bridge.viewState["findings"])
 
 
@@ -707,6 +704,61 @@ def test_simple_weekly_plan_requires_confirmed_selected_projects_and_upserts(
     assert [plan.plan_id for plan in plans] == ["confluence-weekly-audit"]
     assert len(scheduler.upserts) == 2
     assert plans[0].collection_filter.included_project_ids
+
+
+def test_dopl_and_sdpl_catalog_union_flows_into_selection_and_weekly_plan(
+    monkeypatch, tmp_path,
+):
+    scheduler = SchedulerSpy()
+    catalog = ProjectCollection(
+        "both-spaces", "Projects",
+        ProjectCollectionFilter(PROJECT_SPACE_URL, ()),
+        datetime(2026, 7, 29, tzinfo=ZoneInfo("Asia/Shanghai")),
+        (
+            ConfluenceProject(
+                2026, "SHARED", "DOPL Project", "1", "https://c/dopl",
+                "https://c/dopl", "ACTIVE", support_mode="A",
+                space_key="DOPL", page_identity="1",
+            ),
+            ConfluenceProject(
+                2026, "SHARED", "SDPL Project", "1", "https://c/sdpl",
+                "https://c/sdpl", "PLANNING", support_mode="B",
+                space_key="SDPL", page_identity="1",
+            ),
+        ),
+        visible_years=(2026,),
+    )
+    monkeypatch.setattr(
+        "ui.example.bridge.ConfluenceAuditBridge.Thread", ImmediateThread,
+    )
+    bridge = ConfluenceAuditBridge(
+        Auth(), history_root=tmp_path,
+        plan_store=AuditPlanStore(tmp_path / "plans"),
+        credential_store=CredentialSpy(), scheduler=scheduler,
+        collection_factory=lambda *_args: catalog,
+    )
+
+    bridge.refreshCollection()
+    assert bridge.viewState["availableFilterValues"] == {
+        "years": [2026],
+        "supportModes": ["A", "B"],
+        "projectStatuses": ["ACTIVE", "PLANNING"],
+    }
+    bridge.setFilter({
+        "years": [2026], "supportModes": [], "projectStatuses": [],
+    })
+    bridge.applyCollectionFilter()
+    bridge.selectAllProjects()
+    assert set(bridge.viewState["selectedProjectIds"]) == {
+        "DOPL:1", "SDPL:1",
+    }
+
+    bridge.enableWeeklyPlan()
+
+    plan = bridge._plan_store.load("confluence-weekly-audit")
+    assert set(plan.collection_filter.included_project_ids) == {
+        "DOPL:1", "SDPL:1",
+    }
 
 
 def test_simple_weekly_plan_reenables_a_previously_disabled_plan(

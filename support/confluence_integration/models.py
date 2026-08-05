@@ -17,12 +17,3 @@ class ConfluencePage:
     view_body: str = ""
     version: int = 0
     updated_at: datetime | None = None
-
-@dataclass(frozen=True)
-class ConfluenceAttachment:
-    id: str
-    filename: str
-    url: str
-    version: int = 0
-    created_at: datetime | None = None
-    author: str = ""

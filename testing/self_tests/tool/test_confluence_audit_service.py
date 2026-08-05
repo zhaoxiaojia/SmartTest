@@ -1,126 +1,358 @@
 from datetime import datetime
+import json
 from zoneinfo import ZoneInfo
 
+from support.confluence_integration.models import ConfluencePage
 from tool.common.project_weekly_audit.models import (
-    AuditExecutionContext, AuditStatus, ConfluenceProject,
-    ProjectCollection, ProjectCollectionFilter,
+    AuditPeriod,
+    AuditStatus,
+    ProjectCandidate,
+    UPDATE_MATRIX_POINTS,
 )
-from tool.common.project_weekly_audit.period import current_reporting_window
 from tool.common.project_weekly_audit.service import ConfluenceAuditService
-from support.confluence_integration.models import (
-    ConfluenceAttachment, ConfluencePage,
-)
 
 
 TZ = ZoneInfo("Asia/Shanghai")
 
 
-class ContentClient:
-    def __init__(self, *, unreadable_kind=""):
-        self.unreadable_kind = unreadable_kind
-        self.pages = {
-            "status": ConfluencePage(
-                "status", "Muffin314-Project Status Report", "https://c/status",
-                "<table><tr><th>Highlights</th><td>N/A</td></tr>"
-                "<tr><th>Impact issues</th><td>N/A</td></tr></table>",
-                updated_at=datetime(2026, 7, 28, tzinfo=TZ),
-            ),
-            "test_information": ConfluencePage(
-                "test_information", "Muffin314-Test Information", "https://c/info",
-                "Pass: 10 Fail: 0 Pending: 0 Total: 10 Pass Rate: 100%",
-                updated_at=datetime(2026, 7, 28, tzinfo=TZ),
-            ),
-            "test_plan": ConfluencePage(
-                "test_plan", "Muffin314-Test Plan", "https://c/plan",
-                "Week 31 test playback and deliver validation report.",
-                updated_at=datetime(2026, 7, 28, tzinfo=TZ),
-            ),
-            "environment": ConfluencePage(
-                "environment", "Test Environment Setup and Precautions",
-                "https://c/environment",
-                "Setup step install software on device, configure settings, collect adb log.",
-                updated_at=datetime(2026, 7, 28, tzinfo=TZ),
-            ),
-            "experience": ConfluencePage(
-                "experience", "Summary of Experience and Typical Cases",
-                "https://c/experience", "Completed project notes.",
-            ),
-            "report_store": ConfluencePage(
-                "report_store", "Muffin314-Test Report Store", "https://c/report",
-                "<a href='https://c/report/latest'>Latest report</a>",
-                updated_at=datetime(2026, 7, 28, tzinfo=TZ),
-            ),
-        }
-        self.root = ConfluencePage("root", "Muffin314", "https://c/root")
-        self.basic = ConfluencePage(
-            "basic", "Muffin314-Basic Information", "https://c/basic",
-        )
+def project():
+    return ProjectCandidate(
+        "status", "M314", "Muffin314", "https://c/status",
+        "https://c/root", 2026, "A", "NORMAL", (2026,),
+    )
 
-    def get_page_by_url(self, _url):
-        return self.root
 
-    def get_page_children(self, page_id):
-        if page_id == self.root.id:
-            return [self.pages["status"], self.basic]
-        if page_id == self.basic.id:
-            return [page for kind, page in self.pages.items() if kind != "status"]
-        return []
+def period():
+    return AuditPeriod(
+        datetime(2026, 7, 27, tzinfo=TZ),
+        datetime(2026, 7, 31, tzinfo=TZ),
+    )
+
+
+def test_missing_and_unreadable_pages_are_invalid_with_diagnostics(monkeypatch):
+    pages = {}
+    errors = {
+        "test_plan": "PermissionError|pageId=42; HTTP 403",
+    }
+    monkeypatch.setattr(
+        "tool.common.project_weekly_audit.service.discover_project_pages",
+        lambda *_args, **_kwargs: (pages, errors),
+    )
+
+    findings = ConfluenceAuditService(object())._audit_project(
+        project(), period(),
+    ).findings
+
+    assert {finding.status for finding in findings} == {
+        AuditStatus.INVALID_FORMAT,
+    }
+    plan = next(row for row in findings if row.rule_id == "plan.test")
+    assert plan.reason == "PermissionError"
+    assert plan.explanation == "pageId=42; HTTP 403"
+    report = next(row for row in findings if row.rule_id == "report.weekly")
+    assert report.explanation == "格式有误：查询不到Test Report Store"
+    missing = [row for row in findings if row.rule_id != "plan.test"]
+    standard_names = {
+        point.rule_id: point.standard_name for point in UPDATE_MATRIX_POINTS
+    }
+    assert all(
+        row.explanation == f"格式有误：查询不到{standard_names[row.rule_id]}"
+        for row in missing
+    )
+
+
+class VersionedPageClient:
+    def __init__(self, current, historical):
+        self.current = current
+        self.historical = historical
 
     def get_page(self, page_id):
-        for kind, page in self.pages.items():
-            if page.id == page_id:
-                if kind == self.unreadable_kind:
-                    raise PermissionError("denied")
-                return page
-        raise KeyError(page_id)
+        assert page_id == self.current.id
+        return self.current
 
-    def get_attachments(self, page_id):
-        assert page_id == "report_store"
-        return [ConfluenceAttachment(
-            "a", "weekly.xlsx", "https://c/a",
-            created_at=datetime(2026, 7, 28, tzinfo=TZ),
-        )]
+    def get_page_version(self, page_id, version):
+        assert page_id == self.current.id
+        return self.historical[version]
 
 
-def collection():
-    criteria = ProjectCollectionFilter("source", (2026,))
-    project = ConfluenceProject(
-        2026, "M314", "Muffin314", "status", "https://c/status",
-        "https://c/root", support_mode="A", project_status="NORMAL",
+def test_same_page_regions_are_compared_independently(monkeypatch):
+    previous = ConfluencePage(
+        "s", "Project Status Report", "https://c/s",
+        body=(
+            "<h2>Highlights</h2><p>Old highlight</p>"
+            "<h2>Impact issues</h2><p>Stable impact</p>"
+        ),
+        version=1,
+        updated_at=datetime(2026, 8, 2, 20, tzinfo=TZ),
     )
-    return ProjectCollection(
-        "catalog", "Projects", criteria, datetime(2026, 7, 31, tzinfo=TZ),
-        (project,),
+    current = ConfluencePage(
+        "s", "Project Status Report", "https://c/s",
+        body=(
+            "<h2>Highlights</h2><p>New highlight</p>"
+            "<h2>Impact issues</h2><p>Stable impact</p>"
+        ),
+        version=2,
+        updated_at=datetime(2026, 8, 3, 9, tzinfo=TZ),
     )
-
-
-def run(monkeypatch, client):
-    source = collection()
     monkeypatch.setattr(
-        "tool.common.project_weekly_audit.service.discover_project_collection",
-        lambda *_args, **_kwargs: source,
+        "tool.common.project_weekly_audit.service.discover_project_pages",
+        lambda *_args, **_kwargs: ({"status": current}, {}),
     )
-    return ConfluenceAuditService(client).run(
-        source.filter,
-        current_reporting_window(datetime(2026, 7, 29, tzinfo=TZ)),
-        AuditExecutionContext("manual"),
+    window = AuditPeriod(
+        datetime(2026, 8, 3, tzinfo=TZ),
+        datetime(2026, 8, 5, 12, tzinfo=TZ),
     )
 
+    findings = ConfluenceAuditService(
+        VersionedPageClient(current, {1: previous}),
+    )._audit_project(project(), window).findings
+    by_rule = {finding.rule_id: finding for finding in findings}
 
-def test_service_returns_content_findings_without_update_or_ai_transport(monkeypatch):
-    batch = run(monkeypatch, ContentClient())
-
-    assert batch.projects[0].findings
-    assert {finding.rule_id for finding in batch.projects[0].findings} >= {
-        "required.status", "status.highlights", "test.metrics", "plan.weekly",
-        "environment.complete", "report.weekly",
-    }
+    assert by_rule["status.highlights"].status is AuditStatus.UPDATED
+    assert by_rule["status.impact"].status is AuditStatus.NOT_UPDATED
 
 
-def test_unreadable_page_is_reported_unknown_without_stopping_other_rules(monkeypatch):
-    batch = run(monkeypatch, ContentClient(unreadable_kind="test_plan"))
-    findings = batch.projects[0].findings
-    plan = next(row for row in findings if row.rule_id == "required.test_plan")
+def test_whitespace_and_style_only_region_change_is_not_updated(monkeypatch):
+    previous = ConfluencePage(
+        "s", "Project Status Report", "https://c/s",
+        body="<h2>Highlights</h2><p>Same content</p>",
+        version=1,
+        updated_at=datetime(2026, 8, 2, 20, tzinfo=TZ),
+    )
+    current = ConfluencePage(
+        "s", "Project Status Report", "https://c/s",
+        body=(
+            '<h2 style="color: blue">Highlights</h2>'
+            '<p class="emphasis">  Same\n\tcontent  </p>'
+        ),
+        version=2,
+        updated_at=datetime(2026, 8, 3, 9, tzinfo=TZ),
+    )
+    monkeypatch.setattr(
+        "tool.common.project_weekly_audit.service.discover_project_pages",
+        lambda *_args, **_kwargs: ({"status": current}, {}),
+    )
 
-    assert plan.status is AuditStatus.UNKNOWN
-    assert any(row.rule_id == "status.highlights" for row in findings)
+    findings = ConfluenceAuditService(
+        VersionedPageClient(current, {1: previous}),
+    )._audit_project(
+        project(),
+        AuditPeriod(
+            datetime(2026, 8, 3, tzinfo=TZ),
+            datetime(2026, 8, 5, 12, tzinfo=TZ),
+        ),
+    ).findings
+
+    highlight = next(
+        row for row in findings if row.rule_id == "status.highlights"
+    )
+    assert highlight.status is AuditStatus.NOT_UPDATED
+
+
+def test_test_plan_table_data_change_is_updated(monkeypatch):
+    previous = ConfluencePage(
+        "p", "Test Plan", "https://c/p",
+        body=(
+            "<table><tr><th>Category</th><th>Sub-Item</th><th>August</th></tr>"
+            "<tr><td>Function</td><td>Smoke</td><td>Planned</td></tr></table>"
+        ),
+        version=1,
+        updated_at=datetime(2026, 8, 2, 20, tzinfo=TZ),
+    )
+    current = ConfluencePage(
+        "p", "Test Plan", "https://c/p",
+        body=(
+            "<table><tr><th>Category</th><th>Sub-Item</th><th>August</th></tr>"
+            "<tr><td>Function</td><td>Regression</td><td>Done</td></tr></table>"
+        ),
+        version=2,
+        updated_at=datetime(2026, 8, 3, 9, tzinfo=TZ),
+    )
+    monkeypatch.setattr(
+        "tool.common.project_weekly_audit.service.discover_project_pages",
+        lambda *_args, **_kwargs: ({"test_plan": current}, {}),
+    )
+
+    findings = ConfluenceAuditService(
+        VersionedPageClient(current, {1: previous}),
+    )._audit_project(project(), AuditPeriod(
+        datetime(2026, 8, 3, tzinfo=TZ),
+        datetime(2026, 8, 5, 12, tzinfo=TZ),
+    )).findings
+    plan = next(row for row in findings if row.rule_id == "plan.test")
+
+    assert plan.status is AuditStatus.UPDATED
+
+
+def test_present_empty_region_is_not_invalid(monkeypatch):
+    current = ConfluencePage(
+        "s", "Test Information", "https://c/s",
+        body="<h2>III. Blocking QA Testing Items：</h2>",
+        version=1,
+        updated_at=datetime(2026, 8, 3, 9, tzinfo=TZ),
+    )
+    monkeypatch.setattr(
+        "tool.common.project_weekly_audit.service.discover_project_pages",
+        lambda *_args, **_kwargs: ({"test_information": current}, {}),
+    )
+
+    findings = ConfluenceAuditService(
+        VersionedPageClient(current, {}),
+    )._audit_project(project(), AuditPeriod(
+        datetime(2026, 8, 3, tzinfo=TZ),
+        datetime(2026, 8, 5, 12, tzinfo=TZ),
+    )).findings
+    blocking = next(row for row in findings if row.rule_id == "test.blocking")
+
+    assert blocking.status is AuditStatus.UPDATED
+
+
+def test_historical_missing_to_present_empty_is_updated(monkeypatch):
+    previous = ConfluencePage(
+        "s", "Test Information", "https://c/s",
+        body="<h2>Other field</h2>", version=1,
+        updated_at=datetime(2026, 8, 2, 20, tzinfo=TZ),
+    )
+    current = ConfluencePage(
+        "s", "Test Information", "https://c/s",
+        body="<h2>III. Blocking QA Testing Items：</h2>", version=2,
+        updated_at=datetime(2026, 8, 3, 9, tzinfo=TZ),
+    )
+    monkeypatch.setattr(
+        "tool.common.project_weekly_audit.service.discover_project_pages",
+        lambda *_args, **_kwargs: ({"test_information": current}, {}),
+    )
+
+    findings = ConfluenceAuditService(
+        VersionedPageClient(current, {1: previous}),
+    )._audit_project(project(), AuditPeriod(
+        datetime(2026, 8, 3, tzinfo=TZ),
+        datetime(2026, 8, 5, 12, tzinfo=TZ),
+    )).findings
+    blocking = next(row for row in findings if row.rule_id == "test.blocking")
+
+    assert blocking.status is AuditStatus.UPDATED
+
+
+def test_rule_trace_is_complete_and_does_not_leak_content(monkeypatch):
+    current = ConfluencePage(
+        "s", "Project Status Report", "https://c/s",
+        body="<h2>Highlights</h2><p>SECRET_BODY_VALUE</p>", version=1,
+        updated_at=datetime(2026, 8, 2, 20, tzinfo=TZ),
+    )
+    records = []
+    monkeypatch.setattr(
+        "tool.common.project_weekly_audit.service.smart_log",
+        lambda message, *args, **kwargs: records.append((message, kwargs)),
+    )
+    point = next(row for row in UPDATE_MATRIX_POINTS if row.rule_id == "status.highlights")
+
+    ConfluenceAuditService(VersionedPageClient(current, {}))._audit_page_regions(
+        project(), current, (point,), period(),
+    )
+
+    trace = next(
+        kwargs["extra"] for message, kwargs in records
+        if message.startswith("Confluence audit rule trace")
+    )
+    assert {
+        "project_id", "project_name", "rule_id", "standard_name",
+        "page_id", "page_title", "page_url", "configured_locators",
+        "versions", "baseline_version", "changed", "final_status",
+        "final_reason",
+    } <= trace.keys()
+    assert {
+        "version", "updated_at", "source", "found", "locator_type",
+        "element_type", "boundary", "content_length", "content_hash",
+    } <= trace["versions"][0].keys()
+    assert "SECRET_BODY_VALUE" not in json.dumps(trace, ensure_ascii=False)
+
+
+def test_region_missing_is_invalid_without_page_timestamp_fallback(monkeypatch):
+    current = ConfluencePage(
+        "s", "Project Status Report", "https://c/s",
+        body="<h2>Highlights</h2><p>Updated</p>",
+        version=1,
+        updated_at=datetime(2026, 8, 3, 9, tzinfo=TZ),
+    )
+    monkeypatch.setattr(
+        "tool.common.project_weekly_audit.service.discover_project_pages",
+        lambda *_args, **_kwargs: ({"status": current}, {}),
+    )
+
+    findings = ConfluenceAuditService(
+        VersionedPageClient(current, {}),
+    )._audit_project(
+        project(),
+        AuditPeriod(
+            datetime(2026, 8, 3, tzinfo=TZ),
+            datetime(2026, 8, 5, 12, tzinfo=TZ),
+        ),
+    ).findings
+    impact = next(row for row in findings if row.rule_id == "status.impact")
+
+    assert impact.status is AuditStatus.INVALID_FORMAT
+    assert impact.reason == "格式有误"
+    assert impact.explanation == "格式有误：查询不到Impact issues"
+
+
+def test_empty_test_report_store_page_is_structurally_valid(monkeypatch):
+    current = ConfluencePage(
+        "r", "Test Report Store", "https://c/r",
+        body="<p>  </p>", version=1,
+        updated_at=datetime(2026, 8, 3, 9, tzinfo=TZ),
+    )
+    monkeypatch.setattr(
+        "tool.common.project_weekly_audit.service.discover_project_pages",
+        lambda *_args, **_kwargs: ({"report_store": current}, {}),
+    )
+
+    findings = ConfluenceAuditService(
+        VersionedPageClient(current, {}),
+    )._audit_project(project(), AuditPeriod(
+        datetime(2026, 8, 3, tzinfo=TZ),
+        datetime(2026, 8, 5, 12, tzinfo=TZ),
+    )).findings
+    report = next(row for row in findings if row.rule_id == "report.weekly")
+
+    assert report.status is AuditStatus.UPDATED
+
+
+def test_monday_reset_excludes_region_change_before_midnight(monkeypatch):
+    saturday = ConfluencePage(
+        "s", "Project Status Report", "https://c/s",
+        body="<h2>Highlights</h2><p>Saturday value</p>",
+        version=1,
+        updated_at=datetime(2026, 8, 1, 10, tzinfo=TZ),
+    )
+    sunday = ConfluencePage(
+        "s", "Project Status Report", "https://c/s",
+        body="<h2>Highlights</h2><p>Sunday value</p>",
+        version=2,
+        updated_at=datetime(2026, 8, 2, 23, 59, 59, tzinfo=TZ),
+    )
+    monday = ConfluencePage(
+        "s", "Project Status Report", "https://c/s",
+        body="<h2>Highlights</h2><p>Sunday value</p>",
+        version=3,
+        updated_at=datetime(2026, 8, 3, 0, 0, 1, tzinfo=TZ),
+    )
+    monkeypatch.setattr(
+        "tool.common.project_weekly_audit.service.discover_project_pages",
+        lambda *_args, **_kwargs: ({"status": monday}, {}),
+    )
+
+    findings = ConfluenceAuditService(
+        VersionedPageClient(monday, {1: saturday, 2: sunday}),
+    )._audit_project(
+        project(),
+        AuditPeriod(
+            datetime(2026, 8, 3, tzinfo=TZ),
+            datetime(2026, 8, 5, 12, tzinfo=TZ),
+        ),
+    ).findings
+
+    highlight = next(
+        row for row in findings if row.rule_id == "status.highlights"
+    )
+    assert highlight.status is AuditStatus.NOT_UPDATED

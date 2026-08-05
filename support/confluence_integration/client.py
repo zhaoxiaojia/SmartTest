@@ -9,7 +9,7 @@ try:
 except ImportError:
     Confluence = None
 
-from .models import ConfluenceAttachment, ConfluenceClientConfig, ConfluencePage
+from .models import ConfluenceClientConfig, ConfluencePage
 
 
 class ConfluenceDependencyError(RuntimeError):
@@ -76,6 +76,14 @@ class ConfluenceClient:
             self._api.get_page_by_id(page_id, expand=expand),
             prefer_export=prefer_export,
         )
+
+    def get_page_version(self, page_id: str, version: int) -> ConfluencePage:
+        return self._page(self._api.get_page_by_id(
+            page_id,
+            expand="body.storage,body.view,version",
+            status="historical",
+            version=int(version),
+        ))
 
     def get_page_by_url(self, url: str, *, prefer_export=False) -> ConfluencePage:
         configured = urlsplit(self.config.base_url)
@@ -146,13 +154,3 @@ class ConfluenceClient:
 
     def get_children(self, page_id: str) -> list[ConfluencePage]:
         return self.get_page_children(page_id)
-
-    def get_attachments(self, page_id: str) -> list[ConfluenceAttachment]:
-        payload = self._api.get_attachments_from_content(page_id, start=0, limit=100, expand="version")
-        result = []
-        for row in payload.get("results") or []:
-            version = row.get("version") or {}
-            result.append(ConfluenceAttachment(str(row.get("id") or ""), str(row.get("title") or ""),
-                self._url(row.get("_links") or {}, "download"), int(version.get("number") or 0),
-                _date(version.get("when")), str((version.get("by") or {}).get("displayName") or "")))
-        return result

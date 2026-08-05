@@ -1,7 +1,7 @@
 from .client import ConfluenceClient, ConfluenceDependencyError
-from .models import ConfluenceAttachment, ConfluenceClientConfig, ConfluencePage
+from .models import ConfluenceClientConfig, ConfluencePage
 
 __all__ = [
-    "ConfluenceAttachment", "ConfluenceClient", "ConfluenceClientConfig",
+    "ConfluenceClient", "ConfluenceClientConfig",
     "ConfluenceDependencyError", "ConfluencePage",
 ]
