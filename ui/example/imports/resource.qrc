@@ -18,6 +18,8 @@
         <file>example/qml/component/jiraaudit/JiraAuditWorkspace.qml</file>
         <file>example/qml/component/redmine/RedmineLoginView.qml</file>
         <file>example/qml/component/redmine/RedmineWorkspace.qml</file>
+        <file>example/qml/component/redmine/RedmineDensity.qml</file>
+        <file>example/qml/component/redmine/qmldir</file>
         <file>example/qml/component/issue/JiraIssueBrowserLayout.qml</file>
         <file>example/qml/component/issue/JiraCreateField.qml</file>
         <file>example/qml/component/issue/JiraOptionMultiPicker.qml</file>

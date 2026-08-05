@@ -18,6 +18,11 @@ FluPage {
     property var selectedGroup: ToolBridge.groups.length > selectedGroupIndex ? ToolBridge.groups[selectedGroupIndex] : ({})
     property var selectedTool: selectedGroup.tools && selectedGroup.tools.length > selectedToolIndex ? selectedGroup.tools[selectedToolIndex] : ({})
     property string autoStartedToolId: ""
+    readonly property real activeDensity: selectedTool.id === "redmine" ? RedmineDensity.scale : 1.0
+
+    function metric(value, minimum) {
+        return Math.max(minimum || 0, Math.round(value * activeDensity))
+    }
 
     function ensureSelectedToolAvailable() {
         if (!selectedGroup.available) {
@@ -80,18 +85,18 @@ FluPage {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 20
-        spacing: 12
+        anchors.margins: page.metric(20, 12)
+        spacing: page.metric(12, 8)
 
         FluFrame {
             objectName: "toolScheduleArea"
             Layout.fillWidth: true
-            Layout.preferredHeight: 118
-            padding: 10
+            Layout.preferredHeight: page.metric(118, 72)
+            padding: page.metric(10, 7)
 
             ColumnLayout {
                 anchors.fill: parent
-                spacing: 8
+                spacing: page.metric(8, 5)
 
                 FluText { text: qsTr("Schedule"); font: FluTextStyle.Subtitle }
                 FluText {
@@ -160,7 +165,9 @@ FluPage {
             rowSpacing: 0
 
         Rectangle {
-            Layout.preferredWidth: 216
+            objectName: "toolSidebar"
+            // Keep expander titles clear of their fixed right-side chevrons.
+            Layout.preferredWidth: page.metric(216, 180)
             Layout.fillWidth: ResponsiveMetrics.isCompact(page.width)
             Layout.preferredHeight: ResponsiveMetrics.isCompact(page.width) ? 190 : -1
             Layout.fillHeight: true
@@ -170,8 +177,8 @@ FluPage {
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 12
-                spacing: 8
+                anchors.margins: page.metric(12, 8)
+                spacing: page.metric(8, 5)
 
                 Repeater {
                     model: ToolBridge.groups
@@ -208,18 +215,19 @@ FluPage {
         }
 
         Item {
-            Layout.preferredWidth: 20
+            Layout.preferredWidth: page.metric(20, 12)
             Layout.preferredHeight: ResponsiveMetrics.isCompact(page.width) ? 12 : 0
         }
 
         FluFrame {
+            objectName: "toolWorkspaceFrame"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            padding: 12
+            padding: page.metric(12, 8)
 
             ColumnLayout {
                 anchors.fill: parent
-                spacing: 8
+                spacing: page.metric(8, 5)
 
                 FluText {
                     text: selectedTool.title || selectedGroup.title || qsTr("Select a tool")

@@ -3,6 +3,7 @@ import "../issue"
 
 JiraIssueBrowserLayout {
     id: root
+    densityScale: RedmineDensity.scale
     cloneSelectable: true
     cloneSelectionMode: typeof RedmineBridge !== "undefined" ? RedmineBridge.cloneSelectionMode : false
     cloneSelectedIds: typeof RedmineBridge !== "undefined" ? RedmineBridge.cloneSelectedIds : []

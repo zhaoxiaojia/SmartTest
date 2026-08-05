@@ -32,6 +32,7 @@ Item {
     property bool cloneSelectionMode: false
     property bool cloneSelectable: false
     property var cloneSelectedIds: []
+    property real densityScale: 1.0
     readonly property int responsiveOrientation: issueSplit.orientation
 
     signal searchRequested(var filters)
@@ -51,6 +52,10 @@ Item {
 
     function safeCount(value) {
         return value && value.length !== undefined ? value.length : 0
+    }
+
+    function metric(value, minimum) {
+        return Math.max(minimum || 0, Math.round(value * densityScale))
     }
 
     function partyLabel(row) {
@@ -165,29 +170,37 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 10
+        spacing: root.metric(10, 6)
 
         FluFrame {
+            objectName: "issueFilterFrame"
             Layout.fillWidth: true
-            padding: 12
+            padding: root.metric(12, 8)
             ColumnLayout {
                 anchors.fill: parent
-                spacing: 8
+                spacing: root.metric(8, 5)
                 GridLayout {
                     Layout.fillWidth: true
-                    columns: ResponsiveMetrics.isCompact(root.width) ? 1 : (ResponsiveMetrics.isMedium(root.width) ? 2 : 5)
+                    columns: ResponsiveMetrics.isCompact(root.width) ? 1 : (ResponsiveMetrics.isMedium(root.width) ? 3 : 5)
                     visible: safeCount(root.quickViews) > 0
                     FluText { text: qsTr("Quick views"); font: FluTextStyle.Caption }
                     Repeater {
                         model: root.quickViews
-                        FluButton { text: modelData.label || modelData.name || ""; onClicked: root.quickViewRequested(modelData.id || "") }
+                        FluButton {
+                            objectName: "issueQuickViewButton_" + index
+                            text: modelData.label || modelData.name || ""
+                            onClicked: root.quickViewRequested(modelData.id || "")
+                        }
                     }
                 }
-                RowLayout {
+                GridLayout {
                     Layout.fillWidth: true
+                    columns: ResponsiveMetrics.isCompact(root.width) ? 1 : (ResponsiveMetrics.isMedium(root.width) ? 3 : 6)
                     FluComboBox { /* persistence-opt-out: transient */
                         id: projectFilter
+                        objectName: "issueProjectFilter"
                         Layout.fillWidth: true
+                        Layout.preferredHeight: root.metric(36, 28)
                         Layout.preferredWidth: ResponsiveMetrics.isWide(root.width) ? 420 : 240
                         Layout.minimumWidth: 0
                         textRole: safeCount(root.projectOptions) ? "label" : ""
@@ -197,11 +210,15 @@ Item {
                         ToolTip.visible: hovered
                         ToolTip.text: displayText
                     }
-                    FluComboBox { /* persistence-opt-out: transient */ id: statusFilter; Layout.fillWidth: true; Layout.preferredWidth: 140; model: safeCount(root.statusFilters) ? root.statusFilters : [qsTr("All statuses")] }
-                    FluComboBox { /* persistence-opt-out: transient */ id: typeFilter; Layout.fillWidth: true; Layout.preferredWidth: 130; model: safeCount(root.typeFilters) ? root.typeFilters : [qsTr("All types")] }
-                    FluTextBox { /* persistence-opt-out: transient */ id: subjectFilter; Layout.fillWidth: true; Layout.preferredWidth: 180; placeholderText: qsTr("Subject") }
-                    FluTextBox { /* persistence-opt-out: transient */ id: textFilter; Layout.fillWidth: true; placeholderText: qsTr("Contains text") }
+                    FluComboBox { /* persistence-opt-out: transient */ id: statusFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: 140; Layout.preferredHeight: root.metric(36, 28); model: safeCount(root.statusFilters) ? root.statusFilters : [qsTr("All statuses")] }
+                    FluComboBox { /* persistence-opt-out: transient */ id: typeFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: 130; Layout.preferredHeight: root.metric(36, 28); model: safeCount(root.typeFilters) ? root.typeFilters : [qsTr("All types")] }
+                    FluTextBox { /* persistence-opt-out: transient */ id: subjectFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: 180; Layout.preferredHeight: root.metric(36, 28); placeholderText: qsTr("Subject") }
+                    FluTextBox { /* persistence-opt-out: transient */ id: textFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredHeight: root.metric(36, 28); placeholderText: qsTr("Contains text") }
                     FluFilledButton {
+                        objectName: "issueSearchButton"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.preferredHeight: root.metric(36, 28)
                         text: qsTr("Search")
                         disabled: root.searchLoading || root.projectsLoading || !root.projectsReady
                         onClicked: root.searchRequested({
@@ -258,7 +275,7 @@ Item {
                     spacing: 0
                     RowLayout {
                         Layout.fillWidth: true
-                        Layout.margins: 12
+                        Layout.margins: root.metric(12, 8)
                         FluText { text: qsTr("Issues"); font: FluTextStyle.Subtitle }
                         Item { Layout.fillWidth: true }
                         FluButton {
@@ -270,7 +287,7 @@ Item {
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        Layout.leftMargin: 12; Layout.rightMargin: 12; Layout.bottomMargin: 8
+                        Layout.leftMargin: root.metric(12, 8); Layout.rightMargin: root.metric(12, 8); Layout.bottomMargin: root.metric(8, 5)
                         visible: root.cloneSelectionMode
                         FluText { text: qsTr("%1 selected").arg(root.safeCount(root.cloneSelectedIds)) }
                         Item { Layout.fillWidth: true }
@@ -278,7 +295,7 @@ Item {
                         FluFilledButton { text: qsTr("Prepare drafts"); disabled: root.safeCount(root.cloneSelectedIds) === 0; onClicked: root.cloneSelectionConfirmed() }
                     }
                     FluButton {
-                        Layout.leftMargin: 12; Layout.bottomMargin: 8
+                        Layout.leftMargin: root.metric(12, 8); Layout.bottomMargin: root.metric(8, 5)
                         visible: root.cloneSelectable && !root.cloneSelectionMode
                         text: qsTr("Clone to Jira")
                         onClicked: root.cloneSelectionRequested()
@@ -339,11 +356,11 @@ Item {
                         model: root.issues || []
                         delegate: ItemDelegate {
                             width: ListView.view.width
-                            height: 76
+                            height: root.metric(76, 54)
                             highlighted: (root.selectedIssue.id || root.selectedIssue.key || "") === (modelData.id || modelData.key || "")
                             onClicked: root.issueSelected(modelData)
                             contentItem: RowLayout {
-                                spacing: 8
+                                spacing: root.metric(8, 5)
                                 property bool cloneSelectable: modelData.cloneStatus !== "cloned" && !modelData.clonedIssueKey
                                 FluCheckBox { /* persistence-opt-out: transient */
                                     visible: root.cloneSelectionMode
@@ -353,9 +370,9 @@ Item {
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: 4
+                                    spacing: root.metric(4, 3)
                                     RowLayout {
-                                    Layout.fillWidth: true; spacing: 8
+                                    Layout.fillWidth: true; spacing: root.metric(8, 5)
                                     FluButton {
                                         objectName: "ordinaryIssueLink"
                                         text: modelData.key || modelData.id || ""
@@ -383,7 +400,7 @@ Item {
                                     }
                                 }
                                     RowLayout {
-                                        Layout.fillWidth: true; spacing: 8
+                                        Layout.fillWidth: true; spacing: root.metric(8, 5)
                                         FluText { Layout.fillWidth: true; text: modelData.title || ""; elide: Text.ElideRight; color: FluTheme.fontPrimaryColor }
                                         FluText {
                                             visible: !!modelData.clonedIssueKey || modelData.cloneStatus === "not_cloned"
@@ -406,6 +423,7 @@ Item {
                 padding: 0
                 JiraIssueDetailLayout {
                     anchors.fill: parent
+                    densityScale: root.densityScale
                     issue: root.selectedIssue
                     comments: root.selectedIssue.comments || []
                     attachments: root.selectedIssue.attachments || []

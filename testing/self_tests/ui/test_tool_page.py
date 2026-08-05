@@ -658,7 +658,7 @@ def test_tool_navigation_and_page_layout_contract():
     assert 'self.tr("Common Tools")' in (ROOT / "ui/example/bridge/ToolBridge.py").read_text(encoding="utf-8")
     assert 'qsTr("Custom Tools")' in page
     assert 'text: qsTr("Tools")' not in page
-    assert "Layout.preferredWidth: 216" in page
+    assert 'objectName: "toolSidebar"' in page
     assert "toolGroup: modelData" in page
     assert "headerText: toolGroup.title" in page
     assert "onToolActivated: (groupId, toolIndex) => selectTool(groupId, toolIndex)" in page
