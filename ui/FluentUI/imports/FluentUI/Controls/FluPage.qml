@@ -9,9 +9,13 @@ Page {
     property bool animationEnabled: FluTheme.animationEnabled
     property bool showTitleHeader: true
     property string url : ""
+    property int contentTopInset: 3
     id: control
     StackView.onRemoved: destroy()
-    padding: 5
+    leftPadding: 5
+    rightPadding: 5
+    topPadding: contentTopInset
+    bottomPadding: 5
     visible: false
     opacity: visible
     transform: Translate {

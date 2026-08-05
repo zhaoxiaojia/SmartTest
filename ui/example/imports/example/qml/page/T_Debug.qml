@@ -172,7 +172,7 @@ FluScrollablePage {
 
     FluFrame {
         Layout.fillWidth: true
-        Layout.topMargin: 20
+        Layout.topMargin: 0
         padding: 12
 
         ColumnLayout {

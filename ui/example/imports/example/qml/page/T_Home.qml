@@ -48,7 +48,7 @@ FluScrollablePage {
         Layout.preferredHeight: page.compactLayout ? 240 : 300
         Layout.leftMargin: 10
         Layout.rightMargin: 10
-        Layout.topMargin: 10
+        Layout.topMargin: 0
 
         Image {
             id: wallpaper

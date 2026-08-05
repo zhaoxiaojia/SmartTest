@@ -2219,6 +2219,41 @@ def test_redmine_view_creates_complete_unified_records_for_canonical_projections
     assert detail_row_from_unified(issue)["id"] == "60371"
 
 
+def test_redmine_view_keeps_issues_when_business_project_id_is_missing():
+    item = RedmineIssueListItem(
+        id="60372",
+        url="https://redmine/issues/60372",
+        tracker="Bug",
+        status="New",
+        subject="Valid Redmine project without business ID",
+    )
+    project = RedmineProject(
+        name="AIOT.A113L.Audrey.Speaker",
+        identifier="aiot-a113l-audrey-speaker",
+        url="https://redmine/projects/aiot-a113l-audrey-speaker",
+        project_id="",
+        issues=(item,),
+    )
+
+    projected = view(
+        RedmineContext(projects=(project,)),
+        all_projects="All projects",
+        filters={"project": project.identifier},
+    )
+
+    assert [issue.id for issue in projected["issue_list"]] == ["60372"]
+    assert projected["issue_list"][0].project == {
+        "id": "",
+        "identifier": "aiot-a113l-audrey-speaker",
+        "name": "AIOT.A113L.Audrey.Speaker",
+        "url": "https://redmine/projects/aiot-a113l-audrey-speaker",
+    }
+    assert projected["projectFilterLabels"] == [
+        "All projects",
+        "AIOT.A113L.Audrey.Speaker",
+    ]
+
+
 def test_canonical_issue_projection_keeps_analysis_fields():
     from tool.SmartHome.redmine.view_model import (
         detail_row_from_unified,

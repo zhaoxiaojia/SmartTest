@@ -41,6 +41,39 @@ print(root.property("densityScale"), root.property("scaledSpacing"), root.proper
     )
 
 
+def test_flu_page_uses_compact_shared_top_inset():
+    probe = f'''
+import sys
+sys.path.insert(0, r"{ROOT / 'ui'}")
+from PySide6.QtCore import QObject, QPointF
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from FluentUI import FluentUI
+app = QGuiApplication([])
+engine = QQmlApplicationEngine()
+warnings = []
+engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
+FluentUI.registerTypes(engine)
+engine.loadData(b'import QtQuick 2.15; import FluentUI 1.0; FluPage {{ width: 100; height: 100; Item {{ objectName: "pageContent"; anchors.fill: parent }} }}')
+app.processEvents()
+page = engine.rootObjects()[0]
+content = page.findChild(QObject, "pageContent")
+position = content.mapToItem(page, QPointF(0, 0))
+print(round(position.x()), round(position.y()), len(warnings), warnings)
+'''
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=ROOT,
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "5 3 0 []" in result.stdout
+
+
 def test_redmine_density_runtime_scales_spacing_and_preserves_control_floor():
     qml_dir = REDMINE_QML_DIR.as_uri()
     source = f'''
@@ -64,7 +97,7 @@ def test_tool_shell_compacts_only_when_redmine_is_selected():
     probe = f'''
 import sys
 sys.path.insert(0, r"{ROOT / 'ui'}")
-from PySide6.QtCore import QObject, Property, Signal, Slot
+from PySide6.QtCore import QObject, QPointF, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, QQmlExpression
 from PySide6.QtTest import QTest
@@ -112,17 +145,19 @@ engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ vis
 app.processEvents()
 window = engine.rootObjects()[0]
 page = window.contentItem().childItems()[0].property("item")
+page.setProperty("showTitleHeader", False)
 schedule = page.findChild(QObject, "toolScheduleArea")
 sidebar = page.findChild(QObject, "toolSidebar")
 app.processEvents()
 redmine_sizes = (round(schedule.height()), round(sidebar.width()))
+schedule_top = round(schedule.mapToItem(page, QPointF(0, 0)).y())
 QQmlExpression(engine.rootContext(), page, "selectTool('common', 1)").evaluate()
 QTest.qWait(100)
 app.processEvents()
 default_sizes = (round(schedule.height()), round(sidebar.width()))
 selected = page.property("selectedTool")
 selected = selected.toVariant() if hasattr(selected, "toVariant") else selected
-print(redmine_sizes, default_sizes, page.property("selectedToolIndex"), selected.get("id"), page.property("activeDensity"), len(warnings), warnings)
+print(redmine_sizes, default_sizes, schedule_top, page.property("selectedToolIndex"), selected.get("id"), page.property("activeDensity"), len(warnings), warnings)
 '''
     result = subprocess.run(
         [sys.executable, "-c", probe],
@@ -135,7 +170,7 @@ print(redmine_sizes, default_sizes, page.property("selectedToolIndex"), selected
 
     assert result.returncode == 0, result.stderr + result.stdout
     # The compact sidebar must retain enough width for expander titles and chevrons.
-    assert "(83, 180) (118, 216) 1 other 1.0 0 []" in result.stdout
+    assert "(83, 180) (118, 216) 3 1 other 1.0 0 []" in result.stdout
 
 
 def test_issue_workspace_defaults_to_normal_density_and_accepts_redmine_density():
@@ -180,6 +215,58 @@ print(normal, compact, len(warnings), warnings)
 
     assert result.returncode == 0, result.stderr + result.stdout
     assert "(1.0, 12.0, 36) (0.7, 8.0, 28) 0 []" in result.stdout
+
+
+def test_issue_filter_keeps_submitted_project_during_stale_async_refresh():
+    issue_browser = (
+        ROOT / "ui/example/imports/example/qml/component/issue/JiraIssueBrowserLayout.qml"
+    ).as_uri()
+    probe = f'''
+import sys
+sys.path.insert(0, r"{ROOT / 'ui'}")
+from PySide6.QtCore import QObject
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine, QQmlExpression
+from PySide6.QtTest import QTest
+from FluentUI import FluentUI
+from example.imports import resource_rc
+app = QGuiApplication([])
+engine = QQmlApplicationEngine()
+warnings = []
+engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
+FluentUI.registerTypes(engine)
+engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1000; height: 760; Loader {{ anchors.fill: parent; source: "{issue_browser}" }} }}')
+app.processEvents()
+window = engine.rootObjects()[0]
+browser = window.contentItem().childItems()[0].property("item")
+browser.setProperty("projectOptions", [
+    {{"id": "", "label": "All projects"}},
+    {{"id": "project-a", "label": "Project A"}},
+    {{"id": "project-b", "label": "Project B"}},
+])
+browser.setProperty("filters", {{"project": "project-a"}})
+browser.setProperty("activeQuickViewId", "my_assigned")
+QTest.qWait(80)
+project_filter = browser.findChild(QObject, "issueProjectFilter")
+search_button = browser.findChild(QObject, "issueSearchButton")
+project_filter.setProperty("currentIndex", 2)
+QQmlExpression(engine.rootContext(), search_button, "clicked()").evaluate()
+browser.setProperty("activeQuickViewId", "")
+browser.setProperty("filters", {{"project": "project-a"}})
+QTest.qWait(80)
+print(project_filter.property("currentValue"), project_filter.property("currentIndex"), len(warnings), warnings)
+'''
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=ROOT,
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "project-b 2 0 []" in result.stdout
 
 
 def test_redmine_quick_view_buttons_share_one_row_at_medium_width():

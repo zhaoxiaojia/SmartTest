@@ -33,6 +33,9 @@ Item {
     property bool cloneSelectable: false
     property var cloneSelectedIds: []
     property real densityScale: 1.0
+    property bool filterDraftDirty: false
+    property var pendingSubmittedFilters: null
+    property bool filterStateInitialized: false
     readonly property int responsiveOrientation: issueSplit.orientation
 
     signal searchRequested(var filters)
@@ -146,7 +149,52 @@ Item {
         return projectFilter.currentText === qsTr("All projects") ? "" : projectFilter.currentText
     }
 
-    function applyFilterState() {
+    function currentFilterState() {
+        return {
+            "project": root.selectedProjectId(),
+            "status": statusFilter.currentText,
+            "type": typeFilter.currentText,
+            "subject": subjectFilter.text,
+            "text": textFilter.text
+        }
+    }
+
+    function sameFilterState(left, right) {
+        var a = left || {}
+        var b = right || {}
+        return (a.project || "") === (b.project || "")
+            && (a.status || qsTr("All statuses")) === (b.status || qsTr("All statuses"))
+            && (a.type || qsTr("All types")) === (b.type || qsTr("All types"))
+            && (a.subject || "") === (b.subject || "")
+            && (a.text || "") === (b.text || "")
+    }
+
+    function currentSelectionsAreValid() {
+        var projectValid = safeCount(root.projectOptions)
+            ? modelIndexById(projectFilter.model, root.selectedProjectId()) >= 0
+            : modelIndexOf(projectFilter.model, projectFilter.currentText) >= 0
+        return projectValid
+            && modelIndexOf(statusFilter.model, statusFilter.currentText) >= 0
+            && modelIndexOf(typeFilter.model, typeFilter.currentText) >= 0
+    }
+
+    function submitCurrentFilters() {
+        var submitted = currentFilterState()
+        root.pendingSubmittedFilters = submitted
+        root.filterDraftDirty = false
+        root.searchRequested(submitted)
+    }
+
+    function applyFilterState(force) {
+        var externalFilters = root.filters || {}
+        if(root.pendingSubmittedFilters && sameFilterState(externalFilters, root.pendingSubmittedFilters)) {
+            root.pendingSubmittedFilters = null
+        }
+        var preserveDraft = !force
+            && root.filterStateInitialized
+            && (root.filterDraftDirty || root.pendingSubmittedFilters !== null)
+            && currentSelectionsAreValid()
+        if(preserveDraft) return
         var wantedProject = root.filters.project || ""
         var statusIndex = modelIndexOf(statusFilter.model, root.filters.status || qsTr("All statuses"))
         var typeIndex = modelIndexOf(typeFilter.model, root.filters.type || qsTr("All types"))
@@ -159,14 +207,21 @@ Item {
         typeFilter.currentIndex = Math.max(0, typeIndex)
         textFilter.text = root.filters.text || ""
         subjectFilter.text = root.filters.subject || ""
+        root.filterStateInitialized = true
+        root.filterDraftDirty = false
     }
 
-    onFiltersChanged: Qt.callLater(applyFilterState)
-    onProjectFiltersChanged: Qt.callLater(applyFilterState)
-    onProjectOptionsChanged: Qt.callLater(applyFilterState)
-    onStatusFiltersChanged: Qt.callLater(applyFilterState)
-    onTypeFiltersChanged: Qt.callLater(applyFilterState)
-    Component.onCompleted: Qt.callLater(applyFilterState)
+    onFiltersChanged: Qt.callLater(function() { applyFilterState(false) })
+    onProjectFiltersChanged: Qt.callLater(function() { applyFilterState(false) })
+    onProjectOptionsChanged: Qt.callLater(function() { applyFilterState(false) })
+    onStatusFiltersChanged: Qt.callLater(function() { applyFilterState(false) })
+    onTypeFiltersChanged: Qt.callLater(function() { applyFilterState(false) })
+    onActiveQuickViewIdChanged: Qt.callLater(function() {
+        if(root.activeQuickViewId.length === 0 && root.pendingSubmittedFilters !== null) return
+        root.pendingSubmittedFilters = null
+        applyFilterState(true)
+    })
+    Component.onCompleted: Qt.callLater(function() { applyFilterState(true) })
 
     ColumnLayout {
         anchors.fill: parent
@@ -209,11 +264,12 @@ Item {
                         popup.width: Math.min(root.width * 0.9, Math.max(width, 420))
                         ToolTip.visible: hovered
                         ToolTip.text: displayText
+                        onActivated: root.filterDraftDirty = true
                     }
-                    FluComboBox { /* persistence-opt-out: transient */ id: statusFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: 140; Layout.preferredHeight: root.metric(36, 28); model: safeCount(root.statusFilters) ? root.statusFilters : [qsTr("All statuses")] }
-                    FluComboBox { /* persistence-opt-out: transient */ id: typeFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: 130; Layout.preferredHeight: root.metric(36, 28); model: safeCount(root.typeFilters) ? root.typeFilters : [qsTr("All types")] }
-                    FluTextBox { /* persistence-opt-out: transient */ id: subjectFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: 180; Layout.preferredHeight: root.metric(36, 28); placeholderText: qsTr("Subject") }
-                    FluTextBox { /* persistence-opt-out: transient */ id: textFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredHeight: root.metric(36, 28); placeholderText: qsTr("Contains text") }
+                    FluComboBox { /* persistence-opt-out: transient */ id: statusFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: 140; Layout.preferredHeight: root.metric(36, 28); model: safeCount(root.statusFilters) ? root.statusFilters : [qsTr("All statuses")]; onActivated: root.filterDraftDirty = true }
+                    FluComboBox { /* persistence-opt-out: transient */ id: typeFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: 130; Layout.preferredHeight: root.metric(36, 28); model: safeCount(root.typeFilters) ? root.typeFilters : [qsTr("All types")]; onActivated: root.filterDraftDirty = true }
+                    FluTextBox { /* persistence-opt-out: transient */ id: subjectFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: 180; Layout.preferredHeight: root.metric(36, 28); placeholderText: qsTr("Subject"); onTextEdited: root.filterDraftDirty = true }
+                    FluTextBox { /* persistence-opt-out: transient */ id: textFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredHeight: root.metric(36, 28); placeholderText: qsTr("Contains text"); onTextEdited: root.filterDraftDirty = true }
                     FluFilledButton {
                         objectName: "issueSearchButton"
                         Layout.fillWidth: true
@@ -221,13 +277,7 @@ Item {
                         Layout.preferredHeight: root.metric(36, 28)
                         text: qsTr("Search")
                         disabled: root.searchLoading || root.projectsLoading || !root.projectsReady
-                        onClicked: root.searchRequested({
-                            "project": root.selectedProjectId(),
-                            "status": statusFilter.currentText,
-                            "type": typeFilter.currentText,
-                            "subject": subjectFilter.text,
-                            "text": textFilter.text
-                        })
+                        onClicked: root.submitCurrentFilters()
                     }
                 }
                 RowLayout {

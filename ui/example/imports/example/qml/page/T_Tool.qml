@@ -85,7 +85,10 @@ FluPage {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: page.metric(20, 12)
+        anchors.leftMargin: page.metric(20, 12)
+        anchors.rightMargin: page.metric(20, 12)
+        anchors.topMargin: 0
+        anchors.bottomMargin: page.metric(20, 12)
         spacing: page.metric(12, 8)
 
         FluFrame {

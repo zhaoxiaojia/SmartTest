@@ -21,7 +21,7 @@ def view(
         "subject": str(source_filters.get("subject", "") or ""),
         "text": str(source_filters.get("text", "") or ""),
     }
-    projects = [project for project in context.projects if project.project_id]
+    projects = [project for project in context.projects if project.identifier]
     analysis = dict(context.raw.get("issue_analysis") or {})
     details = {detail.id: detail for detail in context.issues}
     if selected_detail is not None:
