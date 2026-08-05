@@ -7,6 +7,7 @@ import FluentUI
 Page {
     property int launchMode: FluPageType.SingleTop
     property bool animationEnabled: FluTheme.animationEnabled
+    property bool showTitleHeader: true
     property string url : ""
     id: control
     StackView.onRemoved: destroy()
@@ -31,7 +32,9 @@ Page {
     }
     background: Item{}
     header: FluLoader{
-        sourceComponent: control.title === "" ? undefined : com_header
+        visible: control.showTitleHeader
+        height: visible ? implicitHeight : 0
+        sourceComponent: control.showTitleHeader && control.title !== "" ? com_header : undefined
     }
     Component{
         id: com_header

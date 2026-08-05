@@ -22,6 +22,12 @@ Item {
     property int cellHeight: 38
     property int cellWidth: 300
     property bool hideNavAppBar: false
+    property bool showPageTitleHeaders: true
+    readonly property string currentPageTitle: {
+        var index = nav_list.currentIndex
+        var rows = nav_list.model || []
+        return index >= 0 && index < rows.length && rows[index] ? (rows[index].title || "") : ""
+    }
     property alias buttonMenu: btn_menu
     property alias buttonBack: btn_back
     property alias imageLogo: image_logo
@@ -1382,6 +1388,11 @@ Item {
     function toggleCollapse(){
         control.collapseRequested(!d.isCompactAndNotPanel)
     }
+    function configureHostedPage(page){
+        if(page && page.showTitleHeader !== undefined){
+            page.showTitleHeader = showPageTitleHeaders
+        }
+    }
     function setCollapsed(collapsed){
         control.collapseRequested(collapsed)
     }
@@ -1501,12 +1512,14 @@ Item {
             }
             var options = Object.assign(argument,{url:url})
             if(pageIndex!==-1){
+                configureHostedPage(nav_stack2.children[pageIndex])
                 nav_stack2.currentIndex = pageIndex
                 nav_stack.push(com_placeholder,options)
             }else{
                 var comp = Qt.createComponent(url)
                 if (comp.status === Component.Ready) {
                     var obj  = comp.createObject(nav_stack,options)
+                    configureHostedPage(obj)
                     if(obj.launchMode === FluPageType.SingleInstance){
                         nav_stack.push(com_placeholder,options)
                         nav_stack2.children.push(obj)
