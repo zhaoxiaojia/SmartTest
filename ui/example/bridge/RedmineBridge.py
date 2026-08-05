@@ -852,7 +852,6 @@ class RedmineBridge(QObject):
         status = "" if filters.get("status") == self.tr("All statuses") else filters.get("status", "")
         issue_type = "" if filters.get("type") in ("", self.tr("All types")) else filters.get("type", "")
         self._pending_filters = {"project": project, "status": status, "type": issue_type, "subject": str(filters.get("subject", "") or ""), "text": str(filters.get("text", "") or "")}
-        smart_log("[REDMINE_FILTER] refresh requested", domain="tool", source="RedmineBridge", level="info", extra={"project": bool(project), "status": status, "type": issue_type, "text_present": bool(self._pending_filters["text"])})
         if self._data_loading:
             self._refresh_after_search = True
             return
@@ -974,7 +973,6 @@ class RedmineBridge(QObject):
         )
         self._emit_issue_projection()
         if operation_kind == "search" and self._active_search_filter_requested:
-            smart_log("[REDMINE_FILTER] refresh applied", domain="tool", source="RedmineBridge", level="info", extra={"project": bool(filters.get("project")), "status": filters.get("status", ""), "type": filters.get("type", ""), "text_present": bool(filters.get("text")), "result_count": len(self._issue_controller.issue_rows), "actionable_count": len(self._issue_controller.actionable_issues)})
             self._active_search_filter_requested = False
         self.changed.emit()
         pending_issue_id, self._pending_detail_issue_id = self._pending_detail_issue_id, ""

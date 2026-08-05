@@ -9,7 +9,6 @@ FluPage {
     id: page
     title: qsTr("Jira")
     launchMode: FluPageType.SingleInstance
-    property int responsiveLayout: ResponsiveMetrics.layoutForWidth(width)
 
     property var promptSuggestions: [
         qsTr("Show the issues assigned to me this week and point out blockers."),
@@ -56,7 +55,7 @@ FluPage {
     property color jiraChatHoverBg: "#ececec"
     property color jiraChatBorderColor: "#ececec"
     property color jiraChatAccentColor: "#ff5a1f"
-    property int jiraChatFontSize: 16
+    property int jiraChatFontSize: 14
     property real jiraChatLineHeight: 1.45
     property bool pageReady: false
     property bool initialQueryStarted: false
@@ -804,10 +803,7 @@ FluPage {
 
     ColumnLayout{
         anchors.fill: parent
-        anchors.leftMargin: 12
-        anchors.rightMargin: 12
-        anchors.topMargin: 0
-        anchors.bottomMargin: 12
+        anchors.margins: 12
         spacing: 12
 
         FluFrame{
@@ -937,12 +933,11 @@ FluPage {
         FluSplitLayout{
             Layout.fillWidth: true
             Layout.fillHeight: true
-            orientation: page.responsiveLayout === ResponsiveMetrics.compact ? Qt.Vertical : Qt.Horizontal
+            orientation: Qt.Horizontal
 
             FluFrame{
                 SplitView.preferredWidth: 300
-                SplitView.minimumWidth: page.responsiveLayout === ResponsiveMetrics.compact ? 0 : 260
-                SplitView.minimumHeight: page.responsiveLayout === ResponsiveMetrics.compact ? 180 : 0
+                SplitView.minimumWidth: 260
                 SplitView.maximumWidth: 380
                 SplitView.fillHeight: true
                 padding: 10
@@ -1544,8 +1539,7 @@ FluPage {
 
             FluFrame{
                 SplitView.fillWidth: true
-                SplitView.minimumWidth: page.responsiveLayout === ResponsiveMetrics.compact ? 0 : 420
-                SplitView.minimumHeight: page.responsiveLayout === ResponsiveMetrics.compact ? 240 : 0
+                SplitView.minimumWidth: 420
                 SplitView.fillHeight: true
                 padding: 0
 
@@ -1890,8 +1884,7 @@ FluPage {
 
             FluFrame{
                 SplitView.preferredWidth: 360
-                SplitView.minimumWidth: page.responsiveLayout === ResponsiveMetrics.compact ? 0 : 300
-                SplitView.minimumHeight: page.responsiveLayout === ResponsiveMetrics.compact ? 180 : 0
+                SplitView.minimumWidth: 300
                 SplitView.maximumWidth: 460
                 SplitView.fillHeight: true
                 padding: 10

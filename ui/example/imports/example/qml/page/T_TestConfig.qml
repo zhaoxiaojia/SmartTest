@@ -10,8 +10,6 @@ FluPage {
     title: qsTr("Test")
     launchMode: FluPageType.SingleInstance
     property int footerHeight: 30
-    property int responsiveLayout: ResponsiveMetrics.layoutForWidth(width)
-    readonly property int responsiveOrientation: layout_main.orientation
 
     property int stateVersion: 0
     property var selectedModel: []
@@ -504,13 +502,12 @@ FluPage {
         id: layout_main
         anchors.fill: parent
         anchors.bottomMargin: footerHeight
-        orientation: page_root.responsiveLayout === ResponsiveMetrics.compact ? Qt.Vertical : Qt.Horizontal
+        orientation: Qt.Horizontal
 
         FluSplitLayout{
             SplitView.fillWidth: true
             SplitView.preferredWidth: layout_main.width * 0.30
-            SplitView.minimumWidth: page_root.responsiveLayout === ResponsiveMetrics.compact ? 0 : 260
-            SplitView.minimumHeight: page_root.responsiveLayout === ResponsiveMetrics.compact ? 220 : 0
+            SplitView.minimumWidth: 260
             SplitView.fillHeight: true
             orientation: Qt.Vertical
 
@@ -688,8 +685,7 @@ FluPage {
         FluFrame{
             SplitView.fillWidth: true
             SplitView.preferredWidth: layout_main.width * 0.42
-            SplitView.minimumWidth: page_root.responsiveLayout === ResponsiveMetrics.compact ? 0 : 260
-            SplitView.minimumHeight: page_root.responsiveLayout === ResponsiveMetrics.compact ? 220 : 0
+            SplitView.minimumWidth: 260
             SplitView.fillHeight: true
             padding: 10
             ColumnLayout{
@@ -797,8 +793,7 @@ FluPage {
         FluSplitLayout{
             SplitView.fillWidth: true
             SplitView.preferredWidth: layout_main.width * 0.28
-            SplitView.minimumWidth: page_root.responsiveLayout === ResponsiveMetrics.compact ? 0 : 260
-            SplitView.minimumHeight: page_root.responsiveLayout === ResponsiveMetrics.compact ? 220 : 0
+            SplitView.minimumWidth: 260
             SplitView.fillHeight: true
             orientation: Qt.Vertical
 

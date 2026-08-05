@@ -299,7 +299,8 @@ class CreateIssueService:
         if control == "single":
             return {"id": str(value)}
         if control == "multi":
-            return [{"id": str(item)} for item in value if item]
+            items = value if isinstance(value, (list, tuple)) else [value]
+            return [{"id": str(item)} for item in items if item]
         if control == "cascade":
             payload = {"id": str(value.get("parent") or "")}
             if value.get("child"):
@@ -314,7 +315,9 @@ class CreateIssueService:
     def _labels(self, request: CreateIssueRequest) -> list[str]:
         labels = list(request.labels)
         if request.source_system and request.source_id:
-            labels.extend(["clone_external", f"source_{_safe_label(request.source_system)}", self._source_id_label(request)])
+            # Keep only stable classification labels. The per-issue source ID is
+            # already written to the description and must not pollute Jira labels.
+            labels.extend(["clone_external", f"source_{_safe_label(request.source_system)}"])
         return list(dict.fromkeys(label for label in labels if label))
 
     def _description(self, request: CreateIssueRequest) -> str:
@@ -331,7 +334,7 @@ class CreateIssueService:
         return (
             f'project = "{_jql_quote(request.project_key)}" '
             f'AND labels = "source_{_safe_label(request.source_system)}" '
-            f'AND labels = "{self._source_id_label(request)}"'
+            f'AND description ~ "{_jql_quote(request.source_id)}"'
         )
 
     def _external_url_jqls(self, *, project_key: str, external_url: str) -> list[str]:

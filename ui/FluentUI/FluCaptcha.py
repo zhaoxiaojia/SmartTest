@@ -38,7 +38,7 @@ class FluCaptcha(QQuickPaintedItem):
         self._ignoreCase: bool = True
         self._code = ""
         fontStype = QFont()
-        fontStype.setPixelSize(28)
+        fontStype.setPixelSize(26)
         fontStype.setBold(True)
         self._font = fontStype
         self.setWidth(180)

@@ -257,8 +257,7 @@ if not engine.rootObjects():
     raise SystemExit(2)
 app.processEvents()
 window = engine.rootObjects()[0]
-available = app.primaryScreen().availableGeometry()
-print(f"ACCOUNT_SIZE={window.width()}x{window.height()} AVAILABLE={available.width()}x{available.height()}")
+print(f"ACCOUNT_SIZE={window.width()}x{window.height()}")
 '''
     result = subprocess.run(
         [sys.executable, "-c", probe],
@@ -272,11 +271,9 @@ print(f"ACCOUNT_SIZE={window.width()}x{window.height()} AVAILABLE={available.wid
 
     assert result.returncode == 0, result.stderr
     marker = next(line for line in result.stdout.splitlines() if line.startswith("ACCOUNT_SIZE="))
-    size, available = marker.removeprefix("ACCOUNT_SIZE=").split(" AVAILABLE=")
-    width, height = (int(value) for value in size.split("x"))
-    available_width, available_height = (int(value) for value in available.split("x"))
-    assert 400 <= width <= available_width
-    assert 320 <= height <= available_height * 0.92 + 1
+    width, height = (int(value) for value in marker.removeprefix("ACCOUNT_SIZE=").split("x"))
+    assert width >= 450
+    assert height >= 550
 
 
 def test_account_height_contract_preserves_standard_navigation_row():

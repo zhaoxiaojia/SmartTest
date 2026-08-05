@@ -61,7 +61,7 @@ FluScrollablePage{
                 id:breadcrumb_2
                 separator:">"
                 spacing:8
-                textSize:18
+                textSize:16
                 Layout.fillWidth: true
                 onClickItem:
                     (model)=>{
@@ -81,7 +81,7 @@ FluScrollablePage{
     width:parent.width
     separator:">"
     spacing:8
-    textSize:18
+    textSize:16
     onClickItem: (model)=>{
 
     }

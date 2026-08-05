@@ -13,6 +13,27 @@ T.ComboBox {
     property color hoverColor: FluTheme.dark ? Qt.rgba(44/255,58/255,66/255,1) : Qt.rgba(236/255,250/255,255/255,1)
     property color disableColor: FluTheme.dark ? Qt.rgba(59/255,59/255,59/255,1) : Qt.rgba(252/255,252/255,252/255,1)
     property alias textBox: text_field
+    property var _lastSelectedValue: undefined
+    property bool _restoringSelection: false
+    function modelValue(index) {
+        if(valueRole) {
+            if(Array.isArray(model)) return model[index] ? model[index][valueRole] : undefined
+            return model.get(index)[valueRole]
+        }
+        return Array.isArray(model) ? model[index] : model.get(index)
+    }
+    function selectValue(value) {
+        if(value === undefined || value === null) return false
+        var target = indexOfValue(value)
+        if(target < 0 && value === "") target = 0
+        if(target < 0) return false
+        _restoringSelection = true
+        currentValue = value
+        currentIndex = target
+        _lastSelectedValue = currentValue
+        _restoringSelection = false
+        return true
+    }
     implicitWidth: Math.max(implicitBackgroundWidth + leftInset + rightInset,
                             implicitContentWidth + leftPadding + rightPadding)
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
@@ -22,6 +43,27 @@ T.ComboBox {
     leftPadding: padding + (!control.mirrored || !indicator || !indicator.visible ? 0 : indicator.width + spacing)
     rightPadding: padding + (control.mirrored || !indicator || !indicator.visible ? 0 : indicator.width + spacing)
     enabled: !disabled
+    onActivated: {
+        if(!_restoringSelection && currentIndex >= 0) {
+            _lastSelectedValue = currentValue
+        }
+    }
+    onModelChanged: Qt.callLater(function() {
+        if(_lastSelectedValue === undefined || !model || currentIndex < 0) return
+        var target = -1
+        for(var i = 0; i < count; ++i) {
+            var candidate = modelValue(i)
+            if(candidate === _lastSelectedValue) {
+                target = i
+                break
+            }
+        }
+        if(target >= 0 && target !== currentIndex) {
+            _restoringSelection = true
+            currentIndex = target
+            _restoringSelection = false
+        }
+    })
     delegate: FluItemDelegate {
         width: ListView.view.width
         text: control.textRole ? (Array.isArray(control.model) ? model[control.textRole] : modelData[control.textRole]) : modelData
@@ -136,7 +178,10 @@ T.ComboBox {
             currentIndex: control.highlightedIndex
             highlightMoveDuration: 0
             boundsMovement: Flickable.StopAtBounds
-            T.ScrollIndicator.vertical: ScrollIndicator { }
+            ScrollBar.vertical: FluScrollBar {
+                interactive: true
+                policy: ScrollBar.AsNeeded
+            }
         }
         enter: Transition {
             NumberAnimation {

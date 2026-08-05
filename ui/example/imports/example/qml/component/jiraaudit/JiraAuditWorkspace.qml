@@ -4,11 +4,9 @@ import QtQuick.Controls.Basic 2.15 as Basic
 import QtQuick.Layouts 1.15
 import FluentUI 1.0
 import "../../state"
-import "../../global"
 
 Item {
     id: root
-    property int responsiveLayout: ResponsiveMetrics.layoutForWidth(width)
     Loader {
         id: auditStateLoader
         active: AuthBridge.authenticated === true
@@ -66,8 +64,6 @@ Item {
     }
 
     Flickable {
-        id: rootFlickable
-        objectName: "jiraAuditScrollOwner"
         anchors.fill: parent
         clip: true
         contentWidth: width
@@ -107,9 +103,8 @@ Item {
                 }
             }
 
-            GridLayout {
+            RowLayout {
                 Layout.fillWidth: true
-                columns: root.responsiveLayout === ResponsiveMetrics.compact ? 1 : 2
 
                 FluFilledButton {
                     text: qsTr("Start Audit")
@@ -181,9 +176,8 @@ Item {
             }
 
             AuditSection {
-                GridLayout {
+                RowLayout {
                     Layout.fillWidth: true
-                    columns: root.responsiveLayout === ResponsiveMetrics.compact ? 1 : 3
                     FluFilledButton {
                         objectName: "confirmAuditButton"
                         text: qsTr("Confirm Audit")

@@ -5,8 +5,6 @@ import FluentUI 1.0
 
 Item {
     id: root
-    readonly property real responsivePanelWidth: dialogPanel.width
-    readonly property real responsivePanelHeight: dialogPanel.height
     property var cloneDrafts: []
     property string batchState: "idle"
     property int loaded: 0
@@ -29,10 +27,9 @@ Item {
 
     Rectangle { anchors.fill: parent; color: FluTheme.dark ? "#CC111111" : "#99000000" }
     FluFrame {
-        id: dialogPanel
         anchors.centerIn: parent
-        width: Math.max(0, parent.width * 0.9)
-        height: Math.max(0, parent.height * 0.9)
+        width: Math.max(0, parent.width - 32)
+        height: Math.max(0, parent.height - 32)
         padding: 0
         ColumnLayout {
             anchors.fill: parent
@@ -55,7 +52,7 @@ Item {
                 ColumnLayout {
                     anchors.centerIn: parent
                     visible: root.batchState === "prepare_failed"
-                    FluText { text: root.batchError; color: "#D13438"; wrapMode: Text.Wrap; Layout.maximumWidth: 640 }
+                    FluText { text: root.batchError; color: "#D13438"; wrapMode: Text.WrapAnywhere; Layout.maximumWidth: 640 }
                 }
                 ScrollView {
                     id: draftScroll
@@ -88,7 +85,26 @@ Item {
                     }
                 }
             }
-            FluText { Layout.fillWidth: true; Layout.leftMargin: 16; Layout.rightMargin: 16; visible: !!root.batchError; text: root.batchError; color: "#D13438"; wrapMode: Text.Wrap }
+            ScrollView {
+                id: batchErrorScroll
+                objectName: "jiraCloneBatchErrorScroll"
+                Layout.fillWidth: true
+                Layout.leftMargin: 16
+                Layout.rightMargin: 16
+                Layout.preferredHeight: Math.min(84, batchErrorText.implicitHeight)
+                visible: !!root.batchError
+                clip: true
+                contentWidth: availableWidth
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                FluText {
+                    id: batchErrorText
+                    objectName: "jiraCloneBatchErrorText"
+                    width: batchErrorScroll.availableWidth
+                    text: root.batchError
+                    color: "#D13438"
+                    wrapMode: Text.WrapAnywhere
+                }
+            }
             Rectangle { Layout.fillWidth: true; height: 1; color: FluTheme.frameColor }
             RowLayout {
                 Layout.fillWidth: true; Layout.margins: 16

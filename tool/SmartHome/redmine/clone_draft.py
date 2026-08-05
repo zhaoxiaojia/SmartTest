@@ -71,7 +71,9 @@ class CloneDraft:
 
     def to_request(self) -> CreateIssueRequest:
         controls = {
-            field.field_id: field.schema.control.value
+            field.field_id: (
+                field.schema.payload_control or field.schema.control
+            ).value
             for field in self.fields
             if field.value not in (None, "", [], {})
         }

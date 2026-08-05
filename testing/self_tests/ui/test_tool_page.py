@@ -650,6 +650,9 @@ def test_tool_navigation_and_page_layout_contract():
     assert "ListView" not in page
     assert "ToolBridge.groups" in page
     assert 'objectName: "toolScheduleArea"' in page
+    assert "property bool scheduleExpanded: false" in page
+    assert 'objectName: "toolScheduleToggle"' in page
+    assert "visible: scheduleExpanded &&" in page
     assert "model: ScheduleBridge.rows" in page
     assert "model: ToolBridge.groups" in page
     assert "ScheduleBridge.openPlan(" in page
@@ -658,9 +661,14 @@ def test_tool_navigation_and_page_layout_contract():
     assert 'self.tr("Common Tools")' in (ROOT / "ui/example/bridge/ToolBridge.py").read_text(encoding="utf-8")
     assert 'qsTr("Custom Tools")' in page
     assert 'text: qsTr("Tools")' not in page
-    assert 'objectName: "toolSidebar"' in page
+    assert "Layout.preferredWidth: 216" in page
     assert "toolGroup: modelData" in page
     assert "headerText: toolGroup.title" in page
+    assert 'objectName: "toolWorkspaceTitle"' in page
+    assert "font.pixelSize: 20" in page
+    assert "selectedTool.description" not in page
+    assert 'objectName: "redmineWorkspaceScroll"' in page
+    assert "ScrollBar.vertical: FluScrollBar" in page
     assert "onToolActivated: (groupId, toolIndex) => selectTool(groupId, toolIndex)" in page
     assert "sourceComponent: tool_group_content" not in page
     assert "Component {\n        id: tool_group_content" not in page
@@ -715,6 +723,7 @@ def item(name):
         if hasattr(current, "childItems"): pending.extend(current.childItems())
 def click(control):
     point=control.mapToScene(QPointF(control.width()/2, control.height()/2)); QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, QPoint(round(point.x()), round(point.y()))); app.processEvents()
+click(item("toolScheduleToggle"))
 click(item("toolScheduleOpenButton_weekly-a"))
 selected=root.property("selectedTool"); selected=selected.toVariant() if hasattr(selected,"toVariant") else selected
 click(item("toolScheduleDisableButton_weekly-a"))
@@ -771,7 +780,7 @@ def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():
     assert 'valueRole: safeCount(root.projectOptions) ? "id" : ""' in browser
     assert "projectFilter.currentValue" in browser
     assert browser.count("id: projectFilter") == 1
-    assert "popup.width: Math.min(root.width * 0.9, Math.max(width, 420))" in browser
+    assert "popup.width: Math.max(width, 640)" in browser
     assert "ToolTip.text: displayText" in browser
     assert "selectedProjectId()" in browser
     assert "signal issueSelected" in browser
@@ -1193,7 +1202,7 @@ def test_confluence_workspace_declares_responsive_candidate_grid_contract():
     assert "id: candidateGrid" in workspace
     assert "candidateColumnCount" in workspace
     assert "candidateVisibleRowCount" in workspace
-    assert "ResponsiveMetrics.columnsForWidth(width, 3)" in workspace
+    assert "width < 800 ? 1 : (width < 1200 ? 2 : 3)" in workspace
     assert "text: modelData.displayName || modelData.name" in workspace
     assert "modelData.projectId + \")\"" not in workspace
     assert "wrapMode: Text.Wrap" in workspace

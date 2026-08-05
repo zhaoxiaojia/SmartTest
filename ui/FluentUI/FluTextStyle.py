@@ -27,35 +27,35 @@ class FluTextStyle(QObject):
             self._family = "微软雅黑"
 
         caption = QFont()
-        caption.setPixelSize(12)
+        caption.setPixelSize(10)
         self._Caption = caption
 
         body = QFont()
-        body.setPixelSize(13)
+        body.setPixelSize(11)
         self._Body = body
 
         bodyStrong = QFont()
-        bodyStrong.setPixelSize(13)
+        bodyStrong.setPixelSize(11)
         bodyStrong.setWeight(QFont.Weight.DemiBold)
         self._BodyStrong = bodyStrong
 
         subtitle = QFont()
-        subtitle.setPixelSize(20)
+        subtitle.setPixelSize(18)
         subtitle.setWeight(QFont.Weight.DemiBold)
         self._Subtitle = subtitle
 
         title = QFont()
-        title.setPixelSize(28)
+        title.setPixelSize(26)
         title.setWeight(QFont.Weight.DemiBold)
         self._Title = title
 
         titleLarge = QFont()
-        titleLarge.setPixelSize(40)
+        titleLarge.setPixelSize(38)
         titleLarge.setWeight(QFont.Weight.DemiBold)
         self._TitleLarge = titleLarge
 
         display = QFont()
-        display.setPixelSize(68)
+        display.setPixelSize(66)
         display.setWeight(QFont.Weight.DemiBold)
         self._Display = display
 

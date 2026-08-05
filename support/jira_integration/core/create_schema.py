@@ -27,6 +27,7 @@ class CreateFieldSchema:
     name: str
     required: bool
     control: CreateFieldControl
+    payload_control: CreateFieldControl | None = None
     options: tuple[CreateFieldOption, ...] = ()
     value: Any = None
     children: tuple["CreateFieldSchema", ...] = ()

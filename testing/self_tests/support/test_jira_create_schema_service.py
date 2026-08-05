@@ -244,6 +244,7 @@ def test_software_release_is_single_select_despite_jira_multiselect_metadata():
     )
 
     assert field.control == CreateFieldControl.SINGLE
+    assert field.payload_control == CreateFieldControl.MULTI
 
 
 def test_compare_status_is_required_single_select_even_when_metadata_is_optional():
@@ -267,6 +268,7 @@ def test_compare_status_is_required_single_select_even_when_metadata_is_optional
 
     assert field.required
     assert field.control == CreateFieldControl.SINGLE
+    assert field.payload_control == CreateFieldControl.MULTI
 
 
 @pytest.mark.parametrize(

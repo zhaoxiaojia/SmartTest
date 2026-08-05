@@ -5,6 +5,7 @@ import FluentUI
 
 T.ScrollBar {
     id: control
+    interactive: true
 
     property color color : FluTheme.dark ? Qt.rgba(159/255,159/255,159/255,1) : Qt.rgba(138/255,138/255,138/255,1)
     property color pressedColor: FluTheme.dark ? Qt.darker(color,1.2) : Qt.lighter(color,1.2)
@@ -19,7 +20,7 @@ T.ScrollBar {
     QtObject{
         id:d
         property int  minLine : 2
-        property int  maxLine : 6
+        property int  maxLine : 8
     }
     z: horizontal? 10 : 20
     verticalPadding : vertical ? 15 : 3

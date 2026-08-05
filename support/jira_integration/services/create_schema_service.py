@@ -90,6 +90,7 @@ def _field_schema(field_id: str, metadata: dict[str, Any]) -> CreateFieldSchema:
     field_name = name.strip().casefold()
     child_required = field_name == "channel of reporter"
     control = _control(field_id, name, metadata)
+    payload_control = _payload_control(field_id, name, metadata, control)
     options = tuple(
         _option(item)
         for item in metadata.get("allowedValues") or ()
@@ -108,6 +109,7 @@ def _field_schema(field_id: str, metadata: dict[str, Any]) -> CreateFieldSchema:
         required=bool(metadata.get("required", False))
         or field_name == "compare status",
         control=control,
+        payload_control=payload_control,
         child_required=child_required,
         options=options,
         value=_default_value(metadata.get("defaultValue"), control, options),
@@ -144,6 +146,20 @@ def _control(
     if metadata.get("allowedValues"):
         return CreateFieldControl.SINGLE
     return CreateFieldControl.TEXT
+
+
+def _payload_control(
+    field_id: str,
+    name: str,
+    metadata: dict[str, Any],
+    control: CreateFieldControl,
+) -> CreateFieldControl:
+    """Keep editor cardinality separate from Jira REST cardinality."""
+    schema = metadata.get("schema") or {}
+    custom = str(schema.get("custom") or "").casefold()
+    if "multiselect" in custom or str(schema.get("type") or "").casefold() == "array":
+        return CreateFieldControl.MULTI
+    return control
 
 
 def _option(metadata: dict[str, Any]) -> CreateFieldOption:

@@ -3,10 +3,8 @@ import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import QtWebEngine 1.10
 import FluentUI 1.0
-import "../global"
 
 FluPage {
-    id: page_root
     title: qsTr("Report")
     launchMode: FluPageType.SingleInstance
 
@@ -14,8 +12,6 @@ FluPage {
     property string selectedRunId: ""
     property url selectedReportUrl: ""
     property bool loading: reportView.loading
-    property int responsiveLayout: ResponsiveMetrics.layoutForWidth(width)
-    readonly property int responsiveOrientation: reportSplit.orientation
     property string statusText: ""
 
     function reportIndex(runId){
@@ -98,14 +94,12 @@ FluPage {
     Component.onCompleted: refreshReports()
 
     FluSplitLayout{
-        id: reportSplit
         anchors.fill: parent
-        orientation: page_root.responsiveLayout === ResponsiveMetrics.compact ? Qt.Vertical : Qt.Horizontal
+        orientation: Qt.Horizontal
 
         FluFrame{
             SplitView.preferredWidth: 330
-            SplitView.minimumWidth: page_root.responsiveLayout === ResponsiveMetrics.compact ? 0 : 280
-            SplitView.minimumHeight: page_root.responsiveLayout === ResponsiveMetrics.compact ? 180 : 0
+            SplitView.minimumWidth: 280
             SplitView.fillHeight: true
             padding: 10
 
@@ -193,8 +187,7 @@ FluPage {
 
         Rectangle{
             SplitView.fillWidth: true
-            SplitView.minimumWidth: page_root.responsiveLayout === ResponsiveMetrics.compact ? 0 : 680
-            SplitView.minimumHeight: page_root.responsiveLayout === ResponsiveMetrics.compact ? 260 : 0
+            SplitView.minimumWidth: 680
             SplitView.fillHeight: true
             color: FluTheme.dark ? "#202020" : "#ffffff"
 

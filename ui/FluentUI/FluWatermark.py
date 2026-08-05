@@ -21,7 +21,7 @@ class FluWatermark(QQuickPaintedItem):
         self._offset: QPoint = QPoint(self._gap.x() / 2, self._gap.y() / 2)
         self._textColor: QColor = QColor(222, 222, 222, 222)
         self._rotate: int = 22
-        self._textSize: int = 16
+        self._textSize: int = 14
         self.textColorChanged.connect(lambda: self.update())
         self.gapChanged.connect(lambda: self.update())
         self.offsetChanged.connect(lambda: self.update())

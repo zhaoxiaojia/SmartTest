@@ -420,6 +420,96 @@ print(len(engine.rootObjects()), len(warnings), warnings)
     assert "1 0 []" in result.stdout
 
 
+def test_jira_batch_error_wraps_long_unbroken_server_responses():
+    batch = BATCH_QML.read_text(encoding="utf-8")
+    card = CARD_QML.read_text(encoding="utf-8")
+    assert 'objectName: "jiraCloneBatchErrorScroll"' in batch
+    assert 'objectName: "jiraCloneBatchErrorText"' in batch
+    assert "wrapMode: Text.WrapAnywhere" in batch
+    assert "ScrollBar.horizontal.policy: ScrollBar.AlwaysOff" in batch
+    assert 'objectName: "jiraCloneDraftErrorText"' in card
+    assert "Layout.fillWidth: true" in card
+    assert "wrapMode: Text.WrapAnywhere" in card
+
+
+def test_issue_filters_use_two_fixed_rows_so_search_stays_visible():
+    browser = BROWSER_QML.read_text(encoding="utf-8")
+    assert "id: primaryFilterRow" in browser
+    assert "id: secondaryFilterRow" in browser
+    assert browser.index("id: projectFilter") < browser.index("id: secondaryFilterRow")
+    assert browser.index("id: subjectFilter") > browser.index("id: secondaryFilterRow")
+
+
+def test_shared_text_styles_are_reduced_by_three_pixels():
+    source = (ROOT / "ui/FluentUI/FluTextStyle.py").read_text(encoding="utf-8")
+    for setter in (
+        "caption.setPixelSize(10)",
+        "body.setPixelSize(11)",
+        "bodyStrong.setPixelSize(11)",
+        "subtitle.setPixelSize(18)",
+        "title.setPixelSize(26)",
+        "titleLarge.setPixelSize(38)",
+        "display.setPixelSize(66)",
+    ):
+        assert setter in source
+
+
+def test_shared_scrollbar_is_mouse_draggable():
+    source = (
+        ROOT / "ui/FluentUI/imports/FluentUI/Controls/FluScrollBar.qml"
+    ).read_text(encoding="utf-8")
+    assert "interactive: true" in source
+    assert "property int  maxLine : 8" in source
+
+    probe = f'''
+import sys
+sys.path.insert(0, r"{ROOT / 'ui'}")
+from PySide6.QtCore import QObject, QPoint, QPointF, Qt
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtTest import QTest
+from FluentUI import FluentUI
+from FluentUI.imports import resource_rc
+app = QGuiApplication([])
+engine = QQmlApplicationEngine()
+FluentUI.registerTypes(engine)
+engine.loadData(b"""import QtQuick 2.15; import QtQuick.Window 2.15; import QtQuick.Controls 2.15; import FluentUI 1.0
+Window {{ visible: true; width: 240; height: 240
+    Flickable {{ id: flick; objectName: "flick"; anchors.fill: parent; contentHeight: 1000
+        ScrollBar.vertical: FluScrollBar {{ objectName: "bar"; policy: ScrollBar.AlwaysOn }}
+    }}
+}}""")
+app.processEvents()
+window = engine.rootObjects()[0]
+bar = window.findChild(QObject, "bar")
+flick = window.findChild(QObject, "flick")
+start = bar.mapToScene(QPointF(bar.width() / 2, 40))
+end = bar.mapToScene(QPointF(bar.width() / 2, 150))
+QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, QPoint(round(start.x()), round(start.y())))
+QTest.mouseMove(window, QPoint(round(end.x()), round(end.y())), 50)
+QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, QPoint(round(end.x()), round(end.y())))
+app.processEvents()
+print(bar.property("interactive"), bar.width(), flick.property("contentY"))
+'''
+    result = subprocess.run(
+        [sys.executable, "-c", probe], cwd=ROOT,
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
+        capture_output=True, text=True, timeout=15,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    interactive, width, content_y = result.stdout.strip().split()
+    assert interactive == "True"
+    assert float(width) >= 8
+    assert float(content_y) > 0
+
+
+def test_combo_popup_uses_the_draggable_shared_scrollbar():
+    source = (ROOT / "ui/FluentUI/imports/FluentUI/Controls/FluComboBox.qml").read_text(encoding="utf-8")
+    assert "ScrollBar.vertical: FluScrollBar" in source
+    assert "interactive: true" in source
+    assert "T.ScrollIndicator.vertical" not in source
+
+
 def test_clone_fixed_text_is_finished_in_both_catalogs():
     contexts = {"JiraCreateField", "JiraCreateDraftCard", "JiraCreateBatchDialog"}
     warning_sources = BRIDGE_ATTACHMENT_WARNING_SOURCES | {

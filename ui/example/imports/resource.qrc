@@ -18,8 +18,6 @@
         <file>example/qml/component/jiraaudit/JiraAuditWorkspace.qml</file>
         <file>example/qml/component/redmine/RedmineLoginView.qml</file>
         <file>example/qml/component/redmine/RedmineWorkspace.qml</file>
-        <file>example/qml/component/redmine/RedmineDensity.qml</file>
-        <file>example/qml/component/redmine/qmldir</file>
         <file>example/qml/component/issue/JiraIssueBrowserLayout.qml</file>
         <file>example/qml/component/issue/JiraCreateField.qml</file>
         <file>example/qml/component/issue/JiraOptionMultiPicker.qml</file>
@@ -36,9 +34,6 @@
         <file>example/qml/component/issue/IssueAttachmentCard.qml</file>
         <file>example/qml/global/ItemsFooter.qml</file>
         <file>example/qml/global/ItemsOriginal.qml</file>
-        <file>example/qml/global/ResponsiveMetrics.qml</file>
-        <file>example/qml/global/AdaptiveWindow.qml</file>
-        <file>example/qml/global/AdaptiveSizing.js</file>
         <file>example/qml/global/qmldir</file>
         <file>example/qml/page/T_Acrylic.qml</file>
         <file>example/qml/page/T_Badge.qml</file>

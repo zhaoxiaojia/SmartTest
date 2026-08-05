@@ -2,7 +2,6 @@ import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import FluentUI 1.0
-import "../../global"
 
 Item {
     id: root
@@ -32,11 +31,6 @@ Item {
     property bool cloneSelectionMode: false
     property bool cloneSelectable: false
     property var cloneSelectedIds: []
-    property real densityScale: 1.0
-    property bool filterDraftDirty: false
-    property var pendingSubmittedFilters: null
-    property bool filterStateInitialized: false
-    readonly property int responsiveOrientation: issueSplit.orientation
 
     signal searchRequested(var filters)
     signal quickViewRequested(string quickViewId)
@@ -55,10 +49,6 @@ Item {
 
     function safeCount(value) {
         return value && value.length !== undefined ? value.length : 0
-    }
-
-    function metric(value, minimum) {
-        return Math.max(minimum || 0, Math.round(value * densityScale))
     }
 
     function partyLabel(row) {
@@ -137,69 +127,18 @@ Item {
         return -1
     }
 
-    function modelIndexById(model, value) {
-        for(var i = 0; i < safeCount(model); ++i) {
-            if((model[i].id || "") === value) return i
-        }
-        return -1
-    }
 
     function selectedProjectId() {
         if(safeCount(root.projectOptions)) return projectFilter.currentValue || ""
         return projectFilter.currentText === qsTr("All projects") ? "" : projectFilter.currentText
     }
 
-    function currentFilterState() {
-        return {
-            "project": root.selectedProjectId(),
-            "status": statusFilter.currentText,
-            "type": typeFilter.currentText,
-            "subject": subjectFilter.text,
-            "text": textFilter.text
-        }
-    }
-
-    function sameFilterState(left, right) {
-        var a = left || {}
-        var b = right || {}
-        return (a.project || "") === (b.project || "")
-            && (a.status || qsTr("All statuses")) === (b.status || qsTr("All statuses"))
-            && (a.type || qsTr("All types")) === (b.type || qsTr("All types"))
-            && (a.subject || "") === (b.subject || "")
-            && (a.text || "") === (b.text || "")
-    }
-
-    function currentSelectionsAreValid() {
-        var projectValid = safeCount(root.projectOptions)
-            ? modelIndexById(projectFilter.model, root.selectedProjectId()) >= 0
-            : modelIndexOf(projectFilter.model, projectFilter.currentText) >= 0
-        return projectValid
-            && modelIndexOf(statusFilter.model, statusFilter.currentText) >= 0
-            && modelIndexOf(typeFilter.model, typeFilter.currentText) >= 0
-    }
-
-    function submitCurrentFilters() {
-        var submitted = currentFilterState()
-        root.pendingSubmittedFilters = submitted
-        root.filterDraftDirty = false
-        root.searchRequested(submitted)
-    }
-
-    function applyFilterState(force) {
-        var externalFilters = root.filters || {}
-        if(root.pendingSubmittedFilters && sameFilterState(externalFilters, root.pendingSubmittedFilters)) {
-            root.pendingSubmittedFilters = null
-        }
-        var preserveDraft = !force
-            && root.filterStateInitialized
-            && (root.filterDraftDirty || root.pendingSubmittedFilters !== null)
-            && currentSelectionsAreValid()
-        if(preserveDraft) return
+    function applyFilterState() {
         var wantedProject = root.filters.project || ""
         var statusIndex = modelIndexOf(statusFilter.model, root.filters.status || qsTr("All statuses"))
         var typeIndex = modelIndexOf(typeFilter.model, root.filters.type || qsTr("All types"))
         if(safeCount(root.projectOptions)) {
-            projectFilter.currentIndex = Math.max(0, modelIndexById(projectFilter.model, wantedProject))
+            projectFilter.selectValue(wantedProject)
         } else {
             projectFilter.currentIndex = Math.max(0, modelIndexOf(projectFilter.model, wantedProject || qsTr("All projects")))
         }
@@ -207,77 +146,69 @@ Item {
         typeFilter.currentIndex = Math.max(0, typeIndex)
         textFilter.text = root.filters.text || ""
         subjectFilter.text = root.filters.subject || ""
-        root.filterStateInitialized = true
-        root.filterDraftDirty = false
     }
 
-    onFiltersChanged: Qt.callLater(function() { applyFilterState(false) })
-    onProjectFiltersChanged: Qt.callLater(function() { applyFilterState(false) })
-    onProjectOptionsChanged: Qt.callLater(function() { applyFilterState(false) })
-    onStatusFiltersChanged: Qt.callLater(function() { applyFilterState(false) })
-    onTypeFiltersChanged: Qt.callLater(function() { applyFilterState(false) })
-    onActiveQuickViewIdChanged: Qt.callLater(function() {
-        if(root.activeQuickViewId.length === 0 && root.pendingSubmittedFilters !== null) return
-        root.pendingSubmittedFilters = null
-        applyFilterState(true)
-    })
-    Component.onCompleted: Qt.callLater(function() { applyFilterState(true) })
+    onFiltersChanged: Qt.callLater(applyFilterState)
+    onProjectFiltersChanged: Qt.callLater(applyFilterState)
+    onProjectOptionsChanged: Qt.callLater(applyFilterState)
+    onStatusFiltersChanged: Qt.callLater(applyFilterState)
+    onTypeFiltersChanged: Qt.callLater(applyFilterState)
+    Component.onCompleted: Qt.callLater(applyFilterState)
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: root.metric(10, 6)
+        spacing: 10
 
         FluFrame {
-            objectName: "issueFilterFrame"
             Layout.fillWidth: true
-            padding: root.metric(12, 8)
+            padding: 12
             ColumnLayout {
                 anchors.fill: parent
-                spacing: root.metric(8, 5)
-                GridLayout {
+                spacing: 8
+                RowLayout {
                     Layout.fillWidth: true
-                    columns: ResponsiveMetrics.isCompact(root.width) ? 1 : (ResponsiveMetrics.isMedium(root.width) ? 3 : 5)
                     visible: safeCount(root.quickViews) > 0
                     FluText { text: qsTr("Quick views"); font: FluTextStyle.Caption }
                     Repeater {
                         model: root.quickViews
-                        FluButton {
-                            objectName: "issueQuickViewButton_" + index
-                            text: modelData.label || modelData.name || ""
-                            onClicked: root.quickViewRequested(modelData.id || "")
-                        }
+                        FluButton { text: modelData.label || modelData.name || ""; onClicked: root.quickViewRequested(modelData.id || "") }
                     }
                 }
-                GridLayout {
+                RowLayout {
+                    id: primaryFilterRow
                     Layout.fillWidth: true
-                    columns: ResponsiveMetrics.isCompact(root.width) ? 1 : (ResponsiveMetrics.isMedium(root.width) ? 3 : 6)
                     FluComboBox { /* persistence-opt-out: transient */
                         id: projectFilter
-                        objectName: "issueProjectFilter"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: root.metric(36, 28)
-                        Layout.preferredWidth: ResponsiveMetrics.isWide(root.width) ? 420 : 240
-                        Layout.minimumWidth: 0
+                        Layout.minimumWidth: 240
                         textRole: safeCount(root.projectOptions) ? "label" : ""
                         valueRole: safeCount(root.projectOptions) ? "id" : ""
                         model: safeCount(root.projectOptions) ? root.projectOptions : (safeCount(root.projectFilters) ? root.projectFilters : [qsTr("All projects")])
-                        popup.width: Math.min(root.width * 0.9, Math.max(width, 420))
+                        popup.width: Math.max(width, 640)
                         ToolTip.visible: hovered
                         ToolTip.text: displayText
-                        onActivated: root.filterDraftDirty = true
                     }
-                    FluComboBox { /* persistence-opt-out: transient */ id: statusFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: 140; Layout.preferredHeight: root.metric(36, 28); model: safeCount(root.statusFilters) ? root.statusFilters : [qsTr("All statuses")]; onActivated: root.filterDraftDirty = true }
-                    FluComboBox { /* persistence-opt-out: transient */ id: typeFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: 130; Layout.preferredHeight: root.metric(36, 28); model: safeCount(root.typeFilters) ? root.typeFilters : [qsTr("All types")]; onActivated: root.filterDraftDirty = true }
-                    FluTextBox { /* persistence-opt-out: transient */ id: subjectFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: 180; Layout.preferredHeight: root.metric(36, 28); placeholderText: qsTr("Subject"); onTextEdited: root.filterDraftDirty = true }
-                    FluTextBox { /* persistence-opt-out: transient */ id: textFilter; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredHeight: root.metric(36, 28); placeholderText: qsTr("Contains text"); onTextEdited: root.filterDraftDirty = true }
+                    FluComboBox { /* persistence-opt-out: transient */ id: statusFilter; Layout.preferredWidth: 180; model: safeCount(root.statusFilters) ? root.statusFilters : [qsTr("All statuses")] }
+                    FluComboBox { /* persistence-opt-out: transient */ id: typeFilter; Layout.preferredWidth: 180; model: safeCount(root.typeFilters) ? root.typeFilters : [qsTr("All types")] }
+                }
+                RowLayout {
+                    id: secondaryFilterRow
+                    Layout.fillWidth: true
+                    FluTextBox { /* persistence-opt-out: transient */ id: subjectFilter; Layout.preferredWidth: 320; Layout.minimumWidth: 180; placeholderText: qsTr("Subject") }
+                    FluTextBox { /* persistence-opt-out: transient */ id: textFilter; Layout.fillWidth: true; placeholderText: qsTr("Contains text") }
                     FluFilledButton {
-                        objectName: "issueSearchButton"
-                        Layout.fillWidth: true
-                        Layout.minimumWidth: 0
-                        Layout.preferredHeight: root.metric(36, 28)
                         text: qsTr("Search")
                         disabled: root.searchLoading || root.projectsLoading || !root.projectsReady
-                        onClicked: root.submitCurrentFilters()
+                        onClicked: {
+                            var submitted = {
+                                "project": root.selectedProjectId(),
+                                "status": statusFilter.currentText,
+                                "type": typeFilter.currentText,
+                                "subject": subjectFilter.text,
+                                "text": textFilter.text
+                            }
+                            root.searchRequested(submitted)
+                        }
                     }
                 }
                 RowLayout {
@@ -310,10 +241,9 @@ Item {
         }
 
         SplitView {
-            id: issueSplit
             Layout.fillWidth: true
             Layout.fillHeight: true
-            orientation: ResponsiveMetrics.isCompact(root.width) ? Qt.Vertical : Qt.Horizontal
+            orientation: Qt.Horizontal
 
             FluFrame {
                 visible: !root.issueListCollapsed
@@ -325,7 +255,7 @@ Item {
                     spacing: 0
                     RowLayout {
                         Layout.fillWidth: true
-                        Layout.margins: root.metric(12, 8)
+                        Layout.margins: 12
                         FluText { text: qsTr("Issues"); font: FluTextStyle.Subtitle }
                         Item { Layout.fillWidth: true }
                         FluButton {
@@ -337,7 +267,7 @@ Item {
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        Layout.leftMargin: root.metric(12, 8); Layout.rightMargin: root.metric(12, 8); Layout.bottomMargin: root.metric(8, 5)
+                        Layout.leftMargin: 12; Layout.rightMargin: 12; Layout.bottomMargin: 8
                         visible: root.cloneSelectionMode
                         FluText { text: qsTr("%1 selected").arg(root.safeCount(root.cloneSelectedIds)) }
                         Item { Layout.fillWidth: true }
@@ -345,7 +275,7 @@ Item {
                         FluFilledButton { text: qsTr("Prepare drafts"); disabled: root.safeCount(root.cloneSelectedIds) === 0; onClicked: root.cloneSelectionConfirmed() }
                     }
                     FluButton {
-                        Layout.leftMargin: root.metric(12, 8); Layout.bottomMargin: root.metric(8, 5)
+                        Layout.leftMargin: 12; Layout.bottomMargin: 8
                         visible: root.cloneSelectable && !root.cloneSelectionMode
                         text: qsTr("Clone to Jira")
                         onClicked: root.cloneSelectionRequested()
@@ -406,11 +336,11 @@ Item {
                         model: root.issues || []
                         delegate: ItemDelegate {
                             width: ListView.view.width
-                            height: root.metric(76, 54)
+                            height: 76
                             highlighted: (root.selectedIssue.id || root.selectedIssue.key || "") === (modelData.id || modelData.key || "")
                             onClicked: root.issueSelected(modelData)
                             contentItem: RowLayout {
-                                spacing: root.metric(8, 5)
+                                spacing: 8
                                 property bool cloneSelectable: modelData.cloneStatus !== "cloned" && !modelData.clonedIssueKey
                                 FluCheckBox { /* persistence-opt-out: transient */
                                     visible: root.cloneSelectionMode
@@ -420,9 +350,9 @@ Item {
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: root.metric(4, 3)
+                                    spacing: 4
                                     RowLayout {
-                                    Layout.fillWidth: true; spacing: root.metric(8, 5)
+                                    Layout.fillWidth: true; spacing: 8
                                     FluButton {
                                         objectName: "ordinaryIssueLink"
                                         text: modelData.key || modelData.id || ""
@@ -450,7 +380,7 @@ Item {
                                     }
                                 }
                                     RowLayout {
-                                        Layout.fillWidth: true; spacing: root.metric(8, 5)
+                                        Layout.fillWidth: true; spacing: 8
                                         FluText { Layout.fillWidth: true; text: modelData.title || ""; elide: Text.ElideRight; color: FluTheme.fontPrimaryColor }
                                         FluText {
                                             visible: !!modelData.clonedIssueKey || modelData.cloneStatus === "not_cloned"
@@ -473,7 +403,6 @@ Item {
                 padding: 0
                 JiraIssueDetailLayout {
                     anchors.fill: parent
-                    densityScale: root.densityScale
                     issue: root.selectedIssue
                     comments: root.selectedIssue.comments || []
                     attachments: root.selectedIssue.attachments || []

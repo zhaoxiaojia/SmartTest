@@ -2,7 +2,6 @@ import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import FluentUI 1.0
-import "../../global"
 
 Flickable {
     id: root
@@ -16,7 +15,6 @@ Flickable {
     property bool attachmentUploading: false
     property string commentError: ""
     property string attachmentError: ""
-    property real densityScale: 1.0
     property string positionText: ""
     property bool canGoPrevious: false
     property bool canGoNext: false
@@ -33,13 +31,12 @@ Flickable {
     signal attachmentOpenRequested(string issueKey, var attachment)
 
     contentWidth: width
-    contentHeight: content.implicitHeight + metric(32, 22)
+    contentHeight: content.implicitHeight + 32
     clip: true
     boundsBehavior: Flickable.StopAtBounds
     ScrollBar.vertical: FluScrollBar {}
 
     function selectAttachmentFiles(fileUrls) { attachmentsView.selectFiles(fileUrls) }
-    function metric(value, minimum) { return Math.max(minimum || 0, Math.round(value * densityScale)) }
     function stageDroppedFiles(fileUrls) { if (attachmentUploading) return; pendingDropUrls = attachmentsView.localFiles(fileUrls); if (pendingDropUrls.length > 0) uploadDialog.open() }
     function confirmDroppedFiles() { if (!attachmentUploading && pendingDropUrls.length > 0) attachmentUploadConfirmed(issue.key || "", pendingDropUrls); pendingDropUrls = [] }
     function cancelDroppedFiles() { pendingDropUrls = []; uploadDialog.close() }
@@ -49,18 +46,18 @@ Flickable {
 
     ColumnLayout {
         id: content
-        width: root.width - root.metric(40, 28)
-        x: root.metric(20, 14)
-        y: root.metric(16, 11)
-        spacing: root.metric(18, 12)
+        width: root.width - 40
+        x: 20
+        y: 16
+        spacing: 18
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: root.metric(8, 5)
+            spacing: 8
 
             Item {
-                Layout.preferredWidth: root.metric(42, 32)
-                Layout.preferredHeight: root.metric(42, 32)
+                Layout.preferredWidth: 42
+                Layout.preferredHeight: 42
                 Layout.alignment: Qt.AlignTop
                 Image { anchors.fill: parent; visible: !!root.issue.typeIcon; source: root.issue.typeIcon || ""; fillMode: Image.PreserveAspectFit }
                 Rectangle { anchors.fill: parent; visible: !root.issue.typeIcon; radius: 4; color: FluTheme.dark ? "#1F2A44" : "#172B4D" }
@@ -69,16 +66,16 @@ Flickable {
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: root.metric(4, 3)
+                spacing: 4
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: root.metric(6, 4)
+                    spacing: 6
 
                     Repeater {
                         model: (root.issue.projectPath && root.issue.projectPath.length) ? root.issue.projectPath : (root.issue.projectName ? [{"label": root.issue.projectName, "url": root.issue.projectUrl || ""}] : [])
                         RowLayout {
-                            spacing: root.metric(6, 4)
+                            spacing: 6
                             FluText { visible: index > 0; text: "/"; color: FluTheme.fontSecondaryColor }
                             FluText {
                                 text: modelData.label || modelData.value || ""
@@ -128,18 +125,15 @@ Flickable {
             }
         }
 
-        GridLayout {
+        RowLayout {
             Layout.fillWidth: true
-            columnSpacing: root.metric(24, 17)
-            rowSpacing: root.metric(18, 12)
+            spacing: 24
             Layout.alignment: Qt.AlignTop
-            columns: ResponsiveMetrics.isCompact(root.width) ? 1 : 2
             ColumnLayout {
-                Layout.fillWidth: true
-                Layout.preferredWidth: ResponsiveMetrics.isCompact(root.width) ? content.width : (content.width - root.metric(24, 17)) * 0.68
+                Layout.preferredWidth: (content.width - 24) * 0.68
                 Layout.maximumWidth: Layout.preferredWidth
                 Layout.alignment: Qt.AlignTop
-                spacing: root.metric(18, 12)
+                spacing: 18
 
                 JiraIssueSection {
                     Layout.fillWidth: true
@@ -166,11 +160,10 @@ Flickable {
                 }
             }
             ColumnLayout {
-                Layout.fillWidth: true
-                Layout.preferredWidth: ResponsiveMetrics.isCompact(root.width) ? content.width : (content.width - root.metric(24, 17)) * 0.32
+                Layout.preferredWidth: (content.width - 24) * 0.32
                 Layout.maximumWidth: Layout.preferredWidth
                 Layout.alignment: Qt.AlignTop
-                spacing: root.metric(18, 12)
+                spacing: 18
 
                 JiraIssueSection {
                     Layout.fillWidth: true

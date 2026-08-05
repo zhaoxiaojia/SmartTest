@@ -37,7 +37,7 @@ FluObject{
                     FluText {
                         anchors.centerIn: parent
                         text: AuthBridge.initials
-                        font.pixelSize: 12
+                        font.pixelSize: 10
                         font.bold: true
                         color: FluTheme.dark ? "#FFFFFF" : "#1E3A5F"
                     }
@@ -87,7 +87,7 @@ FluObject{
                 horizontalAlignment: Text.AlignHCenter
                 text: AuthBridge.displayName || AuthBridge.username
                 elide: Text.ElideRight
-                font.pixelSize: 9
+                font.pixelSize: 7
                 color: FluTheme.fontSecondaryColor
             }
         }

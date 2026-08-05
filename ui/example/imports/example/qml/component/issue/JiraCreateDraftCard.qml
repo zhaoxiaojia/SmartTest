@@ -39,7 +39,14 @@ FluFrame {
                 onUserSearchRequested: (issueId, fieldId, query) => root.userSearchRequested(issueId, fieldId, query)
             }
         }
-        FluText { visible: !!root.draft.error; text: root.draft.error || ""; color: "#D13438"; wrapMode: Text.Wrap }
+        FluText {
+            objectName: "jiraCloneDraftErrorText"
+            Layout.fillWidth: true
+            visible: !!root.draft.error
+            text: root.draft.error || ""
+            color: "#D13438"
+            wrapMode: Text.WrapAnywhere
+        }
         Repeater {
             model: root.draft.attachmentWarnings || []
             FluText {

@@ -291,3 +291,19 @@ def test_channel_requires_real_child_and_serializes_parent_with_child():
         "id": "13251",
         "child": {"id": "reason1"},
     }
+
+
+def test_multiselect_editor_single_choice_is_serialized_as_jira_array():
+    schema = tuple(
+        replace(
+            item,
+            control=CreateFieldControl.SINGLE,
+            payload_control=CreateFieldControl.MULTI,
+            value="release-1",
+        ) if item.name == "Software Release" else item
+        for item in SCHEMA
+    )
+    draft = build(schema=schema)
+    client = PayloadClient()
+    CreateIssueService(client).create_issue(draft.to_request())
+    assert client.payload["fields"]["customfield_10300"] == [{"id": "release-1"}]

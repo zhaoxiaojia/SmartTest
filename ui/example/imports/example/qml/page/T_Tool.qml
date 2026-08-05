@@ -1,28 +1,23 @@
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
+import QtQuick.Controls 2.15
 import FluentUI 1.0
 import "../component"
 import "../component/redmine"
 import "../component/jiraaudit"
 import "../component/confluenceaudit"
 import "../component/dailyreport"
-import "../global"
 
 FluPage {
-    id: page
     title: qsTr("Tool")
     launchMode: FluPageType.SingleInstance
 
     property int selectedGroupIndex: 0
     property int selectedToolIndex: 0
+    property bool scheduleExpanded: false
     property var selectedGroup: ToolBridge.groups.length > selectedGroupIndex ? ToolBridge.groups[selectedGroupIndex] : ({})
     property var selectedTool: selectedGroup.tools && selectedGroup.tools.length > selectedToolIndex ? selectedGroup.tools[selectedToolIndex] : ({})
     property string autoStartedToolId: ""
-    readonly property real activeDensity: selectedTool.id === "redmine" ? RedmineDensity.scale : 1.0
-
-    function metric(value, minimum) {
-        return Math.max(minimum || 0, Math.round(value * activeDensity))
-    }
 
     function ensureSelectedToolAvailable() {
         if (!selectedGroup.available) {
@@ -85,33 +80,39 @@ FluPage {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.leftMargin: page.metric(20, 12)
-        anchors.rightMargin: page.metric(20, 12)
-        anchors.topMargin: 0
-        anchors.bottomMargin: page.metric(20, 12)
-        spacing: page.metric(12, 8)
+        anchors.margins: 20
+        spacing: 12
 
         FluFrame {
             objectName: "toolScheduleArea"
             Layout.fillWidth: true
-            Layout.preferredHeight: page.metric(118, 72)
-            padding: page.metric(10, 7)
+            Layout.preferredHeight: scheduleExpanded ? 118 : 46
+            padding: 10
 
             ColumnLayout {
                 anchors.fill: parent
-                spacing: page.metric(8, 5)
+                spacing: 8
 
-                FluText { text: qsTr("Schedule"); font: FluTextStyle.Subtitle }
+                RowLayout {
+                    Layout.fillWidth: true
+                    FluText { text: qsTr("Schedule"); font: FluTextStyle.Subtitle }
+                    Item { Layout.fillWidth: true }
+                    FluIconButton {
+                        objectName: "toolScheduleToggle"
+                        iconSource: scheduleExpanded ? FluentIcons.ChevronUp : FluentIcons.ChevronDown
+                        onClicked: scheduleExpanded = !scheduleExpanded
+                    }
+                }
                 FluText {
                     objectName: "toolScheduleEmptyState"
-                    visible: ScheduleBridge.rows.length === 0
+                    visible: scheduleExpanded && ScheduleBridge.rows.length === 0
                     text: qsTr("No SmartTest Windows schedules are currently enabled.")
                     color: FluTheme.fontSecondaryColor
                 }
                 Flickable {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    visible: ScheduleBridge.rows.length > 0
+                    visible: scheduleExpanded && ScheduleBridge.rows.length > 0
                     clip: true
                     contentWidth: scheduleRow.implicitWidth
                     contentHeight: height
@@ -160,19 +161,13 @@ FluPage {
             }
         }
 
-        GridLayout {
+        RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            columns: ResponsiveMetrics.isCompact(page.width) ? 1 : 3
-            columnSpacing: 0
-            rowSpacing: 0
+            spacing: 0
 
         Rectangle {
-            objectName: "toolSidebar"
-            // Keep expander titles clear of their fixed right-side chevrons.
-            Layout.preferredWidth: page.metric(216, 180)
-            Layout.fillWidth: ResponsiveMetrics.isCompact(page.width)
-            Layout.preferredHeight: ResponsiveMetrics.isCompact(page.width) ? 190 : -1
+            Layout.preferredWidth: 216
             Layout.fillHeight: true
             color: FluTheme.dark ? "#202020" : "#f7f7f7"
             border.color: FluTheme.frameColor
@@ -180,8 +175,8 @@ FluPage {
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: page.metric(12, 8)
-                spacing: page.metric(8, 5)
+                anchors.margins: 12
+                spacing: 8
 
                 Repeater {
                     model: ToolBridge.groups
@@ -218,29 +213,23 @@ FluPage {
         }
 
         Item {
-            Layout.preferredWidth: page.metric(20, 12)
-            Layout.preferredHeight: ResponsiveMetrics.isCompact(page.width) ? 12 : 0
+            Layout.preferredWidth: 20
         }
 
         FluFrame {
-            objectName: "toolWorkspaceFrame"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            padding: page.metric(12, 8)
+            padding: 12
 
             ColumnLayout {
                 anchors.fill: parent
-                spacing: page.metric(8, 5)
+                spacing: 8
 
                 FluText {
+                    objectName: "toolWorkspaceTitle"
                     text: selectedTool.title || selectedGroup.title || qsTr("Select a tool")
-                    font: FluTextStyle.Title
-                }
-                FluText {
-                    Layout.fillWidth: true
-                    text: selectedTool.description || qsTr("Tools for this group will appear here.")
-                    color: FluTheme.fontSecondaryColor
-                    wrapMode: Text.WordWrap
+                    font.pixelSize: 20
+                    font.weight: Font.DemiBold
                 }
                 Rectangle {
                     Layout.fillWidth: true
@@ -286,13 +275,24 @@ FluPage {
                         onCancelRequested: RedmineBridge.cancelLogin()
                     }
                 }
-                Loader {
-                    id: redmineWorkspace
+                Flickable {
+                    id: redmineWorkspaceScroll
+                    objectName: "redmineWorkspaceScroll"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    active: selectedTool.id === "redmine" && RedmineBridge.state === "authenticated"
-                    visible: active
-                    sourceComponent: RedmineWorkspace {
+                    visible: selectedTool.id === "redmine" && RedmineBridge.state === "authenticated"
+                    clip: true
+                    contentWidth: width
+                    contentHeight: Math.max(height, 840)
+                    boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: FluScrollBar { interactive: true }
+
+                    Loader {
+                        id: redmineWorkspace
+                        width: redmineWorkspaceScroll.width
+                        height: redmineWorkspaceScroll.contentHeight
+                        active: redmineWorkspaceScroll.visible
+                        sourceComponent: RedmineWorkspace {
                         issues: RedmineBridge.issueRows
                         actionableIssues: RedmineBridge.actionableIssues
                         selectedIssue: RedmineBridge.selectedIssue
@@ -316,6 +316,7 @@ FluPage {
                         onIssueSelected: issue => RedmineBridge.selectIssue(issue.id || issue.key || "")
                         onOpenIssueRequested: (key, url) => RedmineBridge.openWebUrl(url)
                         onExternalLinkRequested: url => RedmineBridge.openWebUrl(url)
+                        }
                     }
                 }
                 FluText {

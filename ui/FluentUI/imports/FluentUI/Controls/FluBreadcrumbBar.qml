@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import FluentUI
 
 Item {
-    property int textSize: 15
+    property int textSize: 13
     property string separator: "/"
     property var items: []
     property int spacing: 5

@@ -15,7 +15,6 @@ FluScrollablePage{
     launchMode: FluPageType.SingleInstance
 
     property var aiSettingsState: AISettingsBridge.state()
-    property int responsiveLayout: ResponsiveMetrics.layoutForWidth(width)
 
     function refreshAiSettingsState(){
         aiSettingsState = AISettingsBridge.state()
@@ -47,7 +46,7 @@ FluScrollablePage{
 
     FluFrame{
         Layout.fillWidth: true
-        Layout.topMargin: 0
+        Layout.topMargin: 20
         Layout.preferredHeight: 60
         padding: 10
         Row{
@@ -103,9 +102,8 @@ FluScrollablePage{
                       ? qsTr("Configured") : qsTr("Not configured")
                 color: FluTheme.fontSecondaryColor
             }
-            GridLayout{
+            RowLayout{
                 Layout.fillWidth: true
-                columns: page_root.responsiveLayout === ResponsiveMetrics.compact ? 1 : 3
                 FluPasswordBox{ /* persistence-opt-out: sensitive */
                     id: aiApiKeyInput
                     Layout.fillWidth: true

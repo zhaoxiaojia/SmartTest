@@ -2,11 +2,9 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import FluentUI 1.0
-import "../../global"
 
 Item {
     id: root
-    property int responsiveLayout: ResponsiveMetrics.layoutForWidth(width)
     readonly property var view: ConfluenceAuditBridge.viewState
 
     Component.onCompleted: {
@@ -91,7 +89,7 @@ Item {
                     Layout.fillWidth: true
                     rowSpacing: 8
                     columnSpacing: 8
-                    columns: root.responsiveLayout === ResponsiveMetrics.compact ? 1 : (root.responsiveLayout === ResponsiveMetrics.medium ? 2 : 4)
+                    columns: width < 800 ? 1 : 4
 
                     ColumnLayout {
                         objectName: "confluenceAuditYearFilter"
@@ -247,7 +245,7 @@ Item {
                     id: candidateList
                     objectName: "confluenceAuditProjectChecklist"
                     Layout.fillWidth: true
-                    readonly property int candidateColumnCount: ResponsiveMetrics.columnsForWidth(width, 3)
+                    readonly property int candidateColumnCount: width < 800 ? 1 : (width < 1200 ? 2 : 3)
                     readonly property int candidateTotalRowCount: Math.ceil(
                         (root.view.candidateProjects || []).length
                         / candidateColumnCount)
@@ -326,9 +324,8 @@ Item {
             }
         }
 
-        GridLayout {
+        RowLayout {
             Layout.fillWidth: true
-            columns: root.responsiveLayout === ResponsiveMetrics.compact ? 1 : 3
             FluFilledButton {
                 objectName: "startConfluenceAuditButton"
                 text: qsTr("Audit All Projects Now")
