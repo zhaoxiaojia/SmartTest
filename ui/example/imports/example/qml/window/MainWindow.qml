@@ -13,7 +13,13 @@ import "../global"
     FluWindow {
 
     id:window
-    title: "SmartTest"
+    readonly property string applicationDisplayTitle: {
+        var pageTitle = nav_view.currentPageTitle || ""
+        return pageTitle === "" || pageTitle === qsTr("Home")
+                ? "SmartTest"
+                : "SmartTest." + pageTitle
+    }
+    title: applicationDisplayTitle
     width: 1000
     height: 668
     minimumWidth: 668
@@ -318,6 +324,7 @@ import "../global"
             FluNavigationView{
                 property int clickCount: 0
                 id:nav_view
+                objectName: "mainNavigationView"
                 width: parent.width
                 height: parent.height
                 z:999
@@ -336,7 +343,8 @@ import "../global"
                 }
                 displayMode: GlobalModel.displayMode
                 logo: "qrc:/example/res/image/app_icon.png"
-                title:"SmartTest"
+                showPageTitleHeaders: false
+                title: window.applicationDisplayTitle
                 onCollapseRequested: (collapsed)=>{
                     GlobalModel.displayMode = collapsed ? FluNavigationViewType.Compact : FluNavigationViewType.Open
                     windowState.navigationExpanded = !collapsed

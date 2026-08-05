@@ -13,7 +13,7 @@ def _run_probe(body: str) -> subprocess.CompletedProcess[str]:
     probe = f'''
 import sys
 sys.path.insert(0, r"{ROOT / 'ui'}")
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtTest import QTest
@@ -106,3 +106,100 @@ print(navigation.property("currentPageTitle"), page.property("title"), page.prop
 
     assert result.returncode == 0, result.stderr + result.stdout
     assert "Test Buttons False 0 0 []" in result.stdout
+
+
+def test_main_window_moves_primary_page_identity_into_application_title():
+    result = _run_probe(
+        f'''
+import os
+import tempfile
+from PySide6.QtCore import QUrl
+from PySide6.QtQml import QQmlExpression
+sys.path.insert(0, r"{ROOT}")
+os.environ["SMARTTEST_LOG_DIR"] = tempfile.mkdtemp(prefix="smarttest-title-")
+from example.context_registry import register_context_objects
+from example.component.Callback import Callback
+from example.component.CircularReveal import CircularReveal
+from example.component.FileWatcher import FileWatcher
+from example.component.OpenGLItem import OpenGLItem
+from PySide6.QtQml import qmlRegisterType
+qmlRegisterType(Callback, "example", 1, 0, "Callback")
+qmlRegisterType(CircularReveal, "example", 1, 0, "CircularReveal")
+qmlRegisterType(FileWatcher, "example", 1, 0, "FileWatcher")
+qmlRegisterType(OpenGLItem, "example", 1, 0, "OpenGLItem")
+class Auth(QObject):
+    changed = Signal()
+    authenticated = Property(bool, lambda self: True, notify=changed)
+    username = Property(str, lambda self: "tester", notify=changed)
+    displayName = Property(str, lambda self: "Tester", notify=changed)
+    initials = Property(str, lambda self: "T", notify=changed)
+    roleText = Property(str, lambda self: "", notify=changed)
+    avatarUrl = Property(str, lambda self: "", notify=changed)
+class Home(QObject):
+    changed = Signal()
+    wallpaperUrl = Property(str, lambda self: "", notify=changed)
+    wallpaperCopyright = Property(str, lambda self: "", notify=changed)
+    @Slot()
+    def refreshWallpaper(self): pass
+class Run(QObject):
+    runFinished = Signal("QVariant")
+class AppInfoStub(QObject):
+    changed = Signal()
+    version = Property(str, lambda self: "1.0.0", notify=changed)
+    updateDownloadUrl = Property(str, lambda self: "", notify=changed)
+    @Slot(QObject)
+    def checkUpdate(self, _callback): pass
+objects = {{
+    "AuthBridge": Auth(),
+    "HomeBridge": Home(),
+    "RunBridge": Run(),
+    "AppInfo": AppInfoStub(),
+}}
+register_context_objects(engine, objects)
+engine.load(QUrl("qrc:/example/qml/window/MainWindow.qml"))
+QTest.qWait(500)
+roots = engine.rootObjects()
+if not roots:
+    print("NO_MAIN_WINDOW", len(warnings), warnings)
+    raise SystemExit(2)
+window = roots[-1]
+navigation = window.findChild(QObject, "mainNavigationView")
+if navigation is None:
+    print("MAIN_NAVIGATION_NOT_FOUND", window.property("title"), len(warnings))
+    raise SystemExit(3)
+def navigate(title):
+    expression = QQmlExpression(
+        engine.rootContext(), navigation,
+        '(function() {{ var rows=getItems(); for(var i=0;i<rows.length;i++) '
+        '{{ if(rows[i] && rows[i].title === "' + title + '") '
+        '{{ navigateByItem(rows[i]); return true; }} }} return false; }})()'
+    )
+    value = expression.evaluate()
+    if expression.hasError():
+        raise RuntimeError(str(expression.error()))
+    QTest.qWait(250)
+    app.processEvents()
+    return value
+titles = [window.property("title")]
+headers = []
+for page_title in ("Buttons",):
+    if not navigate(page_title):
+        print("NAVIGATION_FAILED", page_title)
+        raise SystemExit(4)
+    titles.append(window.property("title"))
+    page = None
+    pending = [window]
+    while pending:
+        candidate = pending.pop()
+        if candidate.property("title") == page_title and candidate.metaObject().indexOfProperty("launchMode") >= 0:
+            page = candidate
+            break
+        pending.extend(candidate.children())
+    headers.append(round(page.property("header").height()) if page is not None else -1)
+print(titles, headers, window.property("applicationDisplayTitle"), len(warnings), warnings)
+'''
+    )
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "['SmartTest', 'SmartTest.Buttons']" in result.stdout
+    assert "[0] SmartTest.Buttons" in result.stdout
