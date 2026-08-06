@@ -42,9 +42,8 @@ def extract_project_owner(page):
         region.content,
         re.IGNORECASE,
     )
-    if not match:
-        return MISSING_QA
-    owner = _normalize_content(match.group(1).replace("@", ""))
+    owner_source = match.group(1) if match else region.content
+    owner = _normalize_content(owner_source.replace("@", ""))
     return owner or MISSING_QA
 
 

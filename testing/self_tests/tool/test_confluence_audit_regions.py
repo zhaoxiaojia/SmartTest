@@ -236,11 +236,23 @@ def test_project_owner_extracts_all_qa_names_in_order_without_mentions():
     assert extract_project_owner(page) == "Alice Bob"
 
 
+def test_project_owner_uses_all_window_people_when_qa_is_not_labeled():
+    page = ConfluencePage(
+        "status", "Project Status Report", "https://c/status",
+        body=(
+            "<table><tr><th>Window(Major FAE SW/HW/QA)</th>"
+            "<td>@Longyong Chen @JiSheng Luo</td></tr></table>"
+        ),
+    )
+
+    assert extract_project_owner(page) == "Longyong Chen JiSheng Luo"
+
+
 @pytest.mark.parametrize(
     "body",
     [
         "<table><tr><th>Other</th><td>QA: @Alice</td></tr></table>",
-        "<table><tr><th>Window(Major FAE SW/HW/QA)</th><td>SW: @Dev</td></tr></table>",
+        "<table><tr><th>Window(Major FAE SW/HW/QA)</th><td></td></tr></table>",
         "<table><tr><th>Window(Major FAE SW/HW/QA)</th><td>QA: @ </td></tr></table>",
     ],
 )
