@@ -89,6 +89,7 @@ UPDATE_MATRIX_POINTS = (
         "Test Report Store", (), (), True,
     ),
 )
+MISSING_QA = "格式有误：查询不到QA"
 
 
 @dataclass(frozen=True)
@@ -154,6 +155,14 @@ class ProjectCollectionFilter:
     project_statuses: tuple[str, ...] = ()
     current_stages: tuple[str, ...] = ()
     included_project_ids: tuple[str, ...] = ()
+    product_line_keys: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ProductLine:
+    key: str
+    source_url: str
+    display_name: str
 
 
 @dataclass(frozen=True)
@@ -166,6 +175,7 @@ class ProjectCollection:
     excluded_counts: dict[str, int] = field(default_factory=dict)
     visible_years: tuple[int, ...] = ()
     discovery_errors: dict[str, int] = field(default_factory=dict)
+    product_lines: tuple[ProductLine, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -188,6 +198,8 @@ class AuditFinding:
 class ProjectAudit:
     project: ProjectCandidate
     findings: list[AuditFinding] = field(default_factory=list)
+    owner: str = MISSING_QA
+
     @property
     def status(self) -> AuditStatus:
         states = {f.status for f in self.findings}
@@ -209,3 +221,4 @@ class AuditBatch:
     execution_context: AuditExecutionContext = field(
         default_factory=lambda: AuditExecutionContext("manual"),
     )
+    product_lines: tuple[ProductLine, ...] = ()

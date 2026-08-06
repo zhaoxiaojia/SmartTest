@@ -5,7 +5,7 @@ from urllib.parse import parse_qs, urljoin, urlsplit
 import re
 from support.logging import smart_log
 from .html import html_tables, links, text
-from .models import ConfluenceProject, ProjectCandidate, ProjectCollectionFilter
+from .models import ConfluenceProject, ProductLine, ProjectCandidate, ProjectCollectionFilter
 from .project_collection import filter_projects
 
 PAGE_ALIASES = (
@@ -35,18 +35,33 @@ def _page_kind_and_prefix(title):
             return kind, separated.group(1).strip()
     return None, ""
 
-PROJECT_SPACES = (
-    ("DOPL", "https://confluence.amlogic.com/display/DOPL/Project+Space"),
-    ("SDPL", "https://confluence.amlogic.com/display/SDPL/Project+Space"),
+PRODUCT_LINES = (
+    ProductLine(
+        "DOPL", "https://confluence.amlogic.com/display/DOPL/Project+Space",
+        "China Operator Business",
+    ),
+    ProductLine(
+        "SDPL", "https://confluence.amlogic.com/display/SDPL/Project+Space",
+        "Smart Device Business",
+    ),
+    ProductLine(
+        "TV", "https://confluence.amlogic.com/display/TV/Project+Space",
+        "TV Business",
+    ),
+    ProductLine(
+        "OOPL", "https://confluence.amlogic.com/display/OOPL/Project+Space",
+        "Global Operator & STB Business",
+    ),
 )
-UNIFIED_SOURCE = "DOPL + SDPL Project Spaces"
+UNIFIED_SOURCE = "Confluence Product Line Project Spaces"
 
 
 def discover_project_collection(client, criteria: ProjectCollectionFilter, progress=lambda *_: None):
     projects = []
     errors = Counter()
-    progress(0, len(PROJECT_SPACES))
-    for index, (space_key, source_url) in enumerate(PROJECT_SPACES, 1):
+    progress(0, len(PRODUCT_LINES))
+    for index, line in enumerate(PRODUCT_LINES, 1):
+        space_key, source_url = line.key, line.source_url
         try:
             source = client.get_page_by_url(source_url, prefer_export=True)
             rows, table_count, row_errors = _summary_projects(source, space_key)
@@ -67,7 +82,7 @@ def discover_project_collection(client, criteria: ProjectCollectionFilter, progr
                 "error_count": row_errors,
             },
         )
-        progress(index, len(PROJECT_SPACES))
+        progress(index, len(PRODUCT_LINES))
     criteria = replace(
         criteria, source_url=UNIFIED_SOURCE, current_stages=(),
     )
@@ -76,6 +91,7 @@ def discover_project_collection(client, criteria: ProjectCollectionFilter, progr
         collection,
         visible_years=tuple(sorted({project.year for project in projects})),
         discovery_errors=dict(sorted(errors.items())),
+        product_lines=PRODUCT_LINES,
     )
 
 

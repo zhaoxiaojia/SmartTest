@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
+import re
 
 from support.report.excel import write_xlsx_sections
 
@@ -8,6 +10,7 @@ from .models import AuditStatus, UPDATE_MATRIX_POINTS
 
 
 PROJECT_AUDIT_HEADERS = (
+    "Owner",
     "年份",
     "项目名",
     "项目链接",
@@ -48,7 +51,7 @@ def export_project_audit_xlsx(batch, output_path: Path) -> Path:
         ):
             rows.append(_project_row(audit))
             if audit.project.home_url:
-                hyperlinks[len(rows) - 1] = {3: audit.project.home_url}
+                hyperlinks[len(rows) - 1] = {4: audit.project.home_url}
         sections.append({
             "group": (
                 "Support Mode", support_mode,
@@ -59,12 +62,41 @@ def export_project_audit_xlsx(batch, output_path: Path) -> Path:
             "rows": rows,
             "hyperlinks": hyperlinks,
         })
+    if not sections and batch.product_lines:
+        sections.append({
+            "group": ("Product Line", batch.product_lines[0].display_name),
+            "headers": PROJECT_AUDIT_HEADERS,
+            "rows": [],
+            "hyperlinks": {},
+        })
     return write_xlsx_sections(
         output_path,
         sheet_name="Project Weekly Audit",
         sections=sections,
         wrap_data=False,
     )
+
+
+def export_project_audit_xlsx_by_product_line(batch, output_dir: Path):
+    output_dir = Path(output_dir)
+    paths = []
+    for line in batch.product_lines:
+        line_batch = replace(
+            batch,
+            projects=[
+                audit for audit in batch.projects
+                if audit.project.space_key == line.key
+            ],
+            product_lines=(line,),
+        )
+        safe_name = re.sub(
+            r"[^\w.-]+", "_", line.display_name, flags=re.UNICODE,
+        ).strip("._") or line.key
+        paths.append(export_project_audit_xlsx(
+            line_batch,
+            output_dir / f"project_weekly_audit_{safe_name}_{batch.id}.xlsx",
+        ))
+    return paths
 
 
 def _project_row(audit):
@@ -82,6 +114,7 @@ def _project_row(audit):
             states.append(STATUS_TEXT[finding.status])
     project = audit.project
     return (
+        audit.owner,
         ", ".join(map(str, project.matching_years or (project.year,))),
         project.name,
         project.home_url,

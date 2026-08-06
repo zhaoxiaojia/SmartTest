@@ -4,8 +4,9 @@ from zoneinfo import ZoneInfo
 
 from support.confluence_integration.models import ConfluencePage
 from tool.common.project_weekly_audit.models import (
-    AuditPeriod,
+    AuditExecutionContext, AuditPeriod,
     AuditStatus,
+    ProductLine, ProjectCollection, ProjectCollectionFilter,
     ProjectCandidate,
     UPDATE_MATRIX_POINTS,
 )
@@ -110,6 +111,56 @@ def test_same_page_regions_are_compared_independently(monkeypatch):
 
     assert by_rule["status.highlights"].status is AuditStatus.UPDATED
     assert by_rule["status.impact"].status is AuditStatus.NOT_UPDATED
+
+
+def test_status_page_qa_owner_is_metadata_without_adding_a_finding(monkeypatch):
+    current = ConfluencePage(
+        "s", "Project Status Report", "https://c/s",
+        body=(
+            "<table><tr><th>Window(Major FAE SW/HW/QA)</th>"
+            "<td>QA: @Alice @Bob</td></tr></table>"
+            "<h2>Highlights</h2><p>Stable</p>"
+            "<h2>Impact issues</h2><p>Stable</p>"
+        ),
+        version=1,
+        updated_at=datetime(2026, 7, 26, tzinfo=TZ),
+    )
+
+    monkeypatch.setattr(
+        "tool.common.project_weekly_audit.service.discover_project_pages",
+        lambda *_args, **_kwargs: ({"status": current}, {}),
+    )
+
+    audit = ConfluenceAuditService(
+        VersionedPageClient(current, {}),
+    )._audit_project(project(), period())
+
+    assert audit.owner == "Alice Bob"
+    assert len(audit.findings) == len(UPDATE_MATRIX_POINTS) == 10
+
+
+def test_batch_keeps_only_selected_product_line_metadata(monkeypatch):
+    lines = (
+        ProductLine("DOPL", "https://c/dopl", "Digital"),
+        ProductLine("TV", "https://c/tv", "Television"),
+    )
+    criteria = ProjectCollectionFilter(
+        "all", (2026,), product_line_keys=("TV",),
+    )
+    collection = ProjectCollection(
+        "catalog", "Projects", criteria,
+        datetime(2026, 8, 6, tzinfo=TZ), (), product_lines=lines,
+    )
+    monkeypatch.setattr(
+        "tool.common.project_weekly_audit.service.discover_project_collection",
+        lambda *_args, **_kwargs: collection,
+    )
+
+    batch = ConfluenceAuditService(object()).run(
+        criteria, period(), AuditExecutionContext("manual"),
+    )
+
+    assert [line.key for line in batch.product_lines] == ["TV"]
 
 
 def test_whitespace_and_style_only_region_change_is_not_updated(monkeypatch):

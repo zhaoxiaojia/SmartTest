@@ -4,6 +4,7 @@ from support.confluence_integration.models import ConfluencePage
 from tool.common.project_weekly_audit.models import UPDATE_MATRIX_POINTS
 from tool.common.project_weekly_audit.regions import (
     extract_page_region,
+    extract_project_owner,
     extract_region,
 )
 
@@ -220,3 +221,32 @@ def test_confluence_macro_title_locates_its_body_region():
     )
 
     assert extract_region(body, point).content == "No blockers"
+
+
+def test_project_owner_extracts_all_qa_names_in_order_without_mentions():
+    page = ConfluencePage(
+        "status", "Project Status Report", "https://c/status",
+        body=(
+            "<table><tr><th>Window(Major FAE SW/HW/QA)</th>"
+            "<td>Major FAE: @Lead SW/HW: @Developer QA: @Alice @Bob</td>"
+            "</tr></table>"
+        ),
+    )
+
+    assert extract_project_owner(page) == "Alice Bob"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "<table><tr><th>Other</th><td>QA: @Alice</td></tr></table>",
+        "<table><tr><th>Window(Major FAE SW/HW/QA)</th><td>SW: @Dev</td></tr></table>",
+        "<table><tr><th>Window(Major FAE SW/HW/QA)</th><td>QA: @ </td></tr></table>",
+    ],
+)
+def test_project_owner_reports_missing_qa_for_missing_field_marker_or_value(body):
+    page = ConfluencePage(
+        "status", "Project Status Report", "https://c/status", body=body,
+    )
+
+    assert extract_project_owner(page) == "格式有误：查询不到QA"

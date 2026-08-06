@@ -66,6 +66,7 @@ class AuditPlanStore:
         for key in (
             "years", "support_modes", "project_statuses",
             "current_stages", "included_project_ids",
+            "product_line_keys",
         ):
             filter_values[key] = tuple(filter_values.get(key, ()))
         filter_values["source_url"] = UNIFIED_SOURCE

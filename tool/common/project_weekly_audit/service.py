@@ -12,12 +12,13 @@ from .models import (
     AuditExecutionContext,
     AuditFinding,
     AuditStatus,
+    MISSING_QA,
     ProjectAudit,
     ProjectCandidate,
     ProjectCollectionFilter,
     UPDATE_MATRIX_POINTS,
 )
-from .regions import extract_page_region
+from .regions import extract_page_region, extract_project_owner
 
 
 class ConfluenceAuditService:
@@ -48,6 +49,7 @@ class ConfluenceAuditService:
             progress("reviewing", index - 1, len(collection.projects))
             results.append(self._audit_project(project, period, audit_id))
             progress("reviewing", index, len(collection.projects))
+        selected_line_keys = {key.casefold() for key in criteria.product_line_keys}
         batch = AuditBatch(
             audit_id,
             period,
@@ -55,6 +57,11 @@ class ConfluenceAuditService:
             results,
             collection.filter,
             context,
+            tuple(
+                line for line in collection.product_lines
+                if not selected_line_keys
+                or line.key.casefold() in selected_line_keys
+            ),
         )
         smart_log(
             "Confluence project weekly audit completed",
@@ -106,6 +113,19 @@ class ConfluenceAuditService:
             (value for key, value in errors.items() if key.startswith("branch:")),
             "",
         )
+        owner = MISSING_QA
+        status_page = pages.get("status")
+        if status_page is not None:
+            try:
+                owner_page = (
+                    status_page
+                    if status_page.body or status_page.view_body
+                    else self.client.get_page(status_page.id)
+                )
+            except Exception:
+                pass
+            else:
+                owner = extract_project_owner(owner_page)
         findings = []
         page_kinds = dict.fromkeys(
             point.page_kind for point in UPDATE_MATRIX_POINTS
@@ -155,7 +175,7 @@ class ConfluenceAuditService:
                 },
             },
         )
-        return ProjectAudit(project, findings)
+        return ProjectAudit(project, findings, owner)
 
     def _audit_page_regions(
         self, project, page, points, period, audit_id="",

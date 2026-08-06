@@ -394,9 +394,19 @@
         <translation>Project filters applied.</translation>
     </message>
     <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="720"/>
+        <source>Select at least one product line before starting the audit.</source>
+        <translation>Select at least one product line before starting the audit.</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="726"/>
+        <source>Select at least one project before starting the audit.</source>
+        <translation>Select at least one project before starting the audit.</translation>
+    </message>
+    <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="985"/>
-        <source>The login changed. Refreshing Project Space options.</source>
-        <translation>The login changed. Refreshing Project Space options.</translation>
+        <source>The login changed. Click Refresh filter options to update Project Space data.</source>
+        <translation>The login changed. Click Refresh filter options to update Project Space data.</translation>
     </message>
 </context>
 <context>
@@ -517,6 +527,11 @@
         <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="158"/>
         <source>Project statuses</source>
         <translation>Project statuses</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="180"/>
+        <source>Product lines</source>
+        <translation>Product lines</translation>
     </message>
     <message>
         <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="183"/>

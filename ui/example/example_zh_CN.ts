@@ -394,9 +394,19 @@
         <translation>项目筛选已应用。</translation>
     </message>
     <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="720"/>
+        <source>Select at least one product line before starting the audit.</source>
+        <translation>请至少选择一条产品线后再开始审查。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="726"/>
+        <source>Select at least one project before starting the audit.</source>
+        <translation>请至少选择一个项目后再开始审查。</translation>
+    </message>
+    <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="985"/>
-        <source>The login changed. Refreshing Project Space options.</source>
-        <translation>登录账户已变更，正在刷新 Project Space 筛选项。</translation>
+        <source>The login changed. Click Refresh filter options to update Project Space data.</source>
+        <translation>登录账户已变更；如需更新 Project Space 数据，请点击“刷新筛选项”。</translation>
     </message>
 </context>
 <context>
@@ -517,6 +527,11 @@
         <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="158"/>
         <source>Project statuses</source>
         <translation>项目状态</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="180"/>
+        <source>Product lines</source>
+        <translation>产品线</translation>
     </message>
     <message>
         <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="183"/>

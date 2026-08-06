@@ -12,9 +12,13 @@ from tool.common.project_weekly_audit.models import (
     ProjectAudit,
     ProjectCandidate,
     ProjectCollectionFilter,
+    ProductLine,
     UPDATE_MATRIX_POINTS,
 )
-from tool.common.project_weekly_audit.report import export_project_audit_xlsx
+from tool.common.project_weekly_audit.report import (
+    export_project_audit_xlsx,
+    export_project_audit_xlsx_by_product_line,
+)
 
 
 TZ = ZoneInfo("Asia/Shanghai")
@@ -54,7 +58,7 @@ def test_xlsx_writes_invalid_reason_in_its_cell_without_repeating_ps(tmp_path):
             datetime(2026, 7, 31, tzinfo=TZ),
         ),
         datetime(2026, 7, 31, tzinfo=TZ),
-        [ProjectAudit(project, findings)],
+        [ProjectAudit(project, findings, "Alice Bob")],
         ProjectCollectionFilter("DOPL + SDPL", (2025, 2026)),
         AuditExecutionContext("manual"),
     )
@@ -69,7 +73,7 @@ def test_xlsx_writes_invalid_reason_in_its_cell_without_repeating_ps(tmp_path):
         "审查周期", "2026-07-27 - 2026-07-31",
     ]
     assert [cell.value for cell in sheet[2]] == [
-        "年份", "项目名", "项目链接",
+        "Owner", "年份", "项目名", "项目链接",
         *(point.label for point in UPDATE_MATRIX_POINTS), "PS",
     ]
     assert [point.label for point in UPDATE_MATRIX_POINTS] == [
@@ -85,24 +89,72 @@ def test_xlsx_writes_invalid_reason_in_its_cell_without_repeating_ps(tmp_path):
         "Basic Information.Test Information.Test Report Store",
     ]
     assert sheet.max_row == 3
-    assert sheet["A3"].value == "2025, 2026"
-    assert sheet["B3"].value == "Muffin314"
-    assert sheet["C3"].value == "https://c/root"
-    assert sheet["C3"].hyperlink.target == "https://c/root"
-    assert sheet["F3"].value == "格式有误：pageId=42; HTTP 403"
+    assert sheet["A3"].value == "Alice Bob"
+    assert sheet["B3"].value == "2025, 2026"
+    assert sheet["C3"].value == "Muffin314"
+    assert sheet["D3"].value == "https://c/root"
+    assert sheet["D3"].hyperlink.target == "https://c/root"
     assert sheet["G3"].value == "格式有误：pageId=42; HTTP 403"
-    assert sheet["H3"].value == "格式有误：查询不到Task Arrangement of Important Test（Must give ETA）"
-    assert sheet["N3"].value is None
+    assert sheet["H3"].value == "格式有误：pageId=42; HTTP 403"
+    assert sheet["I3"].value == "格式有误：查询不到Task Arrangement of Important Test（Must give ETA）"
+    assert sheet["O3"].value is None
     assert sheet.freeze_panes == "A3"
     assert sheet["A1"].fill.fgColor.rgb == "FFD9EAF7"
     assert sheet["A2"].fill.fgColor.rgb == "FF1F4E78"
     assert sheet["A2"].font.bold is True
     assert sheet["A2"].font.color.rgb == "FFFFFFFF"
-    assert sheet["D3"].fill.fgColor.rgb == "FFFFEB9C"
-    assert sheet["E3"].fill.fgColor.rgb == "FFC6EFCE"
-    assert sheet["F3"].fill.fgColor.rgb == "FFFFC7CE"
+    assert sheet["E3"].fill.fgColor.rgb == "FFFFEB9C"
+    assert sheet["F3"].fill.fgColor.rgb == "FFC6EFCE"
     assert sheet["G3"].fill.fgColor.rgb == "FFFFC7CE"
     assert sheet["H3"].fill.fgColor.rgb == "FFFFC7CE"
+    assert sheet["I3"].fill.fgColor.rgb == "FFFFC7CE"
     assert sheet["A2"].alignment.wrap_text is True
-    assert sheet["D3"].alignment.wrap_text is not True
-    assert sheet["F3"].alignment.wrap_text is not True
+    assert sheet["E3"].alignment.wrap_text is not True
+    assert sheet["G3"].alignment.wrap_text is not True
+
+
+def test_export_writes_one_safely_named_workbook_per_selected_product_line(tmp_path):
+    lines = (
+        ProductLine("DOPL", "https://c/dopl", "Digital"),
+        ProductLine("SDPL", "https://c/sdpl", "Set Top Box"),
+        ProductLine("TV", "https://c/tv", "TV / Video"),
+        ProductLine("OOPL", "https://c/oopl", "Operator"),
+    )
+    batch = AuditBatch(
+        "batch1", AuditPeriod(
+            datetime(2026, 8, 3, tzinfo=TZ),
+            datetime(2026, 8, 6, tzinfo=TZ),
+        ),
+        datetime(2026, 8, 6, tzinfo=TZ),
+        product_lines=lines,
+    )
+
+    paths = export_project_audit_xlsx_by_product_line(batch, tmp_path)
+
+    assert [path.name for path in paths] == [
+        "project_weekly_audit_Digital_batch1.xlsx",
+        "project_weekly_audit_Set_Top_Box_batch1.xlsx",
+        "project_weekly_audit_TV_Video_batch1.xlsx",
+        "project_weekly_audit_Operator_batch1.xlsx",
+    ]
+    assert all(path.is_file() for path in paths)
+    for path in paths:
+        sheet = load_workbook(path).active
+        assert [cell.value for cell in sheet[2]] == [
+            "Owner", "年份", "项目名", "项目链接",
+            *(point.label for point in UPDATE_MATRIX_POINTS), "PS",
+        ]
+        assert sheet.max_row == 2
+
+
+def test_product_line_export_with_zero_selected_lines_writes_nothing(tmp_path):
+    batch = AuditBatch(
+        "batch0", AuditPeriod(
+            datetime(2026, 8, 3, tzinfo=TZ),
+            datetime(2026, 8, 6, tzinfo=TZ),
+        ),
+        datetime(2026, 8, 6, tzinfo=TZ),
+    )
+
+    assert export_project_audit_xlsx_by_product_line(batch, tmp_path) == []
+    assert list(tmp_path.iterdir()) == []

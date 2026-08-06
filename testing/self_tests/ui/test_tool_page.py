@@ -1128,9 +1128,11 @@ def test_confluence_audit_tool_exposes_collection_plan_and_xlsx_content_contract
         "confluenceAuditYearFilter",
         "confluenceAuditSupportModeFilter",
         "confluenceAuditProjectStatusFilter",
+        "confluenceAuditProductLineFilter",
         "confluenceAuditYearDropDown",
         "confluenceAuditSupportModeDropDown",
         "confluenceAuditProjectStatusDropDown",
+        "confluenceAuditProductLineDropDown",
         "confluenceAuditApplyFilterButton",
         "confluenceAuditRefreshCollectionButton",
         "confluenceAuditProjectChecklist",
@@ -1145,6 +1147,7 @@ def test_confluence_audit_tool_exposes_collection_plan_and_xlsx_content_contract
         "Years",
         "Support modes",
         "Project statuses",
+        "Product lines",
         "Refresh filter options",
         "Apply filters",
         "Select all",
@@ -1161,8 +1164,22 @@ def test_confluence_audit_tool_exposes_collection_plan_and_xlsx_content_contract
     assert 'ConfluenceAuditBridge.toggleFilterValue( "years", modelData)' in compact
     assert 'ConfluenceAuditBridge.toggleFilterValue( "supportModes", modelData)' in compact
     assert "ConfluenceAuditBridge.toggleProject(modelData.projectIdentity)" in workspace
-    assert "ConfluenceAuditBridge.selectAllProjects()" in workspace
-    assert "ConfluenceAuditBridge.clearSelectedProjects()" in workspace
+    assert "root.view.candidateSections" in workspace
+    assert "sectionData.displayName" in workspace
+    assert "ConfluenceAuditBridge.selectAllProjectsForLine(sectionData.key)" in workspace
+    assert "ConfluenceAuditBridge.clearSelectedProjectsForLine(sectionData.key)" in workspace
+    assert "ConfluenceAuditBridge.toggleProductLine(modelData.key)" in workspace
+    assert workspace.index('objectName: "confluenceAuditProductLineFilter"') < workspace.index(
+        'objectName: "confluenceAuditYearFilter"'
+    )
+    assert 'readonly property bool catalogBusy: root.view.catalogStatus === "first_loading"' in workspace
+    assert '|| root.view.catalogStatus === "refreshing"' in workspace
+    assert "FluProgressRing" in workspace
+    assert "visible: root.catalogBusy" in workspace
+    assert "disabled: root.catalogBusy || root.auditBusy" in workspace
+    assert 'readonly property bool auditBusy: root.view.state === "discovering"' in workspace
+    assert '|| root.view.state === "reviewing"' in workspace
+    assert "visible: root.auditBusy" in workspace
     assert "ConfluenceAuditBridge.enableWeeklyPlan()" in workspace
     assert "ConfluenceAuditBridge.exportExcel()" in workspace
     assert "ConfluenceAuditBridge.openReportDirectory()" in workspace
@@ -1177,7 +1194,7 @@ def test_confluence_audit_tool_exposes_collection_plan_and_xlsx_content_contract
     assert 'qsTr("History")' not in workspace
     assert "confluenceAuditCurrentStageFilter" not in workspace
     assert '"currentStages"' not in workspace
-    assert workspace.count("FluDropDownButton") == 3
+    assert workspace.count("FluDropDownButton") == 4
     assert 'qsTr("Export XLSX")' not in workspace
     jira_workspace = (
         ROOT / "ui/example/imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml"
@@ -1208,6 +1225,10 @@ def test_confluence_workspace_declares_responsive_candidate_grid_contract():
     assert "wrapMode: Text.Wrap" in workspace
     assert "confluenceAuditEnableWeeklyPlanButton" in workspace
     assert "ConfluenceAuditBridge.enableWeeklyPlan()" in workspace
+    assert "id: candidateSectionList" in workspace
+    assert "id: candidateSectionColumn" in workspace
+    assert "ScrollBar.vertical: FluScrollBar" in workspace
+    assert "candidateSectionColumn.implicitHeight" in workspace
 
 
 def test_confluence_audit_workspace_runtime_events_and_wrapped_filters_are_accessible():
@@ -1410,7 +1431,6 @@ def test_confluence_audit_workspace_labels_follow_up_projection_and_action_field
         'qsTr("Reviewed")',
         'qsTr("Follow-up")',
         'qsTr("Reason")',
-        'qsTr("Adjustment")',
         'qsTr("Open Confluence")',
     ):
         assert text in workspace

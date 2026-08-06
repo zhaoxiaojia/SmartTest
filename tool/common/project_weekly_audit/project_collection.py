@@ -29,6 +29,7 @@ def filter_projects(
     support_modes = _values(criteria.support_modes)
     project_statuses = _values(criteria.project_statuses)
     included_ids = _values(criteria.included_project_ids)
+    product_line_keys = _values(criteria.product_line_keys)
     included = []
     excluded = Counter()
     independent_excluded = Counter()
@@ -37,6 +38,7 @@ def filter_projects(
         (support_modes, "support_mode"),
         (project_statuses, "project_status"),
         (included_ids, "project_selection"),
+        (product_line_keys, "product_line"),
     ):
         if active:
             independent_excluded[key] = 0
@@ -55,6 +57,8 @@ def filter_projects(
             independent_excluded["project_status"] += 1
         if included_ids and _normalize(project.project_identity) not in included_ids:
             independent_excluded["project_selection"] += 1
+        if product_line_keys and _normalize(project.space_key) not in product_line_keys:
+            independent_excluded["product_line"] += 1
         if years and not matching_years:
             reason = "year"
         elif support_modes and _normalize(project.support_mode) not in support_modes:
@@ -63,6 +67,8 @@ def filter_projects(
             reason = "project_status"
         elif included_ids and _normalize(project.project_identity) not in included_ids:
             reason = "project_selection"
+        elif product_line_keys and _normalize(project.space_key) not in product_line_keys:
+            reason = "product_line"
 
         if reason:
             excluded[reason] += 1
@@ -84,6 +90,7 @@ def filter_projects(
                 "support_modes": sorted(support_modes),
                 "project_statuses": sorted(project_statuses),
                 "project_selection_count": len(included_ids),
+                "product_line_keys": sorted(product_line_keys),
             },
             "independent_excluded_counts": dict(independent_excluded),
             "pipeline_excluded_counts": dict(excluded),
@@ -139,6 +146,7 @@ def _collection_id(criteria: ProjectCollectionFilter) -> str:
         "support_modes": sorted(_values(criteria.support_modes)),
         "project_statuses": sorted(_values(criteria.project_statuses)),
         "included_project_ids": sorted(_values(criteria.included_project_ids)),
+        "product_line_keys": sorted(_values(criteria.product_line_keys)),
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
