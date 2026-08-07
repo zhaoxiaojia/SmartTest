@@ -116,6 +116,7 @@ class RedmineBridge(QObject):
         self._data_operation_kind = ""
         self._pending_detail_issue_id = ""
         self._pending_filters = None
+        self._submitted_filters = None
         self._refresh_after_search = False
         self._active_search_filter_requested = False
         self._generation = 0
@@ -190,6 +191,7 @@ class RedmineBridge(QObject):
         self._jira_schema_service = None
         self._reset_batch(cancel_future=True)
         self._pending_filters = None
+        self._submitted_filters = None
         self._pending_detail_issue_id = ""
         self._refresh_after_search = False
         self._active_search_filter_requested = False
@@ -245,7 +247,13 @@ class RedmineBridge(QObject):
     searchLoading = Property(bool, lambda self: self._data_loading and self._data_operation_kind == "search", notify=changed)
     searchCanCancel = Property(bool, lambda self: self._data_loading and self._data_operation_kind == "search" and self._data_future is not None, notify=changed)
     projectFilterLabels = Property("QVariantList", lambda self: list(self._issue_controller.project_filter_labels), notify=changed)
-    filters = Property("QVariantMap", lambda self: self._issue_controller.filters, notify=changed)
+    filters = Property(
+        "QVariantMap",
+        lambda self: self._submitted_filters
+        if self._submitted_filters is not None
+        else self._issue_controller.filters,
+        notify=changed,
+    )
     issueRows = Property("QVariantList", lambda self: list(self._issue_controller.issue_rows), notify=issueRowsChanged)
     selectedIssue = Property("QVariantMap", lambda self: self._issue_controller.selected_issue, notify=issueSelectionChanged)
     actionableIssues = Property("QVariantList", lambda self: list(self._issue_controller.actionable_issues), notify=issueRowsChanged)
@@ -662,6 +670,7 @@ class RedmineBridge(QObject):
     def activateQuickView(self, quick_view_id):
         if self._state is not AuthState.AUTHENTICATED or self._data_loading or quick_view_id not in ("my_assigned", "watched"):
             return
+        self._submitted_filters = None
         self._issue_controller.activate_view(quick_view_id)
         self._load_quick_view_cache(quick_view_id)
         if quick_view_id == "watched":
@@ -852,6 +861,7 @@ class RedmineBridge(QObject):
         status = "" if filters.get("status") == self.tr("All statuses") else filters.get("status", "")
         issue_type = "" if filters.get("type") in ("", self.tr("All types")) else filters.get("type", "")
         self._pending_filters = {"project": project, "status": status, "type": issue_type, "subject": str(filters.get("subject", "") or ""), "text": str(filters.get("text", "") or "")}
+        self._submitted_filters = dict(self._pending_filters)
         if self._data_loading:
             self._refresh_after_search = True
             return
@@ -971,6 +981,7 @@ class RedmineBridge(QObject):
             selected_detail=detail,
             clone_status=clone_status,
         )
+        self._submitted_filters = None
         self._emit_issue_projection()
         if operation_kind == "search" and self._active_search_filter_requested:
             self._active_search_filter_requested = False

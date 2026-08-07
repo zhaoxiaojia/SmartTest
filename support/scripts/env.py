@@ -1,5 +1,6 @@
 import sys
 import os
+import shutil
 
 projectName = "example"
 
@@ -58,23 +59,23 @@ def python():
 
 
 def pyside6_rcc():
-    if sys.platform.startswith("win"):
-        return os.path.join(_scriptsPath(), "pyside6-rcc.exe")
-    return os.path.join(_scriptsPath(), "pyside6-rcc")
+    name = "pyside6-rcc.exe" if sys.platform.startswith("win") else "pyside6-rcc"
+    local = os.path.join(_scriptsPath(), name)
+    return local if os.path.isfile(local) else (shutil.which(name) or local)
 
 
 # noinspection SpellCheckingInspection
 def pyside6_lupdate():
-    if sys.platform.startswith("win"):
-        return os.path.join(_scriptsPath(), "pyside6-lupdate.exe")
-    return os.path.join(_scriptsPath(), "pyside6-lupdate")
+    name = "pyside6-lupdate.exe" if sys.platform.startswith("win") else "pyside6-lupdate"
+    local = os.path.join(_scriptsPath(), name)
+    return local if os.path.isfile(local) else (shutil.which(name) or local)
 
 
 # noinspection SpellCheckingInspection
 def pyside6_lrelease():
-    if sys.platform.startswith("win"):
-        return os.path.join(_scriptsPath(), "pyside6-lrelease.exe")
-    return os.path.join(_scriptsPath(), "pyside6-lrelease")
+    name = "pyside6-lrelease.exe" if sys.platform.startswith("win") else "pyside6-lrelease"
+    local = os.path.join(_scriptsPath(), name)
+    return local if os.path.isfile(local) else (shutil.which(name) or local)
 
 
 # noinspection PyPep8Naming

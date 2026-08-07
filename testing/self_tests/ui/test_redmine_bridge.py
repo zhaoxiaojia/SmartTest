@@ -2081,6 +2081,86 @@ def test_filter_request_during_search_is_queued_without_overlapping_refresh(monk
     bridge.close()
 
 
+def test_submitted_filter_projection_replaces_stale_values_before_search_finishes():
+    bridge = RedmineBridge(
+        FakeAuth(),
+        service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)),
+    )
+    bridge._state = AuthState.AUTHENTICATED
+    bridge._projects_ready = True
+    bridge._issue_controller._filters = {
+        "project": "",
+        "status": "",
+        "type": "",
+        "subject": "",
+        "text": "",
+    }
+    bridge._data_loading = True
+    bridge._data_operation_kind = "search"
+
+    bridge.applyFilters(
+        {
+            "project": "aiot-a113x",
+            "status": "Open",
+            "type": "Bug",
+            "subject": "HDMI",
+            "text": "timeout",
+        }
+    )
+
+    assert bridge.filters == {
+        "project": "aiot-a113x",
+        "status": "Open",
+        "type": "Bug",
+        "subject": "HDMI",
+        "text": "timeout",
+    }
+    bridge.close()
+
+
+def test_started_search_projection_keeps_submitted_values_until_result_arrives(
+    monkeypatch,
+):
+    bridge = RedmineBridge(
+        FakeAuth(),
+        service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)),
+    )
+    bridge._state = AuthState.AUTHENTICATED
+    bridge._projects_ready = True
+    bridge._issue_controller._filters = {
+        "project": "",
+        "status": "",
+        "type": "",
+        "subject": "",
+        "text": "",
+    }
+
+    def launch(_operation, *, status, kind):
+        bridge._data_loading = True
+        bridge._data_operation_kind = kind
+
+    monkeypatch.setattr(bridge, "_launch_data_load", launch)
+
+    bridge.applyFilters(
+        {
+            "project": "aiot-a113x",
+            "status": "Open",
+            "type": "Bug",
+            "subject": "HDMI",
+            "text": "timeout",
+        }
+    )
+
+    assert bridge.filters == {
+        "project": "aiot-a113x",
+        "status": "Open",
+        "type": "Bug",
+        "subject": "HDMI",
+        "text": "timeout",
+    }
+    bridge.close()
+
+
 def test_fresh_search_result_applies_requested_filters_not_cached_filters(monkeypatch):
     from tool.SmartHome.redmine.models import RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineProject
     from tool.SmartHome.redmine.view_model import view

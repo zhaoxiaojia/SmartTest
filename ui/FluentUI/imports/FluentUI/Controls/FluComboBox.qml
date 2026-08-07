@@ -16,11 +16,11 @@ T.ComboBox {
     property var _lastSelectedValue: undefined
     property bool _restoringSelection: false
     function modelValue(index) {
+        var item = model[index]
         if(valueRole) {
-            if(Array.isArray(model)) return model[index] ? model[index][valueRole] : undefined
-            return model.get(index)[valueRole]
+            return item ? item[valueRole] : undefined
         }
-        return Array.isArray(model) ? model[index] : model.get(index)
+        return item
     }
     function selectValue(value) {
         if(value === undefined || value === null) return false
@@ -28,9 +28,8 @@ T.ComboBox {
         if(target < 0 && value === "") target = 0
         if(target < 0) return false
         _restoringSelection = true
-        currentValue = value
         currentIndex = target
-        _lastSelectedValue = currentValue
+        _lastSelectedValue = modelValue(target)
         _restoringSelection = false
         return true
     }
