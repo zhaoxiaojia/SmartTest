@@ -9,6 +9,7 @@ import "../component/confluenceaudit"
 import "../component/dailyreport"
 
 FluPage {
+    id: root
     title: qsTr("Tool")
     launchMode: FluPageType.SingleInstance
 
@@ -18,16 +19,17 @@ FluPage {
     property var selectedGroup: ToolBridge.groups.length > selectedGroupIndex ? ToolBridge.groups[selectedGroupIndex] : ({})
     property var selectedTool: selectedGroup.tools && selectedGroup.tools.length > selectedToolIndex ? selectedGroup.tools[selectedToolIndex] : ({})
     property string autoStartedToolId: ""
+    property string pendingScheduleDeleteProvider: ""
+    property string pendingScheduleDeletePlan: ""
 
-    function ensureSelectedToolAvailable() {
-        if (!selectedGroup.available) {
-            selectedGroupIndex = 0
-            selectedToolIndex = 0
-            autoStartedToolId = ""
-            return
-        }
-        if (!selectedGroup.tools || selectedToolIndex >= selectedGroup.tools.length)
-            selectedToolIndex = 0
+    FluContentDialog {
+        id: scheduleDeleteDialog
+        title: qsTr("Delete schedule?")
+        message: qsTr("This removes the Windows task, saved schedule, and its stored Daily Report credential.")
+        positiveText: qsTr("Delete")
+        negativeText: qsTr("Cancel")
+        buttonFlags: FluContentDialogType.NegativeButton | FluContentDialogType.PositiveButton
+        onPositiveClicked: ScheduleBridge.deletePlan(root.pendingScheduleDeleteProvider, root.pendingScheduleDeletePlan)
     }
 
     function maybeStartRedmineLogin() {
@@ -42,7 +44,6 @@ FluPage {
     }
 
     onSelectedToolChanged: Qt.callLater(maybeStartRedmineLogin)
-    onSelectedGroupChanged: ensureSelectedToolAvailable()
     Component.onCompleted: {
         ScheduleBridge.refresh()
         Qt.callLater(maybeStartRedmineLogin)
@@ -59,25 +60,6 @@ FluPage {
         }
     }
 
-    function selectToolById(toolId) {
-        for (var groupIndex = 0; groupIndex < ToolBridge.groups.length; ++groupIndex) {
-            const tools = ToolBridge.groups[groupIndex].tools || []
-            for (var toolIndex = 0; toolIndex < tools.length; ++toolIndex) {
-                if (tools[toolIndex].id === toolId) {
-                    selectedGroupIndex = groupIndex
-                    selectedToolIndex = toolIndex
-                    Qt.callLater(maybeStartRedmineLogin)
-                    return
-                }
-            }
-        }
-    }
-
-    Connections {
-        target: ScheduleBridge
-        function onToolOpenRequested(toolId) { selectToolById(toolId) }
-    }
-
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 20
@@ -86,7 +68,7 @@ FluPage {
         FluFrame {
             objectName: "toolScheduleArea"
             Layout.fillWidth: true
-            Layout.preferredHeight: scheduleExpanded ? 118 : 46
+            Layout.preferredHeight: scheduleExpanded ? 190 : 46
             padding: 10
 
             ColumnLayout {
@@ -106,7 +88,7 @@ FluPage {
                 FluText {
                     objectName: "toolScheduleEmptyState"
                     visible: scheduleExpanded && ScheduleBridge.rows.length === 0
-                    text: qsTr("No SmartTest Windows schedules are currently enabled.")
+                    text: qsTr("No SmartTest Windows schedules are configured.")
                     color: FluTheme.fontSecondaryColor
                 }
                 Flickable {
@@ -127,7 +109,7 @@ FluPage {
                             FluFrame {
                                 required property var modelData
                                 objectName: "toolScheduleCard_" + modelData.provider + "_" + modelData.planId
-                                Layout.preferredWidth: 340
+                                Layout.preferredWidth: 700
                                 Layout.fillHeight: true
                                 padding: 8
                                 RowLayout {
@@ -138,20 +120,62 @@ FluPage {
                                         FluText { Layout.fillWidth: true; text: modelData.businessTitle; font: FluTextStyle.BodyStrong; elide: Text.ElideRight }
                                         FluText { Layout.fillWidth: true; text: modelData.title; color: FluTheme.fontSecondaryColor; elide: Text.ElideRight }
                                         FluText {
+                                            objectName: "toolScheduleType_" + modelData.planId
                                             Layout.fillWidth: true
-                                            text: modelData.registered ? qsTr("Registered") : qsTr("Not registered")
+                                            text: qsTr("Type: %1").arg(modelData.taskTypeText)
                                             color: FluTheme.fontSecondaryColor
                                         }
+                                        FluText {
+                                            objectName: "toolScheduleContent_" + modelData.planId
+                                            Layout.fillWidth: true
+                                            text: qsTr("Content: %1").arg(modelData.contentText)
+                                            color: FluTheme.fontSecondaryColor
+                                            elide: Text.ElideRight
+                                        }
+                                        FluText {
+                                            objectName: "toolSchedulePlan_" + modelData.planId
+                                            Layout.fillWidth: true
+                                            text: qsTr("Plan: %1").arg(modelData.planText)
+                                            color: FluTheme.fontSecondaryColor
+                                        }
+                                        FluText {
+                                            objectName: "toolScheduleStatus_" + modelData.planId
+                                            Layout.fillWidth: true
+                                            text: modelData.statusText
+                                            color: FluTheme.fontSecondaryColor
+                                        }
+                                        FluText {
+                                            objectName: "toolScheduleNextRun_" + modelData.planId
+                                            Layout.fillWidth: true
+                                            text: modelData.nextRunText
+                                            color: FluTheme.fontSecondaryColor
+                                        }
+                                        FluText { Layout.fillWidth: true; visible: modelData.operationText !== ""; text: modelData.operationText; color: FluTheme.fontSecondaryColor; elide: Text.ElideRight }
                                     }
                                     FluButton {
-                                        objectName: "toolScheduleOpenButton_" + modelData.planId
-                                        text: qsTr("Open")
-                                        onClicked: ScheduleBridge.openPlan(modelData.provider, modelData.planId)
+                                        objectName: "toolScheduleToggle_" + modelData.planId
+                                        visible: modelData.manageable
+                                        text: modelData.enabled ? qsTr("Stop") : qsTr("Enable")
+                                        enabled: !modelData.operationRunning
+                                        onClicked: ScheduleBridge.setPlanEnabled(modelData.provider, modelData.planId, !modelData.enabled)
                                     }
                                     FluButton {
-                                        objectName: "toolScheduleDisableButton_" + modelData.planId
-                                        text: qsTr("Disable")
-                                        onClicked: ScheduleBridge.setPlanEnabled(modelData.provider, modelData.planId, false)
+                                        objectName: "toolScheduleRunNow_" + modelData.planId
+                                        visible: modelData.manageable
+                                        text: qsTr("Run now")
+                                        enabled: !modelData.operationRunning
+                                        onClicked: ScheduleBridge.runNow(modelData.provider, modelData.planId)
+                                    }
+                                    FluButton {
+                                        objectName: "toolScheduleDelete_" + modelData.planId
+                                        visible: modelData.manageable
+                                        text: qsTr("Delete")
+                                        enabled: !modelData.operationRunning
+                                        onClicked: {
+                                            root.pendingScheduleDeleteProvider = modelData.provider
+                                            root.pendingScheduleDeletePlan = modelData.planId
+                                            scheduleDeleteDialog.open()
+                                        }
                                     }
                                 }
                             }

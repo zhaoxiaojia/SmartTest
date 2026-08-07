@@ -11,7 +11,19 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[2]
 DIST_ROOT = ROOT / "dist_tool"
 APP_NAME = "SmartTestTool"
-FORBIDDEN_TOKENS = ("numpy", "cv2", "matplotlib", "testing", "android_client")
+FORBIDDEN_TOKENS = ("cv2", "testing", "android_client")
+FORBIDDEN_ARCHIVE_MODULES = (
+    "example.main",
+    "example.bridge.HomeBridge",
+    "example.bridge.RunBridge",
+    "example.bridge.ReportBridge",
+    "example.bridge.TestPageBridge",
+    "example.bridge.DebugBridge",
+    "example.bridge.BootVideoBridge",
+    "cv2",
+    "testing",
+    "android_client",
+)
 
 
 def validate_distribution(app_dir: Path) -> dict[str, int]:
@@ -53,19 +65,23 @@ def build_metrics(
     }
 
 
+def find_forbidden_archive_modules(archive_listing: str) -> list[str]:
+    archived_modules = {line.strip() for line in archive_listing.splitlines()}
+    return sorted(
+        module for module in FORBIDDEN_ARCHIVE_MODULES
+        if any(
+            archived == module or archived.startswith(module + ".")
+            for archived in archived_modules
+        )
+    )
+
+
 def validate_python_archive(executable: Path, archive_viewer: Path) -> None:
     result = subprocess.run(
         [str(archive_viewer), "-r", "-b", str(executable)],
         check=True, capture_output=True, text=True,
     )
-    forbidden_modules = (
-        "example.main", "HomeBridge", "RunBridge", "ReportBridge",
-        "TestPageBridge", "DebugBridge", "BootVideoBridge", "numpy", "cv2",
-        "matplotlib", "testing", "android_client",
-    )
-    offending = sorted({
-        token for token in forbidden_modules if token.lower() in result.stdout.lower()
-    })
+    offending = find_forbidden_archive_modules(result.stdout)
     if offending:
         raise RuntimeError("Forbidden Python archive modules: " + ", ".join(offending))
 

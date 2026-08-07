@@ -30,7 +30,8 @@ class ProjectConfigStore:
     def revision(self) -> tuple:
         return tuple(
             (project.safe_id, project.name, project.label, project.jql,
-             project.to, project.cc, project.enabled, project.subject)
+             project.to, project.cc, project.enabled, project.subject,
+             project.detail_priorities)
             for project in self.list()
         )
 
@@ -77,6 +78,7 @@ class ProjectConfigStore:
             ProjectConfig(
                 current.safe_id, current.name, current.label, current.jql,
                 current.to, current.cc, bool(enabled), current.subject,
+                current.detail_priorities,
             )
         )
 
@@ -88,6 +90,7 @@ class ProjectConfigStore:
             "to": list(project.to), "cc": list(project.cc),
             "enabled": project.enabled,
             "subject": project.subject,
+            "detail_priorities": list(project.detail_priorities),
         }
 
     def _from_payload(self, value: dict) -> ProjectConfig:
@@ -101,6 +104,7 @@ class ProjectConfigStore:
             _emails(value.get("to", ())), _emails(value.get("cc", ())),
             bool(value.get("enabled", True)),
             subject,
+            tuple(value.get("detail_priorities", ("P0", "P1"))),
         )
         if not project.safe_id or not project.name or not project.jql or not project.to or not project.subject:
             raise ValueError("Project id, name, JQL and To are required")

@@ -52,10 +52,19 @@ class ProjectConfig:
     cc: tuple[str, ...]
     enabled: bool = True
     subject: str = ""
+    detail_priorities: tuple[str, ...] = ("P0", "P1")
 
     def __post_init__(self):
         if not self.subject.strip():
             object.__setattr__(self, "subject", f"[{self.name}] 公版状态日报")
+        normalized = tuple(
+            dict.fromkeys(
+                str(priority).strip().upper()
+                for priority in self.detail_priorities
+                if str(priority).strip()
+            )
+        )
+        object.__setattr__(self, "detail_priorities", normalized)
 
 
 PROJECTS = (
@@ -210,7 +219,7 @@ def render_status_composition(values, output_path: Path) -> Path:
             loc="center left",
             bbox_to_anchor=(0.63, 0.5),
             frameon=False,
-            prop=FontProperties(family=family, size=11) if family else FontProperties(size=11),
+            prop=FontProperties(family=family, size=14) if family else FontProperties(size=14),
             handlelength=1.8,
             handleheight=1.2,
             labelspacing=0.9,
@@ -236,7 +245,7 @@ def render_status_composition(values, output_path: Path) -> Path:
 
 def _metric(label: str, value, note: str = "") -> str:
     shown = "—" if value is None else str(value)
-    return f'<td width="20%" style="padding:6px"><div class="metric-card" style="height:118px;padding:18px 15px;box-sizing:border-box"><div class="metric-label" style="font-size:14px;line-height:20px;color:#59636e">{escape(label)}</div><div class="metric-value" style="font-size:34px;line-height:38px;font-weight:bold;margin:7px 0">{escape(shown)}</div><div class="metric-note" style="font-size:13px;line-height:18px;color:#667085">{escape(note)}</div></div></td>'
+    return f'<td width="25%" style="padding:6px"><div class="metric-card" style="height:118px;padding:18px 15px;box-sizing:border-box"><div class="metric-label" style="font-size:14px;line-height:20px;color:#59636e">{escape(label)}</div><div class="metric-value" style="font-size:34px;line-height:38px;font-weight:bold;margin:7px 0">{escape(shown)}</div><div class="metric-note" style="font-size:13px;line-height:18px;color:#667085">{escape(note)}</div></div></td>'
 
 
 def build_intelligence_html(
@@ -249,16 +258,11 @@ def build_intelligence_html(
     jql=JQL,
     current_keys=None,
     previous_keys=None,
+    detail_priorities=("P0", "P1"),
 ) -> str:
     p0 = sum(issue.priority.casefold() == "p0" for issue in analysis.issues)
     p1 = sum(issue.priority.casefold() == "p1" for issue in analysis.issues)
-    yesterday = next(
-        (value for day, value in reversed(trend[:-1]) if value is not None), None
-    )
-    delta = analysis.total - yesterday if yesterday is not None else None
-    delta_text = "" if delta is None else f"{delta:+d} vs 昨日"
     metrics = (
-        ("当前未关闭", analysis.total, "当前 JQL"),
         ("今日创建", len(analysis.created_today), "本地日期"),
         ("今日更新", len(analysis.updated_today), "本地日期"),
         ("P0 / 高优先级", p0, "需优先关注"),
@@ -276,24 +280,23 @@ def build_intelligence_html(
     priorities = Counter(
         issue.priority or "未设置" for issue in analysis.issues
     ).most_common()
+    shown_priorities = {priority.casefold() for priority in detail_priorities}
+    detail_issues = tuple(
+        issue
+        for issue in analysis.issues
+        if issue.priority.casefold() in shown_priorities
+    )
     detail_rows = "".join(
         f'<tr class="issue-row"><td><a href="{escape(issue.url, quote=True)}">{escape(issue.key)}</a></td><td>{escape(issue.summary or "未设置")}</td><td>{escape(issue.status or "未设置")}</td><td>{escape(issue.priority or "未设置")}</td><td>{escape(issue.assignee or "未设置")}</td><td>{"是" if issue.key in analysis.stale else "否"}</td></tr>'
-        for issue in analysis.issues
+        for issue in detail_issues
     )
-    if yesterday is None:
-        yesterday_content = '<div class="muted">暂无可用历史基线</div>'
-    else:
-        rows = [("昨日未关闭", yesterday), ("净变化", f"{delta:+d} vs 昨日")]
-        if current_keys is not None and previous_keys is not None:
-            rows.extend((("进入当前集合", len(set(current_keys) - set(previous_keys))), ("离开当前集合", len(set(previous_keys) - set(current_keys)))))
-        yesterday_content = '<table class="bar-table" width="100%">' + "".join(f'<tr><td>{label}</td><td class="bar-count nowrap">{value}</td></tr>' for label, value in rows) + "</table>"
     return f"""<!doctype html><html><head><meta charset="utf-8"><style>
 body{{margin:0;background:#eef1f5;font-family:Arial,'Microsoft YaHei',sans-serif;color:#172b4d}} .report-canvas{{width:860px;max-width:calc(100% - 32px);margin:24px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 8px 28px rgba(9,30,66,.10)}} .hero{{padding:28px 34px;background:#102a56;background:linear-gradient(135deg,#102a56,#0c66e4);color:#fff}} .eyebrow{{font-size:11px;letter-spacing:2px;opacity:.78}} .hero-title{{font-size:27px;font-weight:bold;margin:8px 0 4px}} .hero-subtitle{{font-size:12px;opacity:.78}} .hero-total{{font-size:38px;font-weight:bold;line-height:1}} .section{{padding:24px 28px;border-bottom:1px solid #e4e7ec}} .section-title{{font-size:18px;font-weight:bold;margin-bottom:14px}} .metric-card,.panel{{background:#fff;border:1px solid #dfe3e8;border-radius:10px;padding:13px}} .metric-card{{height:92px;box-sizing:border-box;vertical-align:middle}} .metric-label,.metric-note,.muted{{font-size:12px;line-height:1.35;color:#667085}} .metric-value{{font-size:30px;line-height:1;font-weight:bold;margin:8px 0}} .paired-row{{table-layout:fixed;border-spacing:6px}} .paired-cell{{vertical-align:top}} .paired-cell>.panel{{height:220px;box-sizing:border-box;margin:0}} .row-b .paired-cell>.panel{{height:225px}} .compact-panel{{overflow:hidden}} .bar-table{{border-collapse:collapse;font-size:11px}} .bar-table td{{padding:6px 3px}} .bar-label{{width:42%;white-space:nowrap;overflow:hidden}} .bar-track{{height:7px;background:#edf1f5;border-radius:5px}} .bar-fill{{height:7px;background:#0c66e4;border-radius:5px}} .bar-count{{width:90px;text-align:right;font-weight:bold}} .nowrap{{white-space:nowrap}} .status-img{{display:block;width:100%;height:165px;object-fit:contain}} .detail{{border-collapse:separate;border-spacing:0;font-size:11px}} .detail th{{background:#f2f4f7;text-align:left}} .detail th,.detail td{{padding:7px;border-bottom:1px solid #e4e7ec}} h3{{margin:0 0 8px;font-size:14px}} a{{color:#0c66e4}}
 .row-a .paired-cell>.panel{{height:300px}}.status-img{{height:245px}}
 </style></head><body><div class="report-canvas">
-<div class="hero"><div class="eyebrow">DAILY PROJECT INTELLIGENCE · {escape(project_name.upper())}</div><table role="presentation" width="100%" cellspacing="0"><tr><td><div class="hero-title">{escape(project_name)} 公版状态日报</div><div>{analysis.day.isoformat()}</div><div class="hero-subtitle">{escape(jql)}</div></td><td width="150" align="right"><div class="hero-total">{analysis.total}</div><div>当前未关闭</div>{f'<div class="nowrap">{delta_text}</div>' if delta_text else ''}</td></tr></table></div>
-<div class="section"><div class="section-title">01 数据全景</div><table class="kpi-row" role="presentation" width="100%" cellspacing="5">{metric_rows}</table><table class="paired-row row-a" role="presentation" width="100%" cellspacing="6"><tr><td class="paired-cell" width="50%"><div class="panel"><h3>昨日对比</h3>{yesterday_content}</div></td><td class="paired-cell" width="50%"><div class="panel"><h3>状态构成</h3><img class="status-img" src="{escape(status_chart_path.name)}"></div></td></tr></table><table class="paired-row row-b" role="presentation" width="100%" cellspacing="6"><tr><td class="paired-cell" width="50%">{_bar_panel('模块分布 · Top 5', modules, compact=True)}</td><td class="paired-cell" width="50%">{_bar_panel('优先级 / 停滞', [('P0', p0), ('P1', p1), ('P2', dict(priorities).get('P2', 0)), ('停滞 ≥ 7 天', len(analysis.stale))])}</td></tr></table><div class="panel" style="margin-top:8px"><h3>每日未关闭趋势</h3><img src="{escape(chart_path.name)}" style="display:block;width:100%;max-height:360px;object-fit:contain"><div class="muted">缺失日期以断点表示，不进行推测或插值。</div></div></div>
-<div class="section"><div class="section-title">02 Issue 明细 · {len(analysis.issues)} 条</div><div class="muted" style="margin-bottom:10px">当前 JQL 返回的全部唯一 Issue</div><table class="detail" width="100%" cellspacing="0" cellpadding="0"><tr><th>Key</th><th>Summary</th><th>Status</th><th>Priority</th><th>Assignee</th><th>停滞</th></tr>{detail_rows or '<tr><td colspan="6">当前无 Issue</td></tr>'}</table></div>
+<div class="hero"><div class="eyebrow">DAILY PROJECT INTELLIGENCE · {escape(project_name.upper())}</div><table role="presentation" width="100%" cellspacing="0"><tr><td><div class="hero-title">{escape(project_name)} 公版状态日报</div><div>{analysis.day.isoformat()}</div><div class="hero-subtitle">{escape(jql)}</div></td><td width="150" align="right"><div class="hero-total">{analysis.total}</div><div>当前未关闭</div></td></tr></table></div>
+<div class="section"><div class="section-title">01 数据全景</div><table class="kpi-row" role="presentation" width="100%" cellspacing="5">{metric_rows}</table><table class="paired-row row-a" role="presentation" width="100%" cellspacing="6"><tr><td class="paired-cell" width="50%">{_bar_panel('优先级 / 停滞', [('P0', p0), ('P1', p1), ('P2', dict(priorities).get('P2', 0)), ('停滞 ≥ 7 天', len(analysis.stale))])}</td><td class="paired-cell" width="50%"><div class="panel"><h3>状态构成</h3><img class="status-img" src="{escape(status_chart_path.name)}"></div></td></tr></table><table class="paired-row row-b" role="presentation" width="100%" cellspacing="6"><tr><td class="paired-cell" width="50%">{_bar_panel('模块分布 · Top 5', modules, compact=True)}</td><td class="paired-cell" width="50%"><div class="panel"><h3>问题内外部</h3></div></td></tr></table><div class="panel" style="margin-top:8px"><h3>每日未关闭趋势</h3><img src="{escape(chart_path.name)}" style="display:block;width:100%;max-height:360px;object-fit:contain"><div class="muted">缺失日期以断点表示，不进行推测或插值。</div></div></div>
+<div class="section"><div class="section-title">02 Issue 明细 · {len(detail_issues)} 条</div><div class="muted" style="margin-bottom:10px">展示优先级：{escape(', '.join(detail_priorities))}</div><table class="detail" width="100%" cellspacing="0" cellpadding="0"><tr><th>Key</th><th>Summary</th><th>Status</th><th>Priority</th><th>Assignee</th><th>停滞</th></tr>{detail_rows or '<tr><td colspan="6">当前无 Issue</td></tr>'}</table></div>
 <div class="section"><div class="section-title">03 口径与附件</div><p>当前值为固定 JQL 返回的唯一 Issue 数，包含 Resolved，仅排除 Closed、Done、Verified。</p><p>今日创建/更新按本地日期；停滞为最后更新时间距今日至少 7 个日历日。附件包含完整 Issue Excel。</p></div>
 </div></body></html>"""
 
@@ -374,6 +377,7 @@ def generate_artifacts(
             jql=project.jql,
             current_keys={issue.key for issue in issues},
             previous_keys=previous_keys,
+            detail_priorities=project.detail_priorities,
         ),
         encoding="utf-8",
     )

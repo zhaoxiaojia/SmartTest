@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from threading import Event, Lock, get_ident
 import time
@@ -100,12 +100,59 @@ def test_global_schedule_maps_daily_and_weekly_to_public_scheduling(tmp_path):
         "list": lambda _self, prefix, definitions=None: [],
     })()
     manager = DailyReportScheduleManager(tmp_path / "schedule.json", scheduler=scheduler)
-    manager.save("daily", hour=18, minute=30)
-    manager.save("weekly", hour=9, minute=5, weekday=2)
+    manager.save("daily", hour=7, minute=0)
+    manager.save("daily", hour=0, minute=5)
+    manager.save("weekly", hour=0, minute=5, weekday=2)
     from support.scheduling import DailyTrigger, WeeklyTrigger
-    assert calls[0].trigger == DailyTrigger(18, 30)
-    assert calls[1].trigger == WeeklyTrigger(2, 9, 5)
-    assert calls[1].launch.arguments[-1] == "--daily-report-run"
+    assert calls[0].trigger == DailyTrigger(6, 55)
+    assert calls[1].trigger == DailyTrigger(0, 0)
+    assert calls[2].trigger == WeeklyTrigger(2, 0, 0)
+    assert calls[2].launch.arguments[-1] == "--daily-report-run"
+
+
+def test_global_schedule_five_minute_lead_rolls_weekly_to_previous_day(tmp_path):
+    calls = []
+    scheduler = type("Scheduler", (), {
+        "upsert": lambda _self, definition: calls.append(definition) or object(),
+    })()
+    manager = DailyReportScheduleManager(tmp_path / "schedule.json", scheduler=scheduler)
+
+    manager.save("daily", hour=11, minute=30)
+    manager.save("weekly", hour=0, minute=3, weekday=0)
+
+    from support.scheduling import DailyTrigger, WeeklyTrigger
+    assert calls[0].trigger == DailyTrigger(11, 25)
+    assert calls[1].trigger == WeeklyTrigger(6, 23, 58)
+    assert manager.load().hour == 0
+    assert manager.load().minute == 3
+
+
+def test_daily_schedule_enable_disable_updates_task_and_persisted_state(tmp_path):
+    states = []
+    scheduler = type("Scheduler", (), {
+        "upsert": lambda _self, _definition: object(),
+        "set_enabled": lambda _self, task_id, enabled: states.append(
+            (task_id, enabled)
+        ) or type("State", (), {"enabled": enabled})(),
+        "delete": lambda _self, _task_id: True,
+        "list": lambda _self, _prefix, _definitions=None: [],
+    })()
+    manager = DailyReportScheduleManager(
+        tmp_path / "schedule.json", scheduler=scheduler,
+    )
+    manager.save("daily", hour=19, minute=0)
+
+    disabled = manager.set_enabled(False)
+    assert disabled.enabled is False
+    assert manager.load().enabled is False
+    enabled = manager.set_enabled(True)
+
+    assert enabled.enabled is True
+    assert manager.load().enabled is True
+    assert states == [
+        ("SmartTest.DailyReport.Batch", False),
+        ("SmartTest.DailyReport.Batch", True),
+    ]
 
 
 def test_new_batch_background_route_has_no_plan_identity():
@@ -117,21 +164,218 @@ def test_new_batch_background_route_has_no_plan_identity():
     assert calls == [True]
 
 
-def test_scheduled_background_reads_credential_and_sends_current_batch():
+def test_scheduled_background_prepares_fresh_batch_then_waits_for_send_deadline():
     from tool.common.daily_report.background import run_scheduled_batch
+    from tool.common.daily_report.schedule import BatchSchedule
+    events = []
     batch = type("Batch", (), {"reports": (1,), "failures": ()})()
     service = type("Service", (), {
-        "preview": lambda _self, username, password: batch,
-        "send_preview": lambda _self, value: (type("Result", (), {"status": "sent"})(),),
+        "preview": lambda _self, username, password: events.append(
+            ("preview", username, password)
+        ) or batch,
+        "send_preview": lambda _self, value: events.append(("send", value)) or (
+            type("Result", (), {"status": "sent"})(),
+        ),
     })()
     credentials = type("Credentials", (), {
         "read": lambda _self, ref: ("user", "password")
     })()
-    assert run_scheduled_batch(credentials=credentials, service=service) == 0
+    schedule = type("Schedule", (), {
+        "load": lambda _self: BatchSchedule("daily", 7, 0),
+    })()
+    current = [datetime(2026, 8, 6, 6, 50)]
+    def wait(seconds):
+        events.append(("wait", seconds))
+        current[0] += timedelta(seconds=seconds)
+
+    assert run_scheduled_batch(
+        credentials=credentials, service=service, schedule=schedule,
+        now=lambda: current[0], wait=wait,
+    ) == 0
+    assert events[0] == ("preview", "user", "password")
+    assert events[1:-1] == [("wait", 60.0)] * 10
+    assert events[-1] == ("send", batch)
 
 
-def test_report_keeps_approved_canvas_yesterday_deltas_and_complete_excel(tmp_path):
-    issues = (_issue("A"), _issue("B"), _issue("C"))
+def test_scheduled_background_logs_lifecycle_and_wait_heartbeats():
+    from tool.common.daily_report.background import run_scheduled_batch
+    from tool.common.daily_report.schedule import BatchSchedule
+    current = [datetime(2026, 8, 6, 6, 58)]
+    records = []
+    batch = type("Batch", (), {"reports": (1, 2), "failures": ()})()
+    results = (
+        type("Result", (), {"status": "sent"})(),
+        type("Result", (), {"status": "send_failed"})(),
+    )
+    def wait(seconds):
+        current[0] += timedelta(seconds=seconds)
+
+    exit_code = run_scheduled_batch(
+        credentials=type("Credentials", (), {
+            "read": lambda _self, _ref: ("user", "secret-password"),
+        })(),
+        service=type("Service", (), {
+            "preview": lambda _self, *_args: batch,
+            "send_preview": lambda _self, _batch: results,
+        })(),
+        schedule=type("Schedule", (), {
+            "load": lambda _self: BatchSchedule("daily", 7, 0),
+        })(),
+        now=lambda: current[0], wait=wait,
+        logger=lambda message, **fields: records.append((message, fields)),
+    )
+
+    assert exit_code == 1
+    assert [message for message, _ in records] == [
+        "Daily Report scheduled task entered",
+        "Daily Report schedule loaded",
+        "Daily Report send deadline resolved",
+        "Daily Report credential read succeeded",
+        "Daily Report fresh preparation started",
+        "Daily Report fresh preparation completed",
+        "Daily Report deadline wait started",
+        "Daily Report deadline wait heartbeat",
+        "Daily Report deadline wait completed",
+        "Daily Report scheduled send started",
+        "Daily Report scheduled send completed",
+        "Daily Report scheduled task exited",
+    ]
+    extras = {message: fields["extra"] for message, fields in records}
+    assert extras["Daily Report schedule loaded"] == {
+        "stage": "schedule_load", "cadence": "daily",
+        "send_time": "07:00", "enabled": True,
+    }
+    assert extras["Daily Report fresh preparation completed"] == {
+        "stage": "preparation", "report_count": 2, "failure_count": 0,
+    }
+    assert extras["Daily Report deadline wait heartbeat"] == {
+        "stage": "wait", "remaining_seconds": 60,
+    }
+    assert extras["Daily Report scheduled send completed"] == {
+        "stage": "send", "result_count": 2, "sent_count": 1,
+        "failure_count": 1, "statuses": {"sent": 1, "send_failed": 1},
+    }
+    assert extras["Daily Report scheduled task exited"]["exit_code"] == 1
+    assert "secret-password" not in repr(records)
+
+
+def test_scheduled_background_logs_credential_failure_without_secret_detail():
+    from tool.common.daily_report.background import run_scheduled_batch
+    from tool.common.daily_report.schedule import BatchSchedule
+    records = []
+    class Credentials:
+        def read(self, _ref):
+            raise RuntimeError("credential secret detail")
+
+    assert run_scheduled_batch(
+        credentials=Credentials(), service=object(),
+        schedule=type("Schedule", (), {
+            "load": lambda _self: BatchSchedule("daily", 7, 0),
+        })(),
+        now=lambda: datetime(2026, 8, 6, 6, 58), wait=lambda _seconds: None,
+        logger=lambda message, **fields: records.append((message, fields)),
+    ) == 1
+
+    assert [message for message, _ in records][-3:] == [
+        "Daily Report credential read failed",
+        "Daily Report scheduled task failed",
+        "Daily Report scheduled task exited",
+    ]
+    assert records[-2][1]["extra"] == {
+        "stage": "credential_read", "error_type": "RuntimeError",
+    }
+    assert "credential secret detail" not in repr(records)
+
+
+def test_scheduled_background_preparation_failure_sends_nothing():
+    from tool.common.daily_report.background import run_scheduled_batch
+    from tool.common.daily_report.schedule import BatchSchedule
+    sent = []
+    project_failure = type("Failure", (), {"status": "query_failed"})()
+    batch = type("Batch", (), {"reports": (1,), "failures": (project_failure,)})()
+    service = type("Service", (), {
+        "preview": lambda _self, *_args: batch,
+        "send_preview": lambda _self, value: sent.append(value),
+    })()
+    credentials = type("Credentials", (), {
+        "read": lambda _self, ref: ("user", "password")
+    })()
+    schedule = type("Schedule", (), {
+        "load": lambda _self: BatchSchedule("daily", 7, 0),
+    })()
+
+    assert run_scheduled_batch(
+        credentials=credentials, service=service, schedule=schedule,
+        now=lambda: datetime(2026, 8, 6, 6, 50), wait=lambda _seconds: None,
+    ) == 1
+    assert sent == []
+
+
+def test_scheduled_background_sends_immediately_when_preparation_reaches_deadline():
+    from tool.common.daily_report.background import run_scheduled_batch
+    from tool.common.daily_report.schedule import BatchSchedule
+    current = [datetime(2026, 8, 6, 6, 50)]
+    events = []
+    batch = type("Batch", (), {"reports": (1,), "failures": ()})()
+    def preview(_self, *_args):
+        events.append("preview")
+        current[0] = datetime(2026, 8, 6, 7, 1)
+        return batch
+    service = type("Service", (), {
+        "preview": preview,
+        "send_preview": lambda _self, _batch: events.append("send") or (
+            type("Result", (), {"status": "sent"})(),
+        ),
+    })()
+
+    assert run_scheduled_batch(
+        credentials=type("Credentials", (), {
+            "read": lambda _self, _ref: ("user", "password"),
+        })(),
+        service=service,
+        schedule=type("Schedule", (), {
+            "load": lambda _self: BatchSchedule("daily", 7, 0),
+        })(),
+        now=lambda: current[0],
+        wait=lambda _seconds: events.append("wait"),
+    ) == 0
+    assert events == ["preview", "send"]
+
+
+def test_immediate_unattended_batch_skips_deadline_without_changing_schedule():
+    from tool.common.daily_report.background import run_scheduled_batch
+    from tool.common.daily_report.schedule import BatchSchedule
+    events = []
+    batch = type("Batch", (), {"reports": (1,), "failures": ()})()
+    schedule = type("Schedule", (), {
+        "load": lambda _self: BatchSchedule("daily", 19, 0, enabled=False),
+    })()
+
+    assert run_scheduled_batch(
+        credentials=type("Credentials", (), {
+            "read": lambda _self, _ref: ("user", "password"),
+        })(),
+        service=type("Service", (), {
+            "preview": lambda _self, *_args: events.append("preview") or batch,
+            "send_preview": lambda _self, _batch: events.append("send") or (
+                type("Result", (), {"status": "sent"})(),
+            ),
+        })(),
+        schedule=schedule, immediate=True,
+        now=lambda: datetime(2026, 8, 7, 12, 0),
+        wait=lambda _seconds: events.append("wait"),
+        logger=lambda *_args, **_kwargs: None,
+    ) == 0
+    assert events == ["preview", "send"]
+    assert schedule.load().enabled is False
+
+
+def test_report_uses_priority_layout_and_filters_detail_without_filtering_excel(tmp_path):
+    issues = (
+        _issue("P0-1", priority="P0"),
+        _issue("P1-1", priority="P1"),
+        _issue("P2-1", priority="P2"),
+    )
     trend = ((date(2026, 8, 3), 3), (date(2026, 8, 4), 3))
     artifacts = generate_artifacts(
         issues,
@@ -139,18 +383,47 @@ def test_report_keeps_approved_canvas_yesterday_deltas_and_complete_excel(tmp_pa
         tmp_path,
         date(2026, 8, 4),
         project=PROJECTS[2],
-        previous_keys={"B", "C", "D"},
+        previous_keys={"P0-1", "P1-1", "OLD-1"},
     )
 
     html = artifacts.html_path.read_text("utf-8")
     assert "公版状态日报" in html
-    assert "昨日未关闭" in html and "进入当前集合" in html and "离开当前集合" in html
-    assert "font-size:34px" in html and "class=\"nowrap\"" in html
-    assert html.count('class="issue-row"') == 3
+    assert "昨日对比" not in html
+    assert "今日关闭" not in html
+    assert "vs 昨日" not in html
+    assert html.count("当前未关闭") == 1
+    assert html.index("优先级 / 停滞") < html.index("状态构成")
+    assert "问题内外部" in html
+    assert "font-size:34px" in html
+    assert "Issue 明细 · 2 条" in html
+    assert html.count('class="issue-row"') == 2
+    assert "P0-1" in html and "P1-1" in html and "P2-1" not in html
     assert artifacts.excel_path.is_file()
     from PIL import Image
     with Image.open(artifacts.status_chart_path) as image:
         assert image.width >= 1200 and image.height >= 700
+
+
+def test_project_store_persists_configured_detail_priorities(tmp_path):
+    store = ProjectConfigStore(tmp_path / "projects.json")
+    payload = store.to_payload(PROJECTS[0])
+    assert payload["detail_priorities"] == ["P0", "P1"]
+
+    payload["detail_priorities"] = ["P1", "P2"]
+    saved = store.save(payload)
+
+    assert saved.detail_priorities == ("P1", "P2")
+    assert store.load(saved.safe_id).detail_priorities == ("P1", "P2")
+
+    artifacts = generate_artifacts(
+        (_issue("P0-1", priority="P0"), _issue("P2-1", priority="P2")),
+        ((date(2026, 8, 4), 2),),
+        tmp_path / "custom-priorities",
+        date(2026, 8, 4),
+        project=saved,
+    )
+    html = artifacts.html_path.read_text("utf-8")
+    assert "P0-1" not in html and "P2-1" in html
 
 
 def test_service_builds_four_projects_with_concurrent_jira_and_safe_phase_logs(tmp_path):
@@ -294,7 +567,7 @@ def test_bridge_boundary_starts_external_work_on_a_worker_thread():
     credentials = type("Credentials", (), {})()
     bridge = DailyReportBridge(
         Auth(), service=Service(), projects=projects, schedule=schedule,
-        credentials=credentials, allowed=lambda _account: True,
+        credentials=credentials,
     )
     bridge.generatePreview()
     deadline = time.monotonic() + 2
@@ -305,6 +578,155 @@ def test_bridge_boundary_starts_external_work_on_a_worker_thread():
     assert bridge.state == "success"
 
 
+def test_bridge_still_requires_current_login_credentials(tmp_path):
+    from ui.example.bridge.DailyReportBridge import DailyReportBridge
+
+    auth = type(
+        "Auth", (), {"transientCredential": lambda _self: ("", "")},
+    )()
+    store = ProjectConfigStore(tmp_path / "projects.json")
+    schedule = type("Schedule", (), {"load": lambda _self: None})()
+    bridge = DailyReportBridge(
+        auth, service=object(), projects=store, schedule=schedule,
+        credentials=object(),
+    )
+
+    with pytest.raises(ValueError, match="Current login credential is unavailable"):
+        bridge._credential()
+
+
+def test_bridge_refreshes_existing_schedule_state_without_mutation(tmp_path):
+    from PySide6.QtCore import QCoreApplication
+    from tool.common.daily_report.schedule import BatchSchedule
+    from ui.example.bridge.DailyReportBridge import DailyReportBridge
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    expected = type("State", (), {
+        "registered": True, "enabled": True, "reconciliation": "ok",
+        "next_run_at": datetime(2026, 8, 6, 18, 50),
+    })()
+    calls = []
+    schedule = type("Schedule", (), {
+        "load": lambda _self: BatchSchedule("daily", 19, 0),
+        "state": lambda _self: calls.append("state") or expected,
+    })()
+    bridge = DailyReportBridge(
+        object(), service=object(),
+        projects=ProjectConfigStore(tmp_path / "projects.json"),
+        schedule=schedule, credentials=object(),
+    )
+
+    bridge.refreshPlans()
+    deadline = time.monotonic() + 2
+    while bridge.state == "running" and time.monotonic() < deadline:
+        app.processEvents()
+        time.sleep(0.01)
+
+    assert calls == ["state"]
+    assert bridge.scheduleRows[0]["registered"] is True
+    assert bridge.scheduleRows[0]["reconciliation"] == "ok"
+    assert bridge.scheduleRows[0]["nextRunAt"] == "2026-08-06 18:50:00"
+    assert bridge.scheduleRows[0]["taskTypeText"] == "Daily Report"
+    assert bridge.scheduleRows[0]["contentText"] == "; ".join(
+        project.name for project in PROJECTS if project.enabled
+    )
+    assert bridge.scheduleRows[0]["planText"] == "Daily 19:00"
+
+
+def test_bridge_schedule_row_lists_only_enabled_projects_and_weekly_plan(tmp_path):
+    from tool.common.daily_report.schedule import BatchSchedule
+    from ui.example.bridge.DailyReportBridge import DailyReportBridge
+
+    store = ProjectConfigStore(tmp_path / "projects.json", defaults=PROJECTS[:2])
+    store.set_enabled(PROJECTS[1].safe_id, False)
+    schedule = type("Schedule", (), {
+        "load": lambda _self: BatchSchedule("weekly", 9, 5, weekday=2),
+    })()
+    bridge = DailyReportBridge(
+        object(), service=object(), projects=store,
+        schedule=schedule, credentials=object(),
+    )
+
+    row = bridge.scheduleRows[0]
+    assert row["contentText"] == PROJECTS[0].name
+    assert row["planText"] == "Weekly Wednesday 09:05"
+
+    store.set_enabled(PROJECTS[0].safe_id, False)
+    assert bridge.scheduleRows[0]["contentText"] == "No enabled projects"
+
+
+def test_bridge_schedule_management_uses_owner_and_cleans_owned_credential(tmp_path):
+    from PySide6.QtCore import QCoreApplication
+    from tool.common.daily_report.schedule import BatchSchedule
+    from ui.example.bridge.DailyReportBridge import DailyReportBridge
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    calls = []
+    schedule = type("Schedule", (), {
+        "load": lambda _self: BatchSchedule("daily", 19, 0),
+        "set_enabled": lambda _self, enabled: calls.append(
+            ("enabled", enabled)
+        ) or type("State", (), {
+            "registered": True, "enabled": enabled,
+            "reconciliation": "ok", "next_run_at": None,
+        })(),
+        "state": lambda _self: type("State", (), {
+            "registered": True, "enabled": True,
+            "reconciliation": "ok", "next_run_at": None,
+        })(),
+        "delete": lambda _self: calls.append(("delete",)) or True,
+    })()
+    credentials = type("Credentials", (), {
+        "delete": lambda _self, ref: calls.append(("credential", ref)),
+    })()
+    bridge = DailyReportBridge(
+        object(), service=object(),
+        projects=ProjectConfigStore(tmp_path / "projects.json"),
+        schedule=schedule, credentials=credentials,
+        run_now=lambda: calls.append(("run", get_ident())) or 0,
+    )
+
+    def settle():
+        deadline = time.monotonic() + 2
+        while bridge.state == "running" and time.monotonic() < deadline:
+            app.processEvents(); time.sleep(0.01)
+
+    main_thread = get_ident()
+    bridge.setPlanEnabled("batch", False); settle()
+    bridge.runPlanNow("batch"); settle()
+    bridge.deletePlan("batch"); settle()
+
+    assert calls[0] == ("enabled", False)
+    assert calls[1][0] == "run" and calls[1][1] != main_thread
+    assert calls[-2:] == [
+        ("delete",), ("credential", "daily-report-batch"),
+    ]
+
+
+def test_bridge_rejects_duplicate_run_now_with_actionable_status(tmp_path):
+    from ui.example.bridge.DailyReportBridge import DailyReportBridge
+    release = Event(); started = Event(); calls = []
+    def run_now():
+        calls.append(True); started.set(); release.wait(2); return 0
+    schedule = type("Schedule", (), {
+        "load": lambda _self: None,
+        "state": lambda _self: None,
+    })()
+    bridge = DailyReportBridge(
+        object(), service=object(),
+        projects=ProjectConfigStore(tmp_path / "projects.json"),
+        schedule=schedule, credentials=object(), run_now=run_now,
+    )
+
+    bridge.runPlanNow("batch")
+    assert started.wait(1)
+    bridge.runPlanNow("batch")
+
+    assert calls == [True]
+    assert "already running" in bridge.statusText.lower()
+    release.set()
+
+
 def test_bridge_lists_full_project_fields_and_invalidates_preview_on_change(tmp_path):
     from ui.example.bridge.DailyReportBridge import DailyReportBridge
     store = ProjectConfigStore(tmp_path / "projects.json")
@@ -312,7 +734,7 @@ def test_bridge_lists_full_project_fields_and_invalidates_preview_on_change(tmp_
     schedule = type("Schedule", (), {"load": lambda _self: None})()
     bridge = DailyReportBridge(
         auth, service=object(), projects=store, schedule=schedule,
-        credentials=object(), allowed=lambda _account: True,
+        credentials=object(),
     )
     bridge._batch = type("Batch", (), {"reports": (), "failures": ()})()
     bridge._preview_revision = store.revision()
@@ -346,6 +768,28 @@ def test_managed_qml_has_no_duplicate_title_and_exposes_approved_actions():
     assert 'text: editing ? qsTr("Save project") : qsTr("Edit")' in source
 
 
+def test_bridge_automatically_selects_first_generated_preview_without_selection_slot(tmp_path):
+    from ui.example.bridge.DailyReportBridge import DailyReportBridge
+
+    store = ProjectConfigStore(tmp_path / "projects.json")
+    schedule = type("Schedule", (), {"load": lambda _self: None})()
+    bridge = DailyReportBridge(
+        object(), service=object(), projects=store, schedule=schedule,
+        credentials=object(),
+    )
+    project = store.list()[0]
+    artifacts = type(
+        "Artifacts", (), {"html_path": tmp_path / "preview.html"},
+    )()
+    report = type("Report", (), {"project": project, "artifacts": artifacts})()
+    batch = type("Batch", (), {"reports": (report,), "failures": ()})()
+
+    bridge._on_finished(("preview", batch))
+
+    assert bridge.previewValid is True
+    assert bridge.previewUrl == artifacts.html_path.resolve().as_uri()
+
+
 def test_managed_daily_report_text_is_finished_in_both_catalogs():
     for filename in ("example_en_US.ts", "example_zh_CN.ts"):
         root = ET.parse(Path("ui/example") / filename).getroot()
@@ -361,5 +805,5 @@ def test_managed_daily_report_text_is_finished_in_both_catalogs():
         ):
             translation = message.find("translation")
             assert translation is not None
-            assert translation.get("type") != "unfinished"
+            assert translation.get("type") not in {"unfinished", "vanished"}
             assert (translation.text or "").strip()
