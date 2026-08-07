@@ -61,13 +61,6 @@ class FakeConfluence:
         return {"results": [{"id": "c1", "title": "Test Plan", "_links": {"webui": "/c1"}}],
                 "size": 1}
 
-    def get_attachments_from_content(self, page_id, start=0, limit=100, expand=None):
-        return {"results": [{"id": "a1", "title": "report.xlsx",
-                             "version": {"number": 2, "when": "2026-07-27T00:00:00.000Z",
-                                         "by": {"displayName": "QA"}},
-                             "_links": {"download": "/download/a1"}}], "size": 1}
-
-
 def test_search_pages_paginates_and_normalizes():
     api = FakeConfluence()
     client = ConfluenceClient(ConfluenceClientConfig("https://confluence.example"), "u", "secret", api=api)
@@ -80,16 +73,13 @@ def test_search_pages_paginates_and_normalizes():
     assert all(call[3] == "body.storage,body.view,version" for call in api.calls)
 
 
-def test_page_children_and_attachments_are_normalized():
+def test_page_and_children_are_normalized():
     api = FakeConfluence()
     client = ConfluenceClient(ConfluenceClientConfig("https://confluence.example"), "u", "secret", api=api)
     page = client.get_page("10")
     children = client.get_children("10")
-    attachments = client.get_attachments("10")
     assert (page.title, page.version) == ("Status Report", 3)
     assert children[0].title == "Test Plan"
-    assert attachments[0].filename == "report.xlsx"
-    assert attachments[0].created_at == datetime(2026, 7, 27, tzinfo=timezone.utc)
 
 
 def test_page_by_url_prefers_static_export_view_for_macro_catalogs():
@@ -158,6 +148,41 @@ def test_get_page_by_url_rejects_foreign_hosts():
     )
     with pytest.raises(ValueError):
         client.get_page_by_url("https://evil.example/pages/viewpage.action?pageId=1")
+
+
+def test_get_historical_page_version_reuses_page_mapping():
+    class HistoricalApi(FakeConfluence):
+        def get_page_by_id(
+            self, page_id, expand=None, status=None, version=None,
+        ):
+            assert (page_id, expand, status, version) == (
+                "page-7", "body.storage,body.view,version", "historical", 3,
+            )
+            return {
+                "id": page_id,
+                "title": "Status Report",
+                "body": {
+                    "storage": {"value": "<h2>Highlights</h2><p>Old</p>"},
+                    "view": {"value": "<h2>Highlights</h2><p>Old</p>"},
+                },
+                "version": {
+                    "number": 3,
+                    "when": "2026-08-03T01:02:03.000Z",
+                },
+                "_links": {"webui": "/pages/page-7"},
+            }
+
+    client = ConfluenceClient(
+        ConfluenceClientConfig("https://confluence.example"),
+        "u", "secret", api=HistoricalApi(),
+    )
+
+    page = client.get_page_version("page-7", 3)
+
+    assert page.id == "page-7"
+    assert page.version == 3
+    assert page.body == "<h2>Highlights</h2><p>Old</p>"
+    assert page.updated_at == datetime(2026, 8, 3, 1, 2, 3, tzinfo=timezone.utc)
 
 
 def test_get_parent_page_uses_direct_parent_from_full_ancestor_chain():

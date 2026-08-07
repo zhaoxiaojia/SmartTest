@@ -12,9 +12,13 @@ from .models import (
 
 AI_REVIEWABLE_RULE_IDS = frozenset(
     {
-        "SUMMARY.PROBABILITY",
+        "SUMMARY.FORMAT",
+        "DESCRIPTION.STEPS_TO_REPRODUCE",
+        "DESCRIPTION.ACTUAL_RESULTS",
+        "DESCRIPTION.EXPECTED_RESULTS",
         "DESCRIPTION.RATE_FORMAT",
         "DESCRIPTION.COMPARISON",
+        "DESCRIPTION.NOTES",
         "DESCRIPTION.NOTES_HW",
         "DESCRIPTION.NOTES_SW",
     }
@@ -104,8 +108,7 @@ _QA_CREATOR_NAME_KEYS = frozenset(
 )
 
 _RULE_DATA = (
-    ("SUMMARY.FORMAT", "Summary", "Summary", "Summary 必须包含 4–6 个方括号分组，最后四组依次为客户、CHIP、系统版本和模块，冒号后填写问题描述与复现概率。", "使用“[客户][CHIP][版本][模块]: 问题描述,复现概率”；前面可选增加公共 Jira ID 和客户 Bug ID。"),
-    ("SUMMARY.PROBABILITY", "Summary", "Summary.Probability", "Summary 的复现概率必须是百分比、分数或明确的文字次数，例如 50%、1/2、出现一次或复现2次。", "改为百分比、分数或“出现/复现 + 数字 + 次”的文字次数。"),
+    ("SUMMARY.FORMAT", "Summary", "Summary", "Summary 必须包含 4–6 个方括号分组，最后四组依次为客户、CHIP、系统版本和模块，冒号后填写非空问题描述。", "使用“[客户][CHIP][版本][模块]: 问题描述”；前面可选增加公共 Jira ID 和客户 Bug ID。"),
     ("COMPONENT.REQUIRED", "Component", "Component", "至少填写一个 Component。", "填写与问题对应的 Component。"),
     ("DESCRIPTION.STEPS_TO_REPRODUCE", "Description", "Description", "Description 必须包含非空的 Steps to reproduce。", "补充可执行的复现步骤。"),
     ("DESCRIPTION.ACTUAL_RESULTS", "Description", "Description", "Description 必须包含非空的 Actual results。", "补充实际发生的结果。"),
@@ -121,7 +124,7 @@ _RULES = tuple(AuditRule(*row) for row in _RULE_DATA)
 _TEXTUAL_OCCURRENCE_RATE = (
     r"(?:出现|复现)\s*(?:\d+|[零〇一二两三四五六七八九十百千万]+)\s*次"
 )
-_SUMMARY_RATE_AT_END = re.compile(
+_STANDARD_SUMMARY_RATE_AT_END = re.compile(
     rf"(?P<rate>(?:100|\d{{1,2}})(?:\.\d+)?%|\d+\s*/\s*\d+|"
     rf"{_TEXTUAL_OCCURRENCE_RATE})"
     r"\s*[.。]?\s*$"
@@ -157,6 +160,7 @@ _DESCRIPTION_SECTION_ALIASES = {
         "Expected behavior",
         "Expected behaviour",
         "预期结果",
+        "期望结果",
         "预期现象",
     ),
     "reproducibility rate": (
@@ -166,6 +170,7 @@ _DESCRIPTION_SECTION_ALIASES = {
         "复现概率",
         "复现率",
         "出现概率",
+        "概率",
     ),
     "comparison": (
         "Compare info",
@@ -203,6 +208,29 @@ _NOTES_INFO_ALIASES = {
         "Software info",
         "Software information",
         "软件信息",
+        "软件版本",
+    ),
+}
+_AI_SEMANTIC_HINTS = {
+    "DESCRIPTION.STEPS_TO_REPRODUCE": (
+        r"(?:打开|进入|点击|选择|播放|启动|连接|安装|重启|操作)",
+    ),
+    "DESCRIPTION.ACTUAL_RESULTS": (
+        r"(?:异常|失败|冻结|卡顿|黑屏|无响应|报错|崩溃|不能|无法)",
+    ),
+    "DESCRIPTION.EXPECTED_RESULTS": (
+        r"(?:应该|应当|期望|预期|正常(?:显示|播放|工作|运行))",
+    ),
+    "DESCRIPTION.COMPARISON": (
+        r"(?:上一|旧|当前|本次|新)版本",
+        r"(?:previous|current|old|new)\s+(?:version|build)",
+    ),
+    "DESCRIPTION.NOTES": (r"(?:补充说明|备注|附加信息)",),
+    "DESCRIPTION.NOTES_HW": (
+        r"(?:硬件|机型|型号|平台|尺寸|board|device|model)",
+    ),
+    "DESCRIPTION.NOTES_SW": (
+        r"(?:软件|测试版本|构建版本|固件|build|firmware)",
     ),
 }
 _Failure = Callable[[str, Any, str], None]
@@ -312,22 +340,33 @@ def _is_ai_reviewable_violation(
 ) -> bool:
     if violation.rule_id not in AI_REVIEWABLE_RULE_IDS:
         return False
-    if violation.rule_id in {
-        "SUMMARY.PROBABILITY",
-        "DESCRIPTION.RATE_FORMAT",
-    }:
+    if violation.rule_id == "SUMMARY.FORMAT":
+        groups, description, _errors = _parse_summary_format(
+            violation.observed
+        )
+        return (
+            4 <= len(groups) <= 6
+            and all(groups)
+            and bool(re.search(r"[A-Za-z\u4e00-\u9fff]", description))
+        )
+    if violation.rule_id == "DESCRIPTION.RATE_FORMAT":
         return True
-    aliases = {
-        "DESCRIPTION.COMPARISON": _DESCRIPTION_SECTION_ALIASES["comparison"],
-        "DESCRIPTION.NOTES_HW": _NOTES_INFO_ALIASES["hw"],
-        "DESCRIPTION.NOTES_SW": _NOTES_INFO_ALIASES["sw"],
-    }[violation.rule_id]
     observed = (
         violation.observed
         if description is None
         else description
     ).casefold()
-    return any(alias.casefold() in observed for alias in aliases)
+    explicit_aliases = {
+        "DESCRIPTION.COMPARISON": _DESCRIPTION_SECTION_ALIASES["comparison"],
+        "DESCRIPTION.NOTES_HW": _NOTES_INFO_ALIASES["hw"],
+        "DESCRIPTION.NOTES_SW": _NOTES_INFO_ALIASES["sw"],
+    }.get(violation.rule_id, ())
+    if any(alias.casefold() in observed for alias in explicit_aliases):
+        return True
+    return any(
+        re.search(pattern, observed, re.IGNORECASE)
+        for pattern in _AI_SEMANTIC_HINTS.get(violation.rule_id, ())
+    )
 
 
 def _normalize_issue(issue: dict[str, Any], base_url: str) -> _Issue:
@@ -364,7 +403,7 @@ def issue_description(issue: dict[str, Any]) -> str:
 
 
 def _audit_summary(summary: str, fail: _Failure) -> None:
-    _groups, _description, probability, errors = _parse_summary_format(summary)
+    _groups, _description, errors = _parse_summary_format(summary)
     if errors:
         fail(
             "SUMMARY.FORMAT",
@@ -373,13 +412,10 @@ def _audit_summary(summary: str, fail: _Failure) -> None:
         )
         return
 
-    if not _valid_rate(probability):
-        fail("SUMMARY.PROBABILITY", summary, f"复现概率“{probability}”格式无效。")
-
 
 def _parse_summary_format(
     value: str,
-) -> tuple[list[str], str, str, list[str]]:
+) -> tuple[list[str], str, list[str]]:
     text = str(value or "").strip()
     groups: list[str] = []
     errors: list[str] = []
@@ -397,7 +433,7 @@ def _parse_summary_format(
             errors.append(
                 f"第 {len(groups) + 1} 个字段缺少右方括号“{closing}”"
             )
-            return groups, "", "", errors
+            return groups, "", errors
         groups.append(text[position + 1:closing_position].strip())
         position = closing_position + 1
 
@@ -414,30 +450,32 @@ def _parse_summary_format(
         position += 1
     if position >= len(text) or text[position] not in (":", "："):
         errors.append("方括号字段后缺少必需的冒号（允许“:”或“：”）")
-        return groups, "", "", errors
+        return groups, text[position:].strip(), errors
 
     body = text[position + 1:].strip()
-    rate_match = _SUMMARY_RATE_AT_END.search(body)
+    rate_match = _STANDARD_SUMMARY_RATE_AT_END.search(body)
+    prefix = body[:rate_match.start()].rstrip() if rate_match else body
     if (
         rate_match
         and re.fullmatch(_TEXTUAL_OCCURRENCE_RATE, rate_match.group("rate"))
-        and body[:rate_match.start()].rstrip()[-1:] not in ",，;；"
+        and prefix
+        and prefix[-1:] not in ",，;；"
     ):
         rate_match = None
-    probability = rate_match.group("rate").strip() if rate_match else ""
-    description = (
-        body[:rate_match.start()].rstrip().rstrip(",，;；").rstrip()
-        if rate_match
-        else body
-    )
+        prefix = body
+    description = prefix.rstrip(",，;；").rstrip() if rate_match else body
     if not description:
         errors.append("冒号后的问题描述为空")
-    return groups, description, probability, errors
+    return groups, description, errors
 
 
 def _audit_description(description: str, fail: _Failure) -> dict[str, str]:
     sections = _description_sections(description)
+    has_hw_info = _notes_have_info(description, "hw")
+    has_sw_info = _notes_have_info(description, "sw")
     for heading, rule_id in _DESCRIPTION_RULES:
+        if heading == "notes" and has_hw_info and has_sw_info:
+            continue
         if not sections.get(heading, "").strip():
             fail(rule_id, description, f"{heading.title()} 章节缺失或为空。")
 
@@ -461,12 +499,11 @@ def _audit_description(description: str, fail: _Failure) -> dict[str, str]:
             description,
             f"Description 中的复现概率“{rate[0].strip()}”格式无效。",
         )
-    notes = sections.get("notes", "")
     for info_kind, rule_id, label in (
         ("hw", "DESCRIPTION.NOTES_HW", "硬件"),
         ("sw", "DESCRIPTION.NOTES_SW", "软件"),
     ):
-        if not _notes_have_info(notes, info_kind):
+        if not (has_hw_info if info_kind == "hw" else has_sw_info):
             marker = "HW info" if info_kind == "hw" else "SW info"
             fail(
                 rule_id,
@@ -528,15 +565,18 @@ def _notes_have_info(notes: str, info_kind: str) -> bool:
 def _split_labeled_line(line: str) -> tuple[str, str] | None:
     cleaned = re.sub(r"^\s*#+\s*", "", line).strip()
     cleaned = re.sub(r"^[*_]{1,3}\s*", "", cleaned)
-    cleaned = cleaned.replace("\uFF1A", ":")
+    cleaned = cleaned.translate(str.maketrans("【】：；", "[]:;"))
     cleaned = re.sub(r"(?<=\])[*_]{1,3}(?=:)", "", cleaned)
-    bracket = re.fullmatch(r"\[([^]]+)\]\s*(?::\s*[*_]{0,3}\s*(.*))?", cleaned)
+    bracket = re.fullmatch(
+        r"\[([^]]+)\]\s*(?:[:;]\s*[*_]{0,3}\s*(.*))?",
+        cleaned,
+    )
     if bracket:
         return (
             _normalize_label(bracket.group(1)),
             (bracket.group(2) or "").strip("*_ "),
         )
-    labeled = re.fullmatch(r"([^:]+?)\s*:\s*[*_]{0,3}\s*(.*)", cleaned)
+    labeled = re.fullmatch(r"([^:;]+?)\s*[:;]\s*[*_]{0,3}\s*(.*)", cleaned)
     if labeled:
         return _normalize_label(labeled.group(1)), labeled.group(2).strip("*_ ")
     standalone = _normalize_label(cleaned)

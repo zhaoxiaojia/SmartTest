@@ -216,8 +216,9 @@ def test_bridge_uses_transient_ldap_and_routes_only_explicit_prompt():
 
 
 def test_smarthome_catalog_contains_redmine():
-    personnel = {"employees": [{"account": "alice", "assignments": [{"product_line_id": "SmartHome"}]}], "product_lines": [{"id": "SmartHome", "active": True}]}
-    smart_home = next(group for group in build_tool_groups(personnel, "alice") if group["id"] == "SmartHome")
+    smart_home = next(
+        group for group in build_tool_groups() if group["id"] == "SmartHome"
+    )
     assert [tool["id"] for tool in smart_home["tools"]] == ["redmine"]
 
 

@@ -4,10 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QObject, Property, Signal
-
-from support.logging import smart_log
-
+from PySide6.QtCore import QObject, Property
 
 def load_tool_access(path: Path) -> dict[str, Any]:
     with Path(path).open("r", encoding="utf-8") as stream:
@@ -42,92 +39,30 @@ def employee_department(personnel: dict[str, Any], account: str) -> str:
     return matches[0] if len(matches) == 1 else ""
 
 
-def daily_report_allowed(personnel: dict[str, Any], account: str) -> bool:
-    clean_account = str(account or "").strip()
-    employee = next(
-        (
-            item for item in amlogic_employees(personnel)
-            if str(item.get("account", "") or "").strip() == clean_account
-        ),
-        None,
-    )
-    if employee is None:
-        return False
-    roles = employee.get("system_roles", []) or []
-    grade = str(((employee.get("employment") or {}).get("grade", "")) or "").strip()
-    return grade.startswith("M") or any(
-        str(role or "").strip().casefold() == "developer" for role in roles
-    )
-
-
-def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str, Any]]:
-    clean_account = str(account or "").strip()
-    employees = amlogic_employees(personnel)
-    employee = next(
-        (item for item in employees if str(item.get("account", "") or "") == clean_account),
-        None,
-    )
-    is_developer = any(
-        str(role or "").strip().casefold() == "developer"
-        for role in (employee or {}).get("system_roles", []) or []
-    )
-    department = str(
-        ((employee or {}).get("organization") or {}).get("department", "") or ""
-    ).strip()
-    grade = str(((employee or {}).get("employment") or {}).get("grade", "") or "").strip()
-    jira_audit_available = is_developer or (
-        department == "FAE-QA" and grade.startswith("M")
-    )
-    common_tools = (
-        [{"id": "jira_audit"}, {"id": "confluence_audit"}]
-        if jira_audit_available else []
-    )
-    if daily_report_allowed(personnel, clean_account):
-        common_tools.append({"id": "daily_report"})
+def build_tool_groups() -> list[dict[str, Any]]:
     groups: list[dict[str, Any]] = [
         {
             "id": "common",
             "available": True,
-            "tools": common_tools,
+            "tools": [
+                {"id": "jira_audit"},
+                {"id": "confluence_audit"},
+                {"id": "daily_report"},
+            ],
         }
     ]
-    assigned_ids = {
-        str(item.get("product_line_id", "") or "")
-        for item in (employee or {}).get("assignments", []) or []
-        if isinstance(item, dict)
-    }
-    product_lines = {
-        str(item.get("id", "") or ""): item
-        for item in (personnel.get("amlogic") or {}).get("product_lines", []) or []
-        if isinstance(item, dict) and item.get("active", True)
-    }
     for group_id in ("STB", "TV", "SmartHome", "IPTV"):
-        tools = [{"id": "redmine"}] if group_id == "SmartHome" else []
         groups.append(
             {
                 "id": group_id,
-                "available": group_id in product_lines and (is_developer or group_id in assigned_ids),
-                "tools": tools,
+                "available": True,
+                "tools": [{"id": "redmine"}] if group_id == "SmartHome" else [],
             }
         )
-
-    expertise = {str(item) for item in (employee or {}).get("expertise_domains", []) or []}
-    technical_centers = [
-        item
-        for item in (personnel.get("amlogic") or {}).get("technical_centers", []) or []
-        if isinstance(item, dict) and item.get("active", True) and item.get("id") == "Wi-Fi"
-    ]
-    wifi_available = bool(technical_centers) and (
-        is_developer
-        or any(
-            "Wi-Fi" in expertise or str(item.get("owner_account", "") or "") == clean_account
-            for item in technical_centers
-        )
-    )
     groups.append(
         {
             "id": "Wi-Fi",
-            "available": wifi_available,
+            "available": True,
             "tools": [],
         }
     )
@@ -135,45 +70,11 @@ def build_tool_groups(personnel: dict[str, Any], account: str) -> list[dict[str,
 
 
 class ToolBridge(QObject):
-    groupsChanged = Signal()
-
-    def __init__(self, project_root: Path, auth_bridge: QObject):
-        super().__init__(auth_bridge)
-        self._auth_bridge = auth_bridge
-        self._personnel_path = Path(project_root) / "config" / "personnel.json"
-        self._personnel = load_tool_access(self._personnel_path)
-        self._last_logged_signature: tuple[Any, ...] | None = None
-        auth_bridge.authChanged.connect(self.groupsChanged)
-        smart_log(
-            "Tool access registry loaded (path=%s)",
-            str(self._personnel_path),
-            domain="ui",
-            source="ToolBridge",
-            extra={"personnel_path": str(self._personnel_path)},
-        )
-        self._groups()
+    def __init__(self):
+        super().__init__()
 
     def _groups(self) -> list[dict[str, Any]]:
-        account = str(getattr(self._auth_bridge, "username", "") or "").strip()
-        groups = build_tool_groups(self._personnel, account)
-        signature = tuple(
-            (group["id"], group["available"], tuple(tool["id"] for tool in group["tools"]))
-            for group in groups
-        )
-        if signature != self._last_logged_signature:
-            summary = ",".join(
-                f'{group["id"]}:{"|".join(tool["id"] for tool in group["tools"]) or "-"}'
-                for group in groups
-                if group["available"]
-            )
-            smart_log(
-                "Tool groups resolved (account=%s, available=%s)",
-                account or "<none>",
-                summary or "<none>",
-                domain="ui",
-                source="ToolBridge",
-            )
-            self._last_logged_signature = signature
+        groups = build_tool_groups()
         localized = []
         for group in groups:
             row = dict(group)
@@ -217,4 +118,4 @@ class ToolBridge(QObject):
             "description": self.tr("Browse and sign in to SmartHome Redmine."),
         }
 
-    groups = Property("QVariantList", _groups, notify=groupsChanged)
+    groups = Property("QVariantList", _groups, constant=True)

@@ -7,7 +7,7 @@ from PySide6.QtCore import QCoreApplication, QObject, Signal
 
 from tool.common.project_weekly_audit.models import (
     AuditBatch, AuditExecutionContext, AuditFinding, AuditPeriod, ProjectAudit,
-    ConfluenceProject, ProjectCandidate, ProjectCollection, ProjectCollectionFilter,
+    ConfluenceProject, ProductLine, ProjectCandidate, ProjectCollection, ProjectCollectionFilter,
 )
 from tool.common.project_weekly_audit.models import AuditStatus
 from tool.common.project_weekly_audit.plans import AuditPlan, AuditPlanStore
@@ -30,9 +30,54 @@ class Auth(QObject):
 
 def test_bridge_rejects_audit_without_transient_ldap():
     bridge = ConfluenceAuditBridge(Auth(False))
+    bridge.toggleProductLine("DOPL")
     bridge.startAudit()
     assert bridge.viewState["state"] == "failed"
     assert bridge.viewState["canStart"] is True
+
+
+def test_bridge_exposes_fixed_product_lines_before_refresh_and_rejects_empty_selection(tmp_path):
+    service_calls = []
+    bridge = ConfluenceAuditBridge(
+        Auth(), history_root=tmp_path,
+        service_factory=lambda *_: service_calls.append(True),
+    )
+
+    assert [row["key"] for row in bridge.viewState["productLines"]] == [
+        "DOPL", "SDPL", "TV", "OOPL",
+    ]
+    assert [row["displayName"] for row in bridge.viewState["productLines"]] == [
+        "China Operator Business", "Smart Device Business", "TV Business",
+        "Global Operator & STB Business",
+    ]
+    assert bridge.viewState["selectedProductLineKeys"] == []
+    assert bridge.viewState["canStart"] is True
+
+    bridge.startAudit()
+
+    assert bridge.viewState["state"] == "idle"
+    assert "Select at least one product line" in bridge.viewState["statusText"]
+    assert service_calls == []
+
+
+def test_bridge_rejects_audit_when_filtered_projects_exist_but_none_are_selected(tmp_path):
+    service_calls = []
+    bridge = ConfluenceAuditBridge(
+        Auth(), history_root=tmp_path,
+        service_factory=lambda *_: service_calls.append(True),
+    )
+    bridge._set(
+        selectedProductLineKeys=["SDPL"],
+        candidateProjects=[{"projectIdentity": "SDPL:42"}],
+        selectedProjectIds=[],
+        collectionSummary={"candidateCount": 1, "excludedCounts": {}},
+    )
+
+    bridge.startAudit()
+
+    assert bridge.viewState["state"] == "idle"
+    assert "Select at least one project" in bridge.viewState["statusText"]
+    assert service_calls == []
 
 
 def test_bridge_has_no_history_state_or_selection_api(tmp_path):
@@ -53,6 +98,7 @@ def test_bridge_runs_all_projects_and_ignores_stale_generation(monkeypatch, tmp_
             progress("reviewing", 1, 1)
             return batch
     bridge = ConfluenceAuditBridge(Auth(), service_factory=lambda u, p: Service(), history_root=tmp_path)
+    bridge.toggleProductLine("DOPL")
     monkeypatch.setattr("ui.example.bridge.ConfluenceAuditBridge.Thread", lambda target, args, daemon: type("T", (), {"start": lambda self: target(*args)})())
     bridge.startAudit()
     assert bridge.viewState["state"] == "completed"
@@ -100,22 +146,19 @@ def test_bridge_projects_and_details_include_only_actionable_follow_up(tmp_path)
     follow = ProjectCandidate("1", "M1", "Needs Follow Up", "https://c/status/1", "https://c/home/1")
     clean = ProjectCandidate("2", "M2", "Fully Reviewed", "https://c/status/2", "https://c/home/2")
     findings = [
-        AuditFinding("M1", "Test Plan", "plan.weekly", AuditStatus.FAILED,
-                     "No weekly plan.", "Add Monday–Thursday test work.", page_url="https://c/plan"),
-        AuditFinding("M1", "Test Information", "test.metrics", AuditStatus.RISK,
-                     "Metrics may be stale.", "Update current metrics.", page_url="https://c/info"),
-        AuditFinding("M1", "Report Store", "report.weekly", AuditStatus.UNKNOWN,
-                     "Page could not be read.", "Check permissions.", page_url="https://c/report"),
-        AuditFinding("M1", "Environment", "environment.complete", AuditStatus.PASSED, "Complete."),
-        AuditFinding("M1", "Experience", "experience.development", AuditStatus.NOT_APPLICABLE, "Later."),
+        AuditFinding("M1", "Test Plan", "plan.test", AuditStatus.NOT_UPDATED,
+                     "Page not updated in audit period.", page_url="https://c/plan"),
+        AuditFinding("M1", "Test Information", "test.summary", AuditStatus.INVALID_FORMAT,
+                     "PermissionError", page_url="https://c/info", explanation="pageId=42; HTTP 403"),
+        AuditFinding("M1", "Report Store", "report.weekly", AuditStatus.UPDATED,
+                     "Page updated in audit period.", page_url="https://c/report"),
     ]
     batch = AuditBatch(
         "mixed", period, datetime(2026, 7, 31, tzinfo=tz),
         [
             ProjectAudit(follow, findings),
             ProjectAudit(clean, [
-                AuditFinding("M2", "Test Plan", "plan.weekly", AuditStatus.PASSED, "Complete."),
-                AuditFinding("M2", "Experience", "experience.development", AuditStatus.NOT_APPLICABLE, "Later."),
+                AuditFinding("M2", "Test Plan", "plan.test", AuditStatus.UPDATED, "Updated."),
             ]),
         ],
     )
@@ -123,12 +166,12 @@ def test_bridge_projects_and_details_include_only_actionable_follow_up(tmp_path)
     bridge._generation = 9
     bridge._on_worker_finished({"generation": 9, "batch": batch})
     assert bridge.viewState["period"]["end"] == "2026-07-31T00:00:00+08:00"
-    assert bridge.viewState["period"]["displayEnd"] == "2026-07-30"
+    assert bridge.viewState["period"]["displayEnd"] == "2026-07-31"
     assert bridge.viewState["summary"]["reviewedCount"] == 2
     assert bridge.viewState["summary"]["followUpCount"] == 1
     assert [row["projectId"] for row in bridge.viewState["projects"]] == ["M1"]
-    assert {row["status"] for row in bridge.viewState["findings"]} == {"failed", "risk", "unknown"}
-    assert all(row["pageTitle"] and row["reason"] and row["guidance"] and row["url"]
+    assert {row["status"] for row in bridge.viewState["findings"]} == {"not_updated", "invalid_format"}
+    assert all(row["pageTitle"] and row["reason"] and row["url"]
                for row in bridge.viewState["findings"])
 
 
@@ -243,8 +286,31 @@ def test_force_refresh_atomically_updates_all_options_and_preserves_valid_select
     assert bridge._collection_from_payload(saved.payload) == refreshed
 
 
+def test_initialize_collection_reads_stale_cache_without_starting_refresh(tmp_path):
+    pending = []
+    cached = _collection(ProjectCollectionFilter("https://c", (2025, 2026)))
+    bridge = ConfluenceAuditBridge(
+        Auth(), history_root=tmp_path,
+        collection_factory=lambda *_args: (_ for _ in ()).throw(
+            AssertionError("startup must not refresh Confluence"),
+        ),
+        dynamic_submit=pending.append,
+    )
+    bridge._snapshot_cache.save(
+        "confluence", bridge._dynamic_source.source, "alice",
+        bridge._collection_payload(cached),
+        fetched_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+
+    bridge.initializeCollection()
+
+    assert pending == []
+    assert bridge.viewState["catalogStatus"] == "cached"
+    assert bridge.viewState["availableFilterValues"]["years"] == [2025, 2026]
+
+
 def test_collection_snapshot_adapter_rejects_unknown_or_incomplete_payload():
-    for payload in ({}, {"adapterVersion": 4}, {"adapterVersion": 1}, {"adapterVersion": 2}, {"adapterVersion": 3}):
+    for payload in ({}, {"adapterVersion": 5}, {"adapterVersion": 1}, {"adapterVersion": 2}, {"adapterVersion": 3}, {"adapterVersion": 4}):
         try:
             ConfluenceAuditBridge._collection_from_payload(payload)
         except (KeyError, TypeError, ValueError):
@@ -377,6 +443,13 @@ def test_catalog_cache_is_isolated_by_current_account(monkeypatch, tmp_path):
     auth.authChanged.emit()
 
     assert bridge.viewState["candidateProjects"] == []
+    assert "Refreshing" not in bridge.viewState["statusText"]
+    assert bridge.viewState["availableFilterValues"] == {
+        "years": [2025, 2026],
+        "supportModes": ["A"],
+        "projectStatuses": ["NORMAL"],
+    }
+    bridge.refreshCollection()
     assert bridge.viewState["availableFilterValues"] == {
         "years": [2026],
         "supportModes": ["B"],
@@ -427,6 +500,8 @@ def test_account_switch_rejects_old_async_catalog_before_disk_and_view(
         "confluence", bridge._dynamic_source.source, "alice",
     ) is None
     assert bridge.viewState["candidateProjects"] == []
+    assert ControlledThread.pending == []
+    bridge.refreshCollection()
     ControlledThread.run(0)
     assert bridge._catalog.collection_id == "bob"
     bridge.applyCollectionFilter()
@@ -599,6 +674,7 @@ def test_selected_projects_flow_into_manual_audit_filter(monkeypatch, tmp_path):
     bridge = ConfluenceAuditBridge(
         Auth(), history_root=tmp_path, service_factory=lambda *_: Service(),
     )
+    bridge.toggleProductLine("DOPL")
     bridge.setSelectedProjects(["M2", "M1", "M2"])
     bridge.startAudit()
     assert seen["criteria"].included_project_ids == ("M2", "M1")
@@ -622,6 +698,34 @@ def test_export_excel_uses_xlsx_slot(monkeypatch, tmp_path):
     bridge.exportExcel()
     assert bridge.viewState["exportPath"] == str(output)
     assert "Excel" in bridge.viewState["statusText"]
+
+
+def test_export_excel_returns_one_path_per_product_line(monkeypatch, tmp_path):
+    tz = ZoneInfo("Asia/Shanghai")
+    lines = (
+        ProductLine("DOPL", "https://c/dopl", "Digital"),
+        ProductLine("TV", "https://c/tv", "Television"),
+    )
+    batch = AuditBatch(
+        "multi",
+        AuditPeriod(
+            datetime(2026, 8, 3, tzinfo=tz),
+            datetime(2026, 8, 6, tzinfo=tz),
+        ),
+        datetime(2026, 8, 6, tzinfo=tz), product_lines=lines,
+    )
+    paths = [tmp_path / "Digital.xlsx", tmp_path / "Television.xlsx"]
+    monkeypatch.setattr(
+        "ui.example.bridge.ConfluenceAuditBridge.export_project_audit_xlsx_by_product_line",
+        lambda *_args, **_kwargs: paths,
+    )
+    bridge = ConfluenceAuditBridge(Auth(), history_root=tmp_path)
+    bridge._batch = batch
+
+    bridge.exportExcel()
+
+    assert bridge.viewState["exportPaths"] == [str(path) for path in paths]
+    assert bridge.viewState["exportPath"] == str(paths[0])
 
 
 def test_open_report_directory_uses_export_parent_and_handles_missing_path(
@@ -707,6 +811,61 @@ def test_simple_weekly_plan_requires_confirmed_selected_projects_and_upserts(
     assert [plan.plan_id for plan in plans] == ["confluence-weekly-audit"]
     assert len(scheduler.upserts) == 2
     assert plans[0].collection_filter.included_project_ids
+
+
+def test_dopl_and_sdpl_catalog_union_flows_into_selection_and_weekly_plan(
+    monkeypatch, tmp_path,
+):
+    scheduler = SchedulerSpy()
+    catalog = ProjectCollection(
+        "both-spaces", "Projects",
+        ProjectCollectionFilter(PROJECT_SPACE_URL, ()),
+        datetime(2026, 7, 29, tzinfo=ZoneInfo("Asia/Shanghai")),
+        (
+            ConfluenceProject(
+                2026, "SHARED", "DOPL Project", "1", "https://c/dopl",
+                "https://c/dopl", "ACTIVE", support_mode="A",
+                space_key="DOPL", page_identity="1",
+            ),
+            ConfluenceProject(
+                2026, "SHARED", "SDPL Project", "1", "https://c/sdpl",
+                "https://c/sdpl", "PLANNING", support_mode="B",
+                space_key="SDPL", page_identity="1",
+            ),
+        ),
+        visible_years=(2026,),
+    )
+    monkeypatch.setattr(
+        "ui.example.bridge.ConfluenceAuditBridge.Thread", ImmediateThread,
+    )
+    bridge = ConfluenceAuditBridge(
+        Auth(), history_root=tmp_path,
+        plan_store=AuditPlanStore(tmp_path / "plans"),
+        credential_store=CredentialSpy(), scheduler=scheduler,
+        collection_factory=lambda *_args: catalog,
+    )
+
+    bridge.refreshCollection()
+    assert bridge.viewState["availableFilterValues"] == {
+        "years": [2026],
+        "supportModes": ["A", "B"],
+        "projectStatuses": ["ACTIVE", "PLANNING"],
+    }
+    bridge.setFilter({
+        "years": [2026], "supportModes": [], "projectStatuses": [],
+    })
+    bridge.applyCollectionFilter()
+    bridge.selectAllProjects()
+    assert set(bridge.viewState["selectedProjectIds"]) == {
+        "DOPL:1", "SDPL:1",
+    }
+
+    bridge.enableWeeklyPlan()
+
+    plan = bridge._plan_store.load("confluence-weekly-audit")
+    assert set(plan.collection_filter.included_project_ids) == {
+        "DOPL:1", "SDPL:1",
+    }
 
 
 def test_simple_weekly_plan_reenables_a_previously_disabled_plan(
@@ -892,6 +1051,7 @@ def test_refresh_collection_does_not_cancel_running_audit(monkeypatch, tmp_path)
         Auth(), history_root=tmp_path, service_factory=lambda *_: Service(),
         collection_factory=lambda *args: discoveries.append(args),
     )
+    bridge.toggleProductLine("DOPL")
     bridge.startAudit()
     assert len(ControlledThread.pending) == 1
     bridge.refreshCollection()
@@ -926,6 +1086,7 @@ def test_catalog_refresh_completion_cannot_orphan_running_audit(
     bridge = ConfluenceAuditBridge(
         Auth(), history_root=tmp_path, service_factory=lambda *_: Service(),
     )
+    bridge.toggleProductLine("DOPL")
     bridge.startAudit()
     account_hash = bridge._snapshot_cache.identity("alice")
     bridge._on_catalog_event(DynamicSourceEvent(
@@ -1059,3 +1220,96 @@ def test_bridge_owns_filter_and_project_selection_mapping(tmp_path):
     assert bridge.viewState["selectedProjectIds"] == ["DOPL:1", "SDPL:2"]
     bridge.clearSelectedProjects()
     assert bridge.viewState["selectedProjectIds"] == []
+
+
+def test_product_line_sections_own_selection_without_repeating_line_name(tmp_path):
+    bridge = ConfluenceAuditBridge(Auth(), history_root=tmp_path)
+    projects = (
+        ConfluenceProject(
+            2026, "A1", "Alpha", "1", "https://c/a", "https://c/a",
+            support_mode="A", project_status="NORMAL", space_key="DOPL",
+            page_identity="1", display_name="Alpha",
+        ),
+        ConfluenceProject(
+            2026, "B1", "Beta", "2", "https://c/b", "https://c/b",
+            support_mode="A", project_status="NORMAL", space_key="TV",
+            page_identity="2", display_name="Beta",
+        ),
+    )
+    lines = (
+        ProductLine("DOPL", "https://c/dopl", "Digital Business"),
+        ProductLine("TV", "https://c/tv", "Television Business"),
+    )
+
+    sections = bridge._candidate_sections(projects, lines)
+    bridge._set(
+        candidateSections=sections,
+        candidateProjects=[row for section in sections for row in section["projects"]],
+        selectedProjectIds=[],
+    )
+
+    assert [section["displayName"] for section in sections] == [
+        "Digital Business", "Television Business",
+    ]
+    assert [row["displayName"] for section in sections for row in section["projects"]] == [
+        "Alpha", "Beta",
+    ]
+    assert [section["projects"] for section in bridge._candidate_sections((), lines)] == [
+        [], [],
+    ]
+    bridge.selectAllProjectsForLine("DOPL")
+    assert bridge.viewState["selectedProjectIds"] == ["DOPL:1"]
+    bridge.selectAllProjectsForLine("TV")
+    assert bridge.viewState["selectedProjectIds"] == ["DOPL:1", "TV:2"]
+    bridge.clearSelectedProjectsForLine("DOPL")
+    assert bridge.viewState["selectedProjectIds"] == ["TV:2"]
+
+
+def test_product_line_multi_selection_uses_stable_space_keys(tmp_path):
+    bridge = ConfluenceAuditBridge(Auth(), history_root=tmp_path)
+    projects = (
+        ConfluenceProject(
+            2026, "A1", "Alpha", "1", "https://c/a", "https://c/a",
+            support_mode="A", project_status="NORMAL", space_key="DOPL",
+            page_identity="1",
+        ),
+        ConfluenceProject(
+            2026, "B1", "Beta", "2", "https://c/b", "https://c/b",
+            support_mode="A", project_status="NORMAL", space_key="TV",
+            page_identity="2",
+        ),
+    )
+    lines = (
+        ProductLine("DOPL", "https://c/dopl", "Digital Business"),
+        ProductLine("TV", "https://c/tv", "Television Business"),
+    )
+    bridge._catalog = ProjectCollection(
+        "catalog", "Projects", ProjectCollectionFilter("all", (2026,)),
+        datetime(2026, 8, 6, tzinfo=ZoneInfo("Asia/Shanghai")), projects,
+        product_lines=lines,
+    )
+    bridge._catalog_has_product_lines = True
+    bridge._set(
+        productLines=[
+            {"key": "DOPL", "displayName": "Digital Business"},
+            {"key": "TV", "displayName": "Television Business"},
+        ],
+        selectedProductLineKeys=["DOPL"],
+        selectedProjectIds=["DOPL:1"],
+    )
+
+    bridge.toggleProductLine("TV")
+    assert bridge.viewState["selectedProductLineKeys"] == ["DOPL", "TV"]
+    assert [row["key"] for row in bridge.viewState["candidateSections"]] == [
+        "DOPL", "TV",
+    ]
+    assert bridge.viewState["selectedProjectIds"] == ["DOPL:1"]
+    bridge.toggleProductLine("DOPL")
+    assert bridge.viewState["selectedProductLineKeys"] == ["TV"]
+    assert [row["key"] for row in bridge.viewState["candidateSections"]] == ["TV"]
+    assert bridge.viewState["selectedProjectIds"] == []
+    bridge.toggleProductLine("TV")
+    assert bridge.viewState["selectedProductLineKeys"] == []
+    assert bridge.viewState["candidateProjects"] == []
+    assert bridge.viewState["candidateSections"] == []
+    assert bridge.viewState["canStart"] is True

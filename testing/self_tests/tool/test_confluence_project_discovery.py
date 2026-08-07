@@ -1,4 +1,5 @@
 from tool.common.project_weekly_audit.discovery import (
+    PRODUCT_LINES,
     discover_project_collection,
     discover_project_pages,
 )
@@ -59,6 +60,8 @@ def test_summary_tables_are_the_only_catalog_source_and_merge_spaces():
         def get_page_by_url(self, url, *, prefer_export=False):
             assert prefer_export is True
             self.urls.append(url)
+            if url not in source_urls:
+                raise PermissionError("not configured")
             return source_urls[url]
 
         def get_page_children(self, _page_id):
@@ -69,6 +72,7 @@ def test_summary_tables_are_the_only_catalog_source_and_merge_spaces():
         client,
         ProjectCollectionFilter(
             "legacy-source", (), (), (),
+            product_line_keys=("DOPL", "SDPL"),
         ),
     )
 
@@ -78,7 +82,43 @@ def test_summary_tables_are_the_only_catalog_source_and_merge_spaces():
     assert [(row.year, row.support_mode, row.project_status) for row in collection.projects] == [
         (2025, "A", "NORMAL"), (2026, "B", "WARNING"),
     ]
-    assert client.urls == [dopl_url, sdpl_url]
+    assert client.urls == [line.source_url for line in PRODUCT_LINES]
+
+
+def test_export_view_is_the_authoritative_table_filter_catalog():
+    source_urls = {}
+    for space_key in ("DOPL", "SDPL"):
+        source_url = (
+            f"https://confluence.amlogic.com/display/{space_key}/Project+Space"
+        )
+        visible = (
+            f'<a href="/pages/viewpage.action?pageId={space_key}1">'
+            f"{space_key} Visible</a>",
+            "2026-01-02", "A", "NORMAL", f"{space_key}-VISIBLE",
+        )
+        storage_only = (
+            f'<a href="/pages/viewpage.action?pageId={space_key}2">'
+            f"{space_key} Storage Only</a>",
+            "2026-01-02", "B", "PLANNING", f"{space_key}-STORAGE",
+        )
+        source_urls[source_url] = ConfluencePage(
+            space_key.casefold(), "Project Space", source_url,
+            body=summary_table([visible, storage_only]),
+            view_body=summary_table([visible]),
+        )
+
+    class Client:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            assert prefer_export is True
+            return source_urls[url]
+
+    collection = discover_project_collection(
+        Client(), ProjectCollectionFilter("legacy-source", ()),
+    )
+
+    assert [row.project_id for row in collection.projects] == [
+        "DOPL-VISIBLE", "SDPL-VISIBLE",
+    ]
 
 
 def test_unified_discovery_keeps_readable_space_and_marks_partial_errors():
@@ -100,12 +140,15 @@ def test_unified_discovery_keeps_readable_space_and_marks_partial_errors():
 
     collection = discover_project_collection(
         Client(),
-        ProjectCollectionFilter("legacy-source", (2026,), ("A",), ("NORMAL",)),
+        ProjectCollectionFilter(
+            "legacy-source", (2026,), ("A",), ("NORMAL",),
+            product_line_keys=("DOPL", "SDPL"),
+        ),
     )
 
     assert [row.project_identity for row in collection.projects] == ["DOPL:7"]
     assert collection.discovery_errors == {
-        "space:SDPL": 1,
+        "space:OOPL": 1, "space:SDPL": 1, "space:TV": 1,
     }
 
 
@@ -138,17 +181,23 @@ def test_commercial_approval_day_first_dates_feed_years_and_bad_dates_are_exclud
     class Client:
         def get_page_by_url(self, url, *, prefer_export=False):
             assert prefer_export is True
+            if url not in pages:
+                raise PermissionError("not configured")
             return pages[url]
 
     collection = discover_project_collection(
-        Client(), ProjectCollectionFilter("legacy-source", ()),
+        Client(), ProjectCollectionFilter(
+            "legacy-source", (), product_line_keys=("DOPL", "SDPL"),
+        ),
     )
 
     assert [(row.project_id, row.year) for row in collection.projects] == [
         ("ALPHA", 2026), ("BETA", 2026), ("GAMMA", 2025),
     ]
     assert collection.visible_years == (2025, 2026)
-    assert collection.discovery_errors == {"row:SDPL": 2}
+    assert collection.discovery_errors == {
+        "row:SDPL": 2, "space:OOPL": 1, "space:TV": 1,
+    }
 
 
 def test_project_page_discovery_stays_within_project_root():
@@ -280,3 +329,40 @@ def test_foreign_descendant_page_is_not_selected_for_project():
 
     assert set(pages) == {"status"}
     assert errors["test_plan"].startswith("ForeignProjectPage|")
+
+
+def test_four_product_lines_keep_source_identity_and_fixed_names_without_space_lookup():
+    urls = {
+        "DOPL": "https://confluence.amlogic.com/display/DOPL/Project+Space",
+        "SDPL": "https://confluence.amlogic.com/display/SDPL/Project+Space",
+        "TV": "https://confluence.amlogic.com/display/TV/Project+Space",
+        "OOPL": "https://confluence.amlogic.com/display/OOPL/Project+Space",
+    }
+
+    class Client:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            key = next(key for key, value in urls.items() if value == url)
+            return ConfluencePage(
+                key, "Project Space", url,
+                view_body=(
+                    "<table><tr><th>Page</th><th>Date of Commercial Approval</th>"
+                    "<th>Support Mode</th><th>Project Status</th></tr>"
+                    f'<tr><td><a href="/pages/{key}">{key} Project</a></td>'
+                    "<td>2026-01-01</td><td>A</td><td>NORMAL</td></tr></table>"
+                ),
+            )
+
+    collection = discover_project_collection(
+        Client(), ProjectCollectionFilter(
+            "all", (2026,), product_line_keys=("DOPL",),
+        ),
+    )
+
+    assert [line.key for line in collection.product_lines] == [
+        "DOPL", "SDPL", "TV", "OOPL",
+    ]
+    assert [line.display_name for line in collection.product_lines] == [
+        "China Operator Business", "Smart Device Business", "TV Business",
+        "Global Operator & STB Business",
+    ]
+    assert {project.space_key for project in collection.projects} == {"DOPL"}

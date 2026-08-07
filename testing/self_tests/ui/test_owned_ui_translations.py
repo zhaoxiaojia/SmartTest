@@ -18,6 +18,7 @@ OWNED_CONTEXTS = {
     "ConfluenceAuditBridge",
     "ConfluenceAuditWorkspace",
     "T_Settings",
+    "ScheduleBridge",
     "ToolBridge",
 }
 
@@ -42,6 +43,7 @@ def owned_sources(tmp_path_factory):
             str(ROOT / "ui/example/bridge/AISettingsBridge.py"),
             str(ROOT / "ui/example/bridge/JiraAuditBridge.py"),
             str(ROOT / "ui/example/bridge/ConfluenceAuditBridge.py"),
+            str(ROOT / "ui/example/bridge/ScheduleBridge.py"),
             str(ROOT / "ui/example/bridge/ToolBridge.py"),
             "-ts",
             str(generated),

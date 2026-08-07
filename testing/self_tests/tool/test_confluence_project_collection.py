@@ -147,6 +147,22 @@ def test_collection_id_is_stable_when_input_order_changes():
     assert [row.project_id for row in first.projects] == ["P1", "P2"]
 
 
+def test_product_line_filter_is_part_of_stable_collection_identity():
+    projects = [project("M1", space_key="DOPL"), project("M2", space_key="TV")]
+    dopl = filter_projects(
+        projects,
+        ProjectCollectionFilter("source", (), product_line_keys=("DOPL",)),
+    )
+    television = filter_projects(
+        projects,
+        ProjectCollectionFilter("source", (), product_line_keys=("TV",)),
+    )
+
+    assert [row.space_key for row in dopl.projects] == ["DOPL"]
+    assert [row.space_key for row in television.projects] == ["TV"]
+    assert dopl.collection_id != television.collection_id
+
+
 def test_filter_applies_year_status_and_selection_with_first_reason_counts():
     criteria = ProjectCollectionFilter(
         PROJECT_SPACE_URL,
@@ -204,6 +220,7 @@ def test_filter_diagnostic_counts_each_active_filter_independently(monkeypatch):
                     "support_modes": ["A"],
                     "project_statuses": ["NORMAL"],
                     "project_selection_count": 0,
+                    "product_line_keys": [],
                 },
                 "independent_excluded_counts": {
                     "year": 0,

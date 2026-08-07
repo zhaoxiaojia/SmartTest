@@ -122,9 +122,7 @@ def main():
     redmine_bridge = RedmineBridge(auth_bridge)
     jira_audit_bridge = JiraAuditBridge(auth_bridge)
     confluence_audit_bridge = ConfluenceAuditBridge(auth_bridge)
-    daily_report_bridge = create_daily_report_bridge(
-        auth_bridge, app_data_dir(), runtime_root
-    )
+    daily_report_bridge = create_daily_report_bridge(auth_bridge, app_data_dir())
     schedule_bridge = ScheduleBridge({
         "confluence": confluence_audit_bridge,
         "daily_report": daily_report_bridge,
@@ -139,7 +137,7 @@ def main():
             "TranslateHelper": translate_helper,
             "AISettingsBridge": AISettingsBridge(),
             "AuthBridge": auth_bridge,
-            "ToolBridge": ToolBridge(runtime_root, auth_bridge),
+            "ToolBridge": ToolBridge(),
             "RedmineBridge": redmine_bridge,
             "HomeBridge": HomeBridge(),
             "TestPageBridge": TestPageBridge(runtime_root),

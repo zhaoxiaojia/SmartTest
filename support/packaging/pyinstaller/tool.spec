@@ -24,7 +24,7 @@ a = Analysis(
     ],
     hookspath=[hooks_root],
     excludes=[
-        "numpy", "cv2", "matplotlib", "testing", "android_client",
+        "cv2", "testing", "android_client",
         "example.main", "example.bridge.HomeBridge", "example.bridge.RunBridge",
         "example.bridge.ReportBridge", "example.bridge.TestPageBridge",
         "example.bridge.DebugBridge", "example.bridge.BootVideoBridge",

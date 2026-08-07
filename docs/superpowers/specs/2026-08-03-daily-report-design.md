@@ -144,3 +144,27 @@ Jira 查询失败时不保存当天快照；报告或邮件失败时保留已成
 5. 串联 Jira 查询、快照、报告与 Outlook，增加 `--daily-report-plan <plan-id>` 后台入口。
 6. 使用 `DailyTrigger` 注册 daily/weekly 的每日采集任务，由 weekly 发送策略判断星期；manual 保持无系统任务。
 7. 在 Common Tools 增加 Daily Report Workspace、Bridge、权限、翻译和资源，完成离线回归、源码启动、边界扫描和质量清理。
+
+## 2026-08-06 日报展示调整
+
+经 Coco 确认，本轮只调整日报正文展示，不改变 Jira 查询、趋势、邮件发送或完整 Excel 附件：
+
+- 移除“昨日对比”和“今日关闭”卡片；不再展示或推断今日关闭数量。
+- 将现有“优先级 / 停滞”卡片上移到第一排左侧，状态构成保留在第一排右侧。
+- 第二排保留“模块分布 · Top 5”，右侧新增“问题内外部”空白卡片。当前没有可靠分类字段时不显示虚构的 0 值。
+- Issue 明细按项目配置的优先级集合过滤，默认只展示 `P0`、`P1`；标题显示筛选后的条数。完整 Excel 仍包含当前 JQL 返回的全部唯一 Issue。
+- 优先级配置由 Daily Report 的 `ProjectConfig` 单一拥有并持久化；本轮不新增 QML 配置控件，避免扩大交互范围。
+- 日报头部不显示“vs 昨日”变化提示；状态构成饼图图例字号从 11 调整为 14。
+
+执行清单：先增加布局、默认筛选和配置持久化回归测试并确认失败；再最小修改 `report.py` 与 `projects.py`；最后运行 Daily Report 自测试、编译检查、`git diff --check` 和 scoped diff 质量检查。
+
+同日确认的 Workspace 与 KPI 收敛：顶部项目摘要、操作按钮、状态和进度条固定，项目编辑区、项目卡和自动选中的首个有效预览在下方统一滚动；移除项目卡的 `View preview` 入口及仅服务该入口的选择 slot，`Send now` 继续复用已生成且未过期的批次。数据全景 KPI 行删除与 hero 总数重复的“当前未关闭”卡，hero 总数保留。
+
+计划发送时间表示邮件发送截止点。Daily Report 专用 Windows task 在该时间前 5 分钟启动（跨越零点时同步回退 weekly weekday），每次重新查询 Jira 并生成当次批次；准备完成后等待至配置发送时间再直接发送，不复用手动预览且不需人工确认。任一项目准备失败时当次不发送，继续返回现有稳定失败码 `1`。
+
+Tool 页的 Schedule 区域根据 provider 已有的 `enabled`、`registered`、`reconciliation` 和 `nextRunAt` 显示状态及下次运行时间；Daily Report Workspace 内的计划配置表单仍是 cadence/time 的唯一配置入口。
+
+计划日报入口使用 `smart_log` 持久记录任务入口、计划读取、凭据读取成功/失败、当次准备、发送 deadline、等待起止、发送结果和最终退出码。等待期间约每 60 秒记录剩余秒数，用最后一条 heartbeat 缩小外部强制终止的最后存活时间。日志不记录密码、邮件正文、完整 Jira 数据或收件人列表，该诊断不改变调度与发送行为。
+
+Schedule 状态卡提供三类管理操作：`Stop / Enable` 由 Daily Report scheduler owner 同步更新 Windows task 和本地 `enabled`；`Run now` 在后台线程执行一次全新 unattended batch，跳过 deadline 等待但不改变 cadence/time/enabled，并在已有操作运行时拒绝重复启动；`Delete` 经明确确认后删除 Windows task、计划配置以及 Daily Report owner 写入的 `daily-report-batch` credential。所有操作异步执行，完成后刷新卡片状态。
+调度准备提前量调整为 5 分钟：配置保存的时间仍是业务发送时间，Windows 任务触发时间仅由 Daily Report 调度 owner 换算为提前 5 分钟，周计划跨午夜时同步回退到前一天。工具页调度卡片继续显示状态、下次运行和管理操作，并补充任务类型、已启用项目名称和业务计划文本；项目内容不包含 Jira 查询或收件人信息。

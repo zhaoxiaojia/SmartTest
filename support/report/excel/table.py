@@ -15,6 +15,13 @@ _STATUS_FILLS = {
 }
 
 
+def _status_fill(value):
+    fill = _STATUS_FILLS.get(value)
+    if fill is None and isinstance(value, str) and value.startswith("格式有误："):
+        fill = _STATUS_FILLS["格式有误"]
+    return fill
+
+
 def write_xlsx_table(
     output_path,
     *,
@@ -54,7 +61,7 @@ def _populate_table(workbook, *, sheet_name, headers, rows, hyperlinks):
     for row in sheet.iter_rows(min_row=2):
         for cell in row:
             cell.alignment = Alignment(vertical="top", wrap_text=True)
-            fill = _STATUS_FILLS.get(cell.value)
+            fill = _status_fill(cell.value)
             if fill is not None:
                 cell.fill = fill
     for (row, column), url in (hyperlinks or {}).items():
@@ -72,15 +79,22 @@ def _populate_table(workbook, *, sheet_name, headers, rows, hyperlinks):
 
 
 
-def write_xlsx_sections(output_path, *, sheet_name, sections):
+def write_xlsx_sections(
+    output_path, *, sheet_name, sections, wrap_data=True,
+):
     """Write repeated group/header/data sections with one global XLSX owner."""
     def populate(workbook):
-        _populate_sections(workbook, sheet_name=sheet_name, sections=sections)
+        _populate_sections(
+            workbook,
+            sheet_name=sheet_name,
+            sections=sections,
+            wrap_data=wrap_data,
+        )
 
     return write_excel_workbook(output_path, populate)
 
 
-def _populate_sections(workbook, *, sheet_name, sections):
+def _populate_sections(workbook, *, sheet_name, sections, wrap_data=True):
     sheet = workbook.active
     sheet.title = str(sheet_name)
     hyperlinks = {}
@@ -112,8 +126,10 @@ def _populate_sections(workbook, *, sheet_name, sections):
     for row in sheet.iter_rows():
         for cell in row:
             if cell.row not in header_rows and cell.row not in group_rows:
-                cell.alignment = Alignment(vertical="top", wrap_text=True)
-                fill = _STATUS_FILLS.get(cell.value)
+                cell.alignment = Alignment(
+                    vertical="top", wrap_text=wrap_data,
+                )
+                fill = _status_fill(cell.value)
                 if fill is not None:
                     cell.fill = fill
     for (row, column), url in hyperlinks.items():

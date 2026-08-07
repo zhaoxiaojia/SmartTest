@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 from pathlib import Path
 
@@ -13,6 +13,7 @@ from support.scheduling import (
 
 
 TASK_ID = "SmartTest.DailyReport.Batch"
+PREPARATION_LEAD_MINUTES = 5
 
 
 @dataclass(frozen=True)
@@ -38,10 +39,10 @@ class DailyReportScheduleManager:
     def save(self, cadence: str, *, hour: int, minute: int, weekday=None):
         cadence = str(cadence)
         if cadence == "daily":
-            trigger = DailyTrigger(int(hour), int(minute))
+            trigger = _preparation_trigger(cadence, hour, minute, weekday)
             weekday = None
         elif cadence == "weekly":
-            trigger = WeeklyTrigger(int(weekday), int(hour), int(minute))
+            trigger = _preparation_trigger(cadence, hour, minute, weekday)
             weekday = int(weekday)
         else:
             raise ValueError("Schedule cadence must be daily or weekly")
@@ -60,6 +61,14 @@ class DailyReportScheduleManager:
             self.path.unlink()
         return deleted
 
+    def set_enabled(self, enabled: bool):
+        value = self.load()
+        if value is None:
+            raise ValueError("Daily Report schedule is not configured")
+        state = self._scheduler.set_enabled(TASK_ID, bool(enabled))
+        self._write(replace(value, enabled=bool(enabled)))
+        return state
+
     def state(self):
         value = self.load()
         if value is None:
@@ -68,10 +77,8 @@ class DailyReportScheduleManager:
         return states[0] if states else None
 
     def _definition(self, value: BatchSchedule):
-        trigger = (
-            DailyTrigger(value.hour, value.minute)
-            if value.cadence == "daily"
-            else WeeklyTrigger(value.weekday, value.hour, value.minute)
+        trigger = _preparation_trigger(
+            value.cadence, value.hour, value.minute, value.weekday
         )
         return ScheduleDefinition(
             TASK_ID, "SmartTest Daily Report batch",
@@ -84,3 +91,19 @@ class DailyReportScheduleManager:
         temporary = self.path.with_suffix(".tmp")
         temporary.write_text(json.dumps(value.__dict__, indent=2), "utf-8")
         temporary.replace(self.path)
+
+
+def _preparation_trigger(cadence, hour, minute, weekday=None):
+    if cadence == "daily":
+        target = DailyTrigger(int(hour), int(minute))
+    else:
+        target = WeeklyTrigger(int(weekday), int(hour), int(minute))
+    send_minutes = target.hour * 60 + target.minute
+    start_minutes = (send_minutes - PREPARATION_LEAD_MINUTES) % (24 * 60)
+    start_hour, start_minute = divmod(start_minutes, 60)
+    if cadence == "daily":
+        return DailyTrigger(start_hour, start_minute)
+    start_weekday = (
+        target.weekday - int(send_minutes < PREPARATION_LEAD_MINUTES)
+    ) % 7
+    return WeeklyTrigger(start_weekday, start_hour, start_minute)

@@ -11,10 +11,10 @@ from PySide6.QtCore import QObject, Property, QStandardPaths, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 
 from tool.common.project_weekly_audit.discovery import (
-    UNIFIED_SOURCE, discover_project_collection,
+    PRODUCT_LINES, UNIFIED_SOURCE, discover_project_collection,
 )
 from tool.common.project_weekly_audit.models import (
-    AuditExecutionContext, ConfluenceProject, ProjectCollection,
+    AuditExecutionContext, ConfluenceProject, ProductLine, ProjectCollection,
     ProjectCollectionFilter,
 )
 from tool.common.project_weekly_audit.period import current_reporting_window
@@ -24,6 +24,7 @@ from tool.common.project_weekly_audit.project_collection import (
 from tool.common.project_weekly_audit.plans import AuditPlan, AuditPlanStore
 from tool.common.project_weekly_audit.report import (
     export_project_audit_xlsx,
+    export_project_audit_xlsx_by_product_line,
 )
 from tool.common.project_weekly_audit.scheduler import (
     TASK_PREFIX, WindowsAuditScheduler, resolve_audit_launch_command,
@@ -35,7 +36,9 @@ from support.confluence_integration import (
 from support.logging import smart_log
 from support.windows_credentials import WindowsCredentialStore
 from support.account_snapshot_cache import AccountScopedSnapshotCache
-from support.account_dynamic_source import AccountDynamicSource, RefreshState
+from support.account_dynamic_source import (
+    AccountDynamicSource, DynamicSourceEvent, RefreshState,
+)
 
 BUSY = {"discovering", "reviewing"}
 PROJECT_SPACE_URL = UNIFIED_SOURCE
@@ -53,7 +56,7 @@ def _period_view(period):
     return {
         "start": period.start.isoformat(),
         "end": period.end.isoformat(),
-        "displayEnd": (period.end - timedelta(microseconds=1)).date().isoformat(),
+        "displayEnd": period.end.date().isoformat(),
     }
 
 class ConfluenceAuditBridge(QObject):
@@ -103,6 +106,7 @@ class ConfluenceAuditBridge(QObject):
         self._plan_mutations = deque()
         self._plan_worker_running = False
         self._catalog = None
+        self._catalog_has_product_lines = False
         self._catalog_account_hash = ""
         self._catalog_refresh_in_flight = False
         self._schedule_rows = []
@@ -119,6 +123,9 @@ class ConfluenceAuditBridge(QObject):
                           "projectStatuses": list(criteria.project_statuses),
                       },
                       "candidateProjects": [], "selectedProjectIds": [],
+                      "productLines": self._product_line_rows(PRODUCT_LINES),
+                      "selectedProductLineKeys": [],
+                      "candidateSections": [], "exportPaths": [],
                       "collectionSummary": {},
                       "catalogStatus": "idle", "catalogStatusText": "",
                       "canStart": True, "canExport": False}
@@ -161,6 +168,7 @@ class ConfluenceAuditBridge(QObject):
             support_modes=tuple(str(item) for item in value.get("supportModes", ())),
             project_statuses=tuple(str(item) for item in value.get("projectStatuses", ())),
             included_project_ids=tuple(self._view["selectedProjectIds"]),
+            product_line_keys=tuple(self._view["selectedProductLineKeys"]),
         )
 
     @Slot(object)
@@ -186,6 +194,7 @@ class ConfluenceAuditBridge(QObject):
             filter=self._filter_view(criteria),
             selectedProjectIds=[],
             candidateProjects=[],
+            candidateSections=[],
             collectionSummary={},
             **changes,
         )
@@ -255,9 +264,69 @@ class ConfluenceAuditBridge(QObject):
         if self._view["state"] not in BUSY:
             self._set(selectedProjectIds=[])
 
+    @Slot(str)
+    def toggleProductLine(self, product_line_key):
+        if self._view["state"] in BUSY:
+            return
+        key = str(product_line_key)
+        available = {str(row.get("key")) for row in self._view["productLines"]}
+        if key not in available:
+            return
+        selected = list(self._view["selectedProductLineKeys"])
+        if key in selected:
+            selected.remove(key)
+        else:
+            selected.append(key)
+        self._set(
+            selectedProductLineKeys=selected,
+            **self._candidate_state(selected),
+        )
+
+    @Slot(str)
+    def selectAllProjectsForLine(self, product_line_key):
+        if self._view["state"] in BUSY:
+            return
+        key = str(product_line_key)
+        line_ids = [
+            str(row["projectIdentity"])
+            for section in self._view["candidateSections"]
+            if str(section.get("key")) == key
+            for row in section.get("projects", ())
+        ]
+        self._set(selectedProjectIds=list(dict.fromkeys(
+            [*self._view["selectedProjectIds"], *line_ids]
+        )))
+
+    @Slot(str)
+    def clearSelectedProjectsForLine(self, product_line_key):
+        if self._view["state"] in BUSY:
+            return
+        prefix = str(product_line_key).casefold() + ":"
+        self._set(selectedProjectIds=[
+            value for value in self._view["selectedProjectIds"]
+            if not str(value).casefold().startswith(prefix)
+        ])
+
     @Slot()
     def initializeCollection(self):
-        self._open_dynamic_collection(False)
+        account = self._current_account_key()
+        if not account:
+            return
+        cached = self._snapshot_cache.load(
+            "confluence", self._dynamic_source.source, account,
+        )
+        if cached is None:
+            return
+        try:
+            collection = self._collection_from_payload(cached.payload)
+        except (KeyError, TypeError, ValueError):
+            return
+        self._on_catalog_event(DynamicSourceEvent(
+            RefreshState.CACHED,
+            collection,
+            0,
+            self._snapshot_cache.identity(account),
+        ))
 
     @Slot()
     def refreshCollection(self):
@@ -277,6 +346,7 @@ class ConfluenceAuditBridge(QObject):
             self._catalog_account_hash = ""
             self._set(
                 candidateProjects=[], selectedProjectIds=[],
+                candidateSections=[],
                 availableFilterValues={
                     "years": [], "supportModes": [], "projectStatuses": [],
                 },
@@ -358,6 +428,12 @@ class ConfluenceAuditBridge(QObject):
         account_hash = str(payload.get("accountHash") or "")
         if account_hash != self._snapshot_cache.identity(self._current_account_key()):
             return
+        had_catalog = self._catalog is not None
+        self._catalog_has_product_lines = bool(
+            collection.product_lines
+            or any(project.space_key for project in collection.projects)
+        )
+        collection = replace(collection, product_lines=PRODUCT_LINES)
         self._catalog = collection
         self._catalog_account_hash = account_hash
         projects = list(collection.projects)
@@ -392,11 +468,22 @@ class ConfluenceAuditBridge(QObject):
                 current["projectStatuses"], options["projectStatuses"],
             ),
         }
+        product_lines = self._product_line_rows(PRODUCT_LINES)
+        available_line_keys = {line["key"] for line in product_lines}
+        selected_line_keys = [
+            value for value in self._view["selectedProductLineKeys"]
+            if value in available_line_keys
+        ]
+        if not had_catalog and not selected_line_keys:
+            selected_line_keys = [line["key"] for line in product_lines]
         visible = filter_projects(projects, ProjectCollectionFilter(
             UNIFIED_SOURCE, tuple(refreshed_filter["years"]),
             tuple(refreshed_filter["supportModes"]),
             tuple(refreshed_filter["projectStatuses"]),
+            product_line_keys=tuple(selected_line_keys),
         ))
+        if not selected_line_keys:
+            visible = replace(visible, projects=())
         candidate_rows = (
             self._candidate_rows(visible.projects)
             if bool(payload.get("showCandidates"))
@@ -417,6 +504,15 @@ class ConfluenceAuditBridge(QObject):
             ),
             filter=refreshed_filter,
             candidateProjects=candidate_rows, selectedProjectIds=selected,
+            productLines=product_lines,
+            selectedProductLineKeys=selected_line_keys,
+            candidateSections=self._candidate_sections(
+                visible.projects,
+                tuple(
+                    line for line in PRODUCT_LINES
+                    if line.key in selected_line_keys
+                ),
+            ) if bool(payload.get("showCandidates")) else [],
             availableFilterValues=options,
             collectionSummary={
                 "candidateCount": len(candidate_rows),
@@ -438,8 +534,7 @@ class ConfluenceAuditBridge(QObject):
             )
             return
         criteria = self._criteria()
-        collection = filter_projects(catalog.projects, criteria)
-        candidate_rows = self._candidate_rows(collection.projects)
+        state = self._candidate_state(criteria.product_line_keys)
         smart_log(
             "Project catalog filter applied",
             domain="confluence", source="ConfluenceAuditBridge",
@@ -450,20 +545,58 @@ class ConfluenceAuditBridge(QObject):
                 "years": list(criteria.years),
                 "support_modes": list(criteria.support_modes),
                 "project_statuses": list(criteria.project_statuses),
-                "filtered_project_count": len(collection.projects),
-                "candidate_count": len(candidate_rows),
-                "excluded_counts": dict(collection.excluded_counts),
+                "filtered_project_count": state["collectionSummary"]["candidateCount"],
+                "candidate_count": state["collectionSummary"]["candidateCount"],
+                "excluded_counts": state["collectionSummary"]["excludedCounts"],
             },
         )
         self._set(
-            candidateProjects=candidate_rows,
-            selectedProjectIds=[],
-            collectionSummary={
+            **state,
+            statusText=self.tr("Project filters applied."),
+        )
+
+    def _candidate_state(self, selected_line_keys):
+        catalog = self._catalog
+        selected_keys = tuple(dict.fromkeys(str(key) for key in selected_line_keys))
+        if catalog is None or (catalog.product_lines and not selected_keys):
+            return {
+                "candidateProjects": [], "candidateSections": [],
+                "selectedProjectIds": [],
+                "collectionSummary": {"candidateCount": 0, "excludedCounts": {}},
+            }
+        value = self._view["filter"]
+        criteria = ProjectCollectionFilter(
+            UNIFIED_SOURCE,
+            tuple(int(year) for year in value.get("years", ())),
+            tuple(str(item) for item in value.get("supportModes", ())),
+            tuple(str(item) for item in value.get("projectStatuses", ())),
+            product_line_keys=(
+                selected_keys if self._catalog_has_product_lines else ()
+            ),
+        )
+        collection = filter_projects(catalog.projects, criteria)
+        candidate_rows = self._candidate_rows(collection.projects)
+        valid_ids = {row["projectIdentity"] for row in candidate_rows}
+        selected_projects = [
+            value for value in self._view["selectedProjectIds"]
+            if value in valid_ids
+        ]
+        selected_set = set(selected_keys)
+        selected_lines = (
+            tuple(line for line in PRODUCT_LINES if line.key in selected_set)
+            if self._catalog_has_product_lines else ()
+        )
+        return {
+            "candidateProjects": candidate_rows,
+            "candidateSections": self._candidate_sections(
+                collection.projects, selected_lines,
+            ),
+            "selectedProjectIds": selected_projects,
+            "collectionSummary": {
                 "candidateCount": len(candidate_rows),
                 "excludedCounts": dict(collection.excluded_counts),
             },
-            statusText=self.tr("Project filters applied."),
-        )
+        }
 
     @staticmethod
     def _candidate_rows(projects):
@@ -478,10 +611,31 @@ class ConfluenceAuditBridge(QObject):
             "matchingYears": list(row.matching_years or (row.year,)),
         } for row in projects]
 
+    @classmethod
+    def _candidate_sections(cls, projects, product_lines):
+        rows = cls._candidate_rows(projects)
+        return [{
+            "key": line.key,
+            "displayName": line.display_name,
+            "projects": [
+                row for row in rows
+                if str(row["projectIdentity"]).casefold().startswith(
+                    line.key.casefold() + ":"
+                )
+            ],
+        } for line in product_lines]
+
+    @staticmethod
+    def _product_line_rows(product_lines):
+        return [{
+            "key": line.key,
+            "displayName": line.display_name,
+        } for line in product_lines]
+
     @staticmethod
     def _collection_payload(collection):
         return {
-            "adapterVersion": 3,
+            "adapterVersion": 5,
             "collectionId": collection.collection_id,
             "name": collection.name,
             "discoveredAt": collection.discovered_at.isoformat(),
@@ -492,6 +646,7 @@ class ConfluenceAuditBridge(QObject):
                 "projectStatuses": list(collection.filter.project_statuses),
                 "currentStages": list(collection.filter.current_stages),
                 "includedProjectIds": list(collection.filter.included_project_ids),
+                "productLineKeys": list(collection.filter.product_line_keys),
             },
             "visibleYears": list(collection.visible_years),
             "discoveryErrors": dict(collection.discovery_errors),
@@ -507,11 +662,15 @@ class ConfluenceAuditBridge(QObject):
                 "space_key": row.space_key,
                 "page_identity": row.page_identity,
             } for row in collection.projects],
+            "productLines": [{
+                "key": line.key, "source_url": line.source_url,
+                "display_name": line.display_name,
+            } for line in collection.product_lines],
         }
 
     @staticmethod
     def _collection_from_payload(value):
-        if not isinstance(value, dict) or value.get("adapterVersion") != 3:
+        if not isinstance(value, dict) or value.get("adapterVersion") != 5:
             raise ValueError("Unsupported Confluence collection snapshot")
         filter_value = value["filter"]
         discovered_at = datetime.fromisoformat(value["discoveredAt"])
@@ -522,6 +681,7 @@ class ConfluenceAuditBridge(QObject):
             tuple(filter_value["supportModes"]), tuple(filter_value["projectStatuses"]),
             tuple(filter_value["currentStages"]),
             tuple(filter_value["includedProjectIds"]),
+            tuple(filter_value.get("productLineKeys", ())),
         )
         return ProjectCollection(
             str(value["collectionId"]), str(value["name"]), criteria,
@@ -534,6 +694,7 @@ class ConfluenceAuditBridge(QObject):
             ) for row in value["projects"]),
             dict(value["excludedCounts"]),
             tuple(value["visibleYears"]), dict(value.get("discoveryErrors", {})),
+            tuple(ProductLine(**row) for row in value.get("productLines", ())),
         )
 
     @staticmethod
@@ -574,7 +735,16 @@ class ConfluenceAuditBridge(QObject):
 
     @Slot()
     def startAudit(self):
-        if not self._view["canStart"]:
+        if self._view["state"] in BUSY:
+            return
+        if not self._view["selectedProductLineKeys"]:
+            self._set(statusText=self.tr("Select at least one product line before starting the audit."))
+            return
+        if (
+            self._view["candidateProjects"]
+            and not self._view["selectedProjectIds"]
+        ):
+            self._set(statusText=self.tr("Select at least one project before starting the audit."))
             return
         credentials = self._transient_credentials()
         if credentials is None:
@@ -628,12 +798,19 @@ class ConfluenceAuditBridge(QObject):
             return
         try:
             root = Path(QStandardPaths.writableLocation(QStandardPaths.DownloadLocation) or Path.home() / "Downloads")
-            path = export_project_audit_xlsx(
-                self._batch,
-                root / f"project_weekly_audit_{self._batch.id}.xlsx",
-            )
+            if self._batch.product_lines:
+                paths = export_project_audit_xlsx_by_product_line(
+                    self._batch, root,
+                )
+            else:
+                paths = [export_project_audit_xlsx(
+                    self._batch,
+                    root / f"project_weekly_audit_{self._batch.id}.xlsx",
+                )]
+            path = paths[0]
             self._set(
                 exportPath=str(path),
+                exportPaths=[str(item) for item in paths],
                 statusText=self.tr("Confluence audit Excel workbook exported."),
             )
         except Exception:
@@ -892,7 +1069,7 @@ class ConfluenceAuditBridge(QObject):
         self._apply_batch(self._batch)
 
     def _apply_batch(self, batch):
-        actionable = {"failed", "risk", "unknown"}
+        actionable = {"not_updated", "invalid_format"}
         projects = [
             {
                 "projectId": row.project.project_id,
@@ -919,10 +1096,9 @@ class ConfluenceAuditBridge(QObject):
                   progress={"processed": len(batch.projects), "total": len(batch.projects)},
                   summary={"reviewedCount": len(batch.projects),
                            "followUpCount": len(projects),
-                           "failedCount": sum(row["status"] == "failed" for row in projects),
-                           "riskCount": sum(row["status"] == "risk" for row in projects),
-                           "unknownCount": sum(row["status"] == "unknown" for row in projects),
-                           "passedCount": sum(row["status"] == "passed" for row in projects)},
+                           "invalidFormatCount": sum(row["status"] == "invalid_format" for row in projects),
+                           "notUpdatedCount": sum(row["status"] == "not_updated" for row in projects),
+                           "updatedCount": sum(row.status.value == "updated" for row in batch.projects)},
                   projects=projects, selectedProject=selected,
                   findings=self._finding_rows(selected, batch))
 
@@ -935,12 +1111,12 @@ class ConfluenceAuditBridge(QObject):
             if row.project.project_id != project_id:
                 continue
             for finding in row.findings:
-                if finding.status.value not in {"failed", "risk", "unknown"}:
+                if finding.status.value not in {"not_updated", "invalid_format"}:
                     continue
                 result.append({
                     "pageTitle": finding.page_title, "ruleId": finding.rule_id,
                     "status": finding.status.value, "reason": finding.reason,
-                    "explanation": finding.explanation, "guidance": finding.guidance,
+                    "explanation": finding.explanation,
                     "url": finding.page_url,
                 })
         return result
@@ -978,11 +1154,14 @@ class ConfluenceAuditBridge(QObject):
         self._generation += 1
         self._batch = None
         self._catalog = None
+        self._catalog_has_product_lines = False
         self._catalog_account_hash = ""
         criteria = default_project_filter(self._now(), PROJECT_SPACE_URL)
         self._set(
             state="idle",
-            statusText=self.tr("The login changed. Refreshing Project Space options."),
+            statusText=self.tr(
+                "The login changed. Click Refresh filter options to update Project Space data.",
+            ),
             filter=self._filter_view(criteria),
             availableFilterValues={
                 "years": list(criteria.years),
@@ -990,6 +1169,9 @@ class ConfluenceAuditBridge(QObject):
                 "projectStatuses": list(criteria.project_statuses),
             },
             candidateProjects=[], selectedProjectIds=[],
+            candidateSections=[],
+            productLines=self._product_line_rows(PRODUCT_LINES),
+            selectedProductLineKeys=[],
             collectionSummary={}, summary={}, projects=[], findings=[],
             canExport=False,
         )

@@ -88,13 +88,39 @@ def test_tool_portable_build_helpers_validate_and_zip_a_real_tree(tmp_path):
             "SmartTestTool/SmartTestTool.exe", "SmartTestTool/payload.txt"
         ]
 
-    (app_dir / "numpy.dll").write_bytes(b"forbidden")
+    (app_dir / "testing-runtime.dll").write_bytes(b"forbidden")
     try:
         module.validate_distribution(app_dir)
     except RuntimeError as exc:
-        assert "numpy" in str(exc).lower()
+        assert "testing" in str(exc).lower()
     else:
         raise AssertionError("forbidden runtime was not rejected")
+
+
+def test_tool_archive_validation_matches_module_names_not_substrings():
+    script = ROOT / "support/scripts/script-build-tool-portable.py"
+    spec = importlib.util.spec_from_file_location("tool_portable_build", script)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    assert module.find_forbidden_archive_modules("""
+ example.bridge.DailyReportBridge
+ pygments.lexers.testing
+""") == []
+
+
+def test_tool_archive_validation_rejects_forbidden_module_trees():
+    script = ROOT / "support/scripts/script-build-tool-portable.py"
+    spec = importlib.util.spec_from_file_location("tool_portable_build", script)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    assert module.find_forbidden_archive_modules("""
+ example.bridge.ReportBridge
+ testing.params.options
+""") == ["example.bridge.ReportBridge", "testing"]
 
 
 def test_tool_portable_restarts_only_for_exit_code_931():
@@ -226,49 +252,80 @@ class ScheduleProvider(QObject):
         ]
         self.scheduleRowsChanged.emit()
 
+    @Slot(str)
+    def runPlanNow(self, plan_id):
+        self.actions.append(("run", plan_id))
+
+    @Slot(str)
+    def deletePlan(self, plan_id):
+        self.actions.append(("delete", plan_id))
+
 
 def schedule_row(plan_id="weekly-a", *, enabled=True):
     return {
         "provider": "confluence", "planId": plan_id,
         "businessTitle": "Project Weekly Audit", "title": "Weekly A",
         "enabled": enabled, "registered": True,
+        "reconciliation": "ok",
         "nextRunAt": "2026-08-10T09:00:00+08:00",
         "lastRunAt": "2026-08-03T09:00:00+08:00", "lastResultCode": 0,
         "targetToolId": "confluence_audit",
+        "taskTypeText": "Daily Report", "contentText": "Demo",
+        "planText": "Daily 11:30",
     }
 
 
-def test_schedule_bridge_filters_disabled_rows_and_tracks_provider_updates():
+def test_schedule_bridge_maps_read_only_status_and_tracks_provider_updates():
     provider = ScheduleProvider((schedule_row(enabled=False),))
     bridge = ScheduleBridge({"confluence": provider})
-    assert bridge.rows == []
+    assert bridge.rows[0]["statusText"] == "Disabled"
 
     provider.replace((schedule_row(),))
 
-    assert bridge.rows == [schedule_row()]
+    assert bridge.rows[0]["statusText"] == "Ready"
+    assert bridge.rows[0]["nextRunText"] == "Next run: 2026-08-10 09:00"
+    assert bridge.rows[0]["taskTypeText"] == "Daily Report"
+    assert bridge.rows[0]["contentText"] == "Demo"
+    assert bridge.rows[0]["planText"] == "Daily 11:30"
+
+    provider.replace(({
+        key: value for key, value in schedule_row().items()
+        if key not in {"taskTypeText", "contentText", "planText"}
+    },))
+    assert bridge.rows[0]["taskTypeText"] == ""
+    assert bridge.rows[0]["contentText"] == ""
+    assert bridge.rows[0]["planText"] == ""
 
 
-def test_schedule_bridge_routes_refresh_disable_and_tool_open():
-    provider = ScheduleProvider((schedule_row(),))
+def test_schedule_bridge_dispatches_management_to_existing_provider_owner():
+    provider = ScheduleProvider((
+        schedule_row("missing") | {"registered": False},
+        schedule_row("error") | {"reconciliation": "invalid_task"},
+    ))
     bridge = ScheduleBridge({"confluence": provider})
-    opened = []
-    bridge.toolOpenRequested.connect(opened.append)
 
     bridge.refresh()
-    bridge.openPlan("confluence", "weekly-a")
-    bridge.setPlanEnabled("confluence", "weekly-a", False)
+    bridge.setPlanEnabled("confluence", "missing", False)
+    bridge.runNow("confluence", "missing")
+    bridge.deletePlan("confluence", "missing")
 
-    assert provider.actions == [("refresh",), ("enabled", "weekly-a", False)]
-    assert opened == ["confluence_audit"]
-    assert bridge.rows == []
+    assert provider.actions == [
+        ("refresh",), ("enabled", "missing", False),
+        ("run", "missing"), ("delete", "missing"),
+    ]
+    assert [row["statusText"] for row in bridge.rows] == [
+        "Disabled", "Needs attention",
+    ]
+    assert not hasattr(bridge, "openPlan")
 
 
 def test_tool_bridge_survives_runtime_context_registration_and_exposes_redmine():
+    from ui.example.context_registry import register_context_objects
+
     app = QCoreApplication.instance() or QCoreApplication([])
     engine = QQmlEngine()
-    auth = RuntimeAuth()
     context = engine.rootContext()
-    context.setContextProperty("ToolBridge", ToolBridge(ROOT, auth))
+    register_context_objects(engine, {"ToolBridge": ToolBridge()})
     gc.collect()
 
     bridge = context.contextProperty("ToolBridge")
@@ -282,7 +339,7 @@ def test_tool_bridge_survives_runtime_context_registration_and_exposes_redmine()
 def test_confluence_tool_visible_title_is_project_weekly_audit():
     class ManagerAuth(RuntimeAuth):
         username = Property(str, lambda self: "chao.li", notify=RuntimeAuth.authChanged)
-    bridge = ToolBridge(ROOT, ManagerAuth())
+    bridge = ToolBridge()
     common = next(group for group in bridge.groups if group["id"] == "common")
     tool = next(item for item in common["tools"] if item["id"] == "confluence_audit")
     assert bridge.groups[0]["id"] == "common"
@@ -325,7 +382,7 @@ class Redmine(QObject):
     def cancelLogin(self): pass
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
 auth=Auth(); redmine=Redmine(); daily=QObject()
-register_context_objects(engine, {{"AuthBridge": auth, "ToolBridge": ToolBridge(r"{ROOT}", auth), "ScheduleBridge": ScheduleBridge({{}}), "RedmineBridge": redmine, "JiraAuditBridge": JiraAuditBridge(auth), "DailyReportBridge": daily}})
+register_context_objects(engine, {{"AuthBridge": auth, "ToolBridge": ToolBridge(), "ScheduleBridge": ScheduleBridge({{}}), "RedmineBridge": redmine, "JiraAuditBridge": JiraAuditBridge(auth), "DailyReportBridge": daily}})
 del auth; gc.collect()
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1200; height: 800; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/page/T_Tool.qml" }} }}')
@@ -375,7 +432,7 @@ def test_context_registry_releases_objects_when_engine_is_destroyed():
     assert reference() is None
 
 
-def run_tool_qml_interaction_probe(account: str, *, developer: bool = False) -> str:
+def run_tool_qml_interaction_probe(account: str) -> str:
     probe = f'''
 import sys
 sys.path.insert(0, r"{ROOT / 'ui'}")
@@ -418,9 +475,7 @@ class JiraAudit(QObject):
     @Slot()
     def nextViolationPage(self): pass
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; engine.warnings.connect(lambda rows: warnings.extend(rows))
-auth=Auth(); tools=ToolBridge(r"{ROOT}", auth); schedule=ScheduleBridge({{}}); redmine=Redmine(); jira=JiraAudit()
-if {developer!r}:
-    next(employee for node in tools._personnel["amlogic"]["departments"].values() for employee in node["employees"] if employee["account"] == "{account}")["system_roles"] = ["Developer"]
+auth=Auth(); tools=ToolBridge(); schedule=ScheduleBridge({{}}); redmine=Redmine(); jira=JiraAudit()
 engine.rootContext().setContextProperty("ToolBridge", tools); engine.rootContext().setContextProperty("ScheduleBridge", schedule); engine.rootContext().setContextProperty("RedmineBridge", redmine); engine.rootContext().setContextProperty("JiraAuditBridge", jira)
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1200; height: 800; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/page/T_Tool.qml" }} }}')
@@ -458,13 +513,9 @@ def test_tool_qml_runtime_expands_and_activates_visible_redmine_entry():
     assert "True True redmine False 1 0" in run_tool_qml_interaction_probe("chen.chen")
 
 
-def test_tool_qml_runtime_does_not_expose_redmine_to_unauthorized_account():
-    assert "True False jira_audit False 0 0" in run_tool_qml_interaction_probe("junjie.li")
-
-
-def test_tool_qml_runtime_developer_can_open_redmine_independent_of_assignment():
+def test_tool_qml_runtime_exposes_redmine_to_every_account():
     assert "True True redmine False 1 0" in run_tool_qml_interaction_probe(
-        "junjie.li", developer=True
+        "unknown.account"
     )
 
 
@@ -487,41 +538,27 @@ def test_personnel_declares_product_line_and_technical_center_owners():
     ]
 
 
-def test_tool_groups_keep_fixed_layout_and_filter_child_tools_by_account():
-    personnel = load_tool_access(PERSONNEL_PATH)
+def test_tool_groups_are_complete_and_identical_for_every_account():
+    groups = build_tool_groups()
 
-    expected_product_lines = {
-        "junjie.li": "STB",
-        "jianfan.ai": "TV",
-        "chen.chen": "SmartHome",
-        "lingling.yu": "IPTV",
-    }
-    for account, product_line in expected_product_lines.items():
-        account_groups = build_tool_groups(personnel, account)
-        assert [group["id"] for group in account_groups] == [
-            "common", "STB", "TV", "SmartHome", "IPTV", "Wi-Fi"
-        ]
-        assert [group["available"] for group in account_groups[1:]] == [
-            group["id"] == product_line for group in account_groups[1:]
-        ]
-
-    tv_groups = build_tool_groups(personnel, "jianfan.ai")
-    assert tv_groups[0] == {
+    assert [group["id"] for group in groups] == [
+        "common", "STB", "TV", "SmartHome", "IPTV", "Wi-Fi"
+    ]
+    assert all(group["available"] for group in groups)
+    assert groups[0] == {
         "id": "common", "available": True,
         "tools": [
             {"id": "jira_audit"}, {"id": "confluence_audit"},
             {"id": "daily_report"},
         ],
     }
-    assert tv_groups[2]["available"] is True
-
-    wifi_groups = build_tool_groups(personnel, "zijie.chen")
-    assert wifi_groups[-1]["available"] is True
-    assert wifi_groups[-1]["tools"] == []
-
-    unknown_groups = build_tool_groups(personnel, "unknown.account")
-    assert len(unknown_groups) == 6
-    assert not any(group["available"] for group in unknown_groups[1:])
+    assert next(group for group in groups if group["id"] == "SmartHome")["tools"] == [
+        {"id": "redmine"}
+    ]
+    assert all(
+        not group["tools"] for group in groups
+        if group["id"] not in {"common", "SmartHome"}
+    )
 
 
 def test_personnel_uses_three_explicit_fae_departments_and_fred_owns_smarthome():
@@ -540,98 +577,6 @@ def test_personnel_uses_three_explicit_fae_departments_and_fred_owns_smarthome()
         item["product_line_id"] == "SmartHome" and item["primary"]
         for item in fred["assignments"]
     )
-
-
-def test_developer_role_grants_every_tool_group_independent_of_assignments_and_casing():
-    personnel = load_tool_access(PERSONNEL_PATH)
-    personnel["amlogic"]["departments"]["FAE-SW"]["employees"].extend(
-        [
-            {
-                "account": "developer.zero",
-                "assignments": [],
-                "expertise_domains": [],
-                "system_roles": ["Developer"],
-            },
-            {
-                "account": "developer.one",
-                "assignments": [{"product_line_id": "STB"}],
-                "expertise_domains": [],
-                "system_roles": ["dEvElOpEr"],
-            },
-        ]
-    )
-
-    for account in ("developer.zero", "developer.one"):
-        groups = build_tool_groups(personnel, account)
-        assert len(groups) == 6
-        assert all(group["available"] for group in groups)
-        assert next(group for group in groups if group["id"] == "SmartHome")["tools"] == [
-            {"id": "redmine"}
-        ]
-
-    personnel["amlogic"]["technical_centers"][0]["active"] = False
-    inactive_center_groups = build_tool_groups(personnel, "developer.zero")
-    assert all(group["available"] for group in inactive_center_groups[:-1])
-    assert inactive_center_groups[-1]["available"] is False
-
-
-def test_configured_chao_li_developer_role_grants_all_active_tool_groups():
-    personnel = load_tool_access(PERSONNEL_PATH)
-    employee = next(item for node in personnel["amlogic"]["departments"].values() for item in node["employees"] if item["account"] == "chao.li")
-
-    assert employee["system_roles"] == ["user", "developer"]
-    groups = build_tool_groups(personnel, "chao.li")
-    assert len(groups) == 6
-    assert all(group["available"] for group in groups)
-    assert next(group for group in groups if group["id"] == "SmartHome")["tools"] == [
-        {"id": "redmine"}
-    ]
-
-
-def test_common_audit_and_daily_report_permission_matrix():
-    personnel = {
-        "amlogic": {
-            "departments": {
-                "FAE-QA": {
-                    "employees": [
-                        {"account": "qa.m1", "employment": {"grade": "M1"}, "system_roles": []},
-                        {"account": "qa.i2", "employment": {"grade": "I2"}, "system_roles": []},
-                    ]
-                },
-                "FAE-SW": {
-                    "employees": [
-                        {"account": "sw.m3", "employment": {"grade": "M3"}, "system_roles": []},
-                        {
-                            "account": "developer",
-                            "employment": {"grade": "I2"},
-                            "system_roles": ["dEvElOpEr"],
-                        },
-                    ]
-                },
-            },
-            "product_lines": [],
-            "technical_centers": [],
-        }
-    }
-
-    expected = {
-        "qa.m1": (True, True),
-        "qa.i2": (False, False),
-        "sw.m3": (False, True),
-        "developer": (True, True),
-        "unknown": (False, False),
-    }
-    for account, (audit_available, daily_available) in expected.items():
-        groups = build_tool_groups(personnel, account)
-        tool_ids = {tool["id"] for tool in groups[0]["tools"]}
-        assert ({"jira_audit", "confluence_audit"} <= tool_ids) is audit_available
-        assert ("daily_report" in tool_ids) is daily_available
-
-    configured_groups = build_tool_groups(load_tool_access(PERSONNEL_PATH), "chao.li")
-    assert configured_groups[0]["tools"] == [
-        {"id": "jira_audit"}, {"id": "confluence_audit"},
-        {"id": "daily_report"},
-    ]
 
 
 def test_tool_navigation_and_page_layout_contract():
@@ -655,9 +600,7 @@ def test_tool_navigation_and_page_layout_contract():
     assert "visible: scheduleExpanded &&" in page
     assert "model: ScheduleBridge.rows" in page
     assert "model: ToolBridge.groups" in page
-    assert "ScheduleBridge.openPlan(" in page
     assert "ScheduleBridge.setPlanEnabled(" in page
-    assert "No SmartTest Windows schedules are currently enabled." in page
     assert 'self.tr("Common Tools")' in (ROOT / "ui/example/bridge/ToolBridge.py").read_text(encoding="utf-8")
     assert 'qsTr("Custom Tools")' in page
     assert 'text: qsTr("Tools")' not in page
@@ -681,7 +624,7 @@ def test_tool_navigation_and_page_layout_contract():
     assert "selectedToolIndex = model.index" not in page
 
 
-def test_schedule_qml_opens_target_tool_and_hides_disabled_plan():
+def test_schedule_qml_shows_read_only_status_and_next_run():
     probe = f'''
 import sys
 sys.path.insert(0, r"{ROOT / 'ui'}")
@@ -695,16 +638,12 @@ class Tools(QObject):
     changed = Signal()
     groups = Property("QVariantList", lambda self:[{{"id":"common", "title":"Common Tools", "available":True, "tools":[{{"id":"other_tool", "title":"Other", "description":""}}, {{"id":"future_tool", "title":"Future", "description":""}}]}}], notify=changed)
 class Schedule(QObject):
-    rowsChanged = Signal(); toolOpenRequested = Signal(str)
+    rowsChanged = Signal()
     def __init__(self):
-        super().__init__(); self.actions=[]; self._rows=[{{"provider":"future", "planId":"weekly-a", "businessTitle":"Future Audit", "title":"Weekly A", "enabled":True, "registered":True, "targetToolId":"future_tool"}}]
+        super().__init__(); self.actions=[]; self._rows=[{{"provider":"future", "planId":"weekly-a", "businessTitle":"Future Audit", "title":"Weekly A", "enabled":True, "registered":True, "statusText":"Ready", "nextRunText":"Next run: 2026-08-06 19:00", "taskTypeText":"Daily Report", "contentText":"Demo", "planText":"Daily 11:30", "manageable":True, "operationRunning":False, "operationText":""}}]
     rows = Property("QVariantList", lambda self:list(self._rows), notify=rowsChanged)
     @Slot()
     def refresh(self): self.actions.append(("refresh",))
-    @Slot(str, str)
-    def openPlan(self, provider, plan_id): self.actions.append(("open", provider, plan_id)); self.toolOpenRequested.emit("future_tool")
-    @Slot(str, str, bool)
-    def setPlanEnabled(self, provider, plan_id, enabled): self.actions.append(("enabled", provider, plan_id, enabled)); self._rows=[]; self.rowsChanged.emit()
 class Redmine(QObject):
     changed = Signal(); state = Property(str, lambda self:"idle", notify=changed)
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]
@@ -724,11 +663,10 @@ def item(name):
 def click(control):
     point=control.mapToScene(QPointF(control.width()/2, control.height()/2)); QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, QPoint(round(point.x()), round(point.y()))); app.processEvents()
 click(item("toolScheduleToggle"))
-click(item("toolScheduleOpenButton_weekly-a"))
-selected=root.property("selectedTool"); selected=selected.toVariant() if hasattr(selected,"toVariant") else selected
-click(item("toolScheduleDisableButton_weekly-a"))
-empty=item("toolScheduleEmptyState")
-print(selected.get("id"), schedule.actions, len(schedule._rows), empty.property("visible"), len(warnings), warnings)
+status=item("toolScheduleStatus_weekly-a"); next_run=item("toolScheduleNextRun_weekly-a")
+task_type=item("toolScheduleType_weekly-a"); content=item("toolScheduleContent_weekly-a"); plan=item("toolSchedulePlan_weekly-a")
+controls=[item("toolScheduleToggle_weekly-a"), item("toolScheduleRunNow_weekly-a"), item("toolScheduleDelete_weekly-a")]
+print(status.property("text"), next_run.property("text"), task_type.property("text"), content.property("text"), plan.property("text"), all(controls), schedule.actions, len(warnings), warnings)
 '''
     result = subprocess.run(
         [sys.executable, "-c", probe], cwd=ROOT,
@@ -736,7 +674,7 @@ print(selected.get("id"), schedule.actions, len(schedule._rows), empty.property(
         capture_output=True, text=True, timeout=15,
     )
     assert result.returncode == 0, result.stderr + result.stdout
-    assert "future_tool [('refresh',), ('open', 'future', 'weekly-a'), ('enabled', 'future', 'weekly-a', False)] 0 True 0 []" in result.stdout
+    assert "Ready Next run: 2026-08-06 19:00 Type: Daily Report Content: Demo Plan: Daily 11:30 True [('refresh',)] 0 []" in result.stdout
 
 
 def test_redmine_workspace_reuses_issue_detail_and_exposes_layout_signals():
@@ -969,32 +907,6 @@ print(len(engine.rootObjects()), len(warnings), warnings)
     assert "1 0 []" in result.stdout
 
 
-def test_runtime_root_is_created_before_tool_bridge_registration():
-    source = (ROOT / "ui/example/main.py").read_text(encoding="utf-8")
-
-    assert source.index("runtime_root = _runtime_root()") < source.index(
-        '"ToolBridge": ToolBridge(runtime_root, auth_bridge)'
-    )
-    assert "register_context_objects(" in source
-    assert '"runtime_root": str(runtime_root)' in source
-
-
-def test_tool_bridge_logs_account_and_group_resolution_without_secrets(monkeypatch):
-    messages = []
-    monkeypatch.setattr(
-        "ui.example.bridge.ToolBridge.smart_log",
-        lambda message, *args, **kwargs: messages.append(message % args if args else message),
-    )
-    auth = RuntimeAuth()
-    bridge = ToolBridge(ROOT, auth)
-
-    groups = bridge.groups
-
-    assert any("account=chen.chen" in message for message in messages)
-    assert any("SmartHome:redmine" in message for message in messages)
-    assert not any("password" in message.casefold() for message in messages)
-
-
 def test_tool_fixed_text_is_finished_in_both_catalogs():
     required_contexts = {"ItemsOriginal", "T_Tool", "ToolBridge"}
     for filename in ("example_en_US.ts", "example_zh_CN.ts"):
@@ -1055,7 +967,6 @@ def test_fae_redmine_rosters_are_unique_additive_and_keep_unknown_default():
     for employee in employees:
         assert employee["account"] == employee["account"].lower() and "@" not in employee["account"]
         assert sum(item.get("product_line_id") == "SmartHome" for item in employee.get("assignments", [])) == 1
-        assert next(group for group in build_tool_groups(personnel, employee["account"]) if group["id"] == "SmartHome")["available"] is True
         smart_home = next(item for item in employee["assignments"] if item.get("product_line_id") == "SmartHome")
         assert smart_home["primary"] is (employee["account"] in roster_a)
     aml_names, departments = load_redmine_people(PERSONNEL_PATH)
@@ -1066,13 +977,12 @@ def test_fae_redmine_rosters_are_unique_additive_and_keep_unknown_default():
     qa = next(item for item in amlogic_employees(personnel) if item["account"] == "xiuyue.zhang")
     assert qa["organization"]["department"] == "FAE-QA" and qa["assignments"] == []
     assert match_employee_profile(personnel, "", username="missing.account") == {}
-    assert [group["id"] for group in build_tool_groups(personnel, "missing.account") if group["available"]] == ["common"]
 
 
 def test_smarthome_assignment_model_remains_additive():
     personnel = {"amlogic": {"departments": {"FAE-SW": {"employees": [{"account": "fae.user", "assignments": [{"product_line_id": "TV"}, {"product_line_id": "SmartHome", "primary": False}], "system_roles": ["user"]}]}}, "product_lines": [{"id": "TV"}, {"id": "SmartHome"}], "technical_centers": []}}
-    available = {group["id"] for group in build_tool_groups(personnel, "fae.user") if group["available"]}
-    assert available == {"common", "TV", "SmartHome"}
+    assignments = personnel["amlogic"]["departments"]["FAE-SW"]["employees"][0]["assignments"]
+    assert [item["product_line_id"] for item in assignments] == ["TV", "SmartHome"]
 
 
 def test_identity_domains_and_subing_smarthome_access_are_explicit():
@@ -1088,8 +998,6 @@ def test_identity_domains_and_subing_smarthome_access_are_explicit():
     assert "redmine" not in employee
     smart_home = next(item for item in employee["assignments"] if item["product_line_id"] == "SmartHome")
     assert smart_home["primary"] is False
-    from ui.example.bridge.ToolBridge import load_tool_access
-    assert next(group for group in build_tool_groups(load_tool_access(PERSONNEL_PATH), "subing.xu") if group["id"] == "SmartHome")["available"]
     accounts = personnel["redmine"]["accounts"]
     assert set(accounts) == {"amlogic", "customer"}
     mappings = {item.get("ldap_account"): item for item in accounts["amlogic"]}
@@ -1097,13 +1005,6 @@ def test_identity_domains_and_subing_smarthome_access_are_explicit():
     assert mappings["xin.wang"]["display_name"] == "Xin Wang1-aml"
     assert mappings["qiang.zhang"]["display_name"] == "Qiang Zhang-aml"
     assert all("ldap_account" not in item or item["ldap_account"] for item in accounts["customer"])
-
-
-def test_tool_page_invalidates_redmine_selection_when_group_becomes_unavailable():
-    source = (ROOT / "ui/example/imports/example/qml/page/T_Tool.qml").read_text(encoding="utf-8")
-    assert "function ensureSelectedToolAvailable()" in source
-    assert "if (!selectedGroup.available)" in source
-    assert "onSelectedGroupChanged: ensureSelectedToolAvailable()" in source
 
 
 def test_shared_issue_browser_exposes_quick_views_project_options_and_search_cancel():
@@ -1128,9 +1029,11 @@ def test_confluence_audit_tool_exposes_collection_plan_and_xlsx_content_contract
         "confluenceAuditYearFilter",
         "confluenceAuditSupportModeFilter",
         "confluenceAuditProjectStatusFilter",
+        "confluenceAuditProductLineFilter",
         "confluenceAuditYearDropDown",
         "confluenceAuditSupportModeDropDown",
         "confluenceAuditProjectStatusDropDown",
+        "confluenceAuditProductLineDropDown",
         "confluenceAuditApplyFilterButton",
         "confluenceAuditRefreshCollectionButton",
         "confluenceAuditProjectChecklist",
@@ -1145,6 +1048,7 @@ def test_confluence_audit_tool_exposes_collection_plan_and_xlsx_content_contract
         "Years",
         "Support modes",
         "Project statuses",
+        "Product lines",
         "Refresh filter options",
         "Apply filters",
         "Select all",
@@ -1161,8 +1065,22 @@ def test_confluence_audit_tool_exposes_collection_plan_and_xlsx_content_contract
     assert 'ConfluenceAuditBridge.toggleFilterValue( "years", modelData)' in compact
     assert 'ConfluenceAuditBridge.toggleFilterValue( "supportModes", modelData)' in compact
     assert "ConfluenceAuditBridge.toggleProject(modelData.projectIdentity)" in workspace
-    assert "ConfluenceAuditBridge.selectAllProjects()" in workspace
-    assert "ConfluenceAuditBridge.clearSelectedProjects()" in workspace
+    assert "root.view.candidateSections" in workspace
+    assert "sectionData.displayName" in workspace
+    assert "ConfluenceAuditBridge.selectAllProjectsForLine(sectionData.key)" in workspace
+    assert "ConfluenceAuditBridge.clearSelectedProjectsForLine(sectionData.key)" in workspace
+    assert "ConfluenceAuditBridge.toggleProductLine(modelData.key)" in workspace
+    assert workspace.index('objectName: "confluenceAuditProductLineFilter"') < workspace.index(
+        'objectName: "confluenceAuditYearFilter"'
+    )
+    assert 'readonly property bool catalogBusy: root.view.catalogStatus === "first_loading"' in workspace
+    assert '|| root.view.catalogStatus === "refreshing"' in workspace
+    assert "FluProgressRing" in workspace
+    assert "visible: root.catalogBusy" in workspace
+    assert "disabled: root.catalogBusy || root.auditBusy" in workspace
+    assert 'readonly property bool auditBusy: root.view.state === "discovering"' in workspace
+    assert '|| root.view.state === "reviewing"' in workspace
+    assert "visible: root.auditBusy" in workspace
     assert "ConfluenceAuditBridge.enableWeeklyPlan()" in workspace
     assert "ConfluenceAuditBridge.exportExcel()" in workspace
     assert "ConfluenceAuditBridge.openReportDirectory()" in workspace
@@ -1177,7 +1095,7 @@ def test_confluence_audit_tool_exposes_collection_plan_and_xlsx_content_contract
     assert 'qsTr("History")' not in workspace
     assert "confluenceAuditCurrentStageFilter" not in workspace
     assert '"currentStages"' not in workspace
-    assert workspace.count("FluDropDownButton") == 3
+    assert workspace.count("FluDropDownButton") == 4
     assert 'qsTr("Export XLSX")' not in workspace
     jira_workspace = (
         ROOT / "ui/example/imports/example/qml/component/jiraaudit/JiraAuditWorkspace.qml"
@@ -1208,6 +1126,10 @@ def test_confluence_workspace_declares_responsive_candidate_grid_contract():
     assert "wrapMode: Text.Wrap" in workspace
     assert "confluenceAuditEnableWeeklyPlanButton" in workspace
     assert "ConfluenceAuditBridge.enableWeeklyPlan()" in workspace
+    assert "id: candidateSectionList" in workspace
+    assert "id: candidateSectionColumn" in workspace
+    assert "ScrollBar.vertical: FluScrollBar" in workspace
+    assert "candidateSectionColumn.implicitHeight" in workspace
 
 
 def test_confluence_audit_workspace_runtime_events_and_wrapped_filters_are_accessible():
@@ -1410,7 +1332,6 @@ def test_confluence_audit_workspace_labels_follow_up_projection_and_action_field
         'qsTr("Reviewed")',
         'qsTr("Follow-up")',
         'qsTr("Reason")',
-        'qsTr("Adjustment")',
         'qsTr("Open Confluence")',
     ):
         assert text in workspace

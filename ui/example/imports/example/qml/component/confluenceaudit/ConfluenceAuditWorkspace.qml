@@ -6,6 +6,10 @@ import FluentUI 1.0
 Item {
     id: root
     readonly property var view: ConfluenceAuditBridge.viewState
+    readonly property bool catalogBusy: root.view.catalogStatus === "first_loading"
+                                        || root.view.catalogStatus === "refreshing"
+    readonly property bool auditBusy: root.view.state === "discovering"
+                                      || root.view.state === "reviewing"
 
     Component.onCompleted: {
         ConfluenceAuditBridge.initializeCollection()
@@ -16,11 +20,11 @@ Item {
     }
 
     function statusColor(status) {
-        if (status === "failed")
+        if (status === "invalid_format")
             return FluTheme.dark ? "#FF99A4" : "#D13438"
-        if (status === "risk")
+        if (status === "not_updated")
             return FluTheme.dark ? "#FCE100" : "#986F0B"
-        if (status === "passed")
+        if (status === "updated")
             return FluTheme.dark ? "#7EE787" : "#107C10"
         return FluTheme.fontSecondaryColor
     }
@@ -75,8 +79,14 @@ Item {
                     FluButton {
                         objectName: "confluenceAuditRefreshCollectionButton"
                         text: qsTr("Refresh filter options")
-                        disabled: !root.view.canStart
+                        disabled: root.catalogBusy || root.auditBusy
                         onClicked: ConfluenceAuditBridge.refreshCollection()
+                    }
+                    FluProgressRing {
+                        objectName: "confluenceAuditCatalogProgressRing"
+                        visible: root.catalogBusy
+                        implicitWidth: 18
+                        implicitHeight: 18
                     }
                     FluText {
                         text: root.view.catalogStatusText || ""
@@ -91,6 +101,38 @@ Item {
                     columnSpacing: 8
                     columns: width < 800 ? 1 : 4
 
+                    ColumnLayout {
+                        objectName: "confluenceAuditProductLineFilter"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 120
+                        Layout.preferredWidth: 0
+                        FluText {
+                            text: qsTr("Product lines") + " ("
+                                  + (root.view.productLines || []).length
+                                  + " " + qsTr("available") + ")"
+                            font: FluTextStyle.Caption
+                        }
+                        FluDropDownButton {
+                            objectName: "confluenceAuditProductLineDropDown"
+                            Layout.fillWidth: true
+                            text: root.selectedValuesText(
+                                      (root.view.productLines || []).filter(function(item) {
+                                          return root.containsValue(root.view.selectedProductLineKeys,
+                                                                    item.key)
+                                      }).map(function(item) { return item.displayName }))
+                            Repeater {
+                                model: root.view.productLines || []
+                                FluMenuItem { /* persistence-opt-out: owner:ConfluenceAuditBridge */
+                                    required property var modelData
+                                    text: modelData.displayName
+                                    checkable: true
+                                    checked: root.containsValue(root.view.selectedProductLineKeys,
+                                                                 modelData.key)
+                                    onTriggered: ConfluenceAuditBridge.toggleProductLine(modelData.key)
+                                }
+                            }
+                        }
+                    }
                     ColumnLayout {
                         objectName: "confluenceAuditYearFilter"
                         Layout.fillWidth: true
@@ -186,7 +228,81 @@ Item {
                     }
                 }
 
+                Flickable {
+                    id: candidateSectionList
+                    objectName: "confluenceAuditProductLineProjectChecklist"
+                    visible: (root.view.candidateSections || []).length > 0
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.min(
+                        candidateSectionColumn.implicitHeight,
+                        Math.max(240, Math.min(520, root.height * 0.55)))
+                    clip: true
+                    contentWidth: width
+                    contentHeight: candidateSectionColumn.implicitHeight
+                    flickableDirection: Flickable.VerticalFlick
+                    boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: FluScrollBar {
+                        interactive: true
+                        policy: ScrollBar.AsNeeded
+                    }
+
+                    ColumnLayout {
+                        id: candidateSectionColumn
+                        width: candidateSectionList.width
+                        spacing: 8
+
+                        Repeater {
+                            model: root.view.candidateSections || []
+                            ColumnLayout {
+                                required property var modelData
+                                property var sectionData: modelData
+                                Layout.fillWidth: true
+                                spacing: 4
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    FluText {
+                                        Layout.fillWidth: true
+                                        text: sectionData.displayName
+                                        font: FluTextStyle.BodyStrong
+                                    }
+                                    FluButton {
+                                        text: qsTr("Select all")
+                                        disabled: !(sectionData.projects || []).length
+                                        onClicked: ConfluenceAuditBridge.selectAllProjectsForLine(sectionData.key)
+                                    }
+                                    FluButton {
+                                        text: qsTr("Clear selection")
+                                        onClicked: ConfluenceAuditBridge.clearSelectedProjectsForLine(sectionData.key)
+                                    }
+                                }
+                                Repeater {
+                                    model: sectionData.projects || []
+                                    RowLayout {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        FluCheckBox { /* persistence-opt-out: owner:ConfluenceAuditBridge */
+                                            checked: root.containsValue(root.view.selectedProjectIds,
+                                                                         modelData.projectIdentity)
+                                            onClicked: ConfluenceAuditBridge.toggleProject(modelData.projectIdentity)
+                                        }
+                                        FluText {
+                                            Layout.preferredWidth: 110
+                                            text: (modelData.matchingYears || [modelData.year]).join(", ")
+                                        }
+                                        FluText {
+                                            Layout.fillWidth: true
+                                            text: modelData.displayName || modelData.name
+                                            wrapMode: Text.WrapAnywhere
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 RowLayout {
+                    visible: !(root.view.candidateSections || []).length
                     Layout.fillWidth: true
                     FluText {
                         text: qsTr("Candidate projects") + ": "
@@ -244,6 +360,7 @@ Item {
                 Flickable {
                     id: candidateList
                     objectName: "confluenceAuditProjectChecklist"
+                    visible: !(root.view.candidateSections || []).length
                     Layout.fillWidth: true
                     readonly property int candidateColumnCount: width < 800 ? 1 : (width < 1200 ? 2 : 3)
                     readonly property int candidateTotalRowCount: Math.ceil(
@@ -359,13 +476,10 @@ Item {
         FluText {
             text: qsTr("Reviewed") + ": " + (root.view.summary.reviewedCount || 0)
                   + "  " + qsTr("Follow-up") + ": " + (root.view.summary.followUpCount || 0)
-                  + "  " + qsTr("Risk") + ": " + (root.view.summary.riskCount || 0)
-                  + "  " + qsTr("Failed") + ": " + (root.view.summary.failedCount || 0)
-                  + "  " + qsTr("Unknown") + ": " + (root.view.summary.unknownCount || 0)
         }
         FluProgressBar {
             Layout.fillWidth: true
-            visible: !root.view.canStart
+            visible: root.auditBusy
             indeterminate: !(root.view.progress.total > 0)
             from: 0
             to: Math.max(1, root.view.progress.total || 1)
@@ -451,12 +565,8 @@ Item {
                         FluText {
                             objectName: "confluenceAuditExplanation"
                             Layout.fillWidth: true
-                            text: qsTr("Why it failed") + ": " + (modelData.explanation || "")
-                            wrapMode: Text.WordWrap
-                        }
-                        FluText {
-                            Layout.fillWidth: true
-                            text: qsTr("Adjustment") + ": " + (modelData.guidance || "")
+                            visible: (modelData.explanation || "").length > 0
+                            text: modelData.explanation || ""
                             wrapMode: Text.WordWrap
                             color: FluTheme.fontSecondaryColor
                         }

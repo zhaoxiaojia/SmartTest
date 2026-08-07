@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, Property, Signal, Slot
+from PySide6.QtCore import QDateTime, QObject, Property, Signal, Slot, Qt
 
 
 class ScheduleBridge(QObject):
     rowsChanged = Signal()
-    toolOpenRequested = Signal(str)
 
     def __init__(self, providers: dict[str, QObject]):
         super().__init__()
@@ -16,10 +15,9 @@ class ScheduleBridge(QObject):
     @Property("QVariantList", notify=rowsChanged)
     def rows(self):
         return [
-            dict(row)
+            self._display_row(row)
             for provider in self._providers.values()
             for row in provider.scheduleRows
-            if row.get("enabled")
         ]
 
     @Slot()
@@ -30,21 +28,50 @@ class ScheduleBridge(QObject):
     @Slot(str, str, bool)
     def setPlanEnabled(self, provider_id, plan_id, enabled):
         provider = self._providers.get(str(provider_id))
-        if provider is not None:
+        if provider is not None and hasattr(provider, "setPlanEnabled"):
             provider.setPlanEnabled(str(plan_id), bool(enabled))
 
     @Slot(str, str)
-    def openPlan(self, provider_id, plan_id):
-        identity = (str(provider_id), str(plan_id))
-        row = next(
-            (
-                row for row in self.rows
-                if (row.get("provider"), row.get("planId")) == identity
-            ),
-            None,
+    def runNow(self, provider_id, plan_id):
+        provider = self._providers.get(str(provider_id))
+        if provider is not None and hasattr(provider, "runPlanNow"):
+            provider.runPlanNow(str(plan_id))
+
+    @Slot(str, str)
+    def deletePlan(self, provider_id, plan_id):
+        provider = self._providers.get(str(provider_id))
+        if provider is not None and hasattr(provider, "deletePlan"):
+            provider.deletePlan(str(plan_id))
+
+    def _display_row(self, source):
+        row = dict(source)
+        row.setdefault("manageable", False)
+        row.setdefault("operationRunning", False)
+        row.setdefault("operationText", "")
+        row.setdefault("taskTypeText", "")
+        row.setdefault("contentText", "")
+        row.setdefault("planText", "")
+        if not row.get("enabled"):
+            status = self.tr("Disabled")
+        elif not row.get("registered"):
+            status = self.tr("Not registered")
+        elif row.get("reconciliation") == "ok":
+            status = self.tr("Ready")
+        else:
+            status = self.tr("Needs attention")
+        row["statusText"] = status
+        row["nextRunText"] = self._next_run_text(row.get("nextRunAt"))
+        return row
+
+    def _next_run_text(self, value):
+        if not value:
+            return self.tr("Next run unavailable")
+        parsed = QDateTime.fromString(str(value), Qt.DateFormat.ISODate)
+        if not parsed.isValid():
+            return self.tr("Next run unavailable")
+        return self.tr("Next run: {time}").format(
+            time=parsed.toString("yyyy-MM-dd HH:mm")
         )
-        if row is not None:
-            self.toolOpenRequested.emit(str(row["targetToolId"]))
 
 
 __all__ = ["ScheduleBridge"]

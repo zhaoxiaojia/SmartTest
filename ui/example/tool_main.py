@@ -89,13 +89,13 @@ def create_context_objects(engine) -> dict[str, object]:
     translate = TranslateHelper()
     translate.init(engine)
     confluence = ConfluenceAuditBridge(auth)
-    daily_report = create_daily_report_bridge(auth, app_data_dir(), root)
+    daily_report = create_daily_report_bridge(auth, app_data_dir())
     return {
         "AppInfo": AppInfo(),
         "TranslateHelper": translate,
         "AISettingsBridge": AISettingsBridge(),
         "AuthBridge": auth,
-        "ToolBridge": ToolBridge(root, auth),
+        "ToolBridge": ToolBridge(),
         "RedmineBridge": RedmineBridge(auth),
         "JiraAuditBridge": JiraAuditBridge(auth),
         "ConfluenceAuditBridge": confluence,

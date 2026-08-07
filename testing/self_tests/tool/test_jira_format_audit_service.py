@@ -166,7 +166,7 @@ def test_one_jira_with_multiple_candidates_uses_one_ai_request_and_merges_result
         {
             "SH-1": _review(
                 "SH-1",
-                ("SUMMARY.PROBABILITY", "PASS", "", ""),
+                ("SUMMARY.FORMAT", "PASS", "", ""),
                 (
                     "DESCRIPTION.RATE_FORMAT",
                     "FAIL",
@@ -178,7 +178,7 @@ def test_one_jira_with_multiple_candidates_uses_one_ai_request_and_merges_result
     )
     issue = _issue(
         "SH-1",
-        summary="[ACME][T7][V1.1][Video]: Video freezes,often",
+        summary="[ACME][T7][V1.1][Video] Video freezes",
         description=_description(rate="intermittent"),
     )
 
@@ -206,12 +206,6 @@ def test_ai_receives_full_jira_context(monkeypatch):
                 {
                     "issue_key": "SH-1",
                     "decisions": [
-                        {
-                            "rule_id": "SUMMARY.PROBABILITY",
-                            "result": "PASS",
-                            "reason": "",
-                            "guidance": "",
-                        },
                         {
                             "rule_id": "DESCRIPTION.RATE_FORMAT",
                             "result": "PASS",
@@ -277,10 +271,76 @@ def test_hard_violation_does_not_create_ai_client(monkeypatch):
     }
 
 
+@pytest.mark.parametrize("summary", ("", "invalid"))
+def test_empty_or_uninformative_summary_does_not_create_ai_client(
+    monkeypatch, summary
+):
+    created = []
+
+    report = _run(
+        monkeypatch,
+        [_issue("SH-1", summary=summary)],
+        lambda: created.append(True),
+    )
+
+    assert not created
+    assert report.issues[0].ai_review_status is AIReviewStatus.NOT_REQUIRED
+    assert [item.rule_id for item in report.issues[0].violations] == [
+        "SUMMARY.FORMAT"
+    ]
+
+
+def test_ambiguous_summary_format_uses_existing_single_ai_review(monkeypatch):
+    client = AIClient(
+        {
+            "SH-1": _review(
+                "SH-1",
+                ("SUMMARY.FORMAT", "PASS", "", ""),
+            )
+        }
+    )
+
+    result = _run(
+        monkeypatch,
+        [
+            _issue(
+                "SH-1",
+                summary="[ACME][T7][V1.1][Video] Video freezes on 1/6台",
+            )
+        ],
+        lambda: client,
+    ).issues[0]
+
+    assert len(client.requests) == 1
+    assert result.ai_review_status is AIReviewStatus.COMPLETED
+    assert result.passed
+
+
+def test_device_count_probability_does_not_create_ai_client(
+    monkeypatch,
+):
+    summary = (
+        "[Ref][S905L5AP][S6][AN14][CMCC][System]："
+        "周末煲机monkey脚本后，短按中屏设备电源键息屏，设备会直接重启；1/6台"
+    )
+    created = []
+
+    result = _run(
+        monkeypatch,
+        [_issue("IPTV-42412", summary=summary)],
+        lambda: created.append(True),
+    ).issues[0]
+
+    assert not created
+    assert result.ai_review_status is AIReviewStatus.NOT_REQUIRED
+    assert result.passed
+    assert not result.violations
+
+
 def test_unconfigured_ai_retains_initial_violation_with_sanitized_status(monkeypatch):
     issue = _issue(
         "SH-1",
-        summary="[ACME][T7][V1.1][Video]: Video freezes,often",
+        description=_description(rate="intermittent"),
     )
 
     result = _run(
@@ -293,7 +353,7 @@ def test_unconfigured_ai_retains_initial_violation_with_sanitized_status(monkeyp
 
     assert result.ai_review_status is AIReviewStatus.UNCONFIGURED
     assert [item.rule_id for item in result.violations] == [
-        "SUMMARY.PROBABILITY"
+        "DESCRIPTION.RATE_FORMAT"
     ]
     assert "secret" not in repr(result)
 
@@ -313,7 +373,7 @@ def test_ai_failure_retains_initial_violation_and_sanitized_status(
 ):
     issue = _issue(
         "SH-1",
-        summary="[ACME][T7][V1.1][Video]: Video freezes,often",
+        description=_description(rate="intermittent"),
     )
     client = AIClient({"SH-1": failure})
 
@@ -321,7 +381,7 @@ def test_ai_failure_retains_initial_violation_and_sanitized_status(
 
     assert result.ai_review_status is AIReviewStatus.FAILED
     assert [item.rule_id for item in result.violations] == [
-        "SUMMARY.PROBABILITY"
+        "DESCRIPTION.RATE_FORMAT"
     ]
     assert "private" not in repr(result)
 
@@ -333,21 +393,21 @@ def test_ai_failure_retains_initial_violation_and_sanitized_status(
         "{}",
         _review(
             "OTHER-1",
-            ("SUMMARY.PROBABILITY", "PASS", "", ""),
+            ("DESCRIPTION.RATE_FORMAT", "PASS", "", ""),
         ),
         _review("SH-1"),
         _review(
             "SH-1",
-            ("SUMMARY.PROBABILITY", "PASS", "", ""),
-            ("SUMMARY.PROBABILITY", "PASS", "", ""),
+            ("DESCRIPTION.RATE_FORMAT", "PASS", "", ""),
+            ("DESCRIPTION.RATE_FORMAT", "PASS", "", ""),
         ),
         _review(
             "SH-1",
-            ("SUMMARY.PROBABILITY", "MAYBE", "", ""),
+            ("DESCRIPTION.RATE_FORMAT", "MAYBE", "", ""),
         ),
         _review(
             "SH-1",
-            ("SUMMARY.PROBABILITY", "FAIL", "", "补充概率。"),
+            ("DESCRIPTION.RATE_FORMAT", "FAIL", "", "补充概率。"),
         ),
     ),
 )
@@ -356,7 +416,7 @@ def test_invalid_ai_decision_payload_degrades_without_changing_violations(
 ):
     issue = _issue(
         "SH-1",
-        summary="[ACME][T7][V1.1][Video]: Video freezes,often",
+        description=_description(rate="intermittent"),
     )
 
     result = _run(
@@ -365,14 +425,14 @@ def test_invalid_ai_decision_payload_degrades_without_changing_violations(
 
     assert result.ai_review_status is AIReviewStatus.FAILED
     assert [item.rule_id for item in result.violations] == [
-        "SUMMARY.PROBABILITY"
+        "DESCRIPTION.RATE_FORMAT"
     ]
 
 
 def test_ai_reviews_use_six_workers_preserve_order_and_isolate_failures(monkeypatch):
     keys = [f"SH-{index}" for index in range(1, 8)]
     responses = {
-        key: _review(key, ("SUMMARY.PROBABILITY", "PASS", "", ""))
+        key: _review(key, ("DESCRIPTION.RATE_FORMAT", "PASS", "", ""))
         for key in keys
     }
     responses["SH-1"] = "{}"
@@ -380,7 +440,7 @@ def test_ai_reviews_use_six_workers_preserve_order_and_isolate_failures(monkeypa
     issues = [
         _issue(
             key,
-            summary=f"[ACME][T7][V1.1][Video]: Video freezes {key},often",
+            description=_description(rate="intermittent"),
         )
         for key in keys
     ]
@@ -410,13 +470,13 @@ def test_progress_uses_candidate_issue_count_for_ai_stage(monkeypatch):
         {
             "SH-2": _review(
                 "SH-2",
-                ("SUMMARY.PROBABILITY", "PASS", "", ""),
+                ("SUMMARY.FORMAT", "PASS", "", ""),
             )
         }
     )
     candidate = _issue(
         "SH-2",
-        summary="[ACME][T7][V1.1][Video]: Video freezes,often",
+        summary="[ACME][T7][V1.1][Video] Video freezes",
     )
     issues = [_issue("SH-1"), candidate, candidate]
 

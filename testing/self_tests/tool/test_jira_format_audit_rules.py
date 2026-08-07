@@ -26,7 +26,7 @@ from support.jira_integration.core.models import SearchPage
 
 RULE_IDS = tuple(
     """
-    SUMMARY.FORMAT SUMMARY.PROBABILITY COMPONENT.REQUIRED
+    SUMMARY.FORMAT COMPONENT.REQUIRED
     DESCRIPTION.STEPS_TO_REPRODUCE DESCRIPTION.ACTUAL_RESULTS
     DESCRIPTION.EXPECTED_RESULTS DESCRIPTION.COMPARISON DESCRIPTION.NOTES
     DESCRIPTION.RATE_FORMAT DESCRIPTION.NOTES_HW DESCRIPTION.NOTES_SW
@@ -102,43 +102,52 @@ def test_complete_issue_accepts_four_five_and_six_summary_groups():
 
 
 @pytest.mark.parametrize(
-    "rate",
-    ("出现一次", "复现2次", "出现三次"),
+    "suffix",
+    (
+        "",
+        " (10%)",
+        "（10%）",
+        "；1/6台",
+        "，偶发且次数暂未统计",
+    ),
 )
-def test_summary_accepts_textual_occurrence_count_at_end(rate):
+def test_summary_probability_text_is_not_audited(suffix):
+    summary = f"[ACME][T7][V1.1][Video]: Video freezes{suffix}"
+
+    assert not _violations(summary=summary)
+
+
+@pytest.mark.parametrize("rate", ("10%", "1/2", "出现一次"))
+def test_summary_with_only_a_standard_probability_has_no_problem_description(rate):
+    summary = f"[ACME][T7][V1.1][Video]: {rate}"
+
+    assert _violations(summary=summary) == {"SUMMARY.FORMAT"}
+
+
+def test_nonempty_ambiguous_summary_format_is_ai_reviewable():
+    summary = "[ACME][T7][V1.1][Video] Video freezes on 1/6台"
     result = audit_issue(
-        _issue(summary=f"[ACME][T7][V1.1][Video]: Video freezes,{rate}"),
+        _issue(summary=summary),
         base_url="https://jira.example.com",
     )
 
-    assert "SUMMARY.PROBABILITY" not in {
-        violation.rule_id for violation in result.violations
+    assert [item.rule_id for item in result.violations] == ["SUMMARY.FORMAT"]
+    assert [item.rule_id for item in ai_reviewable_violations(result)] == [
+        "SUMMARY.FORMAT"
+    ]
+
+
+@pytest.mark.parametrize("summary", ("", "invalid"))
+def test_empty_or_uninformative_summary_format_is_not_ai_reviewable(summary):
+    result = audit_issue(
+        _issue(summary=summary),
+        base_url="https://jira.example.com",
+    )
+
+    assert "SUMMARY.FORMAT" in {
+        item.rule_id for item in result.violations
     }
-
-
-@pytest.mark.parametrize("separator", (",", "，", ";", "；"))
-def test_summary_textual_occurrence_count_requires_a_separator(separator):
-    summary = f"[ACME][T7][V1.1][Audio]: 语音唤醒异常{separator}出现一次"
-
-    assert "SUMMARY.PROBABILITY" not in _violations(summary=summary)
-
-
-def test_summary_does_not_take_textual_count_from_description_suffix():
-    summary = "[ACME][T7][V1.1][Audio]: 问题出现一次"
-
-    assert "SUMMARY.PROBABILITY" in _violations(summary=summary)
-
-
-@pytest.mark.parametrize(
-    "summary",
-    (
-        "[ACME][T7][V1.1][Video]: 每次播放视频都会卡顿",
-        "[ACME][T7][V1.1][Video]: Video freezes,偶现",
-        "[ACME][T7][V1.1][Video]: Video freezes,出现2",
-    ),
-)
-def test_summary_rejects_non_count_text_at_end(summary):
-    assert "SUMMARY.PROBABILITY" in _violations(summary=summary)
+    assert not ai_reviewable_violations(result)
 
 
 @pytest.mark.parametrize(
@@ -169,6 +178,58 @@ def test_description_rejects_ambiguous_or_unbounded_rate_text(rate):
     )
 
 
+def test_description_keeps_hw_and_sw_after_nested_expected_results_in_notes():
+    description = _description(
+        notes=(
+            "Test Case:\n1. Play a video.\nExpected results:\nPlayback continues.\n"
+            "HW info: DVT2\nSW info: V460"
+        )
+    )
+
+    violations = _violations(description=description)
+
+    assert "DESCRIPTION.NOTES_HW" not in violations
+    assert "DESCRIPTION.NOTES_SW" not in violations
+
+
+def test_description_accepts_unbracketed_chinese_semantic_headings():
+    description = """操作步骤：
+1. 打开电视并播放视频。
+实际结果：播放后画面冻结。
+期望结果：视频应持续播放。
+概率：2/2
+对比信息：上一版本正常，当前版本异常。
+备注：现场复现信息如下。
+软件版本：V460
+硬件信息：DVT2
+"""
+
+    assert not _violations(description=description)
+
+
+def test_tv_style_wrapped_chinese_headings_and_supplemental_info_are_parsed():
+    description = """【操作步骤】：
+1. 打开电视并播放视频。
+【实际结果】；
+播放后画面冻结。
+【期望结果】：
+视频应持续播放。
+【概率】：100%
+【软件版本】：V460
+【硬件信息】：65寸
+"""
+
+    assert _violations(description=description) == {
+        "DESCRIPTION.COMPARISON"
+    }
+
+
+def test_all_supported_english_headings_work_without_brackets():
+    description = _description().replace("[", "").replace("]", "")
+
+    assert not _violations(description=description)
+
+
 EMPTY_DESCRIPTION = _description(
     steps="",
     actual="",
@@ -188,10 +249,7 @@ EMPTY_DESCRIPTION = _description(
             {"SUMMARY.FORMAT"},
         ),
         ({"summary": "[客户][T7][V1][Video]: 播放冻结,50%"}, set()),
-        (
-            {"summary": "[ACME][T7][V1][Video]: Video freezes,3/2"},
-            {"SUMMARY.PROBABILITY"},
-        ),
+        ({"summary": "[ACME][T7][V1][Video]: Video freezes,3/2"}, set()),
         ({"components": ()}, {"COMPONENT.REQUIRED"}),
         (
             {"description": EMPTY_DESCRIPTION, "labels": ()},
@@ -230,11 +288,6 @@ def test_rule_failure_matrix(changes, expected):
     ("rule_id", "changes", "source_field"),
     (
         ("SUMMARY.FORMAT", {"summary": "invalid summary"}, "summary"),
-        (
-            "SUMMARY.PROBABILITY",
-            {"summary": "[ACME][T7][V1][Video]: Video freezes,often"},
-            "summary",
-        ),
         ("COMPONENT.REQUIRED", {"components": ()}, None),
         (
             "DESCRIPTION.STEPS_TO_REPRODUCE",
@@ -292,7 +345,7 @@ def test_each_violation_keeps_the_full_original_jira_field(
     assert violation.observed
 
 
-def test_legacy_comparision_heading_is_a_hard_missing_section_violation():
+def test_legacy_comparision_heading_remains_violation_but_uses_semantic_review():
     description = _description().replace("[Comparison]", "[Comparision]")
 
     result = audit_issue(
@@ -303,7 +356,9 @@ def test_legacy_comparision_heading_is_a_hard_missing_section_violation():
     assert {item.rule_id for item in result.violations} == {
         "DESCRIPTION.COMPARISON"
     }
-    assert not ai_reviewable_violations(result)
+    assert [item.rule_id for item in ai_reviewable_violations(result)] == [
+        "DESCRIPTION.COMPARISON"
+    ]
 
 
 def test_only_declared_ambiguous_violations_become_ai_candidates():
@@ -314,7 +369,7 @@ def test_only_declared_ambiguous_violations_become_ai_candidates():
     fuzzy_failures = (
         audit_issue(
             _issue(
-                summary="[ACME][T7][V1.1][Video]: Video freezes,often",
+                summary="[ACME][T7][V1.1][Video] Video freezes",
                 labels=(),
             ),
             base_url="https://jira.example.com",
@@ -361,24 +416,63 @@ def test_only_declared_ambiguous_violations_become_ai_candidates():
         _issue(description=full_description, labels=()),
         base_url="https://jira.example.com",
     )
-    assert [item.rule_id for item in ai_reviewable_violations(
+    assert not ai_reviewable_violations(
         full_context_result,
         description=full_description,
-    )] == ["DESCRIPTION.NOTES_HW"]
+    )
+    assert "DESCRIPTION.NOTES_HW" not in {
+        item.rule_id for item in full_context_result.violations
+    }
+
+
+def test_unlabeled_natural_language_fields_become_ai_candidates():
+    description = """打开电视后进入播放器并播放视频。
+播放过程中画面冻结。
+视频应该持续播放而不冻结。
+该问题偶尔出现。
+上一版本播放正常，当前版本异常。
+补充说明：使用 DVT2 机型，测试版本为 V460。
+"""
+    result = audit_issue(
+        _issue(description=description, labels=()),
+        base_url="https://jira.example.com",
+    )
+
+    assert {item.rule_id for item in ai_reviewable_violations(
+        result,
+        description=description,
+    )} == {
+        "DESCRIPTION.STEPS_TO_REPRODUCE",
+        "DESCRIPTION.ACTUAL_RESULTS",
+        "DESCRIPTION.EXPECTED_RESULTS",
+        "DESCRIPTION.COMPARISON",
+        "DESCRIPTION.NOTES",
+        "DESCRIPTION.NOTES_HW",
+        "DESCRIPTION.NOTES_SW",
+    }
+
+
+def test_unrelated_text_does_not_make_missing_sections_ai_candidates():
+    description = "Video playback issue."
+    result = audit_issue(
+        _issue(description=description, labels=()),
+        base_url="https://jira.example.com",
+    )
+
+    assert not ai_reviewable_violations(result, description=description)
 
 
 def test_active_rule_text_does_not_reintroduce_english_only_semantics():
     rules = {rule.rule_id: rule for rule in active_rules()}
     summary_format = rules["SUMMARY.FORMAT"]
-    summary_rate = rules["SUMMARY.PROBABILITY"]
     description_rate = rules["DESCRIPTION.RATE_FORMAT"]
 
     assert summary_format.requirement == (
         "Summary 必须包含 4–6 个方括号分组，最后四组依次为客户、CHIP、"
-        "系统版本和模块，冒号后填写问题描述与复现概率。"
+        "系统版本和模块，冒号后填写非空问题描述。"
     )
     assert summary_format.guidance == (
-        "使用“[客户][CHIP][版本][模块]: 问题描述,复现概率”；"
+        "使用“[客户][CHIP][版本][模块]: 问题描述”；"
         "前面可选增加公共 Jira ID 和客户 Bug ID。"
     )
     assert all(
@@ -386,11 +480,7 @@ def test_active_rule_text_does_not_reintroduce_english_only_semantics():
         and "English" not in rule.requirement + rule.guidance
         for rule in rules.values()
     )
-    assert any(
-        example in summary_rate.requirement + summary_rate.guidance
-        for example in ("出现一次", "复现2次")
-    )
-    assert "文字次数" in summary_rate.requirement
+    assert "SUMMARY.PROBABILITY" not in rules
     assert "百分比、分数或明确的文字次数" in description_rate.requirement
     assert "出现一次" in (
         description_rate.requirement + description_rate.guidance
@@ -546,10 +636,10 @@ def test_openpyxl_export_preserves_reader_visible_report_contract(tmp_path):
         "This supplied reason must be replaced by report text.",
         "This supplied guidance must be replaced by report text.",
     )
-    probability_violation = AuditViolation(
-        "SUMMARY.PROBABILITY",
-        "Summary",
-        "Summary.Probability",
+    rate_violation = AuditViolation(
+        "DESCRIPTION.RATE_FORMAT",
+        "Description",
+        "Description.Reproducibility rate",
         summary,
         dynamic_reason,
         dynamic_guidance,
@@ -561,7 +651,7 @@ def test_openpyxl_export_preserves_reader_visible_report_contract(tmp_path):
             summary,
             "Bob",
             False,
-            (component_violation, probability_violation, format_violation),
+            (component_violation, rate_violation, format_violation),
         ),
         IssueAuditResult(
             "SH-1",
