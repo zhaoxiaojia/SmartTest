@@ -1,5 +1,6 @@
 import asyncio
 
+from tool.SmartHome.redmine import collector as collector_module
 from tool.SmartHome.redmine.collector import (
     RedmineContextCollector,
     parse_issue_detail,
@@ -9,6 +10,54 @@ from tool.SmartHome.redmine.collector import (
 from tool.SmartHome.redmine.models import RedmineIssueListItem, RedmineProject
 from tool.SmartHome.redmine.mapping import redmine_tracker_to_jira_type
 from tool.SmartHome.redmine.query import RedmineQuery, parse_terms
+
+
+def test_jira_subject_prefix_is_added_once_without_replacing_the_redmine_title():
+    jira_prefixed_subject = collector_module.jira_prefixed_subject
+    assert jira_prefixed_subject("Playback fails", "SH-30312") == "[SH-30312] Playback fails"
+    assert jira_prefixed_subject("[SH-30312] Playback fails", "SH-30312") == "[SH-30312] Playback fails"
+
+
+def test_update_issue_subject_uses_redmine_edit_form_and_keeps_existing_prefix():
+    class Page:
+        def __init__(self):
+            self.subject = "Playback fails"
+            self.urls = []
+            self.fills = []
+            self.clicks = []
+
+        async def goto(self, url, **_kwargs):
+            self.urls.append(url)
+
+        async def wait_for_selector(self, *_args, **_kwargs):
+            pass
+
+        async def input_value(self, selector):
+            assert selector == "#issue_subject"
+            return self.subject
+
+        async def fill(self, selector, value):
+            self.fills.append((selector, value))
+            self.subject = value
+
+        async def click(self, selector):
+            self.clicks.append(selector)
+
+    async def scenario():
+        page = Page()
+        collector = RedmineContextCollector(page)
+
+        assert await collector.update_issue_subject("62960", "SH-30312") == "[SH-30312] Playback fails"
+        assert page.urls == ["https://support.amlogic.com/issues/62960/edit"]
+        assert page.fills == [("#issue_subject", "[SH-30312] Playback fails")]
+        assert page.clicks == ["#issue-form input[name='commit']"]
+
+        page.subject = "[SH-30312] Playback fails"
+        assert await collector.update_issue_subject("62960", "SH-30312") == "[SH-30312] Playback fails"
+        assert len(page.fills) == 1
+        assert len(page.clicks) == 1
+
+    asyncio.run(scenario())
 
 
 def test_native_query_terms_and_union_parameters():

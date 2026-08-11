@@ -59,6 +59,7 @@ class RedmineCloneController:
         prepare_records: Callable[[], Awaitable[Any]] | None = None,
         submit_records: Callable[[list[dict[str, Any]]], Awaitable[Any]] | None = None,
         search_users: Callable[[str, str, str], Awaitable[Any]] | None = None,
+        update_source_subject: Callable[[str, str], Awaitable[Any]] | None = None,
         attachment_cancel_wait: float = 35.0,
     ):
         self._issue_controller = issue_controller
@@ -71,6 +72,7 @@ class RedmineCloneController:
         self._prepare_records_override = prepare_records
         self._submit_records_override = submit_records
         self._search_users_override = search_users
+        self._update_source_subject = update_source_subject
         self._attachment_cancel_wait = attachment_cancel_wait
         self._generation = 0
         self._state = "idle"
@@ -470,6 +472,30 @@ class RedmineCloneController:
                         payload,
                         retry_only=retrying_attachments,
                     )
+                if (
+                    self._update_source_subject is not None
+                    and not retrying_attachments
+                    and isinstance(payload, CreateIssueResult)
+                    and payload.created
+                    and payload.issue_state == "created"
+                    and payload.issue_key
+                ):
+                    try:
+                        await self._update_source_subject(
+                            clone_draft.source_id, payload.issue_key
+                        )
+                    except Exception:
+                        smart_log(
+                            "Redmine subject writeback failed",
+                            domain="tool",
+                            source="RedmineCloneController",
+                            level="warning",
+                            extra={
+                                "issue_id": clone_draft.source_id,
+                                "issue_key": payload.issue_key,
+                            },
+                            exc_info=True,
+                        )
                 results.append((clone_draft.source_id, payload))
             except Exception as exc:
                 results.append(

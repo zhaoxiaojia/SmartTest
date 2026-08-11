@@ -15,6 +15,7 @@ from support.jira_integration.core.models import (
     AttachmentTransferResult,
     CreateIssueAttachment,
     CreateIssueResult,
+    ExistingIssue,
     JiraAttachmentMetadata,
 )
 from support.jira_integration.core.third_party_bug import ThirdPartyBugAttachment
@@ -390,6 +391,88 @@ def test_current_submit_owner_classifies_create_failure_and_continues_batch():
     assert controller.snapshot.drafts[0]["error"] == "offline"
     assert controller.snapshot.state == "partial_failed"
     assert owner.results[0]["2"].key == "SH-2"
+
+
+def test_submit_writes_new_jira_key_to_created_redmine_subject_only():
+    writebacks = []
+
+    async def writeback(issue_id, issue_key):
+        writebacks.append((issue_id, issue_key))
+
+    class Service:
+        def check_issue_by_external_url(self, *, external_url, **_kwargs):
+            if external_url.endswith("/2"):
+                return ExistingIssue(
+                    key="SH-2", web_url="https://jira/SH-2", raw={}
+                )
+            return None
+
+        def create_issue(self, request):
+            if request.source_id == "3":
+                raise RuntimeError("offline")
+            return CreateIssueResult(
+                created=True,
+                issue_state="created",
+                issue_key="SH-1",
+                issue_url="https://jira/SH-1",
+            )
+
+    controller = RedmineCloneController(
+        IssueOwner(),
+        jira_dependencies=lambda: (object(), Service(), object()),
+        update_source_subject=writeback,
+    )
+    controller.apply_result(
+        "prepare", (records(draft("1"), draft("2"), draft("3")), {})
+    )
+
+    operation = controller.start_submit()
+    controller.apply_result("submit", asyncio.run(operation.awaitable))
+
+    assert writebacks == [("1", "SH-1")]
+    assert [item["state"] for item in controller.snapshot.drafts] == [
+        "created",
+        "duplicate",
+        "failed",
+    ]
+
+
+def test_subject_writeback_failure_does_not_turn_created_jira_into_create_failure(
+    monkeypatch,
+):
+    async def failing_writeback(_issue_id, _issue_key):
+        raise RuntimeError("redmine unavailable")
+
+    monkeypatch.setattr(
+        "tool.SmartHome.redmine.clone_controller.smart_log",
+        lambda *_args, **_kwargs: None,
+    )
+
+    class Service:
+        def check_issue_by_external_url(self, **_kwargs):
+            return None
+
+        def create_issue(self, _request):
+            return CreateIssueResult(
+                created=True,
+                issue_state="created",
+                issue_key="SH-1",
+                issue_url="https://jira/SH-1",
+            )
+
+    owner = IssueOwner()
+    controller = RedmineCloneController(
+        owner,
+        jira_dependencies=lambda: (object(), Service(), object()),
+        update_source_subject=failing_writeback,
+    )
+    controller.apply_result("prepare", (records(draft("1")), {}))
+
+    operation = controller.start_submit()
+    controller.apply_result("submit", asyncio.run(operation.awaitable))
+
+    assert controller.snapshot.drafts[0]["state"] == "created"
+    assert owner.results[0]["1"].key == "SH-1"
 
 
 def test_user_result_replaces_search_hits_but_keeps_current_value_option():

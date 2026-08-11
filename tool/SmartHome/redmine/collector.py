@@ -44,6 +44,14 @@ def _parse_project_id(text: str) -> str:
     return match.group(1).strip() if match else ""
 
 
+def jira_prefixed_subject(subject: str, issue_key: str) -> str:
+    subject = str(subject or "").strip()
+    prefix = f"[{str(issue_key or '').strip()}]"
+    if subject.startswith(prefix):
+        return subject
+    return f"{prefix} {subject}".rstrip()
+
+
 def _parse_content_text(raw: dict[str, Any]) -> dict[str, Any]:
     lines = [line for line in (_clean(line) for line in str(raw.get("contentText") or "").splitlines()) if line]
     wanted_attrs = {"Status", "Priority", "Assignee", "Category", "Start date", "Due date", "% Done", "Estimated time", "Created", "Created on"}
@@ -346,6 +354,20 @@ class RedmineContextCollector:
             raw["project_name"] = project.name
         detail = parse_issue_detail(raw, list_item=issue if isinstance(issue, RedmineIssueListItem) else None)
         return detail
+
+    async def update_issue_subject(self, issue_id: str, issue_key: str) -> str:
+        await self._goto_and_wait(
+            f"{self._base_url}/issues/{str(issue_id or '').strip()}/edit",
+            "#issue_subject",
+        )
+        current = await self._page.input_value("#issue_subject")
+        updated = jira_prefixed_subject(current, issue_key)
+        if updated == str(current or "").strip():
+            return updated
+        await self._page.fill("#issue_subject", updated)
+        await self._page.click("#issue-form input[name='commit']")
+        await self._page.wait_for_selector(".flash.notice", state="attached", timeout=8000)
+        return updated
 
 _PROJECTS_SCRIPT = r"""
 () => {

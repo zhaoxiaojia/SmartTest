@@ -153,6 +153,7 @@ class RedmineBridge(QObject):
             identity=self._jira_identity,
             load_detail=self._load_source_detail,
             download_attachments=self._download_source_attachments,
+            update_source_subject=self._update_source_subject,
         )
         self.resultReady.connect(self._apply)
         self.dataReady.connect(self._apply_data)
@@ -480,6 +481,13 @@ class RedmineBridge(QObject):
                 metadata,
                 duplicate_filenames=duplicate_filenames,
             )
+
+    async def _update_source_subject(self, issue_id, issue_key):
+        service = await self._service_for(self._account)
+        async with self._operation_page(service) as page:
+            return await RedmineContextCollector(
+                page, account=self._account
+            ).update_issue_subject(issue_id, issue_key)
 
     def _check_clone_status(self, rows, *, progress_base: int = 0, progress_total: int | None = None, emit_progress: bool = True):
         checker = self._checker()
