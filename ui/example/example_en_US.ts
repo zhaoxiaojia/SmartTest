@@ -2143,11 +2143,6 @@
         <translation>Clone Redmine issues to Jira</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="41"/>
-        <source>Close</source>
-        <translation>Close</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="50"/>
         <source>Preparing drafts %1/%2</source>
         <translation>Preparing drafts %1/%2</translation>

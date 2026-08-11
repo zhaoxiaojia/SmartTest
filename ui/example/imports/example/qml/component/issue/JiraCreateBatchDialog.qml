@@ -38,7 +38,6 @@ Item {
                 Layout.fillWidth: true; Layout.margins: 16
                 FluText { text: qsTr("Clone Redmine issues to Jira"); font: FluTextStyle.Title }
                 Item { Layout.fillWidth: true }
-                FluButton { text: qsTr("Close"); disabled: root.batchState === "submitting"; onClicked: root.closeCloneBatch() }
             }
             Rectangle { Layout.fillWidth: true; height: 1; color: FluTheme.frameColor }
             Item {

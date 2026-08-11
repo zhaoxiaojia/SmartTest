@@ -2143,11 +2143,6 @@
         <translation>将 Redmine 问题克隆到 Jira</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="41"/>
-        <source>Close</source>
-        <translation>关闭</translation>
-    </message>
-    <message>
         <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="50"/>
         <source>Preparing drafts %1/%2</source>
         <translation>正在准备草稿 %1/%2</translation>

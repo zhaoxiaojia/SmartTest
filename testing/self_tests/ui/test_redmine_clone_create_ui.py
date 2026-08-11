@@ -420,6 +420,12 @@ print(len(engine.rootObjects()), len(warnings), warnings)
     assert "1 0 []" in result.stdout
 
 
+def test_batch_editor_has_one_cancel_action_and_no_close_action():
+    batch = BATCH_QML.read_text(encoding="utf-8")
+    assert 'qsTr("Close")' not in batch
+    assert batch.count('qsTr("Cancel")') == 1
+
+
 def test_jira_batch_error_wraps_long_unbroken_server_responses():
     batch = BATCH_QML.read_text(encoding="utf-8")
     card = CARD_QML.read_text(encoding="utf-8")
