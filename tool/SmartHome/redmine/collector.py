@@ -104,6 +104,8 @@ def parse_project_nodes(raw_nodes: list[dict[str, Any]]) -> tuple[RedmineProject
     projects: list[RedmineProject] = []
     seen: set[str] = set()
     for node in raw_nodes:
+        if bool(node.get("hasChildren")):
+            continue
         identifier = _identifier_from_url(str(node.get("href") or ""))
         if not identifier or identifier in seen:
             continue
@@ -350,6 +352,10 @@ _PROJECTS_SCRIPT = r"""
   const clean = s => (s || '').replace(/\s+/g, ' ').trim();
   return Array.from(document.querySelectorAll('#projects-index a.project')).map((a, idx) => {
     const container = a.parentElement || a;
+    const projectItem = a.closest('li');
+    const childList = projectItem
+      ? Array.from(projectItem.children).find(child => child.matches('ul.projects'))
+      : null;
     const containerText = clean(container.innerText || a.innerText || '');
     const match = containerText.match(/\[Project ID\]:\s*([^\s\[]+)/);
     return {
@@ -357,7 +363,8 @@ _PROJECTS_SCRIPT = r"""
       text: clean(a.innerText || a.textContent),
       href: a.href,
       containerText,
-      projectId: match ? match[1] : ''
+      projectId: match ? match[1] : '',
+      hasChildren: Boolean(childList && childList.querySelector('a.project'))
     };
   });
 }

@@ -120,56 +120,51 @@ def test_watched_ids_execute_one_native_request_per_exact_id():
     asyncio.run(scenario())
 
 
-def test_parse_project_options_keeps_every_accessible_project_and_project_id():
+def test_parse_project_options_keeps_only_leaf_projects_and_their_project_ids():
     projects = parse_project_nodes(
         [
             {
                 "text": "BDS.Cultraview",
                 "href": "https://support.amlogic.com/projects/avt-cultraview-bds?jump=projects",
-                "className": "project root parent icon icon-user my-project",
-                "parentClass": "root",
                 "containerText": "BDS.Cultraview",
+                "hasChildren": True,
             },
             {
                 "text": "BDS.Cultraview.EDLA.A311D2",
                 "href": "https://support.amlogic.com/projects/avt-cultraview-edla-a311d2",
-                "className": "project child leaf icon icon-user my-project",
-                "parentClass": "child",
                 "containerText": "BDS.Cultraview.EDLA.A311D2 [Project ID]:AN40BF-A311D2",
+                "hasChildren": False,
             },
             {
                 "text": "Cultraview.A311D2.Android.16",
                 "href": "https://support.amlogic.com/projects/cultraview-a311d2-android-16",
-                "className": "project child leaf icon icon-user my-project",
-                "parentClass": "child",
                 "containerText": "Cultraview.A311D2.Android.16 [Project ID]: AN40CY-A311D2",
+                "hasChildren": False,
+            },
+            {
+                "text": "AIoT.A113D-B.GGEC.Soundbar",
+                "href": "https://support.amlogic.com/projects/aiot-a113d-b-ggec-soundbar",
+                "containerText": "AIoT.A113D-B.GGEC.Soundbar [Project ID]: S40AL-A113D",
+                "hasChildren": False,
             },
         ]
     )
 
-    assert projects[0].identifier == "avt-cultraview-bds"
-    assert [project.identifier for project in projects] == ["avt-cultraview-bds", "avt-cultraview-edla-a311d2", "cultraview-a311d2-android-16"]
-    assert projects[1].project_id == "AN40BF-A311D2"
-    assert projects[2].project_id == "AN40CY-A311D2"
+    assert [project.identifier for project in projects] == [
+        "avt-cultraview-edla-a311d2",
+        "cultraview-a311d2-android-16",
+        "aiot-a113d-b-ggec-soundbar",
+    ]
+    assert projects[0].project_id == "AN40BF-A311D2"
+    assert projects[1].project_id == "AN40CY-A311D2"
+    assert projects[2].project_id == "S40AL-A113D"
     from tool.SmartHome.redmine.collector import project_options
     options = project_options(projects)
     assert options[0] == {
-        "id": "avt-cultraview-bds",
-        "label": "BDS.Cultraview",
-        "projectId": "",
-    }
-    assert options[1] == {
         "id": "avt-cultraview-edla-a311d2",
         "label": "BDS.Cultraview.EDLA.A311D2 [AN40BF-A311D2]",
         "projectId": "AN40BF-A311D2",
     }
-
-
-def test_project_dom_script_collects_all_project_links_without_hierarchy_inference():
-    from tool.SmartHome.redmine.collector import _PROJECTS_SCRIPT
-    assert "#projects-index a.project" in _PROJECTS_SCRIPT
-    assert "parentHref" not in _PROJECTS_SCRIPT
-    assert "walkProject" not in _PROJECTS_SCRIPT
 
 
 def test_my_page_collects_only_assigned_block_rows():
