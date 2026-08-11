@@ -130,7 +130,6 @@ class RedmineBridge(QObject):
         self._issue_controller = RedmineIssueController(
             all_projects=self.tr("All projects"),
         )
-        self._opened_urls: set[str] = set()
         self._data_status = self.tr("Redmine data is not loaded.")
         self._data_loading = False
         self._data_loaded = 0
@@ -1224,9 +1223,8 @@ class RedmineBridge(QObject):
     @Slot(str)
     def openWebUrl(self, url):
         clean_url = str(url or "").strip()
-        if not clean_url or clean_url in self._opened_urls:
+        if not clean_url:
             return
-        self._opened_urls.add(clean_url)
         QDesktopServices.openUrl(QUrl(clean_url))
 
 

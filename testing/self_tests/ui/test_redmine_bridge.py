@@ -309,16 +309,19 @@ def test_bridge_marks_cloned_redmine_rows_and_detail_with_jira_link():
     bridge.close()
 
 
-def test_bridge_remembers_opened_web_urls_to_avoid_duplicate_windows(monkeypatch):
+def test_bridge_delegates_same_web_url_on_each_user_request(monkeypatch):
     opened = []
     monkeypatch.setattr("ui.example.bridge.RedmineBridge.QDesktopServices.openUrl", lambda url: opened.append(url.toString()))
     bridge = RedmineBridge(FakeAuth(), service_factory=lambda _account: FakeService(AuthResult(AuthState.IDLE)))
 
     bridge.openWebUrl("https://support/issues/61043")
+    bridge.openWebUrl("   ")
     bridge.openWebUrl("https://support/issues/61043")
 
-    assert bridge._opened_urls == {"https://support/issues/61043"}
-    assert opened == ["https://support/issues/61043"]
+    assert opened == [
+        "https://support/issues/61043",
+        "https://support/issues/61043",
+    ]
     bridge.close()
 
 
