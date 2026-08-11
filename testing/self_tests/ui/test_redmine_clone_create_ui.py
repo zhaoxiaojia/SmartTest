@@ -367,9 +367,11 @@ def test_workspace_connects_selection_and_batch_actions_to_bridge():
 
 def test_workspace_loads_independent_batch_editor_only_for_active_batch():
     workspace = WORKSPACE_QML.read_text(encoding="utf-8")
-    assert "Loader" in workspace
-    assert 'source: active ? "../issue/JiraCreateBatchDialog.qml" : ""' in workspace
-    assert '"prepare_failed"' in workspace
+    tool_page = (ROOT / "ui/example/imports/example/qml/page/T_Tool.qml").read_text(encoding="utf-8")
+    assert "id: cloneBatchOverlay" in tool_page
+    assert 'source: active ? "../component/issue/JiraCreateBatchDialog.qml" : ""' in tool_page
+    assert "cloneBatchLoader" not in workspace
+    assert '"prepare_failed"' in tool_page
     batch = BATCH_QML.read_text(encoding="utf-8")
     assert "retryPrepareCloneDrafts" in batch
     assert 'visible: root.batchState === "editing" || root.batchState === "validating"' in batch

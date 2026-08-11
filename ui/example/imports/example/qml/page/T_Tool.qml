@@ -299,47 +299,98 @@ FluPage {
                         onCancelRequested: RedmineBridge.cancelLogin()
                     }
                 }
-                Flickable {
-                    id: redmineWorkspaceScroll
-                    objectName: "redmineWorkspaceScroll"
+                Item {
+                    id: redmineWorkspaceHost
+                    objectName: "redmineWorkspaceHost"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     visible: selectedTool.id === "redmine" && RedmineBridge.state === "authenticated"
-                    clip: true
-                    contentWidth: width
-                    contentHeight: Math.max(height, 840)
-                    boundsBehavior: Flickable.StopAtBounds
-                    ScrollBar.vertical: FluScrollBar { interactive: true }
+                    property bool cloneBatchActive: ["loading", "prepare_failed", "editing", "validating", "submitting", "completed", "partial_failed"].indexOf(RedmineBridge.cloneBatchState) >= 0
+
+                    Flickable {
+                        id: redmineWorkspaceScroll
+                        objectName: "redmineWorkspaceScroll"
+                        anchors.fill: parent
+                        clip: true
+                        contentWidth: width
+                        contentHeight: Math.max(height, 840)
+                        interactive: !cloneBatchOverlay.active
+                        boundsBehavior: Flickable.StopAtBounds
+                        ScrollBar.vertical: FluScrollBar {
+                            interactive: !cloneBatchOverlay.active
+                            visible: !cloneBatchOverlay.active
+                        }
+
+                        Loader {
+                            id: redmineWorkspace
+                            width: redmineWorkspaceScroll.width
+                            height: redmineWorkspaceScroll.contentHeight
+                            active: redmineWorkspaceHost.visible
+                            sourceComponent: RedmineWorkspace {
+                                issues: RedmineBridge.issueRows
+                                actionableIssues: RedmineBridge.actionableIssues
+                                selectedIssue: RedmineBridge.selectedIssue
+                                projectFilters: RedmineBridge.projectFilterLabels
+                                quickViews: RedmineBridge.quickViews
+                                activeQuickViewId: RedmineBridge.activeQuickViewId
+                                projectOptions: RedmineBridge.projectOptions
+                                projectsLoading: RedmineBridge.projectsLoading
+                                projectsReady: RedmineBridge.projectsReadyState
+                                projectsStatusText: RedmineBridge.projectsStatusText
+                                searchLoading: RedmineBridge.searchLoading
+                                searchCanCancel: RedmineBridge.searchCanCancel
+                                filters: RedmineBridge.filters
+                                dataLoading: RedmineBridge.dataLoading
+                                dataLoaded: RedmineBridge.dataLoaded
+                                dataTotal: RedmineBridge.dataTotal
+                                dataStatusText: RedmineBridge.dataStatusText
+                                onSearchRequested: filters => RedmineBridge.applyFilters(filters)
+                                onQuickViewRequested: quickViewId => RedmineBridge.activateQuickView(quickViewId)
+                                onCancelSearchRequested: RedmineBridge.cancelSearch()
+                                onIssueSelected: issue => RedmineBridge.selectIssue(issue.id || issue.key || "")
+                                onOpenIssueRequested: (key, url) => RedmineBridge.openWebUrl(url)
+                                onExternalLinkRequested: url => RedmineBridge.openWebUrl(url)
+                            }
+                        }
+                    }
 
                     Loader {
-                        id: redmineWorkspace
-                        width: redmineWorkspaceScroll.width
-                        height: redmineWorkspaceScroll.contentHeight
-                        active: redmineWorkspaceScroll.visible
-                        sourceComponent: RedmineWorkspace {
-                        issues: RedmineBridge.issueRows
-                        actionableIssues: RedmineBridge.actionableIssues
-                        selectedIssue: RedmineBridge.selectedIssue
-                        projectFilters: RedmineBridge.projectFilterLabels
-                        quickViews: RedmineBridge.quickViews
-                        activeQuickViewId: RedmineBridge.activeQuickViewId
-                        projectOptions: RedmineBridge.projectOptions
-                        projectsLoading: RedmineBridge.projectsLoading
-                        projectsReady: RedmineBridge.projectsReadyState
-                        projectsStatusText: RedmineBridge.projectsStatusText
-                        searchLoading: RedmineBridge.searchLoading
-                        searchCanCancel: RedmineBridge.searchCanCancel
-                        filters: RedmineBridge.filters
-                        dataLoading: RedmineBridge.dataLoading
-                        dataLoaded: RedmineBridge.dataLoaded
-                        dataTotal: RedmineBridge.dataTotal
-                        dataStatusText: RedmineBridge.dataStatusText
-                        onSearchRequested: filters => RedmineBridge.applyFilters(filters)
-                        onQuickViewRequested: quickViewId => RedmineBridge.activateQuickView(quickViewId)
-                        onCancelSearchRequested: RedmineBridge.cancelSearch()
-                        onIssueSelected: issue => RedmineBridge.selectIssue(issue.id || issue.key || "")
-                        onOpenIssueRequested: (key, url) => RedmineBridge.openWebUrl(url)
-                        onExternalLinkRequested: url => RedmineBridge.openWebUrl(url)
+                        id: cloneBatchOverlay
+                        anchors.fill: parent
+                        z: 1000
+                        active: redmineWorkspaceHost.cloneBatchActive
+                        source: active ? "../component/issue/JiraCreateBatchDialog.qml" : ""
+                    }
+
+                    Binding { target: cloneBatchOverlay.item; property: "cloneDrafts"; value: RedmineBridge.cloneDrafts; when: cloneBatchOverlay.status === Loader.Ready }
+                    Binding { target: cloneBatchOverlay.item; property: "batchState"; value: RedmineBridge.cloneBatchState; when: cloneBatchOverlay.status === Loader.Ready }
+                    Binding { target: cloneBatchOverlay.item; property: "loaded"; value: RedmineBridge.cloneBatchLoaded; when: cloneBatchOverlay.status === Loader.Ready }
+                    Binding { target: cloneBatchOverlay.item; property: "total"; value: RedmineBridge.cloneBatchTotal; when: cloneBatchOverlay.status === Loader.Ready }
+                    Binding { target: cloneBatchOverlay.item; property: "batchError"; value: RedmineBridge.cloneBatchError; when: cloneBatchOverlay.status === Loader.Ready }
+                    Binding { target: cloneBatchOverlay.item; property: "firstInvalidIssueId"; value: RedmineBridge.firstInvalidIssueId; when: cloneBatchOverlay.status === Loader.Ready }
+                    Binding { target: cloneBatchOverlay.item; property: "firstInvalidFieldId"; value: RedmineBridge.firstInvalidFieldId; when: cloneBatchOverlay.status === Loader.Ready }
+
+                    Connections {
+                        target: cloneBatchOverlay.item
+                        ignoreUnknownSignals: true
+                        function onUpdateCloneDraft(issueId, fieldId, value) { RedmineBridge.updateCloneDraft(issueId, fieldId, value) }
+                        function onSubmitCloneBatch() { RedmineBridge.submitCloneBatch() }
+                        function onRetryFailedClones() { RedmineBridge.retryFailedClones() }
+                        function onRetryPrepareCloneDrafts() { RedmineBridge.prepareCloneDrafts() }
+                        function onCloseCloneBatch() { RedmineBridge.closeCloneBatch() }
+                        function onSearchCloneUsers(issueId, fieldId, query) { RedmineBridge.searchCloneUsers(issueId, fieldId, query) }
+                        function onSourceLinkRequested(url) { RedmineBridge.openWebUrl(url) }
+                    }
+                    Connections {
+                        target: RedmineBridge
+                        ignoreUnknownSignals: true
+                        function onCloneDraftFieldChanged(issueId, field) {
+                            if (cloneBatchOverlay.item)
+                                cloneBatchOverlay.item.updateDraftField(issueId, field)
+                        }
+                        function onCloneInvalidFieldRequested(issueId, fieldId) {
+                            if (cloneBatchOverlay.item)
+                                cloneBatchOverlay.item.focusInvalidField(issueId, fieldId)
                         }
                     }
                 }

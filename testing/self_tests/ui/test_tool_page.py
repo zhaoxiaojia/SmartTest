@@ -624,6 +624,19 @@ def test_tool_navigation_and_page_layout_contract():
     assert "selectedToolIndex = model.index" not in page
 
 
+def test_redmine_clone_editor_covers_the_scrollable_workspace_viewport():
+    page = (ROOT / "ui/example/imports/example/qml/page/T_Tool.qml").read_text(encoding="utf-8")
+
+    assert 'objectName: "redmineWorkspaceHost"' in page
+    assert "id: cloneBatchOverlay" in page
+    assert "anchors.fill: parent" in page[page.index("id: cloneBatchOverlay"):]
+    assert "z: 1000" in page[page.index("id: cloneBatchOverlay"):]
+    assert "interactive: !cloneBatchOverlay.active" in page
+    assert "visible: !cloneBatchOverlay.active" in page
+    assert "contentHeight: Math.max(height, 840)" in page
+    assert "contentHeight: cloneBatchActive" not in page
+
+
 def test_schedule_qml_shows_read_only_status_and_next_run():
     probe = f'''
 import sys
