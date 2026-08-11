@@ -91,3 +91,17 @@ Daily Report 的发送调用改为个人邮箱公共入口：
 - Excel、HTML 或其他邮件附件；
 - 新的 Daily Report 数据模型、布局、导航或计划配置字段；
 - Outlook/Microsoft 365 安装、卸载、修复或策略修改。
+
+## 2026-08-11 临时回切方案
+
+为保证 Daily Report 在个人 Outlook 自动化继续调试期间稳定可用，当前交付先恢复 `support.outlook.send_email`，由固定 SMTP 发件人 `fae-qa-auto@amlogic.com` 发送。Daily Report 使用现有完整 HTML 作为邮件正文，不生成或发送 Excel 等附件，也不调用长图渲染和个人 Outlook UI 自动化。
+
+`support/personal_outlook/` 与完整 HTML 长图渲染能力作为独立、未接入的 support 能力保留，供后续继续调试；交付前删除所有 `TEMP_DIAGNOSTIC` 日志及其专用测试和回调，只保留稳定错误处理、确认弹窗处理和重要行为测试。不得修改用户已有的 A9 工作流、`chao_outlook.py` 或其他无关文件。
+
+### 临时回切执行清单
+
+- [ ] 先增加 Daily Report 使用固定 SMTP HTML 正文且无附件的回归测试，并确认旧实现失败。
+- [ ] 将 Daily Report 发送入口恢复为 `support.outlook.send_email`，移除当前链路的长图渲染调用。
+- [ ] 删除个人 Outlook 的全部 `TEMP_DIAGNOSTIC` 代码与仅服务于临时诊断的测试，保留稳定功能测试。
+- [ ] 运行 Outlook、个人 Outlook、报告渲染和 Daily Report 聚焦测试、编译检查及 `git diff --check`。
+- [ ] Atlas 审查范围、凭据风险和用户原有改动，只提交批准文件并按仓库约定推送主分支。
