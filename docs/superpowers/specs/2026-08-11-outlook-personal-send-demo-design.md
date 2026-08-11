@@ -100,8 +100,10 @@ Daily Report 的发送调用改为个人邮箱公共入口：
 
 ### 临时回切执行清单
 
-- [ ] 先增加 Daily Report 使用固定 SMTP HTML 正文且无附件的回归测试，并确认旧实现失败。
-- [ ] 将 Daily Report 发送入口恢复为 `support.outlook.send_email`，移除当前链路的长图渲染调用。
-- [ ] 删除个人 Outlook 的全部 `TEMP_DIAGNOSTIC` 代码与仅服务于临时诊断的测试，保留稳定功能测试。
-- [ ] 运行 Outlook、个人 Outlook、报告渲染和 Daily Report 聚焦测试、编译检查及 `git diff --check`。
-- [ ] Atlas 审查范围、凭据风险和用户原有改动，只提交批准文件并按仓库约定推送主分支。
+- [x] 先增加 Daily Report 使用固定 SMTP HTML 正文且无附件的回归测试，并确认旧实现失败。
+- [x] 将 Daily Report 发送入口恢复为 `support.outlook.send_email`，移除当前链路的长图渲染调用。
+- [x] 删除个人 Outlook 的全部 `TEMP_DIAGNOSTIC` 代码与仅服务于临时诊断的测试，保留稳定功能测试。
+- [x] 运行 Outlook、个人 Outlook、报告渲染和 Daily Report 聚焦测试、编译检查及 `git diff --check`。
+- [x] Atlas 审查范围、凭据风险和用户原有改动，只提交批准文件并按仓库约定推送主分支。
+
+真实环境验证中，HTML 邮件与内嵌资源构建成功；固定 SMTP `10.18.11.55:25` 在 20 秒连接超时后返回 `OutlookSendError`。该环境限制不改变固定发件 owner 和离线验收结果，后续在可访问公司 SMTP 的网络环境继续验证实际投递。

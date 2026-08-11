@@ -24,6 +24,7 @@ __all__ = [
     "report_json_path",
     "report_pdf_path",
     "render_line_chart",
+    "render_html_page_image",
     "save_run_report",
     "write_xlsx_table",
 ]
@@ -33,6 +34,7 @@ _IMAGE_EXPORTS = {
     "LineChartStyle",
     "LineSeries",
     "render_line_chart",
+    "render_html_page_image",
 }
 
 

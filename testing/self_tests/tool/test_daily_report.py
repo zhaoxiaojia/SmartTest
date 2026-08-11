@@ -370,7 +370,7 @@ def test_immediate_unattended_batch_skips_deadline_without_changing_schedule():
     assert schedule.load().enabled is False
 
 
-def test_report_uses_priority_layout_and_filters_detail_without_filtering_excel(tmp_path):
+def test_report_uses_priority_layout_and_does_not_generate_attachment(tmp_path):
     issues = (
         _issue("P0-1", priority="P0"),
         _issue("P1-1", priority="P1"),
@@ -398,7 +398,7 @@ def test_report_uses_priority_layout_and_filters_detail_without_filtering_excel(
     assert "Issue 明细 · 2 条" in html
     assert html.count('class="issue-row"') == 2
     assert "P0-1" in html and "P1-1" in html and "P2-1" not in html
-    assert artifacts.excel_path.is_file()
+    assert not (tmp_path / "issues.xlsx").exists()
     from PIL import Image
     with Image.open(artifacts.status_chart_path) as image:
         assert image.width >= 1200 and image.height >= 700
@@ -494,7 +494,43 @@ def test_send_preview_sends_each_project_and_isolates_failure(tmp_path):
         f"{project.subject} 2026-08-04" for project in PROJECTS
     ]
     assert all(item["to"] == project.to and item["cc"] == project.cc for item, project in zip(sent, PROJECTS))
-    assert all(len(item["attachments"]) == 1 for item in sent)
+    assert all(item["body_format"] == "html" for item in sent)
+    assert all(item["template"] is None for item in sent)
+    assert all(item["body"] == report.artifacts.html_path.read_text("utf-8") for item, report in zip(sent, batch.reports))
+    assert all(item["attachments"] == () for item in sent)
+    assert all(
+        item["base_dir"] == report.artifacts.html_path.parent
+        for item, report in zip(sent, batch.reports)
+    )
+
+
+def test_send_preview_does_not_render_long_image_and_preview_does_not_send(tmp_path):
+    html = tmp_path / "report.html"
+    html.write_text("<html><body>complete</body></html>", "utf-8")
+    artifacts = type("Artifacts", (), {"html_path": html})()
+    project = PROJECTS[0]
+    report = type(
+        "Report",
+        (),
+        {"project": project, "day": date(2026, 8, 4), "artifacts": artifacts},
+    )()
+    batch = type("Batch", (), {"reports": (report,), "failures": ()})()
+    sends = []
+    service = DailyReportService(
+        issue_service_factory=lambda *_args: None,
+        project_store=object(), report_root=tmp_path,
+        sender=lambda **kwargs: sends.append(kwargs),
+        logger=lambda *_args, **_kwargs: None,
+    )
+
+    assert sends == []
+    service.send_preview(batch)
+
+    assert sends[0]["body"] == html.read_text("utf-8")
+    assert sends[0]["body_format"] == "html"
+    assert sends[0]["attachments"] == ()
+    assert sends[0]["base_dir"] == html.parent
+    assert sends[0]["to"] == project.to and sends[0]["cc"] == project.cc
 
 
 def test_preview_isolates_one_project_query_failure(tmp_path):

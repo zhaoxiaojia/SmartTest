@@ -276,7 +276,7 @@ def test_send_email_has_explicit_keyword_only_public_contract():
         send_email(subject="x", body="x", to=["to@example.com"], smtp_host="other")
 
 
-def test_daily_report_reuses_public_outlook_delivery_entrypoint():
+def test_daily_report_reuses_public_fixed_outlook_delivery_entrypoint():
     from tool.common.daily_report import service
 
     assert service.send_email is send_email

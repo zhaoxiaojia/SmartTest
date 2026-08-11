@@ -186,7 +186,7 @@ class DailyReportService:
                     template=None,
                     to=project.to,
                     cc=project.cc,
-                    attachments=(report.artifacts.excel_path,),
+                    attachments=(),
                     base_dir=report.artifacts.html_path.parent,
                 )
             except Exception as exc:

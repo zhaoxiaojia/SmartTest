@@ -13,7 +13,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from matplotlib.font_manager import FontProperties
 
-from support.report import LineSeries, render_line_chart, write_xlsx_table
+from support.report import LineSeries, render_line_chart
 from support.report.image.line import _cjk_font_family
 from .analyzer import analyze_daily_report
 from .models import DailyReportAnalysis, DailyReportIssue
@@ -121,7 +121,6 @@ class DailyReportArtifacts:
     html_path: Path
     chart_path: Path
     status_chart_path: Path
-    excel_path: Path
 
 
 def build_historical_jql(day: date, label: str = "BDS_IFPD") -> str:
@@ -329,43 +328,6 @@ def generate_artifacts(
         Counter(issue.status or "未设置" for issue in issues).most_common(6),
         status_chart_path,
     )
-    excel_path = output_dir / "issues.xlsx"
-    headers = (
-        "Key",
-        "Summary",
-        "Status",
-        "Assignee",
-        "Priority",
-        "Components",
-        "Labels",
-        "Created",
-        "Updated",
-        "URL",
-    )
-    rows = tuple(
-        (
-            issue.key,
-            issue.summary,
-            issue.status,
-            issue.assignee,
-            issue.priority,
-            ", ".join(issue.components),
-            ", ".join(issue.labels),
-            issue.created.isoformat() if issue.created else "",
-            issue.updated.isoformat() if issue.updated else "",
-            issue.url,
-        )
-        for issue in issues
-    )
-    write_xlsx_table(
-        excel_path,
-        sheet_name="Issues",
-        headers=headers,
-        rows=rows,
-        hyperlinks={
-            (index + 2, 1): issue.url for index, issue in enumerate(issues) if issue.url
-        },
-    )
     html_path = output_dir / "daily-project-intelligence.html"
     html_path.write_text(
         build_intelligence_html(
@@ -381,6 +343,4 @@ def generate_artifacts(
         ),
         encoding="utf-8",
     )
-    return DailyReportArtifacts(
-        html_path, chart_path, status_chart_path, excel_path
-    )
+    return DailyReportArtifacts(html_path, chart_path, status_chart_path)
