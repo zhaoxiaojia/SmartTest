@@ -74,3 +74,20 @@ Settings 中已有的配置项保持可见和可编辑；若某设置只保存�
 - 产物不包含 `testing/`、`AI/`、Android/APK、OpenCV、NumPy、Matplotlib及已移除 Bridge。
 - 提供与当前完整版构建的耗时、目录体积、文件数和 ZIP/安装包大小对比；若缺少可比的旧产物，明确只报告新产物实测值。
 - 完整版相关入口和回归不受影响。
+
+## 2026-08-12 运行时资源完整性设计
+
+Tool portable 的业务数据文件与动态 Python 依赖必须分开管理和验证。新增一个由打包 owner 管理的统一运行时资源清单，清单声明源文件、portable 相对目标和必需性；`tool.spec` 的 `datas` 与 `script-build-tool-portable.py` 的产物校验共同消费该清单，禁止在两处重复手写。首批必需资源包括 `config/personnel.json` 与 `build/generated/build_manifest.json`，后续 Tool 业务新增文件型运行时依赖时只允许扩展该清单。
+
+frozen Tool 的资源根必须解析为包含完整清单的 onedir 根或 PyInstaller `_MEIPASS` 根；不得回退到源码目录，也不得允许脱离 portable 目录的裸 EXE 继续运行。资源缺失时抛出面向用户的明确错误，列出缺失的相对资源并提示运行完整 `SmartTestTool` 目录中的 EXE，不暴露无意义的底层 `FileNotFoundError`。
+
+构建校验在生成 ZIP 前依次执行：验证目录与全部必需资源；验证 Python archive 的允许/禁止模块；执行动态依赖 smoke imports；从 portable EXE 的实际工作目录执行一个 context smoke 模式，真实调用 `create_context_objects` 并确认 `AuthBridge` 已成功加载人员资源；最后才执行窗口启动存活检查和 ZIP 创建。任何一步失败都不得生成新的 ZIP。
+
+### 执行清单
+
+- [ ] 先为统一资源清单、spec 消费、缺失资源失败和完整 context smoke 增加失败测试。
+- [ ] 建立唯一 Tool runtime resource manifest，并让 spec 与构建校验共同消费。
+- [ ] 收紧 frozen `runtime_root`，对裸 EXE/资源不完整目录提供明确错误。
+- [ ] 增加 portable context smoke CLI，并在 ZIP 创建前执行。
+- [ ] 验证现有 portable 目录、重新构建 Tool、从产物目录启动 smoke 与 UI，并检查 ZIP 结构。
+- [ ] 运行 Tool UI/打包聚焦测试、编译和 `git diff --check`，清除构建诊断残留。
