@@ -638,12 +638,13 @@ class AuthBridge(QObject):
         if not auth_result["success"]:
             self._clear_session()
             self._auth_state = "auth_failed"
-            if saved_credential and self._selected_account_id:
+            failure_code = str(auth_result.get("code", "") or "invalid_credentials")
+            if saved_credential and failure_code == "invalid_credentials" and self._selected_account_id:
                 self._credential_delete(self._selected_account_id)
                 self._account_store.set_remember_password(self._selected_account_id, False)
                 self._remember_password = False
+                self._auto_login = False
             self.authChanged.emit()
-            failure_code = str(auth_result.get("code", "") or "invalid_credentials")
             message = (
                 self.tr("Unable to connect to LDAP. Please try again later.")
                 if failure_code == "ldap_unavailable"

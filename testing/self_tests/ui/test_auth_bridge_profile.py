@@ -407,6 +407,42 @@ def test_saved_account_switch_failure_stays_signed_out(tmp_path):
     assert bridge.authState == "auth_failed"
 
 
+def test_saved_credential_unavailable_keeps_secret_and_preferences_for_auto_login(tmp_path):
+    credentials = _MemoryCredentials()
+    seed = AuthAccountStore(tmp_path)
+    account_id = seed.record_login("alice", "Alice", True, auto_login=True)
+    credentials.values[account_id] = ("alice", "saved-secret")
+    jobs = []
+    bridge = AuthBridge(project_root=ROOT, state_root=tmp_path, credential_store=credentials, authentication_runner=jobs.append)
+    bridge._ldap_authenticate = lambda *_: {"success": False, "code": "ldap_unavailable", "detail": "dns"}
+    bridge.startAutoLogin()
+    jobs.pop()()
+    account = bridge._account_store.get(account_id)
+    assert credentials.values[account_id] == ("alice", "saved-secret")
+    assert account["remember_password"] is True
+    assert account["auto_login"] is True
+    assert bridge.authenticated is False
+    assert bridge.authBusy is False
+
+
+def test_saved_credential_unavailable_keeps_secret_and_preferences_for_switch(tmp_path):
+    credentials = _MemoryCredentials()
+    seed = AuthAccountStore(tmp_path)
+    account_id = seed.record_login("alice", "Alice", True, auto_login=True)
+    credentials.values[account_id] = ("alice", "saved-secret")
+    jobs = []
+    bridge = AuthBridge(project_root=ROOT, state_root=tmp_path, credential_store=credentials, authentication_runner=jobs.append)
+    bridge._ldap_authenticate = lambda *_: {"success": False, "code": "ldap_unavailable", "detail": "network"}
+    bridge.selectAccount(account_id)
+    jobs.pop()()
+    account = bridge._account_store.get(account_id)
+    assert credentials.values[account_id] == ("alice", "saved-secret")
+    assert account["remember_password"] is True
+    assert account["auto_login"] is True
+    assert bridge.authenticated is False
+    assert bridge.selectedAccountId == account_id
+
+
 def test_logout_and_auto_login_follow_per_account_remember_choice(tmp_path):
     credentials = _MemoryCredentials()
     bridge = AuthBridge(project_root=ROOT, state_root=tmp_path, credential_store=credentials, authentication_runner=_sync_auth)
