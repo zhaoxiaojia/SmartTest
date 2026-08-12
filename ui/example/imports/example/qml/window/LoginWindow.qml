@@ -9,14 +9,86 @@ FluWindow {
     objectName: "toolLoginWindow"
     title: accountMode ? qsTr("Account") : qsTr("Login")
     width: 400
-    height: 320
+    height: 400
     fixSize: false
     modality: Qt.ApplicationModal
     property bool accountMode: false
+    property string pendingRemoveAccountId: ""
+    property bool closeAfterAuthentication: false
+    property string savedCredentialMask: "••••••••"
+
+    Component.onCompleted: refreshMode({})
+
+    onClosing: function(close) {
+        textbox_password.text = AuthBridge.hasSavedCredential ? savedCredentialMask : ""
+        if(AuthBridge.authBusy){
+            AuthBridge.cancelAuthentication()
+        }
+    }
+
+    FluIconButton {
+        objectName: "loginCloseButton"
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: 10
+        anchors.rightMargin: 10
+        width: 32
+        height: 32
+        z: 100
+        iconSource: FluentIcons.ChromeClose
+        iconSize: 12
+        onClicked: window.close()
+    }
+
+    Connections {
+        target: AuthBridge
+        function onAuthChanged() {
+            if(window.closeAfterAuthentication && AuthBridge.authenticated){
+                return
+            }
+            applyModeSize(AuthBridge.authenticated)
+        }
+        function onAuthenticationCompleted(result) {
+            if(result.source === "auto"){
+                return
+            }
+            if(!result.success){
+                window.closeAfterAuthentication = false
+                showError(result.message)
+                textbox_password.forceActiveFocus()
+                return
+            }
+            if(result.code === "signed_in_password_not_saved"){
+                window.closeAfterAuthentication = false
+                showWarning(result.message)
+                return
+            }
+            if(window.closeAfterAuthentication){
+                window.closeAfterAuthentication = false
+                window.close()
+            }
+        }
+    }
+
+    FluContentDialog {
+        id: removeAccountDialog
+        title: qsTr("Remove account")
+        message: qsTr("This removes the saved sign-in information on this device. SmartTest business data will not be deleted.")
+        negativeText: qsTr("Cancel")
+        positiveText: qsTr("Remove")
+        buttonFlags: FluContentDialogType.NegativeButton | FluContentDialogType.PositiveButton
+        onPositiveClicked: {
+            var result = AuthBridge.removeAccount(window.pendingRemoveAccountId)
+            refreshMode({})
+            if(!result.success && result.message){
+                showError(result.message)
+            }
+        }
+    }
 
     function applyModeSize(nextAccountMode){
         var targetWidth = nextAccountMode ? 460 : 400
-        var targetHeight = nextAccountMode ? 560 : 320
+        var targetHeight = nextAccountMode ? 600 : 400
         window.fixSize = false
         window.minimumWidth = 0
         window.minimumHeight = 0
@@ -41,7 +113,7 @@ FluWindow {
         }
         applyModeSize(AuthBridge.authenticated)
         textbox_username.updateText(initialUsername)
-        textbox_password.text = ""
+        textbox_password.text = AuthBridge.hasSavedCredential ? savedCredentialMask : ""
         Qt.callLater(function(){
             if(accountMode){
                 btn_primary.forceActiveFocus()
@@ -62,14 +134,34 @@ FluWindow {
             textbox_password.forceActiveFocus()
             return
         }
-        var result = AuthBridge.login(textbox_username.text, textbox_password.text)
+        window.closeAfterAuthentication = true
+        if(AuthBridge.hasSavedCredential && textbox_password.text === savedCredentialMask){
+            var savedResult = AuthBridge.loginWithSavedCredential()
+            if(!savedResult.success){ window.closeAfterAuthentication = false; showError(savedResult.message) }
+            else if(savedResult.code !== "authenticating"){
+                window.closeAfterAuthentication = false
+                window.close()
+            }
+            return
+        }
+        var result = AuthBridge.login(textbox_username.text, textbox_password.text, remember_password.checked)
+        textbox_password.text = ""
         if(!result.success){
+            window.closeAfterAuthentication = false
             showError(result.message)
             textbox_password.forceActiveFocus()
             return
         }
-        setResult(result)
-        window.close()
+        if(result.code !== "authenticating"){
+            window.closeAfterAuthentication = false
+            window.close()
+        }
+    }
+
+    function requestRemoveAccount(accountId){
+        window.pendingRemoveAccountId = accountId
+        accountPopup.close()
+        removeAccountDialog.open()
     }
     onInitArgument:
         (argument)=>{
@@ -82,45 +174,174 @@ FluWindow {
             right: parent.right
             verticalCenter: parent.verticalCenter
         }
-        spacing: 10
+        spacing: 8
 
-        FluText{
+        FluClip {
+            id: loginHeroAvatar
+            objectName: "loginHeroAvatar"
             visible: !accountMode
-            text: qsTr("LDAP Server: %1").arg(AuthBridge.ldapServer())
+            Layout.preferredWidth: 88
+            Layout.preferredHeight: 88
             Layout.alignment: Qt.AlignHCenter
-            font: FluTextStyle.Caption
-            color: FluTheme.fontSecondaryColor
+            radius: [44, 44, 44, 44]
+            Rectangle {
+                anchors.fill: parent
+                color: FluTheme.dark ? "#334155" : "#DCEBFA"
+                FluText { anchors.centerIn: parent; text: AuthBridge.initials; font.pixelSize: 26; font.bold: true }
+            }
+            Image { anchors.fill: parent; source: AuthBridge.avatarUrl; visible: source.toString() !== ""; fillMode: Image.PreserveAspectCrop; cache: false }
+        }
+
+        FluButton { /* persistence-opt-out: owner:AuthBridge */
+            id: account_selector
+            objectName: "accountSelector"
+            visible: !accountMode
+            enabled: !AuthBridge.authBusy
+            text: AuthBridge.currentUsername() || qsTr("Add another account")
+            Layout.preferredWidth: 320
+            Layout.preferredHeight: 42
+            Layout.alignment: Qt.AlignHCenter
+            contentItem: RowLayout {
+                spacing: 8
+                FluText { Layout.fillWidth: true; text: account_selector.text; elide: Text.ElideRight }
+                FluIcon {
+                    objectName: "accountSelectorArrow"
+                    iconSource: FluentIcons.ChevronDown
+                    iconSize: 12
+                    color: FluTheme.fontSecondaryColor
+                }
+            }
+            onClicked: accountPopup.open()
+        }
+
+        Popup {
+            id: accountPopup
+            objectName: "accountPopup"
+            parent: Overlay.overlay
+            width: 340
+            padding: 8
+            x: Math.round((window.width - width) / 2)
+            y: Math.round((window.height - height) / 2)
+            background: Rectangle { radius: 10; color: FluTheme.dark ? "#292C31" : "#FFFFFF"; border.color: FluTheme.dark ? "#41464E" : "#E2E5EA" }
+            contentItem: Column {
+                spacing: 4
+                Repeater {
+                    model: AuthBridge.accounts
+                    delegate: FluButton {
+                        width: 324; height: 54
+                        contentItem: RowLayout {
+                            spacing: 10
+                            FluClip { Layout.preferredWidth: 34; Layout.preferredHeight: 34; radius: [17,17,17,17]
+                                Rectangle { anchors.fill: parent; color: FluTheme.dark ? "#334155" : "#DCEBFA"; FluText { anchors.centerIn: parent; text: modelData.username ? modelData.username.charAt(0).toUpperCase() : "" } }
+                                Image { anchors.fill: parent; source: modelData.avatarUrl; visible: source.toString() !== ""; fillMode: Image.PreserveAspectCrop }
+                            }
+                            FluText { Layout.fillWidth: true; text: modelData.username; font: FluTextStyle.BodyStrong; elide: Text.ElideRight }
+                            FluIcon { visible: modelData.rememberPassword; iconSource: FluentIcons.Lock; iconSize: 14 }
+                            Item {
+                                objectName: "accountRemoveButton"
+                                Layout.preferredWidth: 28
+                                Layout.preferredHeight: 28
+                                FluIcon { anchors.centerIn: parent; iconSource: FluentIcons.ChromeClose; iconSize: 10 }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: function(mouse) {
+                                        mouse.accepted = true
+                                        window.requestRemoveAccount(modelData.accountId)
+                                    }
+                                }
+                            }
+                        }
+                        onClicked: {
+                            accountPopup.close()
+                            window.closeAfterAuthentication = true
+                            var result = AuthBridge.selectAccount(modelData.accountId)
+                            textbox_password.text = AuthBridge.hasSavedCredential ? savedCredentialMask : ""
+                            textbox_username.updateText(modelData.username)
+                            if(result.requiresPassword) {
+                                window.closeAfterAuthentication = false
+                                textbox_password.forceActiveFocus()
+                            }
+                        }
+                    }
+                }
+                FluButton { id: addAccountAction; objectName: "addAccountAction"; width: 324; text: qsTr("Add another account")
+                    onClicked: { accountPopup.close(); AuthBridge.useOtherAccount(); textbox_username.updateText(""); textbox_password.text = ""; textbox_username.forceActiveFocus() }
+                }
+            }
         }
 
         FluAutoSuggestBox{ /* persistence-opt-out: owner:AuthBridge */
             id: textbox_username
-            visible: !accountMode
+            visible: !accountMode && AuthBridge.selectedAccountId === ""
+            enabled: !AuthBridge.authBusy
             items: AuthBridge.currentUsername() !== "" ? [{title: AuthBridge.currentUsername()}] : []
             placeholderText: qsTr("Please enter the account")
-            Layout.preferredWidth: 260
+            Layout.preferredWidth: 320
             Layout.alignment: Qt.AlignHCenter
             onCommit: {
                 textbox_password.forceActiveFocus()
             }
         }
 
+        FluProgressRing {
+            visible: AuthBridge.authBusy
+            Layout.preferredWidth: 24
+            Layout.preferredHeight: 24
+            Layout.alignment: Qt.AlignHCenter
+        }
+
         FluTextBox{ /* persistence-opt-out: sensitive */
             id: textbox_password
-            visible: !accountMode
-            Layout.preferredWidth: 260
+            objectName: "loginPasswordInput"
+            visible: !accountMode && !AuthBridge.authBusy
+            enabled: !AuthBridge.authBusy
+            Layout.preferredWidth: 320
             placeholderText: qsTr("Please enter your password")
             echoMode:TextInput.Password
             Layout.alignment: Qt.AlignHCenter
             onCommit: {
                 submitLogin()
             }
+            onActiveFocusChanged: {
+                if(activeFocus && text === savedCredentialMask) selectAll()
+            }
+        }
+
+        RowLayout {
+            objectName: "loginOptionsRow"
+            visible: !accountMode && !AuthBridge.authBusy
+            Layout.preferredWidth: 320
+            Layout.minimumWidth: 320
+            Layout.maximumWidth: 320
+            Layout.alignment: Qt.AlignHCenter
+            FluCheckBox { /* persistence-opt-out: owner:AuthBridge */
+                id: remember_password
+                objectName: "rememberPasswordCheck"
+                enabled: !AuthBridge.authBusy
+                text: qsTr("Save password")
+                checked: AuthBridge.rememberPassword
+                onClicked: AuthBridge.setRememberPassword(checked)
+            }
+            Item { Layout.fillWidth: true }
+            FluCheckBox { /* persistence-opt-out: owner:AuthBridge */
+                id: auto_login
+                objectName: "autoLoginCheck"
+                enabled: !AuthBridge.authBusy && remember_password.checked
+                text: qsTr("Auto login")
+                checked: AuthBridge.autoLogin
+                onClicked: AuthBridge.setAutoLogin(checked)
+            }
         }
 
         FluFilledButton{
             id: btn_primary
+            objectName: "loginPrimaryButton"
             visible: !accountMode
+            enabled: !AuthBridge.authBusy
             text: qsTr("Login")
             Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: 320
+            Layout.preferredHeight: 42
             Layout.topMargin: 6
             onClicked:{
                 submitLogin()
@@ -148,14 +369,6 @@ FluWindow {
                     Layout.preferredHeight: 30
                     FluText { text: qsTr("Account"); font: FluTextStyle.BodyStrong }
                     Item { Layout.fillWidth: true }
-                    FluIconButton {
-                        id: accountCloseButton
-                        Layout.preferredWidth: 30
-                        Layout.preferredHeight: 30
-                        iconSource: FluentIcons.ChromeClose
-                        iconSize: 12
-                        onClicked: window.close()
-                    }
                 }
                 FluDivider { Layout.fillWidth: true }
 
@@ -296,15 +509,14 @@ FluWindow {
                 }
 
                 Item { Layout.fillHeight: true }
-                FluButton {
+                FluFilledButton {
+                    objectName: "accountLogoutButton"
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 34
+                    Layout.preferredHeight: 42
                     text: qsTr("Logout")
-                    textColor: FluColors.Red.normal
                     onClicked: {
                         AuthBridge.logout()
-                        refreshMode({username: textbox_username.text})
-                        showInfo(qsTr("Signed out"))
+                        refreshMode({username: AuthBridge.currentUsername()})
                     }
                 }
             }

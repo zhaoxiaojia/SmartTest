@@ -27,3 +27,15 @@ def register_context_objects(
         extra={"objects": sorted(retained)},
     )
     return retained
+
+
+def start_context_services(engine: QQmlApplicationEngine) -> bool:
+    """Start context-owned services once, after QML has produced a root object."""
+    if getattr(engine, "_context_services_started", False) or not engine.rootObjects():
+        return False
+    retained = getattr(engine, "_context_objects", {})
+    auth = retained.get("AuthBridge")
+    if auth is not None:
+        auth.startAutoLogin()
+    engine._context_services_started = True
+    return True

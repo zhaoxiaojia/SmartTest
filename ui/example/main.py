@@ -36,7 +36,7 @@ from example.bridge.ToolBridge import ToolBridge
 from example.bridge.RedmineBridge import RedmineBridge
 from example.bridge.DebugBridge import DebugBridge
 from example.bridge.BootVideoBridge import BootVideoBridge
-from example.context_registry import register_context_objects
+from example.context_registry import register_context_objects, start_context_services
 from support.logging import smart_log
 from ui.jsonTool import app_data_dir
 from ui.page_state_migration import migrate_frontend_state
@@ -158,6 +158,7 @@ def main():
     engine.load(qml_file)
     if not engine.rootObjects():
         sys.exit(-1)
+    start_context_services(engine)
     with event_loop:
         result = event_loop.run_until_complete(app_close_event.wait())
         exit_code = _exit_code_from_event_result(result)

@@ -142,7 +142,7 @@ def main() -> None:
     from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
     from FluentUI import FluentUI
     from FluentUI.FluLogger import LogSetup
-    from example.context_registry import register_context_objects
+    from example.context_registry import register_context_objects, start_context_services
     from example.helper import Async
 
     os.environ["QT_QUICK_CONTROLS_STYLE"] = "Basic"
@@ -171,6 +171,7 @@ def main() -> None:
     engine.load(QUrl("qrc:/example/qml/tool/ToolApp.qml"))
     if not engine.rootObjects():
         raise RuntimeError("SmartTestTool QML shell failed to load")
+    start_context_services(engine)
     with event_loop:
         exit_code = event_loop.run_forever()
     restart_for_exit_code(

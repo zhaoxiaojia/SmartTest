@@ -48,24 +48,15 @@ FluObject{
                 break
             }
         }
-        console.log(
-                    "ItemsOriginal.openItem",
-                    "title=", item.title ? item.title : "<search>",
-                    "url=", item.url ? item.url : "<none>",
-                    "key=", item.key !== undefined ? item.key : "<none>"
-                    )
         if(matchedItem){
-            console.log("ItemsOriginal.openItem startPageByItem", matchedItem.key !== undefined ? matchedItem.key : "<none>")
             navigationView.startPageByItem(matchedItem)
             return
         }
         if(item.url){
-            console.log("ItemsOriginal.openItem push", item.url)
             navigationView.push(item.url)
             return
         }
         if(item.key !== undefined && item.key !== null){
-            console.log("ItemsOriginal.openItem startPageByItem", item.key)
             navigationView.startPageByItem(item)
             return
         }
@@ -81,11 +72,14 @@ FluObject{
         protectedLoginHandler()
     }
 
-    function handleProtectedLoginResult(data){
-        if(data && data.success && pendingProtectedItem){
-            openItem(pendingProtectedItem)
+    Connections {
+        target: AuthBridge
+        function onAuthenticationCompleted(result) {
+            if(result.success && pendingProtectedItem && result.code !== "signed_in_password_not_saved"){
+                openItem(pendingProtectedItem)
+                pendingProtectedItem = null
+            }
         }
-        pendingProtectedItem = null
     }
 
     function navigateWithAuth(item){

@@ -143,13 +143,16 @@
 </context>
 <context>
     <name>AuthBridge</name>
+    <message><source>Unable to connect to LDAP. Please try again later.</source><translation>Unable to connect to LDAP. Please try again later.</translation></message>
+    <message><source>Signing in...</source><translation>Signing in...</translation></message>
+    <message><source>The account was removed, but its saved credential could not be deleted. Please retry.</source><translation>The account was removed, but its saved credential could not be deleted. Please retry.</translation></message>
     <message>
         <source>Account or password cannot be empty.</source>
-        <translation type="vanished">Account or password cannot be empty.</translation>
+        <translation>Account or password cannot be empty.</translation>
     </message>
     <message>
         <source>ldap3 is not installed in the current Python environment.</source>
-        <translation type="vanished">ldap3 is not installed in the current Python environment.</translation>
+        <translation>ldap3 is not installed in the current Python environment.</translation>
     </message>
     <message>
         <source>LDAP sign-in failed. {detail}</source>
@@ -161,8 +164,12 @@
     </message>
     <message>
         <source>Sign-in successful. Welcome, {username}</source>
-        <translation type="vanished">Sign-in successful. Welcome, {username}</translation>
+        <translation>Sign-in successful. Welcome, {username}</translation>
     </message>
+    <message><source>Signed in, but the password could not be saved.</source><translation>Signed in, but the password could not be saved.</translation></message>
+    <message><source>Sign-in is already in progress.</source><translation>Sign-in is already in progress.</translation></message>
+    <message><source>The selected account no longer exists.</source><translation>The selected account no longer exists.</translation></message>
+    <message><source>Please enter the password again.</source><translation>Please enter the password again.</translation></message>
 </context>
 <context>
     <name>BootVideoBridge</name>
@@ -2364,6 +2371,15 @@
 </context>
 <context>
     <name>LoginWindow</name>
+    <message><source>Add another account</source><translation>Add another account</translation></message>
+    <message><source>Auto login</source><translation>Auto login</translation></message>
+    <message><source>Account or password is incorrect.</source><translation>Account or password is incorrect.</translation></message>
+    <message><source>Use another account</source><translation>Use another account</translation></message>
+    <message><source>Remove account</source><translation>Remove account</translation></message>
+    <message><source>This removes the saved sign-in information on this device. SmartTest business data will not be deleted.</source><translation>This removes the saved sign-in information on this device. SmartTest business data will not be deleted.</translation></message>
+    <message><source>Cancel</source><translation>Cancel</translation></message>
+    <message><source>Remove</source><translation>Remove</translation></message>
+    <message><source>Save password</source><translation>Save password</translation></message>
     <message>
         <location filename="imports/example/qml/window/LoginWindow.qml" line="10"/>
         <location filename="imports/example/qml/window/LoginWindow.qml" line="122"/>

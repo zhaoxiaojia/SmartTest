@@ -7,16 +7,22 @@ import FluentUI 1.0
 FluObject{
 
     property var navigationView
-    property var paneItemMenu
+    property Component paneItemMenu: null
     property var accountLoginHandler
     property bool compact: false
+    readonly property string accountTitle: AuthBridge.authenticated
+        ? (AuthBridge.displayName || AuthBridge.username)
+        : qsTr("Account")
+    readonly property string accountRole: AuthBridge.authenticated ? AuthBridge.roleText : ""
+    readonly property string accountInitials: AuthBridge.initials || "A"
+    readonly property url accountAvatarUrl: AuthBridge.avatarUrl
 
     id:footer_items
 
     FluPaneItemSeparator{}
 
     FluPaneItem{
-        title: AuthBridge.displayName || qsTr("Account")
+        title: footer_items.accountTitle
         itemHeight: 58
         compactItemHeight: 58
         contentDelegate: Item {
@@ -36,7 +42,7 @@ FluObject{
                     color: FluTheme.dark ? "#334155" : "#DCEBFA"
                     FluText {
                         anchors.centerIn: parent
-                        text: AuthBridge.initials
+                        text: footer_items.accountInitials
                         font.pixelSize: 10
                         font.bold: true
                         color: FluTheme.dark ? "#FFFFFF" : "#1E3A5F"
@@ -44,7 +50,7 @@ FluObject{
                 }
                 Image {
                     anchors.fill: parent
-                    source: AuthBridge.avatarUrl
+                    source: footer_items.accountAvatarUrl
                     visible: source.toString() !== ""
                     fillMode: Image.PreserveAspectCrop
                     sourceSize: Qt.size(64, 64)
@@ -63,13 +69,13 @@ FluObject{
                 spacing: 2
                 FluText {
                     width: parent.width
-                    text: AuthBridge.displayName || AuthBridge.username
+                    text: footer_items.accountTitle
                     elide: Text.ElideRight
                     font: FluTextStyle.BodyStrong
                 }
                 FluText {
                     width: parent.width
-                    text: AuthBridge.roleText
+                    text: footer_items.accountRole
                     visible: text !== ""
                     elide: Text.ElideRight
                     font: FluTextStyle.Caption
@@ -85,7 +91,7 @@ FluObject{
                 }
                 width: 42
                 horizontalAlignment: Text.AlignHCenter
-                text: AuthBridge.displayName || AuthBridge.username
+                text: footer_items.accountTitle
                 elide: Text.ElideRight
                 font.pixelSize: 7
                 color: FluTheme.fontSecondaryColor

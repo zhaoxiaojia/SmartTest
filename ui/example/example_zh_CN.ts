@@ -143,13 +143,16 @@
 </context>
 <context>
     <name>AuthBridge</name>
+    <message><source>Unable to connect to LDAP. Please try again later.</source><translation>暂时无法连接 LDAP，请稍后重试。</translation></message>
+    <message><source>Signing in...</source><translation>正在登录...</translation></message>
+    <message><source>The account was removed, but its saved credential could not be deleted. Please retry.</source><translation>账号已移除，但保存的凭据未能删除，请重试。</translation></message>
     <message>
         <source>Account or password cannot be empty.</source>
-        <translation type="vanished">账号或密码不能为空。</translation>
+        <translation>账号或密码不能为空。</translation>
     </message>
     <message>
         <source>ldap3 is not installed in the current Python environment.</source>
-        <translation type="vanished">当前 Python 环境未安装 ldap3。</translation>
+        <translation>当前 Python 环境未安装 ldap3。</translation>
     </message>
     <message>
         <source>LDAP sign-in failed. {detail}</source>
@@ -161,8 +164,12 @@
     </message>
     <message>
         <source>Sign-in successful. Welcome, {username}</source>
-        <translation type="vanished">登录成功，欢迎你，{username}</translation>
+        <translation>登录成功，欢迎你，{username}</translation>
     </message>
+    <message><source>Signed in, but the password could not be saved.</source><translation>已登录，但密码未能保存。</translation></message>
+    <message><source>Sign-in is already in progress.</source><translation>正在登录，请稍候。</translation></message>
+    <message><source>The selected account no longer exists.</source><translation>所选账号已不存在。</translation></message>
+    <message><source>Please enter the password again.</source><translation>请重新输入密码。</translation></message>
 </context>
 <context>
     <name>BootVideoBridge</name>
@@ -2364,6 +2371,15 @@
 </context>
 <context>
     <name>LoginWindow</name>
+    <message><source>Add another account</source><translation>添加其他账号</translation></message>
+    <message><source>Auto login</source><translation>自动登录</translation></message>
+    <message><source>Account or password is incorrect.</source><translation>账号或密码错误。</translation></message>
+    <message><source>Use another account</source><translation>使用其他账号</translation></message>
+    <message><source>Remove account</source><translation>移除账号</translation></message>
+    <message><source>This removes the saved sign-in information on this device. SmartTest business data will not be deleted.</source><translation>这会移除此设备上保存的登录信息，但不会删除 SmartTest 业务数据。</translation></message>
+    <message><source>Cancel</source><translation>取消</translation></message>
+    <message><source>Remove</source><translation>移除</translation></message>
+    <message><source>Save password</source><translation>保存密码</translation></message>
     <message>
         <location filename="imports/example/qml/window/LoginWindow.qml" line="10"/>
         <location filename="imports/example/qml/window/LoginWindow.qml" line="122"/>

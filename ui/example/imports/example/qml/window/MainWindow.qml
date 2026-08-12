@@ -58,29 +58,6 @@ import "../global"
         id:fluent_Initializr
     }
 
-    FluWindowResultLauncher{
-        id: loginResultLauncher
-        path: "/login"
-        onResult:
-            (data)=>{
-                if(data && data.success){
-                    showSuccess(data.message)
-                }
-                ItemsOriginal.handleProtectedLoginResult(data)
-            }
-    }
-
-    FluWindowResultLauncher{
-        id: accountLoginLauncher
-        path: "/login"
-        onResult:
-            (data)=>{
-                if(data && data.success){
-                    showSuccess(data.message)
-                }
-            }
-    }
-
     FluIconButton{
         id: button_about
         width: 40
@@ -439,11 +416,11 @@ import "../global"
     }
 
     function launchProtectedLogin(){
-        loginResultLauncher.launch({username: AuthBridge.username})
+        FluRouter.navigate("/login", {username: AuthBridge.username})
     }
 
     function launchAccountLogin(){
-        accountLoginLauncher.launch({username: AuthBridge.username})
+        FluRouter.navigate("/login", {username: AuthBridge.username})
     }
 
     Shortcut {
