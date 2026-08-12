@@ -107,3 +107,20 @@ Daily Report 的发送调用改为个人邮箱公共入口：
 - [x] Atlas 审查范围、凭据风险和用户原有改动，只提交批准文件并按仓库约定推送主分支。
 
 真实环境验证中，HTML 邮件与内嵌资源构建成功；固定 SMTP `10.18.11.55:25` 在 20 秒连接超时后返回 `OutlookSendError`。该环境限制不改变固定发件 owner 和离线验收结果，后续在可访问公司 SMTP 的网络环境继续验证实际投递。
+
+## 2026-08-12 发件邮箱切换设计
+
+Daily Report 操作按钮行增加一个全局持久化 Switch，默认关闭并显示“公共邮箱（fae-qa-auto）”；开启后显示“LDAP 个人邮箱”。该选择不属于单个项目配置，由 `DailyReportBridge` 的既有业务状态 owner 持久化，切换本身不得查询 Jira、启动 Outlook 或发送邮件。
+
+手动 `Send now` 与计划发送必须读取同一个持久化选择：公共邮箱继续调用 `support.outlook.send_email`，发送完整 HTML 正文且 `attachments=()`；个人邮箱先用现有完整 HTML 长图渲染器生成单张 PNG，再调用 `support.personal_outlook.send_email` 通过新版 Outlook 粘贴正文并发送。两个路径沿用同一项目的主题、`to` 和 `cc`，不得静默回退到另一邮箱。
+
+个人邮箱调试允许保留结构化阶段日志，覆盖 Outlook 检测、草稿匹配、图片粘贴、发送按钮等待、附件确认、草稿关闭和桌面状态恢复；日志不得包含账号、收件人、主题、正文、图片路径、剪贴板内容或原始 UI 控件文本。UI 固定文案同步维护中英文翻译。
+
+### 执行清单
+
+- [ ] 为全局发送模式默认值、持久化和 Bridge 属性/槽补充失败测试。
+- [ ] 在 Daily Report Workspace 按钮行加入 Switch，并补齐中英文翻译和 UI 契约测试。
+- [ ] 在 Daily Report 业务 owner 建立显式发送模式路由，统一服务于手动和计划发送。
+- [ ] 公共邮箱验证 HTML 正文且无附件；个人邮箱验证完整长图、无附件且不回退。
+- [ ] 恢复安全的个人 Outlook 阶段诊断，并针对 UIA 尚未就绪实现有界条件等待。
+- [ ] 运行 UI、Bridge、Daily Report、Outlook、个人 Outlook 聚焦测试、翻译/QRC、编译和 `git diff --check`，再做真实个人邮箱发送验证。
