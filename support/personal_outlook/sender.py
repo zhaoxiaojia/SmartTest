@@ -219,7 +219,27 @@ class WindowsOutlookPlatform:
             raise PersonalOutlookError("new Outlook compose window has no valid handle")
         deadline = time.monotonic() + timeout
         on_stage("initial_send_invoke")
-        self._unique_primary(compose, enabled=True).invoke()
+        while time.monotonic() < deadline:
+            if not self._window_open(compose_handle):
+                raise PersonalOutlookError(
+                    "new Outlook draft closed before Send control became ready"
+                )
+            primary = [
+                button for button in self._primary_buttons(compose)
+                if button.is_enabled()
+            ]
+            if len(primary) > 1:
+                raise PersonalOutlookError(
+                    "new Outlook primary Send control is ambiguous"
+                )
+            if len(primary) == 1:
+                primary[0].invoke()
+                break
+            self._wait(0.25)
+        else:
+            raise PersonalOutlookError(
+                "new Outlook primary Send control did not become ready before timeout"
+            )
         waiting_for_primary = False
         while time.monotonic() < deadline:
             if not self._window_open(compose_handle):

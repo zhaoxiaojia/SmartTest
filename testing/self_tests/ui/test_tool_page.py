@@ -11,6 +11,8 @@ import importlib.util
 import zipfile
 from pathlib import Path
 
+import pytest
+
 from ui.example.bridge.ToolBridge import build_tool_groups, load_tool_access
 from ui.example.bridge.ToolBridge import ToolBridge
 from ui.example.bridge.ScheduleBridge import ScheduleBridge
@@ -41,13 +43,55 @@ def test_tool_portable_runtime_root_prefers_ondir_executable_payload(
     from example import tool_main
 
     app_dir = tmp_path / "SmartTestTool"
-    (app_dir / "config").mkdir(parents=True)
-    (app_dir / "config/personnel.json").write_text("{}", encoding="utf-8")
+    for relative in ("config/personnel.json", "build/generated/build_manifest.json"):
+        target = app_dir / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("{}", encoding="utf-8")
     monkeypatch.setattr(tool_main.sys, "frozen", True, raising=False)
     monkeypatch.setattr(tool_main.sys, "_MEIPASS", str(tmp_path), raising=False)
     monkeypatch.setattr(tool_main.sys, "executable", str(app_dir / "SmartTestTool.exe"))
 
     assert tool_main.runtime_root() == app_dir
+
+
+def test_tool_portable_runtime_root_rejects_incomplete_frozen_payload(
+    tmp_path, monkeypatch,
+):
+    sys.path.insert(0, str(ROOT / "ui"))
+    from example import tool_main
+
+    app_dir = tmp_path / "SmartTestTool"
+    (app_dir / "config").mkdir(parents=True)
+    (app_dir / "config/personnel.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(tool_main.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(tool_main.sys, "_MEIPASS", str(tmp_path / "empty"), raising=False)
+    monkeypatch.setattr(tool_main.sys, "executable", str(app_dir / "SmartTestTool.exe"))
+
+    with pytest.raises(RuntimeError) as caught:
+        tool_main.runtime_root()
+
+    message = str(caught.value)
+    assert "build/generated/build_manifest.json" in message
+    assert "complete SmartTestTool directory" in message
+
+
+def test_tool_runtime_resource_manifest_is_single_packaging_source():
+    from support.packaging.tool_runtime_resources import (
+        TOOL_RUNTIME_RESOURCES, pyinstaller_datas,
+    )
+
+    assert [(item.source, item.target, item.required) for item in TOOL_RUNTIME_RESOURCES] == [
+        ("config/personnel.json", "config/personnel.json", True),
+        ("build/generated/build_manifest.json", "build/generated/build_manifest.json", True),
+    ]
+    assert pyinstaller_datas(ROOT) == [
+        (str(ROOT / "config/personnel.json"), "config"),
+        (str(ROOT / "build/generated/build_manifest.json"), str(Path("build/generated"))),
+    ]
+    spec_source = (ROOT / "support/packaging/pyinstaller/tool.spec").read_text("utf-8")
+    assert "datas=pyinstaller_datas(repo_root)" in spec_source
+    assert '"config", "personnel.json"' not in spec_source
+    assert '"build", "generated", "build_manifest.json"' not in spec_source
 
 
 def test_tool_portable_qrc_contains_only_the_approved_shell_and_pages():
@@ -80,12 +124,19 @@ def test_tool_portable_build_helpers_validate_and_zip_a_real_tree(tmp_path):
     app_dir.mkdir()
     (app_dir / "SmartTestTool.exe").write_bytes(b"exe")
     (app_dir / "payload.txt").write_text("tool", encoding="utf-8")
+    for relative in ("config/personnel.json", "build/generated/build_manifest.json"):
+        target = app_dir / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("{}", encoding="utf-8")
     module.validate_distribution(app_dir)
     archive = module.create_portable_zip(app_dir, "1.2.3", tmp_path)
     assert archive.name == "SmartTestTool-1.2.3-windows-x64.zip"
     with zipfile.ZipFile(archive) as package:
         assert sorted(package.namelist()) == [
-            "SmartTestTool/SmartTestTool.exe", "SmartTestTool/payload.txt"
+            "SmartTestTool/SmartTestTool.exe",
+            "SmartTestTool/build/generated/build_manifest.json",
+            "SmartTestTool/config/personnel.json",
+            "SmartTestTool/payload.txt",
         ]
 
     (app_dir / "testing-runtime.dll").write_bytes(b"forbidden")
@@ -95,6 +146,59 @@ def test_tool_portable_build_helpers_validate_and_zip_a_real_tree(tmp_path):
         assert "testing" in str(exc).lower()
     else:
         raise AssertionError("forbidden runtime was not rejected")
+
+
+def test_tool_distribution_validation_lists_missing_required_resources(tmp_path):
+    module = _load_tool_portable_build_module()
+    app_dir = tmp_path / "SmartTestTool"
+    app_dir.mkdir()
+    (app_dir / "SmartTestTool.exe").write_bytes(b"exe")
+
+    with pytest.raises(RuntimeError) as caught:
+        module.validate_distribution(app_dir)
+
+    assert "config/personnel.json" in str(caught.value)
+    assert "build/generated/build_manifest.json" in str(caught.value)
+
+
+def test_tool_context_smoke_uses_real_context_factory_and_loaded_personnel(monkeypatch):
+    sys.path.insert(0, str(ROOT / "ui"))
+    from example import tool_main
+
+    auth = type("Auth", (), {"_personnel": {"amlogic": {}}})()
+    monkeypatch.setattr(
+        tool_main, "create_context_objects",
+        lambda engine: {"AuthBridge": auth, "engine": engine},
+    )
+
+    tool_main.portable_context_smoke(object())
+
+
+def test_tool_build_context_smoke_runs_portable_executable_from_its_directory(
+    tmp_path, monkeypatch,
+):
+    module = _load_tool_portable_build_module()
+    app_dir = tmp_path / "SmartTestTool"
+    executable = app_dir / "SmartTestTool.exe"
+    calls = []
+    monkeypatch.setattr(module.subprocess, "run", lambda *args, **kwargs: (
+        calls.append((args, kwargs)) or
+        subprocess.CompletedProcess(args[0], 0, "SmartTestTool portable context: PASS\n", "")
+    ))
+
+    module.validate_context_smoke(executable)
+
+    assert calls[0][0][0] == [str(executable), "--portable-smoke-context"]
+    assert calls[0][1]["cwd"] == app_dir
+
+
+def _load_tool_portable_build_module():
+    script = ROOT / "support/scripts/script-build-tool-portable.py"
+    spec = importlib.util.spec_from_file_location("tool_portable_build", script)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_tool_archive_validation_matches_module_names_not_substrings():

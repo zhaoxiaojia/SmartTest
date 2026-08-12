@@ -12,6 +12,8 @@ from uuid import uuid4
 
 from support.logging import smart_log
 from support.outlook import send_email
+from support.personal_outlook import send_email as send_personal_email
+from support.report import render_html_page_image
 
 from .report import (
     ISSUE_FIELDS,
@@ -63,6 +65,9 @@ class DailyReportService:
         project_store,
         report_root: str | Path,
         sender: Callable = send_email,
+        personal_sender: Callable = send_personal_email,
+        long_image_renderer: Callable = render_html_page_image,
+        delivery_mode=None,
         today: Callable[[], date] = date.today,
         logger: Callable = smart_log,
         jira_base_url: str | None = None,
@@ -71,6 +76,9 @@ class DailyReportService:
         self._project_store = project_store
         self._report_root = Path(report_root)
         self._sender = sender
+        self._personal_sender = personal_sender
+        self._long_image_renderer = long_image_renderer
+        self._delivery_mode = delivery_mode
         self._today = today
         self._logger = logger
         self._jira_base_url = (
@@ -179,16 +187,25 @@ class DailyReportService:
             project = report.project
             self._log("Daily Report send started", project=project.safe_id)
             try:
-                self._sender(
-                    subject=f"{project.subject} {report.day.isoformat()}",
-                    body=report.artifacts.html_path.read_text("utf-8"),
-                    body_format="html",
-                    template=None,
-                    to=project.to,
-                    cc=project.cc,
-                    attachments=(),
-                    base_dir=report.artifacts.html_path.parent,
-                )
+                subject = f"{project.subject} {report.day.isoformat()}"
+                mode = self._delivery_mode.load() if self._delivery_mode else "public"
+                if mode == "personal":
+                    image_path = self._long_image_renderer(
+                        report.artifacts.html_path,
+                        report.artifacts.html_path.parent / "daily-report.png",
+                    )
+                    self._personal_sender(
+                        subject=subject, image_path=image_path,
+                        to=project.to, cc=project.cc,
+                    )
+                else:
+                    self._sender(
+                        subject=subject,
+                        body=report.artifacts.html_path.read_text("utf-8"),
+                        body_format="html", template=None,
+                        to=project.to, cc=project.cc, attachments=(),
+                        base_dir=report.artifacts.html_path.parent,
+                    )
             except Exception as exc:
                 self._log_failure("send", project, exc)
                 results.append(

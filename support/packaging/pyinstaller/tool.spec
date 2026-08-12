@@ -3,6 +3,10 @@ import sys
 
 APP_NAME = "SmartTestTool"
 repo_root = os.environ.get("SMARTTEST_REPO_ROOT") or os.path.abspath(SPECPATH)
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
+from support.packaging.tool_runtime_resources import pyinstaller_datas
+
 entry = os.path.join(repo_root, "ui", "example", "tool_main.py")
 hooks_root = os.path.join(repo_root, "support", "packaging", "pyinstaller", "hooks")
 
@@ -10,11 +14,7 @@ a = Analysis(
     [entry],
     pathex=[repo_root, os.path.join(repo_root, "ui")],
     binaries=[],
-    datas=[
-        (os.path.join(repo_root, "build", "generated", "build_manifest.json"),
-         os.path.join("build", "generated")),
-        (os.path.join(repo_root, "config", "personnel.json"), "config"),
-    ],
+    datas=pyinstaller_datas(repo_root),
     hiddenimports=[
         "atlassian", "atlassian.confluence", "pythoncom", "pywintypes",
         "win32com", "win32com.client", "win32cred", "ldap3",

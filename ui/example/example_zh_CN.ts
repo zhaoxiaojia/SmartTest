@@ -144,29 +144,24 @@
 <context>
     <name>AuthBridge</name>
     <message>
-        <location filename="bridge/AuthBridge.py" line="509"/>
         <source>Account or password cannot be empty.</source>
-        <translation>账号或密码不能为空。</translation>
+        <translation type="vanished">账号或密码不能为空。</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="516"/>
         <source>ldap3 is not installed in the current Python environment.</source>
-        <translation>当前 Python 环境未安装 ldap3。</translation>
+        <translation type="vanished">当前 Python 环境未安装 ldap3。</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="527"/>
         <source>LDAP sign-in failed. {detail}</source>
-        <translation>LDAP 登录失败。{detail}</translation>
+        <translation type="vanished">LDAP 登录失败。{detail}</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="530"/>
         <source>LDAP sign-in failed. Please check your account or password.</source>
-        <translation>LDAP 登录失败。请检查账号或密码。</translation>
+        <translation type="vanished">LDAP 登录失败。请检查账号或密码。</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="551"/>
         <source>Sign-in successful. Welcome, {username}</source>
-        <translation>登录成功，欢迎你，{username}</translation>
+        <translation type="vanished">登录成功，欢迎你，{username}</translation>
     </message>
 </context>
 <context>
@@ -586,100 +581,182 @@
 </context>
 <context>
     <name>DailyReportBridge</name>
-    <message><source>No enabled projects</source><translation>无已启用项目</translation></message>
-    <message><source>Daily %1</source><translation>每天 %1</translation></message>
-    <message><source>Weekly %1 %2</source><translation>每周%1 %2</translation></message>
-    <message><source>Monday</source><translation>周一</translation></message>
-    <message><source>Tuesday</source><translation>周二</translation></message>
-    <message><source>Wednesday</source><translation>周三</translation></message>
-    <message><source>Thursday</source><translation>周四</translation></message>
-    <message><source>Friday</source><translation>周五</translation></message>
-    <message><source>Saturday</source><translation>周六</translation></message>
-    <message><source>Sunday</source><translation>周日</translation></message>
-    <message><source>Updating batch schedule status...</source><translation>正在更新批次计划状态...</translation></message>
-    <message><source>Another Daily Report operation is already running.</source><translation>另一个日报操作正在运行。</translation></message>
-    <message><source>Running Daily Report now...</source><translation>正在立即运行日报...</translation></message>
-    <message><source>Deleting batch schedule...</source><translation>正在删除批次计划...</translation></message>
-    <message><source>Batch schedule status updated.</source><translation>批次计划状态已更新。</translation></message>
-    <message><source>Daily Report run now completed.</source><translation>日报立即运行已完成。</translation></message>
-    <message><source>Daily Report run now completed with failures.</source><translation>日报立即运行已完成，但存在失败。</translation></message>
-    <message><source>Batch schedule deleted.</source><translation>批次计划已删除。</translation></message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="85"/>
+        <location filename="bridge/DailyReportBridge.py" line="110"/>
+        <source>No enabled projects</source>
+        <translation>无已启用项目</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="112"/>
+        <source>Daily %1</source>
+        <translation>每天 %1</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="121"/>
+        <source>Weekly %1 %2</source>
+        <translation>每周%1 %2</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="115"/>
+        <source>Monday</source>
+        <translation>周一</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="115"/>
+        <source>Tuesday</source>
+        <translation>周二</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="116"/>
+        <source>Wednesday</source>
+        <translation>周三</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="116"/>
+        <source>Thursday</source>
+        <translation>周四</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="117"/>
+        <source>Friday</source>
+        <translation>周五</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="117"/>
+        <source>Saturday</source>
+        <translation>周六</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="117"/>
+        <source>Sunday</source>
+        <translation>周日</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="202"/>
+        <source>Updating batch schedule status...</source>
+        <translation>正在更新批次计划状态...</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="209"/>
+        <source>Another Daily Report operation is already running.</source>
+        <translation>另一个日报操作正在运行。</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="215"/>
+        <source>Running Daily Report now...</source>
+        <translation>正在立即运行日报...</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="223"/>
+        <source>Deleting batch schedule...</source>
+        <translation>正在删除批次计划...</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="265"/>
+        <source>Batch schedule status updated.</source>
+        <translation>批次计划状态已更新。</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="269"/>
+        <source>Daily Report run now completed.</source>
+        <translation>日报立即运行已完成。</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="271"/>
+        <source>Daily Report run now completed with failures.</source>
+        <translation>日报立即运行已完成，但存在失败。</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="275"/>
+        <source>Batch schedule deleted.</source>
+        <translation>批次计划已删除。</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="126"/>
+        <location filename="bridge/DailyReportBridge.py" line="128"/>
         <source>Daily Report</source>
         <translation>日报</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="86"/>
+        <location filename="bridge/DailyReportBridge.py" line="127"/>
         <source>Daily Report batch</source>
         <translation>日报批次</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="100"/>
+        <location filename="bridge/DailyReportBridge.py" line="146"/>
         <source>Generating report previews...</source>
         <translation>正在生成日报预览...</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="108"/>
+        <location filename="bridge/DailyReportBridge.py" line="154"/>
         <source>Sending reports now...</source>
         <translation>正在立即发送日报...</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="114"/>
+        <location filename="bridge/DailyReportBridge.py" line="160"/>
         <source>Project configuration saved.</source>
         <translation>项目配置已保存。</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="121"/>
+        <location filename="bridge/DailyReportBridge.py" line="167"/>
         <source>Project deleted.</source>
         <translation>项目已删除。</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="128"/>
+        <location filename="bridge/DailyReportBridge.py" line="174"/>
         <source>Project status updated.</source>
         <translation>项目状态已更新。</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="143"/>
-        <location filename="bridge/DailyReportBridge.py" line="157"/>
+        <location filename="bridge/DailyReportBridge.py" line="189"/>
         <source>Saving batch schedule...</source>
         <translation>正在保存批次计划...</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="187"/>
+        <location filename="bridge/DailyReportBridge.py" line="252"/>
         <source>Report previews generated.</source>
         <translation>日报预览已生成。</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="188"/>
+        <location filename="bridge/DailyReportBridge.py" line="253"/>
         <source>Immediate delivery completed.</source>
         <translation>立即发送已完成。</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="191"/>
+        <location filename="bridge/DailyReportBridge.py" line="256"/>
         <source>Immediate delivery completed with failures.</source>
         <translation>立即发送已完成，但存在失败项目。</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="193"/>
-        <location filename="bridge/DailyReportBridge.py" line="200"/>
+        <location filename="bridge/DailyReportBridge.py" line="259"/>
+        <location filename="bridge/DailyReportBridge.py" line="278"/>
         <source>Batch schedule saved.</source>
         <translation>批次计划已保存。</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="208"/>
+        <location filename="bridge/DailyReportBridge.py" line="286"/>
         <source>Daily Report configuration or operation failed.</source>
         <translation>日报配置或操作失败。</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="149"/>
+        <location filename="bridge/DailyReportBridge.py" line="195"/>
         <source>Refreshing batch schedule...</source>
         <translation>正在刷新批次计划...</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="197"/>
+        <location filename="bridge/DailyReportBridge.py" line="262"/>
         <source>Batch schedule status refreshed.</source>
         <translation>批次计划状态已刷新。</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="62"/>
+        <source>Public mailbox (fae-qa-auto)</source>
+        <translation>公共邮箱（fae-qa-auto）</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="60"/>
+        <source>LDAP personal mailbox</source>
+        <translation>LDAP 个人邮箱</translation>
     </message>
 </context>
 <context>
@@ -723,33 +800,33 @@
         <translation>计划发送</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="47"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="53"/>
         <source>Project name</source>
         <translation>项目名称</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="49"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="55"/>
         <source>JQL</source>
         <translation>JQL</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="50"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="56"/>
         <source>To recipients</source>
         <translation>收件人</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="51"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="57"/>
         <source>Cc recipients</source>
         <translation>抄送人</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="52"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="58"/>
         <source>Enabled</source>
         <translation>启用</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="55"/>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="92"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="61"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="98"/>
         <source>Save project</source>
         <translation>保存项目</translation>
     </message>
@@ -759,92 +836,92 @@
         <translation>新增项目</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="70"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="76"/>
         <source>Daily</source>
         <translation>每日</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="70"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="76"/>
         <source>Weekly</source>
         <translation>每周</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="73"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="79"/>
         <source>Monday</source>
         <translation>星期一</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="73"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="79"/>
         <source>Tuesday</source>
         <translation>星期二</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="73"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="79"/>
         <source>Wednesday</source>
         <translation>星期三</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="73"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="79"/>
         <source>Thursday</source>
         <translation>星期四</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="73"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="79"/>
         <source>Friday</source>
         <translation>星期五</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="73"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="79"/>
         <source>Saturday</source>
         <translation>星期六</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="73"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="79"/>
         <source>Sunday</source>
         <translation>星期日</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="74"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="80"/>
         <source>Save schedule</source>
         <translation>保存计划</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="92"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="98"/>
         <source>Edit</source>
         <translation>编辑</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="103"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="109"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="107"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="113"/>
         <source>JQL: %1</source>
         <translation>JQL：%1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="109"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="115"/>
         <source>To: %1</source>
         <translation>收件人：%1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="111"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="117"/>
         <source>CC: %1</source>
         <translation>抄送人：%1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="48"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="54"/>
         <source>Email subject (optional)</source>
         <translation>邮件标题（可选）</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="105"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="111"/>
         <source>Subject: %1</source>
         <translation>邮件标题：%1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="106"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="112"/>
         <source>Email subject</source>
         <translation>邮件标题</translation>
     </message>
@@ -852,27 +929,13 @@
 <context>
     <name>DebugBridge</name>
     <message>
-        <location filename="bridge/DebugBridge.py" line="66"/>
-        <location filename="bridge/DebugBridge.py" line="78"/>
-        <location filename="bridge/DebugBridge.py" line="91"/>
-        <source>Load a KPI video first.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="bridge/DebugBridge.py" line="82"/>
-        <source>No frames available in current video.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="bridge/DebugBridge.py" line="105"/>
         <source>Select a video file first.</source>
-        <translation>请先选择视频文件。</translation>
+        <translation type="vanished">请先选择视频文件。</translation>
     </message>
     <message>
-        <location filename="bridge/DebugBridge.py" line="39"/>
         <source>KPI video loading is already running.</source>
         <oldsource>KPI video analysis is already running.</oldsource>
-        <translation>KPI 视频分析正在运行。</translation>
+        <translation type="vanished">KPI 视频分析正在运行。</translation>
     </message>
 </context>
 <context>
@@ -928,29 +991,6 @@
         <location filename="imports/example/qml/window/HotloadWindow.qml" line="43"/>
         <source>Drag in a qml file</source>
         <translation>拖入qml文件</translation>
-    </message>
-</context>
-<context>
-    <name>InitializrHelper</name>
-    <message>
-        <location filename="helper/InitializrHelper.py" line="99"/>
-        <source>The name cannot be empty</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="helper/InitializrHelper.py" line="102"/>
-        <source>The creation path cannot be empty</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="helper/InitializrHelper.py" line="106"/>
-        <source>The path does not exist</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="helper/InitializrHelper.py" line="111"/>
-        <source>%1 folder already exists</source>
-        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -1760,379 +1800,304 @@
 <context>
     <name>JiraBridge</name>
     <message>
-        <location filename="bridge/JiraBridge.py" line="61"/>
         <source>Ready</source>
-        <translation>就绪</translation>
+        <translation type="vanished">就绪</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="62"/>
         <source>Run a Jira query to get a live AI summary.</source>
-        <translation>执行一次 Jira 查询即可获取实时 AI 总结。</translation>
+        <translation type="vanished">执行一次 Jira 查询即可获取实时 AI 总结。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="66"/>
         <source>Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</source>
-        <translation>已准备好当前登录用户的 Jira 访问。可以直接用自然语言检索问题并总结风险。</translation>
+        <translation type="vanished">已准备好当前登录用户的 Jira 访问。可以直接用自然语言检索问题并总结风险。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="67"/>
         <source>Workspace ready</source>
-        <translation>工作台已就绪</translation>
+        <translation type="vanished">工作台已就绪</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="68"/>
         <source>Session cleared. Ask a new Jira question when ready.</source>
-        <translation>会话已清空。准备好后可以重新提问 Jira 问题。</translation>
+        <translation type="vanished">会话已清空。准备好后可以重新提问 Jira 问题。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="69"/>
         <source>Reset</source>
-        <translation>重置</translation>
+        <translation type="vanished">重置</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="70"/>
         <source>Jira request failed. Check the connection message above and sign in again if needed.</source>
-        <translation>Jira 请求失败。请检查上方连接信息，必要时重新登录。</translation>
+        <translation type="vanished">Jira 请求失败。请检查上方连接信息，必要时重新登录。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="71"/>
         <source>Error</source>
-        <translation>错误</translation>
+        <translation type="vanished">错误</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="72"/>
         <source>All Supported Projects</source>
-        <translation>所有支持的项目</translation>
+        <translation type="vanished">所有支持的项目</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="73"/>
         <source>Open Work</source>
-        <translation>处理中</translation>
+        <translation type="vanished">处理中</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="74"/>
         <source>Ready for Test</source>
-        <translation>待测试</translation>
+        <translation type="vanished">待测试</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="75"/>
         <source>Closed Bugs</source>
-        <translation>已关闭缺陷</translation>
+        <translation type="vanished">已关闭缺陷</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="76"/>
         <source>Last 7 Days</source>
-        <translation>最近 7 天</translation>
+        <translation type="vanished">最近 7 天</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="77"/>
         <source>Last 30 Days</source>
-        <translation>最近 30 天</translation>
+        <translation type="vanished">最近 30 天</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="78"/>
         <source>Last 90 Days</source>
-        <translation>最近 90 天</translation>
+        <translation type="vanished">最近 90 天</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="79"/>
         <source>This Year</source>
-        <translation>今年</translation>
+        <translation type="vanished">今年</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="80"/>
         <source>Open</source>
-        <translation>打开</translation>
+        <translation type="vanished">打开</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="81"/>
         <source>In Progress</source>
-        <translation>进行中</translation>
+        <translation type="vanished">进行中</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="82"/>
         <source>Verified</source>
-        <translation>已验证</translation>
+        <translation type="vanished">已验证</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="83"/>
         <source>Resolved</source>
-        <translation>已解决</translation>
+        <translation type="vanished">已解决</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="84"/>
         <source>Closed</source>
-        <translation>已关闭</translation>
+        <translation type="vanished">已关闭</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="85"/>
         <source>Highest</source>
-        <translation>最高</translation>
+        <translation type="vanished">最高</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="86"/>
         <source>Critical</source>
-        <translation>严重</translation>
+        <translation type="vanished">严重</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="87"/>
         <source>High</source>
-        <translation>高</translation>
+        <translation type="vanished">高</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="88"/>
         <source>Medium</source>
-        <translation>中</translation>
+        <translation type="vanished">中</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="89"/>
         <source>Low</source>
-        <translation>低</translation>
+        <translation type="vanished">低</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="90"/>
         <source>Bug</source>
-        <translation>缺陷</translation>
+        <translation type="vanished">缺陷</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="91"/>
         <source>Task</source>
-        <translation>任务</translation>
+        <translation type="vanished">任务</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="92"/>
         <source>Story</source>
-        <translation>需求</translation>
+        <translation type="vanished">需求</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="93"/>
         <source>Improvement</source>
-        <translation>改进</translation>
+        <translation type="vanished">改进</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="94"/>
         <source>Unassigned</source>
-        <translation>未分配</translation>
+        <translation type="vanished">未分配</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="95"/>
         <source>LDAP session is missing Jira credentials. Please sign in again.</source>
-        <translation>当前 LDAP 会话缺少 Jira 凭据。请重新登录。</translation>
+        <translation type="vanished">当前 LDAP 会话缺少 Jira 凭据。请重新登录。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="96"/>
         <source>Connected to {base_url} | loaded {loaded} of {total}</source>
-        <translation>已连接到 {base_url} | 已加载 {loaded}/{total}</translation>
+        <translation type="vanished">已连接到 {base_url} | 已加载 {loaded}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="100"/>
         <source>Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</source>
-        <translation>已加载 {loaded}/{total} 条问题用于浏览。选择一条问题或直接提问可继续深入分析。</translation>
+        <translation type="vanished">已加载 {loaded}/{total} 条问题用于浏览。选择一条问题或直接提问可继续深入分析。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="101"/>
         <source>Connected to {base_url} | analyzed {returned} of {total}</source>
-        <translation>已连接到 {base_url} | 已分析 {returned}/{total}</translation>
+        <translation type="vanished">已连接到 {base_url} | 已分析 {returned}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="102"/>
         <source>Just now</source>
-        <translation>刚刚</translation>
+        <translation type="vanished">刚刚</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="103"/>
         <source>Sign in to load Jira data.</source>
-        <translation>请先登录以加载 Jira 数据。</translation>
+        <translation type="vanished">请先登录以加载 Jira 数据。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="104"/>
         <source>Sign in with LDAP first, then Jira results and AI analysis will load here.</source>
-        <translation>请先使用 LDAP 登录，随后 Jira 结果和 AI 分析会显示在这里。</translation>
+        <translation type="vanished">请先使用 LDAP 登录，随后 Jira 结果和 AI 分析会显示在这里。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="105"/>
         <source>Loading Jira results...</source>
-        <translation>正在加载 Jira 结果...</translation>
+        <translation type="vanished">正在加载 Jira 结果...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="106"/>
         <source>Analyzing Jira request...</source>
-        <translation>正在分析 Jira 请求...</translation>
+        <translation type="vanished">正在分析 Jira 请求...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="107"/>
         <source>Sign in again to restore Jira access.</source>
-        <translation>请重新登录以恢复 Jira 访问。</translation>
+        <translation type="vanished">请重新登录以恢复 Jira 访问。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="108"/>
         <source>Signed out</source>
-        <translation>已退出登录</translation>
+        <translation type="vanished">已退出登录</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="109"/>
         <source>Unknown Jira error</source>
-        <translation>未知 Jira 错误</translation>
+        <translation type="vanished">未知 Jira 错误</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="110"/>
         <source>Jira request failed: {message}</source>
-        <translation>Jira 请求失败：{message}</translation>
+        <translation type="vanished">Jira 请求失败：{message}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="111"/>
         <source>Matched</source>
-        <translation>匹配到</translation>
+        <translation type="vanished">匹配到</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="112"/>
         <source>{displayed} displayed in the current view</source>
-        <translation>当前视图显示 {displayed} 条</translation>
+        <translation type="vanished">当前视图显示 {displayed} 条</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="113"/>
         <source>High Priority</source>
-        <translation>高优先级</translation>
+        <translation type="vanished">高优先级</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="114"/>
         <source>Highest, critical, or high in the current result set</source>
-        <translation>当前结果集中优先级为 Highest、Critical 或 High</translation>
+        <translation type="vanished">当前结果集中优先级为 Highest、Critical 或 High</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="115"/>
         <source>Blocked</source>
-        <translation>阻塞</translation>
+        <translation type="vanished">阻塞</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="116"/>
         <source>Blocked items from the displayed Jira scope</source>
-        <translation>当前显示范围内的阻塞项</translation>
+        <translation type="vanished">当前显示范围内的阻塞项</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="117"/>
         <source>Projects</source>
-        <translation>项目</translation>
+        <translation type="vanished">项目</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="118"/>
         <source>Workflow Preset</source>
-        <translation>流程预设</translation>
+        <translation type="vanished">流程预设</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="119"/>
         <source>Time Window</source>
-        <translation>时间范围</translation>
+        <translation type="vanished">时间范围</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="120"/>
         <source>Statuses</source>
-        <translation>状态</translation>
+        <translation type="vanished">状态</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="121"/>
         <source>Priorities</source>
-        <translation>优先级</translation>
+        <translation type="vanished">优先级</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="122"/>
         <source>Issue Types</source>
-        <translation>问题类型</translation>
+        <translation type="vanished">问题类型</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="123"/>
         <source>Keyword text</source>
-        <translation>关键字</translation>
+        <translation type="vanished">关键字</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="124"/>
         <source>Assignee</source>
-        <translation>经办人</translation>
+        <translation type="vanished">经办人</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="125"/>
         <source>Reporter</source>
-        <translation>报告人</translation>
+        <translation type="vanished">报告人</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="126"/>
         <source>Labels</source>
-        <translation>标签</translation>
+        <translation type="vanished">标签</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="127"/>
         <source>Not limited</source>
-        <translation>不限制</translation>
+        <translation type="vanished">不限制</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="128"/>
         <source>Current user</source>
-        <translation>当前用户</translation>
+        <translation type="vanished">当前用户</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="129"/>
         <source>JQL</source>
-        <translation>JQL</translation>
+        <translation type="vanished">JQL</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="130"/>
         <source>Useful candidates for the next regression batch</source>
-        <translation>可用于下一轮回归的候选项</translation>
+        <translation type="vanished">可用于下一轮回归的候选项</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="131"/>
         <source>My Filters</source>
-        <translation>我的过滤器</translation>
+        <translation type="vanished">我的过滤器</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="132"/>
         <source>Loading your Jira filters...</source>
-        <translation>正在加载你的 Jira 过滤器...</translation>
+        <translation type="vanished">正在加载你的 Jira 过滤器...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="133"/>
         <source>No favourite filters were found for this account.</source>
-        <translation>当前账号没有找到收藏的过滤器。</translation>
+        <translation type="vanished">当前账号没有找到收藏的过滤器。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="134"/>
         <source>Click to apply this filter to the current JQL box.</source>
-        <translation>点击后会把这条过滤器应用到当前 JQL 输入框。</translation>
+        <translation type="vanished">点击后会把这条过滤器应用到当前 JQL 输入框。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="135"/>
         <source>Comments</source>
-        <translation>评论</translation>
+        <translation type="vanished">评论</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="136"/>
         <source>No Jira issues matched the current scope.</source>
-        <translation>当前范围内没有匹配到 Jira 问题。</translation>
+        <translation type="vanished">当前范围内没有匹配到 Jira 问题。</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="137"/>
         <source>Jira AI Conversation</source>
-        <translation>Jira AI 对话</translation>
+        <translation type="vanished">Jira AI 对话</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="138"/>
         <source>Analyzing request: preparing search scope...</source>
-        <translation>正在分析请求：准备搜索范围...</translation>
+        <translation type="vanished">正在分析请求：准备搜索范围...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="139"/>
         <source>Analyzing request: retrieving Jira issues...</source>
-        <translation>正在分析请求：获取 Jira 问题...</translation>
+        <translation type="vanished">正在分析请求：获取 Jira 问题...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="140"/>
         <source>Analyzing request: generating response...</source>
-        <translation>正在分析请求：生成回复...</translation>
+        <translation type="vanished">正在分析请求：生成回复...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="144"/>
         <source>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</source>
-        <translation>当前范围内共匹配到 {total} 条 Jira 问题。首条问题：{key}（{status}，{priority}）- {summary}</translation>
+        <translation type="vanished">当前范围内共匹配到 {total} 条 Jira 问题。首条问题：{key}（{status}，{priority}）- {summary}</translation>
     </message>
 </context>
 <context>
@@ -2143,32 +2108,32 @@
         <translation>将 Redmine 问题克隆到 Jira</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="50"/>
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="49"/>
         <source>Preparing drafts %1/%2</source>
         <translation>正在准备草稿 %1/%2</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="111"/>
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="110"/>
         <source>%1 drafts</source>
         <translation>%1 个草稿</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="113"/>
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="112"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="114"/>
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="113"/>
         <source>Retry failed</source>
         <translation>重试失败项</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="115"/>
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="114"/>
         <source>Retry preparation</source>
         <translation>重试准备</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="116"/>
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="115"/>
         <source>Batch Create</source>
         <translation>批量创建</translation>
     </message>
@@ -2605,265 +2570,200 @@ Updated content:
 <context>
     <name>RedmineBridge</name>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="292"/>
         <source>Attachment %1 is %2 bytes; Jira limit is %3 bytes.</source>
-        <translation>附件 %1 大小为 %2 字节；Jira 限制为 %3 字节。</translation>
+        <translation type="vanished">附件 %1 大小为 %2 字节；Jira 限制为 %3 字节。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="303"/>
         <source>Jira attachments are disabled for %1.</source>
-        <translation>Jira 已禁用附件，无法上传 %1。</translation>
+        <translation type="vanished">Jira 已禁用附件，无法上传 %1。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="310"/>
         <source>Attachment source URL is unavailable for %1.</source>
-        <translation>附件 %1 的源地址不可用。</translation>
+        <translation type="vanished">附件 %1 的源地址不可用。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="317"/>
         <source>Attachment download failed for %1 (HTTP %2).</source>
-        <translation>附件 %1 下载失败（HTTP %2）。</translation>
+        <translation type="vanished">附件 %1 下载失败（HTTP %2）。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="324"/>
         <source>Attachment download failed for %1: %2</source>
-        <translation>附件 %1 下载失败：%2</translation>
+        <translation type="vanished">附件 %1 下载失败：%2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="331"/>
         <source>Attachment source is invalid for %1.</source>
-        <translation>附件 %1 的源文件无效。</translation>
+        <translation type="vanished">附件 %1 的源文件无效。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="338"/>
         <source>Jira already has %1 with a different size.</source>
-        <translation>Jira 中已存在同名但大小不同的附件 %1。</translation>
+        <translation type="vanished">Jira 中已存在同名但大小不同的附件 %1。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="345"/>
         <source>Could not check Jira attachments for %1: %2</source>
-        <translation>无法检查 Jira 附件 %1：%2</translation>
+        <translation type="vanished">无法检查 Jira 附件 %1：%2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="352"/>
         <source>Attachment upload failed for %1: %2</source>
-        <translation>附件 %1 上传失败：%2</translation>
+        <translation type="vanished">附件 %1 上传失败：%2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="359"/>
         <source>Attachment upload was cancelled for %1.</source>
-        <translation>附件 %1 的上传已取消。</translation>
+        <translation type="vanished">附件 %1 的上传已取消。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="366"/>
         <source>Attachment downloader is unavailable for %1.</source>
-        <translation>附件下载器不可用，无法处理 %1。</translation>
+        <translation type="vanished">附件下载器不可用，无法处理 %1。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="373"/>
         <source>Jira attachment synchronization failed for %1: %2</source>
-        <translation>Jira 附件 %1 同步失败：%2</translation>
+        <translation type="vanished">Jira 附件 %1 同步失败：%2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="380"/>
         <source>Temporary attachment cleanup failed: %1</source>
-        <translation>临时附件清理失败：%1</translation>
+        <translation type="vanished">临时附件清理失败：%1</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="389"/>
         <source>Attachment warning for %1.</source>
-        <translation>附件 %1 存在警告。</translation>
+        <translation type="vanished">附件 %1 存在警告。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="795"/>
         <source>Discovering Redmine projects and issues...</source>
-        <translation>正在发现 Redmine 项目和问题...</translation>
+        <translation type="vanished">正在发现 Redmine 项目和问题...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="798"/>
         <source>Analyzing Redmine issue activity... {loaded}/{total}</source>
-        <translation>正在分析 Redmine 问题活动... {loaded}/{total}</translation>
+        <translation type="vanished">正在分析 Redmine 问题活动... {loaded}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="800"/>
         <source>Checking cloned Jira issues... {loaded}/{total}</source>
-        <translation>正在检查 Jira 克隆状态... {loaded}/{total}</translation>
+        <translation type="vanished">正在检查 Jira 克隆状态... {loaded}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="130"/>
-        <location filename="bridge/RedmineBridge.py" line="239"/>
-        <location filename="bridge/RedmineBridge.py" line="851"/>
         <source>All projects</source>
-        <translation>所有项目</translation>
+        <translation type="vanished">所有项目</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="852"/>
         <source>All statuses</source>
-        <translation>所有状态</translation>
+        <translation type="vanished">所有状态</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="134"/>
-        <location filename="bridge/RedmineBridge.py" line="200"/>
         <source>Redmine data is not loaded.</source>
-        <translation>Redmine 数据尚未加载。</translation>
+        <translation type="vanished">Redmine 数据尚未加载。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="686"/>
-        <location filename="bridge/RedmineBridge.py" line="797"/>
         <source>Loading issues assigned to me...</source>
-        <translation>正在加载分配给我的问题...</translation>
+        <translation type="vanished">正在加载分配给我的问题...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="802"/>
         <source>Loading Redmine data... {loaded}/{total}</source>
-        <translation>???? Redmine ??... {loaded}/{total}</translation>
+        <translation type="vanished">???? Redmine ??... {loaded}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="782"/>
-        <location filename="bridge/RedmineBridge.py" line="805"/>
         <source>Loading Redmine data...</source>
-        <translation>正在加载 Redmine 数据...</translation>
+        <translation type="vanished">正在加载 Redmine 数据...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="141"/>
-        <location filename="bridge/RedmineBridge.py" line="207"/>
         <source>Projects are not loaded.</source>
-        <translation>项目尚未加载。</translation>
+        <translation type="vanished">项目尚未加载。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="231"/>
         <source>Issues assigned to me</source>
-        <translation>分配给我的问题</translation>
+        <translation type="vanished">分配给我的问题</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="232"/>
         <source>Watched issues</source>
-        <translation>我关注的问题</translation>
+        <translation type="vanished">我关注的问题</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="822"/>
         <source>Loading watched issues...</source>
-        <translation>正在加载关注的问题...</translation>
+        <translation type="vanished">正在加载关注的问题...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="839"/>
-        <location filename="bridge/RedmineBridge.py" line="967"/>
         <source>Invalid issue IDs: %1</source>
-        <translation>无效的问题 ID：%1</translation>
+        <translation type="vanished">无效的问题 ID：%1</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="959"/>
         <source>No valid watched issue IDs were found: %1</source>
-        <translation>未找到有效的关注问题 ID：%1</translation>
+        <translation type="vanished">未找到有效的关注问题 ID：%1</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="403"/>
-        <location filename="bridge/RedmineBridge.py" line="954"/>
         <source>Redmine data loaded.</source>
-        <translation>Redmine 数据已加载。</translation>
+        <translation type="vanished">Redmine 数据已加载。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="612"/>
-        <location filename="bridge/RedmineBridge.py" line="930"/>
-        <location filename="bridge/RedmineBridge.py" line="953"/>
         <source>Issues assigned to me loaded.</source>
-        <translation>分配给我的问题已加载。</translation>
+        <translation type="vanished">分配给我的问题已加载。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="628"/>
         <source>Loading Redmine projects...</source>
-        <translation>正在加载 Redmine 项目...</translation>
+        <translation type="vanished">正在加载 Redmine 项目...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="650"/>
         <source>Redmine project loading failed.</source>
-        <translation>Redmine 项目加载失败。</translation>
+        <translation type="vanished">Redmine 项目加载失败。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="655"/>
         <source>Redmine projects loaded.</source>
-        <translation>Redmine 项目已加载。</translation>
+        <translation type="vanished">Redmine 项目已加载。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="659"/>
         <source>No Redmine projects were loaded. Retry project loading.</source>
-        <translation>未加载到 Redmine 项目，请重试。</translation>
+        <translation type="vanished">未加载到 Redmine 项目，请重试。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="853"/>
         <source>All types</source>
-        <translation type="unfinished">全部类型</translation>
+        <translation type="obsolete">全部类型</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="870"/>
         <source>Search cancelled.</source>
-        <translation>搜索已取消。</translation>
+        <translation type="vanished">搜索已取消。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="896"/>
         <source>Refreshing Redmine issue detail...</source>
-        <translation>正在刷新 Redmine 问题详情...</translation>
+        <translation type="vanished">正在刷新 Redmine 问题详情...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="922"/>
         <source>Issues assigned to me loading failed.</source>
-        <translation>分配给我的问题加载失败。</translation>
+        <translation type="vanished">分配给我的问题加载失败。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="924"/>
         <source>Redmine data load failed.</source>
-        <translation>Redmine 数据加载失败。</translation>
+        <translation type="vanished">Redmine 数据加载失败。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="938"/>
         <source>Redmine issue detail refreshed.</source>
-        <translation>Redmine 问题详情已刷新。</translation>
+        <translation type="vanished">Redmine 问题详情已刷新。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="574"/>
         <source>The verification code was rejected. Enter the latest code from your phone.</source>
-        <translation>验证码已被拒绝，请输入手机上最新的验证码。</translation>
+        <translation type="vanished">验证码已被拒绝，请输入手机上最新的验证码。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="127"/>
         <source>Ready to sign in to Redmine.</source>
-        <translation>准备登录 Redmine。</translation>
+        <translation type="vanished">准备登录 Redmine。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="543"/>
         <source>Signing in to Redmine...</source>
-        <translation>正在登录 Redmine...</translation>
+        <translation type="vanished">正在登录 Redmine...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="583"/>
         <source>Redmine sign-in succeeded.</source>
-        <translation>Redmine 登录成功。</translation>
+        <translation type="vanished">Redmine 登录成功。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="576"/>
-        <location filename="bridge/RedmineBridge.py" line="584"/>
         <source>Redmine needs a different account or password.</source>
-        <translation>Redmine 需要其他账号或密码。</translation>
+        <translation type="vanished">Redmine 需要其他账号或密码。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="575"/>
-        <location filename="bridge/RedmineBridge.py" line="585"/>
         <source>Enter the mobile verification code.</source>
-        <translation>请输入手机验证码。</translation>
+        <translation type="vanished">请输入手机验证码。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="577"/>
-        <location filename="bridge/RedmineBridge.py" line="578"/>
-        <location filename="bridge/RedmineBridge.py" line="579"/>
-        <location filename="bridge/RedmineBridge.py" line="580"/>
-        <location filename="bridge/RedmineBridge.py" line="586"/>
         <source>Redmine sign-in failed.</source>
-        <translation>Redmine 登录失败。</translation>
+        <translation type="vanished">Redmine 登录失败。</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="1159"/>
         <source>Redmine sign-in cancelled.</source>
-        <translation>已取消 Redmine 登录。</translation>
+        <translation type="vanished">已取消 Redmine 登录。</translation>
     </message>
 </context>
 <context>
@@ -2947,87 +2847,75 @@ Updated content:
 <context>
     <name>ReportBridge</name>
     <message>
-        <location filename="bridge/ReportBridge.py" line="53"/>
         <source>{count} DUTs: {serials}</source>
-        <translation>{count} 台 DUT：{serials}</translation>
+        <translation type="vanished">{count} 台 DUT：{serials}</translation>
     </message>
     <message>
-        <location filename="bridge/ReportBridge.py" line="54"/>
         <source>{count} DUTs</source>
-        <translation>{count} 台 DUT</translation>
+        <translation type="vanished">{count} 台 DUT</translation>
     </message>
     <message>
-        <location filename="bridge/ReportBridge.py" line="63"/>
         <source>No DUT</source>
-        <translation>无 DUT</translation>
+        <translation type="vanished">无 DUT</translation>
     </message>
 </context>
 <context>
     <name>RunBridge</name>
     <message>
-        <location filename="bridge/RunBridge.py" line="253"/>
-        <source>Failed to start test run. {detail}</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="bridge/RunBridge.py" line="354"/>
         <source>Failed to save run report. {detail}</source>
-        <translation>保存运行报告失败。{detail}</translation>
+        <translation type="vanished">保存运行报告失败。{detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="357"/>
-        <source>Failed to finish test run. {detail}</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="bridge/RunBridge.py" line="499"/>
         <source>No selected test cases to run.</source>
-        <translation>没有可运行的已选测试用例。</translation>
+        <translation type="vanished">没有可运行的已选测试用例。</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="535"/>
         <source>Failed to start pytest run. {detail}</source>
-        <translation>启动 pytest 运行失败。{detail}</translation>
+        <translation type="vanished">启动 pytest 运行失败。{detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="122"/>
         <source>Select a DUT before starting the selected test cases.</source>
-        <translation>启动所选测试用例前请选择 DUT。</translation>
+        <translation type="vanished">启动所选测试用例前请选择 DUT。</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="126"/>
         <source>Missing required parameter: {param} ({case})</source>
-        <translation>缺少必填参数：{param}（{case}）</translation>
+        <translation type="vanished">缺少必填参数：{param}（{case}）</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="134"/>
         <source>Fix required test parameters before starting.</source>
-        <translation>请先补齐必填测试参数再启动。</translation>
+        <translation type="vanished">请先补齐必填测试参数再启动。</translation>
     </message>
 </context>
 <context>
     <name>ScheduleBridge</name>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="56"/>
         <source>Disabled</source>
         <translation>已停用</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="58"/>
         <source>Not registered</source>
         <translation>未注册</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="60"/>
         <source>Ready</source>
         <translation>就绪</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="62"/>
         <source>Needs attention</source>
         <translation>需要处理</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="69"/>
+        <location filename="bridge/ScheduleBridge.py" line="72"/>
         <source>Next run unavailable</source>
         <translation>下次运行时间不可用</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="72"/>
         <source>Next run: {time}</source>
         <translation>下次运行：{time}</translation>
     </message>
@@ -5953,28 +5841,69 @@ Some contents...</source>
 </context>
 <context>
     <name>T_Tool</name>
-    <message><source>Type: %1</source><translation>类型：%1</translation></message>
-    <message><source>Content: %1</source><translation>内容：%1</translation></message>
-    <message><source>Plan: %1</source><translation>计划：%1</translation></message>
-    <message><source>Delete schedule?</source><translation>删除计划？</translation></message>
-    <message><source>This removes the Windows task, saved schedule, and its stored Daily Report credential.</source><translation>这将删除 Windows 任务、已保存的计划及其存储的日报凭据。</translation></message>
-    <message><source>Delete</source><translation>删除</translation></message>
-    <message><source>Cancel</source><translation>取消</translation></message>
-    <message><source>Stop</source><translation>停止</translation></message>
-    <message><source>Enable</source><translation>启用</translation></message>
-    <message><source>Run now</source><translation>立即运行</translation></message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="12"/>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="125"/>
+        <source>Type: %1</source>
+        <translation>类型：%1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="131"/>
+        <source>Content: %1</source>
+        <translation>内容：%1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="138"/>
+        <source>Plan: %1</source>
+        <translation>计划：%1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="27"/>
+        <source>Delete schedule?</source>
+        <translation>删除计划？</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="28"/>
+        <source>This removes the Windows task, saved schedule, and its stored Daily Report credential.</source>
+        <translation>这将删除 Windows 任务、已保存的计划及其存储的日报凭据。</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="29"/>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="172"/>
+        <source>Delete</source>
+        <translation>删除</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="30"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="158"/>
+        <source>Stop</source>
+        <translation>停止</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="158"/>
+        <source>Enable</source>
+        <translation>启用</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="165"/>
+        <source>Run now</source>
+        <translation>立即运行</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="13"/>
         <source>Tool</source>
         <translation>工具</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="160"/>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="218"/>
         <source>Custom Tools</source>
         <translation>定制工具</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="196"/>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="254"/>
         <source>Select a tool</source>
         <translation>选择工具</translation>
     </message>
@@ -5983,17 +5912,17 @@ Some contents...</source>
         <translation type="vanished">此处将显示该分组下的工具。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="293"/>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="402"/>
         <source>This area is reserved for the selected tool. Execution is not available yet.</source>
         <translation>此区域预留给所选工具，暂不支持执行。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="67"/>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="80"/>
         <source>Schedule</source>
         <translation>计划任务</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="78"/>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="91"/>
         <source>No SmartTest Windows schedules are configured.</source>
         <translation>当前没有已配置的 SmartTest Windows 计划任务。</translation>
     </message>

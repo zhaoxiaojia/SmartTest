@@ -20,13 +20,14 @@ class DailyReportBridge(QObject):
 
     def __init__(
         self, auth_bridge, *, service, projects, schedule, credentials,
-        run_now=None,
+        run_now=None, delivery_mode=None,
     ):
         super().__init__(auth_bridge if isinstance(auth_bridge, QObject) else None)
         self._auth, self._service = auth_bridge, service
         self._projects, self._schedule = projects, schedule
         self._credentials = credentials
         self._run_now = run_now
+        self._delivery_mode = delivery_mode
         self._state, self._status = "idle", ""
         self._batch = None
         self._preview_revision = None
@@ -46,6 +47,26 @@ class DailyReportBridge(QObject):
 
     @Property(int, notify=stateChanged)
     def enabledProjectCount(self): return len(self._projects.enabled())
+
+    @Property(bool, notify=stateChanged)
+    def personalMailbox(self):
+        return bool(
+            self._delivery_mode and self._delivery_mode.load() == "personal"
+        )
+
+    @Property(str, notify=stateChanged)
+    def mailboxLabel(self):
+        return (
+            self.tr("LDAP personal mailbox") if self.personalMailbox else
+            self.tr("Public mailbox (fae-qa-auto)")
+        )
+
+    @Slot(bool)
+    def setPersonalMailbox(self, enabled):
+        if self._delivery_mode is None:
+            raise RuntimeError("Daily Report delivery mode store is unavailable")
+        self._delivery_mode.save("personal" if enabled else "public")
+        self.stateChanged.emit()
 
     @Property("QVariantList", notify=stateChanged)
     def projectRows(self):
@@ -270,17 +291,18 @@ def create_daily_report_bridge(auth_bridge, data_root):
     from support.jira_integration.services.issue_service import JiraIssueService
     from support.jira_integration.transport.client import JiraClient, JiraClientConfig
     from support.windows_credentials import WindowsCredentialStore
-    from tool.common.daily_report import DailyReportService, ProjectConfigStore
+    from tool.common.daily_report import DailyReportService, DeliveryModeStore, ProjectConfigStore
     from tool.common.daily_report.background import run_scheduled_batch
     from tool.common.daily_report.schedule import DailyReportScheduleManager
     base_url = os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")
     root = data_root / "daily_report"
     projects = ProjectConfigStore(root / "projects.json")
+    delivery_mode = DeliveryModeStore(root / "delivery.json")
     def issue_factory(username, password):
         return JiraIssueService(JiraClient(JiraClientConfig(base_url=base_url), JiraBasicAuth(username=username, password=password)))
-    service = DailyReportService(issue_service_factory=issue_factory, project_store=projects, report_root=root / "reports", jira_base_url=base_url)
+    service = DailyReportService(issue_service_factory=issue_factory, project_store=projects, report_root=root / "reports", jira_base_url=base_url, delivery_mode=delivery_mode)
     credentials = WindowsCredentialStore(target_prefix="SmartTest/DailyReport/")
     return DailyReportBridge(auth_bridge, service=service, projects=projects,
         schedule=DailyReportScheduleManager(root / "schedule.json"),
-        credentials=credentials,
+        credentials=credentials, delivery_mode=delivery_mode,
         run_now=lambda: run_scheduled_batch(data_root=data_root, immediate=True))

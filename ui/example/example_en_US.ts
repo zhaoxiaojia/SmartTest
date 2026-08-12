@@ -144,29 +144,24 @@
 <context>
     <name>AuthBridge</name>
     <message>
-        <location filename="bridge/AuthBridge.py" line="509"/>
         <source>Account or password cannot be empty.</source>
-        <translation>Account or password cannot be empty.</translation>
+        <translation type="vanished">Account or password cannot be empty.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="516"/>
         <source>ldap3 is not installed in the current Python environment.</source>
-        <translation>ldap3 is not installed in the current Python environment.</translation>
+        <translation type="vanished">ldap3 is not installed in the current Python environment.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="527"/>
         <source>LDAP sign-in failed. {detail}</source>
-        <translation>LDAP sign-in failed. {detail}</translation>
+        <translation type="vanished">LDAP sign-in failed. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="530"/>
         <source>LDAP sign-in failed. Please check your account or password.</source>
-        <translation>LDAP sign-in failed. Please check your account or password.</translation>
+        <translation type="vanished">LDAP sign-in failed. Please check your account or password.</translation>
     </message>
     <message>
-        <location filename="bridge/AuthBridge.py" line="551"/>
         <source>Sign-in successful. Welcome, {username}</source>
-        <translation>Sign-in successful. Welcome, {username}</translation>
+        <translation type="vanished">Sign-in successful. Welcome, {username}</translation>
     </message>
 </context>
 <context>
@@ -586,100 +581,182 @@
 </context>
 <context>
     <name>DailyReportBridge</name>
-    <message><source>No enabled projects</source><translation>No enabled projects</translation></message>
-    <message><source>Daily %1</source><translation>Daily %1</translation></message>
-    <message><source>Weekly %1 %2</source><translation>Weekly %1 %2</translation></message>
-    <message><source>Monday</source><translation>Monday</translation></message>
-    <message><source>Tuesday</source><translation>Tuesday</translation></message>
-    <message><source>Wednesday</source><translation>Wednesday</translation></message>
-    <message><source>Thursday</source><translation>Thursday</translation></message>
-    <message><source>Friday</source><translation>Friday</translation></message>
-    <message><source>Saturday</source><translation>Saturday</translation></message>
-    <message><source>Sunday</source><translation>Sunday</translation></message>
-    <message><source>Updating batch schedule status...</source><translation>Updating batch schedule status...</translation></message>
-    <message><source>Another Daily Report operation is already running.</source><translation>Another Daily Report operation is already running.</translation></message>
-    <message><source>Running Daily Report now...</source><translation>Running Daily Report now...</translation></message>
-    <message><source>Deleting batch schedule...</source><translation>Deleting batch schedule...</translation></message>
-    <message><source>Batch schedule status updated.</source><translation>Batch schedule status updated.</translation></message>
-    <message><source>Daily Report run now completed.</source><translation>Daily Report run now completed.</translation></message>
-    <message><source>Daily Report run now completed with failures.</source><translation>Daily Report run now completed with failures.</translation></message>
-    <message><source>Batch schedule deleted.</source><translation>Batch schedule deleted.</translation></message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="85"/>
+        <location filename="bridge/DailyReportBridge.py" line="110"/>
+        <source>No enabled projects</source>
+        <translation>No enabled projects</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="112"/>
+        <source>Daily %1</source>
+        <translation>Daily %1</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="121"/>
+        <source>Weekly %1 %2</source>
+        <translation>Weekly %1 %2</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="115"/>
+        <source>Monday</source>
+        <translation>Monday</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="115"/>
+        <source>Tuesday</source>
+        <translation>Tuesday</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="116"/>
+        <source>Wednesday</source>
+        <translation>Wednesday</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="116"/>
+        <source>Thursday</source>
+        <translation>Thursday</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="117"/>
+        <source>Friday</source>
+        <translation>Friday</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="117"/>
+        <source>Saturday</source>
+        <translation>Saturday</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="117"/>
+        <source>Sunday</source>
+        <translation>Sunday</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="202"/>
+        <source>Updating batch schedule status...</source>
+        <translation>Updating batch schedule status...</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="209"/>
+        <source>Another Daily Report operation is already running.</source>
+        <translation>Another Daily Report operation is already running.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="215"/>
+        <source>Running Daily Report now...</source>
+        <translation>Running Daily Report now...</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="223"/>
+        <source>Deleting batch schedule...</source>
+        <translation>Deleting batch schedule...</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="265"/>
+        <source>Batch schedule status updated.</source>
+        <translation>Batch schedule status updated.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="269"/>
+        <source>Daily Report run now completed.</source>
+        <translation>Daily Report run now completed.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="271"/>
+        <source>Daily Report run now completed with failures.</source>
+        <translation>Daily Report run now completed with failures.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="275"/>
+        <source>Batch schedule deleted.</source>
+        <translation>Batch schedule deleted.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="126"/>
+        <location filename="bridge/DailyReportBridge.py" line="128"/>
         <source>Daily Report</source>
         <translation>Daily Report</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="86"/>
+        <location filename="bridge/DailyReportBridge.py" line="127"/>
         <source>Daily Report batch</source>
         <translation>Daily Report batch</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="100"/>
+        <location filename="bridge/DailyReportBridge.py" line="146"/>
         <source>Generating report previews...</source>
         <translation>Generating report previews...</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="108"/>
+        <location filename="bridge/DailyReportBridge.py" line="154"/>
         <source>Sending reports now...</source>
         <translation>Sending reports now...</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="114"/>
+        <location filename="bridge/DailyReportBridge.py" line="160"/>
         <source>Project configuration saved.</source>
         <translation>Project configuration saved.</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="121"/>
+        <location filename="bridge/DailyReportBridge.py" line="167"/>
         <source>Project deleted.</source>
         <translation>Project deleted.</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="128"/>
+        <location filename="bridge/DailyReportBridge.py" line="174"/>
         <source>Project status updated.</source>
         <translation>Project status updated.</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="143"/>
-        <location filename="bridge/DailyReportBridge.py" line="157"/>
+        <location filename="bridge/DailyReportBridge.py" line="189"/>
         <source>Saving batch schedule...</source>
         <translation>Saving batch schedule...</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="187"/>
+        <location filename="bridge/DailyReportBridge.py" line="252"/>
         <source>Report previews generated.</source>
         <translation>Report previews generated.</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="188"/>
+        <location filename="bridge/DailyReportBridge.py" line="253"/>
         <source>Immediate delivery completed.</source>
         <translation>Immediate delivery completed.</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="191"/>
+        <location filename="bridge/DailyReportBridge.py" line="256"/>
         <source>Immediate delivery completed with failures.</source>
         <translation>Immediate delivery completed with failures.</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="193"/>
-        <location filename="bridge/DailyReportBridge.py" line="200"/>
+        <location filename="bridge/DailyReportBridge.py" line="259"/>
+        <location filename="bridge/DailyReportBridge.py" line="278"/>
         <source>Batch schedule saved.</source>
         <translation>Batch schedule saved.</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="208"/>
+        <location filename="bridge/DailyReportBridge.py" line="286"/>
         <source>Daily Report configuration or operation failed.</source>
         <translation>Daily Report configuration or operation failed.</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="149"/>
+        <location filename="bridge/DailyReportBridge.py" line="195"/>
         <source>Refreshing batch schedule...</source>
         <translation>Refreshing batch schedule...</translation>
     </message>
     <message>
-        <location filename="bridge/DailyReportBridge.py" line="197"/>
+        <location filename="bridge/DailyReportBridge.py" line="262"/>
         <source>Batch schedule status refreshed.</source>
         <translation>Batch schedule status refreshed.</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="62"/>
+        <source>Public mailbox (fae-qa-auto)</source>
+        <translation>Public mailbox (fae-qa-auto)</translation>
+    </message>
+    <message>
+        <location filename="bridge/DailyReportBridge.py" line="60"/>
+        <source>LDAP personal mailbox</source>
+        <translation>LDAP personal mailbox</translation>
     </message>
 </context>
 <context>
@@ -723,33 +800,33 @@
         <translation>Schedule delivery</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="47"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="53"/>
         <source>Project name</source>
         <translation>Project name</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="49"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="55"/>
         <source>JQL</source>
         <translation>JQL</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="50"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="56"/>
         <source>To recipients</source>
         <translation>To recipients</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="51"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="57"/>
         <source>Cc recipients</source>
         <translation>Cc recipients</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="52"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="58"/>
         <source>Enabled</source>
         <translation>Enabled</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="55"/>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="92"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="61"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="98"/>
         <source>Save project</source>
         <translation>Save project</translation>
     </message>
@@ -759,92 +836,92 @@
         <translation>New project</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="70"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="76"/>
         <source>Daily</source>
         <translation>Daily</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="70"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="76"/>
         <source>Weekly</source>
         <translation>Weekly</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="73"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="79"/>
         <source>Monday</source>
         <translation>Monday</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="73"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="79"/>
         <source>Tuesday</source>
         <translation>Tuesday</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="73"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="79"/>
         <source>Wednesday</source>
         <translation>Wednesday</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="73"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="79"/>
         <source>Thursday</source>
         <translation>Thursday</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="73"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="79"/>
         <source>Friday</source>
         <translation>Friday</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="73"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="79"/>
         <source>Saturday</source>
         <translation>Saturday</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="73"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="79"/>
         <source>Sunday</source>
         <translation>Sunday</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="74"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="80"/>
         <source>Save schedule</source>
         <translation>Save schedule</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="92"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="98"/>
         <source>Edit</source>
         <translation>Edit</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="103"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="109"/>
         <source>Delete</source>
         <translation>Delete</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="107"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="113"/>
         <source>JQL: %1</source>
         <translation>JQL: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="109"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="115"/>
         <source>To: %1</source>
         <translation>To: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="111"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="117"/>
         <source>CC: %1</source>
         <translation>CC: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="48"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="54"/>
         <source>Email subject (optional)</source>
         <translation>Email subject (optional)</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="105"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="111"/>
         <source>Subject: %1</source>
         <translation>Subject: %1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="106"/>
+        <location filename="imports/example/qml/component/dailyreport/DailyReportWorkspace.qml" line="112"/>
         <source>Email subject</source>
         <translation>Email subject</translation>
     </message>
@@ -852,27 +929,13 @@
 <context>
     <name>DebugBridge</name>
     <message>
-        <location filename="bridge/DebugBridge.py" line="66"/>
-        <location filename="bridge/DebugBridge.py" line="78"/>
-        <location filename="bridge/DebugBridge.py" line="91"/>
-        <source>Load a KPI video first.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="bridge/DebugBridge.py" line="82"/>
-        <source>No frames available in current video.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="bridge/DebugBridge.py" line="105"/>
         <source>Select a video file first.</source>
-        <translation>Select a video file first.</translation>
+        <translation type="vanished">Select a video file first.</translation>
     </message>
     <message>
-        <location filename="bridge/DebugBridge.py" line="39"/>
         <source>KPI video loading is already running.</source>
         <oldsource>KPI video analysis is already running.</oldsource>
-        <translation type="unfinished">KPI video analysis is already running.</translation>
+        <translation type="obsolete">KPI video analysis is already running.</translation>
     </message>
 </context>
 <context>
@@ -928,29 +991,6 @@
         <location filename="imports/example/qml/window/HotloadWindow.qml" line="43"/>
         <source>Drag in a qml file</source>
         <translation>Drag in a qml file</translation>
-    </message>
-</context>
-<context>
-    <name>InitializrHelper</name>
-    <message>
-        <location filename="helper/InitializrHelper.py" line="99"/>
-        <source>The name cannot be empty</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="helper/InitializrHelper.py" line="102"/>
-        <source>The creation path cannot be empty</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="helper/InitializrHelper.py" line="106"/>
-        <source>The path does not exist</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="helper/InitializrHelper.py" line="111"/>
-        <source>%1 folder already exists</source>
-        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -1760,379 +1800,304 @@
 <context>
     <name>JiraBridge</name>
     <message>
-        <location filename="bridge/JiraBridge.py" line="61"/>
         <source>Ready</source>
-        <translation>Ready</translation>
+        <translation type="vanished">Ready</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="62"/>
         <source>Run a Jira query to get a live AI summary.</source>
-        <translation>Run a Jira query to get a live AI summary.</translation>
+        <translation type="vanished">Run a Jira query to get a live AI summary.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="66"/>
         <source>Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</source>
-        <translation>Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</translation>
+        <translation type="vanished">Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="67"/>
         <source>Workspace ready</source>
-        <translation>Workspace ready</translation>
+        <translation type="vanished">Workspace ready</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="68"/>
         <source>Session cleared. Ask a new Jira question when ready.</source>
-        <translation>Session cleared. Ask a new Jira question when ready.</translation>
+        <translation type="vanished">Session cleared. Ask a new Jira question when ready.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="69"/>
         <source>Reset</source>
-        <translation>Reset</translation>
+        <translation type="vanished">Reset</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="70"/>
         <source>Jira request failed. Check the connection message above and sign in again if needed.</source>
-        <translation>Jira request failed. Check the connection message above and sign in again if needed.</translation>
+        <translation type="vanished">Jira request failed. Check the connection message above and sign in again if needed.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="71"/>
         <source>Error</source>
-        <translation>Error</translation>
+        <translation type="vanished">Error</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="72"/>
         <source>All Supported Projects</source>
-        <translation>All Supported Projects</translation>
+        <translation type="vanished">All Supported Projects</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="73"/>
         <source>Open Work</source>
-        <translation>Open Work</translation>
+        <translation type="vanished">Open Work</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="74"/>
         <source>Ready for Test</source>
-        <translation>Ready for Test</translation>
+        <translation type="vanished">Ready for Test</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="75"/>
         <source>Closed Bugs</source>
-        <translation>Closed Bugs</translation>
+        <translation type="vanished">Closed Bugs</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="76"/>
         <source>Last 7 Days</source>
-        <translation>Last 7 Days</translation>
+        <translation type="vanished">Last 7 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="77"/>
         <source>Last 30 Days</source>
-        <translation>Last 30 Days</translation>
+        <translation type="vanished">Last 30 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="78"/>
         <source>Last 90 Days</source>
-        <translation>Last 90 Days</translation>
+        <translation type="vanished">Last 90 Days</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="79"/>
         <source>This Year</source>
-        <translation>This Year</translation>
+        <translation type="vanished">This Year</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="80"/>
         <source>Open</source>
-        <translation>Open</translation>
+        <translation type="vanished">Open</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="81"/>
         <source>In Progress</source>
-        <translation>In Progress</translation>
+        <translation type="vanished">In Progress</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="82"/>
         <source>Verified</source>
-        <translation>Verified</translation>
+        <translation type="vanished">Verified</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="83"/>
         <source>Resolved</source>
-        <translation>Resolved</translation>
+        <translation type="vanished">Resolved</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="84"/>
         <source>Closed</source>
-        <translation>Closed</translation>
+        <translation type="vanished">Closed</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="85"/>
         <source>Highest</source>
-        <translation>Highest</translation>
+        <translation type="vanished">Highest</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="86"/>
         <source>Critical</source>
-        <translation>Critical</translation>
+        <translation type="vanished">Critical</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="87"/>
         <source>High</source>
-        <translation>High</translation>
+        <translation type="vanished">High</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="88"/>
         <source>Medium</source>
-        <translation>Medium</translation>
+        <translation type="vanished">Medium</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="89"/>
         <source>Low</source>
-        <translation>Low</translation>
+        <translation type="vanished">Low</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="90"/>
         <source>Bug</source>
-        <translation>Bug</translation>
+        <translation type="vanished">Bug</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="91"/>
         <source>Task</source>
-        <translation>Task</translation>
+        <translation type="vanished">Task</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="92"/>
         <source>Story</source>
-        <translation>Story</translation>
+        <translation type="vanished">Story</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="93"/>
         <source>Improvement</source>
-        <translation>Improvement</translation>
+        <translation type="vanished">Improvement</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="94"/>
         <source>Unassigned</source>
-        <translation>Unassigned</translation>
+        <translation type="vanished">Unassigned</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="95"/>
         <source>LDAP session is missing Jira credentials. Please sign in again.</source>
-        <translation>LDAP session is missing Jira credentials. Please sign in again.</translation>
+        <translation type="vanished">LDAP session is missing Jira credentials. Please sign in again.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="96"/>
         <source>Connected to {base_url} | loaded {loaded} of {total}</source>
-        <translation>Connected to {base_url} | loaded {loaded} of {total}</translation>
+        <translation type="vanished">Connected to {base_url} | loaded {loaded} of {total}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="100"/>
         <source>Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</source>
-        <translation>Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</translation>
+        <translation type="vanished">Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="101"/>
         <source>Connected to {base_url} | analyzed {returned} of {total}</source>
-        <translation>Connected to {base_url} | analyzed {returned} of {total}</translation>
+        <translation type="vanished">Connected to {base_url} | analyzed {returned} of {total}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="102"/>
         <source>Just now</source>
-        <translation>Just now</translation>
+        <translation type="vanished">Just now</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="103"/>
         <source>Sign in to load Jira data.</source>
-        <translation>Sign in to load Jira data.</translation>
+        <translation type="vanished">Sign in to load Jira data.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="104"/>
         <source>Sign in with LDAP first, then Jira results and AI analysis will load here.</source>
-        <translation>Sign in with LDAP first, then Jira results and AI analysis will load here.</translation>
+        <translation type="vanished">Sign in with LDAP first, then Jira results and AI analysis will load here.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="105"/>
         <source>Loading Jira results...</source>
-        <translation>Loading Jira results...</translation>
+        <translation type="vanished">Loading Jira results...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="106"/>
         <source>Analyzing Jira request...</source>
-        <translation>Analyzing Jira request...</translation>
+        <translation type="vanished">Analyzing Jira request...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="107"/>
         <source>Sign in again to restore Jira access.</source>
-        <translation>Sign in again to restore Jira access.</translation>
+        <translation type="vanished">Sign in again to restore Jira access.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="108"/>
         <source>Signed out</source>
-        <translation>Signed out</translation>
+        <translation type="vanished">Signed out</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="109"/>
         <source>Unknown Jira error</source>
-        <translation>Unknown Jira error</translation>
+        <translation type="vanished">Unknown Jira error</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="110"/>
         <source>Jira request failed: {message}</source>
-        <translation>Jira request failed: {message}</translation>
+        <translation type="vanished">Jira request failed: {message}</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="111"/>
         <source>Matched</source>
-        <translation>Matched</translation>
+        <translation type="vanished">Matched</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="112"/>
         <source>{displayed} displayed in the current view</source>
-        <translation>{displayed} displayed in the current view</translation>
+        <translation type="vanished">{displayed} displayed in the current view</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="113"/>
         <source>High Priority</source>
-        <translation>High Priority</translation>
+        <translation type="vanished">High Priority</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="114"/>
         <source>Highest, critical, or high in the current result set</source>
-        <translation>Highest, critical, or high in the current result set</translation>
+        <translation type="vanished">Highest, critical, or high in the current result set</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="115"/>
         <source>Blocked</source>
-        <translation>Blocked</translation>
+        <translation type="vanished">Blocked</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="116"/>
         <source>Blocked items from the displayed Jira scope</source>
-        <translation>Blocked items from the displayed Jira scope</translation>
+        <translation type="vanished">Blocked items from the displayed Jira scope</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="117"/>
         <source>Projects</source>
-        <translation>Projects</translation>
+        <translation type="vanished">Projects</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="118"/>
         <source>Workflow Preset</source>
-        <translation>Workflow Preset</translation>
+        <translation type="vanished">Workflow Preset</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="119"/>
         <source>Time Window</source>
-        <translation>Time Window</translation>
+        <translation type="vanished">Time Window</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="120"/>
         <source>Statuses</source>
-        <translation>Statuses</translation>
+        <translation type="vanished">Statuses</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="121"/>
         <source>Priorities</source>
-        <translation>Priorities</translation>
+        <translation type="vanished">Priorities</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="122"/>
         <source>Issue Types</source>
-        <translation>Issue Types</translation>
+        <translation type="vanished">Issue Types</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="123"/>
         <source>Keyword text</source>
-        <translation>Keyword text</translation>
+        <translation type="vanished">Keyword text</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="124"/>
         <source>Assignee</source>
-        <translation>Assignee</translation>
+        <translation type="vanished">Assignee</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="125"/>
         <source>Reporter</source>
-        <translation>Reporter</translation>
+        <translation type="vanished">Reporter</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="126"/>
         <source>Labels</source>
-        <translation>Labels</translation>
+        <translation type="vanished">Labels</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="127"/>
         <source>Not limited</source>
-        <translation>Not limited</translation>
+        <translation type="vanished">Not limited</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="128"/>
         <source>Current user</source>
-        <translation>Current user</translation>
+        <translation type="vanished">Current user</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="129"/>
         <source>JQL</source>
-        <translation>JQL</translation>
+        <translation type="vanished">JQL</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="130"/>
         <source>Useful candidates for the next regression batch</source>
-        <translation>Useful candidates for the next regression batch</translation>
+        <translation type="vanished">Useful candidates for the next regression batch</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="131"/>
         <source>My Filters</source>
-        <translation>My Filters</translation>
+        <translation type="vanished">My Filters</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="132"/>
         <source>Loading your Jira filters...</source>
-        <translation>Loading your Jira filters...</translation>
+        <translation type="vanished">Loading your Jira filters...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="133"/>
         <source>No favourite filters were found for this account.</source>
-        <translation>No favourite filters were found for this account.</translation>
+        <translation type="vanished">No favourite filters were found for this account.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="134"/>
         <source>Click to apply this filter to the current JQL box.</source>
-        <translation>Click to apply this filter to the current JQL box.</translation>
+        <translation type="vanished">Click to apply this filter to the current JQL box.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="135"/>
         <source>Comments</source>
-        <translation>Comments</translation>
+        <translation type="vanished">Comments</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="136"/>
         <source>No Jira issues matched the current scope.</source>
-        <translation>No Jira issues matched the current scope.</translation>
+        <translation type="vanished">No Jira issues matched the current scope.</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="137"/>
         <source>Jira AI Conversation</source>
-        <translation>Jira AI Conversation</translation>
+        <translation type="vanished">Jira AI Conversation</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="138"/>
         <source>Analyzing request: preparing search scope...</source>
-        <translation>Analyzing request: preparing search scope...</translation>
+        <translation type="vanished">Analyzing request: preparing search scope...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="139"/>
         <source>Analyzing request: retrieving Jira issues...</source>
-        <translation>Analyzing request: retrieving Jira issues...</translation>
+        <translation type="vanished">Analyzing request: retrieving Jira issues...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="140"/>
         <source>Analyzing request: generating response...</source>
-        <translation>Analyzing request: generating response...</translation>
+        <translation type="vanished">Analyzing request: generating response...</translation>
     </message>
     <message>
-        <location filename="bridge/JiraBridge.py" line="144"/>
         <source>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</source>
-        <translation>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</translation>
+        <translation type="vanished">{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</translation>
     </message>
 </context>
 <context>
@@ -2143,32 +2108,32 @@
         <translation>Clone Redmine issues to Jira</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="50"/>
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="49"/>
         <source>Preparing drafts %1/%2</source>
         <translation>Preparing drafts %1/%2</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="111"/>
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="110"/>
         <source>%1 drafts</source>
         <translation>%1 drafts</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="113"/>
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="112"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="114"/>
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="113"/>
         <source>Retry failed</source>
         <translation>Retry failed</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="115"/>
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="114"/>
         <source>Retry preparation</source>
         <translation>Retry preparation</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="116"/>
+        <location filename="imports/example/qml/component/issue/JiraCreateBatchDialog.qml" line="115"/>
         <source>Batch Create</source>
         <translation>Batch Create</translation>
     </message>
@@ -2608,265 +2573,200 @@ Updated content:
 <context>
     <name>RedmineBridge</name>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="292"/>
         <source>Attachment %1 is %2 bytes; Jira limit is %3 bytes.</source>
-        <translation>Attachment %1 is %2 bytes; Jira limit is %3 bytes.</translation>
+        <translation type="vanished">Attachment %1 is %2 bytes; Jira limit is %3 bytes.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="303"/>
         <source>Jira attachments are disabled for %1.</source>
-        <translation>Jira attachments are disabled for %1.</translation>
+        <translation type="vanished">Jira attachments are disabled for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="310"/>
         <source>Attachment source URL is unavailable for %1.</source>
-        <translation>Attachment source URL is unavailable for %1.</translation>
+        <translation type="vanished">Attachment source URL is unavailable for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="317"/>
         <source>Attachment download failed for %1 (HTTP %2).</source>
-        <translation>Attachment download failed for %1 (HTTP %2).</translation>
+        <translation type="vanished">Attachment download failed for %1 (HTTP %2).</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="324"/>
         <source>Attachment download failed for %1: %2</source>
-        <translation>Attachment download failed for %1: %2</translation>
+        <translation type="vanished">Attachment download failed for %1: %2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="331"/>
         <source>Attachment source is invalid for %1.</source>
-        <translation>Attachment source is invalid for %1.</translation>
+        <translation type="vanished">Attachment source is invalid for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="338"/>
         <source>Jira already has %1 with a different size.</source>
-        <translation>Jira already has %1 with a different size.</translation>
+        <translation type="vanished">Jira already has %1 with a different size.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="345"/>
         <source>Could not check Jira attachments for %1: %2</source>
-        <translation>Could not check Jira attachments for %1: %2</translation>
+        <translation type="vanished">Could not check Jira attachments for %1: %2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="352"/>
         <source>Attachment upload failed for %1: %2</source>
-        <translation>Attachment upload failed for %1: %2</translation>
+        <translation type="vanished">Attachment upload failed for %1: %2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="359"/>
         <source>Attachment upload was cancelled for %1.</source>
-        <translation>Attachment upload was cancelled for %1.</translation>
+        <translation type="vanished">Attachment upload was cancelled for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="366"/>
         <source>Attachment downloader is unavailable for %1.</source>
-        <translation>Attachment downloader is unavailable for %1.</translation>
+        <translation type="vanished">Attachment downloader is unavailable for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="373"/>
         <source>Jira attachment synchronization failed for %1: %2</source>
-        <translation>Jira attachment synchronization failed for %1: %2</translation>
+        <translation type="vanished">Jira attachment synchronization failed for %1: %2</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="380"/>
         <source>Temporary attachment cleanup failed: %1</source>
-        <translation>Temporary attachment cleanup failed: %1</translation>
+        <translation type="vanished">Temporary attachment cleanup failed: %1</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="389"/>
         <source>Attachment warning for %1.</source>
-        <translation>Attachment warning for %1.</translation>
+        <translation type="vanished">Attachment warning for %1.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="795"/>
         <source>Discovering Redmine projects and issues...</source>
-        <translation>Discovering Redmine projects and issues...</translation>
+        <translation type="vanished">Discovering Redmine projects and issues...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="798"/>
         <source>Analyzing Redmine issue activity... {loaded}/{total}</source>
-        <translation>Analyzing Redmine issue activity... {loaded}/{total}</translation>
+        <translation type="vanished">Analyzing Redmine issue activity... {loaded}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="800"/>
         <source>Checking cloned Jira issues... {loaded}/{total}</source>
-        <translation>Checking cloned Jira issues... {loaded}/{total}</translation>
+        <translation type="vanished">Checking cloned Jira issues... {loaded}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="574"/>
         <source>The verification code was rejected. Enter the latest code from your phone.</source>
-        <translation>The verification code was rejected. Enter the latest code from your phone.</translation>
+        <translation type="vanished">The verification code was rejected. Enter the latest code from your phone.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="127"/>
         <source>Ready to sign in to Redmine.</source>
-        <translation>Ready to sign in to Redmine.</translation>
+        <translation type="vanished">Ready to sign in to Redmine.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="543"/>
         <source>Signing in to Redmine...</source>
-        <translation>Signing in to Redmine...</translation>
+        <translation type="vanished">Signing in to Redmine...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="583"/>
         <source>Redmine sign-in succeeded.</source>
-        <translation>Redmine sign-in succeeded.</translation>
+        <translation type="vanished">Redmine sign-in succeeded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="576"/>
-        <location filename="bridge/RedmineBridge.py" line="584"/>
         <source>Redmine needs a different account or password.</source>
-        <translation>Redmine needs a different account or password.</translation>
+        <translation type="vanished">Redmine needs a different account or password.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="141"/>
-        <location filename="bridge/RedmineBridge.py" line="207"/>
         <source>Projects are not loaded.</source>
-        <translation>Projects are not loaded.</translation>
+        <translation type="vanished">Projects are not loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="231"/>
         <source>Issues assigned to me</source>
-        <translation>Issues assigned to me</translation>
+        <translation type="vanished">Issues assigned to me</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="232"/>
         <source>Watched issues</source>
-        <translation>Watched issues</translation>
+        <translation type="vanished">Watched issues</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="822"/>
         <source>Loading watched issues...</source>
-        <translation>Loading watched issues...</translation>
+        <translation type="vanished">Loading watched issues...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="839"/>
-        <location filename="bridge/RedmineBridge.py" line="967"/>
         <source>Invalid issue IDs: %1</source>
-        <translation>Invalid issue IDs: %1</translation>
+        <translation type="vanished">Invalid issue IDs: %1</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="959"/>
         <source>No valid watched issue IDs were found: %1</source>
-        <translation>No valid watched issue IDs were found: %1</translation>
+        <translation type="vanished">No valid watched issue IDs were found: %1</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="575"/>
-        <location filename="bridge/RedmineBridge.py" line="585"/>
         <source>Enter the mobile verification code.</source>
-        <translation>Enter the mobile verification code.</translation>
+        <translation type="vanished">Enter the mobile verification code.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="577"/>
-        <location filename="bridge/RedmineBridge.py" line="578"/>
-        <location filename="bridge/RedmineBridge.py" line="579"/>
-        <location filename="bridge/RedmineBridge.py" line="580"/>
-        <location filename="bridge/RedmineBridge.py" line="586"/>
         <source>Redmine sign-in failed.</source>
-        <translation>Redmine sign-in failed.</translation>
+        <translation type="vanished">Redmine sign-in failed.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="612"/>
-        <location filename="bridge/RedmineBridge.py" line="930"/>
-        <location filename="bridge/RedmineBridge.py" line="953"/>
         <source>Issues assigned to me loaded.</source>
-        <translation>Issues assigned to me loaded.</translation>
+        <translation type="vanished">Issues assigned to me loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="628"/>
         <source>Loading Redmine projects...</source>
-        <translation>Loading Redmine projects...</translation>
+        <translation type="vanished">Loading Redmine projects...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="650"/>
         <source>Redmine project loading failed.</source>
-        <translation>Redmine project loading failed.</translation>
+        <translation type="vanished">Redmine project loading failed.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="655"/>
         <source>Redmine projects loaded.</source>
-        <translation>Redmine projects loaded.</translation>
+        <translation type="vanished">Redmine projects loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="659"/>
         <source>No Redmine projects were loaded. Retry project loading.</source>
-        <translation>No Redmine projects were loaded. Retry project loading.</translation>
+        <translation type="vanished">No Redmine projects were loaded. Retry project loading.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="853"/>
         <source>All types</source>
-        <translation type="unfinished">All types</translation>
+        <translation type="obsolete">All types</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="870"/>
         <source>Search cancelled.</source>
-        <translation>Search cancelled.</translation>
+        <translation type="vanished">Search cancelled.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="1159"/>
         <source>Redmine sign-in cancelled.</source>
-        <translation>Redmine sign-in cancelled.</translation>
+        <translation type="vanished">Redmine sign-in cancelled.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="130"/>
-        <location filename="bridge/RedmineBridge.py" line="239"/>
-        <location filename="bridge/RedmineBridge.py" line="851"/>
         <source>All projects</source>
-        <translation>All projects</translation>
+        <translation type="vanished">All projects</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="852"/>
         <source>All statuses</source>
-        <translation>All statuses</translation>
+        <translation type="vanished">All statuses</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="134"/>
-        <location filename="bridge/RedmineBridge.py" line="200"/>
         <source>Redmine data is not loaded.</source>
-        <translation>Redmine data is not loaded.</translation>
+        <translation type="vanished">Redmine data is not loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="686"/>
-        <location filename="bridge/RedmineBridge.py" line="797"/>
         <source>Loading issues assigned to me...</source>
-        <translation>Loading issues assigned to me...</translation>
+        <translation type="vanished">Loading issues assigned to me...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="802"/>
         <source>Loading Redmine data... {loaded}/{total}</source>
-        <translation>Loading Redmine data... {loaded}/{total}</translation>
+        <translation type="vanished">Loading Redmine data... {loaded}/{total}</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="782"/>
-        <location filename="bridge/RedmineBridge.py" line="805"/>
         <source>Loading Redmine data...</source>
-        <translation>Loading Redmine data...</translation>
+        <translation type="vanished">Loading Redmine data...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="403"/>
-        <location filename="bridge/RedmineBridge.py" line="954"/>
         <source>Redmine data loaded.</source>
-        <translation>Redmine data loaded.</translation>
+        <translation type="vanished">Redmine data loaded.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="896"/>
         <source>Refreshing Redmine issue detail...</source>
-        <translation>Refreshing Redmine issue detail...</translation>
+        <translation type="vanished">Refreshing Redmine issue detail...</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="922"/>
         <source>Issues assigned to me loading failed.</source>
-        <translation>Issues assigned to me loading failed.</translation>
+        <translation type="vanished">Issues assigned to me loading failed.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="924"/>
         <source>Redmine data load failed.</source>
-        <translation>Redmine data load failed.</translation>
+        <translation type="vanished">Redmine data load failed.</translation>
     </message>
     <message>
-        <location filename="bridge/RedmineBridge.py" line="938"/>
         <source>Redmine issue detail refreshed.</source>
-        <translation>Redmine issue detail refreshed.</translation>
+        <translation type="vanished">Redmine issue detail refreshed.</translation>
     </message>
 </context>
 <context>
@@ -2950,87 +2850,75 @@ Updated content:
 <context>
     <name>ReportBridge</name>
     <message>
-        <location filename="bridge/ReportBridge.py" line="53"/>
         <source>{count} DUTs: {serials}</source>
-        <translation>{count} DUTs: {serials}</translation>
+        <translation type="vanished">{count} DUTs: {serials}</translation>
     </message>
     <message>
-        <location filename="bridge/ReportBridge.py" line="54"/>
         <source>{count} DUTs</source>
-        <translation>{count} DUTs</translation>
+        <translation type="vanished">{count} DUTs</translation>
     </message>
     <message>
-        <location filename="bridge/ReportBridge.py" line="63"/>
         <source>No DUT</source>
-        <translation>No DUT</translation>
+        <translation type="vanished">No DUT</translation>
     </message>
 </context>
 <context>
     <name>RunBridge</name>
     <message>
-        <location filename="bridge/RunBridge.py" line="253"/>
-        <source>Failed to start test run. {detail}</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="bridge/RunBridge.py" line="354"/>
         <source>Failed to save run report. {detail}</source>
-        <translation>Failed to save run report. {detail}</translation>
+        <translation type="vanished">Failed to save run report. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="357"/>
-        <source>Failed to finish test run. {detail}</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="bridge/RunBridge.py" line="499"/>
         <source>No selected test cases to run.</source>
-        <translation>No selected test cases to run.</translation>
+        <translation type="vanished">No selected test cases to run.</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="535"/>
         <source>Failed to start pytest run. {detail}</source>
-        <translation>Failed to start pytest run. {detail}</translation>
+        <translation type="vanished">Failed to start pytest run. {detail}</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="122"/>
         <source>Select a DUT before starting the selected test cases.</source>
-        <translation>Select a DUT before starting the selected test cases.</translation>
+        <translation type="vanished">Select a DUT before starting the selected test cases.</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="126"/>
         <source>Missing required parameter: {param} ({case})</source>
-        <translation>Missing required parameter: {param} ({case})</translation>
+        <translation type="vanished">Missing required parameter: {param} ({case})</translation>
     </message>
     <message>
-        <location filename="bridge/RunBridge.py" line="134"/>
         <source>Fix required test parameters before starting.</source>
-        <translation>Fix required test parameters before starting.</translation>
+        <translation type="vanished">Fix required test parameters before starting.</translation>
     </message>
 </context>
 <context>
     <name>ScheduleBridge</name>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="56"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="58"/>
         <source>Not registered</source>
         <translation>Not registered</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="60"/>
         <source>Ready</source>
         <translation>Ready</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="62"/>
         <source>Needs attention</source>
         <translation>Needs attention</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="69"/>
+        <location filename="bridge/ScheduleBridge.py" line="72"/>
         <source>Next run unavailable</source>
         <translation>Next run unavailable</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="72"/>
         <source>Next run: {time}</source>
         <translation>Next run: {time}</translation>
     </message>
@@ -5950,28 +5838,69 @@ Some contents...</translation>
 </context>
 <context>
     <name>T_Tool</name>
-    <message><source>Type: %1</source><translation>Type: %1</translation></message>
-    <message><source>Content: %1</source><translation>Content: %1</translation></message>
-    <message><source>Plan: %1</source><translation>Plan: %1</translation></message>
-    <message><source>Delete schedule?</source><translation>Delete schedule?</translation></message>
-    <message><source>This removes the Windows task, saved schedule, and its stored Daily Report credential.</source><translation>This removes the Windows task, saved schedule, and its stored Daily Report credential.</translation></message>
-    <message><source>Delete</source><translation>Delete</translation></message>
-    <message><source>Cancel</source><translation>Cancel</translation></message>
-    <message><source>Stop</source><translation>Stop</translation></message>
-    <message><source>Enable</source><translation>Enable</translation></message>
-    <message><source>Run now</source><translation>Run now</translation></message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="12"/>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="125"/>
+        <source>Type: %1</source>
+        <translation>Type: %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="131"/>
+        <source>Content: %1</source>
+        <translation>Content: %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="138"/>
+        <source>Plan: %1</source>
+        <translation>Plan: %1</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="27"/>
+        <source>Delete schedule?</source>
+        <translation>Delete schedule?</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="28"/>
+        <source>This removes the Windows task, saved schedule, and its stored Daily Report credential.</source>
+        <translation>This removes the Windows task, saved schedule, and its stored Daily Report credential.</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="29"/>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="172"/>
+        <source>Delete</source>
+        <translation>Delete</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="30"/>
+        <source>Cancel</source>
+        <translation>Cancel</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="158"/>
+        <source>Stop</source>
+        <translation>Stop</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="158"/>
+        <source>Enable</source>
+        <translation>Enable</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="165"/>
+        <source>Run now</source>
+        <translation>Run now</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="13"/>
         <source>Tool</source>
         <translation>Tool</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="160"/>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="218"/>
         <source>Custom Tools</source>
         <translation>Custom Tools</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="196"/>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="254"/>
         <source>Select a tool</source>
         <translation>Select a tool</translation>
     </message>
@@ -5980,17 +5909,17 @@ Some contents...</translation>
         <translation type="vanished">Tools for this group will appear here.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="293"/>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="402"/>
         <source>This area is reserved for the selected tool. Execution is not available yet.</source>
         <translation>This area is reserved for the selected tool. Execution is not available yet.</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="67"/>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="80"/>
         <source>Schedule</source>
         <translation>Schedule</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/page/T_Tool.qml" line="78"/>
+        <location filename="imports/example/qml/page/T_Tool.qml" line="91"/>
         <source>No SmartTest Windows schedules are configured.</source>
         <translation>No SmartTest Windows schedules are configured.</translation>
     </message>

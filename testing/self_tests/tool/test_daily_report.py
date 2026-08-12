@@ -533,6 +533,69 @@ def test_send_preview_does_not_render_long_image_and_preview_does_not_send(tmp_p
     assert sends[0]["to"] == project.to and sends[0]["cc"] == project.cc
 
 
+def test_delivery_mode_defaults_public_and_persists_personal(tmp_path):
+    from tool.common.daily_report.delivery import DeliveryModeStore
+    store = DeliveryModeStore(tmp_path / "delivery.json")
+    assert store.load() == "public"
+    store.save("personal")
+    assert DeliveryModeStore(store.path).load() == "personal"
+    with pytest.raises(ValueError, match="public or personal"):
+        store.save("smtp")
+
+
+def test_personal_mode_renders_full_page_image_and_never_falls_back(tmp_path):
+    from tool.common.daily_report.delivery import DeliveryModeStore
+    html = tmp_path / "report.html"; html.write_text("<html></html>", "utf-8")
+    artifacts = type("Artifacts", (), {"html_path": html})()
+    report = type("Report", (), {
+        "project": PROJECTS[0], "day": date(2026, 8, 4), "artifacts": artifacts,
+    })()
+    mode = DeliveryModeStore(tmp_path / "delivery.json"); mode.save("personal")
+    renders, personal, public = [], [], []
+    service = DailyReportService(
+        issue_service_factory=lambda *_args: None, project_store=object(),
+        report_root=tmp_path, delivery_mode=mode,
+        sender=lambda **kwargs: public.append(kwargs),
+        personal_sender=lambda **kwargs: personal.append(kwargs),
+        long_image_renderer=lambda source, output: renders.append((source, output)) or output,
+        logger=lambda *_args, **_kwargs: None,
+    )
+
+    results = service.send_preview(type("Batch", (), {"reports": (report,)})())
+
+    assert results[0].status == "sent"
+    assert public == []
+    assert renders == [(html, html.parent / "daily-report.png")]
+    assert personal == [{
+        "subject": f"{PROJECTS[0].subject} 2026-08-04",
+        "image_path": html.parent / "daily-report.png",
+        "to": PROJECTS[0].to, "cc": PROJECTS[0].cc,
+    }]
+
+
+def test_bridge_persists_global_delivery_mode_without_external_work(tmp_path):
+    from tool.common.daily_report.delivery import DeliveryModeStore
+    from ui.example.bridge.DailyReportBridge import DailyReportBridge
+    mode = DeliveryModeStore(tmp_path / "delivery.json")
+    calls = []
+    bridge = DailyReportBridge(
+        object(), service=object(),
+        projects=ProjectConfigStore(tmp_path / "projects.json"),
+        schedule=type("Schedule", (), {"load": lambda _self: None})(),
+        credentials=object(), delivery_mode=mode,
+    )
+    bridge.stateChanged.connect(lambda: calls.append("changed"))
+    assert bridge.personalMailbox is False
+    assert bridge.mailboxLabel == "Public mailbox (fae-qa-auto)"
+
+    bridge.setPersonalMailbox(True)
+
+    assert mode.load() == "personal"
+    assert bridge.personalMailbox is True
+    assert bridge.mailboxLabel == "LDAP personal mailbox"
+    assert calls == ["changed"]
+
+
 def test_preview_isolates_one_project_query_failure(tmp_path):
     class Jira:
         def search_records(self, jql, **_kwargs):
@@ -802,6 +865,8 @@ def test_managed_qml_has_no_duplicate_title_and_exposes_approved_actions():
     assert "visible: !editing" in source
     assert "visible: editing" in source
     assert 'text: editing ? qsTr("Save project") : qsTr("Edit")' in source
+    assert "text: DailyReportBridge.mailboxLabel" in source
+    assert "DailyReportBridge.setPersonalMailbox(checked)" in source
 
 
 def test_bridge_automatically_selects_first_generated_preview_without_selection_slot(tmp_path):

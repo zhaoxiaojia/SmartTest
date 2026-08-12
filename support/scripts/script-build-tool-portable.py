@@ -4,11 +4,16 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import time
 import zipfile
 
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from support.packaging.tool_runtime_resources import missing_required
+
 DIST_ROOT = ROOT / "dist_tool"
 APP_NAME = "SmartTestTool"
 FORBIDDEN_TOKENS = ("cv2", "testing", "android_client")
@@ -30,6 +35,9 @@ def validate_distribution(app_dir: Path) -> dict[str, int]:
     executable = app_dir / f"{APP_NAME}.exe"
     if not executable.is_file():
         raise RuntimeError(f"Missing portable executable: {executable}")
+    missing = missing_required(app_dir)
+    if missing:
+        raise RuntimeError("Missing portable runtime resources: " + ", ".join(missing))
     files = sorted(path for path in app_dir.rglob("*") if path.is_file())
     offending = [
         str(path.relative_to(app_dir)) for path in files
@@ -116,6 +124,19 @@ def validate_smoke_imports(executable: Path) -> None:
         raise RuntimeError("Portable smoke imports did not report PASS")
 
 
+def validate_context_smoke(executable: Path) -> None:
+    result = subprocess.run(
+        [str(executable), "--portable-smoke-context"],
+        cwd=executable.parent, capture_output=True, text=True, timeout=30,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            "Portable context smoke failed: " + result.stderr + result.stdout
+        )
+    if "SmartTestTool portable context: PASS" not in result.stdout:
+        raise RuntimeError("Portable context smoke did not report PASS")
+
+
 def main() -> None:
     import env
 
@@ -145,6 +166,7 @@ def main() -> None:
         executable, Path(env.pyinstaller()).with_name("pyi-archive_viewer.exe")
     )
     validate_smoke_imports(executable)
+    validate_context_smoke(executable)
     validate_startup(executable)
     archive = create_portable_zip(app_dir, manifest["version"], DIST_ROOT)
     metrics = build_metrics(

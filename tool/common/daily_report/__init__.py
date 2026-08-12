@@ -2,6 +2,7 @@
 
 from .report import PROJECTS, ProjectConfig
 from .projects import ProjectConfigStore
+from .delivery import DeliveryModeStore
 from .schedule import DailyReportScheduleManager
 from .service import (
     DailyReportBatch,
@@ -16,6 +17,7 @@ __all__ = [
     "PROJECTS",
     "DailyReportBatch",
     "DailyReportError",
+    "DeliveryModeStore",
     "DailyReportService",
     "ProjectConfig",
     "ProjectConfigStore",

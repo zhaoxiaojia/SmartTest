@@ -14,6 +14,7 @@ from support.logging import smart_log
 from support.windows_credentials import WindowsCredentialStore
 
 from .projects import ProjectConfigStore
+from .delivery import DeliveryModeStore
 from .schedule import DailyReportScheduleManager
 from .service import DailyReportService
 
@@ -57,6 +58,7 @@ def run_scheduled_batch(
         service = DailyReportService(
             issue_service_factory=issue_factory,
             project_store=ProjectConfigStore(root / "projects.json"),
+            delivery_mode=DeliveryModeStore(root / "delivery.json"),
             report_root=root / "reports", jira_base_url=base_url,
         )
     stage = "schedule_load"

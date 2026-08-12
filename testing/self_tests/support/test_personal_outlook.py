@@ -212,6 +212,19 @@ def test_uia_submit_closes_after_direct_primary_send():
     assert send.invocations == 1
 
 
+def test_initial_primary_send_waits_until_uia_control_is_ready():
+    send = _Button("Send", "primaryActionButton")
+    platform = WindowsOutlookPlatform(wait=lambda _seconds: None)
+    rounds = iter(([], [], [send]))
+    platform._buttons = lambda _compose: next(rounds)
+    states = iter((True, True, True, False))
+    platform._window_open = lambda _handle: next(states)
+
+    platform.submit_draft(object(), 1, 42)
+
+    assert send.invocations == 1
+
+
 def test_uia_submit_confirms_modal_that_replaces_primary_then_sends_again():
     send = _Button("Send", "primaryActionButton")
     confirm = _Button("确定", "")
@@ -219,7 +232,7 @@ def test_uia_submit_confirms_modal_that_replaces_primary_then_sends_again():
     platform = WindowsOutlookPlatform(wait=lambda _seconds: None)
     rounds = iter(([send], [confirm], [send]))
     platform._buttons = lambda _compose: next(rounds)
-    open_states = iter((True, True, False))
+    open_states = iter((True, True, True, False))
     platform._window_open = lambda _compose: next(open_states)
     original_invoke = confirm.invoke
     def invoke_confirm():
@@ -250,7 +263,7 @@ def test_uia_submit_repeats_confirmation_until_compose_closes():
     platform = WindowsOutlookPlatform(wait=lambda _seconds: None)
     rounds = iter(([send], [confirm], [send], [confirm], [send]))
     platform._buttons = lambda _compose: next(rounds)
-    open_states = iter((True, True, True, True, False))
+    open_states = iter((True, True, True, True, True, False))
     platform._window_open = lambda _compose: next(open_states)
     original_confirm = confirm.invoke
     def invoke_confirm():
@@ -315,7 +328,8 @@ def test_submit_uses_stable_handle_when_original_wrapper_loses_handle():
     send = _Button("Send", "primaryActionButton")
     platform = WindowsOutlookPlatform(wait=lambda _seconds: None)
     platform._buttons = lambda _compose: [send]
-    platform.windows = lambda: []
+    window_rounds = iter(([(compose, "olk.exe", "Draft")], []))
+    platform.windows = lambda: next(window_rounds)
     original_invoke = send.invoke
     def invoke_send():
         original_invoke(); info.handle = None

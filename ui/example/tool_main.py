@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from example.imports import tool_resource_rc as _tool_resource_rc
+from support.packaging.tool_runtime_resources import missing_required
 
 
 TOOL_CONTEXT_NAMES = (
@@ -43,11 +44,21 @@ def portable_smoke_imports() -> None:
 def runtime_root() -> Path:
     if getattr(sys, "frozen", False):
         executable_root = Path(sys.executable).resolve().parent
-        if (executable_root / "config" / "personnel.json").is_file():
-            return executable_root
-    packaged_root = Path(getattr(sys, "_MEIPASS", ""))
-    if packaged_root and (packaged_root / "config" / "personnel.json").is_file():
-        return packaged_root
+        packaged_value = getattr(sys, "_MEIPASS", "")
+        candidates = [executable_root]
+        if packaged_value:
+            packaged_root = Path(packaged_value).resolve()
+            if packaged_root not in candidates:
+                candidates.append(packaged_root)
+        for candidate in candidates:
+            if not missing_required(candidate):
+                return candidate
+        missing = missing_required(executable_root)
+        raise RuntimeError(
+            "SmartTestTool portable runtime resources are incomplete; missing: "
+            + ", ".join(missing)
+            + ". Run the executable from the complete SmartTestTool directory."
+        )
     return Path(__file__).resolve().parents[2]
 
 
@@ -84,7 +95,7 @@ def create_context_objects(engine) -> dict[str, object]:
         QCoreApplication.setApplicationName("SmartTest")
 
     root = runtime_root()
-    auth = AuthBridge()
+    auth = AuthBridge(project_root=root)
     migrate_frontend_state(app_data_dir() / "frontend_state.json")
     translate = TranslateHelper()
     translate.init(engine)
@@ -106,9 +117,23 @@ def create_context_objects(engine) -> dict[str, object]:
     }
 
 
+def portable_context_smoke(engine) -> None:
+    objects = create_context_objects(engine)
+    auth = objects.get("AuthBridge")
+    if not isinstance(getattr(auth, "_personnel", None), dict):
+        raise RuntimeError("SmartTestTool AuthBridge personnel resource was not loaded")
+    print("SmartTestTool portable context: PASS")
+
+
 def main() -> None:
     if "--portable-smoke-imports" in sys.argv:
         portable_smoke_imports()
+        return
+    if "--portable-smoke-context" in sys.argv:
+        from PySide6.QtCore import QCoreApplication
+        from PySide6.QtQml import QQmlEngine
+        app = QCoreApplication(sys.argv)
+        portable_context_smoke(QQmlEngine())
         return
     from qasync import QEventLoop
     from PySide6.QtCore import QProcess, QUrl

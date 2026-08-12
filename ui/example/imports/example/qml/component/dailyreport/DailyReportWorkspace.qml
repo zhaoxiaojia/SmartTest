@@ -23,6 +23,12 @@ FluFrame {
             FluButton { objectName: "dailyReportGeneratePreview"; text: qsTr("Generate previews"); enabled: DailyReportBridge.state !== "running"; onClicked: DailyReportBridge.generatePreview() }
             FluButton { objectName: "dailyReportSendNow"; text: qsTr("Send now"); enabled: DailyReportBridge.previewValid && DailyReportBridge.state !== "running"; onClicked: DailyReportBridge.sendPreview() }
             FluButton { objectName: "dailyReportSchedule"; text: qsTr("Schedule delivery"); onClicked: root.scheduling = !root.scheduling }
+            FluToggleSwitch {
+                objectName: "dailyReportPersonalMailbox"
+                text: DailyReportBridge.mailboxLabel
+                checked: DailyReportBridge.personalMailbox
+                onClicked: DailyReportBridge.setPersonalMailbox(checked)
+            }
         }
         FluText { text: DailyReportBridge.statusText; color: FluTheme.fontSecondaryColor }
         FluProgressBar { visible: DailyReportBridge.state === "running"; indeterminate: true; Layout.fillWidth: true }
