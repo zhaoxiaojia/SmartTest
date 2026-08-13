@@ -34,6 +34,22 @@ class AuthAccountStore:
     def last_account_id(self) -> str:
         return str(self._data.get("last_account_id", "") or "")
 
+    @property
+    def active_account_id(self) -> str:
+        return str(self._data.get("active_account_id", "") or "")
+
+    def set_active_account(self, account_id: str) -> bool:
+        if not self.get(account_id):
+            return False
+        self._data["active_account_id"] = account_id
+        self._save()
+        return True
+
+    def clear_active_account(self) -> None:
+        if self.active_account_id:
+            self._data["active_account_id"] = ""
+            self._save()
+
     def accounts(self) -> list[dict[str, Any]]:
         return sorted(
             (dict(item) for item in self._data["accounts"]),
@@ -93,12 +109,6 @@ class AuthAccountStore:
                 return True
         return False
 
-    def auto_login_accounts(self) -> list[dict[str, Any]]:
-        return [
-            item for item in self.accounts()
-            if item.get("auto_login") and item.get("remember_password")
-        ]
-
     def remove(self, account_id: str) -> bool:
         before = len(self._data["accounts"])
         self._data["accounts"] = [item for item in self._data["accounts"] if item["account_id"] != account_id]
@@ -107,6 +117,8 @@ class AuthAccountStore:
         if self.last_account_id == account_id:
             ordered = self.accounts()
             self._data["last_account_id"] = ordered[0]["account_id"] if ordered else ""
+        if self.active_account_id == account_id:
+            self._data["active_account_id"] = ""
         self._save()
         return True
 
@@ -129,6 +141,7 @@ class AuthAccountStore:
         return {
             "schema_version": SCHEMA_VERSION,
             "last_account_id": "",
+            "active_account_id": "",
             "accounts": [],
             "pending_credential_cleanup": [],
         }
@@ -142,6 +155,7 @@ class AuthAccountStore:
                 raise ValueError("invalid account index")
             clean = self._empty()
             clean["last_account_id"] = str(data.get("last_account_id", "") or "")
+            clean["active_account_id"] = str(data.get("active_account_id", "") or "")
             clean["pending_credential_cleanup"] = [
                 str(value) for value in data.get("pending_credential_cleanup", [])
                 if isinstance(value, str)

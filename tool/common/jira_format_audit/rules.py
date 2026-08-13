@@ -118,6 +118,7 @@ _RULE_DATA = (
     ("DESCRIPTION.RATE_FORMAT", "Description", "Description.Reproducibility rate", "复现概率必须是百分比、分数或明确的文字次数，例如 50%、1/2 或出现一次。", "改为百分比、分数或“出现/复现 + 数字 + 次”；文字次数后可补充一组半角或全角括号说明。"),
     ("DESCRIPTION.NOTES_HW", "Description", "Description.Notes", "Notes 必须包含“HW info: ...”。", "补充 HW info。"),
     ("DESCRIPTION.NOTES_SW", "Description", "Description.Notes", "Notes 必须包含“SW info: ...”。", "补充 SW info。"),
+    ("DESCRIPTION.TABLE_REQUIRED_VALUE", "Description", "Description.测试信息", "第二套 Description 表格中每一行的测试信息均不能为空。", "在对应行的测试信息列填写内容；允许填写“无”或“-”。"),
 )
 _RULES = tuple(AuditRule(*row) for row in _RULE_DATA)
 
@@ -470,6 +471,19 @@ def _parse_summary_format(
 
 
 def _audit_description(description: str, fail: _Failure) -> dict[str, str]:
+    table_rows = _second_description_table_rows(description)
+    if table_rows is not None:
+        for row_number, field_name, value in table_rows:
+            if value.strip():
+                continue
+            row_label = field_name.strip() or f"第 {row_number} 行"
+            fail(
+                "DESCRIPTION.TABLE_REQUIRED_VALUE",
+                description,
+                f"Description 表格中“{row_label}”行的测试信息为空。",
+            )
+        return {}
+
     sections = _description_sections(description)
     has_hw_info = _notes_have_info(description, "hw")
     has_sw_info = _notes_have_info(description, "sw")
@@ -511,6 +525,30 @@ def _audit_description(description: str, fail: _Failure) -> dict[str, str]:
                 f"Notes 缺少已填写的{label}信息“{marker}: ...”。",
             )
     return sections
+
+
+def _second_description_table_rows(
+    description: str,
+) -> list[tuple[int, str, str]] | None:
+    header = ("模块", "需要填写信息", "测试信息")
+    lines = description.splitlines()
+    for header_index, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped.startswith("||") or not stripped.endswith("||"):
+            continue
+        if tuple(cell.strip() for cell in stripped[2:-2].split("||")) != header:
+            continue
+        rows: list[tuple[int, str, str]] = []
+        for row_number, row_line in enumerate(lines[header_index + 1:], 1):
+            row_text = row_line.strip()
+            if not row_text.startswith("|") or not row_text.endswith("|"):
+                continue
+            cells = row_text[1:-1].split("|")
+            if len(cells) < 3:
+                continue
+            rows.append((row_number, cells[1], cells[2]))
+        return rows
+    return None
 
 
 def _description_sections(description: str) -> dict[str, str]:

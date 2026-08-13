@@ -30,6 +30,7 @@ RULE_IDS = tuple(
     DESCRIPTION.STEPS_TO_REPRODUCE DESCRIPTION.ACTUAL_RESULTS
     DESCRIPTION.EXPECTED_RESULTS DESCRIPTION.COMPARISON DESCRIPTION.NOTES
     DESCRIPTION.RATE_FORMAT DESCRIPTION.NOTES_HW DESCRIPTION.NOTES_SW
+    DESCRIPTION.TABLE_REQUIRED_VALUE
     """.split()
 )
 _DEFAULT_CREATOR = object()
@@ -53,6 +54,22 @@ def _description(
         ("Notes", notes),
     )
     return "\n".join(f"[{heading}]:\n{value}" for heading, value in values)
+
+
+def _table_description(*rows):
+    values = (
+        ("平台信息", "客户/项目代号", "T6X高刷"),
+        ("", "主芯片", "T966D5"),
+        ("测试环境", "测试仪器", "-"),
+        ("测试设置", "HDMI输出", "无"),
+        *rows,
+    )
+    return "\n".join(
+        (
+            "||模块||需要填写信息||测试信息||",
+            *("|" + "|".join(row) + "|" for row in values),
+        )
+    )
 
 
 def _issue(
@@ -228,6 +245,47 @@ def test_all_supported_english_headings_work_without_brackets():
     description = _description().replace("[", "").replace("]", "")
 
     assert not _violations(description=description)
+
+
+def test_second_description_template_accepts_nonempty_third_column_values():
+    result = audit_issue(
+        _issue(description=_table_description()),
+        base_url="https://jira.example.com",
+    )
+
+    assert result.passed
+
+
+def test_second_description_template_reports_every_empty_third_column_row():
+    result = audit_issue(
+        _issue(
+            description=_table_description(
+                ("测试环境", "测试地点", ""),
+                ("", "测试人员/日期", "   "),
+            )
+        ),
+        base_url="https://jira.example.com",
+    )
+
+    violations = [
+        item
+        for item in result.violations
+        if item.rule_id == "DESCRIPTION.TABLE_REQUIRED_VALUE"
+    ]
+    assert [item.field for item in violations] == [
+        "Description.测试信息",
+        "Description.测试信息",
+    ]
+    assert [item.reason for item in violations] == [
+        "Description 表格中“测试地点”行的测试信息为空。",
+        "Description 表格中“测试人员/日期”行的测试信息为空。",
+    ]
+
+
+def test_non_table_description_still_uses_first_description_template_rules():
+    assert _violations(description=_description(actual="")) == {
+        "DESCRIPTION.ACTUAL_RESULTS"
+    }
 
 
 EMPTY_DESCRIPTION = _description(

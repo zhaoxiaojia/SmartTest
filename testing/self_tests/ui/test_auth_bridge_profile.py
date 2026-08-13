@@ -389,16 +389,17 @@ def test_manual_login_persists_only_selected_account_credential(tmp_path):
     assert bridge.accounts[0]["rememberPassword"] is True
     assert bridge.accounts[0]["label"] == "Alice (alice)  🔒"
     assert credentials.values == {account_id: ("alice", "secret")}
+    assert bridge._account_store.active_account_id == account_id
     assert "secret" not in (tmp_path / "auth_accounts.json").read_text(encoding="utf-8")
 
 
 def test_saved_account_switch_failure_stays_signed_out(tmp_path):
     credentials = _MemoryCredentials()
-    bridge = AuthBridge(project_root=ROOT, state_root=tmp_path, credential_store=credentials, authentication_runner=_sync_auth)
-    bridge._ldap_authenticate = _successful_auth
-    bridge.login("alice", "a", True)
-    bridge.login("bob", "b", True)
+    seed = AuthAccountStore(tmp_path)
     alice_id = account_id_for_username("alice")
+    seed.record_login("alice", "Alice", True)
+    credentials.values[alice_id] = ("alice", "a")
+    bridge = AuthBridge(project_root=ROOT, state_root=tmp_path, credential_store=credentials, authentication_runner=_sync_auth)
     bridge._ldap_authenticate = lambda *_: {"success": False, "username": "", "detail": "bad"}
     result = bridge.selectAccount(alice_id)
     assert result["success"] is False
@@ -416,13 +417,13 @@ def test_saved_credential_unavailable_keeps_secret_and_preferences_for_auto_logi
     bridge = AuthBridge(project_root=ROOT, state_root=tmp_path, credential_store=credentials, authentication_runner=jobs.append)
     bridge._ldap_authenticate = lambda *_: {"success": False, "code": "ldap_unavailable", "detail": "dns"}
     bridge.startAutoLogin()
-    jobs.pop()()
     account = bridge._account_store.get(account_id)
     assert credentials.values[account_id] == ("alice", "saved-secret")
     assert account["remember_password"] is True
     assert account["auto_login"] is True
     assert bridge.authenticated is False
     assert bridge.authBusy is False
+    assert jobs == []
 
 
 def test_saved_credential_unavailable_keeps_secret_and_preferences_for_switch(tmp_path):
@@ -456,7 +457,7 @@ def test_logout_and_auto_login_follow_per_account_remember_choice(tmp_path):
     bridge.startAutoLogin()
     bridge.logout()
     bridge.startAutoLogin()
-    assert calls == [("alice", "a")]
+    assert calls == []
     bridge.login("alice", "new", False)
     bridge.logout()
     assert alice_id not in credentials.values
@@ -472,6 +473,8 @@ def test_remove_account_deletes_only_target_credential(tmp_path):
     assert account_id_for_username("alice") not in credentials.values
     assert account_id_for_username("bob") in credentials.values
     assert [item["username"] for item in bridge.accounts] == ["bob"]
+    bridge.removeAccount(account_id_for_username("bob"))
+    assert bridge._account_store.active_account_id == ""
 
 
 def test_use_other_account_ends_session_without_deleting_saved_history(tmp_path):
@@ -1181,18 +1184,116 @@ def test_store_allows_only_one_auto_login_account(tmp_path):
     assert store.get(bob)["auto_login"] is False
 
 
-def test_start_auto_login_prefers_enabled_recent_account_over_last_account(tmp_path):
+def test_start_auto_login_restores_active_account_instead_of_last_selected_account(tmp_path):
     credentials = _MemoryCredentials()
     seed = AuthAccountStore(tmp_path)
     auto_id = seed.record_login("auto.user", "Auto", True, "2026-08-12T08:00:00+08:00", auto_login=True)
     seed.record_login("last.user", "Last", False, "2026-08-12T09:00:00+08:00")
+    seed.set_active_account(auto_id)
     credentials.values[auto_id] = ("auto.user", "saved-secret")
     jobs = []
     bridge = AuthBridge(project_root=ROOT, state_root=tmp_path, credential_store=credentials, authentication_runner=jobs.append)
     bridge.startAutoLogin()
     assert bridge.selectedAccountId == auto_id
-    assert bridge.authBusy is True
-    assert len(jobs) == 1
+    assert bridge.authenticated is True
+    assert bridge.authBusy is False
+    assert jobs == []
+
+
+def test_start_auto_login_restores_active_account_without_ldap_or_credential_read(tmp_path):
+    credentials = _MemoryCredentials()
+    bridge = AuthBridge(
+        project_root=ROOT, state_root=tmp_path, credential_store=credentials,
+        authentication_runner=_sync_auth,
+    )
+    bridge._ldap_authenticate = _successful_auth
+    bridge.setRememberPassword(True)
+    bridge.setAutoLogin(True)
+    bridge.login("chao.li", "secret", True)
+    account_id = account_id_for_username("chao.li")
+    avatar = bridge._avatar_path_for_username("chao.li")
+    avatar.parent.mkdir(parents=True, exist_ok=True)
+    avatar.write_bytes(b"avatar")
+
+    class UnavailableCredentials(_MemoryCredentials):
+        def read(self, ref):
+            raise AssertionError("startup must not read credentials")
+
+    restarted = AuthBridge(
+        project_root=ROOT, state_root=tmp_path,
+        credential_store=UnavailableCredentials(),
+        authentication_runner=lambda _: (_ for _ in ()).throw(AssertionError("startup must not authenticate")),
+    )
+    restarted._ldap_authenticate = lambda *_: (_ for _ in ()).throw(AssertionError("startup must not use LDAP"))
+    restarted.startAutoLogin()
+
+    assert restarted.authenticated is True
+    assert restarted.selectedAccountId == account_id
+    assert restarted.authState == "authenticated"
+    assert restarted.displayName == "Chao Li"
+    assert restarted.roleText == "Sr. QA Engineer"
+    assert restarted.avatarUrl == avatar.as_uri()
+
+
+def test_logout_clears_active_session_so_restart_stays_signed_out(tmp_path):
+    credentials = _MemoryCredentials()
+    bridge = AuthBridge(project_root=ROOT, state_root=tmp_path, credential_store=credentials, authentication_runner=_sync_auth)
+    bridge._ldap_authenticate = _successful_auth
+    bridge.setRememberPassword(True)
+    bridge.setAutoLogin(True)
+    bridge.login("alice", "secret", True)
+    bridge.logout()
+
+    restarted = AuthBridge(project_root=ROOT, state_root=tmp_path, credential_store=credentials, authentication_runner=_sync_auth)
+    restarted._ldap_authenticate = lambda *_: (_ for _ in ()).throw(AssertionError("startup must not use LDAP"))
+    restarted.startAutoLogin()
+
+    assert restarted.authenticated is False
+
+
+def test_failed_switch_preserves_authenticated_account_and_avatar(tmp_path):
+    credentials = _MemoryCredentials()
+    bridge = AuthBridge(project_root=ROOT, state_root=tmp_path, credential_store=credentials, authentication_runner=_sync_auth)
+    bridge._ldap_authenticate = _successful_auth
+    bridge.login("alice", "a", True)
+    alice_id = account_id_for_username("alice")
+    avatar = bridge._avatar_path_for_username("alice")
+    avatar.parent.mkdir(parents=True, exist_ok=True)
+    avatar.write_bytes(b"avatar")
+    bridge._avatar_url = avatar.as_uri()
+    bridge._ldap_authenticate = _successful_auth
+    bridge.login("bob", "b", True)
+    bob_id = account_id_for_username("bob")
+    bridge.selectAccount(alice_id)
+    bridge._ldap_authenticate = lambda *_: {"success": False, "code": "ldap_unavailable", "detail": "offline"}
+
+    bridge.selectAccount(bob_id)
+
+    assert bridge.authenticated is True
+    assert bridge.selectedAccountId == alice_id
+    assert bridge.currentUsername() == "alice"
+    assert bridge.avatarUrl == avatar.as_uri()
+    assert bridge._account_store.active_account_id == alice_id
+
+
+def test_legacy_account_file_without_active_session_stays_signed_out(tmp_path):
+    account_id = account_id_for_username("alice")
+    (tmp_path / "auth_accounts.json").write_text(json.dumps({
+        "schema_version": 1,
+        "last_account_id": account_id,
+        "accounts": [{
+            "account_id": account_id, "username": "alice", "display_name": "Alice",
+            "remember_password": True, "auto_login": True,
+            "last_login_at": "2026-08-12T09:00:00+08:00",
+        }],
+        "pending_credential_cleanup": [],
+    }), encoding="utf-8")
+    bridge = AuthBridge(project_root=ROOT, state_root=tmp_path, credential_store=_MemoryCredentials(), authentication_runner=_sync_auth)
+    bridge._ldap_authenticate = lambda *_: (_ for _ in ()).throw(AssertionError("legacy startup must not use LDAP"))
+
+    bridge.startAutoLogin()
+
+    assert bridge.authenticated is False
 
 
 def test_remove_selected_account_loads_recent_history_without_authenticating(tmp_path):
