@@ -8,32 +8,6 @@ import json
 import re
 
 
-DEFAULTS = {
-    "project_name": "A9 Yocto",
-    "project_label": "Linux-A9_Yocto",
-    "jql": "status not in (Closed, Done, Verified) AND labels = Linux-A9_Yocto",
-    "recipients": "chao.li@amlogic.com",
-    "cc": "",
-    "subject": "[A9 Yocto] 公版状态日报",
-    "detail_priorities": "P0,P1",
-    "trend_days": 14,
-    "stale_days": 7,
-    "send_email": False,
-}
-
-DESCRIPTIONS = {
-    "project_name": "报告中显示的项目名称",
-    "project_label": "历史 Jira 查询使用的项目标签",
-    "jql": "当前未关闭 Issue 的 Jira JQL",
-    "recipients": "收件人邮箱，多个地址用逗号或分号分隔",
-    "cc": "抄送邮箱，多个地址用逗号或分号分隔，可留空",
-    "subject": "日报邮件主题",
-    "detail_priorities": "明细优先级，多个值用逗号分隔",
-    "trend_days": "趋势天数，范围 2 到 365",
-    "stale_days": "停滞判定天数，范围 1 到 365",
-    "send_email": "是否发送邮件，默认为 false",
-}
-
 _EMAIL = re.compile(r"^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$")
 
 
@@ -92,8 +66,17 @@ def _records(result):
     return tuple(normalized.values())
 
 
-def _history_jql(day, label):
-    return f'status WAS NOT IN (Closed, Done, Verified) ON "{day.isoformat()}" AND labels = {label}'
+def _history_jql(day, jql):
+    historical_status = (
+        f'status WAS NOT IN (Closed, Done, Verified) ON "{day.isoformat()}"'
+    )
+    status_filter = re.compile(
+        r"\bstatus\s+(?:was\s+)?not\s+in\s*\([^)]*\)(?:\s+on\s+\"[^\"]+\")?",
+        re.IGNORECASE,
+    )
+    if status_filter.search(jql):
+        return status_filter.sub(historical_status, jql, count=1)
+    return f"{historical_status} AND ({jql})"
 
 
 def _search_issues(wf, jql):
@@ -171,10 +154,31 @@ def _boolean(value, name):
 
 def _validated_config(wf):
     config = {
-        name: wf.input(name, default, description=DESCRIPTIONS[name])
-        for name, default in DEFAULTS.items()
+        "project_name": wf.input("project_name", "", description="项目名称"),
+        "jql": wf.input(
+            "jql",
+            "status not in (Closed, Done, Verified) AND labels = Linux-A9_Yocto",
+            description="当前未关闭 Issue 的 Jira JQL",
+        ),
+        "recipients": wf.input(
+            "recipients", "chao.li@amlogic.com", description="收件人列表"
+        ),
+        "cc": wf.input(
+            "cc",
+            "ping.xiong@amlogic.com,xiuyue.zhang@amlogic.com",
+            description="抄送人列表",
+        ),
+        "subject": wf.input(
+            "subject", "[A9 Yocto] 公版状态日报", description="邮件主题"
+        ),
+        "detail_priorities": wf.input(
+            "detail_priorities", "P0,P1", description="明细优先级，多个值用逗号分隔"
+        ),
+        "trend_days": wf.input("trend_days", 14, description="趋势天数，范围 2 到 365"),
+        "stale_days": wf.input("stale_days", 7, description="停滞判定天数，范围 1 到 365"),
+        "send_email": wf.input("send_email", True, description="是否发送邮件"),
     }
-    for name in ("project_name", "project_label", "jql", "subject"):
+    for name in ("project_name", "jql", "subject"):
         value = config[name]
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"{name} must not be empty")
@@ -236,6 +240,70 @@ def _decoded_png(payload):
     return decoded.hex().startswith("89504e470d0a1a0a")
 
 
+def _png_summary(content):
+    signature = content.hex().startswith("89504e470d0a1a0a")
+    width = None
+    height = None
+    if signature and len(content) >= 24 and content[12:16].hex() == "49484452":
+        width = sum(content[16 + index] << (24 - index * 8) for index in range(4))
+        height = sum(content[20 + index] << (24 - index * 8) for index in range(4))
+    return len(content), signature, width, height
+
+
+def _image_summary(html, marker):
+    image = re.search(
+        r'<img[^>]*data-chart="' + re.escape(marker)
+        + r'"[^>]*src="data:image/png;base64,([A-Za-z0-9+/=]+)"',
+        html,
+    )
+    if not image:
+        return -1, -1, 0, 0, False, None, None
+    payload = image.group(1)
+    decoded = base64.b64decode(payload, validate=True)
+    length, signature, width, height = _png_summary(decoded)
+    return image.start(1), image.end(1), len(payload), length, signature, width, height
+
+
+def _image_dimensions(html, marker):
+    image = re.search(
+        r'<img[^>]*data-chart="' + re.escape(marker) + r'"[^>]*>', html
+    )
+    if not image:
+        return None, None
+    markup = image.group(0)
+    width = re.search(r'\swidth="([0-9]+)"', markup)
+    height = re.search(r'\sheight="([0-9]+)"', markup)
+    return width.group(1) if width else None, height.group(1) if height else None
+
+
+def _log_html_summary(wf, stage, html, config, boundary="html", extra=""):
+    status = _image_summary(html, "status-composition")
+    trend = _image_summary(html, "unclosed-trend")
+    status_dimensions = _image_dimensions(html, "status-composition")
+    trend_dimensions = _image_dimensions(html, "unclosed-trend")
+    header = re.search(r'<(\w+)[^>]*data-section="report-header"[^>]*>', html)
+    header_markup = header.group(0) if header else ""
+    title = escape(config["project_name"]) + " 公版状态日报"
+    wf.log(
+        "TEMP_DIAGNOSTIC boundary={} stage={} html_length={} title_present={} "
+        "project_name_present={} subject_present={} header_count={} header_tag={} "
+        "header_bgcolor={} header_inline_background={} header_inline_color={} "
+        "status_start={} status_end={} status_payload_length={} status_png_length={} status_signature={} "
+        "status_width={} status_height={} trend_start={} trend_end={} trend_payload_length={} "
+        "trend_png_length={} trend_signature={} trend_width={} trend_height={} "
+        "status_img_width={} status_img_height={} trend_img_width={} trend_img_height={}{}".format(
+            boundary, stage, len(html), title in html, escape(config["project_name"]) in html,
+            escape(config["subject"]) in html, html.count('data-section="report-header"'),
+            header.group(1) if header else "none", 'bgcolor="#132f5f"' in header_markup,
+            "background:#132f5f" in header_markup, "color:#ffffff" in header_markup,
+            status[0], status[1], status[2], status[3], status[4], status[5], status[6],
+            trend[0], trend[1], trend[2], trend[3], trend[4], trend[5], trend[6],
+            status_dimensions[0], status_dimensions[1], trend_dimensions[0],
+            trend_dimensions[1], extra,
+        )
+    )
+
+
 def _chart_data_uri(wf, tool_name, arguments):
     response = wf.call_tool(tool_name, **arguments)
     match = re.search(r"Success: .* saved to (charts/[A-Za-z0-9_.-]+\.png)(?:\s|$)", str(response))
@@ -243,16 +311,22 @@ def _chart_data_uri(wf, tool_name, arguments):
         raise RuntimeError(f"{tool_name} did not return a safe PNG path")
     path = match.group(1)
     content = wf.read_file(path)
-    if isinstance(content, str):
+    content_is_text = isinstance(content, str)
+    data_uri = False
+    base64_png = False
+    raw_binary_text = False
+    if content_is_text:
         if content.startswith("data:image/png;base64,"):
             payload = "".join(content.split(",", 1)[1].split())
             if not _decoded_png(payload):
                 raise RuntimeError(f"{tool_name} returned an invalid PNG data URI")
             encoded = payload
+            data_uri = True
         else:
             compact = "".join(content.split())
             if _decoded_png(compact):
                 encoded = compact
+                base64_png = True
             else:
                 try:
                     raw = content.encode("latin-1")
@@ -263,8 +337,28 @@ def _chart_data_uri(wf, tool_name, arguments):
                 if not raw.hex().startswith("89504e470d0a1a0a"):
                     raise RuntimeError(f"{tool_name} returned text without a PNG signature")
                 encoded = base64.b64encode(raw).decode("ascii")
+                raw_binary_text = True
     else:
         encoded = base64.b64encode(content).decode("ascii")
+    kind = tool_name.removeprefix("chart_render_")
+    decoded = base64.b64decode(encoded, validate=True)
+    length, signature, width, height = _png_summary(decoded)
+    roundtrip = base64.b64decode(base64.b64encode(decoded), validate=True)
+    roundtrip_length, roundtrip_signature, roundtrip_width, roundtrip_height = _png_summary(
+        roundtrip
+    )
+    wf.log(
+        "TEMP_DIAGNOSTIC boundary=chart kind={} response_success={} response_length={} "
+        "path={} content_is_text={} content_length={} data_uri={} base64_png={} "
+        "raw_binary_text={} png_length={} signature={} width={} height={} "
+        "base64_length={} roundtrip_length={} roundtrip_signature={} "
+        "roundtrip_width={} roundtrip_height={}".format(
+            kind, str(response).startswith("Success:"), len(str(response)), path,
+            content_is_text, len(content), data_uri, base64_png, raw_binary_text,
+            length, signature, width, height, len(encoded), roundtrip_length,
+            roundtrip_signature, roundtrip_width, roundtrip_height,
+        )
+    )
     return "data:image/png;base64," + encoded
 
 
@@ -308,20 +402,20 @@ def _render_html(config, issues, trend, today, status_image, trend_image):
         metric(f"停滞 ≥ {config['stale_days']} 天", len(stale), "最后更新时间", "stale"),
     ))
     priority_rows = _bar_rows((("P0", p0), ("P1", p1), ("P2", p2), (f"停滞 ≥ {config['stale_days']} 天", len(stale))))
-    status_chart = '<img data-chart="status-composition" src="{}" alt="状态构成" style="display:block;max-width:100%;margin:auto">{}'.format(
+    status_chart = '<img data-chart="status-composition" width="200" height="200" src="{}" alt="状态 分布" style="display:block;width:200px;height:200px;max-width:100%;margin:auto">{}'.format(
         status_image, _status_legend(statuses.most_common(6))
     )
-    trend_chart = '<img data-chart="unclosed-trend" src="{}" alt="每日未关闭趋势" style="display:block;max-width:100%;margin:auto">'.format(
+    trend_chart = '<img data-chart="unclosed-trend" width="640" height="320" src="{}" alt="每日未关闭趋势" style="display:block;width:640px;height:320px;max-width:100%;margin:auto">'.format(
         trend_image
     )
     trend_note = "缺失日期不进行推测或插值。"
-    rich_styles = """body{margin:0;background:#eef1f5;font-family:Arial,'Microsoft YaHei',sans-serif;color:#172b4d}.report-canvas{width:860px;max-width:calc(100% - 28px);margin:16px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 8px 28px rgba(9,30,66,.10)}.hero{padding:25px 34px;background:linear-gradient(135deg,#132f5f,#0c4e9a);color:#fff}.eyebrow{font-size:11px;letter-spacing:2px;opacity:.78}.hero-title{font-size:27px;font-weight:bold;margin:8px 0 4px}.hero-subtitle{font-size:12px;opacity:.82}.hero-total{font-size:38px;font-weight:bold}.section{padding:24px 28px;border-bottom:1px solid #e4e7ec}.section-title{font-size:18px;font-weight:bold;margin-bottom:14px}.metric-table,.paired-row{table-layout:fixed;border-spacing:6px}.metric-cell,.paired-cell{vertical-align:top}.metric-card,.panel{background:#fff;border:1px solid #dfe3e8;border-radius:10px;box-sizing:border-box}.metric-card{height:118px;padding:18px 15px}.metric-label,.metric-note,.muted{font-size:12px;color:#667085}.metric-value{font-size:34px;font-weight:bold;margin:7px 0}.panel{height:300px;padding:13px;overflow:hidden}.row-b .panel{height:225px}.panel h3{margin:0 0 12px;font-size:14px}.bar-table{border-collapse:collapse;font-size:11px}.bar-table td{padding:7px 3px}.bar-label{width:42%}.bar-track{height:7px;background:#edf1f5;border-radius:5px}.bar-fill{height:7px;background:#0c66e4;border-radius:5px}.bar-count{width:42px;text-align:right;font-weight:bold}.status-legend{width:100%;border-collapse:collapse;font-size:11px}.status-legend td{padding:4px 3px}.legend-swatch{width:13px;height:9px;display:inline-block}.trend-panel{height:auto;margin-top:8px}.detail{border-collapse:separate;border-spacing:0;font-size:11px}.detail th{background:#f2f4f7;text-align:left}.detail th,.detail td{padding:7px;border-bottom:1px solid #e4e7ec}a{color:#0c66e4}"""
+    rich_styles = """body{margin:0;background:#eef1f5;font-family:Arial,'Microsoft YaHei',sans-serif;color:#172b4d}.report-canvas{width:860px;max-width:calc(100% - 28px);margin:16px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 8px 28px rgba(9,30,66,.10)}.section{padding:24px 28px;border-bottom:1px solid #e4e7ec}.section-title{font-size:18px;font-weight:bold;margin-bottom:14px}.metric-table,.paired-row{table-layout:fixed;border-spacing:6px}.metric-cell,.paired-cell{vertical-align:top}.metric-card,.panel{background:#fff;border:1px solid #dfe3e8;border-radius:10px;box-sizing:border-box}.metric-card{height:118px;padding:18px 15px}.metric-label,.metric-note,.muted{font-size:12px;color:#667085}.metric-value{font-size:34px;font-weight:bold;margin:7px 0}.panel{height:300px;padding:13px;overflow:hidden}.row-b .panel{height:225px}.panel h3{margin:0 0 12px;font-size:14px}.bar-table{border-collapse:collapse;font-size:11px}.bar-table td{padding:7px 3px}.bar-label{width:42%}.bar-track{height:7px;background:#edf1f5;border-radius:5px}.bar-fill{height:7px;background:#0c66e4;border-radius:5px}.bar-count{width:42px;text-align:right;font-weight:bold}.status-legend{width:100%;border-collapse:collapse;font-size:11px}.status-legend td{padding:4px 3px}.legend-swatch{width:13px;height:9px;display:inline-block}.trend-panel{height:auto;margin-top:8px}.detail{border-collapse:separate;border-spacing:0;font-size:11px}.detail th{background:#f2f4f7;text-align:left}.detail th,.detail td{padding:7px;border-bottom:1px solid #e4e7ec}a{color:#0c66e4}"""
     styles = rich_styles
     return f"""<!doctype html><html><head><meta charset="utf-8"><style>{styles}</style></head><body><div class="report-canvas">
-<div class="hero"><div class="eyebrow">DAILY PROJECT INTELLIGENCE · {escape(config['project_name'].upper())}</div><table role="presentation" width="100%" cellspacing="0"><tr><td><div class="hero-title">{escape(config['project_name'])} 公版状态日报</div><div>{today.isoformat()}</div><div class="hero-subtitle">{escape(config['jql'])}</div></td><td width="150" align="right"><div class="hero-total">{len(issues)}</div><div>当前未关闭</div></td></tr></table></div>
+<table data-section="report-header" role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#132f5f" style="width:100%;background:#132f5f;color:#ffffff;font-family:Arial,'Microsoft YaHei',sans-serif"><tr><td valign="middle" style="padding:25px 34px;color:#ffffff;font-family:Arial,'Microsoft YaHei',sans-serif"><div style="font-size:11px;line-height:16px;letter-spacing:2px;color:#d6e4fa">DAILY PROJECT INTELLIGENCE · {escape(config['project_name'].upper())}</div><div style="padding-top:8px;font-size:27px;line-height:34px;font-weight:bold;color:#ffffff">{escape(config['project_name'])} 公版状态日报</div><div style="padding-top:4px;font-size:12px;line-height:18px;color:#ffffff">{today.isoformat()}</div><div style="font-size:12px;line-height:18px;color:#d6e4fa">{escape(config['jql'])}</div></td><td width="150" align="right" valign="middle" style="width:150px;padding:25px 34px 25px 10px;color:#ffffff;font-family:Arial,'Microsoft YaHei',sans-serif"><div style="font-size:38px;line-height:42px;font-weight:bold;color:#ffffff">{len(issues)}</div><div style="font-size:12px;line-height:18px;color:#ffffff">当前未关闭</div></td></tr></table>
 <div class="section"><div class="section-title">01 数据全景</div><table class="metric-table" role="presentation" width="100%"><tr>{metric_rows}</tr></table>
-<table class="paired-row row-a" role="presentation" width="100%"><tr><td class="paired-cell" width="50%"><div class="panel"><h3>优先级 / 停滞</h3><table class="bar-table" width="100%">{priority_rows}</table></div></td><td class="paired-cell" width="50%"><div class="panel"><h3>状态构成</h3>{status_chart}</div></td></tr></table>
-<table class="paired-row row-b" role="presentation" width="100%"><tr><td class="paired-cell" width="50%"><div class="panel"><h3>模块分布 · Top 5</h3><table class="bar-table" width="100%">{_bar_rows(modules.most_common(5))}</table></div></td><td class="paired-cell" width="50%"><div class="panel"><h3>问题内外部</h3></div></td></tr></table>
+<table class="paired-row row-a" role="presentation" width="100%"><tr><td class="paired-cell" width="50%"><div class="panel"><h3>优先级/停滞 分布</h3><table class="bar-table" width="100%">{priority_rows}</table></div></td><td class="paired-cell" width="50%"><div class="panel"><h3>状态 分布</h3>{status_chart}</div></td></tr></table>
+<table class="paired-row row-b" role="presentation" width="100%"><tr><td class="paired-cell" width="100%"><div class="panel"><h3>模块分布 · Top 5</h3><table class="bar-table" width="100%">{_bar_rows(modules.most_common(5))}</table></div></td></tr></table>
 <div class="panel trend-panel"><h3>每日未关闭趋势 · 近 {config['trend_days']} 日未关闭趋势</h3>{trend_chart}<div class="muted">{trend_note}</div></div></div>
 <div class="section"><div class="section-title">02 Issue 明细 · {sum(issue['priority'].casefold() in selected for issue in issues)} 条</div><div class="muted">展示优先级：{shown_priorities}</div><table class="detail" width="100%"><tr><th>Key</th><th>Summary</th><th>Status</th><th>Priority</th><th>Assignee</th><th>停滞</th></tr>{details}</table></div>
 <div class="section"><div class="section-title">03 口径与附件</div><p>当前值为配置 JQL 返回的唯一 Issue 数，仅按查询条件排除状态。</p><p>今日创建/更新按本地日期；停滞为最后更新时间距今日至少 {config['stale_days']} 个日历日。本工作流生成 HTML 报告文件，不生成附件。</p></div>
@@ -339,7 +433,7 @@ def main(wf):
         for offset in range(1, config["trend_days"]):
             day = today - timedelta(days=offset)
             try:
-                history = _search_issues(wf, _history_jql(day, config["project_label"]))
+                history = _search_issues(wf, _history_jql(day, config["jql"]))
             except Exception:
                 trend.append((day, None))
             else:
@@ -365,7 +459,23 @@ def main(wf):
         report_html = _render_html(
             config, current, chronological_trend, today, status_image, trend_image
         )
+        _log_html_summary(wf, "before_write", report_html, config)
         wf.write_file(artifact, report_html)
+        try:
+            written_html = wf.read_file(artifact)
+        except Exception as error:
+            wf.log(
+                "TEMP_DIAGNOSTIC boundary=html stage=after_write readable=False "
+                "error_type={}".format(type(error))
+            )
+        else:
+            if isinstance(written_html, str):
+                _log_html_summary(wf, "after_write", written_html, config)
+            else:
+                wf.log(
+                    "TEMP_DIAGNOSTIC boundary=html stage=after_write readable=False "
+                    "error_type=non_text"
+                )
         wf.emit_artifact(artifact)
         wf.set_output("report_path", artifact)
         wf.set_output("total", len(current))
@@ -379,5 +489,20 @@ def main(wf):
             }
             if config["cc"]:
                 arguments["cc_addresses"] = ",".join(config["cc"])
+            _log_html_summary(
+                wf,
+                "before_send",
+                report_html,
+                config,
+                boundary="email",
+                extra=(
+                    " file_path={} subject_length={} subject_has_project_name={} "
+                    "recipients_count={} cc_count={}".format(
+                        artifact, len(config["subject"]),
+                        config["project_name"] in config["subject"],
+                        len(config["recipients"]), len(config["cc"]),
+                    )
+                ),
+            )
             wf.call_tool("email_send_html", **arguments)
     return artifact
