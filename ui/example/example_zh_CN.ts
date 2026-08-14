@@ -143,16 +143,35 @@
 </context>
 <context>
     <name>AuthBridge</name>
-    <message><source>Unable to connect to LDAP. Please try again later.</source><translation>暂时无法连接 LDAP，请稍后重试。</translation></message>
-    <message><source>Signing in...</source><translation>正在登录...</translation></message>
-    <message><source>The account was removed, but its saved credential could not be deleted. Please retry.</source><translation>账号已移除，但保存的凭据未能删除，请重试。</translation></message>
     <message>
+        <location filename="bridge/AuthBridge.py" line="711"/>
+        <location filename="bridge/AuthBridge.py" line="792"/>
+        <source>Unable to connect to LDAP. Please try again later.</source>
+        <translation>暂时无法连接 LDAP，请稍后重试。</translation>
+    </message>
+    <message>
+        <location filename="bridge/AuthBridge.py" line="677"/>
+        <source>Signing in...</source>
+        <translation>正在登录...</translation>
+    </message>
+    <message>
+        <location filename="bridge/AuthBridge.py" line="713"/>
+        <source>Account or password is incorrect.</source>
+        <translation>账号或密码错误。</translation>
+    </message>
+    <message>
+        <location filename="bridge/AuthBridge.py" line="1028"/>
+        <source>The account was removed, but its saved credential could not be deleted. Please retry.</source>
+        <translation>账号已移除，但保存的凭据未能删除，请重试。</translation>
+    </message>
+    <message>
+        <location filename="bridge/AuthBridge.py" line="786"/>
         <source>Account or password cannot be empty.</source>
         <translation>账号或密码不能为空。</translation>
     </message>
     <message>
         <source>ldap3 is not installed in the current Python environment.</source>
-        <translation>当前 Python 环境未安装 ldap3。</translation>
+        <translation type="vanished">当前 Python 环境未安装 ldap3。</translation>
     </message>
     <message>
         <source>LDAP sign-in failed. {detail}</source>
@@ -163,13 +182,34 @@
         <translation type="vanished">LDAP 登录失败。请检查账号或密码。</translation>
     </message>
     <message>
+        <location filename="bridge/AuthBridge.py" line="755"/>
         <source>Sign-in successful. Welcome, {username}</source>
         <translation>登录成功，欢迎你，{username}</translation>
     </message>
-    <message><source>Signed in, but the password could not be saved.</source><translation>已登录，但密码未能保存。</translation></message>
-    <message><source>Sign-in is already in progress.</source><translation>正在登录，请稍候。</translation></message>
-    <message><source>The selected account no longer exists.</source><translation>所选账号已不存在。</translation></message>
-    <message><source>Please enter the password again.</source><translation>请重新输入密码。</translation></message>
+    <message>
+        <location filename="bridge/AuthBridge.py" line="758"/>
+        <source>Signed in, but the password could not be saved.</source>
+        <translation>已登录，但密码未能保存。</translation>
+    </message>
+    <message>
+        <location filename="bridge/AuthBridge.py" line="778"/>
+        <location filename="bridge/AuthBridge.py" line="806"/>
+        <location filename="bridge/AuthBridge.py" line="985"/>
+        <source>Sign-in is already in progress.</source>
+        <translation>正在登录，请稍候。</translation>
+    </message>
+    <message>
+        <location filename="bridge/AuthBridge.py" line="829"/>
+        <source>The selected account no longer exists.</source>
+        <translation>所选账号已不存在。</translation>
+    </message>
+    <message>
+        <location filename="bridge/AuthBridge.py" line="809"/>
+        <location filename="bridge/AuthBridge.py" line="816"/>
+        <location filename="bridge/AuthBridge.py" line="853"/>
+        <source>Please enter the password again.</source>
+        <translation>请重新输入密码。</translation>
+    </message>
 </context>
 <context>
     <name>BootVideoBridge</name>
@@ -214,193 +254,215 @@
 <context>
     <name>ConfluenceAuditBridge</name>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="114"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="124"/>
         <source>Ready to audit all Confluence projects.</source>
         <translation>准备审查全部 Confluence 项目。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="384"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="402"/>
         <source>Cached Project Space data is ready.</source>
         <translation>已加载 Project Space 缓存数据。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="385"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="403"/>
         <source>Loading Project Space for the first time.</source>
         <translation>正在首次加载 Project Space。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="386"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="404"/>
         <source>Refreshing Project Space in the background.</source>
         <translation>正在后台刷新 Project Space。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="387"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="405"/>
         <source>Project Space updated.</source>
         <translation>Project Space 已更新。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="390"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="408"/>
         <source>Refresh failed; using cached Project Space data.</source>
         <translation>刷新失败，继续使用 Project Space 缓存数据。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="392"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="410"/>
         <source>Project Space could not be loaded. Retry after checking LDAP and network access.</source>
         <translation>无法加载 Project Space。请检查 LDAP 登录和网络连接后重试。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="397"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="415"/>
         <source>Confluence support is unavailable. Install project dependencies in the project .venv.</source>
         <translation>Confluence 支持不可用。请在项目 .venv 中安装项目依赖。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="502"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="517"/>
         <source>Project Space options refreshed with {count} inaccessible or unreadable project pages.</source>
         <translation>Project Space 选项已刷新，其中 {count} 个项目页面无权访问或无法读取。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="731"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="552"/>
+        <source>Select at least one product line.</source>
+        <translation>请至少选择一条产品线。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="563"/>
+        <source>Enter the current account password to continue applying filters.</source>
+        <translation>请输入当前账号密码以继续应用筛选条件。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="565"/>
+        <source>Sign in with LDAP to continue applying filters.</source>
+        <translation>请先登录 LDAP，再继续应用筛选条件。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="673"/>
+        <source>Confluence project refresh failed. Review the application log, then try again.</source>
+        <translation>Confluence 项目刷新失败。请检查应用日志后重试。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="885"/>
         <source>Sign in with LDAP again to audit Confluence projects.</source>
         <translation>请重新使用 LDAP 登录后审查 Confluence 项目。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="757"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="911"/>
         <source>Discovering all A-level development projects...</source>
         <translation>正在发现全部 A 级开发中项目...</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="865"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1019"/>
         <source>Apply project filters before enabling the weekly plan.</source>
         <translation>启用每周计划前，请先应用项目筛选条件。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="868"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1022"/>
         <source>Select at least one project before enabling the weekly plan.</source>
         <translation>启用每周计划前，请至少选择一个项目。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="870"/>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="985"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1024"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1139"/>
         <source>Confluence weekly project audit</source>
         <translation>Confluence 项目每周审查</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="982"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1136"/>
         <source>Project Weekly Audit</source>
         <translation>项目周审计</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="1048"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1202"/>
         <source>Auditing Confluence project content...</source>
         <translation>正在审查 Confluence 项目内容...</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="1048"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1202"/>
         <source>Discovering project pages...</source>
         <translation>正在发现项目页面...</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="1090"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1244"/>
         <source>Review completed. No projects require follow-up.</source>
         <translation>审查已完成，没有需要跟进的项目。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="1092"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1246"/>
         <source>Confluence audit completed.</source>
         <translation>Confluence 审查已完成。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="1088"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1242"/>
         <source>No eligible A-level development projects were found.</source>
         <translation>未发现符合条件的 A 级开发中项目。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="814"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="968"/>
         <source>Confluence audit Excel workbook exported.</source>
         <translation>Confluence 审查 Excel 工作簿已导出。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="820"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="974"/>
         <source>Failed to export the Confluence audit Excel workbook.</source>
         <translation>Confluence 审查 Excel 工作簿导出失败。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="831"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="985"/>
         <source>Exported report file was not found.</source>
         <translation>未找到已导出的报告文件。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="835"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="989"/>
         <source>Failed to open the report directory.</source>
         <translation>打开报告目录失败。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="1129"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="667"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1283"/>
         <source>Confluence authentication failed. Sign in with LDAP again.</source>
         <translation>Confluence 认证失败，请重新使用 LDAP 登录。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="1130"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="668"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1284"/>
         <source>Confluence network access failed. Check the network or VPN, then try again.</source>
         <translation>Confluence 网络访问失败，请检查网络或 VPN 后重试。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="1135"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1289"/>
         <source>Confluence audit failed. Review the application log, then try again.</source>
         <translation>Confluence 审查失败，请查看应用日志后重试。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="1134"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="672"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1288"/>
         <source>Confluence support is missing. Start SmartTest with the project .venv or run support/scripts/script-init-venv.py.</source>
         <translation>缺少 Confluence 运行依赖。请使用项目 .venv 启动 SmartTest，或运行 support/scripts/script-init-venv.py。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="188"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="209"/>
         <source>Invalid Confluence project filter.</source>
         <translation>Confluence 项目筛选条件无效。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="1038"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1192"/>
         <source>Failed to update weekly audit plans.</source>
         <translation>无法更新每周审查计划。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="1017"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1171"/>
         <source>Any</source>
         <translation>任意</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="1021"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1175"/>
         <source>Years: {years}; support modes: {support_modes}; project statuses: {project_statuses}; selected projects: {selected_count}</source>
         <translation>年份：{years}；支持模式：{support_modes}；项目状态：{project_statuses}；已选项目：{selected_count}</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="504"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="519"/>
         <source>Project Space filter options refreshed.</source>
         <translation>Project Space 筛选项已刷新。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="533"/>
         <source>Refresh Project Space options before applying filters.</source>
         <translation>请先刷新 Project Space 筛选项，再应用筛选。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="555"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="649"/>
         <source>Project filters applied.</source>
         <translation>项目筛选已应用。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="741"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="895"/>
         <source>Select at least one product line before starting the audit.</source>
         <translation>请至少选择一条产品线后再开始审查。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="747"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="901"/>
         <source>Select at least one project before starting the audit.</source>
         <translation>请至少选择一个项目后再开始审查。</translation>
     </message>
     <message>
-        <location filename="bridge/ConfluenceAuditBridge.py" line="1164"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1331"/>
         <source>The login changed. Click Refresh filter options to update Project Space data.</source>
         <translation>登录账户已变更；如需更新 Project Space 数据，请点击“刷新筛选项”。</translation>
     </message>
@@ -408,157 +470,157 @@
 <context>
     <name>ConfluenceAuditWorkspace</name>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="448"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="479"/>
         <source>Audit All Projects Now</source>
         <translation>立即审查全部项目</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="454"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="485"/>
         <source>Export Excel</source>
         <translation>导出 Excel</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="350"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="381"/>
         <source>Year</source>
         <translation>年份</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="355"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="386"/>
         <source>Project name</source>
         <translation>项目名称</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="460"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="491"/>
         <source>Open report directory</source>
         <translation>打开报告目录</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="471"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="502"/>
         <source>Audit Period (Monday–Thursday)</source>
         <translation>审查周期（周一至周四）</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="477"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="508"/>
         <source>Reviewed</source>
         <translation>已审查</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="478"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="509"/>
         <source>Follow-up</source>
         <translation>需跟进</translation>
     </message>
     <message>
         <source>Risk</source>
-        <translation type="vanished">风险</translation>
+        <translation>风险</translation>
     </message>
     <message>
         <source>Failed</source>
-        <translation type="vanished">不通过</translation>
+        <translation>不通过</translation>
     </message>
     <message>
         <source>Unknown</source>
-        <translation type="vanished">未知</translation>
+        <translation>未知</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="562"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="593"/>
         <source>Reason</source>
         <translation>原因</translation>
     </message>
     <message>
         <source>Why it failed</source>
-        <translation type="vanished">失败说明</translation>
+        <translation>失败说明</translation>
     </message>
     <message>
         <source>Adjustment</source>
-        <translation type="vanished">调整建议</translation>
+        <translation>调整建议</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="574"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="605"/>
         <source>Open Confluence</source>
         <translation>打开 Confluence</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="585"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="616"/>
         <source>No projects require follow-up.</source>
         <translation>没有需要跟进的项目。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="64"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="81"/>
         <source>Project collection</source>
         <translation>项目集合</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="68"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="85"/>
         <source>Source</source>
         <translation>来源</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="81"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="98"/>
         <source>Refresh filter options</source>
         <translation>刷新筛选项</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="142"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="159"/>
         <source>Years</source>
         <translation>年份</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="112"/>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="144"/>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="173"/>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="202"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="129"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="161"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="190"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="219"/>
         <source>available</source>
         <translation>可选</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="171"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="188"/>
         <source>Support modes</source>
         <translation>支持模式</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="200"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="217"/>
         <source>Project statuses</source>
         <translation>项目状态</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="110"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="127"/>
         <source>Product lines</source>
         <translation>产品线</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="225"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="242"/>
         <source>Apply filters</source>
         <translation>应用筛选</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="43"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="60"/>
         <source>Any</source>
         <translation>任意</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="308"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="339"/>
         <source>Candidate projects</source>
         <translation>候选项目</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="269"/>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="313"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="292"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="344"/>
         <source>Select all</source>
         <translation>全选</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="274"/>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="319"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="297"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="350"/>
         <source>Clear selection</source>
         <translation>清除选择</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="325"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="356"/>
         <source>Selected</source>
         <translation>已选择</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="336"/>
+        <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="367"/>
         <source>Enable weekly plan</source>
         <translation>启用每周计划</translation>
     </message>
@@ -936,13 +998,27 @@
 <context>
     <name>DebugBridge</name>
     <message>
-        <source>Select a video file first.</source>
-        <translation type="vanished">请先选择视频文件。</translation>
+        <location filename="bridge/DebugBridge.py" line="66"/>
+        <location filename="bridge/DebugBridge.py" line="78"/>
+        <location filename="bridge/DebugBridge.py" line="91"/>
+        <source>Load a KPI video first.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
+        <location filename="bridge/DebugBridge.py" line="82"/>
+        <source>No frames available in current video.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="bridge/DebugBridge.py" line="105"/>
+        <source>Select a video file first.</source>
+        <translation>请先选择视频文件。</translation>
+    </message>
+    <message>
+        <location filename="bridge/DebugBridge.py" line="39"/>
         <source>KPI video loading is already running.</source>
         <oldsource>KPI video analysis is already running.</oldsource>
-        <translation type="vanished">KPI 视频分析正在运行。</translation>
+        <translation>KPI 视频加载正在进行。</translation>
     </message>
 </context>
 <context>
@@ -998,6 +1074,29 @@
         <location filename="imports/example/qml/window/HotloadWindow.qml" line="43"/>
         <source>Drag in a qml file</source>
         <translation>拖入qml文件</translation>
+    </message>
+</context>
+<context>
+    <name>InitializrHelper</name>
+    <message>
+        <location filename="helper/InitializrHelper.py" line="99"/>
+        <source>The name cannot be empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="helper/InitializrHelper.py" line="102"/>
+        <source>The creation path cannot be empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="helper/InitializrHelper.py" line="106"/>
+        <source>The path does not exist</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="helper/InitializrHelper.py" line="111"/>
+        <source>%1 folder already exists</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -1132,12 +1231,12 @@
 <context>
     <name>ItemsFooter</name>
     <message>
-        <location filename="imports/example/qml/global/ItemsFooter.qml" line="19"/>
+        <location filename="imports/example/qml/global/ItemsFooter.qml" line="15"/>
         <source>Account</source>
         <translation>账号</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsFooter.qml" line="104"/>
+        <location filename="imports/example/qml/global/ItemsFooter.qml" line="110"/>
         <source>Settings</source>
         <translation>设置</translation>
     </message>
@@ -1145,427 +1244,427 @@
 <context>
     <name>ItemsOriginal</name>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="109"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="103"/>
         <source>Home</source>
         <translation>首页</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="126"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="120"/>
         <source>Test</source>
         <translation>测试</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="135"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="129"/>
         <source>Run</source>
         <translation>运行</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="144"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="138"/>
         <source>Tool</source>
         <translation>工具</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="153"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="147"/>
         <source>Report</source>
         <translation>报告</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="177"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="171"/>
         <source>Debug</source>
         <translation>调试</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="195"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="189"/>
         <source>Jira</source>
         <translation>Jira</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="209"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="203"/>
         <source>PaneItemExpander Disabled</source>
         <translation>PaneItemExpander 已禁用</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="216"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="210"/>
         <source>Basic Input</source>
         <translation>基本输入</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="224"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="218"/>
         <source>Buttons</source>
         <translation>按钮</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="226"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="220"/>
         <source>A control that responds to user input and raisesa Click event.</source>
         <translation>响应用户输入并引发 Click 事件的控件。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="235"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="229"/>
         <source>Text</source>
         <translation>文本</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="249"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="243"/>
         <source>Image</source>
         <translation>图像</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="255"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="249"/>
         <source>Slider</source>
         <translation>滑块</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="257"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="251"/>
         <source>A control that lets the user select from a rangeof values by moving a Thumb control along atrack.</source>
         <translation>一个控件，允许用户通过沿轨道移动 Thumb 控件从一系列值中进行选择。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="262"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="256"/>
         <source>CheckBox</source>
         <translation>复选框</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="264"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="258"/>
         <source>A control that a user can select or clear.</source>
         <translation>用户可以选择或清除的控件。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="269"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="263"/>
         <source>RadioButton</source>
         <translation>单选按钮</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="275"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="269"/>
         <source>ToggleSwitch</source>
         <translation>切换开关</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="287"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="281"/>
         <source>PaneItem Disabled</source>
         <translation>PaneItem 已禁用</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="281"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="275"/>
         <source>GroupBox</source>
         <translation>分组容器</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="162"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="156"/>
         <source>AI</source>
         <translation>AI</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="186"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="180"/>
         <source>Boot Video</source>
         <translation>开机视频</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="294"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="288"/>
         <source>Form</source>
         <translation>表单</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="297"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="291"/>
         <source>TextBox</source>
         <translation>文本框</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="303"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="297"/>
         <source>TimePicker</source>
         <translation>时间选择器</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="309"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="303"/>
         <source>DatePicker</source>
         <translation>日期选择器</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="315"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="309"/>
         <source>CalendarPicker</source>
         <translation>日历选择器</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="321"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="315"/>
         <source>ColorPicker</source>
         <translation>颜色选择器</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="327"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="321"/>
         <source>ShortcutPicker</source>
         <translation>快捷键选择器</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="335"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="329"/>
         <source>Surface</source>
         <translation>表面</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="338"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="332"/>
         <source>InfoBar</source>
         <translation>信息栏</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="340"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="334"/>
         <source>An inline message to display app-wide statuschange information.</source>
         <translation>用于显示应用范围状态更改信息的内联消息。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="345"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="339"/>
         <source>Progress</source>
         <translation>进度条</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="351"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="345"/>
         <source>RatingControl</source>
         <translation>评级控制</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="357"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="351"/>
         <source>Badge</source>
         <translation>徽章</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="363"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="357"/>
         <source>Rectangle</source>
         <translation>矩形</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="369"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="363"/>
         <source>Clip</source>
         <translation>裁剪</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="375"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="369"/>
         <source>Carousel</source>
         <translation>轮播图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="381"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="375"/>
         <source>Expander</source>
         <translation>展开</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="387"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="381"/>
         <source>Watermark</source>
         <translation>水印</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="395"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="389"/>
         <source>Layout</source>
         <translation>布局</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="398"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="392"/>
         <source>StaggeredLayout</source>
         <translation>瀑布流布局</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="404"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="398"/>
         <source>SplitLayout</source>
         <translation>拆分布局</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="410"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="404"/>
         <source>StatusLayout</source>
         <translation>状态布局</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="418"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="412"/>
         <source>Popus</source>
         <translation>弹窗</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="421"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="415"/>
         <source>Dialog</source>
         <translation>弹窗</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="428"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="422"/>
         <source>ComboBox</source>
         <translation>组合框</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="442"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="436"/>
         <source>Tooltip</source>
         <translation>工具提示</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="448"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="442"/>
         <source>Menu</source>
         <translation>菜单</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="454"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="448"/>
         <source>Sheet</source>
         <translation>抽屉</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="462"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="456"/>
         <source>Navigation</source>
         <translation>导航</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="465"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="459"/>
         <source>Pivot</source>
         <translation>轴转</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="467"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="461"/>
         <source>Presents information from different sources in a tabbed view.</source>
         <translation>在选项卡式视图中显示来自不同源的信息。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="472"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="466"/>
         <source>BreadcrumbBar</source>
         <translation>面包屑</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="478"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="472"/>
         <source>TabView</source>
         <translation>选项卡</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="480"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="474"/>
         <source>A control that displays a collection of tabs thatcan be used to display several documents.</source>
         <translation>一个控件，用于显示可用于显示多个文档的选项卡集合。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="485"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="479"/>
         <source>TreeView</source>
         <translation>树</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="491"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="485"/>
         <source>TableView</source>
         <translation>表格</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="493"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="487"/>
         <source>The TableView control provides a flexible way to display a collection of data in rows and columns</source>
         <translation>TableView 控件提供了一种以行和列形式显示数据集合的灵活方法</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="498"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="492"/>
         <source>Pagination</source>
         <translation>分页</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="504"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="498"/>
         <source>MultiWindow</source>
         <translation>多窗口</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="510"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="504"/>
         <source>FlipView</source>
         <translation>翻转视图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="512"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="506"/>
         <source>Presents a collection of items that the user canflip through, one item at a time.</source>
         <translation>显示用户可以翻阅的项集合，一次翻阅一个项。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="519"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="513"/>
         <source>Theming</source>
         <translation>主题</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="522"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="516"/>
         <source>Acrylic</source>
         <translation>亚克力</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="528"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="522"/>
         <source>Theme</source>
         <translation>主题</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="534"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="528"/>
         <source>Typography</source>
         <translation>字体</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="540"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="534"/>
         <source>Icons</source>
         <translation>图标</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="548"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="542"/>
         <source>Chart</source>
         <translation>图表</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="551"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="545"/>
         <source>Bar Chart</source>
         <translation>条形图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="557"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="551"/>
         <source>Line Chart</source>
         <translation>线型图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="563"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="557"/>
         <source>Pie Chart</source>
         <translation>饼图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="569"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="563"/>
         <source>Polar Area Chart</source>
         <translation>极坐标区域图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="575"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="569"/>
         <source>Bubble Chart</source>
         <translation>气泡图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="581"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="575"/>
         <source>Scatter Chart</source>
         <translation>散点图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="587"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="581"/>
         <source>Radar Chart</source>
         <translation>雷达图</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="600"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="594"/>
         <source>Other</source>
         <translation>其他</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="603"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="597"/>
         <source>OpenGL</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="609"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="603"/>
         <source>QRCode</source>
         <translation>二维码</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="615"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="609"/>
         <source>Tour</source>
         <translation>游览</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="621"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="615"/>
         <source>Timeline</source>
         <translation>时间轴</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="627"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="621"/>
         <source>Captcha</source>
         <translation>验证码</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="634"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="628"/>
         <source>Remote Loader</source>
         <translation>远程加载</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="648"/>
+        <location filename="imports/example/qml/global/ItemsOriginal.qml" line="642"/>
         <source>Hot Loader</source>
         <translation>热加载</translation>
     </message>
@@ -1807,304 +1906,379 @@
 <context>
     <name>JiraBridge</name>
     <message>
+        <location filename="bridge/JiraBridge.py" line="61"/>
         <source>Ready</source>
-        <translation type="vanished">就绪</translation>
+        <translation>就绪</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="62"/>
         <source>Run a Jira query to get a live AI summary.</source>
-        <translation type="vanished">执行一次 Jira 查询即可获取实时 AI 总结。</translation>
+        <translation>执行一次 Jira 查询即可获取实时 AI 总结。</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="66"/>
         <source>Signed-in Jira access is ready. Ask in natural language to search issues and summarize risk.</source>
-        <translation type="vanished">已准备好当前登录用户的 Jira 访问。可以直接用自然语言检索问题并总结风险。</translation>
+        <translation>已准备好当前登录用户的 Jira 访问。可以直接用自然语言检索问题并总结风险。</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="67"/>
         <source>Workspace ready</source>
-        <translation type="vanished">工作台已就绪</translation>
+        <translation>工作台已就绪</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="68"/>
         <source>Session cleared. Ask a new Jira question when ready.</source>
-        <translation type="vanished">会话已清空。准备好后可以重新提问 Jira 问题。</translation>
+        <translation>会话已清空。准备好后可以重新提问 Jira 问题。</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="69"/>
         <source>Reset</source>
-        <translation type="vanished">重置</translation>
+        <translation>重置</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="70"/>
         <source>Jira request failed. Check the connection message above and sign in again if needed.</source>
-        <translation type="vanished">Jira 请求失败。请检查上方连接信息，必要时重新登录。</translation>
+        <translation>Jira 请求失败。请检查上方连接信息，必要时重新登录。</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="71"/>
         <source>Error</source>
-        <translation type="vanished">错误</translation>
+        <translation>错误</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="72"/>
         <source>All Supported Projects</source>
-        <translation type="vanished">所有支持的项目</translation>
+        <translation>所有支持的项目</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="73"/>
         <source>Open Work</source>
-        <translation type="vanished">处理中</translation>
+        <translation>处理中</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="74"/>
         <source>Ready for Test</source>
-        <translation type="vanished">待测试</translation>
+        <translation>待测试</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="75"/>
         <source>Closed Bugs</source>
-        <translation type="vanished">已关闭缺陷</translation>
+        <translation>已关闭缺陷</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="76"/>
         <source>Last 7 Days</source>
-        <translation type="vanished">最近 7 天</translation>
+        <translation>最近 7 天</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="77"/>
         <source>Last 30 Days</source>
-        <translation type="vanished">最近 30 天</translation>
+        <translation>最近 30 天</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="78"/>
         <source>Last 90 Days</source>
-        <translation type="vanished">最近 90 天</translation>
+        <translation>最近 90 天</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="79"/>
         <source>This Year</source>
-        <translation type="vanished">今年</translation>
+        <translation>今年</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="80"/>
         <source>Open</source>
-        <translation type="vanished">打开</translation>
+        <translation>打开</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="81"/>
         <source>In Progress</source>
-        <translation type="vanished">进行中</translation>
+        <translation>进行中</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="82"/>
         <source>Verified</source>
-        <translation type="vanished">已验证</translation>
+        <translation>已验证</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="83"/>
         <source>Resolved</source>
-        <translation type="vanished">已解决</translation>
+        <translation>已解决</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="84"/>
         <source>Closed</source>
-        <translation type="vanished">已关闭</translation>
+        <translation>已关闭</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="85"/>
         <source>Highest</source>
-        <translation type="vanished">最高</translation>
+        <translation>最高</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="86"/>
         <source>Critical</source>
-        <translation type="vanished">严重</translation>
+        <translation>严重</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="87"/>
         <source>High</source>
-        <translation type="vanished">高</translation>
+        <translation>高</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="88"/>
         <source>Medium</source>
-        <translation type="vanished">中</translation>
+        <translation>中</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="89"/>
         <source>Low</source>
-        <translation type="vanished">低</translation>
+        <translation>低</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="90"/>
         <source>Bug</source>
-        <translation type="vanished">缺陷</translation>
+        <translation>缺陷</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="91"/>
         <source>Task</source>
-        <translation type="vanished">任务</translation>
+        <translation>任务</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="92"/>
         <source>Story</source>
-        <translation type="vanished">需求</translation>
+        <translation>需求</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="93"/>
         <source>Improvement</source>
-        <translation type="vanished">改进</translation>
+        <translation>改进</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="94"/>
         <source>Unassigned</source>
-        <translation type="vanished">未分配</translation>
+        <translation>未分配</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="95"/>
         <source>LDAP session is missing Jira credentials. Please sign in again.</source>
-        <translation type="vanished">当前 LDAP 会话缺少 Jira 凭据。请重新登录。</translation>
+        <translation>当前 LDAP 会话缺少 Jira 凭据。请重新登录。</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="96"/>
         <source>Connected to {base_url} | loaded {loaded} of {total}</source>
-        <translation type="vanished">已连接到 {base_url} | 已加载 {loaded}/{total}</translation>
+        <translation>已连接到 {base_url} | 已加载 {loaded}/{total}</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="100"/>
         <source>Loaded {loaded} of {total} issues for browsing. Select an issue or ask a question for deeper analysis.</source>
-        <translation type="vanished">已加载 {loaded}/{total} 条问题用于浏览。选择一条问题或直接提问可继续深入分析。</translation>
+        <translation>已加载 {loaded}/{total} 条问题用于浏览。选择一条问题或直接提问可继续深入分析。</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="101"/>
         <source>Connected to {base_url} | analyzed {returned} of {total}</source>
-        <translation type="vanished">已连接到 {base_url} | 已分析 {returned}/{total}</translation>
+        <translation>已连接到 {base_url} | 已分析 {returned}/{total}</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="102"/>
         <source>Just now</source>
-        <translation type="vanished">刚刚</translation>
+        <translation>刚刚</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="103"/>
         <source>Sign in to load Jira data.</source>
-        <translation type="vanished">请先登录以加载 Jira 数据。</translation>
+        <translation>请先登录以加载 Jira 数据。</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="104"/>
         <source>Sign in with LDAP first, then Jira results and AI analysis will load here.</source>
-        <translation type="vanished">请先使用 LDAP 登录，随后 Jira 结果和 AI 分析会显示在这里。</translation>
+        <translation>请先使用 LDAP 登录，随后 Jira 结果和 AI 分析会显示在这里。</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="105"/>
         <source>Loading Jira results...</source>
-        <translation type="vanished">正在加载 Jira 结果...</translation>
+        <translation>正在加载 Jira 结果...</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="106"/>
         <source>Analyzing Jira request...</source>
-        <translation type="vanished">正在分析 Jira 请求...</translation>
+        <translation>正在分析 Jira 请求...</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="107"/>
         <source>Sign in again to restore Jira access.</source>
-        <translation type="vanished">请重新登录以恢复 Jira 访问。</translation>
+        <translation>请重新登录以恢复 Jira 访问。</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="108"/>
         <source>Signed out</source>
-        <translation type="vanished">已退出登录</translation>
+        <translation>已退出登录</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="109"/>
         <source>Unknown Jira error</source>
-        <translation type="vanished">未知 Jira 错误</translation>
+        <translation>未知 Jira 错误</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="110"/>
         <source>Jira request failed: {message}</source>
-        <translation type="vanished">Jira 请求失败：{message}</translation>
+        <translation>Jira 请求失败：{message}</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="111"/>
         <source>Matched</source>
-        <translation type="vanished">匹配到</translation>
+        <translation>匹配到</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="112"/>
         <source>{displayed} displayed in the current view</source>
-        <translation type="vanished">当前视图显示 {displayed} 条</translation>
+        <translation>当前视图显示 {displayed} 条</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="113"/>
         <source>High Priority</source>
-        <translation type="vanished">高优先级</translation>
+        <translation>高优先级</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="114"/>
         <source>Highest, critical, or high in the current result set</source>
-        <translation type="vanished">当前结果集中优先级为 Highest、Critical 或 High</translation>
+        <translation>当前结果集中优先级为 Highest、Critical 或 High</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="115"/>
         <source>Blocked</source>
-        <translation type="vanished">阻塞</translation>
+        <translation>阻塞</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="116"/>
         <source>Blocked items from the displayed Jira scope</source>
-        <translation type="vanished">当前显示范围内的阻塞项</translation>
+        <translation>当前显示范围内的阻塞项</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="117"/>
         <source>Projects</source>
-        <translation type="vanished">项目</translation>
+        <translation>项目</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="118"/>
         <source>Workflow Preset</source>
-        <translation type="vanished">流程预设</translation>
+        <translation>流程预设</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="119"/>
         <source>Time Window</source>
-        <translation type="vanished">时间范围</translation>
+        <translation>时间范围</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="120"/>
         <source>Statuses</source>
-        <translation type="vanished">状态</translation>
+        <translation>状态</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="121"/>
         <source>Priorities</source>
-        <translation type="vanished">优先级</translation>
+        <translation>优先级</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="122"/>
         <source>Issue Types</source>
-        <translation type="vanished">问题类型</translation>
+        <translation>问题类型</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="123"/>
         <source>Keyword text</source>
-        <translation type="vanished">关键字</translation>
+        <translation>关键字</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="124"/>
         <source>Assignee</source>
-        <translation type="vanished">经办人</translation>
+        <translation>经办人</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="125"/>
         <source>Reporter</source>
-        <translation type="vanished">报告人</translation>
+        <translation>报告人</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="126"/>
         <source>Labels</source>
-        <translation type="vanished">标签</translation>
+        <translation>标签</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="127"/>
         <source>Not limited</source>
-        <translation type="vanished">不限制</translation>
+        <translation>不限制</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="128"/>
         <source>Current user</source>
-        <translation type="vanished">当前用户</translation>
+        <translation>当前用户</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="129"/>
         <source>JQL</source>
-        <translation type="vanished">JQL</translation>
+        <translation>JQL</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="130"/>
         <source>Useful candidates for the next regression batch</source>
-        <translation type="vanished">可用于下一轮回归的候选项</translation>
+        <translation>可用于下一轮回归的候选项</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="131"/>
         <source>My Filters</source>
-        <translation type="vanished">我的过滤器</translation>
+        <translation>我的过滤器</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="132"/>
         <source>Loading your Jira filters...</source>
-        <translation type="vanished">正在加载你的 Jira 过滤器...</translation>
+        <translation>正在加载你的 Jira 过滤器...</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="133"/>
         <source>No favourite filters were found for this account.</source>
-        <translation type="vanished">当前账号没有找到收藏的过滤器。</translation>
+        <translation>当前账号没有找到收藏的过滤器。</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="134"/>
         <source>Click to apply this filter to the current JQL box.</source>
-        <translation type="vanished">点击后会把这条过滤器应用到当前 JQL 输入框。</translation>
+        <translation>点击后会把这条过滤器应用到当前 JQL 输入框。</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="135"/>
         <source>Comments</source>
-        <translation type="vanished">评论</translation>
+        <translation>评论</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="136"/>
         <source>No Jira issues matched the current scope.</source>
-        <translation type="vanished">当前范围内没有匹配到 Jira 问题。</translation>
+        <translation>当前范围内没有匹配到 Jira 问题。</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="137"/>
         <source>Jira AI Conversation</source>
-        <translation type="vanished">Jira AI 对话</translation>
+        <translation>Jira AI 对话</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="138"/>
         <source>Analyzing request: preparing search scope...</source>
-        <translation type="vanished">正在分析请求：准备搜索范围...</translation>
+        <translation>正在分析请求：准备搜索范围...</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="139"/>
         <source>Analyzing request: retrieving Jira issues...</source>
-        <translation type="vanished">正在分析请求：获取 Jira 问题...</translation>
+        <translation>正在分析请求：获取 Jira 问题...</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="140"/>
         <source>Analyzing request: generating response...</source>
-        <translation type="vanished">正在分析请求：生成回复...</translation>
+        <translation>正在分析请求：生成回复...</translation>
     </message>
     <message>
+        <location filename="bridge/JiraBridge.py" line="144"/>
         <source>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</source>
-        <translation type="vanished">当前范围内共匹配到 {total} 条 Jira 问题。首条问题：{key}（{status}，{priority}）- {summary}</translation>
+        <translation>当前范围内共匹配到 {total} 条 Jira 问题。首条问题：{key}（{status}，{priority}）- {summary}</translation>
     </message>
 </context>
 <context>
@@ -2233,7 +2407,7 @@
         <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="139"/>
         <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="192"/>
         <source>All types</source>
-        <translation type="unfinished">全部类型</translation>
+        <translation>全部类型</translation>
     </message>
     <message>
         <location filename="imports/example/qml/component/issue/JiraIssueBrowserLayout.qml" line="107"/>
@@ -2371,76 +2545,111 @@
 </context>
 <context>
     <name>LoginWindow</name>
-    <message><source>Add another account</source><translation>添加其他账号</translation></message>
-    <message><source>Auto login</source><translation>自动登录</translation></message>
-    <message><source>Account or password is incorrect.</source><translation>账号或密码错误。</translation></message>
-    <message><source>Use another account</source><translation>使用其他账号</translation></message>
-    <message><source>Remove account</source><translation>移除账号</translation></message>
-    <message><source>This removes the saved sign-in information on this device. SmartTest business data will not be deleted.</source><translation>这会移除此设备上保存的登录信息，但不会删除 SmartTest 业务数据。</translation></message>
-    <message><source>Cancel</source><translation>取消</translation></message>
-    <message><source>Remove</source><translation>移除</translation></message>
-    <message><source>Save password</source><translation>保存密码</translation></message>
+    <message>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="228"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="295"/>
+        <source>Add another account</source>
+        <translation>添加其他账号</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="368"/>
+        <source>Auto login</source>
+        <translation>自动登录</translation>
+    </message>
+    <message>
+        <source>Account or password is incorrect.</source>
+        <translation type="vanished">账号或密码错误。</translation>
+    </message>
+    <message>
+        <source>Use another account</source>
+        <translation type="vanished">使用其他账号</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="79"/>
+        <source>Remove account</source>
+        <translation>移除账号</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="80"/>
+        <source>This removes the saved sign-in information on this device. SmartTest business data will not be deleted.</source>
+        <translation>这会移除此设备上保存的登录信息，但不会删除 SmartTest 业务数据。</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="81"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="82"/>
+        <source>Remove</source>
+        <translation>移除</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="358"/>
+        <source>Save password</source>
+        <translation>保存密码</translation>
+    </message>
     <message>
         <location filename="imports/example/qml/window/LoginWindow.qml" line="10"/>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="122"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="379"/>
         <source>Login</source>
         <translation>登录</translation>
     </message>
     <message>
         <location filename="imports/example/qml/window/LoginWindow.qml" line="10"/>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="149"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="408"/>
         <source>Account</source>
         <translation>账号</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="56"/>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="99"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="156"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="306"/>
         <source>Please enter the account</source>
         <translation>请输入账号</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="61"/>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="111"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="136"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="147"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="161"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="336"/>
         <source>Please enter your password</source>
         <translation>请输入您的密码</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="89"/>
         <source>LDAP Server: %1</source>
-        <translation>LDAP 服务器：%1</translation>
+        <translation type="vanished">LDAP 服务器：%1</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="302"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="554"/>
         <source>Logout</source>
         <translation>退出登录</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="307"/>
         <source>Signed out</source>
-        <translation>已退出登录</translation>
+        <translation type="vanished">已退出登录</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="224"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="475"/>
         <source>Grade</source>
         <translation>职级</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="237"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="488"/>
         <source>Department</source>
         <translation>部门</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="247"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="498"/>
         <source>Team</source>
         <translation>团队</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="272"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="523"/>
         <source>Product Line</source>
         <translation>产品线</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/LoginWindow.qml" line="256"/>
+        <location filename="imports/example/qml/window/LoginWindow.qml" line="507"/>
         <source>Reports To</source>
         <translation>直属上级</translation>
     </message>
@@ -2448,34 +2657,34 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="475"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="452"/>
         <source>Dark Mode</source>
         <translation>夜间模式</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="175"/>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="210"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="152"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="187"/>
         <source>Quit</source>
         <translation>退出</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="176"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="153"/>
         <source>Are you sure you want to exit the program?</source>
         <translation>您确定要退出程序吗</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="177"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="154"/>
         <source>Minimize</source>
         <translation>最小化</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="392"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="369"/>
         <source>Friendly Reminder</source>
         <translation>友情提示</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="211"/>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="489"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="188"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="466"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -2485,82 +2694,82 @@
         <translation type="unfinished">首页</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="91"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="68"/>
         <source>About</source>
         <translation>关于</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="185"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="162"/>
         <source>Remember my choice</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="228"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="205"/>
         <source>Open in Separate Window</source>
         <translation>在独立窗口中打开</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="332"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="309"/>
         <source>Click Time</source>
         <translation>点击次数</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="342"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="319"/>
         <source>Search</source>
         <translation>搜索</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="392"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="369"/>
         <source>SmartTest is hidden from the tray, click on the tray to activate the window again</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="469"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="446"/>
         <source>Finish</source>
         <translation>完成</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="470"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="447"/>
         <source>Next</source>
         <translation>下一步</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="471"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="448"/>
         <source>Previous</source>
         <translation>上一步</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="475"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="452"/>
         <source>Here you can switch to night mode.</source>
         <translation>在这里，您可以切换到夜间模式。</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="477"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="454"/>
         <source>Hide Easter eggs</source>
         <translation>隐藏彩蛋</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="477"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="454"/>
         <source>Try a few more clicks!!</source>
         <translation>再试几下！！</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="486"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="463"/>
         <source>Upgrade Tips</source>
         <translation>升级提示</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="487"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="464"/>
         <source>SmartTest update </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="487"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="464"/>
         <source> -- Current version </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="487"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="464"/>
         <source> 
 
 Updated content: 
@@ -2568,17 +2777,17 @@ Updated content:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="526"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="503"/>
         <source>Update service is not configured</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="490"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="467"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="imports/example/qml/window/MainWindow.qml" line="519"/>
+        <location filename="imports/example/qml/window/MainWindow.qml" line="496"/>
         <source>The current version is already the latest</source>
         <translation>当前版本已经是最新版本</translation>
     </message>
@@ -2586,200 +2795,265 @@ Updated content:
 <context>
     <name>RedmineBridge</name>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="300"/>
         <source>Attachment %1 is %2 bytes; Jira limit is %3 bytes.</source>
-        <translation type="vanished">附件 %1 大小为 %2 字节；Jira 限制为 %3 字节。</translation>
+        <translation>附件 %1 大小为 %2 字节；Jira 限制为 %3 字节。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="311"/>
         <source>Jira attachments are disabled for %1.</source>
-        <translation type="vanished">Jira 已禁用附件，无法上传 %1。</translation>
+        <translation>Jira 已禁用附件，无法上传 %1。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="318"/>
         <source>Attachment source URL is unavailable for %1.</source>
-        <translation type="vanished">附件 %1 的源地址不可用。</translation>
+        <translation>附件 %1 的源地址不可用。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="325"/>
         <source>Attachment download failed for %1 (HTTP %2).</source>
-        <translation type="vanished">附件 %1 下载失败（HTTP %2）。</translation>
+        <translation>附件 %1 下载失败（HTTP %2）。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="332"/>
         <source>Attachment download failed for %1: %2</source>
-        <translation type="vanished">附件 %1 下载失败：%2</translation>
+        <translation>附件 %1 下载失败：%2</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="339"/>
         <source>Attachment source is invalid for %1.</source>
-        <translation type="vanished">附件 %1 的源文件无效。</translation>
+        <translation>附件 %1 的源文件无效。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="346"/>
         <source>Jira already has %1 with a different size.</source>
-        <translation type="vanished">Jira 中已存在同名但大小不同的附件 %1。</translation>
+        <translation>Jira 中已存在同名但大小不同的附件 %1。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="353"/>
         <source>Could not check Jira attachments for %1: %2</source>
-        <translation type="vanished">无法检查 Jira 附件 %1：%2</translation>
+        <translation>无法检查 Jira 附件 %1：%2</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="360"/>
         <source>Attachment upload failed for %1: %2</source>
-        <translation type="vanished">附件 %1 上传失败：%2</translation>
+        <translation>附件 %1 上传失败：%2</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="367"/>
         <source>Attachment upload was cancelled for %1.</source>
-        <translation type="vanished">附件 %1 的上传已取消。</translation>
+        <translation>附件 %1 的上传已取消。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="374"/>
         <source>Attachment downloader is unavailable for %1.</source>
-        <translation type="vanished">附件下载器不可用，无法处理 %1。</translation>
+        <translation>附件下载器不可用，无法处理 %1。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="381"/>
         <source>Jira attachment synchronization failed for %1: %2</source>
-        <translation type="vanished">Jira 附件 %1 同步失败：%2</translation>
+        <translation>Jira 附件 %1 同步失败：%2</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="388"/>
         <source>Temporary attachment cleanup failed: %1</source>
-        <translation type="vanished">临时附件清理失败：%1</translation>
+        <translation>临时附件清理失败：%1</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="397"/>
         <source>Attachment warning for %1.</source>
-        <translation type="vanished">附件 %1 存在警告。</translation>
+        <translation>附件 %1 存在警告。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="811"/>
         <source>Discovering Redmine projects and issues...</source>
-        <translation type="vanished">正在发现 Redmine 项目和问题...</translation>
+        <translation>正在发现 Redmine 项目和问题...</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="814"/>
         <source>Analyzing Redmine issue activity... {loaded}/{total}</source>
-        <translation type="vanished">正在分析 Redmine 问题活动... {loaded}/{total}</translation>
+        <translation>正在分析 Redmine 问题活动... {loaded}/{total}</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="816"/>
         <source>Checking cloned Jira issues... {loaded}/{total}</source>
-        <translation type="vanished">正在检查 Jira 克隆状态... {loaded}/{total}</translation>
+        <translation>正在检查 Jira 克隆状态... {loaded}/{total}</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="131"/>
+        <location filename="bridge/RedmineBridge.py" line="241"/>
+        <location filename="bridge/RedmineBridge.py" line="867"/>
         <source>All projects</source>
-        <translation type="vanished">所有项目</translation>
+        <translation>所有项目</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="868"/>
         <source>All statuses</source>
-        <translation type="vanished">所有状态</translation>
+        <translation>所有状态</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="134"/>
+        <location filename="bridge/RedmineBridge.py" line="202"/>
         <source>Redmine data is not loaded.</source>
-        <translation type="vanished">Redmine 数据尚未加载。</translation>
+        <translation>Redmine 数据尚未加载。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="702"/>
+        <location filename="bridge/RedmineBridge.py" line="813"/>
         <source>Loading issues assigned to me...</source>
-        <translation type="vanished">正在加载分配给我的问题...</translation>
+        <translation>正在加载分配给我的问题...</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="818"/>
         <source>Loading Redmine data... {loaded}/{total}</source>
-        <translation type="vanished">???? Redmine ??... {loaded}/{total}</translation>
+        <translation>???? Redmine ??... {loaded}/{total}</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="798"/>
+        <location filename="bridge/RedmineBridge.py" line="821"/>
         <source>Loading Redmine data...</source>
-        <translation type="vanished">正在加载 Redmine 数据...</translation>
+        <translation>正在加载 Redmine 数据...</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="141"/>
+        <location filename="bridge/RedmineBridge.py" line="209"/>
         <source>Projects are not loaded.</source>
-        <translation type="vanished">项目尚未加载。</translation>
+        <translation>项目尚未加载。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="233"/>
         <source>Issues assigned to me</source>
-        <translation type="vanished">分配给我的问题</translation>
+        <translation>分配给我的问题</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="234"/>
         <source>Watched issues</source>
-        <translation type="vanished">我关注的问题</translation>
+        <translation>我关注的问题</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="838"/>
         <source>Loading watched issues...</source>
-        <translation type="vanished">正在加载关注的问题...</translation>
+        <translation>正在加载关注的问题...</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="855"/>
+        <location filename="bridge/RedmineBridge.py" line="984"/>
         <source>Invalid issue IDs: %1</source>
-        <translation type="vanished">无效的问题 ID：%1</translation>
+        <translation>无效的问题 ID：%1</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="976"/>
         <source>No valid watched issue IDs were found: %1</source>
-        <translation type="vanished">未找到有效的关注问题 ID：%1</translation>
+        <translation>未找到有效的关注问题 ID：%1</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="411"/>
+        <location filename="bridge/RedmineBridge.py" line="971"/>
         <source>Redmine data loaded.</source>
-        <translation type="vanished">Redmine 数据已加载。</translation>
+        <translation>Redmine 数据已加载。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="627"/>
+        <location filename="bridge/RedmineBridge.py" line="947"/>
+        <location filename="bridge/RedmineBridge.py" line="970"/>
         <source>Issues assigned to me loaded.</source>
-        <translation type="vanished">分配给我的问题已加载。</translation>
+        <translation>分配给我的问题已加载。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="643"/>
         <source>Loading Redmine projects...</source>
-        <translation type="vanished">正在加载 Redmine 项目...</translation>
+        <translation>正在加载 Redmine 项目...</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="665"/>
         <source>Redmine project loading failed.</source>
-        <translation type="vanished">Redmine 项目加载失败。</translation>
+        <translation>Redmine 项目加载失败。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="670"/>
         <source>Redmine projects loaded.</source>
-        <translation type="vanished">Redmine 项目已加载。</translation>
+        <translation>Redmine 项目已加载。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="674"/>
         <source>No Redmine projects were loaded. Retry project loading.</source>
-        <translation type="vanished">未加载到 Redmine 项目，请重试。</translation>
+        <translation>未加载到 Redmine 项目，请重试。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="869"/>
         <source>All types</source>
-        <translation type="obsolete">全部类型</translation>
+        <translation>全部类型</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="887"/>
         <source>Search cancelled.</source>
-        <translation type="vanished">搜索已取消。</translation>
+        <translation>搜索已取消。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="913"/>
         <source>Refreshing Redmine issue detail...</source>
-        <translation type="vanished">正在刷新 Redmine 问题详情...</translation>
+        <translation>正在刷新 Redmine 问题详情...</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="939"/>
         <source>Issues assigned to me loading failed.</source>
-        <translation type="vanished">分配给我的问题加载失败。</translation>
+        <translation>分配给我的问题加载失败。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="941"/>
         <source>Redmine data load failed.</source>
-        <translation type="vanished">Redmine 数据加载失败。</translation>
+        <translation>Redmine 数据加载失败。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="955"/>
         <source>Redmine issue detail refreshed.</source>
-        <translation type="vanished">Redmine 问题详情已刷新。</translation>
+        <translation>Redmine 问题详情已刷新。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="589"/>
         <source>The verification code was rejected. Enter the latest code from your phone.</source>
-        <translation type="vanished">验证码已被拒绝，请输入手机上最新的验证码。</translation>
+        <translation>验证码已被拒绝，请输入手机上最新的验证码。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="128"/>
         <source>Ready to sign in to Redmine.</source>
-        <translation type="vanished">准备登录 Redmine。</translation>
+        <translation>准备登录 Redmine。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="558"/>
         <source>Signing in to Redmine...</source>
-        <translation type="vanished">正在登录 Redmine...</translation>
+        <translation>正在登录 Redmine...</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="598"/>
         <source>Redmine sign-in succeeded.</source>
-        <translation type="vanished">Redmine 登录成功。</translation>
+        <translation>Redmine 登录成功。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="591"/>
+        <location filename="bridge/RedmineBridge.py" line="599"/>
         <source>Redmine needs a different account or password.</source>
-        <translation type="vanished">Redmine 需要其他账号或密码。</translation>
+        <translation>Redmine 需要其他账号或密码。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="590"/>
+        <location filename="bridge/RedmineBridge.py" line="600"/>
         <source>Enter the mobile verification code.</source>
-        <translation type="vanished">请输入手机验证码。</translation>
+        <translation>请输入手机验证码。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="592"/>
+        <location filename="bridge/RedmineBridge.py" line="593"/>
+        <location filename="bridge/RedmineBridge.py" line="594"/>
+        <location filename="bridge/RedmineBridge.py" line="595"/>
+        <location filename="bridge/RedmineBridge.py" line="601"/>
         <source>Redmine sign-in failed.</source>
-        <translation type="vanished">Redmine 登录失败。</translation>
+        <translation>Redmine 登录失败。</translation>
     </message>
     <message>
+        <location filename="bridge/RedmineBridge.py" line="1177"/>
         <source>Redmine sign-in cancelled.</source>
-        <translation type="vanished">已取消 Redmine 登录。</translation>
+        <translation>已取消 Redmine 登录。</translation>
     </message>
 </context>
 <context>
@@ -2863,75 +3137,87 @@ Updated content:
 <context>
     <name>ReportBridge</name>
     <message>
+        <location filename="bridge/ReportBridge.py" line="53"/>
         <source>{count} DUTs: {serials}</source>
-        <translation type="vanished">{count} 台 DUT：{serials}</translation>
+        <translation>{count} 台 DUT：{serials}</translation>
     </message>
     <message>
+        <location filename="bridge/ReportBridge.py" line="54"/>
         <source>{count} DUTs</source>
-        <translation type="vanished">{count} 台 DUT</translation>
+        <translation>{count} 台 DUT</translation>
     </message>
     <message>
+        <location filename="bridge/ReportBridge.py" line="63"/>
         <source>No DUT</source>
-        <translation type="vanished">无 DUT</translation>
+        <translation>无 DUT</translation>
     </message>
 </context>
 <context>
     <name>RunBridge</name>
     <message>
+        <location filename="bridge/RunBridge.py" line="253"/>
+        <source>Failed to start test run. {detail}</source>
+        <translation>启动测试运行失败：{detail}</translation>
+    </message>
+    <message>
+        <location filename="bridge/RunBridge.py" line="354"/>
         <source>Failed to save run report. {detail}</source>
-        <translation type="vanished">保存运行报告失败。{detail}</translation>
+        <translation>保存运行报告失败。{detail}</translation>
     </message>
     <message>
+        <location filename="bridge/RunBridge.py" line="357"/>
+        <source>Failed to finish test run. {detail}</source>
+        <translation>结束测试运行失败：{detail}</translation>
+    </message>
+    <message>
+        <location filename="bridge/RunBridge.py" line="499"/>
         <source>No selected test cases to run.</source>
-        <translation type="vanished">没有可运行的已选测试用例。</translation>
+        <translation>没有可运行的已选测试用例。</translation>
     </message>
     <message>
+        <location filename="bridge/RunBridge.py" line="535"/>
         <source>Failed to start pytest run. {detail}</source>
-        <translation type="vanished">启动 pytest 运行失败。{detail}</translation>
+        <translation>启动 pytest 运行失败。{detail}</translation>
     </message>
     <message>
+        <location filename="bridge/RunBridge.py" line="122"/>
         <source>Select a DUT before starting the selected test cases.</source>
-        <translation type="vanished">启动所选测试用例前请选择 DUT。</translation>
+        <translation>启动所选测试用例前请选择 DUT。</translation>
     </message>
     <message>
+        <location filename="bridge/RunBridge.py" line="126"/>
         <source>Missing required parameter: {param} ({case})</source>
-        <translation type="vanished">缺少必填参数：{param}（{case}）</translation>
+        <translation>缺少必填参数：{param}（{case}）</translation>
     </message>
     <message>
+        <location filename="bridge/RunBridge.py" line="134"/>
         <source>Fix required test parameters before starting.</source>
-        <translation type="vanished">请先补齐必填测试参数再启动。</translation>
+        <translation>请先补齐必填测试参数再启动。</translation>
     </message>
 </context>
 <context>
     <name>ScheduleBridge</name>
     <message>
-        <location filename="bridge/ScheduleBridge.py" line="56"/>
         <source>Disabled</source>
         <translation>已停用</translation>
     </message>
     <message>
-        <location filename="bridge/ScheduleBridge.py" line="58"/>
         <source>Not registered</source>
         <translation>未注册</translation>
     </message>
     <message>
-        <location filename="bridge/ScheduleBridge.py" line="60"/>
         <source>Ready</source>
         <translation>就绪</translation>
     </message>
     <message>
-        <location filename="bridge/ScheduleBridge.py" line="62"/>
         <source>Needs attention</source>
         <translation>需要处理</translation>
     </message>
     <message>
-        <location filename="bridge/ScheduleBridge.py" line="69"/>
-        <location filename="bridge/ScheduleBridge.py" line="72"/>
         <source>Next run unavailable</source>
         <translation>下次运行时间不可用</translation>
     </message>
     <message>
-        <location filename="bridge/ScheduleBridge.py" line="72"/>
         <source>Next run: {time}</source>
         <translation>下次运行：{time}</translation>
     </message>
