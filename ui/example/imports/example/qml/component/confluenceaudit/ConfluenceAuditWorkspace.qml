@@ -11,6 +11,23 @@ Item {
     readonly property bool auditBusy: root.view.state === "discovering"
                                       || root.view.state === "reviewing"
 
+    FluWindowResultLauncher {
+        id: loginLauncher
+        objectName: "confluenceAuditLoginLauncher"
+        path: "/login"
+    }
+
+    Connections {
+        target: AuthBridge
+        ignoreUnknownSignals: true
+        function onRuntimeCredentialSupplyRequired() {
+            loginLauncher.launch({
+                username: AuthBridge.username,
+                credentialSupply: AuthBridge.authenticated
+            })
+        }
+    }
+
     Component.onCompleted: {
         ConfluenceAuditBridge.initializeCollection()
     }
@@ -223,8 +240,14 @@ Item {
                     FluFilledButton {
                         objectName: "confluenceAuditApplyFilterButton"
                         text: qsTr("Apply filters")
-                        disabled: !root.view.canStart
+                        disabled: !root.view.canStart || root.view.filterApplying === true
                         onClicked: ConfluenceAuditBridge.applyCollectionFilter()
+                    }
+                    FluProgressRing {
+                        objectName: "confluenceAuditApplyFilterProgress"
+                        visible: root.view.filterApplying === true
+                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 24
                     }
                 }
 
@@ -275,24 +298,32 @@ Item {
                                         onClicked: ConfluenceAuditBridge.clearSelectedProjectsForLine(sectionData.key)
                                     }
                                 }
-                                Repeater {
-                                    model: sectionData.projects || []
-                                    RowLayout {
-                                        required property var modelData
-                                        Layout.fillWidth: true
-                                        FluCheckBox { /* persistence-opt-out: owner:ConfluenceAuditBridge */
-                                            checked: root.containsValue(root.view.selectedProjectIds,
-                                                                         modelData.projectIdentity)
-                                            onClicked: ConfluenceAuditBridge.toggleProject(modelData.projectIdentity)
-                                        }
-                                        FluText {
-                                            Layout.preferredWidth: 110
-                                            text: (modelData.matchingYears || [modelData.year]).join(", ")
-                                        }
-                                        FluText {
+                                GridLayout {
+                                    id: candidateSectionGrid
+                                    Layout.fillWidth: true
+                                    columns: 3
+                                    columnSpacing: 12
+                                    rowSpacing: 4
+                                    Repeater {
+                                        model: sectionData.projects || []
+                                        RowLayout {
+                                            required property var modelData
                                             Layout.fillWidth: true
-                                            text: modelData.displayName || modelData.name
-                                            wrapMode: Text.WrapAnywhere
+                                            Layout.preferredWidth: 0
+                                            FluCheckBox { /* persistence-opt-out: owner:ConfluenceAuditBridge */
+                                                checked: root.containsValue(root.view.selectedProjectIds,
+                                                                             modelData.projectIdentity)
+                                                onClicked: ConfluenceAuditBridge.toggleProject(modelData.projectIdentity)
+                                            }
+                                            FluText {
+                                                Layout.preferredWidth: 110
+                                                text: (modelData.matchingYears || [modelData.year]).join(", ")
+                                            }
+                                            FluText {
+                                                Layout.fillWidth: true
+                                                text: modelData.displayName || modelData.name
+                                                wrapMode: Text.WrapAnywhere
+                                            }
                                         }
                                     }
                                 }

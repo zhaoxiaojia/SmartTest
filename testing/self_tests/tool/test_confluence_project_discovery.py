@@ -1,5 +1,9 @@
+import pytest
+
 from tool.common.project_weekly_audit.discovery import (
     PRODUCT_LINES,
+    ProjectCollectionDiscoveryError,
+    UNIFIED_SOURCE,
     discover_project_collection,
     discover_project_pages,
 )
@@ -18,15 +22,17 @@ def table(rows):
 def summary_table(rows):
     headers = (
         "页面", "Date of Commercial approval", "Support Mode",
-        "Project Status", "Project ID",
+        "Project Status", "Current Stage", "Project ID",
     )
     return (
         "<table><tr>"
         + "".join(f"<th>{header}</th>" for header in headers)
         + "</tr>"
         + "".join(
-            "<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>"
-            for row in rows
+            "<tr>" + "".join(
+                f"<td>{cell}</td>"
+                for cell in (*row[:4], "IN DEVELOPMENT", row[4])
+            ) + "</tr>" for row in rows
         )
         + "</table>"
     )
@@ -58,7 +64,7 @@ def test_summary_tables_are_the_only_catalog_source_and_merge_spaces():
             self.urls = []
 
         def get_page_by_url(self, url, *, prefer_export=False):
-            assert prefer_export is True
+            assert prefer_export is False
             self.urls.append(url)
             if url not in source_urls:
                 raise PermissionError("not configured")
@@ -77,15 +83,18 @@ def test_summary_tables_are_the_only_catalog_source_and_merge_spaces():
     )
 
     assert [row.project_identity for row in collection.projects] == [
-        "DOPL:101", "SDPL:https://confluence.amlogic.com/display/SDPL/Shared+Project",
+        "DOPL:SAME", "SDPL:SAME",
     ]
     assert [(row.year, row.support_mode, row.project_status) for row in collection.projects] == [
         (2025, "A", "NORMAL"), (2026, "B", "WARNING"),
     ]
-    assert client.urls == [line.source_url for line in PRODUCT_LINES]
+    assert client.urls == [
+        line.source_url for line in PRODUCT_LINES
+        if line.key in {"DOPL", "SDPL"}
+    ]
 
 
-def test_export_view_is_the_authoritative_table_filter_catalog():
+def test_normal_view_is_the_authoritative_table_filter_catalog():
     source_urls = {}
     for space_key in ("DOPL", "SDPL"):
         source_url = (
@@ -109,11 +118,13 @@ def test_export_view_is_the_authoritative_table_filter_catalog():
 
     class Client:
         def get_page_by_url(self, url, *, prefer_export=False):
-            assert prefer_export is True
+            assert prefer_export is False
             return source_urls[url]
 
     collection = discover_project_collection(
-        Client(), ProjectCollectionFilter("legacy-source", ()),
+        Client(), ProjectCollectionFilter(
+            "legacy-source", (), product_line_keys=("DOPL", "SDPL"),
+        ),
     )
 
     assert [row.project_id for row in collection.projects] == [
@@ -121,38 +132,256 @@ def test_export_view_is_the_authoritative_table_filter_catalog():
     ]
 
 
-def test_unified_discovery_keeps_readable_space_and_marks_partial_errors():
+def test_any_selected_line_failure_rejects_entire_collection():
     dopl_url = "https://confluence.amlogic.com/display/DOPL/Project+Space"
     dopl = ConfluencePage(
         "dopl", "Project Space", dopl_url,
         summary_table([(
-            '<a href="/pages/viewpage.action?pageId=7">Good</a>',
-            "2026/07/31", "A", "NORMAL", "",
+                '<a href="/pages/viewpage.action?pageId=7">Good</a>',
+                "2026/07/31", "A", "NORMAL", "GOOD",
         )]),
     )
 
     class Client:
         def get_page_by_url(self, url, *, prefer_export=False):
-            assert prefer_export is True
+            assert prefer_export is False
             if "SDPL" in url:
                 raise PermissionError("denied")
             return {dopl_url: dopl}[url]
 
-    collection = discover_project_collection(
+    with pytest.raises(ProjectCollectionDiscoveryError, match="SDPL.*unreadable"):
+        discover_project_collection(
+            Client(),
+            ProjectCollectionFilter(
+                "legacy-source", (2026,), ("A",), ("NORMAL",),
+                product_line_keys=("DOPL", "SDPL"),
+            ),
+        )
+
+
+def test_discovery_requests_only_selected_product_lines():
+    requested = []
+
+    class Client:
+        def get_page_by_url(self, url, prefer_export=False):
+            requested.append(url)
+            return type("Page", (), {
+                "id": "1", "title": "Project Space", "url": url,
+                "body": "", "view_body": summary_table([(
+                    '<a href="/pages/viewpage.action?pageId=1">Project</a>',
+                    "2026-01-01", "A", "NORMAL", "P1",
+                )]),
+            })()
+
+    discover_project_collection(
         Client(),
         ProjectCollectionFilter(
-            "legacy-source", (2026,), ("A",), ("NORMAL",),
-            product_line_keys=("DOPL", "SDPL"),
+            UNIFIED_SOURCE, (), product_line_keys=("DOPL", "TV"),
+        ),
+    )
+    assert requested == [
+        line.source_url for line in PRODUCT_LINES if line.key in {"DOPL", "TV"}
+    ]
+
+
+def test_missing_minimum_project_headers_names_line_and_rejects_collection():
+    line = PRODUCT_LINES[2]
+
+    class Client:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            return ConfluencePage(
+                "tv", "Project Space", url,
+                view_body="<table><tr><th>Page</th><th>Project Status</th></tr></table>",
+            )
+
+    with pytest.raises(
+        ProjectCollectionDiscoveryError,
+        match="TV.*Page and Project ID",
+    ):
+        discover_project_collection(
+            Client(), ProjectCollectionFilter(
+                UNIFIED_SOURCE, (), product_line_keys=(line.key,),
+            ),
+        )
+
+
+@pytest.mark.parametrize("line", PRODUCT_LINES, ids=lambda line: line.key)
+def test_split_macro_tables_merge_by_page_and_project_id_for_every_line(line):
+    page = f'<a href="/pages/viewpage.action?pageId={line.key}501">Split Project</a>'
+    identity_table = (
+        "<table><tr><th>Page</th><th>Project ID</th><th>Project Status</th>"
+        "<th>Current Stage</th><th>Support Mode</th></tr>"
+        f"<tr><td>{page}</td><td>{line.key}-501</td><td>NORMAL</td>"
+        "<td>IN DEVELOPMENT</td><td>A</td></tr></table>"
+    )
+    date_table = (
+        "<table><tr><th>Project ID</th><th>Page</th>"
+        "<th>Date of Commercial approval</th></tr>"
+        f"<tr><td>{line.key}-501</td><td>{page}</td><td>2026-08-01</td></tr></table>"
+    )
+
+    class Client:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            return ConfluencePage(line.key.casefold(), "Project Space", url, view_body=identity_table + date_table)
+
+    collection = discover_project_collection(
+        Client(), ProjectCollectionFilter(UNIFIED_SOURCE, (), product_line_keys=(line.key,)),
+    )
+
+    assert [(row.project_id, row.year, row.support_mode) for row in collection.projects] == [
+        (f"{line.key}-501", 2026, "A"),
+    ]
+
+
+def test_split_macro_tables_reject_missing_required_merged_field():
+    line = PRODUCT_LINES[0]
+    page = '<a href="/pages/viewpage.action?pageId=501">Split Project</a>'
+    body = (
+        "<table><tr><th>Page</th><th>Project ID</th><th>Project Status</th>"
+        "<th>Current Stage</th></tr>"
+        f"<tr><td>{page}</td><td>DOPL-501</td><td>NORMAL</td>"
+        "<td>IN DEVELOPMENT</td></tr></table>"
+        "<table><tr><th>Page</th><th>Project ID</th>"
+        "<th>Date of Commercial approval</th></tr>"
+        f"<tr><td>{page}</td><td>DOPL-501</td><td>2026-08-01</td></tr></table>"
+    )
+
+    class Client:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            return ConfluencePage("dopl", "Project Space", url, view_body=body)
+
+    collection = discover_project_collection(
+        Client(), ProjectCollectionFilter(
+            UNIFIED_SOURCE, (2026,), ("A",), product_line_keys=(line.key,),
+        ),
+    )
+    assert collection.projects == ()
+    assert collection.excluded_counts == {"support_mode": 1}
+
+
+def test_split_macro_tables_keep_first_non_empty_value_without_aborting_line():
+    line = PRODUCT_LINES[0]
+    page = '<a href="/pages/viewpage.action?pageId=501">Split Project</a>'
+    first = (
+        "<table><tr><th>Page</th><th>Project ID</th><th>Project Status</th>"
+        "<th>Current Stage</th><th>Support Mode</th></tr>"
+        f"<tr><td>{page}</td><td>DOPL-501</td><td>NORMAL</td>"
+        "<td>IN DEVELOPMENT</td><td>A</td></tr></table>"
+    )
+    second = (
+        "<table><tr><th>Page</th><th>Project ID</th>"
+        "<th>Date of Commercial approval</th><th>Support Mode</th></tr>"
+        f"<tr><td>{page}</td><td>DOPL-501</td><td>2026-08-01</td><td>B</td></tr></table>"
+    )
+
+    class Client:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            return ConfluencePage("dopl", "Project Space", url, view_body=first + second)
+
+    collection = discover_project_collection(
+        Client(), ProjectCollectionFilter(UNIFIED_SOURCE, (), product_line_keys=(line.key,)),
+    )
+    assert len(collection.projects) == 1
+    assert collection.projects[0].support_mode == "A"
+
+
+def test_same_page_can_contribute_to_multiple_project_ids():
+    line = PRODUCT_LINES[0]
+    page = '<a href="/display/DOPL/Basic+Info">DOPL Basic Info</a>'
+    rows = "".join(
+        f"<tr><td>{page}</td><td>{project_id}</td><td>NORMAL</td>"
+        "<td>IN DEVELOPMENT</td><td>A</td></tr>"
+        for project_id in ("DOPL-501", "DOPL-502")
+    )
+    dates = "".join(
+        f"<tr><td>{page}</td><td>{project_id}</td><td>2026-08-01</td></tr>"
+        for project_id in ("DOPL-501", "DOPL-502")
+    )
+    body = (
+        "<table><tr><th>Page</th><th>Project ID</th><th>Project Status</th>"
+        "<th>Current Stage</th><th>Support Mode</th></tr>" + rows + "</table>"
+        "<table><tr><th>Page</th><th>Project ID</th>"
+        "<th>Date of Commercial approval</th></tr>" + dates + "</table>"
+    )
+
+    class Client:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            return ConfluencePage("dopl", "Project Space", url, view_body=body)
+
+    collection = discover_project_collection(
+        Client(), ProjectCollectionFilter(UNIFIED_SOURCE, (), product_line_keys=(line.key,)),
+    )
+    assert [project.project_id for project in collection.projects] == ["DOPL-501", "DOPL-502"]
+
+
+def test_large_dopl_catalog_returns_valid_matches_despite_missing_filter_fields(monkeypatch):
+    messages = []
+    monkeypatch.setattr(
+        "tool.common.project_weekly_audit.discovery.smart_log",
+        lambda message, **kwargs: messages.append(kwargs.get("extra", {})),
+    )
+    page = '<a href="/display/DOPL/Basic+Info">DOPL Basic Info</a>'
+    main_rows = "".join(
+        f"<tr><td>{page}</td><td>DOPL-{index:03}</td><td>NORMAL</td>"
+        f"<td>IN DEVELOPMENT</td><td>{'' if index == 2 else 'A'}</td></tr>"
+        for index in range(1, 224)
+    )
+    date_rows = "".join(
+        f"<tr><td>{page}</td><td>DOPL-{index:03}</td><td>2026-08-01</td></tr>"
+        for index in range(2, 224)
+    )
+    body = (
+        "<table><tr><th>Page</th><th>Project ID</th><th>Project Status</th>"
+        "<th>Current Stage</th><th>Support Mode</th></tr>" + main_rows + "</table>"
+        "<table><tr><th>Page</th><th>Project ID</th>"
+        "<th>Date of Commercial approval</th></tr>" + date_rows + "</table>"
+    )
+
+    class Client:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            return ConfluencePage("dopl", "Project Space", url, view_body=body)
+
+    collection = discover_project_collection(
+        Client(), ProjectCollectionFilter(
+            UNIFIED_SOURCE, (2026,), ("A",), ("NORMAL",),
+            product_line_keys=("DOPL",),
         ),
     )
 
-    assert [row.project_identity for row in collection.projects] == ["DOPL:7"]
-    assert collection.discovery_errors == {
-        "space:OOPL": 1, "space:SDPL": 1, "space:TV": 1,
-    }
+    assert len(collection.projects) == 221
+    assert messages[0]["row_count"] == 223
+    assert messages[0]["missing_field_exclusions"] == {"support_mode": 1, "year": 1}
+    assert messages[0]["matched_count"] == 221
+    assert messages[0]["emitted_frontend_count"] == 221
 
 
-def test_commercial_approval_day_first_dates_feed_years_and_bad_dates_are_excluded():
+def test_same_project_id_merges_different_pages_and_keeps_first_project_page():
+    line = PRODUCT_LINES[0]
+    status_page = '<a href="/pages/viewpage.action?pageId=501">Status Page</a>'
+    approval_page = '<a href="/pages/viewpage.action?pageId=900">Approval Page</a>'
+    body = (
+        "<table><tr><th>Page</th><th>Project ID</th><th>Project Status</th>"
+        "<th>Current Stage</th><th>Support Mode</th></tr>"
+        f"<tr><td>{status_page}</td><td>DOPL-501</td><td>NORMAL</td>"
+        "<td>IN DEVELOPMENT</td><td>A</td></tr></table>"
+        "<table><tr><th>Page</th><th>Project ID</th>"
+        "<th>Date of Commercial approval</th></tr>"
+        f"<tr><td>{approval_page}</td><td>DOPL-501</td><td>2026-08-01</td></tr></table>"
+    )
+
+    class Client:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            return ConfluencePage("dopl", "Project Space", url, view_body=body)
+
+    collection = discover_project_collection(
+        Client(), ProjectCollectionFilter(UNIFIED_SOURCE, (), product_line_keys=(line.key,)),
+    )
+    assert len(collection.projects) == 1
+    assert collection.projects[0].status_page_id == "501"
+    assert collection.projects[0].display_name == "Status Page"
+
+
+def test_invalid_or_missing_commercial_approval_is_excluded_only_when_year_is_active():
     dopl_url = "https://confluence.amlogic.com/display/DOPL/Project+Space"
     sdpl_url = "https://confluence.amlogic.com/display/SDPL/Project+Space"
     pages = {
@@ -180,24 +409,28 @@ def test_commercial_approval_day_first_dates_feed_years_and_bad_dates_are_exclud
 
     class Client:
         def get_page_by_url(self, url, *, prefer_export=False):
-            assert prefer_export is True
+            assert prefer_export is False
             if url not in pages:
                 raise PermissionError("not configured")
             return pages[url]
 
     collection = discover_project_collection(
         Client(), ProjectCollectionFilter(
-            "legacy-source", (), product_line_keys=("DOPL", "SDPL"),
+            "legacy-source", (2026,), ("A",), ("NORMAL",),
+            product_line_keys=("DOPL", "SDPL"),
         ),
     )
+    assert [project.project_id for project in collection.projects] == ["ALPHA"]
+    assert collection.excluded_counts == {"support_mode": 1, "year": 3}
 
-    assert [(row.project_id, row.year) for row in collection.projects] == [
-        ("ALPHA", 2026), ("BETA", 2026), ("GAMMA", 2025),
+    without_year_filter = discover_project_collection(
+        Client(), ProjectCollectionFilter(
+            "legacy-source", (), product_line_keys=("SDPL",),
+        ),
+    )
+    assert [project.project_id for project in without_year_filter.projects] == [
+        "EMPTY", "MALFORMED",
     ]
-    assert collection.visible_years == (2025, 2026)
-    assert collection.discovery_errors == {
-        "row:SDPL": 2, "space:OOPL": 1, "space:TV": 1,
-    }
 
 
 def test_project_page_discovery_stays_within_project_root():
@@ -345,16 +578,18 @@ def test_four_product_lines_keep_source_identity_and_fixed_names_without_space_l
             return ConfluencePage(
                 key, "Project Space", url,
                 view_body=(
-                    "<table><tr><th>Page</th><th>Date of Commercial Approval</th>"
-                    "<th>Support Mode</th><th>Project Status</th></tr>"
-                    f'<tr><td><a href="/pages/{key}">{key} Project</a></td>'
-                    "<td>2026-01-01</td><td>A</td><td>NORMAL</td></tr></table>"
+                        "<table><tr><th>Page</th><th>Date of Commercial Approval</th>"
+                        "<th>Support Mode</th><th>Project Status</th>"
+                        "<th>Current Stage</th><th>Project ID</th></tr>"
+                        f'<tr><td><a href="/pages/{key}">{key} Project</a></td>'
+                        f"<td>2026-01-01</td><td>A</td><td>NORMAL</td>"
+                        f"<td>IN DEVELOPMENT</td><td>{key}-1</td></tr></table>"
                 ),
             )
 
     collection = discover_project_collection(
         Client(), ProjectCollectionFilter(
-            "all", (2026,), product_line_keys=("DOPL",),
+            "all", (2026,), product_line_keys=("DOPL", "SDPL", "TV", "OOPL"),
         ),
     )
 
@@ -365,4 +600,6 @@ def test_four_product_lines_keep_source_identity_and_fixed_names_without_space_l
         "China Operator Business", "Smart Device Business", "TV Business",
         "Global Operator & STB Business",
     ]
-    assert {project.space_key for project in collection.projects} == {"DOPL"}
+    assert {project.space_key for project in collection.projects} == {
+        "DOPL", "SDPL", "TV", "OOPL",
+    }

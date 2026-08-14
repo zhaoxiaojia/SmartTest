@@ -58,96 +58,200 @@ UNIFIED_SOURCE = "Confluence Product Line Project Spaces"
 
 def discover_project_collection(client, criteria: ProjectCollectionFilter, progress=lambda *_: None):
     projects = []
-    errors = Counter()
-    progress(0, len(PRODUCT_LINES))
-    for index, line in enumerate(PRODUCT_LINES, 1):
+    selected_keys = set(criteria.product_line_keys)
+    product_lines = tuple(
+        line for line in PRODUCT_LINES
+        if line.key in selected_keys
+    )
+    progress(0, len(product_lines))
+    for index, line in enumerate(product_lines, 1):
         space_key, source_url = line.key, line.source_url
+        fetch_error = ""
+        fetch_exception = None
+        source_diagnostic = {}
         try:
-            source = client.get_page_by_url(source_url, prefer_export=True)
-            rows, table_count, row_errors = _summary_projects(source, space_key)
-        except Exception:
-            errors[f"space:{space_key}"] += 1
+            source = client.get_page_by_url(source_url)
+            rows, table_count, row_errors, source_diagnostic = _summary_projects(
+                source, space_key, diagnostic=True,
+            )
+        except Exception as exc:
             rows, table_count, row_errors = [], 0, 0
+            fetch_error = type(exc).__name__
+            fetch_exception = exc
         projects.extend(rows)
-        if row_errors:
-            errors[f"row:{space_key}"] += row_errors
+        filter_diagnostic = _line_filter_diagnostic(rows, criteria)
         smart_log(
-            "Confluence project summary catalog read",
+            "Confluence product line projects filtered",
             domain="confluence", source="project_collection",
-            level="warning" if row_errors else "info",
+            level="warning" if fetch_error or row_errors else "info",
             extra={
                 "space_key": space_key,
                 "table_count": table_count,
                 "row_count": len(rows),
                 "error_count": row_errors,
+                "fetch_error_type": fetch_error,
+                **source_diagnostic, **filter_diagnostic,
             },
         )
-        progress(index, len(PRODUCT_LINES))
+        if fetch_error:
+            raise ProjectCollectionDiscoveryError(
+                f"{space_key} Project Space is unreadable: {fetch_error}"
+            ) from fetch_exception
+        if table_count == 0:
+            raise ProjectCollectionDiscoveryError(
+                f"{space_key} Project Space has no readable project table with "
+                "Page and Project ID columns"
+            )
+        progress(index, len(product_lines))
     criteria = replace(
         criteria, source_url=UNIFIED_SOURCE, current_stages=(),
     )
     collection = filter_projects(projects, criteria)
     return replace(
         collection,
-        visible_years=tuple(sorted({project.year for project in projects})),
-        discovery_errors=dict(sorted(errors.items())),
+        visible_years=tuple(sorted({
+            project.year for project in projects if project.year > 0
+        })),
+        discovery_errors={},
         product_lines=PRODUCT_LINES,
     )
 
 
-_SUMMARY_REQUIRED = {
+_SUMMARY_FIELDS = {
     "page", "date of commercial approval", "support mode", "project status",
+    "project id", "current stage",
 }
 
 
-def _summary_projects(source, space_key):
-    projects = {}
+def _line_filter_diagnostic(projects, criteria):
+    years = set(criteria.years)
+    support_modes = {_normalize(value) for value in criteria.support_modes}
+    project_statuses = {_normalize(value) for value in criteria.project_statuses}
+    missing = Counter()
+    mismatches = Counter()
+    matched = 0
+    for project in projects:
+        excluded = False
+        for active, field, value, normalized_values in (
+            (years, "year", project.year, years),
+            (support_modes, "support_mode", project.support_mode, support_modes),
+            (project_statuses, "project_status", project.project_status, project_statuses),
+        ):
+            if not active:
+                continue
+            if value in {None, "", 0}:
+                missing[field] += 1
+                excluded = True
+            elif (_normalize(value) if field != "year" else value) not in normalized_values:
+                mismatches[field] += 1
+                excluded = True
+        if not excluded:
+            matched += 1
+    return {
+        "missing_field_exclusions": dict(sorted(missing.items())),
+        "criterion_mismatch_counts": dict(sorted(mismatches.items())),
+        "matched_count": matched,
+        "emitted_frontend_count": matched,
+    }
+
+
+def _summary_projects(source, space_key, *, diagnostic=False):
+    merged_rows = {}
     table_count = 0
     errors = 0
-    for table in html_tables(source.view_body or source.body):
-        header_index = next((
-            index for index, row in enumerate(table)
-            if _SUMMARY_REQUIRED <= {_summary_header(cell) for cell in row}
-        ), None)
+    rejection_counts = Counter()
+    parsed_tables = html_tables(source.view_body or source.body)
+    identity_headers = {"page", "project id"}
+    for table in parsed_tables:
+        header_index = None
+        for index, row in enumerate(table):
+            row_headers = {_summary_header(cell) for cell in row}
+            if identity_headers <= row_headers:
+                header_index = index
+                break
         if header_index is None:
+            rejection_counts["table_header_mismatch"] += 1
             continue
         table_count += 1
         headers = [_summary_header(cell) for cell in table[header_index]]
         for cells in table[header_index + 1:]:
             if len(cells) < len(headers):
                 errors += 1
+                rejection_counts["short_row"] += 1
                 continue
             values = dict(zip(headers, cells))
-            if _SUMMARY_REQUIRED <= {_summary_header(cell) for cell in cells}:
+            if identity_headers <= {_summary_header(cell) for cell in cells}:
                 continue
             page_links = links(values["page"])
-            year = _commercial_year(text(values["date of commercial approval"]))
-            support_mode = text(values["support mode"]).strip()
-            project_status = text(values["project status"]).strip()
-            if not page_links or year is None or not support_mode or not project_status:
+            project_id = text(values["project id"]).strip()
+            if not page_links or not project_id:
                 errors += 1
+                if not page_links:
+                    rejection_counts["missing_page_link"] += 1
+                if not project_id:
+                    rejection_counts["missing_project_id"] += 1
                 continue
             href, label = page_links[0]
             page_url = urljoin(source.url, href)
             page_id = (parse_qs(urlsplit(page_url).query).get("pageId") or [""])[0]
-            root_identity = page_id or page_url
-            project_id = text(values.get("project id", "")).strip() or root_identity
-            projects.setdefault(root_identity, ConfluenceProject(
+            project_id_key = _normalize(project_id)
+            merged = merged_rows.setdefault(project_id_key, {
+                "page": values["page"], "project id": values["project id"],
+                "page_url": page_url, "page_id": page_id,
+                "label": label,
+            })
+            for field in _SUMMARY_FIELDS - identity_headers:
+                if field not in values or not text(values[field]).strip():
+                    continue
+                merged.setdefault(field, values[field])
+
+    projects = {}
+    for merged in merged_rows.values():
+        commercial_date = text(merged.get("date of commercial approval", ""))
+        year = _commercial_year(commercial_date) or 0
+        project_id = text(merged["project id"]).strip()
+        project_status = text(merged.get("project status", "")).strip()
+        current_stage = text(merged.get("current stage", "")).strip()
+        support_mode = text(merged.get("support mode", "")).strip()
+        label = merged["label"]
+        page_url = merged["page_url"]
+        page_id = merged["page_id"]
+        projects.setdefault(_normalize(project_id), ConfluenceProject(
                 year=year,
                 project_id=project_id,
-                name=label or text(values["page"]).strip(),
+                name=label or text(merged["page"]).strip(),
                 status_page_id=page_id,
                 status_url=page_url,
                 home_url=page_url,
                 project_status=project_status,
+                current_stage=current_stage,
                 support_mode=support_mode,
-                display_name=label or text(values["page"]).strip(),
+                attributes={
+                    "year_source": "date of commercial approval",
+                    "support_mode_source": "support mode",
+                    "project_status_source": "project status",
+                },
+                display_name=label or text(merged["page"]).strip(),
                 space_key=space_key,
-                page_identity=root_identity,
+                page_identity=project_id,
             ))
     if table_count == 0:
         errors += 1
-    return list(projects.values()), table_count, errors
+    result = (list(projects.values()), table_count, errors)
+    if not diagnostic:
+        return result
+    return (*result, {
+        "page_id": str(source.id or ""),
+        "page_title": _safe_title(source.title),
+        "body_length": len(source.body or ""),
+        "view_body_length": len(source.view_body or ""),
+        "parsed_table_count": len(parsed_tables),
+        "rejection_counts": dict(sorted(rejection_counts.items())),
+        "merged_project_count": len(merged_rows),
+        "project_identity_sample": sorted(
+            project.project_identity for project in projects.values()
+        )[:10],
+    })
 
 
 def _summary_header(value):

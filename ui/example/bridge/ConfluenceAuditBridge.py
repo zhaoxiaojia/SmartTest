@@ -11,7 +11,8 @@ from PySide6.QtCore import QObject, Property, QStandardPaths, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 
 from tool.common.project_weekly_audit.discovery import (
-    PRODUCT_LINES, UNIFIED_SOURCE, discover_project_collection,
+    PRODUCT_LINES, UNIFIED_SOURCE, ProjectCollectionDiscoveryError,
+    discover_project_collection,
 )
 from tool.common.project_weekly_audit.models import (
     AuditExecutionContext, ConfluenceProject, ProductLine, ProjectCollection,
@@ -67,12 +68,15 @@ class ConfluenceAuditBridge(QObject):
     _workerFailed = Signal(object)
     _plansFinished = Signal(object)
     _catalogEvent = Signal(object)
+    _filterFinished = Signal(object)
+    _filterFailed = Signal(object)
 
     def __init__(
         self, auth_bridge, *, service_factory=None, history_root=None,
         collection_factory=None, plan_store=None, credential_store=None,
         scheduler=None, executable=None, now_factory=None,
         snapshot_cache=None, dynamic_submit=None,
+        filter_submit=None,
     ):
         super().__init__(auth_bridge)
         self._auth = auth_bridge
@@ -109,6 +113,12 @@ class ConfluenceAuditBridge(QObject):
         self._catalog_has_product_lines = False
         self._catalog_account_hash = ""
         self._catalog_refresh_in_flight = False
+        self._auth_account_hash = self._snapshot_cache.identity(
+            self._current_account_key()
+        )
+        self._filter_generation = 0
+        self._pending_filter = None
+        self._filter_submit = filter_submit or self._submit_dynamic
         self._schedule_rows = []
         criteria = default_project_filter(self._now(), PROJECT_SPACE_URL)
         self._view = {"state": "idle", "statusText": self.tr("Ready to audit all Confluence projects."),
@@ -128,14 +138,25 @@ class ConfluenceAuditBridge(QObject):
                       "candidateSections": [], "exportPaths": [],
                       "collectionSummary": {},
                       "catalogStatus": "idle", "catalogStatusText": "",
+                      "filterApplying": False,
                       "canStart": True, "canExport": False}
         self._workerProgress.connect(self._on_worker_progress)
         self._workerFinished.connect(self._on_worker_finished)
         self._workerFailed.connect(self._on_worker_failed)
         self._plansFinished.connect(self._on_plans_finished)
         self._catalogEvent.connect(self._on_catalog_event)
+        self._filterFinished.connect(self._on_filter_finished)
+        self._filterFailed.connect(self._on_filter_failed)
         if hasattr(auth_bridge, "authChanged"):
             auth_bridge.authChanged.connect(self._on_auth_changed)
+        if hasattr(auth_bridge, "runtimeCredentialSupplied"):
+            auth_bridge.runtimeCredentialSupplied.connect(
+                self._on_runtime_credential_supplied,
+            )
+        if hasattr(auth_bridge, "runtimeCredentialSupplyCancelled"):
+            auth_bridge.runtimeCredentialSupplyCancelled.connect(
+                self._cancel_pending_filter,
+            )
         self.destroyed.connect(lambda *_: self._dynamic_source.close())
 
     @staticmethod
@@ -345,12 +366,9 @@ class ConfluenceAuditBridge(QObject):
             self._catalog = None
             self._catalog_account_hash = ""
             self._set(
-                candidateProjects=[], selectedProjectIds=[],
-                candidateSections=[],
                 availableFilterValues={
                     "years": [], "supportModes": [], "projectStatuses": [],
                 },
-                collectionSummary={},
             )
         catalog_criteria = ProjectCollectionFilter(
             source_url=UNIFIED_SOURCE, years=(),
@@ -416,10 +434,7 @@ class ConfluenceAuditBridge(QObject):
             self._on_collection_finished({
                 "collection": event.snapshot,
                 "accountHash": event.account_hash,
-                "showCandidates": (
-                    state is RefreshState.CACHED
-                    or bool(self._view["candidateProjects"])
-                ),
+                "showCandidates": False,
             })
 
     @Slot(object)
@@ -495,7 +510,7 @@ class ConfluenceAuditBridge(QObject):
             if value in candidate_ids
         ]
         error_count = sum(collection.discovery_errors.values())
-        self._set(
+        changes = dict(
             statusText=(
                 self.tr(
                     "Project Space options refreshed with {count} inaccessible or unreadable project pages.",
@@ -503,78 +518,217 @@ class ConfluenceAuditBridge(QObject):
                 if error_count else self.tr("Project Space filter options refreshed.")
             ),
             filter=refreshed_filter,
-            candidateProjects=candidate_rows, selectedProjectIds=selected,
             productLines=product_lines,
             selectedProductLineKeys=selected_line_keys,
-            candidateSections=self._candidate_sections(
-                visible.projects,
-                tuple(
-                    line for line in PRODUCT_LINES
-                    if line.key in selected_line_keys
-                ),
-            ) if bool(payload.get("showCandidates")) else [],
             availableFilterValues=options,
-            collectionSummary={
-                "candidateCount": len(candidate_rows),
-                "excludedCounts": dict(visible.excluded_counts),
-            },
         )
+        if bool(payload.get("showCandidates")):
+            changes.update(
+                candidateProjects=candidate_rows,
+                selectedProjectIds=selected,
+                candidateSections=self._candidate_sections(
+                    visible.projects,
+                    tuple(
+                        line for line in PRODUCT_LINES
+                        if line.key in selected_line_keys
+                    ),
+                ),
+                collectionSummary={
+                    "candidateCount": len(candidate_rows),
+                    "excludedCounts": dict(visible.excluded_counts),
+                },
+            )
+        self._set(**changes)
 
     @Slot()
     def applyCollectionFilter(self):
-        if self._view["state"] in BUSY:
+        if self._view["state"] in BUSY or self._view["filterApplying"]:
+            return
+        if self._pending_filter is not None:
             return
         account_hash = self._snapshot_cache.identity(self._current_account_key())
-        catalog = self._catalog
-        if catalog is None or self._catalog_account_hash != account_hash:
-            self._set(
-                statusText=self.tr(
-                    "Refresh Project Space options before applying filters.",
-                ),
-            )
-            return
         criteria = self._criteria()
-        state = self._candidate_state(criteria.product_line_keys)
+        if not criteria.product_line_keys:
+            self._set(statusText=self.tr("Select at least one product line."))
+            return
+        self._pending_filter = {
+            "accountHash": account_hash,
+            "criteria": criteria,
+        }
+        acquisition = self._auth.acquireRuntimeCredential()
+        status = str(acquisition.get("status") or "")
+        if status != "ready":
+            self._set(statusText=(
+                self.tr("Enter the current account password to continue applying filters.")
+                if status in {"password_required", "pending"}
+                else self.tr("Sign in with LDAP to continue applying filters.")
+            ))
+            return
+        self._start_pending_filter()
+
+    def _start_pending_filter(self):
+        pending = self._pending_filter
+        credentials = self._transient_credentials()
+        if pending is None or credentials is None:
+            self._pending_filter = None
+            return
+        if pending["accountHash"] != self._snapshot_cache.identity(
+            self._current_account_key()
+        ):
+            self._pending_filter = None
+            return
+        self._pending_filter = None
+        account_hash = pending["accountHash"]
+        criteria = pending["criteria"]
+        self._filter_generation += 1
+        generation = self._filter_generation
+        self._set(filterApplying=True)
+        username, password = credentials
+        self._filter_submit(lambda: self._discover_for_filter(
+            generation, account_hash, username, password, criteria,
+        ))
+
+    @Slot()
+    def _on_runtime_credential_supplied(self):
+        self._start_pending_filter()
+
+    @Slot()
+    def _cancel_pending_filter(self):
+        self._pending_filter = None
+        self._set(filterApplying=False)
+
+    def _discover_for_filter(
+        self, generation, account_hash, username, password, criteria,
+    ):
+        try:
+            collection = self._collection_factory(
+                username, password, criteria, lambda *_: None,
+            )
+        except Exception as exc:
+            self._filterFailed.emit({
+                "generation": generation,
+                "accountHash": account_hash,
+                "kind": self._failure_kind(exc),
+                "detail": (
+                    str(exc) if isinstance(exc, ProjectCollectionDiscoveryError) else ""
+                ),
+            })
+            return
+        self._filterFinished.emit({
+            "generation": generation,
+            "accountHash": account_hash,
+            "criteria": criteria,
+            "collection": collection,
+        })
+
+    @Slot(object)
+    def _on_filter_finished(self, payload):
+        if not self._active_filter_payload(payload):
+            return
+        criteria = payload["criteria"]
+        collection = payload["collection"]
+        try:
+            state = self._candidate_state(
+                criteria.product_line_keys, catalog=collection, criteria=criteria,
+            )
+            smart_log(
+                "Project catalog filter applied",
+                domain="confluence", source="ConfluenceAuditBridge",
+                extra={
+                    "account_id": _log_account_id(self._current_account_key()),
+                    "source_url": criteria.source_url,
+                    "catalog_count": len(collection.projects),
+                    "years": list(criteria.years),
+                    "support_modes": list(criteria.support_modes),
+                    "project_statuses": list(criteria.project_statuses),
+                    "filtered_project_count": state["collectionSummary"]["candidateCount"],
+                    "candidate_count": state["collectionSummary"]["candidateCount"],
+                    "excluded_counts": state["collectionSummary"]["excludedCounts"],
+                },
+            )
+            self._set(**state, statusText=self.tr("Project filters applied."))
+        finally:
+            self._set(filterApplying=False)
+
+    @Slot(object)
+    def _on_filter_failed(self, payload):
+        if not self._active_filter_payload(payload):
+            return
         smart_log(
-            "Project catalog filter applied",
+            "Confluence project filter failed",
             domain="confluence", source="ConfluenceAuditBridge",
+            level="warning",
             extra={
                 "account_id": _log_account_id(self._current_account_key()),
-                "source_url": criteria.source_url,
-                "catalog_count": len(catalog.projects),
-                "years": list(criteria.years),
-                "support_modes": list(criteria.support_modes),
-                "project_statuses": list(criteria.project_statuses),
-                "filtered_project_count": state["collectionSummary"]["candidateCount"],
-                "candidate_count": state["collectionSummary"]["candidateCount"],
-                "excluded_counts": state["collectionSummary"]["excludedCounts"],
+                "error_kind": str(payload.get("kind") or "audit"),
             },
         )
+        messages = {
+            "auth": self.tr("Confluence authentication failed. Sign in with LDAP again."),
+            "network": self.tr("Confluence network access failed. Check the network or VPN, then try again."),
+            "dependency": self.tr(
+                "Confluence support is missing. Start SmartTest with the project .venv "
+                "or run support/scripts/script-init-venv.py.",
+            ),
+            "audit": self.tr("Confluence project refresh failed. Review the application log, then try again."),
+        }
         self._set(
-            **state,
-            statusText=self.tr("Project filters applied."),
+            filterApplying=False,
+            statusText=(
+                str(payload.get("detail") or "")
+                if payload.get("kind") == "audit" and payload.get("detail")
+                else messages.get(payload.get("kind"), messages["audit"])
+            ),
         )
 
-    def _candidate_state(self, selected_line_keys):
-        catalog = self._catalog
+    def _active_filter_payload(self, payload):
+        return (
+            int(payload.get("generation", -1)) == self._filter_generation
+            and str(payload.get("accountHash") or "")
+            == self._snapshot_cache.identity(self._current_account_key())
+        )
+
+    def _candidate_state(self, selected_line_keys, *, catalog=None, criteria=None):
+        catalog = catalog if catalog is not None else self._catalog
+        already_filtered = criteria is not None
         selected_keys = tuple(dict.fromkeys(str(key) for key in selected_line_keys))
+        has_product_lines = bool(
+            catalog and (
+                catalog.product_lines
+                or any(project.space_key for project in catalog.projects)
+            )
+        )
         if catalog is None or (catalog.product_lines and not selected_keys):
             return {
                 "candidateProjects": [], "candidateSections": [],
                 "selectedProjectIds": [],
                 "collectionSummary": {"candidateCount": 0, "excludedCounts": {}},
             }
-        value = self._view["filter"]
-        criteria = ProjectCollectionFilter(
-            UNIFIED_SOURCE,
-            tuple(int(year) for year in value.get("years", ())),
-            tuple(str(item) for item in value.get("supportModes", ())),
-            tuple(str(item) for item in value.get("projectStatuses", ())),
-            product_line_keys=(
-                selected_keys if self._catalog_has_product_lines else ()
-            ),
+        if criteria is None:
+            value = self._view["filter"]
+            criteria = ProjectCollectionFilter(
+                UNIFIED_SOURCE,
+                tuple(int(year) for year in value.get("years", ())),
+                tuple(str(item) for item in value.get("supportModes", ())),
+                tuple(str(item) for item in value.get("projectStatuses", ())),
+                product_line_keys=(
+                    selected_keys if has_product_lines else ()
+                ),
+            )
+        effective_criteria = replace(
+            criteria,
+            product_line_keys=(selected_keys if has_product_lines else ()),
         )
-        collection = filter_projects(catalog.projects, criteria)
+        collection = filter_projects(catalog.projects, effective_criteria)
+        if already_filtered:
+            excluded = dict(catalog.excluded_counts)
+            for key, count in collection.excluded_counts.items():
+                excluded[key] = excluded.get(key, 0) + count
+            collection = replace(
+                collection,
+                discovery_errors=dict(catalog.discovery_errors),
+                excluded_counts=excluded,
+            )
         candidate_rows = self._candidate_rows(collection.projects)
         valid_ids = {row["projectIdentity"] for row in candidate_rows}
         selected_projects = [
@@ -584,7 +738,7 @@ class ConfluenceAuditBridge(QObject):
         selected_set = set(selected_keys)
         selected_lines = (
             tuple(line for line in PRODUCT_LINES if line.key in selected_set)
-            if self._catalog_has_product_lines else ()
+            if has_product_lines else ()
         )
         return {
             "candidateProjects": candidate_rows,
@@ -1140,6 +1294,8 @@ class ConfluenceAuditBridge(QObject):
     def _failure_kind(exc):
         if isinstance(exc, ConfluenceDependencyError):
             return "dependency"
+        if isinstance(exc, PermissionError):
+            return "auth"
         status = getattr(getattr(exc, "response", None), "status_code", None)
         if status in {401, 403}:
             return "auth"
@@ -1149,8 +1305,19 @@ class ConfluenceAuditBridge(QObject):
 
     @Slot()
     def _on_auth_changed(self):
+        next_hash = self._snapshot_cache.identity(self._current_account_key())
+        if self._auth.isAuthenticated() and next_hash == self._auth_account_hash:
+            return
+        self._auth_account_hash = next_hash
         self._dynamic_source.invalidate()
         self._catalog_refresh_in_flight = False
+        self._filter_generation += 1
+        if self._pending_filter and (
+            not self._auth.isAuthenticated()
+            or self._pending_filter["accountHash"]
+            != self._snapshot_cache.identity(self._current_account_key())
+        ):
+            self._pending_filter = None
         self._generation += 1
         self._batch = None
         self._catalog = None
@@ -1173,7 +1340,7 @@ class ConfluenceAuditBridge(QObject):
             productLines=self._product_line_rows(PRODUCT_LINES),
             selectedProductLineKeys=[],
             collectionSummary={}, summary={}, projects=[], findings=[],
-            canExport=False,
+            filterApplying=False, canExport=False,
         )
         if self._auth.isAuthenticated() and self._auth.hasCredential():
             self.initializeCollection()

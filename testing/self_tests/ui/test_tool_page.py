@@ -1177,6 +1177,15 @@ def test_confluence_audit_tool_exposes_collection_plan_and_xlsx_content_contract
     assert "ConfluenceAuditBridge.startAudit()" in workspace
     assert "ConfluenceAuditBridge.refreshCollection()" in workspace
     assert "ConfluenceAuditBridge.applyCollectionFilter()" in workspace
+    assert "root.view.filterApplying" in workspace
+    assert 'objectName: "confluenceAuditApplyFilterProgress"' in workspace
+    assert 'objectName: "confluenceAuditLoginLauncher"' in workspace
+    assert "target: AuthBridge" in workspace
+    assert "function onRuntimeCredentialSupplyRequired()" in workspace
+    assert "credentialSupply: AuthBridge.authenticated" in workspace
+    assert "target: ConfluenceAuditBridge" not in workspace
+    assert "filter_submit=" not in (ROOT / "ui/example/main.py").read_text(encoding="utf-8")
+    assert "filter_submit=" not in (ROOT / "ui/example/tool_main.py").read_text(encoding="utf-8")
     assert "Component.onCompleted" in workspace
     assert "ConfluenceAuditBridge.refreshPlans()" not in workspace
     assert 'ConfluenceAuditBridge.toggleFilterValue( "years", modelData)' in compact
@@ -1245,6 +1254,8 @@ def test_confluence_workspace_declares_responsive_candidate_grid_contract():
     assert "ConfluenceAuditBridge.enableWeeklyPlan()" in workspace
     assert "id: candidateSectionList" in workspace
     assert "id: candidateSectionColumn" in workspace
+    assert "id: candidateSectionGrid" in workspace
+    assert "columns: 3" in workspace
     assert "ScrollBar.vertical: FluScrollBar" in workspace
     assert "candidateSectionColumn.implicitHeight" in workspace
 
@@ -1318,6 +1329,7 @@ class Bridge(QObject):
 app=QGuiApplication([]); engine=QQmlApplicationEngine(); warnings=[]; bridge=Bridge()
 engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
 engine.rootContext().setContextProperty("ConfluenceAuditBridge", bridge)
+engine.rootContext().setContextProperty("AuthBridge", bridge)
 FluentUI.registerTypes(engine)
 engine.loadData(b'import QtQuick 2.15; import QtQuick.Window 2.15; Window {{ visible: true; width: 1500; height: 1000; Loader {{ anchors.fill: parent; source: "qrc:/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" }} }}')
 app.processEvents(); QTest.qWait(100); app.processEvents(); window=engine.rootObjects()[0]

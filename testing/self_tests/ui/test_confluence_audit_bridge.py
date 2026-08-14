@@ -1,6 +1,8 @@
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Event, get_ident
+import time
 from zoneinfo import ZoneInfo
 
 from PySide6.QtCore import QCoreApplication, QObject, Signal
@@ -14,19 +16,28 @@ from tool.common.project_weekly_audit.plans import AuditPlan, AuditPlanStore
 from tool.common.project_weekly_audit.scheduler import ScheduledPlanState
 from support.account_dynamic_source import DynamicSourceEvent, RefreshState
 from ui.example.bridge.ConfluenceAuditBridge import (
-    PROJECT_SPACE_URL, ConfluenceAuditBridge,
+    PRODUCT_LINES, PROJECT_SPACE_URL, ConfluenceAuditBridge,
 )
+from tool.common.project_weekly_audit.discovery import ProjectCollectionDiscoveryError
 
 app = QCoreApplication.instance() or QCoreApplication([])
 
 class Auth(QObject):
     authChanged = Signal()
+    runtimeCredentialSupplyRequired = Signal()
+    runtimeCredentialSupplied = Signal()
+    runtimeCredentialSupplyCancelled = Signal()
     def __init__(self, ok=True):
         super().__init__(); self.ok = ok
     def isAuthenticated(self): return self.ok
     def hasCredential(self): return self.ok
     def currentUsername(self): return "alice"
     def transientCredential(self): return ("alice", "secret") if self.ok else ("", "")
+    def acquireRuntimeCredential(self):
+        if self.ok:
+            return {"status": "ready"}
+        self.runtimeCredentialSupplyRequired.emit()
+        return {"status": "unauthenticated"}
 
 def test_bridge_rejects_audit_without_transient_ldap():
     bridge = ConfluenceAuditBridge(Auth(False))
@@ -34,6 +45,83 @@ def test_bridge_rejects_audit_without_transient_ldap():
     bridge.startAudit()
     assert bridge.viewState["state"] == "failed"
     assert bridge.viewState["canStart"] is True
+
+
+def test_apply_without_transient_credential_requests_auth_owned_login_and_does_not_load(
+    monkeypatch, tmp_path,
+):
+    logs = []
+    login_requests = []
+    monkeypatch.setattr(
+        "ui.example.bridge.ConfluenceAuditBridge.smart_log",
+        lambda message, **kwargs: logs.append((message, kwargs)),
+    )
+    auth = Auth(False)
+    auth.runtimeCredentialSupplyRequired.connect(lambda: login_requests.append(True))
+    bridge = ConfluenceAuditBridge(auth, history_root=tmp_path)
+    bridge._set(selectedProductLineKeys=["DOPL"])
+
+    bridge.applyCollectionFilter()
+
+    assert login_requests == [True]
+    assert bridge.viewState["filterApplying"] is False
+    assert "Sign in" in bridge.viewState["statusText"]
+    assert bridge._pending_filter is not None
+
+
+def test_password_reauthentication_resumes_one_pending_apply_exactly_once(tmp_path):
+    class PendingAuth(Auth):
+        def __init__(self):
+            super().__init__(False)
+            self.ok = True
+            self.password = ""
+            self.acquire_calls = 0
+        def transientCredential(self): return ("alice", self.password)
+        def acquireRuntimeCredential(self):
+            self.acquire_calls += 1
+            self.runtimeCredentialSupplyRequired.emit()
+            return {"status": "password_required"}
+
+    auth = PendingAuth()
+    discoveries = []
+    bridge = ConfluenceAuditBridge(
+        auth, history_root=tmp_path,
+        collection_factory=lambda *args: discoveries.append(args) or ProjectCollection([], {}),
+        filter_submit=lambda work: work(),
+    )
+    bridge._set(selectedProductLineKeys=["DOPL"])
+
+    bridge.applyCollectionFilter()
+    bridge.applyCollectionFilter()
+    assert auth.acquire_calls == 1
+    assert bridge.viewState["filterApplying"] is False
+    assert discoveries == []
+
+    auth.password = "new-secret"
+    auth.runtimeCredentialSupplied.emit()
+    auth.runtimeCredentialSupplied.emit()
+
+    assert len(discoveries) == 1
+    assert bridge._pending_filter is None
+
+
+def test_cancelled_runtime_credential_supply_keeps_old_candidates(tmp_path):
+    class PendingAuth(Auth):
+        def acquireRuntimeCredential(self): return {"status": "password_required"}
+
+    auth = PendingAuth()
+    old = [{"projectIdentity": "DOPL:old"}]
+    bridge = ConfluenceAuditBridge(auth, history_root=tmp_path)
+    bridge._set(selectedProductLineKeys=["DOPL"], candidateProjects=old)
+    bridge.applyCollectionFilter()
+    auth.runtimeCredentialSupplyCancelled.emit()
+    assert bridge.viewState["candidateProjects"] == old
+    assert bridge._pending_filter is None
+
+    bridge.applyCollectionFilter()
+    auth.runtimeCredentialSupplyCancelled.emit()
+    assert bridge.viewState["candidateProjects"] == old
+    assert bridge.viewState["filterApplying"] is False
 
 
 def test_bridge_exposes_fixed_product_lines_before_refresh_and_rejects_empty_selection(tmp_path):
@@ -353,6 +441,12 @@ def test_account_catalog_refresh_overwrites_options_without_showing_projects_unt
     bridge = ConfluenceAuditBridge(
         Auth(), history_root=tmp_path, collection_factory=discover,
     )
+    old_rows = [{"projectIdentity": "DOPL:old"}]
+    bridge._set(
+        candidateProjects=old_rows,
+        candidateSections=[{"key": "DOPL", "projects": old_rows}],
+        selectedProjectIds=["DOPL:old"],
+    )
 
     bridge.refreshCollection()
 
@@ -361,7 +455,8 @@ def test_account_catalog_refresh_overwrites_options_without_showing_projects_unt
     assert calls[0][2].support_modes == ()
     assert calls[0][2].project_statuses == ()
     assert calls[0][2].current_stages == ()
-    assert bridge.viewState["candidateProjects"] == []
+    assert bridge.viewState["candidateProjects"] == old_rows
+    assert bridge.viewState["selectedProjectIds"] == ["DOPL:old"]
     assert bridge.viewState["availableFilterValues"] == {
         "years": [2025, 2026],
         "supportModes": ["A", "B"],
@@ -443,6 +538,7 @@ def test_catalog_cache_is_isolated_by_current_account(monkeypatch, tmp_path):
     auth.authChanged.emit()
 
     assert bridge.viewState["candidateProjects"] == []
+    assert bridge.viewState["selectedProjectIds"] == []
     assert "Refreshing" not in bridge.viewState["statusText"]
     assert bridge.viewState["availableFilterValues"] == {
         "years": [2025, 2026],
@@ -505,6 +601,7 @@ def test_account_switch_rejects_old_async_catalog_before_disk_and_view(
     ControlledThread.run(0)
     assert bridge._catalog.collection_id == "bob"
     bridge.applyCollectionFilter()
+    ControlledThread.run(0)
     assert [row["projectId"] for row in bridge.viewState["candidateProjects"]] == ["bob"]
 
 
@@ -560,6 +657,149 @@ def test_collection_refresh_is_async_and_exposes_candidates_and_options(monkeypa
     assert applied["candidate_count"] == 1
 
 
+def test_apply_filter_discovers_current_account_without_refresh_and_exposes_loading(
+    monkeypatch, tmp_path,
+):
+    pending = []
+    calls = []
+    live = replace(
+        _collection(ProjectCollectionFilter(PROJECT_SPACE_URL, ())),
+        projects=(replace(
+            _collection(ProjectCollectionFilter(PROJECT_SPACE_URL, ())).projects[0],
+            space_key="DOPL", page_identity="M1", project_status="NORMAL",
+        ),),
+        product_lines=PRODUCT_LINES,
+    )
+
+    def discover(username, password, criteria, progress):
+        calls.append((username, password, criteria))
+        return live
+
+    bridge = ConfluenceAuditBridge(
+        Auth(), history_root=tmp_path,
+        collection_factory=discover,
+        filter_submit=pending.append,
+    )
+    bridge._set(selectedProductLineKeys=["DOPL"])
+
+    bridge.applyCollectionFilter()
+
+    assert bridge.viewState["filterApplying"] is True
+    assert len(pending) == 1
+    pending.pop()()
+    assert bridge.viewState["filterApplying"] is False
+    assert calls[0][0:2] == ("alice", "secret")
+    assert calls[0][2].product_line_keys == ("DOPL",)
+    assert [row["projectIdentity"] for row in bridge.viewState["candidateProjects"]] == [
+        "DOPL:M1",
+    ]
+
+
+def test_apply_discovery_runs_off_caller_thread_and_returns_through_qt_signal(tmp_path):
+    caller_thread = get_ident()
+    worker_thread = []
+    discovered = Event()
+
+    def discover(_username, _password, criteria, _progress):
+        worker_thread.append(get_ident())
+        discovered.set()
+        return _collection(criteria)
+
+    bridge = ConfluenceAuditBridge(
+        Auth(), history_root=tmp_path, collection_factory=discover,
+    )
+    bridge._set(selectedProductLineKeys=["DOPL"])
+
+    bridge.applyCollectionFilter()
+
+    assert bridge.viewState["filterApplying"] is True
+    assert discovered.wait(2)
+    assert worker_thread != [caller_thread]
+    deadline = time.monotonic() + 2
+    while bridge.viewState["filterApplying"] and time.monotonic() < deadline:
+        app.processEvents()
+        time.sleep(0.01)
+    assert bridge.viewState["filterApplying"] is False
+
+
+def test_failed_apply_preserves_previous_form_results(tmp_path):
+    pending = []
+    bridge = ConfluenceAuditBridge(
+        Auth(), history_root=tmp_path,
+        collection_factory=lambda *_args: (_ for _ in ()).throw(
+            PermissionError("denied")
+        ),
+        filter_submit=pending.append,
+    )
+    old_rows = [{"projectIdentity": "DOPL:old"}]
+    bridge._set(
+        selectedProductLineKeys=["DOPL"],
+        candidateProjects=old_rows,
+        candidateSections=[{"key": "DOPL", "projects": old_rows}],
+    )
+
+    bridge.applyCollectionFilter()
+    pending.pop()()
+
+    assert bridge.viewState["filterApplying"] is False
+    assert bridge.viewState["candidateProjects"] == old_rows
+    assert "authentication" in bridge.viewState["statusText"].casefold()
+
+
+def test_schema_failure_preserves_previous_form_and_names_product_line(tmp_path):
+    pending = []
+    bridge = ConfluenceAuditBridge(
+        Auth(), history_root=tmp_path,
+        collection_factory=lambda *_args: (_ for _ in ()).throw(
+            ProjectCollectionDiscoveryError(
+                "TV Project Space has no table with required headers"
+            )
+        ),
+        filter_submit=pending.append,
+    )
+    old_rows = [{"projectIdentity": "OOPL:old"}]
+    bridge._set(
+        selectedProductLineKeys=["TV"], candidateProjects=old_rows,
+    )
+
+    bridge.applyCollectionFilter()
+    pending.pop()()
+
+    assert bridge.viewState["filterApplying"] is False
+    assert bridge.viewState["candidateProjects"] == old_rows
+    assert "TV Project Space" in bridge.viewState["statusText"]
+
+
+def test_account_switch_rejects_stale_apply_result(tmp_path):
+    class AccountAuth(Auth):
+        def __init__(self):
+            super().__init__()
+            self.username = "alice"
+        def currentUsername(self):
+            return self.username
+        def transientCredential(self):
+            return self.username, "secret-" + self.username
+
+    pending = []
+    auth = AccountAuth()
+    bridge = ConfluenceAuditBridge(
+        auth, history_root=tmp_path,
+        collection_factory=lambda *_args: _collection(
+            ProjectCollectionFilter(PROJECT_SPACE_URL, (2026,)),
+        ),
+        filter_submit=pending.append,
+    )
+    bridge._set(selectedProductLineKeys=["DOPL"])
+
+    bridge.applyCollectionFilter()
+    auth.username = "bob"
+    auth.authChanged.emit()
+    pending.pop()()
+
+    assert bridge.viewState["filterApplying"] is False
+    assert bridge.viewState["candidateProjects"] == []
+
+
 def test_repeated_manual_refresh_keeps_one_in_flight_job(tmp_path):
     pending = []
     bridge = ConfluenceAuditBridge(
@@ -574,7 +814,7 @@ def test_repeated_manual_refresh_keeps_one_in_flight_job(tmp_path):
     assert len(pending) == 1
 
 
-def test_manual_refresh_clears_stale_options_and_candidates_before_request(tmp_path):
+def test_manual_refresh_clears_stale_options_but_preserves_applied_form(tmp_path):
     pending = []
     bridge = ConfluenceAuditBridge(
         Auth(), history_root=tmp_path,
@@ -593,12 +833,12 @@ def test_manual_refresh_clears_stale_options_and_candidates_before_request(tmp_p
 
     bridge.refreshCollection()
 
-    assert bridge.viewState["candidateProjects"] == []
-    assert bridge.viewState["selectedProjectIds"] == []
+    assert bridge.viewState["candidateProjects"] == [{"projectIdentity": "DOPL:1"}]
+    assert bridge.viewState["selectedProjectIds"] == ["DOPL:1"]
     assert bridge.viewState["availableFilterValues"] == {
         "years": [], "supportModes": [], "projectStatuses": [],
     }
-    assert bridge.viewState["collectionSummary"] == {}
+    assert bridge.viewState["collectionSummary"] == {"candidateCount": 1}
 
 
 def test_catalog_logs_use_stable_non_reversible_account_ids(monkeypatch, tmp_path):
