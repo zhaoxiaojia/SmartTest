@@ -36,6 +36,6 @@ def start_context_services(engine: QQmlApplicationEngine) -> bool:
     retained = getattr(engine, "_context_objects", {})
     auth = retained.get("AuthBridge")
     if auth is not None:
-        auth.startAutoLogin()
+        auth.restoreStartupSession()
     engine._context_services_started = True
     return True

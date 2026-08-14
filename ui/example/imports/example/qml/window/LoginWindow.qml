@@ -13,6 +13,7 @@ FluWindow {
     fixSize: false
     modality: Qt.ApplicationModal
     property bool accountMode: false
+    property bool credentialSupplyMode: false
     property string pendingRemoveAccountId: ""
     property bool closeAfterAuthentication: false
     property string savedCredentialMask: "••••••••"
@@ -21,7 +22,9 @@ FluWindow {
 
     onClosing: function(close) {
         textbox_password.text = AuthBridge.hasSavedCredential ? savedCredentialMask : ""
-        if(AuthBridge.authBusy){
+        if(credentialSupplyMode){
+            AuthBridge.cancelRuntimeCredentialSupply()
+        }else if(AuthBridge.authBusy){
             AuthBridge.cancelAuthentication()
         }
     }
@@ -65,6 +68,7 @@ FluWindow {
             }
             if(window.closeAfterAuthentication){
                 window.closeAfterAuthentication = false
+                window.credentialSupplyMode = false
                 window.close()
             }
         }
@@ -111,11 +115,14 @@ FluWindow {
         }else{
             initialUsername = AuthBridge.currentUsername()
         }
-        applyModeSize(AuthBridge.authenticated)
+        credentialSupplyMode = Boolean(argument && argument.credentialSupply)
+        applyModeSize(credentialSupplyMode ? false : AuthBridge.authenticated)
         textbox_username.updateText(initialUsername)
-        textbox_password.text = AuthBridge.hasSavedCredential ? savedCredentialMask : ""
+        textbox_password.text = credentialSupplyMode ? "" : (AuthBridge.hasSavedCredential ? savedCredentialMask : "")
         Qt.callLater(function(){
-            if(accountMode){
+            if(credentialSupplyMode){
+                textbox_password.forceActiveFocus()
+            }else if(accountMode){
                 btn_primary.forceActiveFocus()
             }else{
                 textbox_username.forceActiveFocus()
@@ -124,6 +131,27 @@ FluWindow {
     }
 
     function submitLogin(){
+        if(credentialSupplyMode){
+            if(textbox_password.text === ""){
+                showError(qsTr("Please enter your password"))
+                textbox_password.forceActiveFocus()
+                return
+            }
+            window.closeAfterAuthentication = true
+            var credentialResult = AuthBridge.supplyRuntimeCredential(
+                textbox_password.text, remember_password.checked
+            )
+            textbox_password.text = ""
+            if(!credentialResult.success){
+                window.closeAfterAuthentication = false
+                showError(credentialResult.message || qsTr("Please enter your password"))
+            }else{
+                window.closeAfterAuthentication = false
+                window.credentialSupplyMode = false
+                window.close()
+            }
+            return
+        }
         if(textbox_username.text === ""){
             showError(qsTr("Please enter the account"))
             textbox_username.forceActiveFocus()
@@ -179,7 +207,7 @@ FluWindow {
         FluClip {
             id: loginHeroAvatar
             objectName: "loginHeroAvatar"
-            visible: !accountMode
+            visible: !accountMode && !credentialSupplyMode
             Layout.preferredWidth: 88
             Layout.preferredHeight: 88
             Layout.alignment: Qt.AlignHCenter
@@ -272,7 +300,7 @@ FluWindow {
 
         FluAutoSuggestBox{ /* persistence-opt-out: owner:AuthBridge */
             id: textbox_username
-            visible: !accountMode && AuthBridge.selectedAccountId === ""
+            visible: !accountMode && !credentialSupplyMode && AuthBridge.selectedAccountId === ""
             enabled: !AuthBridge.authBusy
             items: AuthBridge.currentUsername() !== "" ? [{title: AuthBridge.currentUsername()}] : []
             placeholderText: qsTr("Please enter the account")
@@ -281,6 +309,15 @@ FluWindow {
             onCommit: {
                 textbox_password.forceActiveFocus()
             }
+        }
+
+        FluText {
+            objectName: "credentialSupplyUsername"
+            visible: credentialSupplyMode
+            text: AuthBridge.currentUsername()
+            Layout.preferredWidth: 320
+            Layout.alignment: Qt.AlignHCenter
+            horizontalAlignment: Text.AlignHCenter
         }
 
         FluProgressRing {
@@ -326,7 +363,8 @@ FluWindow {
             FluCheckBox { /* persistence-opt-out: owner:AuthBridge */
                 id: auto_login
                 objectName: "autoLoginCheck"
-                enabled: !AuthBridge.authBusy && remember_password.checked
+                visible: !window.credentialSupplyMode
+                enabled: !AuthBridge.authBusy
                 text: qsTr("Auto login")
                 checked: AuthBridge.autoLogin
                 onClicked: AuthBridge.setAutoLogin(checked)
@@ -349,7 +387,7 @@ FluWindow {
         }
 
         Rectangle {
-            visible: accountMode
+                visible: accountMode && !credentialSupplyMode
             Layout.preferredWidth: 420
             Layout.preferredHeight: 520
             Layout.alignment: Qt.AlignHCenter

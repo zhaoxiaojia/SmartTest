@@ -1,87 +1,70 @@
 # 本地认证会话恢复设计
 
-## 背景与目标
+## 目标与原则
 
-SmartTest 大部分使用场景无法访问内网 LDAP。当前启动自动登录会再次访问 LDAP；当 `ldap.amlogic.com` 不可达时，失败分支清除运行时认证状态和头像，导致用户虽然仍保存账号、密码和自动登录设置，却表现为掉线。
+SmartTest 将认证收敛为一个由 `AuthBridge` 与 `AuthAccountStore` 共同拥有的稳定状态机。LDAP 只用于用户明确发起的登录或账号切换；应用启动、页面导航和 Tool 入口均不得访问 LDAP。
 
-调整后的原则是：账号管理记录负责恢复本地会话，LDAP 只负责用户明确发起的身份认证。软件启动不访问 LDAP。
+三个持久化概念彼此独立：
 
-## 方案选择
+- `active_account_id`：唯一的持久化已认证会话标记。
+- `remember_password`：仅表示该账号是否在 Windows Credential Manager 中保存凭据，以及显式认证时是否需要手工输入密码。
+- `auto_login`：仅表示未恢复活动会话时，启动后默认选中哪个历史账号；全局最多一个，不代表认证成功，也不依赖保存密码。
 
-采用“持久化活动会话 + 显式认证”的方案：在现有 `AuthAccountStore` 中记录当前活动账号身份，由现有 `AuthBridge` 在启动时恢复。相比启动时重试 LDAP，此方案适合长期离线环境；相比无条件恢复最后使用账号，活动会话标记能够区分“上次正常登录后关闭软件”和“用户已主动退出”。
-
-不新增认证服务、第二套账号存储或 QML 状态。继续由 `AuthAccountStore` 拥有账号持久化，由 `AuthBridge` 拥有认证状态转换。
+`last_account_id` 只表示最近使用或选择的账号，不能证明已认证。
 
 ## 持久化模型
 
-在现有 `auth_accounts.json` 顶层增加 `active_account_id`：
+继续复用现有 `auth_accounts.json`、`AuthAccountStore` 和 `support/windows_credentials.py`，不新增第二套账号或凭据存储。
 
-- LDAP 登录成功后，将成功账号记录为 `active_account_id`。
-- 成功切换账号后，将活动账号切换为新账号。
-- 用户主动退出时清空 `active_account_id`。
-- 用户移除活动账号时清空活动记录；若选择其他账号，仅保留选择，不自动认证。
-- 旧数据没有该字段时按“无活动会话”处理，不把历史账号静默升级为已登录。
-- 账号、凭据、头像和活动会话继续使用现有 owner，不创建重复缓存。
+- 登录或切换成功后写入新的 `active_account_id`。
+- Logout、移除活动账号或显式撤销会话时清空 `active_account_id`。
+- 关闭应用、关闭登录窗口、临时网络故障、认证失败、过期结果和取消切换都不清除原活动会话。
+- `auto_login=true` 时关闭其他账号的 auto 标记；允许 `remember_password=false`。
+- 凭据缺失只把目标账号的 `remember_password` 改为 false，不改变 auto 或活动会话。
+- 旧数据缺少 `active_account_id` 时按未登录处理；保留既有一次性迁移读取能力。
 
-`last_account_id` 继续表示最近选择或使用的账号，不能单独证明已认证。`active_account_id` 是启动恢复登录态的唯一持久化依据。
+## 启动状态恢复
 
-## 启动行为
+应用创建唯一 `AuthBridge` 并完成 QML context 注册后，只调用一次 `restoreStartupSession()`：
 
-`startAutoLogin()` 保留现有 QML 调用入口，但语义调整为本地会话恢复：
+1. 若 `active_account_id` 指向有效历史账号，从非敏感账号索引、人员配置和头像缓存恢复完整运行时身份，状态为 authenticated。
+2. 该过程不读取 Credential Manager、不调用 LDAP、不启动认证 worker，并且不受 remember 或 auto 影响。
+3. 若无活动会话，优先选择唯一 `auto_login=true` 的账号；否则选择 `last_account_id`。
+4. 默认选择只恢复账号展示和偏好，状态仍为未登录；用户之后显式提交登录或切换时才认证。
 
-1. 读取 `active_account_id`。
-2. 活动账号仍存在且启用了自动登录时，从账号记录、人员配置和本地头像缓存恢复 `authenticated`、用户名、显示名、角色和头像。
-3. 全程不读取密码、不调用 `_ldap_authenticate()`、不启动认证线程。
-4. 活动账号不存在、已移除或未启用自动登录时，保持未登录并展示已选择账号。
+## 显式认证事务
 
-保存密码仍用于之后的显式登录或切换账号；自动登录表示允许启动时恢复本地活动会话，不表示启动时重新校验 LDAP。
+只有以下操作调用 LDAP：
 
-## 显式认证与失败处理
+- 用户输入账号密码并提交登录。
+- 用户选择历史账号并明确发起切换；保存了凭据时由 bridge 直接从 Credential Manager 取凭据，未保存时要求输入密码。
 
-只有以下操作访问 LDAP：
+认证事务开始时保留原活动会话快照：
 
-- 用户在登录窗口主动提交登录。
-- 用户选择或切换账号并发起认证。
+- 成功：原子更新账号资料、凭据策略、头像缓存和 `active_account_id`，新账号成为唯一活动会话。
+- `invalid_credentials`、`ldap_unavailable`、依赖不可用、取消或过期结果：若原来已有活动会话，完整保留原账号、profile、头像和活动标记；原来未登录则继续未登录。
+- 已保存凭据被明确判定无效时，只删除目标账号凭据并关闭其 remember；临时网络错误不删除凭据或偏好。
+- 关闭登录窗口时取消尚未完成的事务并清理 pending 密码引用，但不得退出原活动会话。
 
-认证状态转换：
+## UI 与导航边界
 
-- 登录成功：更新账号资料、保存策略、头像缓存和 `active_account_id`，然后切换当前认证会话。
-- 从已登录账号切换到另一账号失败：保留原活动账号的登录态、profile 和头像；仅向登录窗口返回失败信息。
-- 当前未登录时认证失败：继续未登录，不创建活动会话。
-- `ldap_unavailable` 和 `invalid_credentials` 都不能破坏原活动会话；无效凭据只清理本次目标账号已保存的错误凭据和对应保存偏好。
-- 用户主动退出：清除运行时会话和 `active_account_id`，但按现有规则保留账号选择及允许保留的凭据、头像和偏好；下次启动不自动恢复。
+- QML 只绑定 `AuthBridge` 属性、信号和 Slot，不直接读写账号文件或凭据。
+- Save password 与 Auto login 可独立勾选；Auto login 不因 Save password 关闭而禁用或被清除。
+- Footer、受保护页面和 Tool 仅依据恢复后的 `authenticated` 状态放行，不触发 LDAP。
+- Logout 清除活动会话后保留历史账号，并按 remember 决定下次显式认证是否需要输入密码。
 
-## 兼容性与边界
+## 验收与测试
 
-- QML 登录窗口、账号菜单和主界面继续消费现有 `AuthBridge` 属性与信号，不新增前端认证状态源。
-- “保存密码”和“自动登录”的可见控件保持不变。
-- 不改变 LDAP 地址、LDAP 登录验证规则或 Windows Credential Store 机制。
-- 不把本地恢复描述为重新通过 LDAP 验证；它是上一次成功认证会话的延续。
-- 现有 Jira Description 未提交变更属于独立任务，认证实现不得修改或覆盖它们。
+- 活动会话在 auto=false 时重启仍恢复，且无 LDAP/凭据读取。
+- 无活动会话时，auto 账号仅成为默认选择并保持未登录；无 auto 时回退 last 账号并保持未登录。
+- auto 可独立于 remember，且全局最多一个。
+- 登录和切换是唯一 LDAP 入口；启动、导航和 Tool 不调用 LDAP。
+- 切换失败、LDAP 不可用、取消、关闭窗口和旧 worker 返回均保留原活动会话。
+- Logout 后重启未登录；移除活动账号后未登录。
+- 凭据缺失只关闭目标 remember；临时失败保留活动会话、凭据、remember 和 auto。
+- 运行认证/UI 聚焦 pytest、真实 QML/route smoke、翻译检查、Credential adapter 测试、`compileall`、QRC freshness 和 `git diff --check`。
 
-## 测试与验收
+## TDD 执行记录
 
-在 `testing/self_tests/ui/test_auth_bridge_profile.py` 采用 TDD 覆盖：
-
-- 成功登录并关闭后，重新创建 `AuthBridge`，启动恢复为已认证且不调用 LDAP。
-- 启动恢复显示缓存头像、账号资料和角色。
-- LDAP 完全不可用不影响本地启动恢复。
-- 主动退出后重启保持未登录且不调用 LDAP。
-- 自动登录关闭时不恢复活动会话。
-- 已登录状态下切换账号认证失败，原账号登录态和头像保持不变。
-- 未登录状态下认证失败仍保持未登录。
-- 切换账号成功后，新账号成为唯一活动账号。
-- 移除活动账号后不能在重启时恢复。
-- 老版本账号文件无 `active_account_id` 时保持未登录。
-
-验证包括认证 bridge 聚焦测试、相关 QML 运行时测试、Python 编译检查、`git diff --check` 和 scoped diff 质量审查。普通源码验证不重建桌面安装包。
-
-## 执行清单
-
-- [x] 为活动会话持久化和无 LDAP 启动恢复编写失败测试。
-- [x] 运行聚焦测试并确认因现有启动 LDAP 验证行为而失败。
-- [x] 在 `AuthAccountStore` 中扩展 `active_account_id` 的读写与清理。
-- [x] 在 `AuthBridge` 中将 `startAutoLogin()` 改为本地恢复，并让成功登录、切换、退出和移除维护活动会话。
-- [x] 为切换失败保留原会话编写失败测试并实现最小状态转换修复。
-- [x] 运行认证、QML 运行时和持久化回归测试。
-- [x] 执行编译、`git diff --check` 和 scoped diff 审查，确认没有 LDAP 启动调用、重复状态或无关改动。
+- RED：新增启动恢复、无活动默认选择、auto/remember 独立、取消切换保留会话测试；旧实现 5 项全部失败。
+- GREEN：状态 owner 收敛后上述 5 项全部通过；最终验收以交付时命令结果为准。

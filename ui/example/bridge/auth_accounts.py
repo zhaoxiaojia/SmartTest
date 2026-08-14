@@ -76,7 +76,7 @@ class AuthAccountStore:
             "username": str(username).strip(),
             "display_name": str(display_name or username).strip(),
             "remember_password": bool(remember_password),
-            "auto_login": bool(auto_login and remember_password),
+            "auto_login": bool(auto_login),
             "last_login_at": timestamp,
         })
         if item["auto_login"]:
@@ -92,8 +92,6 @@ class AuthAccountStore:
         for item in self._data["accounts"]:
             if item["account_id"] == account_id:
                 item["remember_password"] = bool(enabled)
-                if not enabled:
-                    item["auto_login"] = False
                 self._save()
                 return True
         return False
@@ -101,10 +99,10 @@ class AuthAccountStore:
     def set_auto_login(self, account_id: str, enabled: bool) -> bool:
         for item in self._data["accounts"]:
             if item["account_id"] == account_id:
-                if enabled and item.get("remember_password"):
+                if enabled:
                     for entry in self._data["accounts"]:
                         entry["auto_login"] = False
-                item["auto_login"] = bool(enabled and item.get("remember_password"))
+                item["auto_login"] = bool(enabled)
                 self._save()
                 return True
         return False
@@ -173,7 +171,7 @@ class AuthAccountStore:
                     "username": str(raw["username"]).strip(),
                     "display_name": str(raw.get("display_name", raw["username"])).strip(),
                     "remember_password": bool(raw.get("remember_password", False)),
-                    "auto_login": bool(raw.get("auto_login", False) and raw.get("remember_password", False)),
+                    "auto_login": bool(raw.get("auto_login", False)),
                     "last_login_at": str(raw.get("last_login_at", "")),
                 })
             return clean
