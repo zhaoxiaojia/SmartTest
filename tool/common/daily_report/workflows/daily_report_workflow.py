@@ -79,6 +79,14 @@ def _history_jql(day, jql):
     return f"{historical_status} AND ({jql})"
 
 
+def _metric_jql(jql, condition):
+    return f"({jql.strip()}) AND {condition}"
+
+
+def _jql_string(value):
+    return str(value).replace("\\", "\\\\").replace('"', '\\"')
+
+
 def _search_issues(wf, jql):
     response = wf.call_tool("jira_search_issues", jql=jql)
     if isinstance(response, (dict, list, tuple)):
@@ -107,6 +115,22 @@ def _search_issues(wf, jql):
             raise ValueError("invalid Jira search page payload")
         issues.extend(page["issues"])
     return _records(issues)
+
+
+def _server_component_counts(wf, jql, issues):
+    candidates = tuple(dict.fromkeys(
+        component
+        for issue in issues
+        for component in issue.get("components", ())
+        if component
+    ))
+    counts = []
+    for component in candidates:
+        scoped_jql = _metric_jql(
+            jql, 'component = "{}"'.format(_jql_string(component))
+        )
+        counts.append((component, len(_search_issues(wf, scoped_jql))))
+    return sorted(counts, key=lambda item: item[1], reverse=True)
 
 
 def _email_list(value, name, *, required):
@@ -250,60 +274,6 @@ def _png_summary(content):
     return len(content), signature, width, height
 
 
-def _image_summary(html, marker):
-    image = re.search(
-        r'<img[^>]*data-chart="' + re.escape(marker)
-        + r'"[^>]*src="data:image/png;base64,([A-Za-z0-9+/=]+)"',
-        html,
-    )
-    if not image:
-        return -1, -1, 0, 0, False, None, None
-    payload = image.group(1)
-    decoded = base64.b64decode(payload, validate=True)
-    length, signature, width, height = _png_summary(decoded)
-    return image.start(1), image.end(1), len(payload), length, signature, width, height
-
-
-def _image_dimensions(html, marker):
-    image = re.search(
-        r'<img[^>]*data-chart="' + re.escape(marker) + r'"[^>]*>', html
-    )
-    if not image:
-        return None, None
-    markup = image.group(0)
-    width = re.search(r'\swidth="([0-9]+)"', markup)
-    height = re.search(r'\sheight="([0-9]+)"', markup)
-    return width.group(1) if width else None, height.group(1) if height else None
-
-
-def _log_html_summary(wf, stage, html, config, boundary="html", extra=""):
-    status = _image_summary(html, "status-composition")
-    trend = _image_summary(html, "unclosed-trend")
-    status_dimensions = _image_dimensions(html, "status-composition")
-    trend_dimensions = _image_dimensions(html, "unclosed-trend")
-    header = re.search(r'<(\w+)[^>]*data-section="report-header"[^>]*>', html)
-    header_markup = header.group(0) if header else ""
-    title = escape(config["project_name"]) + " 公版状态日报"
-    wf.log(
-        "TEMP_DIAGNOSTIC boundary={} stage={} html_length={} title_present={} "
-        "project_name_present={} subject_present={} header_count={} header_tag={} "
-        "header_bgcolor={} header_inline_background={} header_inline_color={} "
-        "status_start={} status_end={} status_payload_length={} status_png_length={} status_signature={} "
-        "status_width={} status_height={} trend_start={} trend_end={} trend_payload_length={} "
-        "trend_png_length={} trend_signature={} trend_width={} trend_height={} "
-        "status_img_width={} status_img_height={} trend_img_width={} trend_img_height={}{}".format(
-            boundary, stage, len(html), title in html, escape(config["project_name"]) in html,
-            escape(config["subject"]) in html, html.count('data-section="report-header"'),
-            header.group(1) if header else "none", 'bgcolor="#132f5f"' in header_markup,
-            "background:#132f5f" in header_markup, "color:#ffffff" in header_markup,
-            status[0], status[1], status[2], status[3], status[4], status[5], status[6],
-            trend[0], trend[1], trend[2], trend[3], trend[4], trend[5], trend[6],
-            status_dimensions[0], status_dimensions[1], trend_dimensions[0],
-            trend_dimensions[1], extra,
-        )
-    )
-
-
 def _chart_data_uri(wf, tool_name, arguments):
     response = wf.call_tool(tool_name, **arguments)
     match = re.search(r"Success: .* saved to (charts/[A-Za-z0-9_.-]+\.png)(?:\s|$)", str(response))
@@ -312,21 +282,16 @@ def _chart_data_uri(wf, tool_name, arguments):
     path = match.group(1)
     content = wf.read_file(path)
     content_is_text = isinstance(content, str)
-    data_uri = False
-    base64_png = False
-    raw_binary_text = False
     if content_is_text:
         if content.startswith("data:image/png;base64,"):
             payload = "".join(content.split(",", 1)[1].split())
             if not _decoded_png(payload):
                 raise RuntimeError(f"{tool_name} returned an invalid PNG data URI")
             encoded = payload
-            data_uri = True
         else:
             compact = "".join(content.split())
             if _decoded_png(compact):
                 encoded = compact
-                base64_png = True
             else:
                 try:
                     raw = content.encode("latin-1")
@@ -337,43 +302,35 @@ def _chart_data_uri(wf, tool_name, arguments):
                 if not raw.hex().startswith("89504e470d0a1a0a"):
                     raise RuntimeError(f"{tool_name} returned text without a PNG signature")
                 encoded = base64.b64encode(raw).decode("ascii")
-                raw_binary_text = True
     else:
         encoded = base64.b64encode(content).decode("ascii")
-    kind = tool_name.removeprefix("chart_render_")
     decoded = base64.b64decode(encoded, validate=True)
-    length, signature, width, height = _png_summary(decoded)
-    roundtrip = base64.b64decode(base64.b64encode(decoded), validate=True)
-    roundtrip_length, roundtrip_signature, roundtrip_width, roundtrip_height = _png_summary(
-        roundtrip
-    )
-    wf.log(
-        "TEMP_DIAGNOSTIC boundary=chart kind={} response_success={} response_length={} "
-        "path={} content_is_text={} content_length={} data_uri={} base64_png={} "
-        "raw_binary_text={} png_length={} signature={} width={} height={} "
-        "base64_length={} roundtrip_length={} roundtrip_signature={} "
-        "roundtrip_width={} roundtrip_height={}".format(
-            kind, str(response).startswith("Success:"), len(str(response)), path,
-            content_is_text, len(content), data_uri, base64_png, raw_binary_text,
-            length, signature, width, height, len(encoded), roundtrip_length,
-            roundtrip_signature, roundtrip_width, roundtrip_height,
-        )
-    )
+    if not _png_summary(decoded)[1]:
+        raise RuntimeError(f"{tool_name} returned data without a PNG signature")
     return "data:image/png;base64," + encoded
 
 
-def _render_html(config, issues, trend, today, status_image, trend_image):
+def _render_html(
+    config, issues, trend, today, status_image, trend_image, *,
+    created_today_keys=None, updated_today_keys=None, stale_keys=None,
+    component_counts=None,
+):
     trend = list(trend)
     priorities = Counter(issue["priority"] or "未设置" for issue in issues)
     statuses = Counter(issue["status"] or "未设置" for issue in issues)
     modules = Counter(
         component for issue in issues for component in (issue["components"] or ("未设置",))
+    ) if component_counts is None else Counter(dict(component_counts))
+    created_today = len(created_today_keys) if created_today_keys is not None else sum(
+        bool(issue["created"] and issue["created"].date() == today) for issue in issues
     )
-    created_today = sum(bool(issue["created"] and issue["created"].date() == today) for issue in issues)
-    updated_today = sum(bool(issue["updated"] and issue["updated"].date() == today) for issue in issues)
-    stale = {
+    updated_today = len(updated_today_keys) if updated_today_keys is not None else sum(
+        bool(issue["updated"] and issue["updated"].date() == today) for issue in issues
+    )
+    stale = set(stale_keys) if stale_keys is not None else {
         issue["key"] for issue in issues
-        if issue["updated"] is None or (today - issue["updated"].date()).days >= config["stale_days"]
+        if issue["updated"] is not None
+        and (today - issue["updated"].date()).days >= config["stale_days"]
     }
     selected = {item.casefold() for item in config["detail_priorities"]}
     details = "".join(
@@ -428,6 +385,20 @@ def main(wf):
     today = date.today()
     with wf.step("n1", "查询当前 Jira Issue"):
         current = _search_issues(wf, config["jql"])
+        created_today = _search_issues(
+            wf, _metric_jql(config["jql"], "created >= startOfDay()")
+        )
+        updated_today = _search_issues(
+            wf, _metric_jql(config["jql"], "updated >= startOfDay()")
+        )
+        stale_boundary = config["stale_days"] - 1
+        stale = _search_issues(
+            wf,
+            _metric_jql(
+                config["jql"], f"updated < startOfDay(-{stale_boundary}d)"
+            ),
+        )
+        component_counts = _server_component_counts(wf, config["jql"], current)
     trend = [(today, len(current))]
     with wf.step("n2", "查询历史趋势"):
         for offset in range(1, config["trend_days"]):
@@ -457,25 +428,18 @@ def main(wf):
             {"series": [{"label": "未关闭 Issue", "values": values}]},
         )
         report_html = _render_html(
-            config, current, chronological_trend, today, status_image, trend_image
+            config,
+            current,
+            chronological_trend,
+            today,
+            status_image,
+            trend_image,
+            created_today_keys={issue["key"] for issue in created_today},
+            updated_today_keys={issue["key"] for issue in updated_today},
+            stale_keys={issue["key"] for issue in stale},
+            component_counts=component_counts,
         )
-        _log_html_summary(wf, "before_write", report_html, config)
         wf.write_file(artifact, report_html)
-        try:
-            written_html = wf.read_file(artifact)
-        except Exception as error:
-            wf.log(
-                "TEMP_DIAGNOSTIC boundary=html stage=after_write readable=False "
-                "error_type={}".format(type(error))
-            )
-        else:
-            if isinstance(written_html, str):
-                _log_html_summary(wf, "after_write", written_html, config)
-            else:
-                wf.log(
-                    "TEMP_DIAGNOSTIC boundary=html stage=after_write readable=False "
-                    "error_type=non_text"
-                )
         wf.emit_artifact(artifact)
         wf.set_output("report_path", artifact)
         wf.set_output("total", len(current))
@@ -489,20 +453,5 @@ def main(wf):
             }
             if config["cc"]:
                 arguments["cc_addresses"] = ",".join(config["cc"])
-            _log_html_summary(
-                wf,
-                "before_send",
-                report_html,
-                config,
-                boundary="email",
-                extra=(
-                    " file_path={} subject_length={} subject_has_project_name={} "
-                    "recipients_count={} cc_count={}".format(
-                        artifact, len(config["subject"]),
-                        config["project_name"] in config["subject"],
-                        len(config["recipients"]), len(config["cc"]),
-                    )
-                ),
-            )
             wf.call_tool("email_send_html", **arguments)
     return artifact
