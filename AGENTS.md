@@ -10,6 +10,12 @@ This is the only repository `AGENTS.md`. It defines collaboration and delivery b
 - Mason owns target-code investigation, implementation, cleanup, and self-testing for delegated work.
 - Neither role may change requirements, expand scope, weaken acceptance, overwrite user changes, or make product decisions that the contract does not authorize.
 
+## Coco-Directed Implementation
+
+- 当 Coco 已明确给出实现思路时，Atlas 和 Mason 必须严格按该思路实现，禁止自行增加业务逻辑、约束、校验、推断、回退或兜底。若该思路在实现或运行中出现问题，必须如实暴露问题并向 Coco 报告，不得自行改变思路或用额外逻辑掩盖问题。
+- 对开放性开发需求或调试问题，Coco 通常会提供方向和调试环境。Atlas 必须根据实际环境、日志和运行反馈完成调查，整理出实现步骤或调试修复思路并提交 Coco 确认；获得确认前不得修改业务行为。调试过程中发现的新问题同样先报告证据和拟议处理方式，等待 Coco 确认后再实施。
+- 不得执行 Coco 需求描述以外的动作。需求未提及的其他功能默认保持不变；只有当已要求的改动会明显影响未说明部分且无法安全决断时，才向 Coco 二次确认。
+
 ## Delivery Mode (Scheme B)
 
 Atlas selects the lightest mode that safely completes the task:
