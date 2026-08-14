@@ -9,11 +9,11 @@ from .models import ConfluenceProject, ProductLine, ProjectCandidate, ProjectCol
 from .project_collection import filter_projects
 
 PAGE_ALIASES = (
-    ("status", re.compile(r"project\s*status\s*report\s*$", re.I)),
+    ("status", re.compile(r"(?:project\s*)?status\s*report\s*$", re.I)),
     ("test_information", re.compile(r"test\s*information\s*$", re.I)),
     ("test_plan", re.compile(r"test\s*plan\s*$", re.I)),
-    ("environment", re.compile(r"test\s*environment\s*setup\s*(?:and|&)\s*precautions\s*$", re.I)),
-    ("experience", re.compile(r"summary\s*of\s*experience\s*(?:and|&)\s*typical\s*cases\s*$", re.I)),
+    ("environment", re.compile(r"test\s*environment(?:\s*setup\s*(?:and|&)\s*precautions)?\s*$", re.I)),
+    ("experience", re.compile(r"(?:summary\s*of\s*)?experience\s*(?:and|&)\s*typical\s*cases\s*$", re.I)),
     ("report_store", re.compile(r"test\s*report\s*store\s*$", re.I)),
 )
 

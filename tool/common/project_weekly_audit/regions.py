@@ -61,12 +61,12 @@ def extract_page_region(page, point):
 
 def extract_region(body, point):
     source = str(body or "")
-    heading_names = {_heading_label(value) for value in point.heading_names}
+    heading_names = tuple(_heading_label(value) for value in point.heading_names)
     headings = list(_HEADING.finditer(source))
     for index, heading in enumerate(headings):
         title = text(heading.group("title"))
         label, inline_value = _structural_label(title)
-        if label not in heading_names:
+        if not _matches_label(label, heading_names):
             continue
         end = len(source)
         boundary = "page_end"
@@ -82,9 +82,37 @@ def extract_region(body, point):
             True, content, "heading", "heading", label, boundary,
         )
 
+    for macro in re.findall(
+        r"<ac:structured-macro\b[^>]*>(.*?)</ac:structured-macro>",
+        source,
+        re.IGNORECASE | re.DOTALL,
+    ):
+        titles = re.findall(
+            r'<ac:parameter\b[^>]*ac:name=["\']title["\'][^>]*>'
+            r"(.*?)</ac:parameter>",
+            macro,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not titles or not _matches_label(
+            _heading_label(text(titles[0])), heading_names,
+        ):
+            continue
+        rich_body = re.search(
+            r"<ac:rich-text-body\b[^>]*>(.*?)</ac:rich-text-body>",
+            macro,
+            re.IGNORECASE | re.DOTALL,
+        )
+        content = _normalize_content(
+            rich_body.group(1) if rich_body else macro,
+        )
+        return RegionExtraction(
+            True, content, "macro_title", "macro",
+            _heading_label(text(titles[0])), "macro_body",
+        )
+
     for plain in _PLAIN_LABEL.finditer(source):
         label, inline_value = _structural_label(text(plain.group("value")))
-        if label not in heading_names:
+        if not _matches_label(label, heading_names):
             continue
         following_heading = next(
             (heading for heading in headings if heading.start() >= plain.end()),
@@ -98,16 +126,16 @@ def extract_region(body, point):
             "next_heading",
         )
 
-    table_fields = {_label(value) for value in point.table_fields}
-    table_region_fields = {
+    table_fields = tuple(_label(value) for value in point.table_fields)
+    table_region_fields = tuple(
         _label(value) for value in point.table_region_fields
-    }
+    )
     tables = html_tables(source)
     for table_index, table in enumerate(tables):
         for row_index, cells in enumerate(table):
             for cell_index, cell in enumerate(cells):
                 label, inline_value = _table_field(cell)
-                if label in table_region_fields:
+                if _matches_label(label, table_region_fields):
                     content = _normalize_content(" ".join(
                         item
                         for row in table[row_index + 1:]
@@ -117,7 +145,7 @@ def extract_region(body, point):
                         True, content, "table_region", "table", label,
                         "table_data_rows",
                     )
-                if label not in table_fields:
+                if not _matches_label(label, table_fields):
                     continue
                 if inline_value:
                     content = _normalize_content(inline_value)
@@ -138,31 +166,6 @@ def extract_region(body, point):
                 return RegionExtraction(
                     True, content, "table_field", "table", label, boundary,
                 )
-    for macro in re.findall(
-        r"<ac:structured-macro\b[^>]*>(.*?)</ac:structured-macro>",
-        source,
-        re.IGNORECASE | re.DOTALL,
-    ):
-        titles = re.findall(
-            r'<ac:parameter\b[^>]*ac:name=["\']title["\'][^>]*>'
-            r"(.*?)</ac:parameter>",
-            macro,
-            re.IGNORECASE | re.DOTALL,
-        )
-        if not titles or _heading_label(text(titles[0])) not in heading_names:
-            continue
-        rich_body = re.search(
-            r"<ac:rich-text-body\b[^>]*>(.*?)</ac:rich-text-body>",
-            macro,
-            re.IGNORECASE | re.DOTALL,
-        )
-        content = _normalize_content(
-            rich_body.group(1) if rich_body else macro,
-        )
-        return RegionExtraction(
-            True, content, "macro_title", "macro",
-            _heading_label(text(titles[0])), "macro_body",
-        )
     if point.use_page_body:
         content = _normalize_content(_HEADING.sub("", source))
         return RegionExtraction(
@@ -197,6 +200,10 @@ def _join_content(inline_value, region):
 
 def _label(value):
     return re.sub(r"\s+", " ", str(value or "")).strip().casefold()
+
+
+def _matches_label(label, keywords):
+    return any(keyword and keyword in label for keyword in keywords)
 
 
 def _heading_label(value):
