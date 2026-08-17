@@ -58,6 +58,7 @@ if __name__ == "__main__":
         env.projectName,
         ["en_US", "zh_CN"],
         [
+            os.path.join(example_project_dir, "imports", "tool_resource.qrc"),
             os.path.join(example_project_dir, "helper", "InitializrHelper.py"),
             os.path.join(example_project_dir, "bridge", "AISettingsBridge.py"),
             os.path.join(example_project_dir, "bridge", "AuthBridge.py"),
@@ -69,6 +70,7 @@ if __name__ == "__main__":
             os.path.join(example_project_dir, "bridge", "DebugBridge.py"),
             os.path.join(example_project_dir, "bridge", "ReportBridge.py"),
             os.path.join(example_project_dir, "bridge", "RunBridge.py"),
+            os.path.join(example_project_dir, "bridge", "ScheduleBridge.py"),
             os.path.join(example_project_dir, "bridge", "TestPageBridge.py"),
             os.path.join(example_project_dir, "bridge", "ToolBridge.py"),
             os.path.join(example_project_dir, "bridge", "RedmineBridge.py"),

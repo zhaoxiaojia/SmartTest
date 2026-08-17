@@ -17,7 +17,7 @@ _PLAIN_LABEL = re.compile(
 )
 _OWNER_POINT = AuditAttentionPoint(
     "", "status", "", "QA",
-    table_fields=("Window(Major FAE SW/HW/QA)",),
+    table_fields=("Window",),
 )
 
 
@@ -36,14 +36,7 @@ def extract_project_owner(page):
     region = extract_page_region(page, _OWNER_POINT)
     if not region.found:
         return MISSING_QA
-    match = re.search(
-        r"(?:^|\s)QA\s*[:：]\s*(.*?)"
-        r"(?=\s+(?:Major\s+FAE|SW(?:/HW)?|HW)\s*[:：]|$)",
-        region.content,
-        re.IGNORECASE,
-    )
-    owner_source = match.group(1) if match else region.content
-    owner = _normalize_content(owner_source.replace("@", ""))
+    owner = _normalize_content(region.content.replace("@", ""))
     return owner or MISSING_QA
 
 

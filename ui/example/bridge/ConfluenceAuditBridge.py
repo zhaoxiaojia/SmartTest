@@ -70,6 +70,7 @@ class ConfluenceAuditBridge(QObject):
     _catalogEvent = Signal(object)
     _filterFinished = Signal(object)
     _filterFailed = Signal(object)
+    collectionFilterApplied = Signal(object)
 
     def __init__(
         self, auth_bridge, *, service_factory=None, history_root=None,
@@ -348,6 +349,47 @@ class ConfluenceAuditBridge(QObject):
             0,
             self._snapshot_cache.identity(account),
         ))
+
+    @Slot("QVariantMap")
+    def restoreCollectionState(self, saved_state):
+        self.initializeCollection()
+        if (
+            not isinstance(saved_state, dict)
+            or not saved_state.get("hasAppliedFilters")
+            or self._catalog is None
+        ):
+            return
+        try:
+            criteria = ProjectCollectionFilter(
+                source_url=UNIFIED_SOURCE,
+                years=tuple(int(value) for value in saved_state.get("years", ())),
+                support_modes=tuple(
+                    str(value) for value in saved_state.get("supportModes", ())
+                ),
+                project_statuses=tuple(
+                    str(value) for value in saved_state.get("projectStatuses", ())
+                ),
+                product_line_keys=tuple(
+                    str(value)
+                    for value in saved_state.get("selectedProductLineKeys", ())
+                ),
+            )
+        except (TypeError, ValueError):
+            return
+        available_lines = {line.key for line in PRODUCT_LINES}
+        selected_lines = tuple(
+            key for key in criteria.product_line_keys if key in available_lines
+        )
+        criteria = replace(criteria, product_line_keys=selected_lines)
+        candidate_state = self._candidate_state(
+            selected_lines, catalog=self._catalog, criteria=criteria,
+        )
+        candidate_state["selectedProjectIds"] = []
+        self._set(
+            filter=self._filter_view(criteria),
+            selectedProductLineKeys=list(selected_lines),
+            **candidate_state,
+        )
 
     @Slot()
     def refreshCollection(self):
@@ -647,6 +689,12 @@ class ConfluenceAuditBridge(QObject):
                 },
             )
             self._set(**state, statusText=self.tr("Project filters applied."))
+            self.collectionFilterApplied.emit({
+                "selectedProductLineKeys": list(criteria.product_line_keys),
+                "years": list(criteria.years),
+                "supportModes": list(criteria.support_modes),
+                "projectStatuses": list(criteria.project_statuses),
+            })
         finally:
             self._set(filterApplying=False)
 

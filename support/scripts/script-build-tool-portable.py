@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 import json
+import msvcrt
 import os
 from pathlib import Path
 import subprocess
@@ -16,6 +18,7 @@ from support.packaging.tool_runtime_resources import missing_required
 
 DIST_ROOT = ROOT / "dist_tool"
 APP_NAME = "SmartTestTool"
+BUILD_LOCK = ROOT / "build" / "portable-tool-build.lock"
 FORBIDDEN_TOKENS = ("cv2", "testing", "android_client")
 FORBIDDEN_ARCHIVE_MODULES = (
     "example.main",
@@ -29,6 +32,30 @@ FORBIDDEN_ARCHIVE_MODULES = (
     "testing",
     "android_client",
 )
+
+
+@contextmanager
+def portable_build_lock(path: Path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = path.open("a+b")
+    handle.seek(0, os.SEEK_END)
+    if handle.tell() == 0:
+        handle.write(b"\0")
+        handle.flush()
+    handle.seek(0)
+    try:
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+    except OSError as exc:
+        handle.close()
+        raise RuntimeError(
+            "SmartTest Tool portable build is already running."
+        ) from exc
+    try:
+        yield
+    finally:
+        handle.seek(0)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        handle.close()
 
 
 def validate_distribution(app_dir: Path) -> dict[str, int]:
@@ -138,6 +165,11 @@ def validate_context_smoke(executable: Path) -> None:
 
 
 def main() -> None:
+    with portable_build_lock(BUILD_LOCK):
+        build_portable()
+
+
+def build_portable() -> None:
     import env
 
     started_at = time.monotonic()

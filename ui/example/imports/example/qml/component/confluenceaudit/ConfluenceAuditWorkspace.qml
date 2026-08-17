@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import FluentUI 1.0
+import "../../state"
 
 Item {
     id: root
@@ -10,6 +11,22 @@ Item {
                                         || root.view.catalogStatus === "refreshing"
     readonly property bool auditBusy: root.view.state === "discovering"
                                       || root.view.state === "reviewing"
+
+    Loader {
+        id: collectionStateLoader
+        active: AuthBridge.authenticated === true
+                && (AuthBridge.pageStateAccount || "").length > 0
+        sourceComponent: Component {
+            ConfluenceAuditWorkspaceState { account: AuthBridge.pageStateAccount }
+        }
+        onLoaded: ConfluenceAuditBridge.restoreCollectionState({
+            hasAppliedFilters: item.hasAppliedFilters,
+            selectedProductLineKeys: item.selectedProductLineKeys,
+            years: item.years,
+            supportModes: item.supportModes,
+            projectStatuses: item.projectStatuses
+        })
+    }
 
     FluWindowResultLauncher {
         id: loginLauncher
@@ -28,8 +45,18 @@ Item {
         }
     }
 
-    Component.onCompleted: {
-        ConfluenceAuditBridge.initializeCollection()
+    Connections {
+        target: ConfluenceAuditBridge
+        function onCollectionFilterApplied(criteria) {
+            if (!collectionStateLoader.item)
+                return
+            collectionStateLoader.item.selectedProductLineKeys = criteria.selectedProductLineKeys
+            collectionStateLoader.item.years = criteria.years
+            collectionStateLoader.item.supportModes = criteria.supportModes
+            collectionStateLoader.item.projectStatuses = criteria.projectStatuses
+            collectionStateLoader.item.hasAppliedFilters = true
+            collectionStateLoader.item.sync()
+        }
     }
 
     function shortDate(value) {

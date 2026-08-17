@@ -15,6 +15,7 @@
         <file>example/qml/state/WindowState.qml</file>
         <file>example/qml/state/JiraPageState.qml</file>
         <file>example/qml/state/JiraAuditWorkspaceState.qml</file>
+        <file>example/qml/state/ConfluenceAuditWorkspaceState.qml</file>
         <file>example/qml/component/jiraaudit/JiraAuditWorkspace.qml</file>
         <file>example/qml/component/redmine/RedmineLoginView.qml</file>
         <file>example/qml/component/redmine/RedmineWorkspace.qml</file>

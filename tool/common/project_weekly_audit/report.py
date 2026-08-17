@@ -14,7 +14,7 @@ PROJECT_AUDIT_HEADERS = (
     "年份",
     "项目名",
     "项目链接",
-    *(point.standard_name for point in UPDATE_MATRIX_POINTS),
+    *(point.label for point in UPDATE_MATRIX_POINTS),
     "PS",
 )
 STATUS_TEXT = {

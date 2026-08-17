@@ -444,7 +444,7 @@
     </message>
     <message>
         <source>Refresh Project Space options before applying filters.</source>
-        <translation>Refresh Project Space options before applying filters.</translation>
+        <translation type="vanished">Refresh Project Space options before applying filters.</translation>
     </message>
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="649"/>
@@ -511,15 +511,15 @@
     </message>
     <message>
         <source>Risk</source>
-        <translation>Risk</translation>
+        <translation type="vanished">Risk</translation>
     </message>
     <message>
         <source>Failed</source>
-        <translation>Failed</translation>
+        <translation type="vanished">Failed</translation>
     </message>
     <message>
         <source>Unknown</source>
-        <translation>Unknown</translation>
+        <translation type="vanished">Unknown</translation>
     </message>
     <message>
         <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="593"/>
@@ -528,11 +528,11 @@
     </message>
     <message>
         <source>Why it failed</source>
-        <translation>Why it failed</translation>
+        <translation type="vanished">Why it failed</translation>
     </message>
     <message>
         <source>Adjustment</source>
-        <translation>Adjustment</translation>
+        <translation type="vanished">Adjustment</translation>
     </message>
     <message>
         <location filename="imports/example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml" line="605"/>
@@ -3201,26 +3201,33 @@ Updated content:
 <context>
     <name>ScheduleBridge</name>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="56"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="58"/>
         <source>Not registered</source>
         <translation>Not registered</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="60"/>
         <source>Ready</source>
         <translation>Ready</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="62"/>
         <source>Needs attention</source>
         <translation>Needs attention</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="69"/>
+        <location filename="bridge/ScheduleBridge.py" line="72"/>
         <source>Next run unavailable</source>
         <translation>Next run unavailable</translation>
     </message>
     <message>
+        <location filename="bridge/ScheduleBridge.py" line="72"/>
         <source>Next run: {time}</source>
         <translation>Next run: {time}</translation>
     </message>
@@ -6472,6 +6479,29 @@ Some contents...</translation>
         <location filename="bridge/ToolBridge.py" line="118"/>
         <source>Browse and sign in to SmartHome Redmine.</source>
         <translation>Browse and sign in to SmartHome Redmine.</translation>
+    </message>
+</context>
+<context>
+    <name>ToolWindow</name>
+    <message>
+        <location filename="imports/example/qml/tool/ToolWindow.qml" line="37"/>
+        <source>About</source>
+        <translation type="unfinished">About</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/tool/ToolWindow.qml" line="51"/>
+        <source>Tool</source>
+        <translation type="unfinished">Tool</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/tool/ToolWindow.qml" line="60"/>
+        <source>Account</source>
+        <translation type="unfinished">Account</translation>
+    </message>
+    <message>
+        <location filename="imports/example/qml/tool/ToolWindow.qml" line="66"/>
+        <source>Settings</source>
+        <translation type="unfinished">Settings</translation>
     </message>
 </context>
 </TS>
