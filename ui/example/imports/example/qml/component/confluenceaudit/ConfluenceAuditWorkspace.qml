@@ -63,6 +63,11 @@ Item {
         return value && value.length >= 10 ? value.substring(0, 10) : ""
     }
 
+    function pickerDate(value) {
+        const parts = String(value).split("-")
+        return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+    }
+
     function statusColor(status) {
         if (status === "invalid_format")
             return FluTheme.dark ? "#FF99A4" : "#D13438"
@@ -499,6 +504,36 @@ Item {
             }
         }
 
+        GridLayout {
+            Layout.fillWidth: true
+            columns: root.width < 800 ? 2 : 4
+            FluText {
+                text: qsTr("Start date")
+            }
+            FluDatePicker { // persistence-opt-out: owner:ConfluenceAuditBridge
+                objectName: "confluenceAuditStartDatePicker"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: 220
+                current: root.pickerDate(root.view.manualAuditPeriod.startDate)
+                disabled: root.auditBusy
+                onAccepted: ConfluenceAuditBridge.setManualAuditStartDate(
+                    Qt.formatDate(current, "yyyy-MM-dd"))
+            }
+            FluText {
+                text: qsTr("End date")
+            }
+            FluDatePicker { // persistence-opt-out: owner:ConfluenceAuditBridge
+                objectName: "confluenceAuditEndDatePicker"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: 220
+                current: root.pickerDate(root.view.manualAuditPeriod.endDate)
+                disabled: root.auditBusy
+                onAccepted: ConfluenceAuditBridge.setManualAuditEndDate(
+                    Qt.formatDate(current, "yyyy-MM-dd"))
+            }
+        }
         RowLayout {
             Layout.fillWidth: true
             FluFilledButton {
@@ -526,7 +561,7 @@ Item {
             }
         }
         FluText {
-            text: qsTr("Audit Period (Monday–Thursday)") + ": "
+            text: qsTr("Audit period") + ": "
                   + root.shortDate(root.view.period.start) + " — "
                   + root.shortDate(root.view.period.displayEnd)
             color: FluTheme.fontSecondaryColor

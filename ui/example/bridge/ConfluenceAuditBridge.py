@@ -6,6 +6,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import Lock, Thread
+from zoneinfo import ZoneInfo
 
 from PySide6.QtCore import QObject, Property, QStandardPaths, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
@@ -15,10 +16,9 @@ from tool.common.project_weekly_audit.discovery import (
     discover_project_collection,
 )
 from tool.common.project_weekly_audit.models import (
-    AuditExecutionContext, ConfluenceProject, ProductLine, ProjectCollection,
+    AuditExecutionContext, AuditPeriod, ConfluenceProject, ProductLine, ProjectCollection,
     ProjectCollectionFilter,
 )
-from tool.common.project_weekly_audit.period import current_reporting_window
 from tool.common.project_weekly_audit.project_collection import (
     default_project_filter, filter_projects,
 )
@@ -43,6 +43,7 @@ from support.account_dynamic_source import (
 
 BUSY = {"discovering", "reviewing"}
 PROJECT_SPACE_URL = UNIFIED_SOURCE
+SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
 
 
 def _log_account_id(username):
@@ -94,6 +95,9 @@ class ConfluenceAuditBridge(QObject):
             if executable is not None else None
         )
         self._now = now_factory or (lambda: datetime.now().astimezone())
+        local_today = self._now().astimezone(SHANGHAI_TZ).date()
+        self._manual_start_date = local_today - timedelta(days=local_today.weekday())
+        self._manual_end_date = local_today
         cache_root = (
             Path(history_root) / "cache"
             if history_root is not None
@@ -124,6 +128,7 @@ class ConfluenceAuditBridge(QObject):
         criteria = default_project_filter(self._now(), PROJECT_SPACE_URL)
         self._view = {"state": "idle", "statusText": self.tr("Ready to audit all Confluence projects."),
                       "period": {}, "progress": {"processed": 0, "total": 0}, "summary": {},
+                      "manualAuditPeriod": self._manual_period_view(),
                       "projects": [], "selectedProject": "", "findings": [],
                       "sourceLabel": UNIFIED_SOURCE,
                       "exportPath": "",
@@ -303,6 +308,37 @@ class ConfluenceAuditBridge(QObject):
             selectedProductLineKeys=selected,
             **self._candidate_state(selected),
         )
+
+    def _manual_period_view(self):
+        return {
+            "startDate": self._manual_start_date.isoformat(),
+            "endDate": self._manual_end_date.isoformat(),
+        }
+
+    @Slot(str)
+    def setManualAuditStartDate(self, value):
+        self._manual_start_date = datetime.fromisoformat(value).date()
+        self._set(manualAuditPeriod=self._manual_period_view())
+
+    @Slot(str)
+    def setManualAuditEndDate(self, value):
+        self._manual_end_date = datetime.fromisoformat(value).date()
+        self._set(manualAuditPeriod=self._manual_period_view())
+
+    def _manual_audit_period(self, now):
+        local_now = now.astimezone(SHANGHAI_TZ)
+        start = datetime.combine(
+            self._manual_start_date, datetime.min.time(), SHANGHAI_TZ,
+        )
+        end = (
+            local_now
+            if self._manual_end_date == local_now.date()
+            else datetime.combine(
+                self._manual_end_date + timedelta(days=1),
+                datetime.min.time(), SHANGHAI_TZ,
+            )
+        )
+        return AuditPeriod(start, end)
 
     @Slot(str)
     def selectAllProjectsForLine(self, product_line_key):
@@ -952,9 +988,14 @@ class ConfluenceAuditBridge(QObject):
         if credentials is None:
             return
         username, password = credentials
+        period = self._manual_audit_period(self._now())
+        if period.start >= period.end:
+            self._set(statusText=self.tr(
+                "The audit start time must be earlier than the end time."
+            ))
+            return
         self._generation += 1
         generation = self._generation
-        period = current_reporting_window(self._now())
         self._batch = None
         self._set(state="discovering", statusText=self.tr("Discovering all A-level development projects..."),
                   period=_period_view(period),

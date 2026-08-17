@@ -33,6 +33,7 @@ def filter_projects(
     included = []
     excluded = Counter()
     independent_excluded = Counter()
+    independent_excluded["current_stage"] = 0
     for active, key in (
         (years, "year"),
         (support_modes, "support_mode"),
@@ -47,8 +48,12 @@ def filter_projects(
     for project in projects:
         input_count += 1
         reason = None
+        stage_match = re.match(r"^\s*(\d+)", str(project.current_stage or ""))
+        stage_excluded = bool(stage_match and int(stage_match.group(1)) >= 5)
         project_years = set(project.matching_years or (project.year,))
         matching_years = tuple(sorted(project_years & years if years else project_years))
+        if stage_excluded:
+            independent_excluded["current_stage"] += 1
         if years and not matching_years:
             independent_excluded["year"] += 1
         if support_modes and _normalize(project.support_mode) not in support_modes:
@@ -59,7 +64,9 @@ def filter_projects(
             independent_excluded["project_selection"] += 1
         if product_line_keys and _normalize(project.space_key) not in product_line_keys:
             independent_excluded["product_line"] += 1
-        if years and not matching_years:
+        if stage_excluded:
+            reason = "current_stage"
+        elif years and not matching_years:
             reason = "year"
         elif support_modes and _normalize(project.support_mode) not in support_modes:
             reason = "support_mode"
