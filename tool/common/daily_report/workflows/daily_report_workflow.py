@@ -20,9 +20,15 @@ def _named(value):
 def _names(value):
     if value is None:
         return ()
-    if isinstance(value, (str, dict)):
+    if isinstance(value, str):
+        value = value.split(",")
+    elif isinstance(value, dict):
         value = (value,)
-    return tuple(name for item in value if (name := _named(item)))
+    return tuple(
+        name
+        for item in value
+        if (name := _named(item).strip()) and name.casefold() != "none"
+    )
 
 
 def _timestamp(value):
@@ -98,7 +104,9 @@ def _search_issues(wf, jql):
     search_match = re.search(r"search_id\s*[:：]\s*([A-Za-z0-9_-]+)", response, re.IGNORECASE)
     pages_match = re.search(r"分为\s*(\d+)\s*页", response)
     if not search_match:
-        raise ValueError("unexpected Jira search response")
+        raise ValueError(
+            f"unexpected Jira search response for JQL {jql!r}: {response}"
+        )
     page_count = int(pages_match.group(1)) if pages_match else 1
     if page_count < 1:
         raise ValueError("unexpected Jira search response")
