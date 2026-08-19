@@ -6,6 +6,7 @@ repo_root = os.environ.get("SMARTTEST_REPO_ROOT") or os.path.abspath(SPECPATH)
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 from support.packaging.tool_runtime_resources import pyinstaller_datas
+from support.packaging.tool_runtime_dependencies import TOOL_HIDDEN_IMPORTS
 
 entry = os.path.join(repo_root, "ui", "example", "tool_main.py")
 hooks_root = os.path.join(repo_root, "support", "packaging", "pyinstaller", "hooks")
@@ -15,13 +16,7 @@ a = Analysis(
     pathex=[repo_root, os.path.join(repo_root, "ui")],
     binaries=[],
     datas=pyinstaller_datas(repo_root),
-    hiddenimports=[
-        "atlassian", "atlassian.confluence", "pythoncom", "pywintypes",
-        "win32com", "win32com.client", "win32cred", "ldap3",
-        "FluentUI.FluentUI", "Crypto.Hash.MD4",
-        "tool.common.project_weekly_audit.command",
-        "tool.common.project_weekly_audit.scheduler",
-    ],
+    hiddenimports=list(TOOL_HIDDEN_IMPORTS),
     hookspath=[hooks_root],
     excludes=[
         "cv2", "testing", "android_client",

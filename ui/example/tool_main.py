@@ -4,9 +4,11 @@ import asyncio
 import importlib
 import os
 import sys
+import uuid
 from pathlib import Path
 
 from example.imports import tool_resource_rc as _tool_resource_rc
+from support.packaging.tool_runtime_dependencies import TOOL_SMOKE_MODULES
 from support.packaging.tool_runtime_resources import missing_required
 
 
@@ -16,18 +18,7 @@ TOOL_CONTEXT_NAMES = (
     "ConfluenceAuditBridge", "DailyReportBridge", "ScheduleBridge",
 )
 
-PORTABLE_SMOKE_MODULES = (
-    "openpyxl",
-    "atlassian.confluence",
-    "win32com.client",
-    "win32cred",
-    "ldap3",
-    "qrcode",
-    "support.report.excel",
-    "tool.common.project_weekly_audit.report",
-    "tool.common.project_weekly_audit.command",
-    "tool.common.project_weekly_audit.scheduler",
-)
+PORTABLE_SMOKE_MODULES = TOOL_SMOKE_MODULES
 
 
 def portable_smoke_imports() -> None:
@@ -39,6 +30,39 @@ def portable_smoke_imports() -> None:
     ):
         raise RuntimeError("portable smoke unexpectedly loaded matplotlib")
     print("SmartTestTool portable smoke imports: PASS")
+
+
+def portable_credential_smoke(*, store=None, credential_ref: str | None = None) -> None:
+    from support.windows_credentials import (
+        CredentialNotFoundError,
+        WindowsCredentialStore,
+    )
+
+    credential_ref = credential_ref or uuid.uuid4().hex
+    store = store or WindowsCredentialStore(
+        target_prefix=f"SmartTest/PortableSmoke/{os.getpid()}/{uuid.uuid4().hex}/",
+    )
+    failure: Exception | None = None
+    try:
+        store.write(
+            credential_ref, "portable-smoke-user", "portable-smoke-secret",
+        )
+        actual = store.read(credential_ref)
+        if actual != ("portable-smoke-user", "portable-smoke-secret"):
+            raise RuntimeError("Credential Manager smoke read did not match its write")
+    except Exception as exc:
+        failure = exc
+        raise
+    finally:
+        try:
+            store.delete(credential_ref)
+        except CredentialNotFoundError:
+            if failure is None:
+                raise
+        except Exception:
+            if failure is None:
+                raise
+    print("SmartTestTool portable credentials: PASS")
 
 
 def runtime_root() -> Path:
@@ -122,12 +146,26 @@ def portable_context_smoke(engine) -> None:
     auth = objects.get("AuthBridge")
     if not isinstance(getattr(auth, "_personnel", None), dict):
         raise RuntimeError("SmartTestTool AuthBridge personnel resource was not loaded")
+    redmine = objects.get("RedmineBridge")
+    if getattr(redmine, "_auth", None) is not auth:
+        raise RuntimeError("SmartTestTool Redmine credential boundary is not shared with AuthBridge")
     print("SmartTestTool portable context: PASS")
 
 
 def main() -> None:
     if "--portable-smoke-imports" in sys.argv:
         portable_smoke_imports()
+        return
+    if "--portable-smoke-credentials" in sys.argv:
+        try:
+            portable_credential_smoke()
+        except Exception as exc:
+            print(
+                "SmartTestTool portable credentials: FAIL "
+                f"({type(exc).__name__})",
+                file=sys.stderr,
+            )
+            raise SystemExit(1) from None
         return
     if "--portable-smoke-context" in sys.argv:
         from PySide6.QtCore import QCoreApplication

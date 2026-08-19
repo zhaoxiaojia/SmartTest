@@ -151,6 +151,23 @@ def validate_smoke_imports(executable: Path) -> None:
         raise RuntimeError("Portable smoke imports did not report PASS")
 
 
+def validate_credential_smoke(executable: Path) -> None:
+    result = subprocess.run(
+        [str(executable), "--portable-smoke-credentials"],
+        cwd=executable.parent, capture_output=True, text=True, timeout=30,
+    )
+    if result.returncode != 0:
+        output = result.stderr + result.stdout
+        failure_type = "UnknownError"
+        if "FAIL (" in output:
+            failure_type = output.split("FAIL (", 1)[1].split(")", 1)[0]
+        raise RuntimeError(
+            f"Portable credential capability failed ({failure_type})"
+        )
+    if "SmartTestTool portable credentials: PASS" not in result.stdout:
+        raise RuntimeError("Portable credential capability did not report PASS")
+
+
 def validate_context_smoke(executable: Path) -> None:
     result = subprocess.run(
         [str(executable), "--portable-smoke-context"],
@@ -198,6 +215,7 @@ def build_portable() -> None:
         executable, Path(env.pyinstaller()).with_name("pyi-archive_viewer.exe")
     )
     validate_smoke_imports(executable)
+    validate_credential_smoke(executable)
     validate_context_smoke(executable)
     validate_startup(executable)
     archive = create_portable_zip(app_dir, manifest["version"], DIST_ROOT)
