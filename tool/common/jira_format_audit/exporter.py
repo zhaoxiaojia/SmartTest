@@ -9,7 +9,7 @@ from openpyxl.utils import get_column_letter
 from support.report.excel import clean_excel_value, write_excel_workbook
 
 from .models import AuditReport
-from .rules import QA_CREATOR_NAMES
+from .rules import creator_names
 
 
 _SUMMARY_WIDTHS = (28, 24, 85)
@@ -78,6 +78,7 @@ def export_audit_xlsx(
 
 
 def _summary_rows(report: AuditReport) -> tuple[list[list[object]], set[int]]:
+    qa_creator_names = creator_names()
     failed_by_reporter: dict[str, set[str]] = {}
     for issue in report.issues:
         if not issue.passed:
@@ -107,7 +108,7 @@ def _summary_rows(report: AuditReport) -> tuple[list[list[object]], set[int]]:
     rows.append(
         [
             "审查 Creator 白名单",
-            f"共 {len(QA_CREATOR_NAMES)} 人",
+            f"共 {len(qa_creator_names)} 人",
             "工具仅抓取 Creator 命中以下名单的 Jira",
         ]
     )
@@ -115,7 +116,7 @@ def _summary_rows(report: AuditReport) -> tuple[list[list[object]], set[int]]:
     rows.append(["序号", "Creator 姓名", ""])
     rows.extend(
         [index, creator_name, ""]
-        for index, creator_name in enumerate(sorted(QA_CREATOR_NAMES), 1)
+        for index, creator_name in enumerate(sorted(qa_creator_names), 1)
     )
     return rows, {1, 9, whitelist_title_row, whitelist_header_row}
 

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable
+from functools import cache
+from pathlib import Path
 from typing import Any, NamedTuple
 
 from .models import (
@@ -23,89 +26,19 @@ AI_REVIEWABLE_RULE_IDS = frozenset(
         "DESCRIPTION.NOTES_SW",
     }
 )
-QA_CREATOR_NAMES = frozenset(
-    {
-        "Xiuyue Zhang",
-        "Junjie Li",
-        "Mao Ma",
-        "Changwen Dai",
-        "Xiangqun Li",
-        "Leping Lei",
-        "Jianfan Ai",
-        "Jinbo Du",
-        "Shaojun Chen",
-        "Kai Ni",
-        "Shuangxiao Hu",
-        "Chunyan Liu",
-        "Xinying Yang",
-        "Bo Ren",
-        "Zhangxian Chen",
-        "Zhenhua Xiao",
-        "Zanbo Huang",
-        "Lingguo Bu",
-        "Haolin Li",
-        "Chenghua Liu",
-        "Yongqi Liang",
-        "Menghui Liu",
-        "Jianhua Huang",
-        "Maoguo Xie",
-        "Cong Zhang",
-        "Jie Xiong",
-        "Jianhui Peng",
-        "Ling Chen",
-        "Zhewu Tao",
-        "Meng Wang",
-        "Binbin Gao",
-        "Jiajia Mu",
-        "Zhendong Zhou",
-        "Yanyan Deng",
-        "Xiaoli Peng",
-        "Xing Fan",
-        "Zhaoqun Wang",
-        "Zijie Chen",
-        "Bo Meng",
-        "Yu Zhang",
-        "Yonghua Wu",
-        "Jian Zhong",
-        "Yan Wu",
-        "Ping Xiong",
-        "Lingling Yu",
-        "Pan Xu",
-        "Fan Xu",
-        "Chen Chen",
-        "Dan Chen",
-        "Chao Lu",
-        "Chao Li",
-        "Nannan Meng",
-        "Kang Jiang",
-        "Yanqing Tang",
-        "Weiting Feng",
-        "Taoqing Miao",
-        "Chuanyang Hu",
-        "Qianyi Liu",
-        "Zhuhui Zhang",
-        "Jinhuan Yi",
-        "Yifeng Xu",
-        "Shouneng Chou",
-        "Mennan Hu",
-        "Hanpeng Su",
-        "Haobo Ren",
-        "Meiling Zhu",
-        "Xiaofeng Li",
-        "Qin Zhang",
-        "Xuejiao Li",
-        "Mingdong Wang",
-        "Zongwu Ma",
-        "Yunzhu Zhang",
-        "Zhijie Yang",
-        "Tianwei Xie",
-        "Bing Song",
-        "Qiaowei Tian",
-    }
-)
-_QA_CREATOR_NAME_KEYS = frozenset(
-    name.casefold() for name in QA_CREATOR_NAMES
-)
+_PERSONNEL_PATH = Path(__file__).resolve().parents[3] / "config" / "personnel.json"
+
+
+@cache
+def creator_names() -> frozenset[str]:
+    personnel = json.loads(_PERSONNEL_PATH.read_text(encoding="utf-8"))
+    employees = personnel["amlogic"]["departments"]["FAE-QA"]["employees"]
+    return frozenset(
+        str(employee.get("display_name") or "").strip()
+        for employee in employees
+        if employee.get("active") is not False
+        and str(employee.get("display_name") or "").strip()
+    )
 
 _RULE_DATA = (
     ("SUMMARY.FORMAT", "Summary", "Summary", "Summary 必须包含 4–6 个方括号分组，最后四组依次为客户、CHIP、系统版本和模块，冒号后填写非空问题描述。", "使用“[客户][CHIP][版本][模块]: 问题描述”；前面可选增加公共 Jira ID 和客户 Bug ID。"),
@@ -184,6 +117,10 @@ _DESCRIPTION_SECTION_ALIASES = {
         "对比信息",
         "版本对比",
         "第三方对比",
+        "对比结果",
+        "比较结果",
+        "对比情况",
+        "比较情况",
     ),
     "notes": (
         "Note",
@@ -267,7 +204,7 @@ def is_audit_eligible(issue: dict[str, Any]) -> bool:
     else:
         creator_name = str(creator or "").strip()
     match_name = " ".join(creator_name.split()).casefold()
-    return match_name in _QA_CREATOR_NAME_KEYS
+    return any(match_name == name.casefold() for name in creator_names())
 
 
 def _normalize_username(username: Any) -> str:
