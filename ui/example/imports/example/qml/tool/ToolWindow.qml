@@ -45,6 +45,11 @@ FluWindow {
         displayMode: GlobalModel.displayMode
         logo: "qrc:/example/res/image/app_icon.png"
         title: "SmartTest Tool"
+        onCollapseRequested: function(collapsed) {
+            GlobalModel.displayMode = collapsed
+                    ? FluNavigationViewType.Compact
+                    : FluNavigationViewType.Open
+        }
         items: FluObject {
             FluPaneItem {
                 objectName: "toolMainPaneItem"
