@@ -380,10 +380,17 @@ def verify_stress_action(*, dut, file_path: str, action: str, action_interval_se
     return True
 
 
-def assert_media_session_state(dut, *, file_path: str, expected_state: str) -> None:
+def assert_media_session_state(
+    dut,
+    *,
+    file_path: str,
+    expected_state: str,
+    timeout_s: float = START_READY_STATE_RETRIES * START_READY_STATE_RETRY_INTERVAL_SEC,
+) -> None:
     device = _ensure_dut(dut)
     last_text = ""
-    for attempt in range(1, START_READY_STATE_RETRIES + 1):
+    attempts = max(1, int(float(timeout_s) / START_READY_STATE_RETRY_INTERVAL_SEC))
+    for attempt in range(1, attempts + 1):
         text = str(device.run_device_shell("dumpsys media_session") or "")
         last_text = text
         state = _media_session_state(text)
@@ -394,14 +401,12 @@ def assert_media_session_state(dut, *, file_path: str, expected_state: str) -> N
                 f"file={file_path} expected={expected_state} state={_media_session_state_summary(text)}"
             )
             return
-        if not (expected_state == "PLAYING" and state == "BUFFERING" and matches_file):
-            break
         step_log(
             "local_playback_media_session_waiting "
             f"file={file_path} expected={expected_state} attempt={attempt} "
             f"state={_media_session_state_summary(text)}"
         )
-        if attempt < START_READY_STATE_RETRIES:
+        if attempt < attempts:
             time.sleep(START_READY_STATE_RETRY_INTERVAL_SEC)
     raise AssertionError(
         "Local playback media session state mismatch.\n"

@@ -4,6 +4,7 @@ import QtQuick.Controls 2.15
 import Qt.labs.platform 1.1
 import FluentUI 1.0
 import "../global"
+import "../component"
 
 FluScrollablePage {
     title: qsTr("Debug")
@@ -231,7 +232,7 @@ FluScrollablePage {
                 wrapMode: Text.WordWrap
             }
 
-            FluProgressBar {
+            AppTaskProgress {
                 Layout.fillWidth: true
                 visible: loadingVideo
                 indeterminate: totalFrames <= 0

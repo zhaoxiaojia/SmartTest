@@ -123,6 +123,7 @@ class ConfluenceAuditBridge(QObject):
         )
         self._filter_generation = 0
         self._pending_filter = None
+        self._pending_audit = False
         self._filter_submit = filter_submit or self._submit_dynamic
         self._schedule_rows = []
         criteria = default_project_filter(self._now(), PROJECT_SPACE_URL)
@@ -484,7 +485,7 @@ class ConfluenceAuditBridge(QObject):
             RefreshState.REFRESH_FAILED: (
                 self.tr("Refresh failed; using cached Project Space data.")
                 if event.snapshot is not None
-                else self.tr("Project Space could not be loaded. Retry after checking LDAP and network access.")
+                else self.tr("Project Space could not be loaded. Check the current account password and network access, then retry.")
             ),
         }[state]
         if state is RefreshState.REFRESH_FAILED and event.error_kind == "dependency":
@@ -639,7 +640,7 @@ class ConfluenceAuditBridge(QObject):
             self._set(statusText=(
                 self.tr("Enter the current account password to continue applying filters.")
                 if status in {"password_required", "pending"}
-                else self.tr("Sign in with LDAP to continue applying filters.")
+                else self.tr("Sign in to continue applying filters.")
             ))
             return
         self._start_pending_filter()
@@ -668,11 +669,17 @@ class ConfluenceAuditBridge(QObject):
 
     @Slot()
     def _on_runtime_credential_supplied(self):
-        self._start_pending_filter()
+        if self._pending_filter is not None:
+            self._start_pending_filter()
+            return
+        if self._pending_audit:
+            self._pending_audit = False
+            self.startAudit()
 
     @Slot()
     def _cancel_pending_filter(self):
         self._pending_filter = None
+        self._pending_audit = False
         self._set(filterApplying=False)
 
     def _discover_for_filter(
@@ -748,7 +755,7 @@ class ConfluenceAuditBridge(QObject):
             },
         )
         messages = {
-            "auth": self.tr("Confluence authentication failed. Sign in with LDAP again."),
+            "auth": self.tr("Confluence authentication failed. Check the current account password."),
             "network": self.tr("Confluence network access failed. Check the network or VPN, then try again."),
             "dependency": self.tr(
                 "Confluence support is missing. Start SmartTest with the project .venv "
@@ -961,12 +968,12 @@ class ConfluenceAuditBridge(QObject):
     def _transient_credentials(self):
         username, password = self._auth.transientCredential()
         if not (
-            self._auth.isAuthenticated() and self._auth.hasCredential()
+            self._auth.isAuthenticated()
             and username and password
         ):
             self._set(
                 state="failed",
-                statusText=self.tr("Sign in with LDAP again to audit Confluence projects."),
+                statusText=self.tr("Enter the current account password to audit Confluence projects."),
             )
             return None
         return str(username), str(password)
@@ -984,6 +991,17 @@ class ConfluenceAuditBridge(QObject):
         ):
             self._set(statusText=self.tr("Select at least one project before starting the audit."))
             return
+        acquisition = self._auth.acquireRuntimeCredential()
+        status = str(acquisition.get("status") or "")
+        if status != "ready":
+            self._pending_audit = True
+            self._set(statusText=(
+                self.tr("Enter the current account password to audit Confluence projects.")
+                if status in {"password_required", "pending"}
+                else self.tr("Sign in to audit Confluence projects.")
+            ))
+            return
+        self._pending_audit = False
         credentials = self._transient_credentials()
         if credentials is None:
             return
@@ -1369,7 +1387,7 @@ class ConfluenceAuditBridge(QObject):
         if int(payload.get("generation", -1)) == self._generation:
             kind = str(payload.get("kind") or "audit")
             messages = {
-                "auth": self.tr("Confluence authentication failed. Sign in with LDAP again."),
+                "auth": self.tr("Confluence authentication failed. Check the current account password."),
                 "network": self.tr("Confluence network access failed. Check the network or VPN, then try again."),
                 "dependency": self.tr(
                     "Confluence support is missing. Start SmartTest with the project .venv "

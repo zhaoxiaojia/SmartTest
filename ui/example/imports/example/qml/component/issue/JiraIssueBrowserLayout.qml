@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import FluentUI 1.0
+import ".."
 
 Item {
     id: root
@@ -224,8 +225,8 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             visible: root.dataLoading || root.dataStatusText.length > 0
-            FluProgressRing { visible: root.dataLoading; Layout.preferredWidth: 18; Layout.preferredHeight: 18 }
-            FluProgressBar {
+            AppLoadingIndicator { visible: root.dataLoading; Layout.preferredWidth: 18; Layout.preferredHeight: 18 }
+            AppTaskProgress {
                 visible: root.dataLoading && root.dataTotal > 0
                 indeterminate: false
                 value: root.dataTotal > 0 ? Math.min(1, root.dataLoaded / root.dataTotal) : 0

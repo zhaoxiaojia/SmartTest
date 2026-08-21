@@ -4,9 +4,25 @@ import QtQuick.Controls.Basic 2.15 as Basic
 import QtQuick.Layouts 1.15
 import FluentUI 1.0
 import "../../state"
+import ".."
 
 Item {
     id: root
+    FluWindowResultLauncher {
+        id: loginLauncher
+        objectName: "jiraAuditLoginLauncher"
+        path: "/login"
+    }
+    Connections {
+        target: AuthBridge
+        ignoreUnknownSignals: true
+        function onRuntimeCredentialSupplyRequired() {
+            loginLauncher.launch({
+                username: AuthBridge.username,
+                credentialSupply: AuthBridge.authenticated
+            })
+        }
+    }
     Loader {
         id: auditStateLoader
         active: AuthBridge.authenticated === true
@@ -132,7 +148,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 6
 
-                    FluProgressBar {
+                    AppTaskProgress {
                         anchors.fill: parent
                         visible: root.view.state === "resolving"
                         indeterminate: true

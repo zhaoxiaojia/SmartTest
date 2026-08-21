@@ -258,7 +258,13 @@ def _case_summary_html(summary: dict[str, Any]) -> str:
     headline = _safe_text(summary.get("headline") or summary.get("title"))
     body = _safe_text(summary.get("body") or summary.get("message"))
     rows = [(key, value) for key, value in summary.items() if key not in {"headline", "title", "body", "message"}]
-    content = (f"<p>{_esc(headline)}</p>" if headline else "") + (f"<p>{_esc(body)}</p>" if body else "")
+    coverage_level = _safe_text(summary.get("coverage_level"))
+    coverage_badge = (
+        '<p><strong class="pill" style="--status:#d97706">software_partial</strong></p>'
+        if coverage_level == "software_partial"
+        else ""
+    )
+    content = coverage_badge + (f"<p>{_esc(headline)}</p>" if headline else "") + (f"<p>{_esc(body)}</p>" if body else "")
     if rows:
         content += _kv_html(rows)
     return f'<div class="case-summary"><h4>Case Summary</h4>{content}</div>'

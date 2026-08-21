@@ -36,7 +36,7 @@ class IssueAuditResult:
     key: str
     url: str
     summary: str
-    reporter: str
+    creator: str
     passed: bool
     violations: tuple[AuditViolation, ...]
     ai_review_status: AIReviewStatus = AIReviewStatus.NOT_REQUIRED

@@ -294,6 +294,7 @@ class BaseDut:
         lan: bool = True,
         *,
         timeout_s: int = 90,
+        forget_existing: bool = True,
     ) -> bool:
         return self._wifi_connect_impl(
             WifiConnectParams(
@@ -303,6 +304,7 @@ class BaseDut:
                 hidden=hidden,
                 lan=lan,
                 timeout_s=timeout_s,
+                forget_existing=forget_existing,
             )
         )
 

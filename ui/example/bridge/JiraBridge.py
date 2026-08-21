@@ -92,7 +92,7 @@ _JIRA_BRIDGE_TRANSLATION_MARKERS = (
     QT_TRANSLATE_NOOP("JiraBridge", "Story"),
     QT_TRANSLATE_NOOP("JiraBridge", "Improvement"),
     QT_TRANSLATE_NOOP("JiraBridge", "Unassigned"),
-    QT_TRANSLATE_NOOP("JiraBridge", "LDAP session is missing Jira credentials. Please sign in again."),
+    QT_TRANSLATE_NOOP("JiraBridge", "The current account password is required for Jira access."),
     QT_TRANSLATE_NOOP("JiraBridge", "Connected to {base_url} | loaded {loaded} of {total}"),
     QT_TRANSLATE_NOOP(
         "JiraBridge",
@@ -101,7 +101,8 @@ _JIRA_BRIDGE_TRANSLATION_MARKERS = (
     QT_TRANSLATE_NOOP("JiraBridge", "Connected to {base_url} | analyzed {returned} of {total}"),
     QT_TRANSLATE_NOOP("JiraBridge", "Just now"),
     QT_TRANSLATE_NOOP("JiraBridge", "Sign in to load Jira data."),
-    QT_TRANSLATE_NOOP("JiraBridge", "Sign in with LDAP first, then Jira results and AI analysis will load here."),
+    QT_TRANSLATE_NOOP("JiraBridge", "Enter the current account password to load Jira data."),
+    QT_TRANSLATE_NOOP("JiraBridge", "Enter the current account password to load Jira results and AI analysis."),
     QT_TRANSLATE_NOOP("JiraBridge", "Loading Jira results..."),
     QT_TRANSLATE_NOOP("JiraBridge", "Analyzing Jira request..."),
     QT_TRANSLATE_NOOP("JiraBridge", "Sign in again to restore Jira access."),
@@ -193,6 +194,8 @@ class JiraBridge(QObject):
         self._service_identity: tuple[str, str] | None = None
         self._state_lock = Lock()
         self._auth_bridge.authChanged.connect(self._handle_auth_changed)
+        if hasattr(self._auth_bridge, "runtimeCredentialSupplied"):
+            self._auth_bridge.runtimeCredentialSupplied.connect(self.bootstrap)
         TranslateHelper().currentChanged.connect(self._handle_language_changed)
         self._applyResult.connect(self._on_worker_result)
         self._applyError.connect(self._on_worker_error)
@@ -479,7 +482,7 @@ class JiraBridge(QObject):
         username = self._auth_bridge.currentUsername()
         _username, password = self._auth_bridge.transientCredential()
         if not username or not password:
-            raise RuntimeError(self._t("LDAP session is missing Jira credentials. Please sign in again."))
+            raise RuntimeError(self._t("The current account password is required for Jira access."))
         identity = (username, password)
         if self._workspace_service is not None and self._service_identity == identity:
             return self._workspace_service
@@ -587,13 +590,19 @@ class JiraBridge(QObject):
     def bootstrap(self) -> None:
         if self._loading:
             return
-        if not self._auth_bridge.isAuthenticated() or not self._auth_bridge.hasCredential():
+        acquisition = self._auth_bridge.acquireRuntimeCredential()
+        status = str(acquisition.get("status") or "")
+        if status != "ready":
             self._set_connection(
                 connected=False,
-                status_state=self._translated_state("Sign in to load Jira data."),
+                status_state=self._translated_state(
+                    "Enter the current account password to load Jira data."
+                    if status in {"password_required", "pending"}
+                    else "Sign in to load Jira data."
+                ),
             )
             self._analysis_summary_state = self._translated_state(
-                "Sign in with LDAP first, then Jira results and AI analysis will load here."
+                "Enter the current account password to load Jira results and AI analysis."
             )
             self.stateChanged.emit()
             return

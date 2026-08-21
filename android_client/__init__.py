@@ -13,6 +13,24 @@ from testing.params.adb_devices import resolve_adb_serial_for_command
 from support.logging import smart_log
 
 
+def _log_process_result(label: str, result: subprocess.CompletedProcess[str]) -> None:
+    """Log only present streams, with severity derived from the real return code."""
+    stdout = str(result.stdout or "").strip()
+    stderr = str(result.stderr or "").strip()
+    stdout_level = "error" if result.returncode != 0 else "info"
+    known_success_stderr = label in {"adb remount", "root probe mode=adb_root"}
+    stderr_level = "error" if result.returncode != 0 else ("info" if known_success_stderr else "warning")
+    if stdout:
+        smart_log(f"{label} stdout: {stdout}", level=stdout_level, domain="android", source="android_client.install")
+    if stderr:
+        smart_log(f"{label} stderr: {stderr}", level=stderr_level, domain="android", source="android_client.install")
+
+
+def _emit_stage(stage_callback, stage: str, value: int, detail: str) -> None:
+    if stage_callback is not None:
+        stage_callback(stage, value, detail)
+
+
 PACKAGE_NAME = "com.smarttest.mobile"
 RAW_DEBUG_APK_RELATIVE_PATH = Path("android_client", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
 SIGNED_APK_RELATIVE_PATH = Path(
@@ -138,8 +156,7 @@ def _ensure_debug_apk_built(apk_path: Path) -> None:
         check=False,
         creationflags=_subprocess_creationflags(),
     )
-    smart_log(f"build stdout: {result.stdout.strip()}", domain="android", source="android_client.install")
-    smart_log(f"build stderr: {result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
+    _log_process_result("build", result)
     if result.returncode != 0 or not apk_path.exists():
         raise RuntimeError(
             "Failed to build android_client debug APK.\n"
@@ -250,8 +267,7 @@ def sign_privileged_apk(
             check=False,
             creationflags=_subprocess_creationflags(),
         )
-        smart_log(f"platform sign stdout: {result.stdout.strip()}", domain="android", source="android_client.install")
-        smart_log(f"platform sign stderr: {result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
+        _log_process_result("platform sign", result)
         if result.returncode == 0 and target_apk.exists():
             return target_apk
         sign_errors = [
@@ -281,8 +297,7 @@ def sign_privileged_apk(
             check=False,
             creationflags=_subprocess_creationflags(),
         )
-        smart_log(f"fallback sign stdout: {fallback_result.stdout.strip()}", domain="android", source="android_client.install")
-        smart_log(f"fallback sign stderr: {fallback_result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
+        _log_process_result("fallback sign", fallback_result)
         if fallback_result.returncode == 0 and target_apk.exists():
             return target_apk
         sign_errors.extend(
@@ -363,16 +378,14 @@ def _shell(
     )
 
 
-def _detect_adb_root_mode(*, adb_executable: str, adb_serial: str | None = None) -> bool:
+def _detect_adb_root_mode(*, adb_executable: str, adb_serial: str | None = None, stage_callback=None) -> bool:
+    _emit_stage(stage_callback, "root", 30, "Requesting adb root")
     root_result = _run_adb(
         adb_executable=adb_executable,
         adb_serial=adb_serial,
         args=["root"],
     )
-    root_stdout = str(root_result.stdout or "").strip().lower()
-    root_stderr = str(root_result.stderr or "").strip().lower()
-    smart_log(f"root probe mode=adb_root stdout: {root_stdout}", domain="android", source="android_client.install")
-    smart_log(f"root probe mode=adb_root stderr: {root_stderr}", level="warning", domain="android", source="android_client.install")
+    _log_process_result("root probe mode=adb_root", root_result)
     if root_result.returncode == 0:
         _wait_for_device_ready(adb_executable=adb_executable, adb_serial=adb_serial)
         verify = _shell(
@@ -380,8 +393,7 @@ def _detect_adb_root_mode(*, adb_executable: str, adb_serial: str | None = None)
             adb_serial=adb_serial,
             command="id",
         )
-        smart_log(f"root verify stdout: {str(verify.stdout or '').strip().lower()}", domain="android", source="android_client.install")
-        smart_log(f"root verify stderr: {str(verify.stderr or '').strip().lower()}", level="warning", domain="android", source="android_client.install")
+        _log_process_result("root verify", verify)
         if verify.returncode == 0 and "uid=0" in str(verify.stdout or "").strip().lower():
             return True
     return False
@@ -519,8 +531,7 @@ def _run_checked_adb(
         adb_serial=adb_serial,
         args=args,
     )
-    smart_log(f"{label} stdout: {result.stdout.strip()}", domain="android", source="android_client.install")
-    smart_log(f"{label} stderr: {result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
+    _log_process_result(label, result)
     if result.returncode != 0:
         raise RuntimeError(
             f"android_client provisioning failed during {label}.\n"
@@ -545,6 +556,7 @@ def _provision_to_partition(
     apk_path: Path,
     partition_root: str,
     package_name: str = PACKAGE_NAME,
+    stage_callback=None,
 ) -> bool:
     remote_apk_tmp = "/data/local/tmp/SmartTestMobile.apk"
     remote_xml_tmp = "/data/local/tmp/privapp-permissions-com.smarttest.mobile.xml"
@@ -552,13 +564,13 @@ def _provision_to_partition(
     target_dir = target_apk.rsplit("/", 1)[0]
 
     for local_path, remote_path in ((apk_path, remote_apk_tmp), (LOCAL_PRIVAPP_PERMISSIONS, remote_xml_tmp)):
+        _emit_stage(stage_callback, "push", 55, f"Pushing {local_path.name}")
         result = _run_adb(
             adb_executable=adb_executable,
             adb_serial=adb_serial,
             args=["push", str(local_path), remote_path],
         )
-        smart_log(f"push {local_path.name} stdout: {result.stdout.strip()}", domain="android", source="android_client.install")
-        smart_log(f"push {local_path.name} stderr: {result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
+        _log_process_result(f"push {local_path.name}", result)
         if result.returncode != 0:
             raise RuntimeError(
                 "Failed to push android_client provisioning artifact.\n"
@@ -576,14 +588,14 @@ def _provision_to_partition(
         f"pm uninstall '{package_name}' || true",
     ]
     for command in commands:
+        _emit_stage(stage_callback, "provision", 68, "Provisioning privileged application")
         result = _shell(
             adb_executable=adb_executable,
             adb_serial=adb_serial,
             command=command,
         )
         smart_log(f"provision command: {command}", domain="android", source="android_client.install")
-        smart_log(f"provision stdout: {result.stdout.strip()}", domain="android", source="android_client.install")
-        smart_log(f"provision stderr: {result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
+        _log_process_result("provision", result)
         if result.returncode != 0 and "|| true" not in command:
             error_text = str(result.stderr or result.stdout or "").lower()
             if "read-only file system" in error_text or "not in /proc/mounts" in error_text:
@@ -601,13 +613,15 @@ def _install_privileged_test_apk(
     apk_path: Path,
     adb_serial: str | None = None,
     package_name: str = PACKAGE_NAME,
+    stage_callback=None,
 ) -> None:
     if not LOCAL_PRIVAPP_PERMISSIONS.exists():
         raise RuntimeError(f"privapp permissions file is missing: {LOCAL_PRIVAPP_PERMISSIONS}")
-    if not _detect_adb_root_mode(adb_executable=adb_executable, adb_serial=adb_serial):
+    if not _detect_adb_root_mode(adb_executable=adb_executable, adb_serial=adb_serial, stage_callback=stage_callback):
         raise RuntimeError(
             "android_client privileged provisioning requires a build that supports 'adb root'."
         )
+    _emit_stage(stage_callback, "remount", 42, "Remounting system partitions")
     _run_checked_adb(
         adb_executable=adb_executable,
         adb_serial=adb_serial,
@@ -624,6 +638,7 @@ def _install_privileged_test_apk(
             apk_path=apk_path,
             partition_root=partition_root,
             package_name=package_name,
+            stage_callback=stage_callback,
         ):
             provisioned_partition = partition_root
             break
@@ -640,13 +655,14 @@ def _install_privileged_test_apk(
         adb_serial=adb_serial,
         args=["reboot"],
     )
-    smart_log(f"priv-app reboot stdout: {reboot_result.stdout.strip()}", domain="android", source="android_client.install")
-    smart_log(f"priv-app reboot stderr: {reboot_result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
+    _emit_stage(stage_callback, "reboot", 78, "Rebooting DUT")
+    _log_process_result("priv-app reboot", reboot_result)
     if reboot_result.returncode != 0:
         raise RuntimeError(
             "Failed to reboot DUT after priv-app install.\n"
             f"stdout:\n{reboot_result.stdout}\nstderr:\n{reboot_result.stderr}"
         )
+    _emit_stage(stage_callback, "wait_online", 88, "Waiting for DUT to come online")
     _wait_for_device_ready(adb_executable=adb_executable, adb_serial=adb_serial)
 
 
@@ -687,6 +703,7 @@ def _ensure_privileged_install(
     code_path: str,
     recorded_mode: str,
     recorded_hash: str,
+    stage_callback=None,
 ) -> bool:
     privileged = _is_privileged_code_path(code_path)
     smart_log(
@@ -718,7 +735,9 @@ def _ensure_privileged_install(
         adb_executable=adb_executable,
         apk_path=resolved_apk_path,
         adb_serial=adb_serial,
+        stage_callback=stage_callback,
     )
+    _emit_stage(stage_callback, "verify", 96, "Verifying Android Client")
     installed_after_provisioning = is_test_apk_installed(adb_serial=adb_serial)
     if not installed_after_provisioning:
         smart_log(
@@ -761,8 +780,7 @@ def is_test_apk_installed(*, adb_serial: str | None = None, package_name: str = 
         check=False,
         creationflags=_subprocess_creationflags(),
     )
-    smart_log(f"probe stdout: {result.stdout.strip()}", domain="android", source="android_client.install")
-    smart_log(f"probe stderr: {result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
+    _log_process_result("probe", result)
     return result.returncode == 0 and "package:" in str(result.stdout or "")
 
 
@@ -788,8 +806,7 @@ def install_test_apk(*, apk_path: str | Path | None = None, adb_serial: str | No
         check=False,
         creationflags=_subprocess_creationflags(),
     )
-    smart_log(f"install stdout: {result.stdout.strip()}", domain="android", source="android_client.install")
-    smart_log(f"install stderr: {result.stderr.strip()}", level="warning", domain="android", source="android_client.install")
+    _log_process_result("install", result)
     combined_output = "\n".join(part for part in (result.stdout, result.stderr) if part).strip()
     if result.returncode != 0 or "Failure" in combined_output:
         raise RuntimeError(
@@ -806,6 +823,7 @@ def ensure_test_apk_installed(
     apk_path: str | Path | None = None,
     adb_serial: str | None = None,
     require_privileged: bool = False,
+    stage_callback=None,
 ) -> bool:
     adb_executable = shutil.which("adb")
     if not adb_executable:
@@ -818,6 +836,7 @@ def ensure_test_apk_installed(
         f"effective_serial={_serial_for_log(effective_serial)} "
         f"require_privileged={require_privileged} explicit_apk={apk_path is not None} frozen={getattr(sys, 'frozen', False)}",
         domain="android", source="android_client.install")
+    _emit_stage(stage_callback, "check_apk", 5, "Checking Android Client package")
     _ensure_device_ready_before_install(adb_executable=adb_executable, adb_serial=requested_serial)
 
     resolved_apk_path = Path(apk_path or DEFAULT_APK_PATH).resolve()
@@ -829,6 +848,7 @@ def ensure_test_apk_installed(
         smart_log(f"ensure install failed, APK missing: {resolved_apk_path}", level="error", domain="android", source="android_client.install")
         raise RuntimeError(f"android_client test APK was not found: {resolved_apk_path}")
 
+    _emit_stage(stage_callback, "install_status", 15, "Checking installation status")
     installed = is_test_apk_installed(adb_serial=requested_serial)
 
     current_hash = _apk_hash(resolved_apk_path)
@@ -856,7 +876,7 @@ def ensure_test_apk_installed(
         domain="android", source="android_client.install")
 
     if require_privileged:
-        return _ensure_privileged_install(
+        changed = _ensure_privileged_install(
             adb_executable=adb_executable,
             resolved_apk_path=resolved_apk_path,
             adb_serial=requested_serial,
@@ -867,11 +887,14 @@ def ensure_test_apk_installed(
             code_path=code_path,
             recorded_mode=recorded_mode,
             recorded_hash=recorded_hash,
+            stage_callback=stage_callback,
         )
+        _emit_stage(stage_callback, "verify", 100, "Android Client is ready")
+        return changed
 
     if installed and "/system/priv-app/" in code_path:
         smart_log("existing package is priv-app; verify/reinstall signed APK", domain="android", source="android_client.install")
-        return _ensure_privileged_install(
+        changed = _ensure_privileged_install(
             adb_executable=adb_executable,
             resolved_apk_path=resolved_apk_path,
             adb_serial=requested_serial,
@@ -882,22 +905,29 @@ def ensure_test_apk_installed(
             code_path=code_path,
             recorded_mode=recorded_mode,
             recorded_hash=recorded_hash,
+            stage_callback=stage_callback,
         )
+        _emit_stage(stage_callback, "verify", 100, "Android Client is ready")
+        return changed
 
     if installed and recorded_mode == "user" and recorded_hash == current_hash:
         smart_log("decision: signed APK already installed with matching recorded hash, skip install", domain="android", source="android_client.install")
+        _emit_stage(stage_callback, "verify", 100, "Android Client is ready")
         return False
 
     if not installed:
         smart_log("decision: package missing on DUT, start install", domain="android", source="android_client.install")
     else:
         smart_log("decision: installed package is stale or unrecorded, start install", domain="android", source="android_client.install")
+    _emit_stage(stage_callback, "install", 68, "Installing Android Client")
     install_test_apk(apk_path=resolved_apk_path, adb_serial=requested_serial)
+    _emit_stage(stage_callback, "verify", 96, "Verifying Android Client")
     if not is_test_apk_installed(adb_serial=requested_serial):
         raise RuntimeError("android_client test APK install completed but package is still missing on DUT.")
     install_state[state_key] = _install_state_value(mode="user", apk_hash=current_hash)
     _save_install_state(install_state)
     smart_log("signed APK install finished", domain="android", source="android_client.install")
+    _emit_stage(stage_callback, "verify", 100, "Android Client is ready")
     return True
 
 

@@ -547,7 +547,6 @@ class AuthBridge(QObject):
             self._credential_delete(self._selected_account_id)
             self._account_store.set_remember_password(self._selected_account_id, False)
             self._remember_password = False
-        self.authChanged.emit()
         self.runtimeCredentialSupplied.emit()
         return {
             "success": True,

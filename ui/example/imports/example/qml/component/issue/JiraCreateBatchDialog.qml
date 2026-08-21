@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import FluentUI 1.0
+import ".."
 
 Item {
     id: root
@@ -45,7 +46,7 @@ Item {
                 ColumnLayout {
                     anchors.centerIn: parent
                     visible: root.batchState === "loading"
-                    FluProgressRing { Layout.alignment: Qt.AlignHCenter }
+                    AppLoadingIndicator { Layout.alignment: Qt.AlignHCenter }
                     FluText { text: qsTr("Preparing drafts %1/%2").arg(root.loaded).arg(root.total) }
                 }
                 ColumnLayout {

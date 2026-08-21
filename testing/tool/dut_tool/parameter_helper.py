@@ -13,6 +13,7 @@ from support.logging import smart_log
 DutFactory = Callable[[str | None], Any]
 DeviceLister = Callable[[], list[str]]
 ApkEnsurer = Callable[..., bool]
+StageCallback = Callable[[str, int, str], None]
 
 
 @dataclass(frozen=True)
@@ -52,19 +53,40 @@ class ParameterHelper:
             smart_log(f"refresh_duts error={exc}", domain="dut", level="error", source="ParameterHelper")
             return []
         smart_log(f"refresh_duts devices={devices}", domain="dut", source="ParameterHelper")
-        try:
-            self._ensure_apk_for_refresh(devices, selected_serial=selected_serial)
-        except Exception as exc:  # noqa: BLE001
-            smart_log(
-                f"apk_ensure_error selected={str(selected_serial or '').strip() or '<auto>'} error={exc}",
-                domain="dut",
-                level="error",
-                source="ParameterHelper",
-            )
         return devices
 
     async def refresh_duts_async(self, selected_serial: str | None = None) -> list[str]:
         return await asyncio.to_thread(self.refresh_duts, selected_serial=selected_serial)
+
+    def prepare_android_client(
+        self,
+        selected_serial: str,
+        *,
+        stage_callback: StageCallback | None = None,
+    ) -> bool:
+        target = str(selected_serial or "").strip()
+        if not target:
+            raise ValueError("Android Client preparation requires a selected DUT.")
+        smart_log(f"apk_ensure_start dut={target}", domain="dut", source="ParameterHelper")
+        installed = self._apk_ensurer(
+            adb_serial=target,
+            require_privileged=True,
+            stage_callback=stage_callback,
+        )
+        smart_log(f"apk_ensure_done dut={target} installed={installed}", domain="dut", source="ParameterHelper")
+        return bool(installed)
+
+    async def prepare_android_client_async(
+        self,
+        selected_serial: str,
+        *,
+        stage_callback: StageCallback | None = None,
+    ) -> bool:
+        return await asyncio.to_thread(
+            self.prepare_android_client,
+            selected_serial,
+            stage_callback=stage_callback,
+        )
 
     def refresh_context(
         self,
@@ -164,30 +186,6 @@ class ParameterHelper:
             "error": error,
         }
 
-    def _ensure_apk_for_refresh(self, devices: list[str], *, selected_serial: str | None) -> None:
-        target = str(selected_serial or "").strip()
-        if not target and len(devices) == 1:
-            target = devices[0]
-        if target and target not in devices:
-            smart_log(
-                "apk_ensure_skip "
-                f"selected={target} reason=not_in_discovered_devices devices={devices}",
-                domain="dut",
-                source="ParameterHelper",
-            )
-            return
-        if not target:
-            smart_log(
-                "apk_ensure_skip "
-                f"reason=no_selected_target devices={devices}",
-                domain="dut",
-                source="ParameterHelper",
-            )
-            return
-        smart_log(f"apk_ensure_start dut={target}", domain="dut", source="ParameterHelper")
-        installed = self._apk_ensurer(adb_serial=target, require_privileged=True)
-        smart_log(f"apk_ensure_done dut={target} installed={installed}", domain="dut", source="ParameterHelper")
-
     def _load_options(self, source: str, selected_serial: str | None, *, nodeid: str = "") -> list[str]:
         if source == "testing.tool.dut_tool.features.local_playback:list_media_dirs":
             from testing.tool.dut_tool.features.local_playback import list_media_dirs
@@ -218,10 +216,19 @@ def _android_dut(selected_serial: str | None):
     return android(serialnumber=str(selected_serial or "").strip())
 
 
-def _ensure_android_client_apk(*, adb_serial: str | None = None, require_privileged: bool = True) -> bool:
+def _ensure_android_client_apk(
+    *,
+    adb_serial: str | None = None,
+    require_privileged: bool = True,
+    stage_callback: StageCallback | None = None,
+) -> bool:
     from android_client import ensure_test_apk_installed
 
-    return ensure_test_apk_installed(adb_serial=adb_serial, require_privileged=require_privileged)
+    return ensure_test_apk_installed(
+        adb_serial=adb_serial,
+        require_privileged=require_privileged,
+        stage_callback=stage_callback,
+    )
 
 
 def _dedupe_strings(values: list[str]) -> list[str]:

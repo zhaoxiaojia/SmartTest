@@ -286,7 +286,7 @@
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="488"/>
         <source>Project Space could not be loaded. Retry after checking LDAP and network access.</source>
-        <translation>无法加载 Project Space。请检查 LDAP 登录和网络连接后重试。</translation>
+        <translation type="vanished">无法加载 Project Space。请检查 LDAP 登录和网络连接后重试。</translation>
     </message>
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="493"/>
@@ -311,7 +311,7 @@
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="643"/>
         <source>Sign in with LDAP to continue applying filters.</source>
-        <translation>请先登录 LDAP，再继续应用筛选条件。</translation>
+        <translation type="vanished">请先登录 LDAP，再继续应用筛选条件。</translation>
     </message>
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="757"/>
@@ -321,7 +321,7 @@
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="969"/>
         <source>Sign in with LDAP again to audit Confluence projects.</source>
-        <translation>请重新使用 LDAP 登录后审查 Confluence 项目。</translation>
+        <translation type="vanished">请重新使用 LDAP 登录后审查 Confluence 项目。</translation>
     </message>
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="995"/>
@@ -403,7 +403,7 @@
         <location filename="bridge/ConfluenceAuditBridge.py" line="751"/>
         <location filename="bridge/ConfluenceAuditBridge.py" line="1372"/>
         <source>Confluence authentication failed. Sign in with LDAP again.</source>
-        <translation>Confluence 认证失败，请重新使用 LDAP 登录。</translation>
+        <translation type="vanished">Confluence 认证失败，请重新使用 LDAP 登录。</translation>
     </message>
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="752"/>
@@ -470,6 +470,33 @@
         <location filename="bridge/ConfluenceAuditBridge.py" line="1420"/>
         <source>The login changed. Click Refresh filter options to update Project Space data.</source>
         <translation>登录账户已变更；如需更新 Project Space 数据，请点击“刷新筛选项”。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="489"/>
+        <source>Project Space could not be loaded. Check the current account password and network access, then retry.</source>
+        <translation>无法加载 Project Space。请检查当前账号密码和网络连接后重试。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="644"/>
+        <source>Sign in to continue applying filters.</source>
+        <translation>请先登录以继续应用筛选条件。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="758"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1390"/>
+        <source>Confluence authentication failed. Check the current account password.</source>
+        <translation>Confluence 认证失败，请检查当前账号密码。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="976"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1000"/>
+        <source>Enter the current account password to audit Confluence projects.</source>
+        <translation>请输入当前账号密码以审查 Confluence 项目。</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1002"/>
+        <source>Sign in to audit Confluence projects.</source>
+        <translation>请先登录以审查 Confluence 项目。</translation>
     </message>
 </context>
 <context>
@@ -1707,7 +1734,7 @@
     <message>
         <location filename="bridge/JiraAuditBridge.py" line="100"/>
         <source>Sign in with LDAP again to review Jira issues.</source>
-        <translation>请重新使用 LDAP 登录后再审查 Jira 问题。</translation>
+        <translation type="vanished">请重新使用 LDAP 登录后再审查 Jira 问题。</translation>
     </message>
     <message>
         <location filename="bridge/JiraAuditBridge.py" line="108"/>
@@ -1828,6 +1855,17 @@
         <location filename="bridge/JiraAuditBridge.py" line="392"/>
         <source>JQL validation failed. Check the query and Jira permissions.</source>
         <translation>JQL 校验失败，请检查查询语法和 Jira 权限。</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraAuditBridge.py" line="105"/>
+        <location filename="bridge/JiraAuditBridge.py" line="122"/>
+        <source>Enter the current account password to review Jira issues.</source>
+        <translation>请输入当前账号密码以审查 Jira 问题。</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraAuditBridge.py" line="107"/>
+        <source>Sign in to review Jira issues.</source>
+        <translation>请先登录以审查 Jira 问题。</translation>
     </message>
 </context>
 <context>
@@ -2294,6 +2332,23 @@
         <location filename="bridge/JiraBridge.py" line="144"/>
         <source>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</source>
         <translation>当前范围内共匹配到 {total} 条 Jira 问题。首条问题：{key}（{status}，{priority}）- {summary}</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="95"/>
+        <source>The current account password is required for Jira access.</source>
+        <oldsource>LDAP session is missing Jira credentials. Please sign in again.</oldsource>
+        <translation>访问 Jira 需要当前账号密码。</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="104"/>
+        <source>Enter the current account password to load Jira data.</source>
+        <translation>请输入当前账号密码以加载 Jira 数据。</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="105"/>
+        <source>Enter the current account password to load Jira results and AI analysis.</source>
+        <oldsource>Sign in with LDAP first, then Jira results and AI analysis will load here.</oldsource>
+        <translation>请输入当前账号密码以加载 Jira 结果和 AI 分析。</translation>
     </message>
 </context>
 <context>
@@ -3253,7 +3308,7 @@ Updated content:
     </message>
     <message>
         <location filename="imports/example/qml/window/SingleInstanceWindow.qml" line="34"/>
-        <source>I&apos;m a SingleInstance window, and if I exist, I&apos;ll destroy the previous window and create a new one</source>
+        <source>I'm a SingleInstance window, and if I exist, I'll destroy the previous window and create a new one</source>
         <translation type="unfinished">I&amp;apos;m a SingleInstance window, and if I exist, I&amp;apos;ll destroy the previous window and create a new one</translation>
     </message>
 </context>
@@ -3266,7 +3321,7 @@ Updated content:
     </message>
     <message>
         <location filename="imports/example/qml/window/SingleTaskWindow.qml" line="18"/>
-        <source>I&apos;m a SingleTask mode window, and if I exist, I activate the window</source>
+        <source>I'm a SingleTask mode window, and if I exist, I activate the window</source>
         <translation type="unfinished">I&amp;apos;m a SingleTask mode window, and if I exist, I activate the window</translation>
     </message>
 </context>
@@ -3334,7 +3389,7 @@ Updated content:
     </message>
     <message>
         <location filename="imports/example/qml/window/StandardWindow.qml" line="40"/>
-        <source>I&apos;m a Standard mode window, and every time I create a new window</source>
+        <source>I'm a Standard mode window, and every time I create a new window</source>
         <translation type="unfinished">I&amp;apos;m a Standard mode window, and every time I create a new window</translation>
     </message>
 </context>
@@ -3642,6 +3697,7 @@ Updated content:
         <source>Stop Test</source>
         <translation>停止测试</translation>
     </message>
+    <message><source>Probing camera modes</source><translation>正在探测摄像头模式</translation></message>
 </context>
 <context>
     <name>T_BreadcrumbBar</name>
@@ -4158,6 +4214,26 @@ Since that moment, I have been tormented day and night by the fear that I might 
 My only desire is to be permitted to drive out the traitors and restore the Han. If I should let you down, punish my offense and report it to the spirit of the late Emperor. If those three advisors should fail in their duties, then they should be punished for their negligence.Your Majesty, consider your course of action carefully. Seek out good advice, and never forget the late Emperor. I depart now on a long expedition, and I will be forever grateful if you heed my advice. Blinded by my own tears, I know not what I write.</oldsource>
         <translation>先帝创业未半而中道崩殂，今天下三分，益州疲弊，此诚危急存亡之秋也。然侍卫之臣不懈于内，忠志之士忘身于外者，盖追先帝之殊遇，欲报之于陛下也。诚宜开张圣听，以光先帝遗德，恢弘志士之气，不宜妄自菲薄，引喻失义，以塞忠谏之路也。宫中府中，俱为一体；陟罚臧否，不宜异同。若有作奸犯科及为忠善者，宜付有司论其刑赏，以昭陛下平明之理，不宜偏私，使内外异法也。侍中、侍郎郭攸之、费祎、董允等，此皆良实，志虑忠纯，是以先帝简拔以遗陛下。愚以为宫中之事，事无大小，悉以咨之，然后施行，必能裨补阙漏，有所广益。将军向宠，性行淑均，晓畅军事，试用于昔日，先帝称之曰能，是以众议举宠为督。愚以为营中之事，悉以咨之，必能使行阵和睦，优劣得所。亲贤臣，远小人，此先汉所以兴隆也；亲小人，远贤臣，此后汉所以倾颓也。先帝在时，每与臣论此事，未尝不叹息痛恨于桓、灵也。侍中、尚书、长史、参军，此悉贞良死节之臣，愿陛下亲之信之，则汉室之隆，可计日而待也。臣本布衣，躬耕于南阳，苟全性命于乱世，不求闻达于诸侯。先帝不以臣卑鄙，猥自枉屈，三顾臣于草庐之中，咨臣以当世之事，由是感激，遂许先帝以驱驰。后值倾覆，受任于败军之际，奉命于危难之间，尔来二十有一年矣。先帝知臣谨慎，故临崩寄臣以大事也。受命以来，夙夜忧叹，恐托付不效，以伤先帝之明；故五月渡泸，深入不毛。今南方已定，兵甲已足，当奖率三军，北定中原，庶竭驽钝，攘除奸凶，兴复汉室，还于旧都。此臣所以报先帝而忠陛下之职分也。至于斟酌损益，进尽忠言，则攸之、祎、允之任也。愿陛下托臣以讨贼兴复之效，不效，则治臣之罪，以告先帝之灵。若无兴德之言，则责攸之、祎、允等之慢，以彰其咎；陛下亦宜自谋，以咨诹善道，察纳雅言，深追先帝遗诏。臣不胜受恩感激。今当远离，临表涕零，不知所言。</translation>
     </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Expander.qml" line="68"/>
+        <source>Permit me to observe: the late emperor was taken from us before he could finish his life`s work, the restoration of Han. Today, the empire is still divided in three, and our very survival is threatened. Yet still the officials at court and the soldiers throughout the realm remain loyal to you, your majesty. Because they remember the late emperor, all of them, and they wish to repay his kindness in service to you. This is the moment to extend your divine influence, to honour the memory of the late Emperor and strengthen the morale of your officers. It is not time to listen to bad advice, or close your ears to the suggestions of loyal men.
+The court and the administration are as one. Both must be judged by one standard. Those who are loyal and good must get what they deserve, but so must the evil-doers who break the law. This will demonstrate the justice of your rule. There cannot be one law for the court and another for the administration.
+Counselors and attendants like Guo Youzhi, Fei Yi, and Dong Yun are all reliable men, loyal of purpose and pure in motive. The late Emperor selected them for office so that they would serve you after his death.These are the men who should be consulted on all palace affairs. Xiang Chong has proved himself a fine general in battle, and the late Emperor believed in him. That is why the assembly has recommended him for overall command. It will keep the troops happy if he is consulted on all military matters.
+Xiang Chong has proved himself a fine general in battle, and the late Emperor believed in him. That is why the assembly has recommended him for overall command. It will keep the troops happy if he is consulted on all military matters.
+The emperors of the Western Han chose their courtiers wisely, and their dynasty flourished. The emperors of the Eastern Han chose poorly, and they doomed the empire to ruin. Whenever the late Emperor discussed this problem with me, he lamented the failings of Emperors Huan and Ling. Advisors like Guo Youzhi, Fei Yi, Chen Zhen, Zhang Yi, and Jiang Wan – these are all men of great integrity and devotion. I encourage you to trust them, your majesty, if the house of Han is to rise again.
+I begin as a common man, farming in my fields in Nanyang, doing what I could to survive in an age of chaos. I never had any interest in making a name for myself as a noble. The late Emperor was not ashamed to visit my cottage and seek my advice. Grateful for his regard, I responded to his appeal and threw myself into his service. Now twenty-one years has passed, the late Emperor always appreciated my caution and, in his final days, entrusted me with his cause.
+Since that moment, I have been tormented day and night by the fear that I might let him down. That is why I crossed the Lu river at the height of summer, and entered the wastelands beyond. Now the south has been subdued, and our forces are fully armed.I should lead our soldiers to conquer the northern heartland and attempt to remove the hateful traitors, restore the house of Han, and return it to the former capital.This the way I mean to honor my debt to the late Emperor and fulfill my duty to you. Guo Youzhi, Fei Yi, and Dong Yun are the ones who should be making policy decisions and recommendations.
+My only desire is to be permitted to drive out the traitors and restore the Han. If I should let you down, punish my offense and report it to the spirit of the late Emperor. If those three advisors should fail in their duties, then they should be punished for their negligence.Your Majesty, consider your course of action carefully. Seek out good advice, and never forget the late Emperor. I depart now on a long expedition, and I will be forever grateful if you heed my advice. Blinded by my own tears, I know not what I write.</source>
+        <oldsource>Permit me to observe: the late emperor was taken from us before he could finish his life`s work, the restoration of Han. Today, the empire is still divided in three, and our very survival is threatened. Yet still the officials at court and the soldiers throughout the realm remain loyal to you, your majesty. Because they remember the late emperor, all of them, and they wish to repay his kindness in service to you. This is the moment to extend your divine influence, to honour the memory of the late Emperor and strengthen the morale of your officers. It is not time to listen to bad advice, or close your ears to the suggestions of loyal men.
+The court and the administration are as one. Both must be judged by one standard. Those who are loyal and good must get what they deserve, but so must the evil-doers who break the law. This will demonstrate the justice of your rule. There cannot be one law for the court and another for the administration.
+Counselors and attendants like Guo Youzhi, Fei Yi, and Dong Yun are all reliable men, loyal of purpose and pure in motive. The late Emperor selected them for office so that they would serve you after his death.These are the men who should be consulted on all palace affairs. Xiang Chong has proved himself a fine general in battle, and the late Emperor believed in him. That is why the assembly has recommended him for overall command. It will keep the troops happy if he is consulted on all military matters.
+Xiang Chong has proved himself a fine general in battle, and the late Emperor believed in him. That is why the assembly has recommended him for overall command. It will keep the troops happy if he is consulted on all military matters.
+The emperors of the Western Han chose their courtiers wisely, and their dynasty flourished. The emperors of the Eastern Han chose poorly, and they doomed the empire to ruin. Whenever the late Emperor discussed this problem with me, he lamented the failings of Emperors Huan and Ling. Advisors like Guo Youzhi, Fei Yi, Chen Zhen, Zhang Yi, and Jiang Wan 鈥?these are all men of great integrity and devotion. I encourage you to trust them, your majesty, if the house of Han is to rise again.
+I begin as a common man, farming in my fields in Nanyang, doing what I could to survive in an age of chaos. I never had any interest in making a name for myself as a noble. The late Emperor was not ashamed to visit my cottage and seek my advice. Grateful for his regard, I responded to his appeal and threw myself into his service. Now twenty-one years has passed, the late Emperor always appreciated my caution and, in his final days, entrusted me with his cause.
+Since that moment, I have been tormented day and night by the fear that I might let him down. That is why I crossed the Lu river at the height of summer, and entered the wastelands beyond. Now the south has been subdued, and our forces are fully armed.I should lead our soldiers to conquer the northern heartland and attempt to remove the hateful traitors, restore the house of Han, and return it to the former capital.This the way I mean to honor my debt to the late Emperor and fulfill my duty to you. Guo Youzhi, Fei Yi, and Dong Yun are the ones who should be making policy decisions and recommendations.
+My only desire is to be permitted to drive out the traitors and restore the Han. If I should let you down, punish my offense and report it to the spirit of the late Emperor. If those three advisors should fail in their duties, then they should be punished for their negligence.Your Majesty, consider your course of action carefully. Seek out good advice, and never forget the late Emperor. I depart now on a long expedition, and I will be forever grateful if you heed my advice. Blinded by my own tears, I know not what I write.</oldsource>
+        <translation>先帝创业未半而中道崩殂，今天下三分，益州疲弊，此诚危急存亡之秋也。然侍卫之臣不懈于内，忠志之士忘身于外者，盖追先帝之殊遇，欲报之于陛下也。诚宜开张圣听，以光先帝遗德，恢弘志士之气，不宜妄自菲薄，引喻失义，以塞忠谏之路也。宫中府中，俱为一体；陟罚臧否，不宜异同。若有作奸犯科及为忠善者，宜付有司论其刑赏，以昭陛下平明之理，不宜偏私，使内外异法也。侍中、侍郎郭攸之、费祎、董允等，此皆良实，志虑忠纯，是以先帝简拔以遗陛下。愚以为宫中之事，事无大小，悉以咨之，然后施行，必能裨补阙漏，有所广益。将军向宠，性行淑均，晓畅军事，试用于昔日，先帝称之曰能，是以众议举宠为督。愚以为营中之事，悉以咨之，必能使行阵和睦，优劣得所。亲贤臣，远小人，此先汉所以兴隆也；亲小人，远贤臣，此后汉所以倾颓也。先帝在时，每与臣论此事，未尝不叹息痛恨于桓、灵也。侍中、尚书、长史、参军，此悉贞良死节之臣，愿陛下亲之信之，则汉室之隆，可计日而待也。臣本布衣，躬耕于南阳，苟全性命于乱世，不求闻达于诸侯。先帝不以臣卑鄙，猥自枉屈，三顾臣于草庐之中，咨臣以当世之事，由是感激，遂许先帝以驱驰。后值倾覆，受任于败军之际，奉命于危难之间，尔来二十有一年矣。先帝知臣谨慎，故临崩寄臣以大事也。受命以来，夙夜忧叹，恐托付不效，以伤先帝之明；故五月渡泸，深入不毛。今南方已定，兵甲已足，当奖率三军，北定中原，庶竭驽钝，攘除奸凶，兴复汉室，还于旧都。此臣所以报先帝而忠陛下之职分也。至于斟酌损益，进尽忠言，则攸之、祎、允之任也。愿陛下托臣以讨贼兴复之效，不效，则治臣之罪，以告先帝之灵。若无兴德之言，则责攸之、祎、允等之慢，以彰其咎；陛下亦宜自谋，以咨诹善道，察纳雅言，深追先帝遗诏。臣不胜受恩感激。今当远离，临表涕零，不知所言。</translation>
+    </message>
 </context>
 <context>
     <name>T_FlipView</name>
@@ -4410,7 +4486,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Home.qml" line="181"/>
-        <source>Pages likely useful for today&apos;s work</source>
+        <source>Pages likely useful for today's work</source>
         <translation>Pages likely useful for today&amp;apos;s work</translation>
     </message>
     <message>
@@ -4532,21 +4608,21 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="64"/>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="74"/>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="84"/>
-        <source>close &apos;%1&apos;</source>
+        <source>close '%1'</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="64"/>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="74"/>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="84"/>
-        <source>show &apos;%1</source>
+        <source>show '%1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="70"/>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="80"/>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="90"/>
-        <source>This is an &apos;%1&apos;</source>
+        <source>This is an '%1'</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4651,7 +4727,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
     <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="832"/>
         <source>Signed in as %1. LDAP credentials are reused directly for Jira access.</source>
-        <translation>当前登录用户：%1。LDAP 凭据会直接复用于 Jira 访问。</translation>
+        <translation type="vanished">当前登录用户：%1。LDAP 凭据会直接复用于 Jira 访问。</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="858"/>
@@ -4994,6 +5070,11 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <source>Suggested Next Actions</source>
         <translation>建议下一步动作</translation>
     </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="852"/>
+        <source>Signed in as %1. The current account credentials are used for Jira access.</source>
+        <translation>当前登录用户：%1。访问 Jira 时使用当前账号凭据。</translation>
+    </message>
 </context>
 <context>
     <name>T_LineChart</name>
@@ -5127,9 +5208,9 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
     </message>
     <message>
         <location filename="imports/example/qml/page/T_MultiWindow.qml" line="35"/>
-        <source>&lt;font color=&apos;red&apos;&gt;Standard&lt;/font&gt; mode window，a new window is created every time</source>
-        <oldsource>&lt;font color=&apos;red&apos;&gt;Standard&lt;/font&gt; mode window锛宎 new window is created every time</oldsource>
-        <translation type="unfinished">&lt;font color=&apos;red&apos;&gt;Standard&lt;/font&gt; 妯″紡绐楀彛锛屾瘡娆￠兘浼氬垱寤烘柊绐楀彛</translation>
+        <source>&lt;font color='red'&gt;Standard&lt;/font&gt; mode window，a new window is created every time</source>
+        <oldsource>&lt;font color='red'&gt;Standard&lt;/font&gt; mode window锛宎 new window is created every time</oldsource>
+        <translation type="unfinished">&lt;font color='red'&gt;Standard&lt;/font&gt; 妯″紡绐楀彛锛屾瘡娆￠兘浼氬垱寤烘柊绐楀彛</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_MultiWindow.qml" line="38"/>
@@ -5142,14 +5223,14 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
     </message>
     <message>
         <location filename="imports/example/qml/page/T_MultiWindow.qml" line="58"/>
-        <source>&lt;font color=&apos;red&apos;&gt;SingleTask&lt;/font&gt; mode window，If a window exists, this activates the window</source>
-        <oldsource>&lt;font color=&apos;red&apos;&gt;SingleTask&lt;/font&gt; mode window锛孖f a window exists, this activates the window</oldsource>
+        <source>&lt;font color='red'&gt;SingleTask&lt;/font&gt; mode window，If a window exists, this activates the window</source>
+        <oldsource>&lt;font color='red'&gt;SingleTask&lt;/font&gt; mode window锛孖f a window exists, this activates the window</oldsource>
         <translation type="unfinished">&amp;lt;font color=&amp;apos;red&amp;apos;&amp;gt;SingleTask&amp;lt;/font&amp;gt; mode window，If a window exists, this activates the window</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_MultiWindow.qml" line="82"/>
-        <source>&lt;font color=&apos;red&apos;&gt;SingleInstance&lt;/font&gt; mode window，If the window exists, destroy the window and create a new window</source>
-        <oldsource>&lt;font color=&apos;red&apos;&gt;SingleInstance&lt;/font&gt; mode window锛孖f the window exists, destroy the window and create a new window</oldsource>
+        <source>&lt;font color='red'&gt;SingleInstance&lt;/font&gt; mode window，If the window exists, destroy the window and create a new window</source>
+        <oldsource>&lt;font color='red'&gt;SingleInstance&lt;/font&gt; mode window锛孖f the window exists, destroy the window and create a new window</oldsource>
         <translation type="unfinished">&amp;lt;font color=&amp;apos;red&amp;apos;&amp;gt;SingleInstance&amp;lt;/font&amp;gt; mode window，If the window exists, destroy the window and create a new window</translation>
     </message>
     <message>
@@ -5682,6 +5763,15 @@ Some contents...</source>
         <source>left</source>
         <translation>左</translation>
     </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Sheet.qml" line="16"/>
+        <source>Some contents...
+Some contents...
+Some contents...</source>
+        <translation>一些内容...
+一些内容...
+一些内容...</translation>
+    </message>
 </context>
 <context>
     <name>T_ShortcutPicker</name>
@@ -5989,6 +6079,10 @@ Some contents...</source>
         <source>Type</source>
         <translation>类型</translation>
     </message>
+    <message><source>Scanning ADB devices</source><translation>正在扫描 ADB 设备</translation></message>
+    <message><source>The DUT list will be updated before Android Client preparation starts.</source><translation>将先更新 DUT 列表，再开始准备 Android Client。</translation></message>
+    <message><source>Phase: %1</source><translation>阶段：%1</translation></message>
+    <message><source>Progress: %1%</source><translation>进度：%1%</translation></message>
 </context>
 <context>
     <name>T_Text</name>
@@ -6521,5 +6615,132 @@ Some contents...</source>
         <source>Settings</source>
         <translation type="unfinished">设置</translation>
     </message>
+</context>
+<context>
+    <name>TestPageBridge</name>
+    <message><source>Scanning ADB devices</source><translation>正在扫描 ADB 设备</translation></message>
+    <message><source>DUT refresh completed</source><translation>DUT 刷新已完成</translation></message>
+    <message><source>Checking Android Client package</source><translation>正在检查 Android Client 安装包</translation></message>
+    <message><source>Checking installation status</source><translation>正在检查安装状态</translation></message>
+    <message><source>Requesting ADB root</source><translation>正在请求 ADB root</translation></message>
+    <message><source>Remounting system partitions</source><translation>正在重新挂载系统分区</translation></message>
+    <message><source>Pushing Android Client files</source><translation>正在推送 Android Client 文件</translation></message>
+    <message><source>Provisioning Android Client</source><translation>正在部署 Android Client</translation></message>
+    <message><source>Rebooting DUT</source><translation>正在重启 DUT</translation></message>
+    <message><source>Waiting for DUT to come online</source><translation>正在等待 DUT 上线</translation></message>
+    <message><source>Installing Android Client</source><translation>正在安装 Android Client</translation></message>
+    <message><source>Verifying Android Client</source><translation>正在验证 Android Client</translation></message>
+    <message><source>test.param.iptv_middle_screen_004.usb_match.label</source><translation>USB 设备匹配条件</translation></message>
+    <message><source>test.param.iptv_middle_screen_004.usb_match.description</source><translation>输入必须出现在 USB 块设备和挂载证据中的文本。</translation></message>
+    <message><source>test.param.iptv_middle_screen_005.hdmi_state_command.label</source><translation>HDMI 状态命令</translation></message>
+    <message><source>test.param.iptv_middle_screen_005.hdmi_state_command.description</source><translation>可选：输入返回 HDMI 连接和有效输出模式证据的 shell 命令。</translation></message>
+    <message><source>test.param.iptv_middle_screen_010.expected_speed_mbps.label</source><translation>预期链路速率（Mbps）</translation></message>
+    <message><source>test.param.iptv_middle_screen_010.expected_speed_mbps.description</source><translation>输入本用例要求的以太网实际协商速率。</translation></message>
+    <message><source>test.param.iptv_middle_screen_010.interface.label</source><translation>网络接口</translation></message>
+    <message><source>test.param.iptv_middle_screen_010.interface.description</source><translation>输入本用例使用的 DUT 网络接口名称。</translation></message>
+    <message><source>test.param.iptv_middle_screen_018.frequencies.label</source><translation>CPU 频点</translation></message>
+    <message><source>test.param.iptv_middle_screen_018.frequencies.description</source><translation>选择需要逐一设置并验证的全部 CPU 频点。</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_2g_password.label</source><translation>2.4 GHz Wi-Fi 密码</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_2g_password.description</source><translation>输入配置的 2.4 GHz 测试网络明文密码。</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_2g_ssid.label</source><translation>2.4 GHz Wi-Fi SSID</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_2g_ssid.description</source><translation>输入必填的 2.4 GHz 测试网络名称。</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_5g_password.label</source><translation>5 GHz Wi-Fi 密码</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_5g_password.description</source><translation>输入配置的 5 GHz 测试网络明文密码。</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_5g_ssid.label</source><translation>5 GHz Wi-Fi SSID</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_5g_ssid.description</source><translation>输入必填的 5 GHz 测试网络名称。</translation></message>
+    <message><source>test.param.iptv_middle_screen_049.interface.label</source><translation>网络接口</translation></message>
+    <message><source>test.param.iptv_middle_screen_049.interface.description</source><translation>输入本用例使用的 DUT 网络接口名称。</translation></message>
+    <message><source>test.param.iptv_middle_screen_049.ipv4_ping_target.label</source><translation>IPv4 探测目标</translation></message>
+    <message><source>test.param.iptv_middle_screen_049.ipv4_ping_target.description</source><translation>输入可通过所选接口使用 IPv4 访问的主机。</translation></message>
+    <message><source>test.param.iptv_middle_screen_049.ipv6_ping_target.label</source><translation>IPv6 探测目标</translation></message>
+    <message><source>test.param.iptv_middle_screen_049.ipv6_ping_target.description</source><translation>输入可通过所选接口使用 IPv6 访问的主机。</translation></message>
+    <message><source>test.param.iptv_middle_screen_052.interface.label</source><translation>网络接口</translation></message>
+    <message><source>test.param.iptv_middle_screen_052.interface.description</source><translation>输入本用例使用的 DUT 网络接口名称。</translation></message>
+    <message><source>test.param.iptv_middle_screen_052.ipv4_ping_target.label</source><translation>IPv4 探测目标</translation></message>
+    <message><source>test.param.iptv_middle_screen_052.ipv4_ping_target.description</source><translation>输入可通过所选接口使用 IPv4 访问的主机。</translation></message>
+    <message><source>test.param.iptv_middle_screen_053.interface.label</source><translation>网络接口</translation></message>
+    <message><source>test.param.iptv_middle_screen_053.interface.description</source><translation>输入本用例使用的 DUT 网络接口名称。</translation></message>
+    <message><source>test.param.iptv_middle_screen_053.ipv6_ping_target.label</source><translation>IPv6 探测目标</translation></message>
+    <message><source>test.param.iptv_middle_screen_053.ipv6_ping_target.description</source><translation>输入可通过所选接口使用 IPv6 访问的主机。</translation></message>
+    <message><source>test.param.iptv_middle_screen_054.interface.label</source><translation>网络接口</translation></message>
+    <message><source>test.param.iptv_middle_screen_054.interface.description</source><translation>输入本用例使用的 DUT 网络接口名称。</translation></message>
+    <message><source>test.param.iptv_middle_screen_054.ipv4_ping_target.label</source><translation>IPv4 探测目标</translation></message>
+    <message><source>test.param.iptv_middle_screen_054.ipv4_ping_target.description</source><translation>输入可通过所选接口使用 IPv4 访问的主机。</translation></message>
+    <message><source>test.param.iptv_middle_screen_055.interface.label</source><translation>网络接口</translation></message>
+    <message><source>test.param.iptv_middle_screen_055.interface.description</source><translation>输入本用例使用的 DUT 网络接口名称。</translation></message>
+    <message><source>test.param.iptv_middle_screen_055.ipv6_ping_target.label</source><translation>IPv6 探测目标</translation></message>
+    <message><source>test.param.iptv_middle_screen_055.ipv6_ping_target.description</source><translation>输入可通过所选接口使用 IPv6 访问的主机。</translation></message>
+    <message><source>test.param.iptv_middle_screen_057.media_files.label</source><translation>媒体文件</translation></message>
+    <message><source>test.param.iptv_middle_screen_057.media_files.description</source><translation>选择本用例需要的 DUT 媒体文件。</translation></message>
+    <message><source>test.param.iptv_middle_screen_057.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_057.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_058.media_files.label</source><translation>媒体文件</translation></message>
+    <message><source>test.param.iptv_middle_screen_058.media_files.description</source><translation>选择本用例需要的 DUT 媒体文件。</translation></message>
+    <message><source>test.param.iptv_middle_screen_058.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_058.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_059.media_files.label</source><translation>媒体文件</translation></message>
+    <message><source>test.param.iptv_middle_screen_059.media_files.description</source><translation>选择本用例需要的 DUT 媒体文件。</translation></message>
+    <message><source>test.param.iptv_middle_screen_059.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_059.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_060.media_url.label</source><translation>媒体 URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_060.media_url.description</source><translation>输入本用例需要的播放 URL；仅允许使用工作簿默认源时可留空。</translation></message>
+    <message><source>test.param.iptv_middle_screen_060.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_060.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_061.media_url.label</source><translation>媒体 URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_061.media_url.description</source><translation>输入本用例需要的播放 URL；仅允许使用工作簿默认源时可留空。</translation></message>
+    <message><source>test.param.iptv_middle_screen_061.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_061.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_062.media_url.label</source><translation>媒体 URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_062.media_url.description</source><translation>输入本用例需要的播放 URL；仅允许使用工作簿默认源时可留空。</translation></message>
+    <message><source>test.param.iptv_middle_screen_062.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_062.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_063.media_url.label</source><translation>媒体 URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_063.media_url.description</source><translation>输入本用例需要的播放 URL；仅允许使用工作簿默认源时可留空。</translation></message>
+    <message><source>test.param.iptv_middle_screen_063.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_063.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_064.media_url.label</source><translation>媒体 URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_064.media_url.description</source><translation>输入本用例需要的播放 URL；仅允许使用工作簿默认源时可留空。</translation></message>
+    <message><source>test.param.iptv_middle_screen_064.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_064.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_065.media_url.label</source><translation>媒体 URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_065.media_url.description</source><translation>输入本用例需要的播放 URL；仅允许使用工作簿默认源时可留空。</translation></message>
+    <message><source>test.param.iptv_middle_screen_065.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_065.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_066.media_url.label</source><translation>媒体 URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_066.media_url.description</source><translation>输入本用例需要的播放 URL；仅允许使用工作簿默认源时可留空。</translation></message>
+    <message><source>test.param.iptv_middle_screen_066.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_066.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_067.media_files.label</source><translation>媒体文件</translation></message>
+    <message><source>test.param.iptv_middle_screen_067.media_files.description</source><translation>选择本用例需要的 DUT 媒体文件。</translation></message>
+    <message><source>test.param.iptv_middle_screen_068.media_files.label</source><translation>媒体文件</translation></message>
+    <message><source>test.param.iptv_middle_screen_068.media_files.description</source><translation>选择本用例需要的 DUT 媒体文件。</translation></message>
+    <message><source>test.param.iptv_middle_screen_068.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_068.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_069.media_files.label</source><translation>媒体文件</translation></message>
+    <message><source>test.param.iptv_middle_screen_069.media_files.description</source><translation>选择本用例需要的 DUT 媒体文件。</translation></message>
+    <message><source>test.param.iptv_middle_screen_069.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_069.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_095.media_url.label</source><translation>媒体 URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_095.media_url.description</source><translation>输入本用例需要的播放 URL；仅允许使用工作簿默认源时可留空。</translation></message>
+    <message><source>test.param.iptv_middle_screen_095.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_095.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_096.media_url.label</source><translation>媒体 URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_096.media_url.description</source><translation>输入本用例需要的播放 URL；仅允许使用工作簿默认源时可留空。</translation></message>
+    <message><source>test.param.iptv_middle_screen_096.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_096.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_097.media_url.label</source><translation>媒体 URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_097.media_url.description</source><translation>输入本用例需要的播放 URL；仅允许使用工作簿默认源时可留空。</translation></message>
+    <message><source>test.param.iptv_middle_screen_097.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_097.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_098.media_url.label</source><translation>媒体 URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_098.media_url.description</source><translation>输入本用例需要的播放 URL；仅允许使用工作簿默认源时可留空。</translation></message>
+    <message><source>test.param.iptv_middle_screen_098.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_098.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
+    <message><source>test.param.iptv_middle_screen_114.media_files.label</source><translation>媒体文件</translation></message>
+    <message><source>test.param.iptv_middle_screen_114.media_files.description</source><translation>选择本用例需要的 DUT 媒体文件。</translation></message>
+    <message><source>test.param.iptv_middle_screen_114.playback_duration_s.label</source><translation>播放持续时间（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_114.playback_duration_s.description</source><translation>输入持续检查 PLAYING 的时长；最终验收使用 86400 秒。</translation></message>
+    <message><source>test.param.iptv_middle_screen_114.playback_timeout_s.label</source><translation>播放启动超时（秒）</translation></message>
+    <message><source>test.param.iptv_middle_screen_114.playback_timeout_s.description</source><translation>输入等待播放器进入 PLAYING 的最长时间。</translation></message>
 </context>
 </TS>

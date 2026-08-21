@@ -52,6 +52,7 @@ class JiraAuditBridge(QObject):
         self._base_url = JIRA_BASE_URL.rstrip("/")
         self._generation = 0
         self._report: AuditReport | None = None
+        self._pending_audit_input = ""
         self._view = {
             "state": "idle",
             "statusText": self.tr("Ready to review Jira issues."),
@@ -76,6 +77,14 @@ class JiraAuditBridge(QObject):
         self._workerFailed.connect(self._on_worker_failed)
         if hasattr(self._auth, "authChanged"):
             self._auth.authChanged.connect(self._on_auth_changed)
+        if hasattr(self._auth, "runtimeCredentialSupplied"):
+            self._auth.runtimeCredentialSupplied.connect(
+                self._on_runtime_credential_supplied,
+            )
+        if hasattr(self._auth, "runtimeCredentialSupplyCancelled"):
+            self._auth.runtimeCredentialSupplyCancelled.connect(
+                self._cancel_pending_audit,
+            )
 
     @Slot(str)
     def startAudit(self, text: str) -> None:
@@ -85,19 +94,32 @@ class JiraAuditBridge(QObject):
             return
         if not self._view["canStart"]:
             return
+        acquisition = self._auth.acquireRuntimeCredential()
+        status = str(acquisition.get("status") or "")
+        if status != "ready":
+            self._pending_audit_input = clean_text
+            self._set(
+                inputError="",
+                statusText=(
+                    self.tr("Enter the current account password to review Jira issues.")
+                    if status in {"password_required", "pending"}
+                    else self.tr("Sign in to review Jira issues.")
+                ),
+            )
+            return
+        self._pending_audit_input = ""
         username = str(self._auth.currentUsername() or "").strip()
         credential_username, password = self._auth.transientCredential()
         username = str(credential_username or username).strip()
         if not (
             self._auth.isAuthenticated()
-            and self._auth.hasCredential()
             and username
             and password
         ):
             self._set(
                 state="failed",
                 inputError="",
-                statusText=self.tr("Sign in with LDAP again to review Jira issues."),
+                statusText=self.tr("Enter the current account password to review Jira issues."),
             )
             return
         self._generation += 1
@@ -120,6 +142,17 @@ class JiraAuditBridge(QObject):
         )
         args = (generation, clean_text, username, str(password))
         Thread(target=self._run_audit, args=args, daemon=True).start()
+
+    @Slot()
+    def _on_runtime_credential_supplied(self) -> None:
+        text = self._pending_audit_input
+        self._pending_audit_input = ""
+        if text:
+            self.startAudit(text)
+
+    @Slot()
+    def _cancel_pending_audit(self) -> None:
+        self._pending_audit_input = ""
 
     def _run_audit(self, generation, text, username, password) -> None:
         try:

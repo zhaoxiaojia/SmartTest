@@ -3,6 +3,7 @@ import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 import Qt.labs.platform 1.1
 import FluentUI 1.0
+import "../component"
 
 FluScrollablePage {
     title: qsTr("Boot Video")
@@ -290,7 +291,14 @@ FluScrollablePage {
                     }
                     FluButton {
                         text: qsTr("Refresh Modes")
+                        enabled: !probingModes
                         onClicked: BootVideoBridge.refreshCameraModes(Number(deviceId.text))
+                    }
+                    AppLoadingIndicator {
+                        visible: probingModes
+                        running: probingModes
+                        compact: true
+                        text: qsTr("Probing camera modes")
                     }
                 }
                 RowLayout {

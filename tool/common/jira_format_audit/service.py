@@ -40,7 +40,6 @@ _FIELDS = (
     "creator",
     "summary",
     "description",
-    "reporter",
     "components",
 )
 _AI_MAX_WORKERS = 6

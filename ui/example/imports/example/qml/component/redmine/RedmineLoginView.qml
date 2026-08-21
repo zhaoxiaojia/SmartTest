@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import FluentUI 1.0
+import ".."
 
 FluFrame {
     id: root
@@ -40,7 +41,7 @@ FluFrame {
         RowLayout {
             visible: root.state === "signing_in"
             spacing: 12
-            FluProgressRing { Layout.preferredWidth: 28; Layout.preferredHeight: 28 }
+            AppLoadingIndicator { Layout.preferredWidth: 28; Layout.preferredHeight: 28 }
             FluText { text: qsTr("Signing in with the SmartTest LDAP account...") }
         }
 

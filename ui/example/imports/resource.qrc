@@ -11,6 +11,8 @@
         <file>example/qml/component/ImagePreviewDialog.qml</file>
         <file>example/qml/component/LogListView.qml</file>
         <file>example/qml/component/ToolGroupExpander.qml</file>
+        <file>example/qml/component/AppLoadingIndicator.qml</file>
+        <file>example/qml/component/AppTaskProgress.qml</file>
         <file>example/qml/state/ApplicationState.qml</file>
         <file>example/qml/state/WindowState.qml</file>
         <file>example/qml/state/JiraPageState.qml</file>

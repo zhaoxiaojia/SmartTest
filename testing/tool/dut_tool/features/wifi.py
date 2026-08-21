@@ -16,6 +16,7 @@ class WifiConnectParams:
     hidden: bool = False
     lan: bool = True
     timeout_s: int = 90
+    forget_existing: bool = True
 
 
 CMD_CONNECT = "cmd wifi connect-network {} {} {}"
@@ -23,7 +24,8 @@ CMD_HIDE = " -h"
 
 
 def connect(dut, params: WifiConnectParams) -> bool:
-    forget(dut)
+    if params.forget_existing:
+        forget(dut)
     command = connect_command(params.ssid, params.password, params.security, params.hidden)
     connect_status = False
     for _ in range(30):

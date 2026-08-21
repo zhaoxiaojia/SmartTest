@@ -4,6 +4,7 @@ import QtQuick.Controls 2.15
 import QtQml 2.15
 import FluentUI 1.0
 import "../global"
+import "../component"
 
 FluPage {
     id: page_root
@@ -265,7 +266,7 @@ FluPage {
                     wrapMode: Text.WordWrap
                     elide: editMode === "dut" ? Text.ElideRight : Text.ElideNone
                 }
-                FluProgressRing{
+                AppLoadingIndicator{
                     visible: fieldData.loading === true
                     Layout.preferredWidth: editMode === "dut" ? 14 : 16
                     Layout.preferredHeight: editMode === "dut" ? 14 : 16
@@ -825,8 +826,33 @@ FluPage {
                                 width: 32
                                 height: 32
                                 text: qsTr("Refresh")
+                                enabled: !TestPageBridge.dutRefreshRunning
                                 onClicked: TestPageBridge.refreshGlobalSchema()
                             }
+                        }
+
+                        AppLoadingIndicator {
+                            visible: TestPageBridge.dutRefreshRunning && TestPageBridge.dutRefreshPhase === "scan"
+                            running: visible
+                            text: qsTr("Scanning ADB devices")
+                            detail: qsTr("The DUT list will be updated before Android Client preparation starts.")
+                            compact: false
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 20
+                            Layout.preferredHeight: 72
+                        }
+                        AppTaskProgress {
+                            visible: TestPageBridge.dutRefreshPhase !== "idle"
+                                     && TestPageBridge.dutRefreshPhase !== "scan"
+                            Layout.fillWidth: true
+                            running: TestPageBridge.dutRefreshRunning
+                            indeterminate: TestPageBridge.dutRefreshRunning && TestPageBridge.dutRefreshProgress <= 0
+                            value: TestPageBridge.dutRefreshProgress / 100.0
+                            text: TestPageBridge.dutRefreshDetail
+                            phase: TestPageBridge.dutRefreshPhase
+                            status: qsTr("Phase: %1").arg(TestPageBridge.dutRefreshPhase)
+                            detail: qsTr("Progress: %1%").arg(TestPageBridge.dutRefreshProgress)
+                            error: TestPageBridge.dutRefreshError
                         }
 
                         Repeater{
@@ -1132,7 +1158,7 @@ FluPage {
                                                                 Layout.fillWidth: true
                                                                 wrapMode: Text.WordWrap
                                                             }
-                                                            FluProgressRing{
+                                                            AppLoadingIndicator{
                                                                 visible: fieldData.loading === true
                                                                 Layout.preferredWidth: 16
                                                                 Layout.preferredHeight: 16
@@ -1217,7 +1243,7 @@ FluPage {
                                                         wrapMode: Text.WordWrap
                                                     }
 
-                                                    FluProgressRing{
+                                                    AppLoadingIndicator{
                                                         visible: fieldData.loading === true
                                                         Layout.preferredWidth: 16
                                                         Layout.preferredHeight: 16

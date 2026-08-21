@@ -7,7 +7,7 @@ import sys
 import time
 from typing import Any
 
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
 from testing.cases.catalog import is_packaged_runtime, load_packaged_test_catalog
@@ -33,6 +33,7 @@ class TestPageBridge(QObject):
     casesChanged = Signal()
     stateChanged = Signal()
     errorOccurred = Signal(str)
+    _refreshStageChanged = Signal(str, int, str)
 
     def __init__(self, root_dir: Path):
         super().__init__(QGuiApplication.instance())
@@ -49,11 +50,16 @@ class TestPageBridge(QObject):
         self._adb_devices: list[str] = []
         self._env_options: dict[str, list[Any]] = {}
         self._adb_refresh_running = False
+        self._adb_refresh_phase = "idle"
+        self._adb_refresh_progress = 0
+        self._adb_refresh_detail = ""
+        self._adb_refresh_error = ""
         self._adb_refresh_started = False
         self._context_refresh_running = False
         self._dynamic_fields_refreshing: set[str] = set()
         self._discovery_running = False
         self._discovery_loaded = False
+        self._refreshStageChanged.connect(self._apply_refresh_stage)
         state_changed = self._ensure_state_defaults()
         state_changed = self._clear_case_param_options() or state_changed
         state_changed = self._sync_dut_selection() or state_changed
@@ -133,9 +139,20 @@ class TestPageBridge(QObject):
             self._trace("adb_refresh_skip_running", reason=reason)
             return
         self._adb_refresh_running = True
+        self._adb_refresh_phase = "scan"
+        self._adb_refresh_progress = 0
+        self._adb_refresh_detail = self.tr("Scanning ADB devices")
+        self._adb_refresh_error = ""
         self._trace("adb_refresh_start", reason=reason)
         selected_serial = self._current_dut_serial() if reason == "user_refresh" else ""
-        self._create_task(self._refresh_adb_devices_task(selected_serial), label="adb_refresh")
+        self._create_task(
+            self._refresh_adb_devices_task(
+                selected_serial,
+                prepare_android_client=reason == "user_refresh",
+            ),
+            label="adb_refresh",
+        )
+        self.stateChanged.emit()
 
     def _current_dut_serial(self) -> str:
         selected = self._selected_dut_serials()
@@ -217,14 +234,42 @@ class TestPageBridge(QObject):
             label="context_refresh",
         )
 
-    async def _refresh_adb_devices_task(self, selected_serial: str = "") -> None:
+    async def _refresh_adb_devices_task(
+        self,
+        selected_serial: str = "",
+        *,
+        prepare_android_client: bool = True,
+    ) -> None:
         started_at = time.monotonic()
         try:
             devices = await self._parameter_helper.refresh_duts_async(selected_serial=selected_serial)
         except Exception as exc:  # noqa: BLE001
             self._trace("adb_refresh_error", error=exc)
             devices = []
-        self._apply_adb_refresh_result(devices, int((time.monotonic() - started_at) * 1000))
+            self._finish_adb_refresh(error=str(exc), started_at=started_at)
+            return
+        self._publish_adb_devices(devices, int((time.monotonic() - started_at) * 1000))
+        if not prepare_android_client:
+            self._finish_adb_refresh(started_at=started_at)
+            return
+        target = selected_serial if selected_serial in self._adb_devices else ""
+        if not target and len(self._adb_devices) == 1:
+            target = self._adb_devices[0]
+        if not target:
+            self._finish_adb_refresh(started_at=started_at)
+            return
+        try:
+            await self._parameter_helper.prepare_android_client_async(
+                target,
+                stage_callback=lambda stage, value, detail: self._refreshStageChanged.emit(
+                    str(stage), int(value), str(detail)
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._trace("android_client_prepare_error", phase=self._adb_refresh_phase, error=exc)
+            self._finish_adb_refresh(error=str(exc), started_at=started_at)
+            return
+        self._finish_adb_refresh(started_at=started_at)
 
     async def _refresh_context_task(
         self,
@@ -256,7 +301,10 @@ class TestPageBridge(QObject):
 
     @Slot("QVariantList", int)
     def _apply_adb_refresh_result(self, devices: list[Any], elapsed_ms: int) -> None:
-        self._adb_refresh_running = False
+        self._publish_adb_devices(devices, elapsed_ms)
+        self._finish_adb_refresh(started_at=time.monotonic())
+
+    def _publish_adb_devices(self, devices: list[Any], elapsed_ms: int) -> None:
         normalized: list[str] = []
         for value in devices:
             serial = str(value or "").strip()
@@ -267,8 +315,65 @@ class TestPageBridge(QObject):
         if changed:
             save_state(self._state_path, self._state)
         self._trace("adb_refresh_done", devices=len(self._adb_devices), elapsed_ms=elapsed_ms)
+        self.stateChanged.emit()
+
+    @Slot(str, int, str)
+    def _apply_refresh_stage(self, stage: str, value: int, detail: str) -> None:
+        self._adb_refresh_phase = str(stage or "prepare")
+        self._adb_refresh_progress = max(0, min(100, int(value)))
+        labels = {
+            "check_apk": self.tr("Checking Android Client package"),
+            "install_status": self.tr("Checking installation status"),
+            "root": self.tr("Requesting ADB root"),
+            "remount": self.tr("Remounting system partitions"),
+            "push": self.tr("Pushing Android Client files"),
+            "provision": self.tr("Provisioning Android Client"),
+            "reboot": self.tr("Rebooting DUT"),
+            "wait_online": self.tr("Waiting for DUT to come online"),
+            "install": self.tr("Installing Android Client"),
+            "verify": self.tr("Verifying Android Client"),
+        }
+        self._adb_refresh_detail = labels.get(self._adb_refresh_phase, str(detail or ""))
+        self.stateChanged.emit()
+
+    def _finish_adb_refresh(self, *, started_at: float, error: str = "") -> None:
+        self._adb_refresh_running = False
+        self._adb_refresh_error = str(error or "")
+        if error:
+            failed_phase = self._adb_refresh_phase
+            self._adb_refresh_phase = "failed"
+            self._adb_refresh_detail = f"{failed_phase}: {error}"
+        else:
+            self._adb_refresh_phase = "complete"
+            self._adb_refresh_progress = 100
+            self._adb_refresh_detail = self.tr("DUT refresh completed")
+        self._trace(
+            "adb_refresh_sequence_done",
+            elapsed_ms=int((time.monotonic() - started_at) * 1000),
+            error=error or "<none>",
+        )
         self._schedule_context_refresh("adb_refresh_done")
         self.stateChanged.emit()
+
+    @Property(bool, notify=stateChanged)
+    def dutRefreshRunning(self) -> bool:
+        return self._adb_refresh_running
+
+    @Property(str, notify=stateChanged)
+    def dutRefreshPhase(self) -> str:
+        return self._adb_refresh_phase
+
+    @Property(int, notify=stateChanged)
+    def dutRefreshProgress(self) -> int:
+        return self._adb_refresh_progress
+
+    @Property(str, notify=stateChanged)
+    def dutRefreshDetail(self) -> str:
+        return self._adb_refresh_detail
+
+    @Property(str, notify=stateChanged)
+    def dutRefreshError(self) -> str:
+        return self._adb_refresh_error
 
     @Slot("QVariantMap")
     def _apply_context_refresh_result(self, payload: dict[str, Any]) -> None:

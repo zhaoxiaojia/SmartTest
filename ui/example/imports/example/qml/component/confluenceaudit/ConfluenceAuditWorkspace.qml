@@ -3,6 +3,7 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import FluentUI 1.0
 import "../../state"
+import ".."
 
 Item {
     id: root
@@ -131,7 +132,7 @@ Item {
                         disabled: root.catalogBusy || root.auditBusy
                         onClicked: ConfluenceAuditBridge.refreshCollection()
                     }
-                    FluProgressRing {
+                    AppLoadingIndicator {
                         objectName: "confluenceAuditCatalogProgressRing"
                         visible: root.catalogBusy
                         implicitWidth: 18
@@ -275,7 +276,7 @@ Item {
                         disabled: !root.view.canStart || root.view.filterApplying === true
                         onClicked: ConfluenceAuditBridge.applyCollectionFilter()
                     }
-                    FluProgressRing {
+                    AppLoadingIndicator {
                         objectName: "confluenceAuditApplyFilterProgress"
                         visible: root.view.filterApplying === true
                         Layout.preferredWidth: 24
@@ -570,7 +571,7 @@ Item {
             text: qsTr("Reviewed") + ": " + (root.view.summary.reviewedCount || 0)
                   + "  " + qsTr("Follow-up") + ": " + (root.view.summary.followUpCount || 0)
         }
-        FluProgressBar {
+        AppTaskProgress {
             Layout.fillWidth: true
             visible: root.auditBusy
             indeterminate: !(root.view.progress.total > 0)

@@ -179,7 +179,7 @@ class _Issue(NamedTuple):
     url: str
     summary: str
     description: str
-    reporter: str
+    creator: str
     components: tuple[str, ...]
 
 
@@ -190,6 +190,11 @@ def active_rules() -> tuple[AuditRule, ...]:
 def is_audit_eligible(issue: dict[str, Any]) -> bool:
     fields = issue.get("fields") if isinstance(issue, dict) else {}
     fields = fields if isinstance(fields, dict) else {}
+    match_name = " ".join(_creator_name(fields).split()).casefold()
+    return any(match_name == name.casefold() for name in creator_names())
+
+
+def _creator_name(fields: dict[str, Any]) -> str:
     creator = fields.get("creator")
     if isinstance(creator, dict):
         username = _normalize_username(
@@ -203,8 +208,7 @@ def is_audit_eligible(issue: dict[str, Any]) -> bool:
         creator_name = display_name or _name_from_username(username)
     else:
         creator_name = str(creator or "").strip()
-    match_name = " ".join(creator_name.split()).casefold()
-    return any(match_name == name.casefold() for name in creator_names())
+    return creator_name
 
 
 def _normalize_username(username: Any) -> str:
@@ -250,7 +254,7 @@ def audit_issue(
         key=normalized.key,
         url=normalized.url,
         summary=normalized.summary,
-        reporter=normalized.reporter,
+        creator=normalized.creator,
         passed=not violations,
         violations=tuple(violations),
     )
@@ -311,25 +315,17 @@ def _normalize_issue(issue: dict[str, Any], base_url: str) -> _Issue:
     fields = issue.get("fields") if isinstance(issue, dict) else {}
     fields = fields if isinstance(fields, dict) else {}
     key = str(issue.get("key", "") or "").strip()
-    reporter = fields.get("reporter")
-    reporter = reporter if isinstance(reporter, dict) else {}
     components = tuple(
         value
         for item in fields.get("components") or ()
         if (value := _item_text(item, "name"))
-    )
-    reporter_name = (
-        reporter.get("displayName")
-        or reporter.get("name")
-        or reporter.get("emailAddress")
-        or ""
     )
     return _Issue(
         key,
         f"{str(base_url or '').rstrip('/')}/browse/{key}",
         str(fields.get("summary", "") or ""),
         issue_description(issue),
-        str(reporter_name),
+        _creator_name(fields),
         components,
     )
 
@@ -468,12 +464,14 @@ def _second_description_table_rows(
     description: str,
 ) -> list[tuple[int, str, str]] | None:
     header = ("模块", "需要填写信息", "测试信息")
+    normalized_header = tuple(_normalize_label(cell) for cell in header)
     lines = description.splitlines()
     for header_index, line in enumerate(lines):
-        stripped = line.strip()
-        if not stripped.startswith("||") or not stripped.endswith("||"):
-            continue
-        if tuple(cell.strip() for cell in stripped[2:-2].split("||")) != header:
+        cells = tuple(
+            _normalize_label(cell)
+            for cell in re.split(r"\|+", line.strip().strip("|"))[:3]
+        )
+        if cells != normalized_header:
             continue
         rows: list[tuple[int, str, str]] = []
         for row_number, row_line in enumerate(lines[header_index + 1:], 1):

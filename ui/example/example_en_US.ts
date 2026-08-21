@@ -286,7 +286,7 @@
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="488"/>
         <source>Project Space could not be loaded. Retry after checking LDAP and network access.</source>
-        <translation>Project Space could not be loaded. Retry after checking LDAP and network access.</translation>
+        <translation type="vanished">Project Space could not be loaded. Retry after checking LDAP and network access.</translation>
     </message>
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="493"/>
@@ -311,7 +311,7 @@
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="643"/>
         <source>Sign in with LDAP to continue applying filters.</source>
-        <translation>Sign in with LDAP to continue applying filters.</translation>
+        <translation type="vanished">Sign in with LDAP to continue applying filters.</translation>
     </message>
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="757"/>
@@ -321,7 +321,7 @@
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="969"/>
         <source>Sign in with LDAP again to audit Confluence projects.</source>
-        <translation>Sign in with LDAP again to audit Confluence projects.</translation>
+        <translation type="vanished">Sign in with LDAP again to audit Confluence projects.</translation>
     </message>
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="995"/>
@@ -403,7 +403,7 @@
         <location filename="bridge/ConfluenceAuditBridge.py" line="751"/>
         <location filename="bridge/ConfluenceAuditBridge.py" line="1372"/>
         <source>Confluence authentication failed. Sign in with LDAP again.</source>
-        <translation>Confluence authentication failed. Sign in with LDAP again.</translation>
+        <translation type="vanished">Confluence authentication failed. Sign in with LDAP again.</translation>
     </message>
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="752"/>
@@ -470,6 +470,33 @@
         <location filename="bridge/ConfluenceAuditBridge.py" line="1420"/>
         <source>The login changed. Click Refresh filter options to update Project Space data.</source>
         <translation>The login changed. Click Refresh filter options to update Project Space data.</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="489"/>
+        <source>Project Space could not be loaded. Check the current account password and network access, then retry.</source>
+        <translation>Project Space could not be loaded. Check the current account password and network access, then retry.</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="644"/>
+        <source>Sign in to continue applying filters.</source>
+        <translation>Sign in to continue applying filters.</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="758"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1390"/>
+        <source>Confluence authentication failed. Check the current account password.</source>
+        <translation>Confluence authentication failed. Check the current account password.</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="976"/>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1000"/>
+        <source>Enter the current account password to audit Confluence projects.</source>
+        <translation>Enter the current account password to audit Confluence projects.</translation>
+    </message>
+    <message>
+        <location filename="bridge/ConfluenceAuditBridge.py" line="1002"/>
+        <source>Sign in to audit Confluence projects.</source>
+        <translation>Sign in to audit Confluence projects.</translation>
     </message>
 </context>
 <context>
@@ -1707,7 +1734,7 @@
     <message>
         <location filename="bridge/JiraAuditBridge.py" line="100"/>
         <source>Sign in with LDAP again to review Jira issues.</source>
-        <translation>Sign in with LDAP again to review Jira issues.</translation>
+        <translation type="vanished">Sign in with LDAP again to review Jira issues.</translation>
     </message>
     <message>
         <location filename="bridge/JiraAuditBridge.py" line="108"/>
@@ -1828,6 +1855,17 @@
         <location filename="bridge/JiraAuditBridge.py" line="392"/>
         <source>JQL validation failed. Check the query and Jira permissions.</source>
         <translation>JQL validation failed. Check the query and Jira permissions.</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraAuditBridge.py" line="105"/>
+        <location filename="bridge/JiraAuditBridge.py" line="122"/>
+        <source>Enter the current account password to review Jira issues.</source>
+        <translation>Enter the current account password to review Jira issues.</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraAuditBridge.py" line="107"/>
+        <source>Sign in to review Jira issues.</source>
+        <translation>Sign in to review Jira issues.</translation>
     </message>
 </context>
 <context>
@@ -2294,6 +2332,23 @@
         <location filename="bridge/JiraBridge.py" line="144"/>
         <source>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</source>
         <translation>{total} Jira issues matched the current scope. Top issue: {key} ({status}, {priority}) - {summary}</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="95"/>
+        <source>The current account password is required for Jira access.</source>
+        <oldsource>LDAP session is missing Jira credentials. Please sign in again.</oldsource>
+        <translation>The current account password is required for Jira access.</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="104"/>
+        <source>Enter the current account password to load Jira data.</source>
+        <translation>Enter the current account password to load Jira data.</translation>
+    </message>
+    <message>
+        <location filename="bridge/JiraBridge.py" line="105"/>
+        <source>Enter the current account password to load Jira results and AI analysis.</source>
+        <oldsource>Sign in with LDAP first, then Jira results and AI analysis will load here.</oldsource>
+        <translation>Enter the current account password to load Jira results and AI analysis.</translation>
     </message>
 </context>
 <context>
@@ -3256,8 +3311,8 @@ Updated content:
     </message>
     <message>
         <location filename="imports/example/qml/window/SingleInstanceWindow.qml" line="34"/>
-        <source>I&apos;m a SingleInstance window, and if I exist, I&apos;ll destroy the previous window and create a new one</source>
-        <translation>I&apos;m a SingleInstance window, and if I exist, I&apos;ll destroy the previous window and create a new one</translation>
+        <source>I'm a SingleInstance window, and if I exist, I'll destroy the previous window and create a new one</source>
+        <translation>I'm a SingleInstance window, and if I exist, I'll destroy the previous window and create a new one</translation>
     </message>
 </context>
 <context>
@@ -3269,8 +3324,8 @@ Updated content:
     </message>
     <message>
         <location filename="imports/example/qml/window/SingleTaskWindow.qml" line="18"/>
-        <source>I&apos;m a SingleTask mode window, and if I exist, I activate the window</source>
-        <translation>I&apos;m a SingleTask mode window, and if I exist, I activate the window</translation>
+        <source>I'm a SingleTask mode window, and if I exist, I activate the window</source>
+        <translation>I'm a SingleTask mode window, and if I exist, I activate the window</translation>
     </message>
 </context>
 <context>
@@ -3337,8 +3392,8 @@ Updated content:
     </message>
     <message>
         <location filename="imports/example/qml/window/StandardWindow.qml" line="40"/>
-        <source>I&apos;m a Standard mode window, and every time I create a new window</source>
-        <translation>I&apos;m a Standard mode window, and every time I create a new window</translation>
+        <source>I'm a Standard mode window, and every time I create a new window</source>
+        <translation>I'm a Standard mode window, and every time I create a new window</translation>
     </message>
 </context>
 <context>
@@ -3645,6 +3700,7 @@ Updated content:
         <source>Stop Test</source>
         <translation>Stop Test</translation>
     </message>
+    <message><source>Probing camera modes</source><translation>Probing camera modes</translation></message>
 </context>
 <context>
     <name>T_BreadcrumbBar</name>
@@ -4160,6 +4216,25 @@ I begin as a common man, farming in my fields in Nanyang, doing what I could to 
 Since that moment, I have been tormented day and night by the fear that I might let him down. That is why I crossed the Lu river at the height of summer, and entered the wastelands beyond. Now the south has been subdued, and our forces are fully armed.I should lead our soldiers to conquer the northern heartland and attempt to remove the hateful traitors, restore the house of Han, and return it to the former capital.This the way I mean to honor my debt to the late Emperor and fulfill my duty to you. Guo Youzhi, Fei Yi, and Dong Yun are the ones who should be making policy decisions and recommendations.
 My only desire is to be permitted to drive out the traitors and restore the Han. If I should let you down, punish my offense and report it to the spirit of the late Emperor. If those three advisors should fail in their duties, then they should be punished for their negligence.Your Majesty, consider your course of action carefully. Seek out good advice, and never forget the late Emperor. I depart now on a long expedition, and I will be forever grateful if you heed my advice. Blinded by my own tears, I know not what I write.</translation>
     </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Expander.qml" line="68"/>
+        <source>Permit me to observe: the late emperor was taken from us before he could finish his life`s work, the restoration of Han. Today, the empire is still divided in three, and our very survival is threatened. Yet still the officials at court and the soldiers throughout the realm remain loyal to you, your majesty. Because they remember the late emperor, all of them, and they wish to repay his kindness in service to you. This is the moment to extend your divine influence, to honour the memory of the late Emperor and strengthen the morale of your officers. It is not time to listen to bad advice, or close your ears to the suggestions of loyal men.
+The court and the administration are as one. Both must be judged by one standard. Those who are loyal and good must get what they deserve, but so must the evil-doers who break the law. This will demonstrate the justice of your rule. There cannot be one law for the court and another for the administration.
+Counselors and attendants like Guo Youzhi, Fei Yi, and Dong Yun are all reliable men, loyal of purpose and pure in motive. The late Emperor selected them for office so that they would serve you after his death.These are the men who should be consulted on all palace affairs. Xiang Chong has proved himself a fine general in battle, and the late Emperor believed in him. That is why the assembly has recommended him for overall command. It will keep the troops happy if he is consulted on all military matters.
+Xiang Chong has proved himself a fine general in battle, and the late Emperor believed in him. That is why the assembly has recommended him for overall command. It will keep the troops happy if he is consulted on all military matters.
+The emperors of the Western Han chose their courtiers wisely, and their dynasty flourished. The emperors of the Eastern Han chose poorly, and they doomed the empire to ruin. Whenever the late Emperor discussed this problem with me, he lamented the failings of Emperors Huan and Ling. Advisors like Guo Youzhi, Fei Yi, Chen Zhen, Zhang Yi, and Jiang Wan – these are all men of great integrity and devotion. I encourage you to trust them, your majesty, if the house of Han is to rise again.
+I begin as a common man, farming in my fields in Nanyang, doing what I could to survive in an age of chaos. I never had any interest in making a name for myself as a noble. The late Emperor was not ashamed to visit my cottage and seek my advice. Grateful for his regard, I responded to his appeal and threw myself into his service. Now twenty-one years has passed, the late Emperor always appreciated my caution and, in his final days, entrusted me with his cause.
+Since that moment, I have been tormented day and night by the fear that I might let him down. That is why I crossed the Lu river at the height of summer, and entered the wastelands beyond. Now the south has been subdued, and our forces are fully armed.I should lead our soldiers to conquer the northern heartland and attempt to remove the hateful traitors, restore the house of Han, and return it to the former capital.This the way I mean to honor my debt to the late Emperor and fulfill my duty to you. Guo Youzhi, Fei Yi, and Dong Yun are the ones who should be making policy decisions and recommendations.
+My only desire is to be permitted to drive out the traitors and restore the Han. If I should let you down, punish my offense and report it to the spirit of the late Emperor. If those three advisors should fail in their duties, then they should be punished for their negligence.Your Majesty, consider your course of action carefully. Seek out good advice, and never forget the late Emperor. I depart now on a long expedition, and I will be forever grateful if you heed my advice. Blinded by my own tears, I know not what I write.</source>
+        <translation>Permit me to observe: the late emperor was taken from us before he could finish his life`s work, the restoration of Han. Today, the empire is still divided in three, and our very survival is threatened. Yet still the officials at court and the soldiers throughout the realm remain loyal to you, your majesty. Because they remember the late emperor, all of them, and they wish to repay his kindness in service to you. This is the moment to extend your divine influence, to honour the memory of the late Emperor and strengthen the morale of your officers. It is not time to listen to bad advice, or close your ears to the suggestions of loyal men.
+The court and the administration are as one. Both must be judged by one standard. Those who are loyal and good must get what they deserve, but so must the evil-doers who break the law. This will demonstrate the justice of your rule. There cannot be one law for the court and another for the administration.
+Counselors and attendants like Guo Youzhi, Fei Yi, and Dong Yun are all reliable men, loyal of purpose and pure in motive. The late Emperor selected them for office so that they would serve you after his death.These are the men who should be consulted on all palace affairs. Xiang Chong has proved himself a fine general in battle, and the late Emperor believed in him. That is why the assembly has recommended him for overall command. It will keep the troops happy if he is consulted on all military matters.
+Xiang Chong has proved himself a fine general in battle, and the late Emperor believed in him. That is why the assembly has recommended him for overall command. It will keep the troops happy if he is consulted on all military matters.
+The emperors of the Western Han chose their courtiers wisely, and their dynasty flourished. The emperors of the Eastern Han chose poorly, and they doomed the empire to ruin. Whenever the late Emperor discussed this problem with me, he lamented the failings of Emperors Huan and Ling. Advisors like Guo Youzhi, Fei Yi, Chen Zhen, Zhang Yi, and Jiang Wan – these are all men of great integrity and devotion. I encourage you to trust them, your majesty, if the house of Han is to rise again.
+I begin as a common man, farming in my fields in Nanyang, doing what I could to survive in an age of chaos. I never had any interest in making a name for myself as a noble. The late Emperor was not ashamed to visit my cottage and seek my advice. Grateful for his regard, I responded to his appeal and threw myself into his service. Now twenty-one years has passed, the late Emperor always appreciated my caution and, in his final days, entrusted me with his cause.
+Since that moment, I have been tormented day and night by the fear that I might let him down. That is why I crossed the Lu river at the height of summer, and entered the wastelands beyond. Now the south has been subdued, and our forces are fully armed.I should lead our soldiers to conquer the northern heartland and attempt to remove the hateful traitors, restore the house of Han, and return it to the former capital.This the way I mean to honor my debt to the late Emperor and fulfill my duty to you. Guo Youzhi, Fei Yi, and Dong Yun are the ones who should be making policy decisions and recommendations.
+My only desire is to be permitted to drive out the traitors and restore the Han. If I should let you down, punish my offense and report it to the spirit of the late Emperor. If those three advisors should fail in their duties, then they should be punished for their negligence.Your Majesty, consider your course of action carefully. Seek out good advice, and never forget the late Emperor. I depart now on a long expedition, and I will be forever grateful if you heed my advice. Blinded by my own tears, I know not what I write.</translation>
+    </message>
 </context>
 <context>
     <name>T_FlipView</name>
@@ -4412,8 +4487,8 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Home.qml" line="181"/>
-        <source>Pages likely useful for today&apos;s work</source>
-        <translation>Pages likely useful for today&apos;s work</translation>
+        <source>Pages likely useful for today's work</source>
+        <translation>Pages likely useful for today's work</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Home.qml" line="203"/>
@@ -4534,22 +4609,22 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="64"/>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="74"/>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="84"/>
-        <source>close &apos;%1&apos;</source>
-        <translation>close &apos;%1&apos;</translation>
+        <source>close '%1'</source>
+        <translation>close '%1'</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="64"/>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="74"/>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="84"/>
-        <source>show &apos;%1</source>
-        <translation>show &apos;%1</translation>
+        <source>show '%1</source>
+        <translation>show '%1</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="70"/>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="80"/>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="90"/>
-        <source>This is an &apos;%1&apos;</source>
-        <translation>This is an &apos;%1&apos;</translation>
+        <source>This is an '%1'</source>
+        <translation>This is an '%1'</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_InfoBar.qml" line="94"/>
@@ -4653,7 +4728,7 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
     <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="832"/>
         <source>Signed in as %1. LDAP credentials are reused directly for Jira access.</source>
-        <translation>Signed in as %1. LDAP credentials are reused directly for Jira access.</translation>
+        <translation type="vanished">Signed in as %1. LDAP credentials are reused directly for Jira access.</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_Jira.qml" line="858"/>
@@ -4996,6 +5071,11 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
         <source>Suggested Next Actions</source>
         <translation>Suggested Next Actions</translation>
     </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Jira.qml" line="852"/>
+        <source>Signed in as %1. The current account credentials are used for Jira access.</source>
+        <translation>Signed in as %1. The current account credentials are used for Jira access.</translation>
+    </message>
 </context>
 <context>
     <name>T_LineChart</name>
@@ -5129,8 +5209,8 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
     </message>
     <message>
         <location filename="imports/example/qml/page/T_MultiWindow.qml" line="35"/>
-        <source>&lt;font color=&apos;red&apos;&gt;Standard&lt;/font&gt; mode window，a new window is created every time</source>
-        <translation>&lt;font color=&apos;red&apos;&gt;Standard&lt;/font&gt; mode window，a new window is created every time</translation>
+        <source>&lt;font color='red'&gt;Standard&lt;/font&gt; mode window，a new window is created every time</source>
+        <translation>&lt;font color='red'&gt;Standard&lt;/font&gt; mode window，a new window is created every time</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_MultiWindow.qml" line="38"/>
@@ -5143,13 +5223,13 @@ My only desire is to be permitted to drive out the traitors and restore the Han.
     </message>
     <message>
         <location filename="imports/example/qml/page/T_MultiWindow.qml" line="58"/>
-        <source>&lt;font color=&apos;red&apos;&gt;SingleTask&lt;/font&gt; mode window，If a window exists, this activates the window</source>
-        <translation>&lt;font color=&apos;red&apos;&gt;SingleTask&lt;/font&gt; mode window，If a window exists, this activates the window</translation>
+        <source>&lt;font color='red'&gt;SingleTask&lt;/font&gt; mode window，If a window exists, this activates the window</source>
+        <translation>&lt;font color='red'&gt;SingleTask&lt;/font&gt; mode window，If a window exists, this activates the window</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_MultiWindow.qml" line="82"/>
-        <source>&lt;font color=&apos;red&apos;&gt;SingleInstance&lt;/font&gt; mode window，If the window exists, destroy the window and create a new window</source>
-        <translation>&lt;font color=&apos;red&apos;&gt;SingleInstance&lt;/font&gt; mode window，If the window exists, destroy the window and create a new window</translation>
+        <source>&lt;font color='red'&gt;SingleInstance&lt;/font&gt; mode window，If the window exists, destroy the window and create a new window</source>
+        <translation>&lt;font color='red'&gt;SingleInstance&lt;/font&gt; mode window，If the window exists, destroy the window and create a new window</translation>
     </message>
     <message>
         <location filename="imports/example/qml/page/T_MultiWindow.qml" line="116"/>
@@ -5679,6 +5759,15 @@ Some contents...</translation>
         <source>left</source>
         <translation>left</translation>
     </message>
+    <message>
+        <location filename="imports/example/qml/page/T_Sheet.qml" line="16"/>
+        <source>Some contents...
+Some contents...
+Some contents...</source>
+        <translation>Some contents...
+Some contents...
+Some contents...</translation>
+    </message>
 </context>
 <context>
     <name>T_ShortcutPicker</name>
@@ -5986,6 +6075,10 @@ Some contents...</translation>
         <source>Type</source>
         <translation>Type</translation>
     </message>
+    <message><source>Scanning ADB devices</source><translation>Scanning ADB devices</translation></message>
+    <message><source>The DUT list will be updated before Android Client preparation starts.</source><translation>The DUT list will be updated before Android Client preparation starts.</translation></message>
+    <message><source>Phase: %1</source><translation>Phase: %1</translation></message>
+    <message><source>Progress: %1%</source><translation>Progress: %1%</translation></message>
 </context>
 <context>
     <name>T_Text</name>
@@ -6518,5 +6611,132 @@ Some contents...</translation>
         <source>Settings</source>
         <translation type="unfinished">Settings</translation>
     </message>
+</context>
+<context>
+    <name>TestPageBridge</name>
+    <message><source>Scanning ADB devices</source><translation>Scanning ADB devices</translation></message>
+    <message><source>DUT refresh completed</source><translation>DUT refresh completed</translation></message>
+    <message><source>Checking Android Client package</source><translation>Checking Android Client package</translation></message>
+    <message><source>Checking installation status</source><translation>Checking installation status</translation></message>
+    <message><source>Requesting ADB root</source><translation>Requesting ADB root</translation></message>
+    <message><source>Remounting system partitions</source><translation>Remounting system partitions</translation></message>
+    <message><source>Pushing Android Client files</source><translation>Pushing Android Client files</translation></message>
+    <message><source>Provisioning Android Client</source><translation>Provisioning Android Client</translation></message>
+    <message><source>Rebooting DUT</source><translation>Rebooting DUT</translation></message>
+    <message><source>Waiting for DUT to come online</source><translation>Waiting for DUT to come online</translation></message>
+    <message><source>Installing Android Client</source><translation>Installing Android Client</translation></message>
+    <message><source>Verifying Android Client</source><translation>Verifying Android Client</translation></message>
+    <message><source>test.param.iptv_middle_screen_004.usb_match.label</source><translation>USB device match</translation></message>
+    <message><source>test.param.iptv_middle_screen_004.usb_match.description</source><translation>Enter text that must appear in the USB block-device and mount evidence.</translation></message>
+    <message><source>test.param.iptv_middle_screen_005.hdmi_state_command.label</source><translation>HDMI state command</translation></message>
+    <message><source>test.param.iptv_middle_screen_005.hdmi_state_command.description</source><translation>Optional shell command that returns HDMI connection and active-mode evidence.</translation></message>
+    <message><source>test.param.iptv_middle_screen_010.expected_speed_mbps.label</source><translation>Expected link speed (Mbps)</translation></message>
+    <message><source>test.param.iptv_middle_screen_010.expected_speed_mbps.description</source><translation>Enter the Ethernet negotiated speed required for this case.</translation></message>
+    <message><source>test.param.iptv_middle_screen_010.interface.label</source><translation>Network interface</translation></message>
+    <message><source>test.param.iptv_middle_screen_010.interface.description</source><translation>Enter the DUT interface name used by this case.</translation></message>
+    <message><source>test.param.iptv_middle_screen_018.frequencies.label</source><translation>CPU frequencies</translation></message>
+    <message><source>test.param.iptv_middle_screen_018.frequencies.description</source><translation>Select every CPU frequency point that must be set and verified.</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_2g_password.label</source><translation>2.4 GHz Wi-Fi password</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_2g_password.description</source><translation>Enter the plaintext password for the configured 2.4 GHz test network.</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_2g_ssid.label</source><translation>2.4 GHz Wi-Fi SSID</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_2g_ssid.description</source><translation>Enter the required 2.4 GHz test network name.</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_5g_password.label</source><translation>5 GHz Wi-Fi password</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_5g_password.description</source><translation>Enter the plaintext password for the configured 5 GHz test network.</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_5g_ssid.label</source><translation>5 GHz Wi-Fi SSID</translation></message>
+    <message><source>test.param.iptv_middle_screen_021.wifi_5g_ssid.description</source><translation>Enter the required 5 GHz test network name.</translation></message>
+    <message><source>test.param.iptv_middle_screen_049.interface.label</source><translation>Network interface</translation></message>
+    <message><source>test.param.iptv_middle_screen_049.interface.description</source><translation>Enter the DUT interface name used by this case.</translation></message>
+    <message><source>test.param.iptv_middle_screen_049.ipv4_ping_target.label</source><translation>IPv4 probe target</translation></message>
+    <message><source>test.param.iptv_middle_screen_049.ipv4_ping_target.description</source><translation>Enter a host reachable over IPv4 through the selected interface.</translation></message>
+    <message><source>test.param.iptv_middle_screen_049.ipv6_ping_target.label</source><translation>IPv6 probe target</translation></message>
+    <message><source>test.param.iptv_middle_screen_049.ipv6_ping_target.description</source><translation>Enter a host reachable over IPv6 through the selected interface.</translation></message>
+    <message><source>test.param.iptv_middle_screen_052.interface.label</source><translation>Network interface</translation></message>
+    <message><source>test.param.iptv_middle_screen_052.interface.description</source><translation>Enter the DUT interface name used by this case.</translation></message>
+    <message><source>test.param.iptv_middle_screen_052.ipv4_ping_target.label</source><translation>IPv4 probe target</translation></message>
+    <message><source>test.param.iptv_middle_screen_052.ipv4_ping_target.description</source><translation>Enter a host reachable over IPv4 through the selected interface.</translation></message>
+    <message><source>test.param.iptv_middle_screen_053.interface.label</source><translation>Network interface</translation></message>
+    <message><source>test.param.iptv_middle_screen_053.interface.description</source><translation>Enter the DUT interface name used by this case.</translation></message>
+    <message><source>test.param.iptv_middle_screen_053.ipv6_ping_target.label</source><translation>IPv6 probe target</translation></message>
+    <message><source>test.param.iptv_middle_screen_053.ipv6_ping_target.description</source><translation>Enter a host reachable over IPv6 through the selected interface.</translation></message>
+    <message><source>test.param.iptv_middle_screen_054.interface.label</source><translation>Network interface</translation></message>
+    <message><source>test.param.iptv_middle_screen_054.interface.description</source><translation>Enter the DUT interface name used by this case.</translation></message>
+    <message><source>test.param.iptv_middle_screen_054.ipv4_ping_target.label</source><translation>IPv4 probe target</translation></message>
+    <message><source>test.param.iptv_middle_screen_054.ipv4_ping_target.description</source><translation>Enter a host reachable over IPv4 through the selected interface.</translation></message>
+    <message><source>test.param.iptv_middle_screen_055.interface.label</source><translation>Network interface</translation></message>
+    <message><source>test.param.iptv_middle_screen_055.interface.description</source><translation>Enter the DUT interface name used by this case.</translation></message>
+    <message><source>test.param.iptv_middle_screen_055.ipv6_ping_target.label</source><translation>IPv6 probe target</translation></message>
+    <message><source>test.param.iptv_middle_screen_055.ipv6_ping_target.description</source><translation>Enter a host reachable over IPv6 through the selected interface.</translation></message>
+    <message><source>test.param.iptv_middle_screen_057.media_files.label</source><translation>Media files</translation></message>
+    <message><source>test.param.iptv_middle_screen_057.media_files.description</source><translation>Select the DUT media files required by this case.</translation></message>
+    <message><source>test.param.iptv_middle_screen_057.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_057.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_058.media_files.label</source><translation>Media files</translation></message>
+    <message><source>test.param.iptv_middle_screen_058.media_files.description</source><translation>Select the DUT media files required by this case.</translation></message>
+    <message><source>test.param.iptv_middle_screen_058.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_058.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_059.media_files.label</source><translation>Media files</translation></message>
+    <message><source>test.param.iptv_middle_screen_059.media_files.description</source><translation>Select the DUT media files required by this case.</translation></message>
+    <message><source>test.param.iptv_middle_screen_059.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_059.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_060.media_url.label</source><translation>Media URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_060.media_url.description</source><translation>Enter the playback URL required by this case; leave blank only when the workbook default is allowed.</translation></message>
+    <message><source>test.param.iptv_middle_screen_060.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_060.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_061.media_url.label</source><translation>Media URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_061.media_url.description</source><translation>Enter the playback URL required by this case; leave blank only when the workbook default is allowed.</translation></message>
+    <message><source>test.param.iptv_middle_screen_061.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_061.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_062.media_url.label</source><translation>Media URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_062.media_url.description</source><translation>Enter the playback URL required by this case; leave blank only when the workbook default is allowed.</translation></message>
+    <message><source>test.param.iptv_middle_screen_062.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_062.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_063.media_url.label</source><translation>Media URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_063.media_url.description</source><translation>Enter the playback URL required by this case; leave blank only when the workbook default is allowed.</translation></message>
+    <message><source>test.param.iptv_middle_screen_063.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_063.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_064.media_url.label</source><translation>Media URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_064.media_url.description</source><translation>Enter the playback URL required by this case; leave blank only when the workbook default is allowed.</translation></message>
+    <message><source>test.param.iptv_middle_screen_064.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_064.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_065.media_url.label</source><translation>Media URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_065.media_url.description</source><translation>Enter the playback URL required by this case; leave blank only when the workbook default is allowed.</translation></message>
+    <message><source>test.param.iptv_middle_screen_065.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_065.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_066.media_url.label</source><translation>Media URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_066.media_url.description</source><translation>Enter the playback URL required by this case; leave blank only when the workbook default is allowed.</translation></message>
+    <message><source>test.param.iptv_middle_screen_066.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_066.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_067.media_files.label</source><translation>Media files</translation></message>
+    <message><source>test.param.iptv_middle_screen_067.media_files.description</source><translation>Select the DUT media files required by this case.</translation></message>
+    <message><source>test.param.iptv_middle_screen_068.media_files.label</source><translation>Media files</translation></message>
+    <message><source>test.param.iptv_middle_screen_068.media_files.description</source><translation>Select the DUT media files required by this case.</translation></message>
+    <message><source>test.param.iptv_middle_screen_068.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_068.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_069.media_files.label</source><translation>Media files</translation></message>
+    <message><source>test.param.iptv_middle_screen_069.media_files.description</source><translation>Select the DUT media files required by this case.</translation></message>
+    <message><source>test.param.iptv_middle_screen_069.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_069.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_095.media_url.label</source><translation>Media URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_095.media_url.description</source><translation>Enter the playback URL required by this case; leave blank only when the workbook default is allowed.</translation></message>
+    <message><source>test.param.iptv_middle_screen_095.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_095.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_096.media_url.label</source><translation>Media URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_096.media_url.description</source><translation>Enter the playback URL required by this case; leave blank only when the workbook default is allowed.</translation></message>
+    <message><source>test.param.iptv_middle_screen_096.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_096.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_097.media_url.label</source><translation>Media URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_097.media_url.description</source><translation>Enter the playback URL required by this case; leave blank only when the workbook default is allowed.</translation></message>
+    <message><source>test.param.iptv_middle_screen_097.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_097.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_098.media_url.label</source><translation>Media URL</translation></message>
+    <message><source>test.param.iptv_middle_screen_098.media_url.description</source><translation>Enter the playback URL required by this case; leave blank only when the workbook default is allowed.</translation></message>
+    <message><source>test.param.iptv_middle_screen_098.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_098.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
+    <message><source>test.param.iptv_middle_screen_114.media_files.label</source><translation>Media files</translation></message>
+    <message><source>test.param.iptv_middle_screen_114.media_files.description</source><translation>Select the DUT media files required by this case.</translation></message>
+    <message><source>test.param.iptv_middle_screen_114.playback_duration_s.label</source><translation>Playback duration (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_114.playback_duration_s.description</source><translation>Enter the continuous PLAYING observation duration; final acceptance uses 86400 seconds.</translation></message>
+    <message><source>test.param.iptv_middle_screen_114.playback_timeout_s.label</source><translation>Playback start timeout (seconds)</translation></message>
+    <message><source>test.param.iptv_middle_screen_114.playback_timeout_s.description</source><translation>Enter how long to wait for the player to reach PLAYING.</translation></message>
 </context>
 </TS>

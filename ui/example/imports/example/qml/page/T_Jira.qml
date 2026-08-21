@@ -4,6 +4,7 @@ import QtQuick.Controls 2.15
 import FluentUI 1.0
 import "../global"
 import "../state"
+import "../component"
 
 FluPage {
     id: page
@@ -59,6 +60,12 @@ FluPage {
     property real jiraChatLineHeight: 1.45
     property bool pageReady: false
     property bool initialQueryStarted: false
+
+    FluWindowResultLauncher {
+        id: loginLauncher
+        objectName: "jiraLoginLauncher"
+        path: "/login"
+    }
 
     Loader {
         id: filterStateLoader
@@ -530,8 +537,22 @@ FluPage {
     Connections{
         target: JiraBridge
         function onStateChanged(){ syncBridgeState() }
-        function onConnectionChanged(){ syncBridgeState() }
+        function onConnectionChanged(){
+            syncBridgeState()
+            startInitialQueryIfReady()
+        }
         function onLoadingChanged(){ syncBridgeState() }
+    }
+
+    Connections {
+        target: AuthBridge
+        ignoreUnknownSignals: true
+        function onRuntimeCredentialSupplyRequired() {
+            loginLauncher.launch({
+                username: AuthBridge.username,
+                credentialSupply: AuthBridge.authenticated
+            })
+        }
     }
 
     Connections{
@@ -829,7 +850,7 @@ FluPage {
 
                         FluText{
                             Layout.fillWidth: true
-                            text: qsTr("Signed in as %1. LDAP credentials are reused directly for Jira access.").arg(AuthBridge.username)
+                            text: qsTr("Signed in as %1. The current account credentials are used for Jira access.").arg(AuthBridge.username)
                             font: FluTextStyle.Body
                             color: FluTheme.fontSecondaryColor
                             wrapMode: Text.WordWrap
@@ -1654,7 +1675,7 @@ FluPage {
                                     lineHeightMode: Text.ProportionalHeight
                                 }
 
-                                FluProgressRing{
+                                AppLoadingIndicator{
                                     width: 16
                                     height: 16
                                     anchors.verticalCenter: parent.verticalCenter

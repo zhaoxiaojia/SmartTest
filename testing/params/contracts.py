@@ -53,25 +53,53 @@ class CaseContract:
     env_kinds: tuple[str, ...] = ()
 
 
+def _middle_screen_case_contracts() -> tuple[CaseContract, ...]:
+    def key(source_id: int, name: str) -> str:
+        return f"iptv_middle_screen_{source_id:03d}:{name}"
+
+    contracts = [
+        CaseContract(("iptv_middle_screen_004",), (ParamContract(key(4, "usb_match"), ParamValueType.STRING, ParamCategory.DEVICE, required_at_start=True),)),
+        CaseContract(("iptv_middle_screen_005",), (ParamContract(key(5, "hdmi_state_command"), ParamValueType.STRING, ParamCategory.DEVICE),)),
+        CaseContract(("iptv_middle_screen_010",), (
+            ParamContract(key(10, "interface"), ParamValueType.STRING, ParamCategory.NETWORK, default="eth0", required_at_start=True),
+            ParamContract(key(10, "expected_speed_mbps"), ParamValueType.INT, ParamCategory.NETWORK, required_at_start=True),
+        )),
+        CaseContract(("iptv_middle_screen_018",), (ParamContract(key(18, "frequencies"), ParamValueType.MULTI_ENUM, ParamCategory.EXECUTION, required_at_start=True, source_kind="dut_dynamic", options_source=CPU_FREQUENCY_OPTIONS_SOURCE, refresh_on_dut_refresh=True),)),
+        CaseContract(("iptv_middle_screen_021",), tuple(
+            ParamContract(key(21, name), ParamValueType.STRING, ParamCategory.NETWORK, required_at_start=name.endswith("ssid"))
+            for name in ("wifi_2g_ssid", "wifi_2g_password", "wifi_5g_ssid", "wifi_5g_password")
+        )),
+    ]
+    for source_id, interface, families in ((49, "eth0", (4, 6)), (52, "eth0", (4,)), (53, "eth0", (6,)), (54, "wlan0", (4,)), (55, "wlan0", (6,))):
+        params = [ParamContract(key(source_id, "interface"), ParamValueType.STRING, ParamCategory.NETWORK, default=interface, required_at_start=True)]
+        params.extend(ParamContract(key(source_id, f"ipv{family}_ping_target"), ParamValueType.STRING, ParamCategory.NETWORK, default="www.baidu.com", required_at_start=True) for family in families)
+        contracts.append(CaseContract((f"iptv_middle_screen_{source_id:03d}",), tuple(params)))
+    for source_id in (57, 58, 59, 114):
+        params = [
+            ParamContract(key(source_id, "media_files"), ParamValueType.MULTI_ENUM, ParamCategory.EXECUTION, required_at_start=True, source_kind="dut_dynamic", options_source=LOCAL_PLAYBACK_OPTIONS_SOURCE, refresh_on_dut_refresh=True),
+            ParamContract(key(source_id, "playback_timeout_s"), ParamValueType.FLOAT, ParamCategory.EXECUTION, default=10, required_at_start=True),
+        ]
+        if source_id == 114:
+            params.append(ParamContract(key(source_id, "playback_duration_s"), ParamValueType.FLOAT, ParamCategory.EXECUTION, default=86400, required_at_start=True))
+        contracts.append(CaseContract((f"iptv_middle_screen_{source_id:03d}",), tuple(params)))
+    contracts.append(CaseContract(("iptv_middle_screen_067",), (
+        ParamContract(key(67, "media_files"), ParamValueType.MULTILINE, ParamCategory.EXECUTION, required_at_start=True),
+    )))
+    for source_id in (68, 69):
+        contracts.append(CaseContract((f"iptv_middle_screen_{source_id:03d}",), (
+            ParamContract(key(source_id, "media_files"), ParamValueType.MULTI_ENUM, ParamCategory.EXECUTION, required_at_start=True, source_kind="dut_dynamic", options_source=LOCAL_PLAYBACK_OPTIONS_SOURCE, refresh_on_dut_refresh=True),
+            ParamContract(key(source_id, "playback_timeout_s"), ParamValueType.FLOAT, ParamCategory.EXECUTION, default=10, required_at_start=True),
+        )))
+    for source_id in (60, 61, 62, 63, 64, 65, 66, 95, 96, 97, 98):
+        contracts.append(CaseContract((f"iptv_middle_screen_{source_id:03d}",), (
+            ParamContract(key(source_id, "media_url"), ParamValueType.STRING, ParamCategory.EXECUTION, required_at_start=source_id >= 95),
+            ParamContract(key(source_id, "playback_timeout_s"), ParamValueType.FLOAT, ParamCategory.EXECUTION, default=10, required_at_start=True),
+        )))
+    return tuple(contracts)
+
+
 CASE_CONTRACTS: tuple[CaseContract, ...] = (
-    CaseContract(
-        case_keys=("iptv_middle_screen",),
-        params=(
-            ParamContract("iptv_middle_screen:interface", ParamValueType.STRING, ParamCategory.NETWORK, default=""),
-            ParamContract("iptv_middle_screen:expected_speed_mbps", ParamValueType.INT, ParamCategory.NETWORK, default=0),
-            ParamContract("iptv_middle_screen:usb_match", ParamValueType.STRING, ParamCategory.DEVICE, default=""),
-            ParamContract("iptv_middle_screen:hdmi_state_command", ParamValueType.STRING, ParamCategory.DEVICE, default=""),
-            ParamContract("iptv_middle_screen:wifi_2g_ssid", ParamValueType.STRING, ParamCategory.NETWORK, default=""),
-            ParamContract("iptv_middle_screen:wifi_2g_password", ParamValueType.STRING, ParamCategory.NETWORK, default=""),
-            ParamContract("iptv_middle_screen:wifi_5g_ssid", ParamValueType.STRING, ParamCategory.NETWORK, default=""),
-            ParamContract("iptv_middle_screen:wifi_5g_password", ParamValueType.STRING, ParamCategory.NETWORK, default=""),
-            ParamContract("iptv_middle_screen:ipv4_ping_target", ParamValueType.STRING, ParamCategory.NETWORK, default="www.baidu.com"),
-            ParamContract("iptv_middle_screen:ipv6_ping_target", ParamValueType.STRING, ParamCategory.NETWORK, default="www.baidu.com"),
-            ParamContract("iptv_middle_screen:media_source_override", ParamValueType.MULTI_ENUM, ParamCategory.EXECUTION, default=[]),
-            ParamContract("iptv_middle_screen:playback_timeout_s", ParamValueType.FLOAT, ParamCategory.EXECUTION, default=10),
-            ParamContract("iptv_middle_screen:playback_duration_s", ParamValueType.FLOAT, ParamCategory.EXECUTION, default=86400),
-        ),
-    ),
+    *_middle_screen_case_contracts(),
     CaseContract(
         case_keys=("local_playback_stress",),
         params=(

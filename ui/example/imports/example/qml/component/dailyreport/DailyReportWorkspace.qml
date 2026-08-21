@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import FluentUI 1.0
+import ".."
 
 FluFrame {
     id: root
@@ -31,7 +32,7 @@ FluFrame {
             }
         }
         FluText { text: DailyReportBridge.statusText; color: FluTheme.fontSecondaryColor }
-        FluProgressBar { visible: DailyReportBridge.state === "running"; indeterminate: true; Layout.fillWidth: true }
+        AppTaskProgress { visible: DailyReportBridge.state === "running"; indeterminate: true; Layout.fillWidth: true }
 
         Flickable {
             Layout.fillWidth: true
