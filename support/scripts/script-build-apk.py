@@ -40,7 +40,7 @@ def _build_android_client(repo_root: Path) -> Path:
 
 
 def _copy_apk(repo_root: Path, apk_path: Path) -> Path:
-    output_dir = repo_root / "dist"
+    output_dir = repo_root / "dist" / "mobile"
     output_dir.mkdir(parents=True, exist_ok=True)
     if not apk_path.exists():
         raise SystemExit(f"Signed APK build output is missing: {apk_path}")

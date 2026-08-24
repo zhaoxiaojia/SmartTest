@@ -12,6 +12,7 @@ PACKAGES = (
     "atlassian-python-api==4.0.7", "tzdata==2025.2", "Markdown==3.10.2",
     "playwright==1.54.0", "pytest==8.4.1",
     "uiautomator2==3.5.2",
+    "xlrd==2.0.2",
 )
 
 

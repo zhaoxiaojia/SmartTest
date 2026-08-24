@@ -45,6 +45,9 @@ CORE_RULES = {
 LEGACY_DESKTOP_RULE_PATH = re.compile(
     r"(?<!client/app/)ui/(?:\*\*|example|jsonTool|yamlTool|FluentUI)|python(?:\.exe)?\s+main\.py"
 )
+ROOT_LEGACY_LOCATIONS = (
+    "AI", "debug", "tools", "demo_outlook.py", "dist_installer", "dist_tool", ".superpowers",
+)
 
 
 def _forbidden_python_imports(path: Path, root: Path) -> set[str]:
@@ -86,6 +89,10 @@ def _check_core(root: Path = ROOT) -> list[str]:
             relative = path.relative_to(root)
             failures.append(f"{relative}: core must not import {', '.join(forbidden)}")
     return failures
+
+
+def _check_root_legacy_locations(root: Path = ROOT) -> list[str]:
+    return [f"{relative}: retired root owner or output must not exist" for relative in ROOT_LEGACY_LOCATIONS if (root / relative).exists()]
 
 
 def _check_core_location(root: Path = ROOT) -> list[str]:
@@ -200,6 +207,7 @@ def main() -> int:
     missing = [name for name in PRODUCTS if not (ROOT / name / "README.md").is_file()]
     failures = [f"{name}/README.md: missing product boundary documentation" for name in missing]
     failures.extend(_check_core())
+    failures.extend(_check_root_legacy_locations())
     failures.extend(_check_core_location())
     failures.extend(_check_active_core_rules())
     failures.extend(_check_web_frontend())

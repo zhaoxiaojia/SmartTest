@@ -25,6 +25,8 @@ python support/smarttest.py package client|tool|mobile|all
 
 `package all` 固定执行 `mobile -> client -> tool` 并复用三个既有打包脚本；Web 只参与开发和检查，`package web` 会明确失败。`dev web/all` 报告 Web API 与前端地址，任一长期进程失败时会终止同组进程并传递退出码。
 
+正式产物统一位于 `dist/`：Android 为 `dist/mobile/app-debug-platform.apk`，桌面安装程序为 `dist/client/SmartTest-Setup.exe`，Tool 便携包为 `dist/tool/SmartTestTool-*.zip`。客户端和 Tool 的中间 runtime 分别只存在于 `build/client_runtime/`、`build/tool_runtime/`，不是发布产物。
+
 普通 push/PR 只运行 `.github/workflows/ci.yml` 的目录路由检查。仅 `v*` 标签触发 `.github/workflows/release.yml`，并要求标签为 `[self-hosted, Windows, X64, smarttest-release]` 的公司 Runner；发布构建上传签名 APK、Client 安装程序和 Tool zip，不打包 Web。
 
 构建机的 Inno Setup、Android SDK/JDK、Node/Python、签名材料和 Runner 凭据由机器本地维护。发布工作流会用仓库的固定依赖清单创建全新的 `.venv`，不依赖开发工作区。Runner 注册 token 不得写入仓库或日志。

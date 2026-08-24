@@ -28,15 +28,15 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: SmartTest-Android
-          path: dist/app-debug-platform.apk
+          path: dist/mobile/app-debug-platform.apk
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: SmartTest-Client
-          path: dist_installer/*.exe
+          path: dist/client/SmartTest-Setup.exe
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: SmartTest-Tool
-          path: dist_tool/*.zip
+          path: dist/tool/SmartTestTool-*.zip
           if-no-files-found: error

@@ -16,6 +16,7 @@ from support.ci.check_product_boundaries import (
     _check_active_core_rules,
     _check_desktop_location,
     _check_web_frontend,
+    _check_root_legacy_locations,
 )
 
 
@@ -38,6 +39,13 @@ class ProductBoundaryCheckTests(unittest.TestCase):
         self._write("core/pkg/module.py", "import json\nfrom . import local\nfrom ..contracts import Event\n")
 
         self.assertEqual(_check_core(self.root), [])
+
+    def test_root_location_rejects_retired_owners_and_outputs(self) -> None:
+        for relative in ("AI", "debug", "tools", "dist_installer", "dist_tool", ".superpowers"):
+            (self.root / relative).mkdir()
+        self._write("demo_outlook.py", "")
+
+        self.assertEqual(len(_check_root_legacy_locations(self.root)), 7)
 
     def test_core_rejects_absolute_and_escaping_relative_imports(self) -> None:
         self._write("core/absolute.py", "from client.app import main\nimport mobile.runner\n")

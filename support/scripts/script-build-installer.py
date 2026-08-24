@@ -23,6 +23,10 @@ def _python(repo_root: Path) -> str:
     return sys.executable
 
 
+def _runtime_dir(repo_root: Path) -> Path:
+    return repo_root / "build" / "client_runtime"
+
+
 def _run_packaging_preflight(repo_root: Path) -> None:
     python = _python(repo_root)
     pytest_dirs = [
@@ -37,39 +41,39 @@ def _run_packaging_preflight(repo_root: Path) -> None:
 
 def _verify_dist_runtime(repo_root: Path) -> None:
     if sys.platform.startswith("darwin"):
-        app_path = repo_root / "dist" / "SmartTest.app"
+        app_path = _runtime_dir(repo_root) / "SmartTest.app"
         if not app_path.exists():
             raise SystemExit(f"Packaged macOS app is missing: {app_path}")
         return
 
     required_paths = [
-        repo_root / "dist" / "SmartTest.exe",
-        repo_root / "dist" / "python" / "python.exe",
-        repo_root / "dist" / "core" / "testing",
-        repo_root / "dist" / "support",
-        repo_root / "dist" / "support" / "param_conversion.py",
-        repo_root / "dist" / "client" / "app" / "ui",
+        _runtime_dir(repo_root) / "SmartTest.exe",
+        _runtime_dir(repo_root) / "python" / "python.exe",
+        _runtime_dir(repo_root) / "core" / "testing",
+        _runtime_dir(repo_root) / "support",
+        _runtime_dir(repo_root) / "support" / "param_conversion.py",
+        _runtime_dir(repo_root) / "client" / "app" / "ui",
     ]
     missing = [str(path) for path in required_paths if not path.exists()]
     if missing:
         raise SystemExit("Packaged runtime is missing required files:\n" + "\n".join(missing))
 
-    runtime_python = repo_root / "dist" / "python" / "python.exe"
+    runtime_python = _runtime_dir(repo_root) / "python" / "python.exe"
     _run(
         [
             str(runtime_python),
             "-c",
-            "import sys; sys.path.insert(0, r'dist'); import support.param_conversion; import core.testing.params.options; import cv2; import core.testing.tool.boot_video.service; import client.app.ui.example.bridge.BootVideoBridge",
+            "import sys; sys.path.insert(0, r'build/client_runtime'); import support.param_conversion; import core.testing.params.options; import cv2; import core.testing.tool.boot_video.service; import client.app.ui.example.bridge.BootVideoBridge",
         ],
         cwd=str(repo_root),
     )
 
 
 def _create_macos_zip(repo_root: Path) -> Path:
-    app_path = repo_root / "dist" / "SmartTest.app"
+    app_path = _runtime_dir(repo_root) / "SmartTest.app"
     if not app_path.exists():
         raise SystemExit(f"Packaged macOS app is missing: {app_path}")
-    output_dir = repo_root / "dist_installer"
+    output_dir = repo_root / "dist" / "client"
     output_dir.mkdir(parents=True, exist_ok=True)
     archive_base = output_dir / "SmartTest-macos"
     archive_path = Path(shutil.make_archive(str(archive_base), "zip", root_dir=app_path.parent, base_dir=app_path.name))
@@ -96,7 +100,7 @@ def _require_signed_apk_build_output(repo_root: Path) -> Path:
 
 def _publish_signed_apk_artifact(repo_root: Path) -> Path:
     apk_path = _require_signed_apk_build_output(repo_root)
-    product_apk = repo_root / "dist" / apk_path.name
+    product_apk = repo_root / "dist" / "mobile" / apk_path.name
     product_apk.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(apk_path, product_apk)
     return product_apk
@@ -180,16 +184,16 @@ def _build_windows_installer(repo_root: Path, scripts_dir: str) -> None:
     _run_packaging_preflight(repo_root)
     _require_signed_apk_build_output(repo_root)
 
-    # 1) Build app (PyInstaller) -> dist/
+    # 1) Build the private client runtime staging tree.
     _run([_python(repo_root), os.path.join(scripts_dir, "script-build-pyinstaller.py")])
 
-    # PyInstaller cleans dist/, so publish the single product APK afterwards.
+    # Publish the single product APK independently of the client runtime.
     _publish_signed_apk_artifact(repo_root)
 
     # 2) Verify the packaged runtime contains the Python subprocess dependencies.
     _verify_dist_runtime(repo_root)
 
-    # 3) Wrap dist/ into an installer (Inno Setup) -> dist_installer/
+    # 3) Wrap the staging tree into dist/client/SmartTest-Setup.exe.
     iscc = _find_iscc()
     if not iscc:
         raise SystemExit(

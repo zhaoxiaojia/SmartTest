@@ -2,7 +2,6 @@ build
 dist
 node_modules/
 .vite/
-dist_installer/
 logs/
 resource_rc.py
 __pycache__
@@ -19,7 +18,6 @@ mobile/android/signapk/
 mobile/android/signapk.zip
 
 # Local packaged/build output and temporary diagnostics
-/dist_tool/
 _internal/
 AutoSuspend-master/
 _tmp_kpi_review/

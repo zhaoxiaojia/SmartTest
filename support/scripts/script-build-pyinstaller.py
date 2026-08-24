@@ -11,7 +11,7 @@ if __name__ == "__main__":
     repo_root = scripts_dir.parents[1]
     os.chdir(repo_root)
 
-    dist_dir = repo_root / "dist"
+    dist_dir = repo_root / "build" / "client_runtime"
 
     # Keep build deterministic and local: refresh i18n and QRC outputs, then package.
     subprocess.run([env.python(), str(scripts_dir / "script-update-translations.py")], check=True)
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     build_env = env.environment()
     build_env["SMARTTEST_REPO_ROOT"] = str(repo_root)
     subprocess.run(
-        [env.pyinstaller(), "--clean", "-y", str(repo_root / "support" / "packaging" / "pyinstaller" / "main.spec")],
+        [env.pyinstaller(), "--clean", "-y", "--distpath", str(dist_dir), str(repo_root / "support" / "packaging" / "pyinstaller" / "main.spec")],
         env=build_env,
         check=True,
     )

@@ -92,6 +92,9 @@ def test_release_workflow_is_tag_only_self_hosted_and_has_no_web_package():
     assert "actions/upload-artifact" in text
     assert text.index("SMARTTEST_SIGNAPK_DIR") < text.index("script-init-venv.py")
     assert text.index("script-init-venv.py") < text.index(".venv\\Scripts\\python.exe support\\smarttest.py package all")
+    assert "dist/mobile/app-debug-platform.apk" in text
+    assert "dist/client/SmartTest-Setup.exe" in text
+    assert "dist/tool/SmartTestTool-*.zip" in text
 
 
 def test_windows_bootstrap_creates_dot_venv_and_installs_required_packages(tmp_path):
@@ -102,4 +105,16 @@ def test_windows_bootstrap_creates_dot_venv_and_installs_required_packages(tmp_p
     assert calls[1][:4] == [str(tmp_path / ".venv" / "Scripts/python.exe"), "-m", "pip", "install"]
     assert any(argument.startswith("pytest==") for argument in calls[1])
     assert any(argument.startswith("uiautomator2==") for argument in calls[1])
+    assert any(argument.startswith("xlrd==") for argument in calls[1])
     assert calls[2][-4:] == ["-m", "playwright", "install", "chromium"]
+
+
+def test_tool_build_separates_runtime_staging_from_release_archive():
+    root = Path(__file__).resolve().parents[2]
+    module = runpy.run_path(str(root / "support/scripts/script-build-tool-portable.py"))
+
+    assert module["STAGING_ROOT"] == root / "build" / "tool_runtime"
+    assert module["DIST_ROOT"] == root / "dist" / "tool"
+    assert module["STAGING_ROOT"] / module["APP_NAME"] != (
+        module["DIST_ROOT"] / module["APP_NAME"]
+    )

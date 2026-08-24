@@ -51,7 +51,7 @@ The signed APK is written to:
 
 ```text
 mobile/android/app/build/outputs/apk/debug/app-debug-platform.apk
-dist/app-debug-platform.apk
+dist/mobile/app-debug-platform.apk
 ```
 
 Desktop packaging entrypoints are under `support/scripts/`. macOS installer packaging is not wired in this repository yet; `script-build-installer.py` currently supports the Windows installer flow and exits with a macOS-specific message.

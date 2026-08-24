@@ -74,4 +74,4 @@ def build_python_runtime(*, dist_dir: Path) -> Path:
 if __name__ == "__main__":
     scripts_dir = Path(__file__).resolve().parent
     repo_root = scripts_dir.parents[1]
-    build_python_runtime(dist_dir=repo_root / "dist")
+    build_python_runtime(dist_dir=repo_root / "build" / "client_runtime")

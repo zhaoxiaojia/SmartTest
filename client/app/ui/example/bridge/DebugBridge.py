@@ -6,7 +6,7 @@ from threading import Lock, Thread
 from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from debug.kpi_video import load_kpi_review_frame, mark_kpi_review_frame, prepare_kpi_review_session
+from client.app.debug.kpi.analysis import load_kpi_review_frame, mark_kpi_review_frame, prepare_kpi_review_session
 
 try:
     from example.helper.AppPaths import app_data_dir

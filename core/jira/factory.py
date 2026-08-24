@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from AI.mcp.context import McpContextService, create_default_mcp_context_service
+from core.jira.mcp_context import McpContextService, create_default_mcp_context_service
 from support.jira_integration.auth.basic import JiraBasicAuth
 from support.jira_integration.cache.metadata_cache import JiraFieldMetadataCache
 from support.jira_integration.fields.registry import FieldRegistry

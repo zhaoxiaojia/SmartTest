@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from .parse_digit_log import start_parse_fw_log
+from core.testing.tool.pc_tool.serial_tool import SerialTool
 
 
 def _looks_like_bt_fw_log(path: Path, sample_size: int = 32_000) -> bool:
@@ -25,7 +26,7 @@ def _looks_like_bt_fw_log(path: Path, sample_size: int = 32_000) -> bool:
 
     try:
         text = path.read_text(encoding="utf-8", errors="ignore")[:sample_size]
-    except Exception:
+    except OSError:
         return False
 
     if not text.strip():
@@ -56,18 +57,10 @@ def analyze_bt_fw_log(
     """Parse a BT firmware log file and return the decoded text."""
 
     log_path = Path(log_path).resolve()
-    import sys as _sys
-
-    debug_out = getattr(_sys, "__stdout__", None) or _sys.stdout
-    print(f"[bt-fw-debug] analyze_bt_fw_log: start path={log_path}", file=debug_out, flush=True)
-
     if not log_path.is_file():
         raise FileNotFoundError(f"BT FW log file not found: {log_path}")
 
-    try:
-        looks_like_fw = _looks_like_bt_fw_log(log_path)
-    except Exception:
-        looks_like_fw = True
+    looks_like_fw = _looks_like_bt_fw_log(log_path)
     if not looks_like_fw and on_chunk is not None:
         on_chunk(
             "[bt-fw] Warning: file does not look like a pure BT FW hex log; "
@@ -118,18 +111,9 @@ def analyze_bt_fw_log(
         sys.stdout = original_stdout
 
     result_text = buffer.getvalue()
-    print(
-        f"[bt-fw-debug] analyze_bt_fw_log: done, result_len={len(result_text)}",
-        file=debug_out,
-        flush=True,
-    )
-
-    try:
-        if result_text:
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_path.write_text(result_text, encoding="utf-8", errors="ignore")
-    except Exception:
-        pass
+    if result_text:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(result_text, encoding="utf-8", errors="ignore")
 
     return result_text
 
@@ -138,10 +122,12 @@ def capture_serial_log(
     port: str,
     baudrate: int,
     *,
+    output_dir: str | Path,
     add_timestamp: bool = True,
     on_raw_text: Optional[Callable[[str], None]] = None,
     stop_flag: Optional[Callable[[], bool]] = None,
     rotate_threshold_mb: int = 300,
+    serial_factory=SerialTool,
 ) -> list[Path]:
     """Capture raw BT FW log data from a serial port.
 
@@ -153,10 +139,7 @@ def capture_serial_log(
     import datetime
     import time
 
-    import serial  # type: ignore
-
-    root = Path(__file__).resolve().parents[3]
-    log_dir = root / "report" / "bt_fw_logs"
+    log_dir = Path(output_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
     def _new_log_path() -> Path:
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -164,7 +147,7 @@ def capture_serial_log(
 
     paths: list[Path] = []
     current_path = _new_log_path()
-    ser = serial.Serial(port, baudrate, timeout=0.2)
+    ser = serial_factory(port, baudrate, timeout=0.2)
     try:
         fh = current_path.open("w", encoding="utf-8", errors="ignore")
         paths.append(current_path)
@@ -186,23 +169,14 @@ def capture_serial_log(
             fh.write("\n")
             fh.flush()
             # Rotate when file grows too large (approx. 300 MB by default).
-            try:
-                if fh.tell() >= rotate_threshold_bytes:
-                    fh.close()
-                    current_path = _new_log_path()
-                    paths.append(current_path)
-                    fh = current_path.open("w", encoding="utf-8", errors="ignore")
-            except Exception:
-                pass
+            if fh.tell() >= rotate_threshold_bytes:
+                fh.close()
+                current_path = _new_log_path()
+                paths.append(current_path)
+                fh = current_path.open("w", encoding="utf-8", errors="ignore")
     finally:
-        try:
-            fh.close()
-        except Exception:
-            pass
-        try:
-            ser.close()
-        except Exception:
-            pass
+        fh.close()
+        ser.close()
 
     if on_raw_text is not None:
         on_raw_text("stop capture\n")

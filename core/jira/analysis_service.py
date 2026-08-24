@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from AI.mcp.context import McpContextService
+from core.jira.mcp_context import McpContextService
 from support.jira_integration.services.issue_service import JiraIssueService
 from core.jira.payloads import build_analysis_result, build_scope_context
 from core.jira.presenter import extract_actions, record_to_issue_row

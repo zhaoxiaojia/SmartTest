@@ -7,7 +7,7 @@ AppPublisher=SmartTest
 DefaultDirName={autopf}\SmartTest
 DefaultGroupName=SmartTest
 OutputBaseFilename=SmartTest-Setup
-OutputDir=..\..\..\dist_installer
+OutputDir=..\..\..\dist\client
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
@@ -26,8 +26,8 @@ Name: "chinesesimplified"; MessagesFile: "compiler:Languages\\ChineseSimplified.
 Name: "desktopicon"; Description: "Create a desktop icon"; GroupDescription: "Additional icons:"; Flags: unchecked
 
 [Files]
-Source: "..\..\..\dist\*"; DestDir: "{app}"; Excludes: "app-debug-platform.apk"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\..\..\dist\app-debug-platform.apk"; DestDir: "{app}\mobile\android\app\build\outputs\apk\debug"; Flags: ignoreversion
+Source: "..\..\..\build\client_runtime\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\..\dist\mobile\app-debug-platform.apk"; DestDir: "{app}\mobile\android\app\build\outputs\apk\debug"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\SmartTest"; Filename: "{app}\SmartTest.exe"; WorkingDir: "{app}"

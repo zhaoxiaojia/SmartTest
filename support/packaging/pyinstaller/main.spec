@@ -23,7 +23,6 @@ ui_root = os.path.join(repo_root, "client", "app", "ui")
 test_catalog = os.path.join(repo_root, "build", "generated", "testing", "cases", "test_catalog.json")
 testing_root = os.path.join(repo_root, "core", "testing")
 support_root = os.path.join(repo_root, "support")
-ai_root = os.path.join(repo_root, "AI")
 jira_root = os.path.join(repo_root, "core", "jira")
 tools_root = os.path.join(repo_root, "core", "tools")
 build_manifest = os.path.join(repo_root, "build", "generated", "build_manifest.json")
@@ -73,10 +72,6 @@ a = Analysis(
         (
             support_root,
             "support",
-        ),
-        (
-            ai_root,
-            "AI",
         ),
         (
             jira_root,

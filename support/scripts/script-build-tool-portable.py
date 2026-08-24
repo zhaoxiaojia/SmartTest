@@ -16,7 +16,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from support.packaging.tool_runtime_resources import missing_required
 
-DIST_ROOT = ROOT / "dist_tool"
+DIST_ROOT = ROOT / "dist" / "tool"
+STAGING_ROOT = ROOT / "build" / "tool_runtime"
 APP_NAME = "SmartTestTool"
 BUILD_LOCK = ROOT / "build" / "portable-tool-build.lock"
 FORBIDDEN_TOKENS = ("cv2", "testing", "mobile.android")
@@ -201,11 +202,11 @@ def build_portable() -> None:
     build_environment["SMARTTEST_REPO_ROOT"] = str(ROOT)
     work_dir = ROOT / "build" / "pyinstaller_tool"
     subprocess.run([
-        env.pyinstaller(), "--clean", "-y", "--distpath", str(DIST_ROOT),
+        env.pyinstaller(), "--clean", "-y", "--distpath", str(STAGING_ROOT),
         "--workpath", str(work_dir),
         str(ROOT / "support/packaging/pyinstaller/tool.spec"),
     ], cwd=ROOT, env=build_environment, check=True)
-    app_dir = DIST_ROOT / APP_NAME
+    app_dir = STAGING_ROOT / APP_NAME
     metrics = validate_distribution(app_dir)
     manifest = json.loads(
         (ROOT / "build/generated/build_manifest.json").read_text(encoding="utf-8")
