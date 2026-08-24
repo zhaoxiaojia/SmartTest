@@ -1,4 +1,22 @@
 # SmartTest (Forked UI Base)
+
+## 仓库结构
+
+SmartTest 正在按已批准的多端目录设计分阶段重构。四个产品目录及固定依赖方向如下：
+
+```text
+client ---------------------> core
+web/frontend -> web/backend -> core
+mobile ------> web/backend -> core
+```
+
+- `client/`：Windows QML 桌面客户端；
+- `core/`：不依赖任何端的唯一共享业务核心；
+- `web/`：Web 前端与后端，前端不得直接调用 `core/`；
+- `mobile/`：Android/移动端及平台专属能力。
+
+当前处于目录重构阶段一，既有入口和源码位置保持不变：桌面入口为根目录 `main.py`，QML 位于 `ui/`，测试核心位于 `testing/`，Android 工程位于 `android_client/`。目录边界可通过 `python support/ci/check_product_boundaries.py` 检查。
+
 <div align=center>
   <img width=64 src="doc/preview/fluent_design.svg">
 </div>
