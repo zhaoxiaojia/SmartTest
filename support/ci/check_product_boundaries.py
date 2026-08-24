@@ -29,9 +29,17 @@ DESKTOP_RULES = {
     "AGENTS.md": "client/app/ui/**",
     ".codex/skills/smarttest-dual-codex-delivery/SKILL.md": "client/app/ui/**",
     ".codex/skills/smarttest-ui-workflow/SKILL.md": "client/app/main.py",
-    ".codex/skills/smarttest-testing-workflow/SKILL.md": "client/app/ui/jsonTool.py",
+    ".codex/skills/smarttest-testing-workflow/SKILL.md": "core/config/jsonTool.py",
     ".codex/skills/smarttest-case-development/references/case-implementation-template.md": (
         "client/app/ui/example/bridge/TestPageBridge.py"
+    ),
+}
+CORE_RULES = {
+    "AGENTS.md": "core/testing/**",
+    ".codex/skills/smarttest-dual-codex-delivery/SKILL.md": "core/testing/**",
+    ".codex/skills/smarttest-testing-workflow/SKILL.md": "core/testing/tests/",
+    ".codex/skills/smarttest-case-development/references/case-implementation-template.md": (
+        "core/testing/tests/<platform>/<case_type>/<domain>/test_<case_name>.py"
     ),
 }
 LEGACY_DESKTOP_RULE_PATH = re.compile(
@@ -40,7 +48,7 @@ LEGACY_DESKTOP_RULE_PATH = re.compile(
 
 
 def _forbidden_python_imports(path: Path, root: Path) -> set[str]:
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
     forbidden: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -71,10 +79,41 @@ def _forbidden_python_imports(path: Path, root: Path) -> set[str]:
 def _check_core(root: Path = ROOT) -> list[str]:
     failures: list[str] = []
     for path in sorted((root / "core").rglob("*.py")):
+        if (root / "core" / "testing" / "self_tests") in path.parents:
+            continue
         forbidden = sorted(_forbidden_python_imports(path, root))
         if forbidden:
             relative = path.relative_to(root)
             failures.append(f"{relative}: core must not import {', '.join(forbidden)}")
+    return failures
+
+
+def _check_core_location(root: Path = ROOT) -> list[str]:
+    failures: list[str] = []
+    for legacy in ("testing", "tool", "jira", "config"):
+        if (root / legacy).exists():
+            failures.append(f"{legacy}/: legacy core owner path must not exist")
+    for relative in (
+        "core/testing/__init__.py",
+        "core/tools/__init__.py",
+        "core/jira/__init__.py",
+        "core/config/personnel.json",
+    ):
+        if not (root / relative).is_file():
+            failures.append(f"{relative}: missing core owner")
+    return failures
+
+
+def _check_active_core_rules(root: Path = ROOT) -> list[str]:
+    failures: list[str] = []
+    for relative, required in CORE_RULES.items():
+        path = root / relative
+        if not path.is_file():
+            failures.append(f"{relative}: missing active repository rule")
+            continue
+        source = path.read_text(encoding="utf-8").replace("\\", "/")
+        if required not in source:
+            failures.append(f"{relative}: missing active core path")
     return failures
 
 
@@ -161,6 +200,8 @@ def main() -> int:
     missing = [name for name in PRODUCTS if not (ROOT / name / "README.md").is_file()]
     failures = [f"{name}/README.md: missing product boundary documentation" for name in missing]
     failures.extend(_check_core())
+    failures.extend(_check_core_location())
+    failures.extend(_check_active_core_rules())
     failures.extend(_check_web_frontend())
     failures.extend(_check_android_location())
     failures.extend(_check_active_android_rules())

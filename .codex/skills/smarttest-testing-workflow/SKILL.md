@@ -1,6 +1,6 @@
 ---
 name: smarttest-testing-workflow
-description: Use when changing SmartTest testing/, pytest discovery/execution, runtime parameters, steps/events/reports, DUT or serial tools, lab equipment, Android-mirrored cases, or UI-to-pytest behavior.
+description: Use when changing SmartTest core/testing/, pytest discovery/execution, runtime parameters, steps/events/reports, DUT or serial tools, lab equipment, Android-mirrored cases, or UI-to-pytest behavior.
 ---
 
 # SmartTest Testing Workflow
@@ -9,21 +9,21 @@ description: Use when changing SmartTest testing/, pytest discovery/execution, r
 
 | Owner | Responsibility |
 |---|---|
-| `testing/tests/` | discoverable business cases: flow, markers, parameter use |
-| `testing/self_tests/` | framework, runner, runtime, parameter, bridge, Jira, and AI tests |
-| `testing/steps/definitions.py` | reusable definitions, plans, checks |
-| `testing/runner/` | pytest subprocess, Android trigger/plan transport, cancellation |
-| `testing/runtime/` | pytest-time config, parameters, steps/events, equipment singleton |
-| `testing/tool/dut_tool/duts/` | DUT contracts/transports; Android/Linux behavior stays platform-specific |
-| `testing/tool/dut_tool/features/` | reusable DUT business operations |
-| `testing/tool/pc_tool/serial_tool.py` | only serial implementation/enumeration/read/write/query boundary |
-| `testing/tool/equipment.py` | relay/router/attenuator and other lab composition |
-| `testing/reporting/store.py` | report JSON save/load/list/path only |
-| `tools/report.py` | report construction, summaries/filters, HTML/PDF, filenames |
+| `core/testing/tests/` | discoverable business cases: flow, markers, parameter use |
+| `core/testing/self_tests/` | framework, runner, runtime, parameter, bridge, Jira, and AI tests |
+| `core/testing/steps/definitions.py` | reusable definitions, plans, checks |
+| `core/testing/runner/` | pytest subprocess, Android trigger/plan transport, cancellation |
+| `core/testing/runtime/` | pytest-time config, parameters, steps/events, equipment singleton |
+| `core/testing/tool/dut_tool/duts/` | DUT contracts/transports; Android/Linux behavior stays platform-specific |
+| `core/testing/tool/dut_tool/features/` | reusable DUT business operations |
+| `core/testing/tool/pc_tool/serial_tool.py` | only serial implementation/enumeration/read/write/query boundary |
+| `core/testing/tool/equipment.py` | relay/router/attenuator and other lab composition |
+| `core/testing/reporting/store.py` | report JSON save/load/list/path only |
+| `support/report/` | report construction, summaries/filters, HTML/PDF, filenames |
 
-`testing/` does not import UI except `client/app/ui/jsonTool.py` for persisted frontend state and `client/app/ui/yamlTool.py` for shared YAML. QML calls testing only through registered Python bridges. Avoid re-export/pass-through facades; import the business owner directly unless a stable external boundary is required.
+`core/testing/` does not import product layers. Shared JSON/YAML persistence lives under `core/config/`; QML calls testing only through registered Python bridges. Avoid re-export/pass-through facades; import the business owner directly unless a stable external boundary is required.
 
-Keep new modules in their business layer: `client/app/ui/` presentation/bridges, `testing/` pytest/runtime/tools/reporting, `debug/` debugging utilities, and `jira/` Jira integration.
+Keep new modules in their business layer: `client/app/ui/` presentation/bridges, `core/testing/` pytest/runtime/tools/reporting, `debug/` debugging utilities, and `core/jira/` Jira integration.
 
 Before adding code, choose `reuse`, `extend owner`, `consolidate duplication`, or `new owner` with a concrete gap. Delete thin forwarding/renaming wrappers and stale compatibility paths. Prefer less coupling and net code over file shuffling; no case/value/file-specific mechanism unless explicitly requested.
 
@@ -31,8 +31,8 @@ Keep defenses minimal: do not suppress defects with broad `try/except` or specul
 
 ## Discovery And Run
 
-- UI discovery uses isolated `--collect-only` subprocesses through `testing/cases/discovery.py`.
-- `testing/conftest.py` exports metadata only when `SMARTTEST_PYTEST_COLLECT_OUT` is set. Default discovery scans `testing/tests/`, never `testing/self_tests/`.
+- UI discovery uses isolated `--collect-only` subprocesses through `core/testing/cases/discovery.py`.
+- `core/testing/conftest.py` exports metadata only when `SMARTTEST_PYTEST_COLLECT_OUT` is set. Default discovery scans `core/testing/tests/`, never `core/testing/self_tests/`.
 - Prefer `@pytest.mark.case_type(...)`; use marker-name fallback only without a case-type marker.
 - Runs continue after a failed case unless stop-on-failure is explicitly enabled.
 
@@ -40,7 +40,7 @@ Canonical execution:
 
 ```text
 UI persisted state -> RunBridge -> RunConfig -> start_pytest_run
--> SMARTTEST_RUN_CONFIG_JSON -> testing.runtime -> case/action/tool
+-> SMARTTEST_RUN_CONFIG_JSON -> core.testing.runtime -> case/action/tool
 -> structured runtime events -> report store
 ```
 
@@ -48,12 +48,12 @@ Resolve DUT serial once at the run boundary and carry it in `RunConfig`. Do not 
 
 ## Parameter Contract
 
-- Define schemas in `testing/params/schema.py`, registry/shared scopes in `registry.py`, case exposure/start requirements/env requirements/options sources in `contracts.py`, and start validation in `validation.py`.
+- Define schemas in `core/testing/params/schema.py`, registry/shared scopes in `registry.py`, case exposure/start requirements/env requirements/options sources in `contracts.py`, and start validation in `validation.py`.
 - `requires_params` exposes inputs; only `required_at_start=True` blocks a run. Keep markers beside cases and scopes explicit: `global_context`, `case_type_shared`, or `case`.
 - Testing metadata is UI-neutral: keys, types, defaults, scopes, groups, option sources, runtime values. Frontend wording belongs to the UI skill.
-- Dynamic DUT/env options use contract declarations and `testing/tool/dut_tool/parameter_helper.py`; no page, case, or field-specific refresh helper.
-- Frontend values come from `%LOCALAPPDATA%\Amlogic\SmartTest` JSON through `client/app/ui/jsonTool.py` and are read at business use through `testing/params/runtime.py`.
-- Conversion belongs only to `tools/param_conversion.py`; never add `_int_param`, `_float_param`, `int(float(...))`, or equivalent private converters.
+- Dynamic DUT/env options use contract declarations and `core/testing/tool/dut_tool/parameter_helper.py`; no page, case, or field-specific refresh helper.
+- Frontend values come from `%LOCALAPPDATA%\Amlogic\SmartTest` JSON through `core/config/jsonTool.py` and are read at business use through `core/testing/params/runtime.py`.
+- Conversion belongs only to `support/param_conversion.py`; never add `_int_param`, `_float_param`, `int(float(...))`, or equivalent private converters.
 - Pass stable identities across layers (nodeid, serial, source, request id, equipment), not copied values.
 - Android-mirrored keys are case-scoped (`caseId:paramId`) and align with `SmartTestCatalog.kt`. Frontend checkpoint `None` means skip: omit it from APK requests; Android readers also treat `"None"`/`"none"` as absent.
 
@@ -62,7 +62,7 @@ Resolve DUT serial once at the run boundary and carry it in `RunConfig`. Do not 
 - Cases select flow/parameters; reusable actions belong to steps, DUT features, runner helpers, or equipment adapters. Do not embed low-level device commands in cases.
 - `BaseDut` contains only truly shared capabilities. Android stays in `duts/android.py`, Linux in `duts/linux.py`. Prefer functions accepting a DUT over mounted feature facades; use returned DUT objects directly, never stale `.dut` wrappers.
 - No module outside `SerialTool` imports `serial`, calls `serial.Serial`, enumerates ports, or implements serial I/O/query. Each business owner builds commands and delegates execution to `SerialTool`.
-- Use `testing.runtime.test_equipment()` / `TestEquipment`; do not construct lab devices per case. Hardware wrappers remain free of UI/report presentation.
+- Use `core.testing.runtime.test_equipment()` / `TestEquipment`; do not construct lab devices per case. Hardware wrappers remain free of UI/report presentation.
 - ADB uses `adb -s <serial>` by default. If the shared resolver marks a serial unsafe, omit `-s` consistently for the full lifecycle and use the same effective serial for install-state keys. Implement this once at the command boundary.
 
 ## Steps, Cycles, Events, And Reports
@@ -71,13 +71,13 @@ Resolve DUT serial once at the run boundary and carry it in `RunConfig`. Do not 
 - Repeatable cases use the shared `loop_count`/`cycle_count` model (default `1`). Do not create separate explicit-cycle and ordinary-loop mechanisms.
 - For identical cycles, expose one row group and update it each cycle. A cycle transition supplies enough identity for the UI to refresh every title to current `x/x` immediately while later rows remain planned.
 - Report JSON/run results/steps/logs are shared contracts. HTML/PDF are export views, never input data. Storage/generation stays UI-free.
-- Report logs come from `tools/logging.py` structured records, never stdout mirrors, ANSI parsing, or temporary prints. Preserve `run_id`, `case_nodeid`, `step_id`, `definition_id`, `status`, `duration`, `domain`, `source`, `level`, and structured `extra` where applicable.
+- Report logs come from `support/logging.py` structured records, never stdout mirrors, ANSI parsing, or temporary prints. Preserve `run_id`, `case_nodeid`, `step_id`, `definition_id`, `status`, `duration`, `domain`, `source`, `level`, and structured `extra` where applicable.
 
 ## Logging
 
-Runtime business code calls `smart_log(...)` from `tools.logging`. `step_log(...)` may add step semantics only and must delegate to `smart_log`; compatibility APIs such as `FluLogger` remain thin adapters.
+Runtime business code calls `smart_log(...)` from `support.logging`. `step_log(...)` may add step semantics only and must delegate to `smart_log`; compatibility APIs such as `FluLogger` remain thin adapters.
 
-`tools/logging.py` alone owns console/static/aggregate output, JSONL, runtime fan-out, domain/source inference, paths, and colors. Static/event/report data never contains ANSI. Preserve business identity in records; command-line maintenance/build/offline scripts may use stdout.
+`support/logging.py` alone owns console/static/aggregate output, JSONL, runtime fan-out, domain/source inference, paths, and colors. Static/event/report data never contains ANSI. Preserve business identity in records; command-line maintenance/build/offline scripts may use stdout.
 
 Domain colors: framework cyan, UI magenta, runner blue, test green, DUT yellow, equipment orange, Android bright green, Jira bright magenta, Python white/gray. Severity supplies debug gray, warning bright yellow, error bright red, critical white-on-red. Add colors only in the owner and keep light/dark readability.
 
@@ -101,9 +101,9 @@ For bugs/regressions, inspect existing `smart_log` records and persisted state f
 Run focused tests for the changed owner, plus applicable discovery/import/compile checks and hardware acceptance. Examples:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest testing\self_tests\runner testing\self_tests\runtime testing\self_tests\params -q
-.\.venv\Scripts\python.exe -m pytest testing\self_tests\ui\test_run_bridge.py -q
-.\.venv\Scripts\python.exe -m compileall testing\runner testing\runtime testing\steps testing\tool
+.\.venv\Scripts\python.exe -m pytest core\testing\self_tests\runner core\testing\self_tests\runtime core\testing\self_tests\params -q
+.\.venv\Scripts\python.exe -m pytest core\testing\self_tests\ui\test_run_bridge.py -q
+.\.venv\Scripts\python.exe -m compileall core\testing\runner core\testing\runtime core\testing\steps core\testing\tool
 ```
 
 Do not claim DUT/equipment acceptance without that hardware. Remove temporary artifacts, review the scoped diff for duplicate state/transport/helpers, run `git diff --check`, and preserve user changes.

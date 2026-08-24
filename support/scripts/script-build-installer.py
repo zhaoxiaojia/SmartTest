@@ -26,13 +26,13 @@ def _python(repo_root: Path) -> str:
 def _run_packaging_preflight(repo_root: Path) -> None:
     python = _python(repo_root)
     pytest_dirs = [
-        repo_root / "testing" / "self_tests" / "packaging",
-        repo_root / "testing" / "self_tests" / "params",
+        repo_root / "core" / "testing" / "self_tests" / "packaging",
+        repo_root / "core" / "testing" / "self_tests" / "params",
     ]
     for test_dir in pytest_dirs:
         if test_dir.exists():
             _run([python, "-m", "pytest", str(test_dir.relative_to(repo_root)), "-q"], cwd=str(repo_root))
-    _run([python, "-m", "compileall", "testing", "support", str(Path("client") / "app" / "ui" / "example" / "bridge")], cwd=str(repo_root))
+    _run([python, "-m", "compileall", "core", "support", str(Path("client") / "app" / "ui" / "example" / "bridge")], cwd=str(repo_root))
 
 
 def _verify_dist_runtime(repo_root: Path) -> None:
@@ -45,7 +45,7 @@ def _verify_dist_runtime(repo_root: Path) -> None:
     required_paths = [
         repo_root / "dist" / "SmartTest.exe",
         repo_root / "dist" / "python" / "python.exe",
-        repo_root / "dist" / "testing",
+        repo_root / "dist" / "core" / "testing",
         repo_root / "dist" / "support",
         repo_root / "dist" / "support" / "param_conversion.py",
         repo_root / "dist" / "client" / "app" / "ui",
@@ -59,7 +59,7 @@ def _verify_dist_runtime(repo_root: Path) -> None:
         [
             str(runtime_python),
             "-c",
-            "import sys; sys.path.insert(0, r'dist'); import support.param_conversion; import testing.params.options; import cv2; import testing.tool.boot_video.service; import client.app.ui.example.bridge.BootVideoBridge",
+            "import sys; sys.path.insert(0, r'dist'); import support.param_conversion; import core.testing.params.options; import cv2; import core.testing.tool.boot_video.service; import client.app.ui.example.bridge.BootVideoBridge",
         ],
         cwd=str(repo_root),
     )

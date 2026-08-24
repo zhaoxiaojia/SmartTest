@@ -138,15 +138,15 @@ def _infer_source_and_domain() -> tuple[str, str]:
     module_name = str(frame.f_globals.get("__name__", "") or "")
     if module_name.startswith("client.app.ui."):
         return module_name, "ui"
-    if module_name.startswith("testing.runner"):
+    if module_name.startswith("core.testing.runner"):
         return module_name, "runner"
-    if module_name.startswith("testing.runtime") or module_name.startswith("testing.tests"):
+    if module_name.startswith("core.testing.runtime") or module_name.startswith("core.testing.tests"):
         return module_name, "test"
     if module_name.startswith("mobile.android"):
         return module_name, "android"
-    if module_name.startswith("testing.tool.relay") or module_name.startswith("testing.tool.wifi_lab"):
+    if module_name.startswith("core.testing.tool.relay") or module_name.startswith("core.testing.tool.wifi_lab"):
         return module_name, "equipment"
-    if module_name.startswith("testing.tool"):
+    if module_name.startswith("core.testing.tool"):
         return module_name, "dut"
     return module_name, "framework"
 

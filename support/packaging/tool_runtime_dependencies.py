@@ -16,8 +16,8 @@ TOOL_HIDDEN_IMPORTS = PYWIN32_RUNTIME_MODULES + (
     "ldap3",
     "FluentUI.FluentUI",
     "Crypto.Hash.MD4",
-    "tool.common.project_weekly_audit.command",
-    "tool.common.project_weekly_audit.scheduler",
+    "core.tools.common.project_weekly_audit.command",
+    "core.tools.common.project_weekly_audit.scheduler",
 )
 
 TOOL_SMOKE_MODULES = (
@@ -29,7 +29,7 @@ TOOL_SMOKE_MODULES = (
     "ldap3",
     "qrcode",
     "support.report.excel",
-    "tool.common.project_weekly_audit.report",
-    "tool.common.project_weekly_audit.command",
-    "tool.common.project_weekly_audit.scheduler",
+    "core.tools.common.project_weekly_audit.report",
+    "core.tools.common.project_weekly_audit.command",
+    "core.tools.common.project_weekly_audit.scheduler",
 )

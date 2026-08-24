@@ -6,11 +6,14 @@ from pathlib import Path
 
 from support.ci.check_product_boundaries import (
     ANDROID_RULES,
+    CORE_RULES,
     DESKTOP_RULES,
     _check_active_android_rules,
     _check_active_desktop_rules,
     _check_android_location,
     _check_core,
+    _check_core_location,
+    _check_active_core_rules,
     _check_desktop_location,
     _check_web_frontend,
 )
@@ -47,6 +50,28 @@ class ProductBoundaryCheckTests(unittest.TestCase):
         self.assertEqual(sum("client" in failure for failure in failures), 2)
         self.assertTrue(any("mobile" in failure for failure in failures))
         self.assertTrue(any("web" in failure for failure in failures))
+
+    def test_core_location_accepts_unique_new_owners(self) -> None:
+        self._write("core/testing/__init__.py", "")
+        self._write("core/tools/__init__.py", "")
+        self._write("core/jira/__init__.py", "")
+        self._write("core/config/personnel.json", "{}")
+
+        self.assertEqual(_check_core_location(self.root), [])
+
+    def test_core_location_rejects_legacy_or_incomplete_owners(self) -> None:
+        (self.root / "testing").mkdir()
+
+        failures = _check_core_location(self.root)
+
+        self.assertEqual(len(failures), 5)
+        self.assertTrue(any("legacy core owner path" in failure for failure in failures))
+
+    def test_active_core_rules_use_new_owner_paths(self) -> None:
+        for relative, required in CORE_RULES.items():
+            self._write(relative, required)
+
+        self.assertEqual(_check_active_core_rules(self.root), [])
 
     def test_web_frontend_allows_api_and_local_imports(self) -> None:
         self._write("web/frontend/src/page.ts", "import api from './api'\nconst view = import('./view')\n")

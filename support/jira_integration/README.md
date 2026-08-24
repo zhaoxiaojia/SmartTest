@@ -27,7 +27,7 @@ Jira QML
 - `support/jira_integration/fields/`：字段规格、元数据注册、嵌套值提取和 `jira_fields`/`expand` 计划的唯一所有者。
 - `support/jira_integration/cache/`：Jira 字段元数据 TTL 缓存的唯一持久化所有者。
 
-QML 不直接调用全局集成层；该层不依赖 Qt 或根目录 `jira` 页面包。Bridge 不组装 auth、transport、字段注册表或缓存。
+QML 不直接调用全局集成层；该层不依赖 Qt 或 `core/jira` 页面服务包。Bridge 不组装 auth、transport、字段注册表或缓存。
 
 ## 当前运行假设
 

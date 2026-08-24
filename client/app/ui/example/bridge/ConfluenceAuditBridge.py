@@ -11,26 +11,26 @@ from zoneinfo import ZoneInfo
 from PySide6.QtCore import QObject, Property, QStandardPaths, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 
-from tool.common.project_weekly_audit.discovery import (
+from core.tools.common.project_weekly_audit.discovery import (
     PRODUCT_LINES, UNIFIED_SOURCE, ProjectCollectionDiscoveryError,
     discover_project_collection,
 )
-from tool.common.project_weekly_audit.models import (
+from core.tools.common.project_weekly_audit.models import (
     AuditExecutionContext, AuditPeriod, ConfluenceProject, ProductLine, ProjectCollection,
     ProjectCollectionFilter,
 )
-from tool.common.project_weekly_audit.project_collection import (
+from core.tools.common.project_weekly_audit.project_collection import (
     default_project_filter, filter_projects,
 )
-from tool.common.project_weekly_audit.plans import AuditPlan, AuditPlanStore
-from tool.common.project_weekly_audit.report import (
+from core.tools.common.project_weekly_audit.plans import AuditPlan, AuditPlanStore
+from core.tools.common.project_weekly_audit.report import (
     export_project_audit_xlsx,
     export_project_audit_xlsx_by_product_line,
 )
-from tool.common.project_weekly_audit.scheduler import (
+from core.tools.common.project_weekly_audit.scheduler import (
     TASK_PREFIX, WindowsAuditScheduler, resolve_audit_launch_command,
 )
-from tool.common.project_weekly_audit.service import ConfluenceAuditService
+from core.tools.common.project_weekly_audit.service import ConfluenceAuditService
 from support.confluence_integration import (
     ConfluenceClient, ConfluenceClientConfig, ConfluenceDependencyError,
 )

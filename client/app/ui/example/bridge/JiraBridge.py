@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import copy
 import os
@@ -11,7 +11,7 @@ from urllib.parse import quote
 from PySide6.QtCore import QObject, Property, QT_TRANSLATE_NOOP, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from jira import (
+from core.jira import (
     JiraConversationController,
     JiraWorkspaceService,
     create_jira_workspace_service,

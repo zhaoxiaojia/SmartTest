@@ -14,13 +14,13 @@ from uuid import uuid4
 from PySide6.QtCore import QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from testing.cases.catalog import is_packaged_runtime, load_runtime_test_catalog
-from testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
-from testing.params.validation import RunValidationIssue, validate_run_request
-from testing.runner.config import RunConfig, build_run_config_from_state
-from testing.runner.execution import TestRunSession, start_pytest_run
-from testing.state.store import load_state
-from testing.test_context import TestContext, smarttest_context
+from core.testing.cases.catalog import is_packaged_runtime, load_runtime_test_catalog
+from core.testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
+from core.testing.params.validation import RunValidationIssue, validate_run_request
+from core.testing.runner.config import RunConfig, build_run_config_from_state
+from core.testing.runner.execution import TestRunSession, start_pytest_run
+from core.testing.state.store import load_state
+from core.testing.test_context import TestContext, smarttest_context
 from support.logging import default_log_path, log_display_fields, smart_log
 from support.report import save_run_report
 

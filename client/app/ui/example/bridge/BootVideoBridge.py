@@ -11,12 +11,12 @@ from PySide6.QtCore import QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 
 from support.logging import smart_log
-from testing.state.local_store import load_json, save_json
-from testing.tool.boot_video.analyzer import FrameAnalyzer
-from testing.tool.boot_video.camera import CameraManager
-from testing.tool.boot_video.roi import ScreenROI
-from testing.tool.boot_video.service import BootVideoSettings, BootVideoTestService
-from testing.tool.boot_video.templates import TemplateManager
+from core.testing.state.local_store import load_json, save_json
+from core.testing.tool.boot_video.analyzer import FrameAnalyzer
+from core.testing.tool.boot_video.camera import CameraManager
+from core.testing.tool.boot_video.roi import ScreenROI
+from core.testing.tool.boot_video.service import BootVideoSettings, BootVideoTestService
+from core.testing.tool.boot_video.templates import TemplateManager
 
 try:
     from example.helper.AppPaths import app_data_dir

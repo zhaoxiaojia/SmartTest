@@ -38,7 +38,7 @@ from example.bridge.DebugBridge import DebugBridge
 from example.bridge.BootVideoBridge import BootVideoBridge
 from example.context_registry import register_context_objects, start_context_services
 from support.logging import smart_log
-from client.app.ui.jsonTool import app_data_dir
+from core.config.jsonTool import app_data_dir
 from client.app.ui.page_state_migration import migrate_frontend_state
 
 _uri = "example"

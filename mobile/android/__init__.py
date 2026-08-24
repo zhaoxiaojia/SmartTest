@@ -9,7 +9,8 @@ import subprocess
 import time
 import sys
 
-from testing.params.adb_devices import resolve_adb_serial_for_command
+from core.testing.params.adb_devices import resolve_adb_serial_for_command
+from core.contracts.android import PACKAGE_NAME, PRIVILEGED_CASE_IDS
 from support.logging import smart_log
 
 
@@ -31,7 +32,6 @@ def _emit_stage(stage_callback, stage: str, value: int, detail: str) -> None:
         stage_callback(stage, value, detail)
 
 
-PACKAGE_NAME = "com.smarttest.mobile"
 RAW_DEBUG_APK_RELATIVE_PATH = Path("mobile", "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
 SIGNED_APK_RELATIVE_PATH = Path(
     "mobile",
@@ -75,7 +75,6 @@ PLATFORM_CERT_PK8 = Path(
     os.environ.get("SMARTTEST_PLATFORM_CERT_PK8", SIGNAPK_DIR / "build" / "target" / "product" / "security" / "platform.pk8"),
 ).expanduser()
 DEFAULT_ADB_WAIT_TIMEOUT_SEC = 180.0
-PRIVILEGED_CASE_IDS = frozenset({"auto_reboot", "auto_suspend", "wifi_onoff_scan", "bt_onoff_scan"})
 PRIVILEGED_PARTITIONS = ("/system", "/product", "/system_ext")
 
 

@@ -45,10 +45,10 @@ cleanup / timeout / cancel：
 
 | 选择 | 判定条件 | 业务位置 |
 |---|---|---|
-| Python | ADB/shell、节点、property、dumpsys、PC 库或现有 DUT driver 可完成；运行期间 ADB 可用；不依赖 Android 特权或设备端生命周期 | `testing/tests/**/test_*.py`、`testing/tool/dut_tool/features/`、`testing/tool/dut_tool/duts/android.py` |
+| Python | ADB/shell、节点、property、dumpsys、PC 库或现有 DUT driver 可完成；运行期间 ADB 可用；不依赖 Android 特权或设备端生命周期 | `core/testing/tests/**/test_*.py`、`core/testing/tool/dut_tool/features/`、`core/testing/tool/dut_tool/duts/android.py` |
 | APK | 需要 system/priv-app、Framework callback/Service/Receiver/Activity；重启、深度休眠或 ADB 失联期间继续；设备端连续低延迟采样 | `mobile/android/app/src/main/java/com/smarttest/mobile/runner/cases/` |
 
-APK 模式仍必须有 `testing/tests/android/**/test_*.py`。它只使用 `testing.runner.apk_client.apk_case_plan` / `run_apk_case` 完成参数下发、触发、进度/超时/取消监管、结果收集和报告；不得再实现 ADB 业务动作、checkpoint 或 cleanup。APK executor 负责动作、检测、证据和设备端恢复。
+APK 模式仍必须有 `core/testing/tests/android/**/test_*.py`。它只使用 `core.testing.runner.apk_client.apk_case_plan` / `run_apk_case` 完成参数下发、触发、进度/超时/取消监管、结果收集和报告；不得再实现 ADB 业务动作、checkpoint 或 cleanup。APK executor 负责动作、检测、证据和设备端恢复。
 
 ## 3. 前端和参数
 
@@ -57,13 +57,13 @@ APK 模式仍必须有 `testing/tests/android/**/test_*.py`。它只使用 `test
 ```text
 client/app/ui/example/imports/example/qml/page/T_TestConfig.qml
 client/app/ui/example/bridge/TestPageBridge.py
-client/app/ui/jsonTool.py
+core/config/jsonTool.py
 %LOCALAPPDATA%\Amlogic\SmartTest\test_page_state.json
 ```
 
 只有新增公共参数类型/交互时才修改 QML/bridge。固定文字同时更新 `client/app/ui/example/example_en_US.ts` 和 `example_zh_CN.ts`。
 
-参数业务合同写在 `testing/params/contracts.py`，key 使用 `<case_id>:<param_id>`。每个参数记录：
+参数业务合同写在 `core/testing/params/contracts.py`，key 使用 `<case_id>:<param_id>`。每个参数记录：
 
 ```text
 key, value_type, category, scope, default, required_at_start,
@@ -71,7 +71,7 @@ source_kind, enum_values, options_source, refreshes_options_sources,
 refresh_on_dut_refresh, unit/limits, consumer, report exposure, sensitivity
 ```
 
-代码只使用现有 `ParamContract` 字段；未承载的 unit/limits/sensitivity 先留在合同和断言中，扩展公共 schema 需另行批准。动态选项复用 `testing/tool/dut_tool/parameter_helper.py`、`testing/params/options.py`，开始校验由 `testing/params/validation.py` 负责。
+代码只使用现有 `ParamContract` 字段；未承载的 unit/limits/sensitivity 先留在合同和断言中，扩展公共 schema 需另行批准。动态选项复用 `core/testing/tool/dut_tool/parameter_helper.py`、`core/testing/params/options.py`，开始校验由 `core/testing/params/validation.py` 负责。
 
 | `ParamValueType` | 默认控件 |
 |---|---|
@@ -87,7 +87,7 @@ Python 从 `smarttest_context().params.case_values(request.node.nodeid)` 读取�
 
 ## 4. pytest 入口
 
-文件位于 `testing/tests/<platform>/<case_type>/<domain>/test_<case_name>.py`，声明：
+文件位于 `core/testing/tests/<platform>/<case_type>/<domain>/test_<case_name>.py`，声明：
 
 ```python
 pytestmark = pytest.mark.case_type("<case_type>")
@@ -113,16 +113,16 @@ def test_<case_name>_via_android_client(request):
 
 依次搜索并记录 owner：
 
-1. `testing/tool/dut_tool/duts/android.py` / `linux.py` 的公共 DUT 能力。
-2. `testing/tool/dut_tool/features/` 的可复用业务能力。
-3. `testing/tool/pc_tool/`、`testing/tool/equipment.py`、`testing/tool/relay_tool/`；串口只能由 `serial_tool.py` 实现。
+1. `core/testing/tool/dut_tool/duts/android.py` / `linux.py` 的公共 DUT 能力。
+2. `core/testing/tool/dut_tool/features/` 的可复用业务能力。
+3. `core/testing/tool/pc_tool/`、`core/testing/tool/equipment.py`、`core/testing/tool/relay_tool/`；串口只能由 `serial_tool.py` 实现。
 4. APK 的 `mobile/android/app/src/main/java/com/smarttest/mobile/runner/device/`。
 
 对每个动作/checkpoint 填写：已有 owner、支持状态、输入/输出、缺口、处理。选择顺序是直接复用、通用扩展当前 owner、合并重复、扩展现有 feature、最后新增公共 owner。禁止在 case 中建立私有 ADB/串口/安装/文件转换机制，禁止 Python/APK 双实现。
 
 ## 6. Step 与 checkpoint
 
-公共 step 定义位于 `testing/steps/definitions.py`，计划由 `SMARTTEST_CASE_PLAN` 预声明，运行时由 `testing/runtime/steps.py` 更新。
+公共 step 定义位于 `core/testing/steps/definitions.py`，计划由 `SMARTTEST_CASE_PLAN` 预声明，运行时由 `core/testing/runtime/steps.py` 更新。
 
 每个 step 必须包含 `id/title/kind/definition_id/expected`，按需包含 `parent_id` 和 loop/cycle 身份。`kind` 使用 `setup`、`action`/`step`、`check`、`cleanup`、`external`。
 
@@ -143,7 +143,7 @@ timeout, evidence type, pass/skip/fail rule, dependency, cleanup
 
 ## 8. 报告合同
 
-报告 owner：`testing/test_context.py`、`support/report/`、`support/report/json/store.py`、`client/app/ui/example/bridge/ReportBridge.py`。
+报告 owner：`core/testing/test_context.py`、`support/report/`、`support/report/json/store.py`、`client/app/ui/example/bridge/ReportBridge.py`。
 
 必须呈现：
 

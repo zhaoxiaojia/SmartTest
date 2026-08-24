@@ -43,6 +43,22 @@ screen.png
 # Boot video test outputs and local camera diagnostics
 results/
 tmp_boot_video_debug/
-testing/self_tests/
-config/avatars/*
-!config/avatars/.gitkeep
+core/testing/self_tests/*
+!core/testing/self_tests/android/
+core/testing/self_tests/android/*
+!core/testing/self_tests/android/test_android_client_log_levels.py
+!core/testing/self_tests/tool/
+core/testing/self_tests/tool/*
+!core/testing/self_tests/tool/test_jira_format_audit_creator_and_table.py
+!core/testing/self_tests/tools/
+core/testing/self_tests/tools/*
+!core/testing/self_tests/tools/test_cpu_frequency_checkpoint.py
+!core/testing/self_tests/tools/test_middle_screen_report.py
+!core/testing/self_tests/tools/test_parameter_helper_apk_ensure.py
+!core/testing/self_tests/ui/
+core/testing/self_tests/ui/*
+!core/testing/self_tests/ui/test_async_feedback_components.py
+!core/testing/self_tests/ui/test_global_async_feedback.py
+!core/testing/self_tests/ui/test_runtime_business_credentials.py
+core/config/avatars/*
+!core/config/avatars/.gitkeep

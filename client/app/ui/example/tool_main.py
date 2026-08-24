@@ -109,7 +109,7 @@ def create_context_objects(engine) -> dict[str, object]:
     from example.bridge.ScheduleBridge import ScheduleBridge
     from example.bridge.ToolBridge import ToolBridge
     from example.helper.TranslateHelper import TranslateHelper
-    from client.app.ui.jsonTool import app_data_dir
+    from core.config.jsonTool import app_data_dir
     from client.app.ui.page_state_migration import migrate_frontend_state
 
     from PySide6.QtCore import QCoreApplication

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from client.app.ui import jsonTool
+from core.config import jsonTool
 
 from ..core import _safe_text
 

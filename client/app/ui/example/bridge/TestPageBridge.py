@@ -10,17 +10,18 @@ from typing import Any
 from PySide6.QtCore import QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from testing.cases.catalog import is_packaged_runtime, load_packaged_test_catalog
-from testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
-from testing.params.contracts import case_param_keys, default_env_device_type, env_kinds_for_case, required_param_keys
-from testing.params.options import normalize_option_values
-from testing.params.registry import SchemaRegistry, default_registry
-from testing.test_context import smarttest_context
-from testing.params.schema import ParamField, ParamSchema, ParamScope, ParamValueType
-from testing.state.models import SelectedCase, TestPageState
-from testing.state.store import ensure_state, load_state, save_state
-from testing.tool.dut_tool.parameter_helper import ParameterHelper
-from testing.tool.env_tool import build_env_equipment_row, default_env_config
+from core.testing.cases.catalog import is_packaged_runtime, load_packaged_test_catalog
+from core.testing.cases.discovery import PytestDiscoveryError, discover_pytest_cases
+from core.testing.params.contracts import case_param_keys, default_env_device_type, env_kinds_for_case, required_param_keys
+from core.testing.params.options import normalize_option_values
+from core.testing.params.registry import SchemaRegistry, default_registry
+from core.testing.test_context import smarttest_context
+from core.testing.params.schema import ParamField, ParamSchema, ParamScope, ParamValueType
+from core.testing.state.models import SelectedCase, TestPageState
+from core.testing.state.store import ensure_state, load_state, save_state
+from core.testing.tool.dut_tool.parameter_helper import ParameterHelper
+from core.testing.tool.env_tool import build_env_equipment_row, default_env_config
+from mobile.android import ensure_test_apk_installed
 from support.logging import smart_log
 
 try:
@@ -44,7 +45,7 @@ class TestPageBridge(QObject):
         self._cases_by_file: dict[str, list[dict[str, Any]]] = {}
         self._state_path = self._default_state_path()
         self._trace_log_path = self._state_path.parent / "test_page_trace.log"
-        self._parameter_helper = ParameterHelper()
+        self._parameter_helper = ParameterHelper(apk_ensurer=ensure_test_apk_installed)
         self._state = ensure_state(self._state_path)
         smarttest_context().params.bind_ui_state(self._state)
         self._adb_devices: list[str] = []

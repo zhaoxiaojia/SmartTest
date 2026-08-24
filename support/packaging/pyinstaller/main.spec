@@ -21,13 +21,13 @@ repo_root = os.environ.get("SMARTTEST_REPO_ROOT") or _find_repo_root(os.getcwd()
 mainPath = os.path.join(repo_root, "client", "app", "main.py")
 ui_root = os.path.join(repo_root, "client", "app", "ui")
 test_catalog = os.path.join(repo_root, "build", "generated", "testing", "cases", "test_catalog.json")
-testing_root = os.path.join(repo_root, "testing")
+testing_root = os.path.join(repo_root, "core", "testing")
 support_root = os.path.join(repo_root, "support")
 ai_root = os.path.join(repo_root, "AI")
-jira_root = os.path.join(repo_root, "jira")
-hooks_root = os.path.join(repo_root, "support", "packaging", "pyinstaller", "hooks")
+jira_root = os.path.join(repo_root, "core", "jira")
+tools_root = os.path.join(repo_root, "core", "tools")
 build_manifest = os.path.join(repo_root, "build", "generated", "build_manifest.json")
-personnel_config = os.path.join(repo_root, "config", "personnel.json")
+personnel_config = os.path.join(repo_root, "core", "config", "personnel.json")
 app_version = "0.0.0"
 try:
     with open(build_manifest, "r", encoding="utf-8") as fh:
@@ -68,7 +68,7 @@ a = Analysis(
         ),
         (
             testing_root,
-            "testing",
+            os.path.join("core", "testing"),
         ),
         (
             support_root,
@@ -80,11 +80,15 @@ a = Analysis(
         ),
         (
             jira_root,
-            "jira",
+            os.path.join("core", "jira"),
+        ),
+        (
+            tools_root,
+            os.path.join("core", "tools"),
         ),
         (
             test_catalog,
-            os.path.join("testing", "cases"),
+            os.path.join("core", "testing", "cases"),
         ),
         (
             build_manifest,
@@ -92,7 +96,7 @@ a = Analysis(
         ),
         (
             personnel_config,
-            "config",
+            os.path.join("core", "config"),
         ),
         (
             android_client_init,
@@ -126,8 +130,8 @@ a = Analysis(
         "win32com",
         "win32com.client",
         "win32cred",
-        "tool.common.project_weekly_audit.command",
-        "tool.common.project_weekly_audit.scheduler",
+        "core.tools.common.project_weekly_audit.command",
+        "core.tools.common.project_weekly_audit.scheduler",
         # Ensure UI packages are discoverable even if imports are indirect.
         "example.main",
         "FluentUI.FluentUI",
@@ -144,19 +148,19 @@ a = Analysis(
         "numpy",
         "matplotlib",
         "client.app.ui.example.bridge.BootVideoBridge",
-        "testing.tool.boot_video",
-        "testing.tool.boot_video.analyzer",
-        "testing.tool.boot_video.camera",
-        "testing.tool.boot_video.power",
-        "testing.tool.boot_video.recorder",
-        "testing.tool.boot_video.results",
-        "testing.tool.boot_video.roi",
-        "testing.tool.boot_video.service",
-        "testing.tool.boot_video.state_machine",
-        "testing.tool.boot_video.templates",
+        "core.testing.tool.boot_video",
+        "core.testing.tool.boot_video.analyzer",
+        "core.testing.tool.boot_video.camera",
+        "core.testing.tool.boot_video.power",
+        "core.testing.tool.boot_video.recorder",
+        "core.testing.tool.boot_video.results",
+        "core.testing.tool.boot_video.roi",
+        "core.testing.tool.boot_video.service",
+        "core.testing.tool.boot_video.state_machine",
+        "core.testing.tool.boot_video.templates",
         "mobile.android",
     ],
-    hookspath=[hooks_root],
+    hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],

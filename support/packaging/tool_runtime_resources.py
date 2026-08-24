@@ -12,7 +12,7 @@ class ToolRuntimeResource:
 
 
 TOOL_RUNTIME_RESOURCES = (
-    ToolRuntimeResource("config/personnel.json", "config/personnel.json"),
+    ToolRuntimeResource("core/config/personnel.json", "core/config/personnel.json"),
     ToolRuntimeResource(
         "build/generated/build_manifest.json",
         "build/generated/build_manifest.json",

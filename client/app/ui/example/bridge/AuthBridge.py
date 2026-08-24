@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import os
 import base64
@@ -14,7 +14,7 @@ from typing import Any
 from PySide6.QtCore import QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from client.app.ui import jsonTool
+from core.config import jsonTool
 from support.logging import smart_log
 from support.windows_credentials import (
     CredentialNotFoundError,
@@ -151,7 +151,7 @@ class AuthBridge(QObject):
         super().__init__(QGuiApplication.instance())
         self._project_root = Path(project_root) if project_root else Path(__file__).resolve().parents[5]
         self._state_root = Path(state_root) if state_root else app_data_dir()
-        self._personnel = load_personnel(self._project_root / "config" / "personnel.json")
+        self._personnel = load_personnel(self._project_root / "core" / "config" / "personnel.json")
         self._username = ""
         self._authenticated = False
         self._password = ""

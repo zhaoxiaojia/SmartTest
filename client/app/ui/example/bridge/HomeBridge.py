@@ -9,7 +9,7 @@ from urllib.request import Request, urlopen
 from PySide6.QtCore import QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from client.app.ui import jsonTool
+from core.config import jsonTool
 from support.logging import smart_log
 
 try:

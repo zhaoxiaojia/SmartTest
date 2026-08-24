@@ -9,7 +9,7 @@ def _background_command(argv, runner=None, daily_runner=None) -> int | None:
         if arguments != [arguments[0], daily_switch]:
             return 2
         if daily_runner is None:
-            from tool.common.daily_report.background import run_scheduled_batch
+            from core.tools.common.daily_report.background import run_scheduled_batch
             daily_runner = run_scheduled_batch
         return int(daily_runner())
     switches = {weekly_switch}
@@ -19,7 +19,7 @@ def _background_command(argv, runner=None, daily_runner=None) -> int | None:
     if len(arguments) != 3 or arguments[1] != selected or not arguments[2]:
         return 2
     if runner is None:
-        from tool.common.project_weekly_audit.command import run_plan as runner
+        from core.tools.common.project_weekly_audit.command import run_plan as runner
     return int(runner(arguments[2]))
 
 
@@ -55,7 +55,7 @@ def main() -> int:
     sys.path.insert(0, str(ui_root))
 
     from example.main import main as ui_main
-    from testing.build_manifest import load_build_manifest
+    from core.testing.build_manifest import load_build_manifest
     from support.logging import smart_log
 
     manifest = load_build_manifest(root_dir=root)

@@ -13,14 +13,15 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def _android_case_ids_by_function() -> dict[str, str]:
     result: dict[str, str] = {}
-    for path in (ROOT / "testing" / "tests").rglob("test_*.py"):
+    tests_root = ROOT / "core" / "testing" / "tests"
+    for path in tests_root.rglob("test_*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if not isinstance(node, ast.FunctionDef) or not node.name.startswith("test_"):
                 continue
             case_id = _find_case_id(node)
             if case_id:
-                rel = path.relative_to(ROOT).as_posix()
+                rel = path.relative_to(ROOT / "core").as_posix()
                 result[f"{rel}::{node.name}"] = case_id
     return result
 
@@ -47,9 +48,9 @@ def _find_case_id(node: ast.FunctionDef) -> str:
 
 def main() -> None:
     sys.path.insert(0, str(ROOT))
-    from testing.cases.catalog import load_runtime_test_catalog
-    from testing.cases.discovery import discover_pytest_cases
-    from testing.steps.planner import build_step_plan
+    from core.testing.cases.catalog import load_runtime_test_catalog
+    from core.testing.cases.discovery import discover_pytest_cases
+    from core.testing.steps.planner import build_step_plan
 
     case_ids = _android_case_ids_by_function()
     cases = discover_pytest_cases(root_dir=ROOT, python_executable=sys.executable)

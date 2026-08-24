@@ -24,16 +24,16 @@ from support.jira_integration.services.create_issue_service import CreateIssueSe
 from support.jira_integration.services.create_schema_service import JiraCreateSchemaService
 from support.jira_integration.transport.client import JiraClient, JiraClientConfig
 from support.logging import smart_log
-from tool.SmartHome.redmine.auth import RedmineAuthService
-from tool.SmartHome.redmine.attachment_transfer import RedmineAttachmentTransfer
-from tool.SmartHome.redmine.clone_controller import RedmineCloneController
-from tool.SmartHome.redmine.collector import RedmineContextCollector, project_options
-from tool.SmartHome.redmine.issue_controller import RedmineIssueController
-from tool.SmartHome.redmine.issue_analysis_loader import IssueAnalysisLoader, analysis_work_count, consolidate_context
-from tool.SmartHome.redmine.overdue import load_redmine_people
-from tool.SmartHome.redmine.query import RedmineQuery, parse_terms
-from tool.SmartHome.redmine import context_store
-from tool.SmartHome.redmine.models import AuthResult, AuthState, Credential
+from core.tools.SmartHome.redmine.auth import RedmineAuthService
+from core.tools.SmartHome.redmine.attachment_transfer import RedmineAttachmentTransfer
+from core.tools.SmartHome.redmine.clone_controller import RedmineCloneController
+from core.tools.SmartHome.redmine.collector import RedmineContextCollector, project_options
+from core.tools.SmartHome.redmine.issue_controller import RedmineIssueController
+from core.tools.SmartHome.redmine.issue_analysis_loader import IssueAnalysisLoader, analysis_work_count, consolidate_context
+from core.tools.SmartHome.redmine.overdue import load_redmine_people
+from core.tools.SmartHome.redmine.query import RedmineQuery, parse_terms
+from core.tools.SmartHome.redmine import context_store
+from core.tools.SmartHome.redmine.models import AuthResult, AuthState, Credential
 from client.app.ui.example.bridge.ToolBridge import amlogic_employees, employee_department, load_tool_access
 
 
@@ -447,7 +447,7 @@ class RedmineBridge(QObject):
 
     def _jira_identity(self, account, current_user):
         personnel = load_tool_access(
-            Path(__file__).resolve().parents[5] / "config" / "personnel.json"
+            Path(__file__).resolve().parents[5] / "core" / "config" / "personnel.json"
         )
         display_names = {
             str(employee.get("account") or "").strip(): str(
@@ -533,7 +533,7 @@ class RedmineBridge(QObject):
         total_work = analysis_total + len(planned_clone_rows)
         if progress:
             self._emit_data_progress(0, total_work, "analysis")
-        aml_names, _departments = load_redmine_people(Path(__file__).resolve().parents[5] / "config" / "personnel.json")
+        aml_names, _departments = load_redmine_people(Path(__file__).resolve().parents[5] / "core" / "config" / "personnel.json")
         loader = IssueAnalysisLoader(
             page,
             max_concurrency=int(os.getenv("SMARTTEST_REDMINE_DETAIL_CONCURRENCY", "6")),
