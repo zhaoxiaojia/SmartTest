@@ -155,7 +155,7 @@ Wi-Fi Database 前端继续使用真实 API 契约；阶段五后端尚未迁入
 
 ### 阶段六：迁入 Wi-Fi Database 服务端
 
-在 `web/backend/` 建立新后端，只迁入 Wi-Fi Database 所需 API、数据库访问与查询能力。保持阶段五前端使用的真实 API 契约，不整体复制旧 `server/`，不迁入旧 Home 或其他服务端业务。
+在 `web/backend/` 使用 FastAPI 建立新后端，只迁入 Wi-Fi Database 报告展示所需的 `/health`、`/api/filters`、`/api/performance`、只读 MySQL 访问与 SQL 查询能力。保持阶段五前端使用的真实 API 契约，不整体复制旧 Express `server/`，不迁入旧 Home、账号或其他服务端业务。
 
 ### 阶段七：统一开发与持续集成
 
@@ -302,18 +302,32 @@ SmartTest 的 ADB、串口、USB 和实验室设备依赖 Windows 主机环境�
 
 范围：
 
-- 在 `web/backend/` 建立新 Web 后端入口和基础健康检查；
-- 只调查并迁入 Wi-Fi Database 所需的 filters、performance、leaderboard、reports 和数据库访问能力；
-- 保持前端已使用的 API 契约，逐项审查旧 MySQL 查询和数据模型，不整体复制旧 `server/`；
-- Database 需要 SmartTest 核心能力时通过 `core/` 的唯一 owner 调用，不复制测试、参数、步骤、日志或报告机制。
+- 在 `web/backend/` 使用 FastAPI 建立独立后端入口和 `GET /health`；
+- 只迁入阶段五前端实际调用的 `GET /api/filters`、`GET /api/performance`、报告展示数据转换和必要 SQL；
+- 保持现有 MySQL `wifi_test` 表结构和数据不变，只执行参数化只读查询，不建表、不迁移数据、不提供写接口；
+- 数据库连接使用成熟维护的 MySQL 驱动和连接池，连接参数全部来自环境变量，不保留默认密码或凭据；
+- API 参数保持多值 snake_case 查询契约，响应字段保持阶段五前端所需格式；
+- FastAPI 依赖注入负责数据库 owner 替换，自动测试不得依赖真实 MySQL；
+- 不迁入旧 Express 运行时、账号、认证、用户、权限、leaderboard、报告详情、项目进度或其他旧服务端业务；
+- 本阶段 Database 数据独立于 SmartTest 核心，不为形式上的依赖方向创建空 `core` 调用或包装层。
 
 验收：
 
-- `web/frontend -> web/backend -> core` 是唯一 Web 业务调用方向；
-- Web 后端不复制 pytest、参数、DUT、步骤、日志或报告逻辑；
-- API 契约、错误响应和实时事件具有聚焦测试；
-- Wi-Fi Database 的前后端联调通过；
-- 旧 Home 和其他非 Database 服务端模块不会进入新运行路径或生产构建。
+- FastAPI 后端可独立安装、启动，`/health` 不依赖数据库即可报告服务状态；
+- filters/performance 的查询参数、SQL 参数顺序、只读约束、响应转换和错误响应具有聚焦测试；
+- 前端与 FastAPI 契约测试通过，真实 MySQL 可用时完成只读联调；未提供环境时明确记录未验证项；
+- 后端不导入前端、客户端或移动端，也不复制 pytest、参数、DUT、步骤、日志或报告机制；
+- 依赖审计、编译、测试和产品边界检查通过；
+- 旧 Home、账号及其他非 Database 服务端模块不会进入新运行路径或交付内容。
+
+执行清单：
+
+- [ ] 先以契约测试固定 `/health`、filters/performance 参数、响应与数据库不可用错误；
+- [ ] 建立最小 FastAPI 包、锁定依赖、环境变量配置和无凭据启动边界；
+- [ ] 建立可注入的只读 MySQL 查询 owner，禁止非 `SELECT`/`WITH` 语句进入执行路径；
+- [ ] 从旧服务端迁移 filters/performance 必要参数化 SQL 和报告字段转换，不迁未使用查询；
+- [ ] 完成前后端契约、服务启动、依赖审计、编译和边界验证；
+- [ ] 在可用 MySQL 环境中完成只读联调；若当前环境未提供连接参数，记录为阶段六外部验收限制。
 
 ### 10.7 阶段七：统一开发入口与 CI
 
