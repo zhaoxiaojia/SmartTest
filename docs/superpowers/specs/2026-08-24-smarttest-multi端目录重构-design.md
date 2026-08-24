@@ -159,18 +159,28 @@ Wi-Fi Database 前端继续使用真实 API 契约；阶段五后端尚未迁入
 
 ### 阶段七：统一开发与持续集成
 
-建立桌面端、Web 端、移动端的独立启动与验证入口，以及需要时的一键联调入口。CI 按受影响目录执行对应检查，同时保留跨层契约和端到端验证。
+建立桌面端、Web 端、移动端的独立启动与验证入口，以及需要时的一键联调入口。仓库级 Python 入口统一编排开发、检查和打包，但复用现有产品脚本作为实际构建 owner，不复制 PyInstaller、Inno Setup、Gradle 或平台签名逻辑。
+
+Web 只参与开发、测试和前端构建检查，不提供发布打包。统一打包只覆盖 SmartTest Client、SmartTest Tool Client 和移动端 APK；`package all` 固定按 `mobile -> client -> tool` 执行，使桌面安装包复用同一次构建产生的平台签名 APK。
+
+普通提交和 Pull Request 只运行 CI 检查。推送 `v*` 版本标签时，GitHub Actions 将发布任务调度到公司 Windows 自托管 Runner，依次生成平台签名 APK、SmartTest Client 安装程序和 SmartTest Tool Client 压缩包，并上传工作流产物。发布任务不打包 Web。
+
+自托管 Runner 作为 Windows 服务运行，使用独立且稳定的工作目录与固定标签。Inno Setup、Android SDK、JDK、Python、Node.js 和平台签名材料由该机器本地维护；签名证书、私钥、Runner 注册令牌和 GitHub 凭据不得写入仓库、日志或工作流产物。GitHub 托管 Runner 不执行平台签名。
 
 ## 7. 开发运行模式
 
 计划提供以下仓库级入口：
 
 ```powershell
-.\support\dev\start-client.ps1
-.\support\dev\start-web.ps1
-.\support\dev\start-mobile.ps1
-.\support\dev\start-all.ps1
+python support/smarttest.py dev client
+python support/smarttest.py dev web
+python support/smarttest.py dev mobile
+python support/smarttest.py dev all
+python support/smarttest.py check client|web|mobile|all
+python support/smarttest.py package client|tool|mobile|all
 ```
+
+`package web` 不存在并返回明确错误。统一入口负责参数校验、调用顺序、退出码和结果摘要；各产品已有构建脚本继续负责实际构建与产物校验。
 
 SmartTest 的 ADB、串口、USB 和实验室设备依赖 Windows 主机环境，因此核心执行服务开发期默认直接运行在主机，不强制容器化。Web 前端和通用数据库可按实际需要使用容器，但不能改变核心硬件访问边界。
 
@@ -333,16 +343,31 @@ SmartTest 的 ADB、串口、USB 和实验室设备依赖 Windows 主机环境�
 
 范围：
 
-- 完成 `start-client.ps1`、`start-web.ps1`、`start-mobile.ps1` 和必要的一键联调入口；
+- 完成 `support/smarttest.py`，统一提供 `dev`、`check` 和 `package` 命令；
+- `package` 仅支持 `client`、`tool`、`mobile` 和 `all`，复用现有三个打包 owner；Web 不提供打包；
 - 根据变更目录路由客户端、核心、Web 和 Android 检查；
-- 增加跨层契约和关键端到端验证，不建立第二套测试执行机制。
+- 增加跨层契约和关键端到端验证，不建立第二套测试执行机制；
+- 增加普通提交/PR 检查工作流，以及由 `v*` 标签触发、运行于公司 Windows 自托管 Runner 的发布打包工作流；
+- 为当前公司电脑安装 Inno Setup，将 GitHub Actions Runner 注册为 Windows 服务，并验证本机签名材料只在发布构建过程中使用。
 
 验收：
 
 - 各端可独立开发和验证，联调入口能够明确报告每个进程的地址与失败原因；
 - CI 能在相关目录变化时运行对应检查，并覆盖共享契约变化的消费者；
+- 普通提交和 PR 不生成正式包；`v*` 标签能够生成并上传签名 APK、SmartTest Client 安装程序和 SmartTest Tool Client 压缩包；
+- Web 的 CI 测试和构建通过，但任何统一入口或工作流都不生成 Web 发布包；
+- Runner、签名和 GitHub 凭据不进入仓库、日志或发布产物；
 - Windows 主机上的 ADB、串口、USB 和实验室设备访问不因开发编排被强制容器化；
 - 开发文档与实际命令一致。
+
+执行清单：
+
+- [ ] 统一入口及其持久行为测试完成；
+- [ ] 开发、检查和三个产品打包命令复用既有 owner；
+- [ ] 普通 CI 与 `v*` 标签发布工作流完成；
+- [ ] 公司 Windows 自托管 Runner、Inno Setup 和本地签名环境完成配置；
+- [ ] 普通 CI 和本机三个产品打包完成最高可行验证；
+- [ ] 文档、差异检查和交付门禁通过。
 
 ### 10.8 每阶段交付门禁
 
