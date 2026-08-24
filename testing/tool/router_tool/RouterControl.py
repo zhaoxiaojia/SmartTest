@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 
-from ui.yamlTool import yamlTool
+from client.app.ui.yamlTool import yamlTool
 
 REGION_CHANNEL_MAP = {
         "US": {

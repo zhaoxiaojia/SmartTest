@@ -6,9 +6,12 @@ from pathlib import Path
 
 from support.ci.check_product_boundaries import (
     ANDROID_RULES,
+    DESKTOP_RULES,
     _check_active_android_rules,
+    _check_active_desktop_rules,
     _check_android_location,
     _check_core,
+    _check_desktop_location,
     _check_web_frontend,
 )
 
@@ -96,6 +99,36 @@ class ProductBoundaryCheckTests(unittest.TestCase):
         failures = _check_active_android_rules(self.root)
 
         self.assertEqual(failures, ["AGENTS.md: contains legacy Android filesystem path"])
+
+    def test_desktop_product_accepts_only_client_location(self) -> None:
+        self._write("client/app/main.py", "")
+        self._write("client/app/ui/__init__.py", "")
+
+        self.assertEqual(_check_desktop_location(self.root), [])
+
+    def test_desktop_product_rejects_legacy_or_incomplete_location(self) -> None:
+        self._write("main.py", "")
+        (self.root / "ui").mkdir()
+
+        self.assertEqual(len(_check_desktop_location(self.root)), 4)
+
+    def test_active_desktop_rules_use_client_path(self) -> None:
+        for relative, required in DESKTOP_RULES.items():
+            self._write(relative, required)
+
+        self.assertEqual(_check_active_desktop_rules(self.root), [])
+
+    def test_active_desktop_rules_require_new_entrypoint(self) -> None:
+        for relative, required in DESKTOP_RULES.items():
+            self._write(relative, required)
+        self._write(".codex/skills/smarttest-ui-workflow/SKILL.md", "client/app/main.py\npython main.py")
+
+        failures = _check_active_desktop_rules(self.root)
+
+        self.assertEqual(
+            failures,
+            [".codex/skills/smarttest-ui-workflow/SKILL.md: contains legacy desktop filesystem path"],
+        )
 
 
 if __name__ == "__main__":

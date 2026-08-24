@@ -55,13 +55,13 @@ APK 模式仍必须有 `testing/tests/android/**/test_*.py`。它只使用 `test
 普通用例不新增专用 QML。参数由以下通用 owner 渲染和持久化：
 
 ```text
-ui/example/imports/example/qml/page/T_TestConfig.qml
-ui/example/bridge/TestPageBridge.py
-ui/jsonTool.py
+client/app/ui/example/imports/example/qml/page/T_TestConfig.qml
+client/app/ui/example/bridge/TestPageBridge.py
+client/app/ui/jsonTool.py
 %LOCALAPPDATA%\Amlogic\SmartTest\test_page_state.json
 ```
 
-只有新增公共参数类型/交互时才修改 QML/bridge。固定文字同时更新 `ui/example/example_en_US.ts` 和 `example_zh_CN.ts`。
+只有新增公共参数类型/交互时才修改 QML/bridge。固定文字同时更新 `client/app/ui/example/example_en_US.ts` 和 `example_zh_CN.ts`。
 
 参数业务合同写在 `testing/params/contracts.py`，key 使用 `<case_id>:<param_id>`。每个参数记录：
 
@@ -143,7 +143,7 @@ timeout, evidence type, pass/skip/fail rule, dependency, cleanup
 
 ## 8. 报告合同
 
-报告 owner：`testing/test_context.py`、`support/report/`、`support/report/json/store.py`、`ui/example/bridge/ReportBridge.py`。
+报告 owner：`testing/test_context.py`、`support/report/`、`support/report/json/store.py`、`client/app/ui/example/bridge/ReportBridge.py`。
 
 必须呈现：
 

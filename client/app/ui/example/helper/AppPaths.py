@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ui import jsonTool
+from client.app.ui import jsonTool
 
 
 def app_data_dir() -> Path:

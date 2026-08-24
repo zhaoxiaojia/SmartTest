@@ -4,7 +4,7 @@ from testing.tool.dut_tool import command_batch as subprocess
 import time
 import locale
 
-from ui.yamlTool import yamlTool
+from client.app.ui.yamlTool import yamlTool
 from support.logging import smart_log
 
 

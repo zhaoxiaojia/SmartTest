@@ -17,7 +17,7 @@ Use Atlas only for read-only work, mechanical extraction, simple checks, and sma
 
 Before work, load every matching owner skill:
 
-- `ui/**`: `smarttest-ui-workflow`
+- `client/app/ui/**`: `smarttest-ui-workflow`
 - `testing/**`: `smarttest-testing-workflow`
 - case extraction/development: `smarttest-case-development`
 - `mobile/android/**`: `smarttest-android-workflow`

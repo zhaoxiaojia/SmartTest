@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from ui import jsonTool
+from client.app.ui import jsonTool
 
 
 def load_json(path: Path, default: dict[str, Any] | None = None) -> dict[str, Any]:

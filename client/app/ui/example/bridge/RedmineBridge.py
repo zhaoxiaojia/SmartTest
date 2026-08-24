@@ -34,7 +34,7 @@ from tool.SmartHome.redmine.overdue import load_redmine_people
 from tool.SmartHome.redmine.query import RedmineQuery, parse_terms
 from tool.SmartHome.redmine import context_store
 from tool.SmartHome.redmine.models import AuthResult, AuthState, Credential
-from ui.example.bridge.ToolBridge import amlogic_employees, employee_department, load_tool_access
+from client.app.ui.example.bridge.ToolBridge import amlogic_employees, employee_department, load_tool_access
 
 
 async def _native_query(collector, filters):
@@ -447,7 +447,7 @@ class RedmineBridge(QObject):
 
     def _jira_identity(self, account, current_user):
         personnel = load_tool_access(
-            Path(__file__).resolve().parents[3] / "config" / "personnel.json"
+            Path(__file__).resolve().parents[5] / "config" / "personnel.json"
         )
         display_names = {
             str(employee.get("account") or "").strip(): str(
@@ -533,7 +533,7 @@ class RedmineBridge(QObject):
         total_work = analysis_total + len(planned_clone_rows)
         if progress:
             self._emit_data_progress(0, total_work, "analysis")
-        aml_names, _departments = load_redmine_people(Path(__file__).resolve().parents[3] / "config" / "personnel.json")
+        aml_names, _departments = load_redmine_people(Path(__file__).resolve().parents[5] / "config" / "personnel.json")
         loader = IssueAnalysisLoader(
             page,
             max_concurrency=int(os.getenv("SMARTTEST_REDMINE_DETAIL_CONCURRENCY", "6")),

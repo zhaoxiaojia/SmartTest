@@ -8,7 +8,7 @@ from typing import Any, Callable
 
 import cv2
 
-from ui import jsonTool
+from client.app.ui import jsonTool
 
 
 ProgressCallback = Callable[[dict[str, Any]], None]

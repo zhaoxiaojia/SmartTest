@@ -38,8 +38,8 @@ from example.bridge.DebugBridge import DebugBridge
 from example.bridge.BootVideoBridge import BootVideoBridge
 from example.context_registry import register_context_objects, start_context_services
 from support.logging import smart_log
-from ui.jsonTool import app_data_dir
-from ui.page_state_migration import migrate_frontend_state
+from client.app.ui.jsonTool import app_data_dir
+from client.app.ui.page_state_migration import migrate_frontend_state
 
 _uri = "example"
 _major = 1
@@ -50,7 +50,7 @@ def _runtime_root() -> Path:
     packaged_root = getattr(sys, "_MEIPASS", None)
     if packaged_root:
         return Path(packaged_root)
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[4]
 
 
 def _exit_code_from_event_result(result) -> int:

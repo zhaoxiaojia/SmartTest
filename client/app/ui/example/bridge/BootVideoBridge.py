@@ -21,7 +21,7 @@ from testing.tool.boot_video.templates import TemplateManager
 try:
     from example.helper.AppPaths import app_data_dir
 except ImportError:  # pragma: no cover
-    from ui.example.helper.AppPaths import app_data_dir
+    from client.app.ui.example.helper.AppPaths import app_data_dir
 
 
 class BootVideoBridge(QObject):

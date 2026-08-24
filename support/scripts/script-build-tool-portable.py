@@ -193,8 +193,8 @@ def build_portable() -> None:
     scripts = ROOT / "support" / "scripts"
     subprocess.run([env.python(), str(scripts / "script-update-translations.py")], check=True)
     subprocess.run([
-        env.pyside6_rcc(), str(ROOT / "ui/example/imports/tool_resource.qrc"),
-        "-o", str(ROOT / "ui/example/imports/tool_resource_rc.py"),
+        env.pyside6_rcc(), str(ROOT / "client/app/ui/example/imports/tool_resource.qrc"),
+        "-o", str(ROOT / "client/app/ui/example/imports/tool_resource_rc.py"),
     ], check=True)
     subprocess.run([env.python(), str(scripts / "script-build-manifest.py")], check=True)
     build_environment = env.environment()

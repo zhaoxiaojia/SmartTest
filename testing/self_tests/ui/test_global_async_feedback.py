@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from testing.tool.dut_tool.parameter_helper import ParameterHelper
-from ui.example.bridge.TestPageBridge import TestPageBridge as PageBridge
+from client.app.ui.example.bridge.TestPageBridge import TestPageBridge as PageBridge
 
 
 def test_dut_scan_publishes_without_waiting_for_android_client_prepare() -> None:

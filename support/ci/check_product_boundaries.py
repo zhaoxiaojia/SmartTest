@@ -25,6 +25,18 @@ ANDROID_RULES = {
         "mobile/android/app/src/main/java/com/smarttest/mobile/runner/cases/"
     ),
 }
+DESKTOP_RULES = {
+    "AGENTS.md": "client/app/ui/**",
+    ".codex/skills/smarttest-dual-codex-delivery/SKILL.md": "client/app/ui/**",
+    ".codex/skills/smarttest-ui-workflow/SKILL.md": "client/app/main.py",
+    ".codex/skills/smarttest-testing-workflow/SKILL.md": "client/app/ui/jsonTool.py",
+    ".codex/skills/smarttest-case-development/references/case-implementation-template.md": (
+        "client/app/ui/example/bridge/TestPageBridge.py"
+    ),
+}
+LEGACY_DESKTOP_RULE_PATH = re.compile(
+    r"(?<!client/app/)ui/(?:\*\*|example|jsonTool|yamlTool|FluentUI)|python(?:\.exe)?\s+main\.py"
+)
 
 
 def _forbidden_python_imports(path: Path, root: Path) -> set[str]:
@@ -118,6 +130,33 @@ def _check_active_android_rules(root: Path = ROOT) -> list[str]:
     return failures
 
 
+def _check_desktop_location(root: Path = ROOT) -> list[str]:
+    failures: list[str] = []
+    if (root / "main.py").exists():
+        failures.append("main.py: legacy desktop entrypoint must not exist")
+    if (root / "ui").exists():
+        failures.append("ui/: legacy desktop UI path must not exist")
+    for relative in ("client/app/main.py", "client/app/ui/__init__.py"):
+        if not (root / relative).is_file():
+            failures.append(f"{relative}: missing desktop product entry")
+    return failures
+
+
+def _check_active_desktop_rules(root: Path = ROOT) -> list[str]:
+    failures: list[str] = []
+    for relative, required in DESKTOP_RULES.items():
+        path = root / relative
+        if not path.is_file():
+            failures.append(f"{relative}: missing active repository rule")
+            continue
+        source = path.read_text(encoding="utf-8").replace("\\", "/")
+        if required not in source:
+            failures.append(f"{relative}: missing active client/app path")
+        if LEGACY_DESKTOP_RULE_PATH.search(source):
+            failures.append(f"{relative}: contains legacy desktop filesystem path")
+    return failures
+
+
 def main() -> int:
     missing = [name for name in PRODUCTS if not (ROOT / name / "README.md").is_file()]
     failures = [f"{name}/README.md: missing product boundary documentation" for name in missing]
@@ -125,6 +164,8 @@ def main() -> int:
     failures.extend(_check_web_frontend())
     failures.extend(_check_android_location())
     failures.extend(_check_active_android_rules())
+    failures.extend(_check_desktop_location())
+    failures.extend(_check_active_desktop_rules())
     if failures:
         print("Product boundary check failed:", file=sys.stderr)
         for failure in failures:

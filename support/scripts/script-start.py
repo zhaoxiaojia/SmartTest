@@ -22,7 +22,7 @@ if __name__ == "__main__":
         r2 = subprocess.run(cmd2)
         print("RC :", r2.returncode)
 
-    cmd3 = [env.python(), os.path.join(env.uiProjectPath(env.projectName), "main.py")]
+    cmd3 = [env.python(), os.path.join("client", "app", "main.py")]
     print("RUN:", cmd3)
     r3 = subprocess.run(cmd3, env=env.environment())
     print("RC :", r3.returncode)

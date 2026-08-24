@@ -32,7 +32,7 @@ def _run_packaging_preflight(repo_root: Path) -> None:
     for test_dir in pytest_dirs:
         if test_dir.exists():
             _run([python, "-m", "pytest", str(test_dir.relative_to(repo_root)), "-q"], cwd=str(repo_root))
-    _run([python, "-m", "compileall", "testing", "support", str(Path("ui") / "example" / "bridge")], cwd=str(repo_root))
+    _run([python, "-m", "compileall", "testing", "support", str(Path("client") / "app" / "ui" / "example" / "bridge")], cwd=str(repo_root))
 
 
 def _verify_dist_runtime(repo_root: Path) -> None:
@@ -48,7 +48,7 @@ def _verify_dist_runtime(repo_root: Path) -> None:
         repo_root / "dist" / "testing",
         repo_root / "dist" / "support",
         repo_root / "dist" / "support" / "param_conversion.py",
-        repo_root / "dist" / "ui",
+        repo_root / "dist" / "client" / "app" / "ui",
     ]
     missing = [str(path) for path in required_paths if not path.exists()]
     if missing:
@@ -59,7 +59,7 @@ def _verify_dist_runtime(repo_root: Path) -> None:
         [
             str(runtime_python),
             "-c",
-            "import sys; sys.path.insert(0, r'dist'); import support.param_conversion; import testing.params.options; import cv2; import testing.tool.boot_video.service; import ui.example.bridge.BootVideoBridge",
+            "import sys; sys.path.insert(0, r'dist'); import support.param_conversion; import testing.params.options; import cv2; import testing.tool.boot_video.service; import client.app.ui.example.bridge.BootVideoBridge",
         ],
         cwd=str(repo_root),
     )

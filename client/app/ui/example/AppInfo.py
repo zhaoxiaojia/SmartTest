@@ -47,7 +47,7 @@ class AppInfo(QObject):
         self._updateDownloadUrl = ""
 
     def _load_build_manifest(self):
-        root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+        root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[4]))
         path = root / "build" / "generated" / "build_manifest.json"
         if not path.exists():
             return {}

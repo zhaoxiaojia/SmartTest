@@ -7,7 +7,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, Signal
 
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "ui"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "client" / "app" / "ui"))
 jira_module = importlib.import_module("example.bridge.JiraBridge")
 jira_audit_module = importlib.import_module("example.bridge.JiraAuditBridge")
 confluence_module = importlib.import_module("example.bridge.ConfluenceAuditBridge")

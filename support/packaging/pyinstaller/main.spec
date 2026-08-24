@@ -8,7 +8,7 @@ APP_NAME = "SmartTest"
 def _find_repo_root(start_dir: str) -> str:
     cur = os.path.abspath(start_dir)
     for _ in range(8):
-        if os.path.isfile(os.path.join(cur, "main.py")):
+        if os.path.isfile(os.path.join(cur, "client", "app", "main.py")):
             return cur
         parent = os.path.dirname(cur)
         if parent == cur:
@@ -18,8 +18,8 @@ def _find_repo_root(start_dir: str) -> str:
 
 
 repo_root = os.environ.get("SMARTTEST_REPO_ROOT") or _find_repo_root(os.getcwd())
-mainPath = os.path.join(repo_root, "main.py")
-ui_root = os.path.join(repo_root, "ui")
+mainPath = os.path.join(repo_root, "client", "app", "main.py")
+ui_root = os.path.join(repo_root, "client", "app", "ui")
 test_catalog = os.path.join(repo_root, "build", "generated", "testing", "cases", "test_catalog.json")
 testing_root = os.path.join(repo_root, "testing")
 support_root = os.path.join(repo_root, "support")
@@ -64,7 +64,7 @@ a = Analysis(
     datas=[
         (
             ui_root,
-            "ui",
+            os.path.join("client", "app", "ui"),
         ),
         (
             testing_root,
@@ -143,7 +143,7 @@ a = Analysis(
         "cv2",
         "numpy",
         "matplotlib",
-        "ui.example.bridge.BootVideoBridge",
+        "client.app.ui.example.bridge.BootVideoBridge",
         "testing.tool.boot_video",
         "testing.tool.boot_video.analyzer",
         "testing.tool.boot_video.camera",

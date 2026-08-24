@@ -21,9 +21,9 @@ description: Use when changing SmartTest testing/, pytest discovery/execution, r
 | `testing/reporting/store.py` | report JSON save/load/list/path only |
 | `tools/report.py` | report construction, summaries/filters, HTML/PDF, filenames |
 
-`testing/` does not import UI except `ui/jsonTool.py` for persisted frontend state and `ui/yamlTool.py` for shared YAML. QML calls testing only through registered Python bridges. Avoid re-export/pass-through facades; import the business owner directly unless a stable external boundary is required.
+`testing/` does not import UI except `client/app/ui/jsonTool.py` for persisted frontend state and `client/app/ui/yamlTool.py` for shared YAML. QML calls testing only through registered Python bridges. Avoid re-export/pass-through facades; import the business owner directly unless a stable external boundary is required.
 
-Keep new modules in their business layer: `ui/` presentation/bridges, `testing/` pytest/runtime/tools/reporting, `debug/` debugging utilities, and `jira/` Jira integration.
+Keep new modules in their business layer: `client/app/ui/` presentation/bridges, `testing/` pytest/runtime/tools/reporting, `debug/` debugging utilities, and `jira/` Jira integration.
 
 Before adding code, choose `reuse`, `extend owner`, `consolidate duplication`, or `new owner` with a concrete gap. Delete thin forwarding/renaming wrappers and stale compatibility paths. Prefer less coupling and net code over file shuffling; no case/value/file-specific mechanism unless explicitly requested.
 
@@ -52,7 +52,7 @@ Resolve DUT serial once at the run boundary and carry it in `RunConfig`. Do not 
 - `requires_params` exposes inputs; only `required_at_start=True` blocks a run. Keep markers beside cases and scopes explicit: `global_context`, `case_type_shared`, or `case`.
 - Testing metadata is UI-neutral: keys, types, defaults, scopes, groups, option sources, runtime values. Frontend wording belongs to the UI skill.
 - Dynamic DUT/env options use contract declarations and `testing/tool/dut_tool/parameter_helper.py`; no page, case, or field-specific refresh helper.
-- Frontend values come from `%LOCALAPPDATA%\Amlogic\SmartTest` JSON through `ui/jsonTool.py` and are read at business use through `testing/params/runtime.py`.
+- Frontend values come from `%LOCALAPPDATA%\Amlogic\SmartTest` JSON through `client/app/ui/jsonTool.py` and are read at business use through `testing/params/runtime.py`.
 - Conversion belongs only to `tools/param_conversion.py`; never add `_int_param`, `_float_param`, `int(float(...))`, or equivalent private converters.
 - Pass stable identities across layers (nodeid, serial, source, request id, equipment), not copied values.
 - Android-mirrored keys are case-scoped (`caseId:paramId`) and align with `SmartTestCatalog.kt`. Frontend checkpoint `None` means skip: omit it from APK requests; Android readers also treat `"None"`/`"none"` as absent.

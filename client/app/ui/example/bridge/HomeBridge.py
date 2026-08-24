@@ -9,13 +9,13 @@ from urllib.request import Request, urlopen
 from PySide6.QtCore import QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from ui import jsonTool
+from client.app.ui import jsonTool
 from support.logging import smart_log
 
 try:
     from example.helper.AppPaths import app_data_dir
 except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
-    from ui.example.helper.AppPaths import app_data_dir
+    from client.app.ui.example.helper.AppPaths import app_data_dir
 
 _BING_ARCHIVE_URL = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN"
 

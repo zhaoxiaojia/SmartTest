@@ -323,7 +323,7 @@ def test_all_exposed_middle_screen_parameter_texts_are_translated(tmp_path) -> N
 
     exposed = {key for case in MIDDLE_SCREEN_CASES for key in case.parameters}
     for locale in ("zh_CN", "en_US"):
-        path = __import__("pathlib").Path(f"ui/example/example_{locale}.ts")
+        path = __import__("pathlib").Path(f"client/app/ui/example/example_{locale}.ts")
         root = ElementTree.parse(path).getroot()
         context = next(item for item in root.findall("context") if item.findtext("name") == "TestPageBridge")
         translations = {str(message.findtext("source") or ""): str(message.findtext("translation") or "") for message in context.findall("message")}

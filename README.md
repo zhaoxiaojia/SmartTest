@@ -15,7 +15,7 @@ mobile ------> web/backend -> core
 - `web/`：Web 前端与后端，前端不得直接调用 `core/`；
 - `mobile/`：Android/移动端及平台专属能力。
 
-当前已完成 Android 工程目录迁移：桌面入口仍为根目录 `main.py`，QML 位于 `ui/`，测试核心位于 `testing/`，Android 工程位于 `mobile/android/`。目录边界可通过 `python support/ci/check_product_boundaries.py` 检查。
+当前桌面入口位于 `client/app/main.py`，QML 位于 `client/app/ui/`，测试核心仍位于 `testing/`，Android 工程位于 `mobile/android/`。从仓库根目录运行 `python client/app/main.py` 启动桌面端；目录边界可通过 `python support/ci/check_product_boundaries.py` 检查。
 
 <div align=center>
   <img width=64 src="doc/preview/fluent_design.svg">

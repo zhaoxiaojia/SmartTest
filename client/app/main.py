@@ -30,24 +30,26 @@ def _runtime_root():
     packaged_root = getattr(sys, "_MEIPASS", None)
     if packaged_root:
         return Path(packaged_root)
-    return Path(__file__).resolve().parent
+    return Path(__file__).resolve().parents[2]
 
 
 def main() -> int:
     """
     Single entrypoint for SmartTest.
 
-    UI code lives under `ui/` and is executed from source (FluentUI/QML).
+    UI code lives under `client/app/ui/` and is executed from source (FluentUI/QML).
     """
     import sys
     from pathlib import Path
+
+    root = _runtime_root()
+    sys.path.insert(0, str(root))
 
     background_result = _background_command(sys.argv)
     if background_result is not None:
         return background_result
 
-    root = _runtime_root()
-    ui_root = root / "ui"
+    ui_root = root / "client" / "app" / "ui"
     # Ensure we import the in-repo FluentUI/example packages instead of any
     # similarly-named site-packages installed in the venv.
     sys.path.insert(0, str(ui_root))

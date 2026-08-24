@@ -26,7 +26,7 @@ def resolve_launch_command(
     if packaged:
         return LaunchCommand(resolved_executable)
     script = Path(
-        main_script or Path(__file__).resolve().parents[2] / "main.py"
+        main_script or Path(__file__).resolve().parents[2] / "client" / "app" / "main.py"
     ).resolve()
     return LaunchCommand(resolved_executable, (str(script),))
 

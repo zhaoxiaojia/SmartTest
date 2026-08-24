@@ -14,7 +14,7 @@ from typing import Any, Callable
 from uuid import uuid4
 
 from support.param_conversion import normalize_value, to_bool, to_float, to_int, to_string, to_string_list, wire_string
-from ui import jsonTool
+from client.app.ui import jsonTool
 
 from testing.params.registry import SchemaRegistry, default_registry
 from testing.params.schema import ParamScope, ParamValueType, defaults_for_schema

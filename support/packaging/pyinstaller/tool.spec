@@ -8,12 +8,12 @@ if repo_root not in sys.path:
 from support.packaging.tool_runtime_resources import pyinstaller_datas
 from support.packaging.tool_runtime_dependencies import TOOL_HIDDEN_IMPORTS
 
-entry = os.path.join(repo_root, "ui", "example", "tool_main.py")
+entry = os.path.join(repo_root, "client", "app", "ui", "example", "tool_main.py")
 hooks_root = os.path.join(repo_root, "support", "packaging", "pyinstaller", "hooks")
 
 a = Analysis(
     [entry],
-    pathex=[repo_root, os.path.join(repo_root, "ui")],
+    pathex=[repo_root, os.path.join(repo_root, "client", "app", "ui")],
     binaries=[],
     datas=pyinstaller_datas(repo_root),
     hiddenimports=list(TOOL_HIDDEN_IMPORTS),

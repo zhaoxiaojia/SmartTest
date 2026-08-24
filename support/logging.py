@@ -136,7 +136,7 @@ def _normalize_domain(domain: str | None) -> str:
 def _infer_source_and_domain() -> tuple[str, str]:
     frame = sys._getframe(2)
     module_name = str(frame.f_globals.get("__name__", "") or "")
-    if module_name.startswith("ui."):
+    if module_name.startswith("client.app.ui."):
         return module_name, "ui"
     if module_name.startswith("testing.runner"):
         return module_name, "runner"

@@ -1,0 +1,1 @@
+"""SmartTest desktop application."""

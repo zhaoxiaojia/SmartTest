@@ -14,7 +14,7 @@ from typing import Any
 from PySide6.QtCore import QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from ui import jsonTool
+from client.app.ui import jsonTool
 from support.logging import smart_log
 from support.windows_credentials import (
     CredentialNotFoundError,
@@ -27,7 +27,7 @@ from .auth_accounts import AuthAccountStore, account_id_for_username
 try:
     from example.helper.AppPaths import app_data_dir
 except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
-    from ui.example.helper.AppPaths import app_data_dir
+    from client.app.ui.example.helper.AppPaths import app_data_dir
 
 try:
     from ldap3 import ALL, NTLM, SUBTREE, Connection, Server
@@ -149,7 +149,7 @@ class AuthBridge(QObject):
         authentication_runner=None,
     ):
         super().__init__(QGuiApplication.instance())
-        self._project_root = Path(project_root) if project_root else Path(__file__).resolve().parents[3]
+        self._project_root = Path(project_root) if project_root else Path(__file__).resolve().parents[5]
         self._state_root = Path(state_root) if state_root else app_data_dir()
         self._personnel = load_personnel(self._project_root / "config" / "personnel.json")
         self._username = ""

@@ -26,7 +26,7 @@ from support.logging import smart_log
 try:
     from example.helper.AppPaths import app_data_dir
 except ImportError:  # pragma: no cover - direct unit-test imports may use the ui.example package path
-    from ui.example.helper.AppPaths import app_data_dir
+    from client.app.ui.example.helper.AppPaths import app_data_dir
 
 
 class TestPageBridge(QObject):

@@ -19,7 +19,7 @@ if __name__ == "__main__":
     subprocess.run([env.python(), os.path.join(scripts_dir, 'script-update-resource.py')], check=True)
 
     repo_root = os.path.abspath(".")
-    path = os.path.join(repo_root, 'main.py')
+    path = os.path.join(repo_root, "client", "app", "main.py")
     assets_dir = os.path.join(repo_root, "support", "packaging", "assets")
     args = [
         env.nuitka(),

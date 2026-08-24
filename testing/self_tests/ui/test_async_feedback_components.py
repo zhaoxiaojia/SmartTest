@@ -13,7 +13,7 @@ def test_shared_async_feedback_components_load_with_public_contract() -> None:
     script = r"""
 import os
 import sys
-sys.path.insert(0, os.path.join(os.environ["SMARTTEST_ROOT"], "ui"))
+sys.path.insert(0, os.path.join(os.environ["SMARTTEST_ROOT"], "client", "app", "ui"))
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
@@ -55,7 +55,7 @@ if warnings:
 
 
 def test_production_qml_uses_shared_feedback_owners() -> None:
-    qml_root = ROOT / "ui/example/imports/example/qml"
+    qml_root = ROOT / "client/app/ui/example/imports/example/qml"
     excluded = {"T_Progress.qml", "T_Buttons.qml", "T_Dialog.qml", "CodeExpander.qml", "AppLoadingIndicator.qml", "AppTaskProgress.qml"}
     offenders = []
     for path in qml_root.rglob("*.qml"):
@@ -68,7 +68,7 @@ def test_production_qml_uses_shared_feedback_owners() -> None:
 
 
 def test_test_config_binds_visible_scan_stage_progress_error_and_duplicate_guard() -> None:
-    source = (ROOT / "ui/example/imports/example/qml/page/T_TestConfig.qml").read_text(encoding="utf-8")
+    source = (ROOT / "client/app/ui/example/imports/example/qml/page/T_TestConfig.qml").read_text(encoding="utf-8")
     required_bindings = (
         'enabled: !TestPageBridge.dutRefreshRunning',
         'text: qsTr("Scanning ADB devices")',

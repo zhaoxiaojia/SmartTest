@@ -21,7 +21,7 @@ def _venvDir():
 
 
 def uiRoot():
-    return os.path.join(".", "ui")
+    return os.path.join(".", "client", "app", "ui")
 
 
 def uiProjectPath(name: str):
