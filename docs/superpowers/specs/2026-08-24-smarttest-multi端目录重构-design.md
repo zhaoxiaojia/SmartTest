@@ -6,7 +6,7 @@ SmartTest 将在保留 Windows 桌面客户端的基础上逐步增加 Web 端�
 
 本次重构的目标是建立清晰的多端目录和单一核心业务边界，使桌面端、Web 端和移动端能够共享 SmartTest 核心能力，同时保持各端界面、平台集成和发布流程相互独立。
 
-旧 Web 仓库后续逐步迁入当前仓库。迁移采用“迁入一个业务模块、适配一个业务模块”的方式，不进行一次性覆盖或整体替换。
+旧 Web 仓库后续只迁入 Wi-Fi Database（Wi-Fi 质量体系报告）业务线。迁移采用“迁入一个业务模块、适配一个业务模块”的方式，不进行一次性覆盖或整体替换；旧 Home 和其他 Web 业务不迁入。
 
 ## 2. 已确认的架构决策
 
@@ -103,7 +103,7 @@ mobile ------> web/backend -> core
 
 `web/backend/` 负责 HTTP API、实时事件传输、认证、请求编排以及 Web 运行边界。凡是涉及测试执行、参数、设备、日志和报告的业务行为，必须调用 `core/`，不得在 Web 后端复制实现。
 
-`web/legacy/` 仅作为旧 Web 仓库迁移期间的临时隔离区。每个旧模块完成适配后，应删除对应旧实现，禁止形成长期并行的新旧业务路径。
+`web/legacy/` 仅用于确有必要且经 Coco 批准的临时隔离审查。Wi-Fi Database 迁移默认从旧仓库按文件调查后直接适配到新 owner，不整体复制旧前端或旧服务端；禁止形成长期并行的新旧业务路径。
 
 ### 4.4 `mobile/`
 
@@ -120,8 +120,8 @@ mobile ------> web/backend -> core
 | `jira/` | `core/jira/` |
 | `config/` | `core/config/` |
 | `android_client/` | `mobile/android/` |
-| 旧 Web 仓库 `src/` | `web/frontend/` |
-| 旧 Web 仓库 `server/` | 先进入 `web/legacy/`，再逐项适配至 `web/backend/` |
+| 旧 Web 仓库 Wi-Fi Database 所需 `src/` | 最小依赖迁入 `web/frontend/` |
+| 旧 Web 仓库 Wi-Fi Database 所需 `server/` | 后续逐项适配至 `web/backend/`，不整体迁入 `web/legacy/` |
 | 旧 Web 构建产物 | 不迁入，由新环境重新生成 |
 | 旧 Web 数据文件或 SQL | 先放迁移区审查，不直接作为新数据模型 |
 
@@ -147,13 +147,17 @@ mobile ------> web/backend -> core
 
 将 `testing/` 及其明确依赖逐步迁至 `core/`，修复 Python 导入、pytest discovery、运行参数、资源、报告和打包路径。旧路径兼容入口只能作为有删除期限的迁移手段，最终不得保留两套 owner 或传输路径。
 
-### 阶段五：迁入旧 Web 仓库
+### 阶段五：迁入 Wi-Fi Database 前端
 
-将旧 Web 前端迁至 `web/frontend/`，将旧服务端先隔离到 `web/legacy/`。逐个识别可复用 UI、旧 Wi-Fi 专属逻辑、通用能力和废弃实现。
+在 `web/frontend/` 建立可独立开发和构建的 CoreUI 前端，只迁入 Wi-Fi Database 页面、Peak Throughput/RVR/RVO 入口及其最小公共依赖。Home 只保留空页面和路由；不迁旧 `home.js`、旧服务端或其他 Web 业务。
 
-每适配一个业务模块：先定义该模块与 `core/` 的契约，再实现 `web/backend/` 调用，然后接入 `web/frontend/`，验证完成后删除对应 legacy 实现。
+Wi-Fi Database 前端继续使用真实 API 契约；阶段五后端尚未迁入时显示明确的服务不可用状态，不伪造数据。后续只迁移和适配该业务线所需的服务端与数据库代码。
 
-### 阶段六：统一开发与持续集成
+### 阶段六：迁入 Wi-Fi Database 服务端
+
+在 `web/backend/` 建立新后端，只迁入 Wi-Fi Database 所需 API、数据库访问与查询能力。保持阶段五前端使用的真实 API 契约，不整体复制旧 `server/`，不迁入旧 Home 或其他服务端业务。
+
+### 阶段七：统一开发与持续集成
 
 建立桌面端、Web 端、移动端的独立启动与验证入口，以及需要时的一键联调入口。CI 按受影响目录执行对应检查，同时保留跨层契约和端到端验证。
 
@@ -190,6 +194,7 @@ SmartTest 的 ADB、串口、USB 和实验室设备依赖 Windows 主机环境�
 - 重写现有测试业务行为；
 - 将桌面客户端改为依赖 Web 后端运行；
 - 一次性合并整个旧 Web 仓库；
+- 迁入旧 Home、OTA、Function、Compatibility、Interference、项目进度、用户管理或其他非 Wi-Fi Database 业务；
 - 新增认证、权限、调度、数据库或微服务机制；
 - 为目录统一而手写已有依赖可覆盖的底层实现；
 - 在未验证硬件环境时宣称 DUT、串口或实验室设备验收通过。
@@ -264,38 +269,51 @@ SmartTest 的 ADB、串口、USB 和实验室设备依赖 Windows 主机环境�
 - 不存在重复参数存储、运行传输、步骤模型、日志或报告实现；
 - 针对核心模块的 compile/import 检查和桌面源码启动检查通过。
 
-### 10.5 阶段五：迁入旧 Web 前端
+### 10.5 阶段五：迁入 Wi-Fi Database 前端
 
 范围：
 
-- 将旧仓库 CoreUI 前端源码迁入 `web/frontend/`；
-- 保留可复用的布局、导航、组件和品牌资源；
-- 隔离旧 Wi-Fi 业务页面，不把旧接口、数据库结构或服务端假设当作新 SmartTest 契约；
+- 在 `web/frontend/` 建立独立 CoreUI 前端工程；
+- 仅迁入 Wi-Fi Database 页面、Peak Throughput/RVR/RVO 入口及其构建所需的最小布局、样式、脚本、图标和品牌资源；
+- Home 仅保留空页面和路由，不迁入旧 `home.js` 或首页业务；
+- 保留 Wi-Fi Database 现有真实 API 契约，后端不可用时显示明确状态，不引入假数据；
+- 不迁入 OTA、Function、Compatibility、Interference、项目进度、用户管理和其他旧 Web 页面或业务；
 - 建立独立安装、开发热更新、构建和静态检查入口。
 
 验收：
 
 - Web 前端可以独立安装、启动和构建；
+- 默认进入空 Home，能够导航到 Wi-Fi Database 的 Peak Throughput、RVR 和 RVO；
+- Wi-Fi Database 在 API 不可用时保持页面可用并显示明确错误状态；
 - 迁入产物许可证和第三方依赖声明完整；
-- 无历史构建产物、凭据、数据库备份或无关 Wi-Fi 业务进入产品构建；
+- 无历史构建产物、凭据、数据库备份或非 Wi-Fi Database 业务进入产品构建；
 - 此阶段不直接调用 `core/`，也不伪造尚未实现的 SmartTest API。
 
-### 10.6 阶段六：迁入旧 Web 服务端并建立新后端
+执行清单：
+
+- [ ] 建立可自动验证的允许迁移清单，先证明旧 Home 和非 Database 页面不会进入构建；
+- [ ] 建立 `web/frontend/` 包、构建和开发入口，并只声明实际使用的依赖；
+- [ ] 迁入最小 CoreUI 外壳、空 Home、Wi-Fi Database 页面及 Peak Throughput/RVR/RVO 导航；
+- [ ] 迁入 Database 所需脚本、样式、图表、导出和品牌资源，清除旧页面链接与临时调试输出；
+- [ ] 验证 API 不可用状态、静态检查、生产构建和本地页面导航；
+- [ ] 审查许可证、依赖、净生产代码增长和最终迁移清单。
+
+### 10.6 阶段六：迁入 Wi-Fi Database 服务端并建立新后端
 
 范围：
 
-- 将旧 `server/` 放入 `web/legacy/` 隔离审查；
 - 在 `web/backend/` 建立新 Web 后端入口和基础健康检查；
-- 选择首个已批准的 SmartTest 业务闭环，定义 API/事件契约并调用 `core/`；
-- 每完成一个模块的适配，删除对应 legacy 业务实现。
+- 只调查并迁入 Wi-Fi Database 所需的 filters、performance、leaderboard、reports 和数据库访问能力；
+- 保持前端已使用的 API 契约，逐项审查旧 MySQL 查询和数据模型，不整体复制旧 `server/`；
+- Database 需要 SmartTest 核心能力时通过 `core/` 的唯一 owner 调用，不复制测试、参数、步骤、日志或报告机制。
 
 验收：
 
 - `web/frontend -> web/backend -> core` 是唯一 Web 业务调用方向；
 - Web 后端不复制 pytest、参数、DUT、步骤、日志或报告逻辑；
 - API 契约、错误响应和实时事件具有聚焦测试；
-- 首个业务闭环的前后端联调通过；
-- 未适配的 legacy 模块不会进入新运行路径或生产构建。
+- Wi-Fi Database 的前后端联调通过；
+- 旧 Home 和其他非 Database 服务端模块不会进入新运行路径或生产构建。
 
 ### 10.7 阶段七：统一开发入口与 CI
 
