@@ -362,12 +362,12 @@ SmartTest 的 ADB、串口、USB 和实验室设备依赖 Windows 主机环境�
 
 执行清单：
 
-- [ ] 统一入口及其持久行为测试完成；
-- [ ] 开发、检查和三个产品打包命令复用既有 owner；
-- [ ] 普通 CI 与 `v*` 标签发布工作流完成；
-- [ ] 公司 Windows 自托管 Runner、Inno Setup 和本地签名环境完成配置；
-- [ ] 普通 CI 和本机三个产品打包完成最高可行验证；
-- [ ] 文档、差异检查和交付门禁通过。
+- [x] 统一入口及其持久行为测试完成；
+- [x] 开发、检查和三个产品打包命令复用既有 owner；
+- [x] 普通 CI 与 `v*` 标签发布工作流完成；
+- [x] Inno Setup 6.7.3、稳定机器签名目录和机器级环境变量已就绪；`SmartTest-Windows-Release` 已注册至 Default 组并作为 `NT AUTHORITY\NETWORK SERVICE` 自动启动，发布工作流可从 fresh checkout 创建固定依赖环境并在构建前验证签名材料；
+- [x] 普通检查、mobile 与 tool 包已完成本机验证；client 包已在独立 tracked checkout 中完成 fresh `.venv`、平台签名 APK 和安装程序验证，未读取或改写 ignored 本地测试；
+- [x] 文档、差异检查和最终交付门禁通过。
 
 ### 10.8 每阶段交付门禁
 

@@ -1,0 +1,42 @@
+name: SmartTest release packages
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  package:
+    runs-on: [self-hosted, Windows, X64, smarttest-release]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.10'}
+      - name: Validate machine signing configuration
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SMARTTEST_SIGNAPK_DIR)) {
+            throw 'SMARTTEST_SIGNAPK_DIR must be configured as a machine environment variable for the Runner service.'
+          }
+          python -c "from mobile import android; required=(android.SIGNAPK_JAR, android.PLATFORM_CERT_PEM, android.PLATFORM_CERT_PK8); raise SystemExit('SMARTTEST_SIGNAPK_DIR is missing one or more required signing files.') if any(not path.is_file() for path in required) else print('Signing preflight: ready')"
+      - name: Create pinned packaging environment
+        run: python support\scripts\script-init-venv.py
+      - name: Build signed APK, Client installer, and Tool portable archive
+        run: .\.venv\Scripts\python.exe support\smarttest.py package all
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SmartTest-Android
+          path: dist/app-debug-platform.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SmartTest-Client
+          path: dist_installer/*.exe
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SmartTest-Tool
+          path: dist_tool/*.zip
+          if-no-files-found: error

@@ -15,7 +15,27 @@ mobile ------> web/backend -> core
 - `web/`：Web 前端与后端，前端不得直接调用 `core/`；
 - `mobile/`：Android/移动端及平台专属能力。
 
-当前桌面入口位于 `client/app/main.py`，QML 位于 `client/app/ui/`，共享核心位于 `core/`，Android 工程位于 `mobile/android/`。从仓库根目录运行 `python client/app/main.py` 启动桌面端；目录边界可通过 `python support/ci/check_product_boundaries.py` 检查。
+当前桌面入口位于 `client/app/main.py`，QML 位于 `client/app/ui/`，共享核心位于 `core/`，Android 工程位于 `mobile/android/`。仓库根目录统一入口为：
+
+```powershell
+python support/smarttest.py dev client|web|mobile|all
+python support/smarttest.py check client|web|mobile|all
+python support/smarttest.py package client|tool|mobile|all
+```
+
+`package all` 固定执行 `mobile -> client -> tool` 并复用三个既有打包脚本；Web 只参与开发和检查，`package web` 会明确失败。`dev web/all` 报告 Web API 与前端地址，任一长期进程失败时会终止同组进程并传递退出码。
+
+普通 push/PR 只运行 `.github/workflows/ci.yml` 的目录路由检查。仅 `v*` 标签触发 `.github/workflows/release.yml`，并要求标签为 `[self-hosted, Windows, X64, smarttest-release]` 的公司 Runner；发布构建上传签名 APK、Client 安装程序和 Tool zip，不打包 Web。
+
+构建机的 Inno Setup、Android SDK/JDK、Node/Python、签名材料和 Runner 凭据由机器本地维护。发布工作流会用仓库的固定依赖清单创建全新的 `.venv`，不依赖开发工作区。Runner 注册 token 不得写入仓库或日志。
+
+签名材料应放在仅构建机可访问的稳定目录（本机约定为 `C:\SmartTestBuild\signing`），并保持 `prebuilts/sdk/tools/lib/signapk.jar`、`build/target/product/security/platform.x509.pem`、`build/target/product/security/platform.pk8` 结构。管理员设置机器级环境变量后，重新启动 Runner 服务使其继承该变量：
+
+```powershell
+[Environment]::SetEnvironmentVariable('SMARTTEST_SIGNAPK_DIR', 'C:\SmartTestBuild\signing', 'Machine')
+```
+
+发布工作流在创建 Python 环境和打包之前验证该变量及三个文件；缺失时会停止且不会输出凭据内容。
 
 <div align=center>
   <img width=64 src="doc/preview/fluent_design.svg">

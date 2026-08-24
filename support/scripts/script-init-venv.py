@@ -1,30 +1,28 @@
 import subprocess
 import sys
+from pathlib import Path
 
-import env
+
+PACKAGES = (
+    "PySide6==6.7.2", "pywin32==311", "nuitka==2.3.2", "PyInstaller==6.8.0",
+    "qasync==0.27.1", "aiohttp==3.11.8", "qrcode==7.4.2", "pillow==10.4.0",
+    "numpy==2.1.3", "matplotlib==3.10.5", "opencv-python==4.10.0.84",
+    "keyboard==0.13.5", "PyOpenGL==3.1.7", "py7zr==0.22.0", "pyserial==3.5",
+    "ldap3==2.9.1", "pycryptodome==3.23.0", "openpyxl==3.1.5",
+    "atlassian-python-api==4.0.7", "tzdata==2025.2", "Markdown==3.10.2",
+    "playwright==1.54.0", "pytest==8.4.1",
+    "uiautomator2==3.5.2",
+)
+
+
+def initialize_environment(root=None, runner=subprocess.run):
+    root = Path(root or Path(__file__).resolve().parents[2])
+    venv = root / ".venv"
+    runner([sys.executable, "-m", "venv", str(venv)], check=True)
+    python = venv / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+    runner([str(python), "-m", "pip", "install", *PACKAGES], check=True)
+    runner([str(python), "-m", "playwright", "install", "chromium"], check=True)
+
 
 if __name__ == "__main__":
-    subprocess.run([sys.executable, "-m", "venv", "venv"])
-    subprocess.run([env.pip(), "install", "PySide6==6.7.2"])
-    subprocess.run([env.pip(), "install", "pywin32==311"])
-    subprocess.run([env.pip(), "install", "nuitka==2.3.2"])
-    subprocess.run([env.pip(), "install", "PyInstaller==6.8.0"])
-    subprocess.run([env.pip(), "install", "qasync==0.27.1"])
-    subprocess.run([env.pip(), "install", "aiohttp==3.11.8"])
-    subprocess.run([env.pip(), "install", "qrcode==7.4.2"])
-    subprocess.run([env.pip(), "install", "pillow==10.4.0"])
-    subprocess.run([env.pip(), "install", "numpy==2.1.3"])
-    subprocess.run([env.pip(), "install", "matplotlib==3.10.5"])
-    subprocess.run([env.pip(), "install", "opencv-python==4.10.0.84"])
-    subprocess.run([env.pip(), "install", "keyboard==0.13.5"])
-    subprocess.run([env.pip(), "install", "PyOpenGL==3.1.7"])
-    subprocess.run([env.pip(), "install", "py7zr==0.22.0"])
-    subprocess.run([env.pip(), "install", "pyserial==3.5"])
-    subprocess.run([env.pip(), "install", "ldap3==2.9.1"])
-    subprocess.run([env.pip(), "install", "pycryptodome==3.23.0"])
-    subprocess.run([env.pip(), "install", "openpyxl==3.1.5"])
-    subprocess.run([env.pip(), "install", "atlassian-python-api==4.0.7"])
-    subprocess.run([env.pip(), "install", "tzdata==2025.2"])
-    subprocess.run([env.pip(), "install", "Markdown==3.10.2"])
-    subprocess.run([env.pip(), "install", "playwright==1.54.0"], check=True)
-    subprocess.run([env.python(), "-m", "playwright", "install", "chromium"], check=True)
+    initialize_environment()
