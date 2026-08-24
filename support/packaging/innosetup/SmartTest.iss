@@ -26,8 +26,8 @@ Name: "chinesesimplified"; MessagesFile: "compiler:Languages\\ChineseSimplified.
 Name: "desktopicon"; Description: "Create a desktop icon"; GroupDescription: "Additional icons:"; Flags: unchecked
 
 [Files]
-Source: "..\..\..\dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\..\..\dist_installer\app-debug-platform.apk"; DestDir: "{app}\android_client\app\build\outputs\apk\debug"; Flags: ignoreversion
+Source: "..\..\..\dist\*"; DestDir: "{app}"; Excludes: "app-debug-platform.apk"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\..\dist\app-debug-platform.apk"; DestDir: "{app}\mobile\android\app\build\outputs\apk\debug"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\SmartTest"; Filename: "{app}\SmartTest.exe"; WorkingDir: "{app}"

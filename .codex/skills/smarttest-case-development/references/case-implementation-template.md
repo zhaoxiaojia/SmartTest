@@ -46,7 +46,7 @@ cleanup / timeout / cancel：
 | 选择 | 判定条件 | 业务位置 |
 |---|---|---|
 | Python | ADB/shell、节点、property、dumpsys、PC 库或现有 DUT driver 可完成；运行期间 ADB 可用；不依赖 Android 特权或设备端生命周期 | `testing/tests/**/test_*.py`、`testing/tool/dut_tool/features/`、`testing/tool/dut_tool/duts/android.py` |
-| APK | 需要 system/priv-app、Framework callback/Service/Receiver/Activity；重启、深度休眠或 ADB 失联期间继续；设备端连续低延迟采样 | `android_client/app/src/main/java/com/smarttest/mobile/runner/cases/` |
+| APK | 需要 system/priv-app、Framework callback/Service/Receiver/Activity；重启、深度休眠或 ADB 失联期间继续；设备端连续低延迟采样 | `mobile/android/app/src/main/java/com/smarttest/mobile/runner/cases/` |
 
 APK 模式仍必须有 `testing/tests/android/**/test_*.py`。它只使用 `testing.runner.apk_client.apk_case_plan` / `run_apk_case` 完成参数下发、触发、进度/超时/取消监管、结果收集和报告；不得再实现 ADB 业务动作、checkpoint 或 cleanup。APK executor 负责动作、检测、证据和设备端恢复。
 
@@ -116,7 +116,7 @@ def test_<case_name>_via_android_client(request):
 1. `testing/tool/dut_tool/duts/android.py` / `linux.py` 的公共 DUT 能力。
 2. `testing/tool/dut_tool/features/` 的可复用业务能力。
 3. `testing/tool/pc_tool/`、`testing/tool/equipment.py`、`testing/tool/relay_tool/`；串口只能由 `serial_tool.py` 实现。
-4. APK 的 `android_client/**/runner/device/`。
+4. APK 的 `mobile/android/app/src/main/java/com/smarttest/mobile/runner/device/`。
 
 对每个动作/checkpoint 填写：已有 owner、支持状态、输入/输出、缺口、处理。选择顺序是直接复用、通用扩展当前 owner、合并重复、扩展现有 feature、最后新增公共 owner。禁止在 case 中建立私有 ADB/串口/安装/文件转换机制，禁止 Python/APK 双实现。
 

@@ -32,9 +32,10 @@ def _emit_stage(stage_callback, stage: str, value: int, detail: str) -> None:
 
 
 PACKAGE_NAME = "com.smarttest.mobile"
-RAW_DEBUG_APK_RELATIVE_PATH = Path("android_client", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
+RAW_DEBUG_APK_RELATIVE_PATH = Path("mobile", "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
 SIGNED_APK_RELATIVE_PATH = Path(
-    "android_client",
+    "mobile",
+    "android",
     "app",
     "build",
     "outputs",
@@ -50,7 +51,7 @@ def _resource_path(relative_path: Path) -> Path:
         packaged_path = Path(packaged_root) / relative_path
         if packaged_path.exists():
             return packaged_path
-    return Path(__file__).resolve().parent.parent / relative_path
+    return Path(__file__).resolve().parents[2] / relative_path
 
 
 RAW_DEBUG_APK_PATH = _resource_path(RAW_DEBUG_APK_RELATIVE_PATH)

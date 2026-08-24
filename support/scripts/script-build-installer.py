@@ -76,8 +76,12 @@ def _create_macos_zip(repo_root: Path) -> Path:
     return archive_path
 
 
-def _verify_signed_apk_artifact(repo_root: Path) -> None:
-    apk_path = repo_root / "dist_installer" / "app-debug-platform.apk"
+def _signed_apk_build_output(repo_root: Path) -> Path:
+    return repo_root / "mobile" / "android" / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug-platform.apk"
+
+
+def _require_signed_apk_build_output(repo_root: Path) -> Path:
+    apk_path = _signed_apk_build_output(repo_root)
     if not apk_path.exists():
         raise SystemExit(
             "Signed Android APK is missing:\n"
@@ -87,6 +91,15 @@ def _verify_signed_apk_artifact(repo_root: Path) -> None:
         )
     if apk_path.stat().st_size <= 0:
         raise SystemExit(f"Signed Android APK is empty: {apk_path}")
+    return apk_path
+
+
+def _publish_signed_apk_artifact(repo_root: Path) -> Path:
+    apk_path = _require_signed_apk_build_output(repo_root)
+    product_apk = repo_root / "dist" / apk_path.name
+    product_apk.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(apk_path, product_apk)
+    return product_apk
 
 
 def _find_iscc():
@@ -165,10 +178,13 @@ def _find_iscc():
 def _build_windows_installer(repo_root: Path, scripts_dir: str) -> None:
     # 0) Fail fast on checks that protect the installed runtime from import/resource drift.
     _run_packaging_preflight(repo_root)
-    _verify_signed_apk_artifact(repo_root)
+    _require_signed_apk_build_output(repo_root)
 
     # 1) Build app (PyInstaller) -> dist/
     _run([_python(repo_root), os.path.join(scripts_dir, "script-build-pyinstaller.py")])
+
+    # PyInstaller cleans dist/, so publish the single product APK afterwards.
+    _publish_signed_apk_artifact(repo_root)
 
     # 2) Verify the packaged runtime contains the Python subprocess dependencies.
     _verify_dist_runtime(repo_root)
@@ -185,8 +201,9 @@ def _build_windows_installer(repo_root: Path, scripts_dir: str) -> None:
 
 def _build_macos_package(repo_root: Path, scripts_dir: str) -> None:
     _run_packaging_preflight(repo_root)
-    _verify_signed_apk_artifact(repo_root)
+    _require_signed_apk_build_output(repo_root)
     _run([_python(repo_root), os.path.join(scripts_dir, "script-build-pyinstaller.py")])
+    _publish_signed_apk_artifact(repo_root)
     _verify_dist_runtime(repo_root)
     archive_path = _create_macos_zip(repo_root)
     print(f"macOS package output: {archive_path}")

@@ -4,7 +4,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from support.ci.check_product_boundaries import _check_core, _check_web_frontend
+from support.ci.check_product_boundaries import (
+    ANDROID_RULES,
+    _check_active_android_rules,
+    _check_android_location,
+    _check_core,
+    _check_web_frontend,
+)
 
 
 class ProductBoundaryCheckTests(unittest.TestCase):
@@ -60,6 +66,36 @@ class ProductBoundaryCheckTests(unittest.TestCase):
         failures = _check_web_frontend(self.root)
 
         self.assertEqual(len(failures), 4)
+
+    def test_android_project_accepts_only_mobile_location(self) -> None:
+        self._write("mobile/android/settings.gradle.kts", "")
+        self._write("mobile/android/app/build.gradle.kts", "")
+        self._write("mobile/android/gradlew.bat", "")
+
+        self.assertEqual(_check_android_location(self.root), [])
+
+    def test_android_project_rejects_legacy_or_incomplete_location(self) -> None:
+        (self.root / "android_client").mkdir()
+
+        failures = _check_android_location(self.root)
+
+        self.assertEqual(len(failures), 4)
+        self.assertTrue(any("legacy Android product path" in failure for failure in failures))
+
+    def test_active_android_rules_use_mobile_path(self) -> None:
+        for relative, required in ANDROID_RULES.items():
+            self._write(relative, required)
+
+        self.assertEqual(_check_active_android_rules(self.root), [])
+
+    def test_active_android_rules_reject_legacy_path(self) -> None:
+        for relative, required in ANDROID_RULES.items():
+            self._write(relative, required)
+        self._write("AGENTS.md", "mobile/android/**\nandroid_client/app\n")
+
+        failures = _check_active_android_rules(self.root)
+
+        self.assertEqual(failures, ["AGENTS.md: contains legacy Android filesystem path"])
 
 
 if __name__ == "__main__":

@@ -28,11 +28,11 @@ def _build_env() -> dict[str, str]:
 
 
 def _build_android_client(repo_root: Path) -> Path:
-    android_dir = repo_root / "android_client"
+    android_dir = repo_root / "mobile" / "android"
     gradlew = android_dir / ("gradlew.bat" if os.name == "nt" else "gradlew")
     subprocess.run([*_gradle_command(gradlew), ":app:assembleDebug"], cwd=android_dir, env=_build_env(), check=True)
     subprocess.run(
-        [env.python(), "-c", "import android_client; android_client.sign_privileged_apk()"],
+        [env.python(), "-c", "from mobile import android; android.sign_privileged_apk()"],
         cwd=repo_root,
         check=True,
     )
@@ -40,7 +40,7 @@ def _build_android_client(repo_root: Path) -> Path:
 
 
 def _copy_apk(repo_root: Path, apk_path: Path) -> Path:
-    output_dir = repo_root / "dist_installer"
+    output_dir = repo_root / "dist"
     output_dir.mkdir(parents=True, exist_ok=True)
     if not apk_path.exists():
         raise SystemExit(f"Signed APK build output is missing: {apk_path}")

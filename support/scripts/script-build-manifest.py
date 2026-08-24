@@ -76,7 +76,7 @@ def _write_installer_version_include(version: str) -> None:
 
 def main() -> None:
     catalog = ROOT / "build" / "generated" / "testing" / "cases" / "test_catalog.json"
-    android_catalog = ROOT / "android_client" / "app" / "src" / "main" / "java" / "com" / "smarttest" / "mobile" / "runner" / "SmartTestCatalog.kt"
+    android_catalog = ROOT / "mobile" / "android" / "app" / "src" / "main" / "java" / "com" / "smarttest" / "mobile" / "runner" / "SmartTestCatalog.kt"
     manifest_path = ROOT / "build" / "generated" / "build_manifest.json"
     version = _bump_patch(_load_version())
     built_at = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")

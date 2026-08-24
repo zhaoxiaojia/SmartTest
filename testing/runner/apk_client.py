@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Mapping
 
-from android_client import PACKAGE_NAME, PRIVILEGED_CASE_IDS
+from mobile.android import PACKAGE_NAME, PRIVILEGED_CASE_IDS
 from testing.test_context import smarttest_context
 from testing.runtime.config import current_dut_serial
 from testing.runtime.steps import step as runtime_step, step_log

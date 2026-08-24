@@ -36,14 +36,16 @@ except Exception:
     pass
 android_privapp_permissions = os.path.join(
     repo_root,
-    "android_client",
+    "mobile",
+    "android",
     "system_app",
     "privapp-permissions-com.smarttest.mobile.xml",
 )
-android_client_init = os.path.join(repo_root, "android_client", "__init__.py")
+android_client_init = os.path.join(repo_root, "mobile", "android", "__init__.py")
 android_smarttest_catalog = os.path.join(
     repo_root,
-    "android_client",
+    "mobile",
+    "android",
     "app",
     "src",
     "main",
@@ -94,12 +96,13 @@ a = Analysis(
         ),
         (
             android_client_init,
-            "android_client",
+            os.path.join("mobile", "android"),
         ),
         (
             android_smarttest_catalog,
             os.path.join(
-                "android_client",
+                "mobile",
+                "android",
                 "app",
                 "src",
                 "main",
@@ -112,7 +115,7 @@ a = Analysis(
         ),
         (
             android_privapp_permissions,
-            os.path.join("android_client", "system_app"),
+            os.path.join("mobile", "android", "system_app"),
         ),
     ],
     hiddenimports=[
@@ -151,6 +154,7 @@ a = Analysis(
         "testing.tool.boot_video.service",
         "testing.tool.boot_video.state_machine",
         "testing.tool.boot_video.templates",
+        "mobile.android",
     ],
     hookspath=[hooks_root],
     hooksconfig={},

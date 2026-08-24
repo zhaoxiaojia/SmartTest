@@ -19,7 +19,7 @@ from support.packaging.tool_runtime_resources import missing_required
 DIST_ROOT = ROOT / "dist_tool"
 APP_NAME = "SmartTestTool"
 BUILD_LOCK = ROOT / "build" / "portable-tool-build.lock"
-FORBIDDEN_TOKENS = ("cv2", "testing", "android_client")
+FORBIDDEN_TOKENS = ("cv2", "testing", "mobile.android")
 FORBIDDEN_ARCHIVE_MODULES = (
     "example.main",
     "example.bridge.HomeBridge",
@@ -30,7 +30,7 @@ FORBIDDEN_ARCHIVE_MODULES = (
     "example.bridge.BootVideoBridge",
     "cv2",
     "testing",
-    "android_client",
+    "mobile.android",
 )
 
 

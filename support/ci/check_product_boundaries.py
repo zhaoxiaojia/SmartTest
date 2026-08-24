@@ -17,6 +17,14 @@ FRONTEND_IMPORTS = (
     re.compile(r"\b(?:import|require)\s*\(\s*['\"]([^'\"]+)['\"]"),
 )
 FRONTEND_EXTENSIONS = frozenset({".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"})
+ANDROID_RULES = {
+    "AGENTS.md": "mobile/android/**",
+    ".codex/skills/smarttest-dual-codex-delivery/SKILL.md": "mobile/android/**",
+    ".codex/skills/smarttest-android-workflow/SKILL.md": "mobile/android/gradlew.bat",
+    ".codex/skills/smarttest-case-development/references/case-implementation-template.md": (
+        "mobile/android/app/src/main/java/com/smarttest/mobile/runner/cases/"
+    ),
+}
 
 
 def _forbidden_python_imports(path: Path, root: Path) -> set[str]:
@@ -84,11 +92,39 @@ def _check_web_frontend(root: Path = ROOT) -> list[str]:
     return failures
 
 
+def _check_android_location(root: Path = ROOT) -> list[str]:
+    failures: list[str] = []
+    if (root / "android_client").exists():
+        failures.append("android_client/: legacy Android product path must not exist")
+    android = root / "mobile" / "android"
+    for relative in ("settings.gradle.kts", "app/build.gradle.kts", "gradlew.bat"):
+        if not (android / relative).is_file():
+            failures.append(f"mobile/android/{relative}: missing Android project entry")
+    return failures
+
+
+def _check_active_android_rules(root: Path = ROOT) -> list[str]:
+    failures: list[str] = []
+    for relative, required in ANDROID_RULES.items():
+        path = root / relative
+        if not path.is_file():
+            failures.append(f"{relative}: missing active repository rule")
+            continue
+        source = path.read_text(encoding="utf-8")
+        if required not in source.replace("\\", "/"):
+            failures.append(f"{relative}: missing active mobile/android path")
+        if "android_client/" in source.replace("\\", "/"):
+            failures.append(f"{relative}: contains legacy Android filesystem path")
+    return failures
+
+
 def main() -> int:
     missing = [name for name in PRODUCTS if not (ROOT / name / "README.md").is_file()]
     failures = [f"{name}/README.md: missing product boundary documentation" for name in missing]
     failures.extend(_check_core())
     failures.extend(_check_web_frontend())
+    failures.extend(_check_android_location())
+    failures.extend(_check_active_android_rules())
     if failures:
         print("Product boundary check failed:", file=sys.stderr)
         for failure in failures:

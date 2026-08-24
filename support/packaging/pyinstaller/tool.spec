@@ -19,7 +19,7 @@ a = Analysis(
     hiddenimports=list(TOOL_HIDDEN_IMPORTS),
     hookspath=[hooks_root],
     excludes=[
-        "cv2", "testing", "android_client",
+        "cv2", "testing", "mobile.android",
         "example.main", "example.bridge.HomeBridge", "example.bridge.RunBridge",
         "example.bridge.ReportBridge", "example.bridge.TestPageBridge",
         "example.bridge.DebugBridge", "example.bridge.BootVideoBridge",

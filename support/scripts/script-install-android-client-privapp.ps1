@@ -1,7 +1,7 @@
 param(
     [string]$Adb = "adb",
     [string]$Serial = "",
-    [string]$ApkPath = "D:\SmartTest\android_client\app\build\outputs\apk\debug\app-debug.apk",
+    [string]$ApkPath = "D:\SmartTest\mobile\android\app\build\outputs\apk\debug\app-debug.apk",
     [string]$PackageName = "com.smarttest.mobile",
     [string]$AppDirName = "SmartTestMobile",
     [string]$PrivAppRoot = "/system/priv-app",
@@ -42,7 +42,7 @@ function Invoke-Su {
 
 $resolvedApkPath = (Resolve-Path $ApkPath).Path
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
-$permissionsXml = Join-Path $repoRoot "android_client\system_app\privapp-permissions-com.smarttest.mobile.xml"
+$permissionsXml = Join-Path $repoRoot "mobile\android\system_app\privapp-permissions-com.smarttest.mobile.xml"
 $resolvedPermissionsXml = (Resolve-Path $permissionsXml).Path
 
 $remoteApk = "/data/local/tmp/$AppDirName.apk"

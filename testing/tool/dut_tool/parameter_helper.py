@@ -222,7 +222,7 @@ def _ensure_android_client_apk(
     require_privileged: bool = True,
     stage_callback: StageCallback | None = None,
 ) -> bool:
-    from android_client import ensure_test_apk_installed
+    from mobile.android import ensure_test_apk_installed
 
     return ensure_test_apk_installed(
         adb_serial=adb_serial,

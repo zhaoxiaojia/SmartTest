@@ -1,7 +1,7 @@
 from pathlib import Path
 from subprocess import CompletedProcess
 
-import android_client
+from mobile import android as android_client
 
 
 def test_privapp_install_restores_system_package_for_user_zero(monkeypatch, tmp_path: Path):

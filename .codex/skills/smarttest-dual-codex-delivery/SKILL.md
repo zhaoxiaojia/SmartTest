@@ -20,7 +20,7 @@ Before work, load every matching owner skill:
 - `ui/**`: `smarttest-ui-workflow`
 - `testing/**`: `smarttest-testing-workflow`
 - case extraction/development: `smarttest-case-development`
-- `android_client/**`: `smarttest-android-workflow`
+- `mobile/android/**`: `smarttest-android-workflow`
 
 ## Role Boundaries
 

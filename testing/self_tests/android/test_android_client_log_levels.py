@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import subprocess
 
-import android_client
+from mobile import android as android_client
 
 
 def test_successful_adb_stderr_is_info_and_empty_streams_are_not_logged(monkeypatch) -> None:

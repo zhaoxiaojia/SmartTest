@@ -142,7 +142,7 @@ def _infer_source_and_domain() -> tuple[str, str]:
         return module_name, "runner"
     if module_name.startswith("testing.runtime") or module_name.startswith("testing.tests"):
         return module_name, "test"
-    if module_name.startswith("android_client"):
+    if module_name.startswith("mobile.android"):
         return module_name, "android"
     if module_name.startswith("testing.tool.relay") or module_name.startswith("testing.tool.wifi_lab"):
         return module_name, "equipment"
