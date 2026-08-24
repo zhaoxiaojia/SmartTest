@@ -291,12 +291,12 @@ SmartTest 的 ADB、串口、USB 和实验室设备依赖 Windows 主机环境�
 
 执行清单：
 
-- [ ] 建立可自动验证的允许迁移清单，先证明旧 Home 和非 Database 页面不会进入构建；
-- [ ] 建立 `web/frontend/` 包、构建和开发入口，并只声明实际使用的依赖；
-- [ ] 迁入最小 CoreUI 外壳、空 Home、Wi-Fi Database 页面及 Peak Throughput/RVR/RVO 导航；
-- [ ] 迁入 Database 所需脚本、样式、图表、导出和品牌资源，清除旧页面链接与临时调试输出；
-- [ ] 验证 API 不可用状态、静态检查、生产构建和本地页面导航；
-- [ ] 审查许可证、依赖、净生产代码增长和最终迁移清单。
+- [x] 建立可自动验证的允许迁移清单，先证明旧 Home 和非 Database 页面不会进入构建；
+- [x] 建立 `web/frontend/` 包、构建和开发入口，并只声明实际使用的依赖；
+- [x] 迁入最小 CoreUI 外壳、空 Home、Wi-Fi Database 页面及 Peak Throughput/RVR/RVO 导航；
+- [x] 迁入 Database 所需脚本、样式、图表、导出和品牌资源，清除旧页面链接与临时调试输出；
+- [x] 验证 API 不可用状态、静态检查、生产构建和本地页面导航；
+- [x] 审查许可证、依赖、净生产代码增长和最终迁移清单。
 
 ### 10.6 阶段六：迁入 Wi-Fi Database 服务端并建立新后端
 

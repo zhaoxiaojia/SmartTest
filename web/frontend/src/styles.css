@@ -1,0 +1,17 @@
+:root { color-scheme: light; }
+body { margin: 0; background: var(--cui-tertiary-bg); }
+.app-shell { min-height: 100vh; display: grid; grid-template-columns: 15rem 1fr; }
+.sidebar { min-height: 100vh; padding: 1.25rem 1rem; background: #212631; }
+.brand { display: block; margin-bottom: 2rem; color: white; font-size: 1.35rem; font-weight: 700; text-decoration: none; }
+.sidebar-label { margin: 0 .75rem .5rem; color: #9da5b1; font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; }
+.sidebar-nav { display: grid; gap: .25rem; }
+.sidebar-nav .nav-link { border-radius: .375rem; color: #d8dbe0; }
+.sidebar-nav .nav-link:hover { color: white; background: rgba(255,255,255,.08); }
+.content { min-width: 0; padding: 2rem; }
+label { font-weight: 600; }
+label .form-control, label .form-select { margin-top: .375rem; font-weight: 400; }
+@media (max-width: 767px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar { min-height: auto; }
+  .content { padding: 1rem; }
+}

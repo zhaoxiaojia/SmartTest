@@ -1,5 +1,7 @@
 build
 dist
+node_modules/
+.vite/
 dist_installer/
 logs/
 resource_rc.py
