@@ -322,12 +322,12 @@ SmartTest 的 ADB、串口、USB 和实验室设备依赖 Windows 主机环境�
 
 执行清单：
 
-- [ ] 先以契约测试固定 `/health`、filters/performance 参数、响应与数据库不可用错误；
-- [ ] 建立最小 FastAPI 包、锁定依赖、环境变量配置和无凭据启动边界；
-- [ ] 建立可注入的只读 MySQL 查询 owner，禁止非 `SELECT`/`WITH` 语句进入执行路径；
-- [ ] 从旧服务端迁移 filters/performance 必要参数化 SQL 和报告字段转换，不迁未使用查询；
-- [ ] 完成前后端契约、服务启动、依赖审计、编译和边界验证；
-- [ ] 在可用 MySQL 环境中完成只读联调；若当前环境未提供连接参数，记录为阶段六外部验收限制。
+- [x] 先以契约测试固定 `/health`、filters/performance 参数、响应与数据库不可用错误；
+- [x] 建立最小 FastAPI 包、锁定依赖、环境变量配置和无凭据启动边界；
+- [x] 建立可注入的只读 MySQL 查询 owner，禁止非 `SELECT`/`WITH` 语句进入执行路径；
+- [x] 从旧服务端迁移 filters/performance 必要参数化 SQL 和报告字段转换，不迁未使用查询；
+- [x] 完成前后端契约、服务启动、依赖审计、编译和边界验证；
+- [x] 当前环境未提供 `WIFI_DB_*`，已记录真实 `wifi_test` 只读联调为 Coco 接受的外部验收限制。
 
 ### 10.7 阶段七：统一开发入口与 CI
 
