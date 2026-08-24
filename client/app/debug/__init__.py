@@ -1,2 +1,1 @@
 """Desktop-only diagnostic capabilities."""
-
