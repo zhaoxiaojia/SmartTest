@@ -120,6 +120,22 @@ def test_windows_bootstrap_creates_dot_venv_and_installs_required_packages(tmp_p
     assert calls[4][1]["cwd"] == tmp_path / "web/frontend"
 
 
+def test_bootstrap_reuses_existing_dot_venv_without_recreating_running_python(tmp_path):
+    module = runpy.run_path(str(Path(__file__).resolve().parents[1] / "scripts/script-init-venv.py"))
+    python = tmp_path / ".venv" / "Scripts" / "python.exe"
+    python.parent.mkdir(parents=True)
+    python.touch()
+    calls = []
+
+    module["initialize_environment"](
+        tmp_path,
+        runner=lambda command, **kwargs: calls.append(command),
+    )
+
+    assert [sys.executable, "-m", "venv", str(tmp_path / ".venv")] not in calls
+    assert calls[0][:4] == [str(python), "-m", "pip", "install"]
+
+
 def test_tool_build_separates_runtime_staging_from_release_archive():
     root = Path(__file__).resolve().parents[2]
     module = runpy.run_path(str(root / "support/scripts/script-build-tool-portable.py"))

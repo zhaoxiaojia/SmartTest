@@ -19,8 +19,9 @@ PACKAGES = (
 def initialize_environment(root=None, runner=subprocess.run):
     root = Path(root or Path(__file__).resolve().parents[2])
     venv = root / ".venv"
-    runner([sys.executable, "-m", "venv", str(venv)], check=True)
     python = venv / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+    if not python.is_file():
+        runner([sys.executable, "-m", "venv", str(venv)], check=True)
     runner([str(python), "-m", "pip", "install", *PACKAGES], check=True)
     runner([str(python), "-m", "playwright", "install", "chromium"], check=True)
     runner(
