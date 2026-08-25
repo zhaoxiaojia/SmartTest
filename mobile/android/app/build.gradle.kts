@@ -1,6 +1,14 @@
+import groovy.json.JsonSlurper
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+}
+
+val productVersionFile = rootProject.file("../../support/packaging/version.json")
+val productVersion = (JsonSlurper().parse(productVersionFile) as Map<*, *>)["version"] as String
+require(Regex("\\d+\\.\\d+\\.\\d+").matches(productVersion)) {
+    "Product version must use MAJOR.MINOR.PATCH format in $productVersionFile"
 }
 
 android {
@@ -12,7 +20,7 @@ android {
         minSdk = 23
         targetSdk = 34
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = productVersion
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

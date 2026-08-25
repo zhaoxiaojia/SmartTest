@@ -100,13 +100,24 @@ def test_release_workflow_is_tag_only_self_hosted_and_has_no_web_package():
 def test_windows_bootstrap_creates_dot_venv_and_installs_required_packages(tmp_path):
     module = runpy.run_path(str(Path(__file__).resolve().parents[1] / "scripts/script-init-venv.py"))
     calls = []
-    module["initialize_environment"](tmp_path, runner=lambda command, **kwargs: calls.append(command))
-    assert calls[0][-2:] == ["venv", str(tmp_path / ".venv")]
-    assert calls[1][:4] == [str(tmp_path / ".venv" / "Scripts/python.exe"), "-m", "pip", "install"]
-    assert any(argument.startswith("pytest==") for argument in calls[1])
-    assert any(argument.startswith("uiautomator2==") for argument in calls[1])
-    assert any(argument.startswith("xlrd==") for argument in calls[1])
-    assert calls[2][-4:] == ["-m", "playwright", "install", "chromium"]
+    module["initialize_environment"](
+        tmp_path,
+        runner=lambda command, **kwargs: calls.append((command, kwargs)),
+    )
+    commands = [command for command, _ in calls]
+    assert commands[0][-2:] == ["venv", str(tmp_path / ".venv")]
+    assert commands[1][:4] == [str(tmp_path / ".venv" / "Scripts/python.exe"), "-m", "pip", "install"]
+    assert any(argument.startswith("pytest==") for argument in commands[1])
+    assert any(argument.startswith("uiautomator2==") for argument in commands[1])
+    assert any(argument.startswith("xlrd==") for argument in commands[1])
+    assert commands[2][-4:] == ["-m", "playwright", "install", "chromium"]
+    assert commands[3] == [
+        str(tmp_path / ".venv" / "Scripts/python.exe"),
+        "-m", "pip", "install", "-r", str(tmp_path / "web/backend/requirements.txt"),
+        "-r", str(tmp_path / "web/backend/requirements-dev.txt"),
+    ]
+    assert commands[4] == ["npm.cmd", "ci"]
+    assert calls[4][1]["cwd"] == tmp_path / "web/frontend"
 
 
 def test_tool_build_separates_runtime_staging_from_release_archive():

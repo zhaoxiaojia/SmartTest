@@ -23,6 +23,19 @@ def initialize_environment(root=None, runner=subprocess.run):
     python = venv / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
     runner([str(python), "-m", "pip", "install", *PACKAGES], check=True)
     runner([str(python), "-m", "playwright", "install", "chromium"], check=True)
+    runner(
+        [
+            str(python), "-m", "pip", "install",
+            "-r", str(root / "web" / "backend" / "requirements.txt"),
+            "-r", str(root / "web" / "backend" / "requirements-dev.txt"),
+        ],
+        check=True,
+    )
+    runner(
+        ["npm.cmd" if sys.platform == "win32" else "npm", "ci"],
+        cwd=root / "web" / "frontend",
+        check=True,
+    )
 
 
 if __name__ == "__main__":

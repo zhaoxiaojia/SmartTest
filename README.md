@@ -1,8 +1,14 @@
-# SmartTest (Forked UI Base)
+# SmartTest
 
-## 仓库结构
+SmartTest 是一个单仓库多端项目：
 
-SmartTest 正在按已批准的多端目录设计分阶段重构。四个产品目录及固定依赖方向如下：
+- `client/`：Windows QML 桌面客户端；
+- `core/`：不依赖任何产品端的共享业务核心；
+- `web/`：独立 Web 前端和 FastAPI 后端；
+- `mobile/`：Android 客户端；
+- `support/`：仓库级开发、检查和打包入口。
+
+依赖方向固定为：
 
 ```text
 client ---------------------> core
@@ -10,100 +16,109 @@ web/frontend -> web/backend -> core
 mobile ------> web/backend -> core
 ```
 
-- `client/`：Windows QML 桌面客户端；
-- `core/`：不依赖任何端的唯一共享业务核心；
-- `web/`：Web 前端与后端，前端不得直接调用 `core/`；
-- `mobile/`：Android/移动端及平台专属能力。
+## 环境准备
 
-当前桌面入口位于 `client/app/main.py`，QML 位于 `client/app/ui/`，共享核心位于 `core/`，Android 工程位于 `mobile/android/`。仓库根目录统一入口为：
+基础环境为 Python 3.10、Node.js/npm、JDK 17 和 Android SDK。Windows Client 发布机还需要 Inno Setup；Android 正式产物需要平台签名材料。
+
+在仓库根目录执行一次初始化命令。该命令会创建或更新 `.venv`，安装 Client、测试、打包和 Web 后端 Python 依赖，安装 Playwright Chromium，并在 `web/frontend/` 执行 `npm ci`：
 
 ```powershell
-python support/smarttest.py dev client|web|mobile|all
-python support/smarttest.py check client|web|mobile|all
-python support/smarttest.py package client|tool|mobile|all
+python support/scripts/script-init-venv.py
 ```
 
-`package all` 固定执行 `mobile -> client -> tool` 并复用三个既有打包脚本；Web 只参与开发和检查，`package web` 会明确失败。`dev web/all` 报告 Web API 与前端地址，任一长期进程失败时会终止同组进程并传递退出码。
+首次克隆、删除 `.venv` 后或依赖清单变化时重新执行；日常启动不需要重复初始化。任一依赖安装失败时脚本直接返回失败。
 
-正式产物统一位于 `dist/`：Android 为 `dist/mobile/app-debug-platform.apk`，桌面安装程序为 `dist/client/SmartTest-Setup.exe`，Tool 便携包为 `dist/tool/SmartTestTool-*.zip`。客户端和 Tool 的中间 runtime 分别只存在于 `build/client_runtime/`、`build/tool_runtime/`，不是发布产物。
+签名材料只保存在构建机。默认约定目录为 `C:\SmartTestBuild\signing`，其中保持以下结构：
 
-普通 push/PR 只运行 `.github/workflows/ci.yml` 的目录路由检查。仅 `v*` 标签触发 `.github/workflows/release.yml`，并要求标签为 `[self-hosted, Windows, X64, smarttest-release]` 的公司 Runner；发布构建上传签名 APK、Client 安装程序和 Tool zip，不打包 Web。
+```text
+prebuilts/sdk/tools/lib/signapk.jar
+build/target/product/security/platform.x509.pem
+build/target/product/security/platform.pk8
+```
 
-构建机的 Inno Setup、Android SDK/JDK、Node/Python、签名材料和 Runner 凭据由机器本地维护。发布工作流会用仓库的固定依赖清单创建全新的 `.venv`，不依赖开发工作区。Runner 注册 token 不得写入仓库或日志。
-
-签名材料应放在仅构建机可访问的稳定目录（本机约定为 `C:\SmartTestBuild\signing`），并保持 `prebuilts/sdk/tools/lib/signapk.jar`、`build/target/product/security/platform.x509.pem`、`build/target/product/security/platform.pk8` 结构。管理员设置机器级环境变量后，重新启动 Runner 服务使其继承该变量：
+管理员设置机器级变量后，需要重启 GitHub Runner 服务：
 
 ```powershell
 [Environment]::SetEnvironmentVariable('SMARTTEST_SIGNAPK_DIR', 'C:\SmartTestBuild\signing', 'Machine')
 ```
 
-发布工作流在创建 Python 环境和打包之前验证该变量及三个文件；缺失时会停止且不会输出凭据内容。
+## 统一命令
 
-<div align=center>
-  <img width=64 src="doc/preview/fluent_design.svg">
-</div>
+以下命令都从仓库根目录执行。
 
-<h1 align="center">
-  QML FluentUI 
-</h1>
-<p align="center">
-  A fluent design component library for Qt QML.
-</p>
+### 开发
 
-![win-badge] ![ubuntu-badge] ![macos-badge] ![release-badge] ![download-badge] ![download-latest]
-
-<p align="center">
-English | <a href="README_zh_CN.md">简体中文</a>
-</p>
-<div align=center>
-  <img src="doc/preview/demo_large.png">
-</div>
-
-## Requirements
-+ Python 3.11
-
-## ⚽ Get started
-+ run `example` program.
-
-+ Build
-
-```bash
-python ./script-init-venv.py
-python ./script-start.py
-python ./script-build-nuitka.py
+```powershell
+./.venv/Scripts/python.exe support/smarttest.py dev client
+./.venv/Scripts/python.exe support/smarttest.py dev web
+./.venv/Scripts/python.exe support/smarttest.py dev mobile
+./.venv/Scripts/python.exe support/smarttest.py dev all
 ```
 
-## 📑 Documentations
+- `dev client`：启动桌面客户端；
+- `dev web`：同时启动 FastAPI（`http://127.0.0.1:8000`）和 Vite 前端；
+- `dev mobile`：执行 Android debug build，输出到 Gradle 的开发产物目录；
+- `dev all`：先构建 Mobile，再同时启动 Client、Web API 和 Web UI；任一长期进程失败时终止同组进程。
 
-(Work in progress...🚀)
+### 检查
 
-## Supported components
+```powershell
+./.venv/Scripts/python.exe support/smarttest.py check client
+./.venv/Scripts/python.exe support/smarttest.py check web
+./.venv/Scripts/python.exe support/smarttest.py check mobile
+./.venv/Scripts/python.exe support/smarttest.py check all
+```
 
-|Catalog|Detail|Notes / Demos|
-|:----:|:----:|:----:|
-|FluApp|The initial entry of the program|Router supported(SPA)|
-|FluWindow|Frameless Window|*This only works on windows|
-|FluAppBar|Title bar on top of the window|Drag, minimize, maximize and close are supported.|
-|FluText|Common text||
-|FluButton|Common button|![btn](doc/preview/demo_standardbtn.png) |
-|FluFilledButton|Filled button|![filledbtn](doc/preview/demo_filledbtn.png)|
-|FluTextButton|Text button|![textbtn](doc/preview/demo_textbtn.png)|
-|FluToggleButton|Toggle buttons|![togglebtn](doc/preview/demo_toggle_btn.png)|
-|FluIcon|Common icon|![icons](doc/preview/demo_icon.png)|
-|FluRadioButton|radio button|![radiobtn](doc/preview/demo_radiobtn.png)|
-|FluTextBox|Single-line input box|![textbox](doc/preview/demo_textbox.png)|
-|FluMultiLineTextBox|Multi-lines input area|![textarea](doc/preview/demo_multiline_textbox.png)|
-|FluToggleSwitch|toggle switch|![toggleswitch](doc/preview/demo_toggle_switch.png)|
+所有 `check` 都先验证产品边界。Client 执行编译和仓库入口测试；Web 执行后端 pytest 以及前端 test/lint/build；Mobile 执行 Gradle unit tests；`check all` 依次检查三个产品端。
 
+### 打包
 
-View more [`here`](doc/md/all_components.md)!
+```powershell
+./.venv/Scripts/python.exe support/smarttest.py package client
+./.venv/Scripts/python.exe support/smarttest.py package tool
+./.venv/Scripts/python.exe support/smarttest.py package mobile
+./.venv/Scripts/python.exe support/smarttest.py package all
+```
 
-## Reference
-+ Windows design guidelines: https://learn.microsoft.com/en-us/windows/apps/design/
-+ WinUI Gallery: https://github.com/microsoft/WinUI-Gallery
+- `package client`：生成 Windows Client 安装程序；
+- `package tool`：生成 Tool 便携 ZIP；
+- `package mobile`：构建并平台签名 Android APK；
+- `package all`：固定按 `mobile -> client -> tool` 调用三个既有 owner；
+- Web 不提供发布包，`package web` 会明确失败。
 
+正式产物只位于：
 
-## License
+```text
+dist/mobile/app-debug-platform.apk
+dist/client/SmartTest-Setup.exe
+dist/tool/SmartTestTool-<version>-windows-x64.zip
+```
 
-This FluentUI library currently licensed under [MIT License](./License)
+Client 和 Tool 的中间 runtime 分别位于 `build/client_runtime/`、`build/tool_runtime/`，不是发布产物。
 
+## 版本与发布
+
+`support/packaging/version.json` 是 Client、Tool、Mobile 唯一的产品版本 owner，值必须使用 `MAJOR.MINOR.PATCH`。任何 `dev`、`check` 或 `package` 命令都不会自动修改版本。
+
+准备新版本时手动修改一次，例如：
+
+```json
+{
+  "version": "1.2.0"
+}
+```
+
+先运行检查并提交普通代码；普通 push/PR 只触发检查，不打包、不改版本。发布时创建与文件内容精确匹配的 tag：
+
+```powershell
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+`v*` tag 触发 `.github/workflows/release.yml`。工作流会先校验 tag 等于 `v` 加 `version.json` 的版本；不匹配会在安装依赖和打包之前明确失败。匹配后，带 `[self-hosted, Windows, X64, smarttest-release]` 标签的公司 Runner 创建固定 Python 环境，检查机器级签名配置，按 `package all` 生成并上传 APK、Client 安装程序和 Tool ZIP。Web 不参与发布打包。
+
+Runner 注册凭据和签名材料不得写入仓库、workflow 或日志。
+
+## 来源与许可证
+
+桌面界面复用了 QML FluentUI 项目的组件和设计模式，并继续遵循仓库中的许可证声明。Fluent Design 参考：[Windows design guidelines](https://learn.microsoft.com/windows/apps/design/) 和 [WinUI Gallery](https://github.com/microsoft/WinUI-Gallery)。仓库代码许可证见 [LICENSE](LICENSE)。

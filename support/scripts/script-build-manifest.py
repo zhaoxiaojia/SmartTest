@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -38,7 +39,7 @@ def _git_commit() -> str:
 
 def _load_version() -> str:
     if not VERSION_PATH.exists():
-        return "1.0.0"
+        raise ValueError(f"Missing product version owner: {VERSION_PATH}")
     try:
         payload = json.loads(VERSION_PATH.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -49,23 +50,6 @@ def _load_version() -> str:
     return version
 
 
-def _bump_patch(version: str) -> str:
-    match = _VERSION_RE.match(version)
-    if not match:
-        raise ValueError(f"Version must use MAJOR.MINOR.PATCH format: {version!r}")
-    major = int(match.group("major"))
-    minor = int(match.group("minor"))
-    patch = int(match.group("patch")) + 1
-    return f"{major}.{minor}.{patch}"
-
-
-def _write_version(version: str) -> None:
-    VERSION_PATH.write_text(
-        json.dumps({"version": version}, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-
-
 def _write_installer_version_include(version: str) -> None:
     INSTALLER_VERSION_INCLUDE.parent.mkdir(parents=True, exist_ok=True)
     INSTALLER_VERSION_INCLUDE.write_text(
@@ -74,11 +58,21 @@ def _write_installer_version_include(version: str) -> None:
     )
 
 
+def validate_release_tag(tag: str) -> str:
+    version = _load_version()
+    expected = f"v{version}"
+    if tag != expected:
+        raise ValueError(
+            f"Release tag {tag!r} does not match product version {expected!r} from {VERSION_PATH}"
+        )
+    return version
+
+
 def main() -> None:
     catalog = ROOT / "build" / "generated" / "testing" / "cases" / "test_catalog.json"
     android_catalog = ROOT / "mobile" / "android" / "app" / "src" / "main" / "java" / "com" / "smarttest" / "mobile" / "runner" / "SmartTestCatalog.kt"
     manifest_path = ROOT / "build" / "generated" / "build_manifest.json"
-    version = _bump_patch(_load_version())
+    version = _load_version()
     built_at = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
     payload = {
         "version": version,
@@ -97,7 +91,6 @@ def main() -> None:
     }
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    _write_version(version)
     _write_installer_version_include(version)
     print(f"Build manifest: {manifest_path}")
     print(f"Build version: {version}")
@@ -105,4 +98,14 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--check-tag", metavar="TAG")
+    args = parser.parse_args()
+    if args.check_tag is not None:
+        try:
+            checked_version = validate_release_tag(args.check_tag)
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(f"Release tag matches product version: v{checked_version}")
+    else:
+        main()
