@@ -19,7 +19,7 @@ from core.jira import (
 )
 from example.bridge.AuthBridge import AuthBridge
 from example.helper.TranslateHelper import TranslateHelper
-from support.logging import smart_log
+from core.logging import smart_log
 
 try:
     from example.helper.AppPaths import app_data_dir

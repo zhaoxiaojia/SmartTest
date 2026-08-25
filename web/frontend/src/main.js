@@ -19,9 +19,9 @@ const app = createApp({
       const Workbook = exceljs.Workbook ?? exceljs.default?.Workbook
       await exportPerformanceExcel(rows, { Workbook })
     },
-    exportPdf: async container => {
+    exportPdf: async (container, dataType) => {
       const { jsPDF } = await import('jspdf')
-      exportVisibleChartsPdf(container, { JsPdf: jsPDF })
+      exportVisibleChartsPdf(container, { JsPdf: jsPDF, dataType })
     }
   }
 })

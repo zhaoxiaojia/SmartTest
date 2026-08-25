@@ -15,7 +15,7 @@ from .AsusBaseControl import AsusBaseControl
 from core.testing.tool.dut_tool.transports.telnet_tool import TelnetSession
 from ..router_telnet_control import TelnetVerifier
 from ..RouterControl import REGION_CHANNEL_MAP, RouterTools
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 class AsusTelnetNvramControl(AsusBaseControl):

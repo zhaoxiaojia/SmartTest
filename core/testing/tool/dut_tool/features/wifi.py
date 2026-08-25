@@ -5,7 +5,7 @@ from collections import defaultdict
 import re
 import time
 
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 @dataclass(frozen=True)

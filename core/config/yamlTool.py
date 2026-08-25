@@ -8,7 +8,7 @@ and multiple encodings are attempted to support different file origins.
 from pathlib import Path
 from typing import Union
 
-from support.logging import smart_log
+from core.logging import smart_log
 
 try:
     import yaml

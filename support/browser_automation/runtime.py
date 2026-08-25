@@ -5,7 +5,7 @@ import os
 import sys
 from pathlib import Path
 
-from support.logging import smart_log
+from core.logging import smart_log
 from support.browser_automation.errors import BrowserAutomationError
 from support.browser_automation.models import ContextKey
 from support.browser_automation.session import BrowserSession

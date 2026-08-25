@@ -10,7 +10,7 @@ from urllib.parse import quote, urlencode
 from uuid import uuid4
 import winreg
 
-from support.logging import smart_log
+from core.logging import smart_log
 
 from .errors import PersonalOutlookError
 

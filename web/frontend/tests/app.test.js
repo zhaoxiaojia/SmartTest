@@ -7,15 +7,61 @@ describe('SmartTest Web shell', () => {
   beforeEach(() => {
     document.body.innerHTML = '<div id="app"></div>'
     window.history.replaceState({}, '', '/')
+    sessionStorage.clear()
   })
 
-  it('uses an empty Home as the default and exposes only the three approved Database views', async () => {
+  it('keeps Home content blank and exposes the Wi-Fi Database entry in the sidebar', async () => {
     await createApp({ root: document.querySelector('#app'), api: {} }).start()
 
-    expect(document.querySelector('main').textContent.trim()).toBe('')
-    expect([...document.querySelectorAll('nav a')].map(link => link.textContent.trim())).toEqual([
-      'Peak Throughput', 'RVR', 'RVO'
+    expect(document.querySelector('main').children).toHaveLength(0)
+    expect([...document.querySelectorAll('nav a')].map(link => [link.textContent.trim(), link.pathname])).toEqual([
+      ['Wi-Fi Database', '/wifi-database/peak-throughput']
     ])
+  })
+
+  it('requires a report, supports select-all/clear, and cascades filter facets', async () => {
+    window.history.replaceState({}, '', '/wifi-database/rvr')
+    const api = {
+      getFilters: vi.fn().mockResolvedValue({ productLines: ['Consumer'], projects: ['Apollo'], testReports: ['rvr.csv'], standards: ['BE'] }),
+      getPerformance: vi.fn()
+    }
+    await createApp({ root: document.querySelector('#app'), api, capabilities: { charts: { clear: vi.fn(), render: vi.fn() } } }).start()
+    const nativeSelect = document.querySelector('select[name="testReportCsvNames"]')
+    expect(nativeSelect.classList).toContain('d-none')
+    const multi = nativeSelect.nextElementSibling
+    expect(multi.querySelector('.multi-select__dropdown').getAttribute('aria-hidden')).toBe('true')
+    multi.querySelector('.multi-select__control').click()
+    expect(multi.querySelector('.multi-select__dropdown').getAttribute('aria-hidden')).toBe('false')
+    const search = multi.querySelector('input[type="search"]')
+    search.value = 'missing'; search.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(multi.querySelector('.multi-select__empty').textContent).toBe('No matches found')
+    search.value = ''; search.dispatchEvent(new Event('input', { bubbles: true }))
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(multi.querySelector('.multi-select__dropdown').getAttribute('aria-hidden')).toBe('true')
+    multi.querySelector('.multi-select__control').click()
+    multi.querySelector('[data-select-all]').click()
+    expect(multi.querySelector('.multi-select__tag').textContent).toBe('rvr.csv')
+    document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await vi.waitFor(() => expect(api.getPerformance).toHaveBeenCalled())
+    multi.querySelector('[data-clear]').click()
+    document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    expect(document.querySelector('[role="status"]').textContent).toContain('Select at least one Test Report')
+    expect(api.getPerformance).toHaveBeenCalledTimes(1)
+    document.querySelector('select[name="productLines"] option').selected = true
+    document.querySelector('select[name="productLines"]').dispatchEvent(new Event('change', { bubbles: true }))
+    await vi.waitFor(() => expect(api.getFilters.mock.calls.at(-1)[0].productLines).toEqual(['Consumer']))
+  })
+
+  it('keeps independent filter state for each datatype and reset clears current state', async () => {
+    window.history.replaceState({}, '', '/wifi-database/rvr')
+    const api = { getFilters: vi.fn().mockResolvedValue({ testReports: ['rvr.csv'] }), getPerformance: vi.fn() }
+    const app = createApp({ root: document.querySelector('#app'), api, capabilities: { charts: { clear: vi.fn(), render: vi.fn() } } })
+    await app.start()
+    document.querySelector('select[name="testReportCsvNames"] option').selected = true
+    document.querySelector('select[name="testReportCsvNames"]').dispatchEvent(new Event('change'))
+    document.querySelector('[data-reset]').click()
+    expect(document.querySelector('select[name="testReportCsvNames"]').selectedOptions).toHaveLength(0)
+    expect(sessionStorage.getItem('wifi-database:RVR')).toBeTruthy()
   })
 
   it('shows an explicit unavailable state without crashing', async () => {
@@ -43,13 +89,14 @@ describe('SmartTest Web shell', () => {
       root: document.querySelector('#app'), api,
       capabilities: { charts, exportExcel: vi.fn(), exportPdf: vi.fn() }
     }).start()
-    document.querySelector('select[name="reportNames"] option').selected = true
+    document.querySelector('select[name="testReportCsvNames"] option').selected = true
     document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await vi.waitFor(() => expect(charts.render).toHaveBeenCalled())
 
     expect(charts.render.mock.calls[0][1]).toEqual([row])
     expect(charts.render.mock.calls[0][2]).toBe('PEAK_THROUGHPUT')
     expect(document.querySelector('[data-reports]').textContent).toBe('peak.csv')
+    expect(document.querySelector('[data-report-count]').textContent).toBe('1')
     expect(document.querySelector('[data-export-excel]').disabled).toBe(false)
   })
 
@@ -63,11 +110,12 @@ describe('SmartTest Web shell', () => {
     const exportExcel = vi.fn(() => kind === 'excel' ? pending : Promise.resolve())
     const exportPdf = vi.fn(() => kind === 'pdf' ? pending : Promise.resolve())
     const api = {
-      getFilters: vi.fn().mockResolvedValue({}),
+      getFilters: vi.fn().mockResolvedValue({ testReports: ['rvr.csv'] }),
       getPerformance: vi.fn().mockResolvedValue({ data: [{ reportName: 'rvr.csv' }] })
     }
     const charts = { clear: vi.fn(), render: vi.fn() }
     await createApp({ root: document.querySelector('#app'), api, capabilities: { charts, exportExcel, exportPdf } }).start()
+    document.querySelector('select[name="testReportCsvNames"] option').selected = true
     document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await vi.waitFor(() => expect(document.querySelector(selector).disabled).toBe(false))
 

@@ -48,6 +48,7 @@ Before editing, every active agent reads this file and each skill matching the t
 | test cases extracted or developed from plans/documents/images | `smarttest-case-development` plus every changed-layer skill |
 | `mobile/android/**`, APK runner/build/sign/install | `smarttest-android-workflow` |
 | desktop package/installer/build manifest | `smarttest-ui-workflow` |
+| logger、print、Logcat、FastAPI access log、日志格式或日志存储 | `smarttest-logging-workflow` plus every changed-layer skill |
 | medium/high-risk delegated implementation | `smarttest-dual-codex-delivery` plus every changed-layer skill |
 | cross-layer change | every skill for the affected layers |
 

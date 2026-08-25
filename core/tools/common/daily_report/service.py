@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Callable
 from uuid import uuid4
 
-from support.logging import smart_log
+from core.logging import smart_log
 from support.outlook import send_email
 from support.personal_outlook import send_email as send_personal_email
 from support.report import render_html_page_image

@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
-from support.logging import smart_log
+from core.logging import smart_log
 from core.testing.tool.boot_video.analyzer import FrameAnalyzer
 from core.testing.tool.boot_video.camera import CameraManager
 from core.testing.tool.boot_video.power import MockPowerController, PowerController

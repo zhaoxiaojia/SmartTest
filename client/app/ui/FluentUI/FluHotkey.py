@@ -1,4 +1,5 @@
 import sys
+from core.logging import smart_log
 
 from PySide6.QtCore import Signal, QObject, Property
 
@@ -34,9 +35,9 @@ class FluHotkey(QObject):
                 self.isRegistered = False
                 if not FluHotkey._warning_printed:
                     FluHotkey._warning_printed = True
-                    print(
+                    smart_log(
                         f"[FluHotkey] global hotkeys disabled on {sys.platform} because keyboard requires elevated permissions",
-                        file=sys.stderr,
+                        platform="client", domain="ui", level="warning", source="FluHotkey",
                     )
                 return
 

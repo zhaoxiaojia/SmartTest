@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -35,8 +36,11 @@ PACKAGE_COMMANDS = {
 PACKAGE_ORDER = ("mobile", "client", "tool")
 
 
-def _run(command, *, runner, cwd=ROOT):
-    runner([str(part) for part in command], cwd=str(cwd), check=True)
+def _run(command, *, runner, cwd=ROOT, env=None):
+    options = {"cwd": str(cwd), "check": True}
+    if env is not None:
+        options["env"] = env
+    runner([str(part) for part in command], **options)
 
 
 def package(target: str, runner=subprocess.run) -> None:
@@ -55,7 +59,17 @@ def check(target: str, runner=subprocess.run) -> None:
             _run([_python(), "-m", "compileall", "-q", "client", "support"], runner=runner)
             _run([_python(), "-m", "pytest", "support/ci/test_smarttest_cli.py", "support/ci/test_check_product_boundaries.py", "-q"], runner=runner)
         elif item == "web":
-            _run([_python(), "-m", "pytest", "tests", "-q"], runner=runner, cwd=ROOT / "web/backend")
+            backend_env = os.environ.copy()
+            existing_python_path = backend_env.get("PYTHONPATH", "").strip()
+            backend_env["PYTHONPATH"] = os.pathsep.join(
+                part for part in (str(ROOT), existing_python_path) if part
+            )
+            _run(
+                [_python(), "-m", "pytest", "tests", "-q"],
+                runner=runner,
+                cwd=ROOT / "web/backend",
+                env=backend_env,
+            )
             for script in ("test", "lint", "build"):
                 _run([_npm(), "run", script], runner=runner, cwd=ROOT / "web/frontend")
         else:
@@ -64,7 +78,7 @@ def check(target: str, runner=subprocess.run) -> None:
 
 def _dev_plan(target: str):
     client = ([_python(), str(ROOT / "client/app/main.py")], ROOT)
-    backend = ([_python(), "-m", "uvicorn", "smarttest_web.app:app", "--app-dir", "web/backend", "--reload", "--port", "8000"], ROOT)
+    backend = ([_python(), "-m", "uvicorn", "smarttest_web.app:app", "--app-dir", "web/backend", "--reload", "--port", "8000", "--no-access-log"], ROOT)
     frontend = ([_npm(), "run", "dev"], ROOT / "web/frontend")
     mobile = ([_gradle(), ":app:assembleDebug"], ROOT / "mobile/android")
     if target == "client": return [], [client], {"Client": "desktop window"}

@@ -10,7 +10,7 @@ from PySide6.QtCore import QObject, Property, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
 from core.config import jsonTool
-from support.logging import smart_log
+from core.logging import smart_log
 
 try:
     from example.helper.AppPaths import app_data_dir

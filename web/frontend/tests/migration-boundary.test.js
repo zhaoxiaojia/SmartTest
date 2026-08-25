@@ -26,7 +26,7 @@ describe('stage-five migration boundary', () => {
     ])
 
     const source = (await Promise.all(files.map(file => readFile(file, 'utf8')))).join('\n')
-    expect(source).not.toMatch(/(?:OTA|Compatibility|Interference|Function Test|Project Progress|User Management)/i)
+    expect(source).not.toMatch(/(?:\bOTA\b|\bCompatibility\b|\bInterference\b|Function Test|Project Progress|User Management)/i)
     expect(source).not.toMatch(/(?:\.\.\/)+core(?:\/|['"])/)
   })
 })

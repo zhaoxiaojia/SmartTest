@@ -7,7 +7,7 @@ from typing import Callable, Iterable
 from core.tools.SmartHome.redmine.collector import RedmineContextCollector
 from core.tools.SmartHome.redmine.models import RedmineContext
 from core.tools.SmartHome.redmine.overdue import OverduePolicy, analyze_issue
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 def project_specificity_score(name: str) -> tuple:

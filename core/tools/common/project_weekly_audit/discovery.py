@@ -3,7 +3,7 @@ from collections import Counter
 from datetime import datetime
 from urllib.parse import parse_qs, urljoin, urlsplit
 import re
-from support.logging import smart_log
+from core.logging import smart_log
 from .html import html_tables, links, text
 from .models import ConfluenceProject, ProductLine, ProjectCandidate, ProjectCollectionFilter
 from .project_collection import filter_projects

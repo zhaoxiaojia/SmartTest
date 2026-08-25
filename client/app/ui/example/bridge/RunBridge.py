@@ -21,7 +21,7 @@ from core.testing.runner.config import RunConfig, build_run_config_from_state
 from core.testing.runner.execution import TestRunSession, start_pytest_run
 from core.testing.state.store import load_state
 from core.testing.test_context import TestContext, smarttest_context
-from support.logging import default_log_path, log_display_fields, smart_log
+from core.logging import default_log_path, log_display_fields, smart_log
 from support.report import save_run_report
 
 try:

@@ -12,7 +12,7 @@ from collections.abc import Mapping
 from typing import Any, Sequence
 
 from core.testing.tool.relay_tool import Relay
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 def load_config(refresh: bool = False) -> dict[str, Any]:

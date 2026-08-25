@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Callable
 
-from support.logging import smart_log
+from core.logging import smart_log
 from support.windows_credentials import CredentialNotFoundError, WindowsCredentialError, WindowsCredentialStore
 
 from .models import AuditExecutionContext

@@ -4,43 +4,12 @@ import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
-import android.util.Log
-import java.io.File
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
+import com.smarttest.mobile.logging.SmartTestLog
 
 object AutoSuspendDebugLogger {
     private const val TAG = "AutoSuspendDebug"
-    private const val FILE_NAME = "auto_suspend_debug.log"
-    private val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
-
-    fun append(context: Context, message: String, error: Throwable? = null) {
-        val line = buildString {
-            append("[")
-            append(LocalDateTime.now().format(formatter))
-            append("] ")
-            append(message)
-            if (error != null) {
-                append(" | error=")
-                append(error.javaClass.name)
-                append(": ")
-                append(error.message ?: "<empty>")
-                var cause = error.cause
-                while (cause != null) {
-                    append(" | cause=")
-                    append(cause.javaClass.name)
-                    append(": ")
-                    append(cause.message ?: "<empty>")
-                    cause = cause.cause
-                }
-            }
-        }
-        Log.w(TAG, line, error)
-        runCatching {
-            val file = resolveFile(context)
-            file.parentFile?.mkdirs()
-            file.appendText(line + "\n")
-        }
+    fun append(@Suppress("UNUSED_PARAMETER") context: Context, message: String, error: Throwable? = null) {
+        SmartTestLog.warning(TAG, message, error)
     }
 
     fun logPackagePermissions(context: Context) {
@@ -64,10 +33,6 @@ object AutoSuspendDebugLogger {
         }
     }
 
-    fun logPublicFilePath(context: Context) {
-        append(context, "debugFile=${resolveFile(context).absolutePath}")
-    }
-
     private fun loadPackageInfo(context: Context): PackageInfo? {
         val pm = context.packageManager
         return runCatching {
@@ -83,8 +48,4 @@ object AutoSuspendDebugLogger {
         }.getOrNull()
     }
 
-    private fun resolveFile(context: Context): File {
-        val root = context.getExternalFilesDir(null) ?: context.filesDir
-        return File(root, FILE_NAME)
-    }
 }

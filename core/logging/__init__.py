@@ -1,0 +1,43 @@
+from .logger import (
+    SMARTTEST_LOG_COLOR_ENV,
+    SMARTTEST_LOG_DIR_ENV,
+    SMARTTEST_LOG_FILE_NAME,
+    SMARTTEST_READABLE_LOG_FILE_NAME,
+    SMARTTEST_STEP_EVENTS_OUT_ENV,
+    configure_external_logging,
+    configure_platform,
+    current_platform,
+    default_log_dir,
+    default_log_path,
+    default_readable_log_path,
+    set_external_logger_level,
+    smart_log,
+    write_static_log,
+)
+from .record import (
+    SmartLogRecord,
+    build_log_record,
+    ensure_log_display_fields,
+    log_display_fields,
+)
+
+__all__ = [
+    "SMARTTEST_LOG_COLOR_ENV",
+    "SMARTTEST_LOG_DIR_ENV",
+    "SMARTTEST_LOG_FILE_NAME",
+    "SMARTTEST_READABLE_LOG_FILE_NAME",
+    "SMARTTEST_STEP_EVENTS_OUT_ENV",
+    "SmartLogRecord",
+    "build_log_record",
+    "configure_external_logging",
+    "configure_platform",
+    "current_platform",
+    "default_log_dir",
+    "default_log_path",
+    "default_readable_log_path",
+    "ensure_log_display_fields",
+    "log_display_fields",
+    "set_external_logger_level",
+    "smart_log",
+    "write_static_log",
+]

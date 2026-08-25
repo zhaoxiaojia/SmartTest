@@ -23,7 +23,7 @@ from support.jira_integration.auth.basic import JiraBasicAuth
 from support.jira_integration.services.create_issue_service import CreateIssueService
 from support.jira_integration.services.create_schema_service import JiraCreateSchemaService
 from support.jira_integration.transport.client import JiraClient, JiraClientConfig
-from support.logging import smart_log
+from core.logging import smart_log
 from core.tools.SmartHome.redmine.auth import RedmineAuthService
 from core.tools.SmartHome.redmine.attachment_transfer import RedmineAttachmentTransfer
 from core.tools.SmartHome.redmine.clone_controller import RedmineCloneController

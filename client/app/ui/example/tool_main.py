@@ -7,9 +7,13 @@ import sys
 import uuid
 from pathlib import Path
 
+from core.logging import configure_platform
 from example.imports import tool_resource_rc as _tool_resource_rc
 from support.packaging.tool_runtime_dependencies import TOOL_SMOKE_MODULES
 from support.packaging.tool_runtime_resources import missing_required
+
+
+configure_platform("tool")
 
 
 TOOL_CONTEXT_NAMES = (

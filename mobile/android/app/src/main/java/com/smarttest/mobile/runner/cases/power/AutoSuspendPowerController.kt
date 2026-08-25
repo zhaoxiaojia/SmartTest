@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
 import android.os.SystemClock
-import android.util.Log
+import com.smarttest.mobile.logging.SmartTestLog
 import java.lang.reflect.Method
 
 object AutoSuspendPowerController {
@@ -38,7 +38,7 @@ object AutoSuspendPowerController {
                 pendingIntent,
             )
         }.recoverCatching {
-            Log.w("AutoSuspendPower", "Exact alarm unavailable, fallback to inexact RTC wakeup", it)
+            SmartTestLog.warning("AutoSuspendPower", "Exact alarm unavailable, fallback to inexact RTC wakeup", it)
             AutoSuspendDebugLogger.append(appContext, "setExactAndAllowWhileIdle rejected; fallback to AlarmManager.set", it)
             alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
@@ -62,7 +62,6 @@ object AutoSuspendPowerController {
 
     fun goToSleep(context: Context) {
         val appContext = context.applicationContext
-        AutoSuspendDebugLogger.logPublicFilePath(appContext)
         AutoSuspendDebugLogger.logPackagePermissions(appContext)
         val powerManager = appContext.getSystemService(PowerManager::class.java)
             ?: error("PowerManager is unavailable")
@@ -146,7 +145,7 @@ object AutoSuspendPowerController {
                 return
             } catch (error: Throwable) {
                 lastError = error
-                Log.w(
+                SmartTestLog.warning(
                     "AutoSuspendPower",
                     "PowerManager.$methodName failed for signature=${method.toGenericString()} args=${args.contentToString()}",
                     error,

@@ -8,7 +8,7 @@ from collections.abc import Iterable
 import json
 import re
 
-from support.logging import smart_log
+from core.logging import smart_log
 from .models import ConfluenceProject, ProjectCollection, ProjectCollectionFilter
 
 

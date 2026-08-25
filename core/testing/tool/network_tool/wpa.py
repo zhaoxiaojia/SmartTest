@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 import time
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 class WpaSupplicantManager:

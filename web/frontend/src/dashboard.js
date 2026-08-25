@@ -7,16 +7,58 @@ function directionOf(row, dataType) {
   return dataType === 'RVR' || dataType === 'RVO' ? 'uplink' : null
 }
 
+function scenarioValue(key, name) {
+  const match = `${key ?? ''}`.match(new RegExp(`(?:^|\\|)\\s*${name}\\s*=\\s*([^|]+)`, 'i'))
+  return match?.[1]?.trim() ?? null
+}
+
+function formatBand(value) {
+  const raw = `${value ?? ''}`.trim()
+  if (!raw) return ''
+  const normalized = raw.replace(/band\s*/i, '').replace(/\s+/g, '').replace(/ghz$/i, '').replace(/g$/i, '')
+  const numeric = Number.parseFloat(normalized)
+  return Number.isFinite(numeric) ? `${Number(numeric.toFixed(2))}G` : `${normalized}G`
+}
+
+function descriptorOf(row) {
+  const bandwidth = Number.parseFloat(scenarioValue(row.scenarioGroupKey, 'BANDWIDTH') ?? scenarioValue(row.scenarioGroupKey, 'BW') ?? '')
+  const parsedChannel = Number.parseInt(scenarioValue(row.scenarioGroupKey, 'CHANNEL') ?? '', 10)
+  return {
+    band: row.band ?? scenarioValue(row.scenarioGroupKey, 'BAND'),
+    standard: row.standard ?? scenarioValue(row.scenarioGroupKey, 'STANDARD'),
+    bandwidthMhz: Number.isFinite(row.bandwidthMhz) ? row.bandwidthMhz : (Number.isFinite(bandwidth) ? bandwidth : null),
+    channel: channelOf(row) ?? (Number.isFinite(parsedChannel) ? parsedChannel : null)
+  }
+}
+
 function scenarioOf(row) {
-  const key = row.scenarioGroupKey || row.casePath || 'scenario'
-  const label = `${key}`.split('|').map(part => part.trim()).filter(Boolean).join(' · ') || 'Scenario'
-  return { key, label }
+  const descriptor = descriptorOf(row)
+  const keyParts = []
+  if (descriptor.band) keyParts.push(`BAND=${`${descriptor.band}`.toUpperCase()}`)
+  if (descriptor.standard) keyParts.push(`STANDARD=${`${descriptor.standard}`.toUpperCase()}`)
+  if (Number.isFinite(descriptor.bandwidthMhz)) keyParts.push(`BW=${descriptor.bandwidthMhz}`)
+  if (Number.isFinite(descriptor.channel)) keyParts.push(`CHANNEL=${descriptor.channel}`)
+  const label = [formatBand(descriptor.band), descriptor.standard && `${descriptor.standard}`.toUpperCase(),
+    Number.isFinite(descriptor.bandwidthMhz) && `${descriptor.bandwidthMhz}MHz`,
+    Number.isFinite(descriptor.channel) && `CH ${descriptor.channel}`].filter(Boolean).join(' · ') || row.casePath || 'Scenario'
+  return { key: keyParts.join('|') || row.casePath || row.scenarioGroupKey || 'scenario', label }
+}
+
+function channelOf(row) {
+  const value = Number(row.centerFreqMhz)
+  if (!Number.isFinite(value)) return row.channel ?? null
+  if (value >= 2412 && value <= 2472) return Math.round((value - 2407) / 5)
+  if (value === 2484) return 14
+  if (value >= 5000 && value < 5950) return Math.round((value - 5000) / 5)
+  if (value >= 5925 && value <= 7125) return Math.round((value - 5950) / 5)
+  return value
 }
 
 function seriesOf(row) {
   const key = `${row.testReportId ?? 'unknown'}__${row.scenarioGroupKey ?? ''}`
-  const project = `${row.projectNickname || row.project || (row.projectId != null ? `Project ${row.projectId}` : 'Unknown Project')}`
-  return { key, label: project }
+  const project = `${row.projectNickname || (row.projectId != null ? `Project ${row.projectId}` : row.project || 'Unknown Project')}`
+  const channel = descriptorOf(row).channel
+  return { key, label: Number.isFinite(channel) ? `${project} CH ${channel}` : project }
 }
 
 function scenarioMap() {
@@ -67,11 +109,20 @@ export function groupPolarSeries(rows, dataType) {
     values.push(row.throughputAvgMbps)
     bucket.get(series.key).angles.set(row.angleDeg, values)
   }
-  return finalize(scenarios, group => ({
-    label: group.label,
-    points: [...group.angles].sort(([a], [b]) => a - b).map(([angle, values]) => ({
-      angle,
-      throughput: values.reduce((sum, value) => sum + value, 0) / values.length
+  return [...scenarios.values()].map(scenario => ({
+    key: scenario.key, label: scenario.label,
+    directions: Object.fromEntries(DIRECTIONS.map(direction => {
+      const groups = [...scenario.directions[direction].values()]
+      const observed = [...new Set(groups.flatMap(group => [...group.angles.keys()]))].sort((a, b) => a - b)
+      const step = observed.some(angle => Math.abs(angle % 30) < 1e-9) ? 30
+        : observed.some(angle => Math.abs(angle % 45) < 1e-9) ? 45
+          : observed.some(angle => Math.abs(angle % 15) < 1e-9) ? 15 : 45
+      const angles = observed.length > 0 && observed.length < 6
+        ? Array.from({ length: Math.floor(360 / step) + 1 }, (_, index) => index * step) : observed
+      return [direction, groups.map(group => ({ label: group.label, points: angles.map(angle => {
+        const values = group.angles.get(angle) ?? []
+        return { angle, throughput: values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null }
+      }) }))]
     }))
   }))
 }
@@ -163,22 +214,52 @@ export async function exportPerformanceExcel(rows, { Workbook, saveFile = downlo
   if (!rows?.length) throw new Error('No data available to export.')
   const workbook = new Workbook()
   const worksheet = workbook.addWorksheet('Performance')
-  const keys = [...new Set(rows.flatMap(row => Object.keys(row)))]
-  worksheet.columns = keys.map(key => ({ header: key, key }))
-  worksheet.addRows(rows)
+  const columns = ['Index', 'Path_Loss_dB', 'Throughput_Avg_Mbps', 'Direction', 'Band', 'Bandwidth_MHz',
+    'Channel', 'Center_Freq_MHz', 'Standard', 'Test_Category', 'Protocol', 'Case_Path', 'Product_Line',
+    'Project', 'ADB_Device', 'Telnet_IP', 'Created_At']
+  worksheet.columns = columns.map(key => ({ header: key, key }))
+  worksheet.addRows(rows.map((row, index) => ({
+    Index: index + 1, Path_Loss_dB: row.pathLossDb, Throughput_Avg_Mbps: row.throughputAvgMbps,
+    Direction: directionOf(row, row.dataType) === 'downlink' ? 'Rx' : 'Tx', Band: formatBand(row.band) || row.band,
+    Bandwidth_MHz: row.bandwidthMhz, Channel: channelOf(row), Center_Freq_MHz: row.centerFreqMhz,
+    Standard: row.standard, Test_Category: row.testCategory, Protocol: row.protocol, Case_Path: row.casePath,
+    Product_Line: row.productLine, Project: row.project, ADB_Device: row.adbDevice, Telnet_IP: row.telnetIp,
+    Created_At: row.createdAt
+  })))
   const buffer = await workbook.xlsx.writeBuffer()
   const timestamp = now.toISOString().replace(/[:T]/g, '-').split('.')[0]
   saveFile(buffer, `wifi-performance-${timestamp}.xlsx`)
 }
 
-export function exportVisibleChartsPdf(container, { JsPdf }) {
+export function exportVisibleChartsPdf(container, {
+  JsPdf, createCanvas = () => document.createElement('canvas'),
+  background = getComputedStyle(document.documentElement).getPropertyValue('--wifi-panel').trim() || '#ffffff',
+  dataType = 'Wi-Fi performance'
+}) {
   const canvases = [...container.querySelectorAll('canvas')].filter(canvas => canvas.width > 0 && canvas.height > 0)
   if (!canvases.length) throw new Error('No charts available for PDF export.')
-  const documentPdf = new JsPdf({ orientation: 'landscape', unit: 'pt', format: 'a4' })
+  const documentPdf = new JsPdf({ orientation: 'landscape', unit: 'pt', format: 'a4', compress: true })
+  const pageWidth = documentPdf.internal.pageSize.getWidth()
+  const pageHeight = documentPdf.internal.pageSize.getHeight()
+  const margin = 24; const gap = 14; const titleHeight = 36
+  const availableWidth = pageWidth - margin * 2
+  const slotHeight = (pageHeight - margin * 2 - gap) / 2
   canvases.forEach((canvas, index) => {
-    if (index) documentPdf.addPage()
-    documentPdf.text(canvas.dataset.exportTitle || 'Wi-Fi performance', 24, 24)
-    documentPdf.addImage(canvas.toDataURL('image/png'), 'PNG', 24, 40, 790, 500)
+    if (index && index % 2 === 0) documentPdf.addPage()
+    const top = margin + (index % 2) * (slotHeight + gap)
+    documentPdf.setFont('helvetica', 'bold'); documentPdf.setFontSize(13)
+    documentPdf.text(canvas.dataset.exportTitle || 'Chart', margin, top + 16)
+    documentPdf.setFont('helvetica', 'normal'); documentPdf.setFontSize(10)
+    documentPdf.text(`Type: ${dataType}`, margin, top + 32)
+    const composed = createCanvas(); const padding = 18
+    composed.width = canvas.width + padding * 2; composed.height = canvas.height + padding * 2
+    const context = composed.getContext('2d')
+    if (!context) throw new Error('Failed to create PDF export canvas.')
+    context.fillStyle = background; context.fillRect(0, 0, composed.width, composed.height)
+    context.drawImage(canvas, padding, padding)
+    const scale = Math.min(availableWidth / composed.width, (slotHeight - titleHeight) / composed.height)
+    const width = composed.width * scale; const height = composed.height * scale
+    documentPdf.addImage(composed.toDataURL('image/png'), 'PNG', margin + (availableWidth - width) / 2, top + titleHeight, width, height)
   })
   documentPdf.save(`wifi-performance-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.pdf`)
 }

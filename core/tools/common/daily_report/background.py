@@ -10,7 +10,7 @@ import time
 from support.jira_integration.auth.basic import JiraBasicAuth
 from support.jira_integration.services.issue_service import JiraIssueService
 from support.jira_integration.transport.client import JiraClient, JiraClientConfig
-from support.logging import smart_log
+from core.logging import smart_log
 from support.windows_credentials import WindowsCredentialStore
 
 from .projects import ProjectConfigStore

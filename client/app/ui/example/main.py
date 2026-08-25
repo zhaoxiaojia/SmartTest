@@ -37,7 +37,7 @@ from example.bridge.RedmineBridge import RedmineBridge
 from example.bridge.DebugBridge import DebugBridge
 from example.bridge.BootVideoBridge import BootVideoBridge
 from example.context_registry import register_context_objects, start_context_services
-from support.logging import smart_log
+from core.logging import smart_log
 from core.config.jsonTool import app_data_dir
 from client.app.ui.page_state_migration import migrate_frontend_state
 

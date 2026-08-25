@@ -7,7 +7,7 @@ from threading import Thread
 
 from PySide6.QtCore import QObject, Property, Signal, Slot
 
-from support.logging import smart_log
+from core.logging import smart_log
 from core.tools.common.daily_report import DailyReportError
 from core.tools.common.daily_report.background import CREDENTIAL_REF
 

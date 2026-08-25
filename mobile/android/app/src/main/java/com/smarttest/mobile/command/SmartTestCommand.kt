@@ -2,7 +2,7 @@ package com.smarttest.mobile.command
 
 import android.content.Context
 import android.content.Intent
-import android.util.Log
+import com.smarttest.mobile.logging.SmartTestLog
 import android.util.Base64
 import com.smarttest.mobile.runner.TestRunRequest
 import org.json.JSONObject
@@ -34,7 +34,7 @@ object SmartTestCommand {
         }.distinct()
 
         if (caseIds.isEmpty()) {
-            Log.w("SmartTestCommand", "RUN command is missing case_id or case_ids")
+            SmartTestLog.warning("SmartTestCommand", "RUN command is missing case_id or case_ids")
             return null
         }
 
@@ -108,7 +108,7 @@ object SmartTestCommand {
                 }
             }
         }.onFailure {
-            Log.w("SmartTestCommand", "Invalid params_b64 payload", it)
+            SmartTestLog.warning("SmartTestCommand", "Invalid params_b64 payload", it)
         }.getOrNull()
     }
 }

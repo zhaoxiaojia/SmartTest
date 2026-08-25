@@ -9,7 +9,7 @@ import signal
 
 import uiautomator2 as u2
 
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 class UiautomatorTool:

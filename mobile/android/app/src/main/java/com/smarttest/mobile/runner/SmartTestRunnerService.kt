@@ -9,7 +9,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
+import com.smarttest.mobile.logging.SmartTestLog
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -50,7 +50,7 @@ class SmartTestRunnerService : Service() {
                 if (request != null) {
                     handleRun(request)
                 } else {
-                    Log.w("SmartTestRunner", "RUN request is missing")
+                    SmartTestLog.warning("SmartTestRunner", "RUN request is missing")
                 }
             }
 
@@ -68,7 +68,7 @@ class SmartTestRunnerService : Service() {
     }
 
     private fun handleRun(request: TestRunRequest) {
-        Log.i(
+        SmartTestLog.info(
             "SmartTestRunner",
             "RUN requestId=${request.requestId}, source=${request.source}, trigger=${request.trigger}, " +
                 "cases=${request.caseIds}, params=${request.parameterOverrides}",
@@ -125,7 +125,7 @@ class SmartTestRunnerService : Service() {
                 SmartTestRunStore.resetToIdle("Run cancelled")
             } catch (error: Throwable) {
                 val message = error.message ?: error.javaClass.simpleName
-                Log.e("SmartTestRunner", "Unhandled runner failure", error)
+                SmartTestLog.error("SmartTestRunner", "Unhandled runner failure", error)
                 SmartTestRunStore.appendLog("Unhandled runner failure: $message")
                 SmartTestRunStore.finishRun(
                     statusText = "Batch failed: $message",
@@ -157,7 +157,7 @@ class SmartTestRunnerService : Service() {
 
     private fun handleStatus(reason: String) {
         val summary = reason.ifBlank { "am start STATUS" }
-        Log.i("SmartTestRunner", "STATUS $summary -> ${SmartTestRunStore.state.value}")
+        SmartTestLog.info("SmartTestRunner", "STATUS $summary -> ${SmartTestRunStore.state.value}")
         stopSelf()
     }
 

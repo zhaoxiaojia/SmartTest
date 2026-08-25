@@ -2,7 +2,7 @@ import asyncio
 import time
 from contextlib import asynccontextmanager
 
-from support.logging import smart_log
+from core.logging import smart_log
 from core.tools.SmartHome.redmine import selectors
 from core.tools.SmartHome.redmine.models import AuthResult, AuthState, Credential
 

@@ -5,7 +5,7 @@ import time
 import locale
 
 from core.config.yamlTool import yamlTool
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 class LocalOS:

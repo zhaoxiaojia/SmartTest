@@ -18,7 +18,7 @@ from core.testing.tool.dut_tool.command_batch import (
     CommandRunner,
 )
 from core.testing.tool.wifi_lab_tool.ixchariot import ix
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 @dataclass

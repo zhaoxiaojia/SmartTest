@@ -36,7 +36,18 @@ def _add_report_names(conditions: list[str], params: list[Any], values: list[str
     conditions.append(f"({' OR '.join(pieces)})")
 
 
-def build_conditions(filters: WifiFilters, *, include_base: bool = True) -> tuple[list[str], list[Any]]:
+def _datatype_condition(conditions: list[str], data_type: str | None) -> None:
+    resolved = "COALESCE(tr.report_name, tr.csv_name, '')"
+    if data_type == "PEAK_THROUGHPUT":
+        conditions.append(f"(UPPER({resolved}) LIKE 'PERFORMANCE%' OR UPPER(COALESCE(tr.report_type, '')) LIKE 'PEAK%')")
+    elif data_type in {"RVR", "RVO"}:
+        conditions.append(f"UPPER({resolved}) LIKE '{data_type}%'")
+
+
+def build_conditions(
+    filters: WifiFilters, *, include_base: bool = True, exclude: set[str] | None = None,
+) -> tuple[list[str], list[Any]]:
+    exclude = exclude or set()
     conditions: list[str] = []
     params: list[Any] = []
     if include_base:
@@ -45,21 +56,48 @@ def build_conditions(filters: WifiFilters, *, include_base: bool = True) -> tupl
             conditions.insert(0, "p.attenuation IS NOT NULL")
         elif filters.data_type == "RVO":
             conditions.append("p.angle IS NOT NULL")
-    _add_values(conditions, params, "pr.project_type", filters.product_lines)
-    _add_values(conditions, params, "pr.project_name", filters.projects)
-    _add_values(conditions, params, "p.wifi_mode", filters.standards)
-    if filters.data_type == "PEAK_THROUGHPUT":
-        conditions.append("(UPPER(COALESCE(tr.report_name, tr.csv_name, '')) LIKE 'PERFORMANCE%' OR UPPER(COALESCE(tr.report_type, '')) LIKE 'PEAK%')")
-    elif filters.data_type in {"RVR", "RVO"}:
-        conditions.append(f"UPPER(COALESCE(tr.report_name, tr.csv_name, '')) LIKE '{filters.data_type}%'")
-    _add_report_names(conditions, params, filters.report_names)
-    if filters.start_date:
+    if "product_line" not in exclude: _add_values(conditions, params, "pr.project_type", filters.product_lines)
+    if "project_id" not in exclude: _add_values(conditions, params, "pr.id", filters.project_ids)
+    if "project" not in exclude: _add_values(conditions, params, "pr.project_name", filters.projects)
+    if "wifi_module" not in exclude: _add_values(conditions, params, "pr.wifi_module", filters.wifi_modules)
+    if "interface" not in exclude: _add_values(conditions, params, "pr.interface", filters.interfaces)
+    if "device" not in exclude and filters.device_column:
+        _add_values(conditions, params, f"d.{filters.device_column}", filters.device_values)
+    if "standard" not in exclude: _add_values(conditions, params, "p.wifi_mode", filters.standards)
+    if "band" not in exclude: _add_values(conditions, params, "p.band", filters.bands)
+    if "bandwidth" not in exclude: _add_values(conditions, params, "p.bandwidth_mhz", filters.bandwidths_mhz)
+    if "data_type" not in exclude: _datatype_condition(conditions, filters.data_type)
+    if "path_loss" not in exclude and filters.path_loss_min is not None:
+        conditions.append("p.attenuation >= %s"); params.append(filters.path_loss_min)
+    if "path_loss" not in exclude and filters.path_loss_max is not None:
+        conditions.append("p.attenuation <= %s"); params.append(filters.path_loss_max)
+    if "rssi" not in exclude and filters.rssi_min is not None:
+        conditions.append("p.rssi >= %s"); params.append(filters.rssi_min)
+    if "rssi" not in exclude and filters.rssi_max is not None:
+        conditions.append("p.rssi <= %s"); params.append(filters.rssi_max)
+    if "report" not in exclude:
+        _add_report_names(conditions, params, filters.test_report_csv_names)
+        _add_report_names(conditions, params, filters.report_names)
+    if "start_date" not in exclude and filters.start_date:
         conditions.append("p.created_at >= %s")
         params.append(datetime.combine(filters.start_date, time.min))
-    if filters.end_date:
+    if "end_date" not in exclude and filters.end_date:
         conditions.append("p.created_at <= %s")
         params.append(datetime.combine(filters.end_date, time.max))
     return conditions, params
+
+
+def build_test_report_conditions(filters: WifiFilters, *, exclude: set[str] | None = None):
+    exclude = exclude or set()
+    conditions, params = build_conditions(filters, include_base=False, exclude=exclude)
+    requires_performance = any(token not in exclude and getattr(filters, attribute) for token, attribute in (
+        ("standard", "standards"), ("band", "bands"), ("bandwidth", "bandwidths_mhz"),
+    )) or any(value is not None for value in (filters.path_loss_min, filters.path_loss_max, filters.rssi_min, filters.rssi_max))
+    if "data_type" not in exclude and filters.data_type:
+        requires_performance = True
+    if filters.start_date or filters.end_date:
+        requires_performance = True
+    return conditions, params, requires_performance
 
 
 _PERFORMANCE_SELECT = """

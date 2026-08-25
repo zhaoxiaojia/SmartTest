@@ -71,13 +71,13 @@ Resolve DUT serial once at the run boundary and carry it in `RunConfig`. Do not 
 - Repeatable cases use the shared `loop_count`/`cycle_count` model (default `1`). Do not create separate explicit-cycle and ordinary-loop mechanisms.
 - For identical cycles, expose one row group and update it each cycle. A cycle transition supplies enough identity for the UI to refresh every title to current `x/x` immediately while later rows remain planned.
 - Report JSON/run results/steps/logs are shared contracts. HTML/PDF are export views, never input data. Storage/generation stays UI-free.
-- Report logs come from `support/logging.py` structured records, never stdout mirrors, ANSI parsing, or temporary prints. Preserve `run_id`, `case_nodeid`, `step_id`, `definition_id`, `status`, `duration`, `domain`, `source`, `level`, and structured `extra` where applicable.
+- Report logs come from `core.logging` structured records, never stdout mirrors, ANSI parsing, or temporary prints. Preserve `run_id`, `case_nodeid`, `step_id`, `definition_id`, `status`, `duration`, `domain`, `source`, `level`, and structured `extra` where applicable.
 
 ## Logging
 
-Runtime business code calls `smart_log(...)` from `support.logging`. `step_log(...)` may add step semantics only and must delegate to `smart_log`; compatibility APIs such as `FluLogger` remain thin adapters.
+Runtime business code calls `smart_log(...)` from `core.logging`. `step_log(...)` may add step semantics only and must delegate to `smart_log`; compatibility APIs such as `FluLogger` remain thin adapters.
 
-`support/logging.py` alone owns console/static/aggregate output, JSONL, runtime fan-out, domain/source inference, paths, and colors. Static/event/report data never contains ANSI. Preserve business identity in records; command-line maintenance/build/offline scripts may use stdout.
+`core.logging` alone owns console/static/aggregate output, JSONL, runtime fan-out, process-platform selection, domain/source inference, paths, and colors. Product entrypoints configure the process platform once; shared Core modules never guess their consumer. Static/event/report data never contains ANSI. Preserve business identity in records; command-line maintenance/build/offline scripts may use stdout.
 
 Domain colors: framework cyan, UI magenta, runner blue, test green, DUT yellow, equipment orange, Android bright green, Jira bright magenta, Python white/gray. Severity supplies debug gray, warning bright yellow, error bright red, critical white-on-red. Add colors only in the owner and keep light/dark readability.
 

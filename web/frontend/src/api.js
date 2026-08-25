@@ -23,6 +23,7 @@ function buildQuery(filters = {}) {
   appendValues(params, 'product_line', filters.productLines)
   appendValues(params, 'project', filters.projects)
   appendValues(params, 'report_name', filters.reportNames)
+  appendValues(params, 'test_report_csv_name', filters.testReportCsvNames)
   appendValues(params, 'standard', filters.standards)
   params.set('data_type', TYPE_MAP[filters.dataType] ?? filters.dataType ?? 'performance')
   if (filters.startDate) params.set('start_date', filters.startDate)

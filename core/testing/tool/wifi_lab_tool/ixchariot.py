@@ -12,7 +12,7 @@ import os
 import re
 from core.testing.tool.dut_tool import command_batch as subprocess
 import time
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 class ix:

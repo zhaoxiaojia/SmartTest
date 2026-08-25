@@ -39,7 +39,7 @@ from core.testing.tool.dut_tool.features.wifi import (
     scan as wifi_scan,
     wait_for_service as wifi_wait_for_service,
 )
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 def connect_again(func):

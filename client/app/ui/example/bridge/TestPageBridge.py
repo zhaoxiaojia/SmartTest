@@ -22,7 +22,7 @@ from core.testing.state.store import ensure_state, load_state, save_state
 from core.testing.tool.dut_tool.parameter_helper import ParameterHelper
 from core.testing.tool.env_tool import build_env_equipment_row, default_env_config
 from mobile.android import ensure_test_apk_installed
-from support.logging import smart_log
+from core.logging import smart_log
 
 try:
     from example.helper.AppPaths import app_data_dir

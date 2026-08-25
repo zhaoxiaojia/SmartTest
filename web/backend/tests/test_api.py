@@ -1,4 +1,7 @@
+import json
+
 from fastapi.testclient import TestClient
+from core.logging import SMARTTEST_LOG_DIR_ENV
 
 from smarttest_web.app import create_app
 
@@ -51,6 +54,53 @@ def test_repeated_snake_case_filters_reach_owner_and_response_keeps_camel_case()
     assert response.json()["projectOptions"] == [{"value": "Apollo", "label": "Apollo"}]
 
 
+def test_legacy_aliases_and_advanced_multivalue_filters_reach_owner():
+    owner = RecordingOwner()
+    client = TestClient(create_app(query_owner=lambda: owner))
+    response = client.get("/api/performance", params=[
+        ("projectId", "7"), ("wifi_module", "W2"), ("interface", "SDIO"),
+        ("band", "5G"), ("bandwidth_mhz", "80"), ("test_report_csv_name", "rvr.csv"),
+        ("device_type", "adb_device"), ("device_value", "SERIAL-1"),
+        ("path_loss_min", "10.5"), ("rssi_max", "-30"), ("max_points", "50"),
+    ])
+    assert response.status_code == 200
+    filters = owner.performance_arg
+    assert filters.project_ids == [7]
+    assert filters.wifi_modules == ["W2"]
+    assert filters.interfaces == ["SDIO"]
+    assert filters.bands == ["5G"]
+    assert filters.bandwidths_mhz == [80.0]
+    assert filters.test_report_csv_names == ["rvr.csv"]
+    assert filters.device_column == "adb_device"
+    assert filters.device_values == ["SERIAL-1"]
+    assert filters.path_loss_min == 10.5
+    assert filters.rssi_max == -30
+    assert filters.limit == 50
+
+
+def test_invalid_device_column_is_rejected_before_database_access():
+    owner = RecordingOwner()
+    response = TestClient(create_app(query_owner=lambda: owner)).get(
+        "/api/performance?device_type=password&device_value=secret"
+    )
+    assert response.status_code == 422
+    assert owner.performance_arg is None
+
+
+def test_non_integer_project_id_is_ignored_instead_of_truncated():
+    owner = RecordingOwner()
+    response = TestClient(create_app(query_owner=lambda: owner)).get('/api/performance?projectId=7.9')
+    assert response.status_code == 200
+    assert owner.performance_arg.project_ids == []
+
+
+def test_documented_camel_case_datatype_alias_reaches_owner():
+    owner = RecordingOwner()
+    response = TestClient(create_app(query_owner=lambda: owner)).get('/api/performance?dataType=RVO')
+    assert response.status_code == 200
+    assert owner.performance_arg.data_type == 'RVO'
+
+
 def test_performance_contract_and_limit_are_forwarded():
     owner = RecordingOwner()
     response = TestClient(create_app(query_owner=lambda: owner)).get(
@@ -62,7 +112,9 @@ def test_performance_contract_and_limit_are_forwarded():
     assert response.json()["data"][0]["throughputAvgMbps"] == 900.0
 
 
-def test_database_failure_is_safe_503():
+def test_database_failure_is_safe_503(tmp_path, monkeypatch):
+    monkeypatch.setenv(SMARTTEST_LOG_DIR_ENV, str(tmp_path))
+
     class FailedOwner(RecordingOwner):
         def get_performance(self, filters):
             raise RuntimeError("password=secret SELECT * FROM private")
@@ -72,6 +124,16 @@ def test_database_failure_is_safe_503():
     assert response.json() == {"detail": "Wi-Fi Database is unavailable."}
     assert "secret" not in response.text
     assert "SELECT" not in response.text
+    rows = [
+        json.loads(line)
+        for line in (tmp_path / "smarttest.log").read_text(encoding="utf-8").splitlines()
+    ]
+    request_rows = [row for row in rows if row["source"] == "request"]
+    assert len(request_rows) == 1
+    assert request_rows[0]["level"] == "error"
+    assert request_rows[0]["extra"]["status"] == 503
+    assert "secret" not in json.dumps(request_rows[0])
+    assert "SELECT" not in json.dumps(request_rows[0])
 
 
 def test_database_owner_configuration_failure_is_safe_503():
@@ -89,3 +151,21 @@ def test_only_approved_routes_exist():
     client = TestClient(create_app(query_owner=lambda: RecordingOwner()))
     assert client.post("/api/performance").status_code == 405
     assert client.get("/api/users").status_code == 404
+
+
+def test_request_is_logged_once_without_sensitive_headers(tmp_path, monkeypatch):
+    monkeypatch.setenv(SMARTTEST_LOG_DIR_ENV, str(tmp_path))
+    response = TestClient(create_app(query_owner=lambda: RecordingOwner())).get(
+        "/health", headers={"authorization": "secret-token", "cookie": "secret-cookie"}
+    )
+    rows = [json.loads(line) for line in (tmp_path / "smarttest.log").read_text(encoding="utf-8").splitlines()]
+    request_rows = [row for row in rows if row["source"] == "request"]
+    assert len(request_rows) == 1
+    row = request_rows[0]
+    assert row["platform"] == "web"
+    assert row["extra"]["method"] == "GET"
+    assert row["extra"]["path"] == "/health"
+    assert row["extra"]["status"] == 200
+    assert row["extra"]["duration_ms"] >= 0
+    assert "secret" not in json.dumps(row)
+    assert response.headers["x-request-id"] == row["request_id"]

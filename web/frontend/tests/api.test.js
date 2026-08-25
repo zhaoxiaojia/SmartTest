@@ -11,7 +11,7 @@ describe('Wi-Fi Database API contract', () => {
       dataType: 'PEAK_THROUGHPUT',
       productLines: ['Consumer', 'Enterprise'],
       projects: ['Apollo'],
-      reportNames: ['report.csv'],
+      testReportCsvNames: ['report.csv'],
       standards: ['802.11be'],
       startDate: '2026-08-01',
       endDate: '2026-08-24',
@@ -22,7 +22,7 @@ describe('Wi-Fi Database API contract', () => {
     expect(url.pathname).toBe('/api/performance')
     expect(url.searchParams.getAll('product_line')).toEqual(['Consumer', 'Enterprise'])
     expect(url.searchParams.getAll('project')).toEqual(['Apollo'])
-    expect(url.searchParams.getAll('report_name')).toEqual(['report.csv'])
+    expect(url.searchParams.getAll('test_report_csv_name')).toEqual(['report.csv'])
     expect(url.searchParams.getAll('standard')).toEqual(['802.11be'])
     expect(url.searchParams.get('data_type')).toBe('performance')
     expect(url.searchParams.get('start_date')).toBe('2026-08-01')

@@ -4,7 +4,7 @@ from datetime import datetime
 import hashlib
 from uuid import uuid4
 
-from support.logging import smart_log
+from core.logging import smart_log
 
 from .discovery import discover_project_collection, discover_project_pages
 from .models import (

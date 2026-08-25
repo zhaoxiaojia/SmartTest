@@ -1019,7 +1019,7 @@ class TestContext:
         self.append_log({"line": str(line), "domain": "runner", "level": "info", "source": "TestContext"})
 
     def append_log(self, record: dict[str, Any]) -> None:
-        from support.logging import log_display_fields
+        from core.logging import log_display_fields
 
         row = dict(record)
         text = str(row.get("line") or row.get("message") or "").rstrip()

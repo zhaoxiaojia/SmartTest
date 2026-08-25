@@ -34,7 +34,7 @@ from core.tools.common.project_weekly_audit.service import ConfluenceAuditServic
 from support.confluence_integration import (
     ConfluenceClient, ConfluenceClientConfig, ConfluenceDependencyError,
 )
-from support.logging import smart_log
+from core.logging import smart_log
 from support.windows_credentials import WindowsCredentialStore
 from support.account_snapshot_cache import AccountScopedSnapshotCache
 from support.account_dynamic_source import (

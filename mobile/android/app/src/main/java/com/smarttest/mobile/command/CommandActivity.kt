@@ -3,7 +3,7 @@ package com.smarttest.mobile.command
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
+import com.smarttest.mobile.logging.SmartTestLog
 import com.smarttest.mobile.runner.SmartTestRunnerService
 import com.smarttest.mobile.runner.SmartTestUiLauncher
 
@@ -26,7 +26,7 @@ class CommandActivity : Activity() {
         when (intent.action) {
             SmartTestCommand.ACTION_RUN -> {
                 val request = SmartTestCommand.buildRunRequest(intent) ?: return
-                Log.i(
+                SmartTestLog.info(
                     "SmartTestCommand",
                     "dispatch RUN requestId=${request.requestId}, source=${request.source}, " +
                         "trigger=${request.trigger}, cases=${request.caseIds}, params=${request.parameterOverrides}",
@@ -44,7 +44,7 @@ class CommandActivity : Activity() {
             }
 
             else -> {
-                Log.w("SmartTestCommand", "Unknown command: ${intent.action}")
+                SmartTestLog.warning("SmartTestCommand", "Unknown command: ${intent.action}")
             }
         }
     }

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 import re
@@ -7,7 +7,7 @@ from typing import Iterable
 from support.jira_integration.cache.metadata_cache import JiraFieldMetadataCache
 from support.jira_integration.core.models import JiraFieldMetadata
 from support.jira_integration.fields.specs import FieldSpec
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 @dataclass(frozen=True)

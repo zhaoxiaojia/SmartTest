@@ -5,7 +5,7 @@ from typing import Any
 
 from core.testing.tool.pc_tool import SerialTool, list_serial_port_entries, normalize_serial_port
 from core.testing.tool.relay_tool import Relay
-from support.logging import smart_log
+from core.logging import smart_log
 
 _DEFAULT_BAUDRATE = 9600
 _DEFAULT_HOLD_SECONDS = 0.1

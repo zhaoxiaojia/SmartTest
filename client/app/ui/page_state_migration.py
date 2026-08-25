@@ -7,7 +7,7 @@ from typing import Any, Iterable
 
 from PySide6.QtCore import QSettings
 
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 _SENSITIVE = ("password", "passwd", "secret", "token", "api_key", "apikey", "credential")

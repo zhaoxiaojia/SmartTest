@@ -7,7 +7,7 @@ import smtplib
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Iterable, Literal
 
-from support.logging import smart_log
+from core.logging import smart_log
 
 if TYPE_CHECKING:
     from .message import BuiltEmail

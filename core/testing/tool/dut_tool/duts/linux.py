@@ -9,7 +9,7 @@ from core.testing.tool.dut_tool.features.wifi import WifiConnectParams
 from core.testing.tool.dut_tool.transports.telnet_tool import telnet_tool
 from core.testing.tool.dut_tool.transports.telnet_tool import TelnetSession
 from core.testing.tool.network_tool.wpa import WpaSupplicantManager
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 class linux(BaseDut):

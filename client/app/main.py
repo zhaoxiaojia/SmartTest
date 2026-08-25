@@ -44,6 +44,9 @@ def main() -> int:
 
     root = _runtime_root()
     sys.path.insert(0, str(root))
+    from core.logging import configure_platform
+
+    configure_platform("client")
 
     background_result = _background_command(sys.argv)
     if background_result is not None:
@@ -56,7 +59,7 @@ def main() -> int:
 
     from example.main import main as ui_main
     from core.testing.build_manifest import load_build_manifest
-    from support.logging import smart_log
+    from core.logging import smart_log
 
     manifest = load_build_manifest(root_dir=root)
     if manifest:

@@ -17,7 +17,7 @@ from core.tools.common.jira_format_audit import (
 )
 from support.jira_integration.auth.basic import JiraBasicAuth
 from support.jira_integration.transport.client import JiraClient, JiraClientConfig
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 JIRA_BASE_URL = os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")

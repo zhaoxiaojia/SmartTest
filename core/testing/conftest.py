@@ -5,11 +5,14 @@ import os
 from pathlib import Path
 import pytest
 
+from core.logging import configure_platform
+
 from core.testing.cases.metadata import build_case_metadata
 from core.testing.params.registry import default_registry
 from core.testing.test_context import smarttest_context
 
 
+configure_platform("runner")
 _REGISTRY = default_registry()
 
 

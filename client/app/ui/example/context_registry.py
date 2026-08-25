@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from PySide6.QtCore import QObject
 from PySide6.QtQml import QQmlApplicationEngine
 
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 def register_context_objects(

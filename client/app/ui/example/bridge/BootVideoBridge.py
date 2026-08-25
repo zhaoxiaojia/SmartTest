@@ -10,7 +10,7 @@ import cv2
 from PySide6.QtCore import QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 
-from support.logging import smart_log
+from core.logging import smart_log
 from core.testing.state.local_store import load_json, save_json
 from core.testing.tool.boot_video.analyzer import FrameAnalyzer
 from core.testing.tool.boot_video.camera import CameraManager

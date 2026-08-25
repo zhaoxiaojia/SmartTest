@@ -4,7 +4,7 @@ import time
 import os
 import signal
 
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 def screencap(dut, filepath, layer="osd", app_level=28) -> None:

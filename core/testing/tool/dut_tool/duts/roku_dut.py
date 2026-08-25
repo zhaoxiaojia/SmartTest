@@ -25,7 +25,7 @@ from core.testing.tool.dut_tool.duts.linux import linux
 from core.testing.tool.dut_tool.features.wifi import WifiConnectParams
 from core.testing.tool.network_tool.roku_wpa import roku_wpa
 from typing import Annotated
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 def load_config(refresh: bool = False) -> dict:

@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import runpy
 import subprocess
 import sys
@@ -54,6 +55,8 @@ def test_backend_checks_run_from_the_independent_backend_root():
     smarttest.main(["check", "web"], runner=lambda command, **kwargs: calls.append((command, kwargs)))
     backend = next(item for item in calls if "pytest" in item[0])
     assert Path(backend[1]["cwd"]).as_posix().endswith("/web/backend")
+    python_paths = backend[1]["env"]["PYTHONPATH"].split(os.pathsep)
+    assert str(Path(__file__).resolve().parents[2]) in python_paths
 
 
 def test_npm_launcher_is_windows_compatible():
@@ -67,6 +70,12 @@ def test_dev_all_builds_mobile_before_starting_three_long_running_processes():
     assert Path(bootstrap[0][0][0]).name.lower() in {"gradlew", "gradlew.bat"}
     assert len(processes) == 3
     assert set(addresses) == {"Client", "Web API", "Web UI"}
+
+
+def test_web_dev_disables_duplicate_uvicorn_access_log():
+    _, processes, _ = smarttest._dev_plan("web")
+    backend = next(command for command, _cwd in processes if "uvicorn" in command)
+    assert "--no-access-log" in backend
 
 
 def _workflow(name):

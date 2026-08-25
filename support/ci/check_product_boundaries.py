@@ -42,12 +42,61 @@ CORE_RULES = {
         "core/testing/tests/<platform>/<case_type>/<domain>/test_<case_name>.py"
     ),
 }
+LOGGING_RULES = {
+    "AGENTS.md": "smarttest-logging-workflow",
+    ".codex/skills/smarttest-testing-workflow/SKILL.md": "core.logging",
+    ".codex/skills/smarttest-logging-workflow/SKILL.md": "core.logging",
+}
 LEGACY_DESKTOP_RULE_PATH = re.compile(
     r"(?<!client/app/)ui/(?:\*\*|example|jsonTool|yamlTool|FluentUI)|python(?:\.exe)?\s+main\.py"
 )
 ROOT_LEGACY_LOCATIONS = (
     "AI", "debug", "tools", "demo_outlook.py", "dist_installer", "dist_tool", ".superpowers",
 )
+ANDROID_LOG_ADAPTER = Path("mobile/android/app/src/main/java/com/smarttest/mobile/logging/SmartTestLog.kt")
+
+
+def _check_logging_boundaries(root: Path = ROOT) -> list[str]:
+    failures: list[str] = []
+    for product in ("client", "core", "web", "mobile"):
+        for path in sorted((root / product).rglob("*.py")):
+            if "self_tests" in path.parts or "tests" in path.parts or (root / "core" / "logging") in path.parents:
+                continue
+            relative = path.relative_to(root)
+            if relative.as_posix() == "client/app/ui/example/tool_main.py" or "core/testing/tool/bt_analysis" in relative.as_posix():
+                continue
+            source = path.read_text(encoding="utf-8-sig")
+            if re.search(r"(?:from\s+support\.logging\s+import|import\s+support\.logging)", source):
+                failures.append(f"{relative}: product Python must import core.logging")
+            if re.search(r"\blogging\.(?:getLogger|Formatter|FileHandler)\s*\(", source):
+                failures.append(f"{relative}: private Python logging mechanism is forbidden")
+            tree = ast.parse(source, filename=str(path))
+            if any(isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print" for node in ast.walk(tree)):
+                failures.append(f"{relative}: product runtime must use core.logging instead of print")
+    android_source = root / "mobile" / "android" / "app" / "src" / "main"
+    if android_source.exists():
+        for path in sorted(android_source.rglob("*.kt")):
+            if path.relative_to(root) == ANDROID_LOG_ADAPTER:
+                continue
+            source = path.read_text(encoding="utf-8")
+            if "android.util.Log" in source or re.search(r"\bLog\.(?:v|d|i|w|e|wtf)\s*\(", source):
+                failures.append(f"{path.relative_to(root)}: Android business code must use SmartTestLog")
+    return failures
+
+
+def _check_active_logging_rules(root: Path = ROOT) -> list[str]:
+    failures: list[str] = []
+    for relative, required in LOGGING_RULES.items():
+        path = root / relative
+        if not path.is_file():
+            failures.append(f"{relative}: missing active logging rule")
+            continue
+        source = path.read_text(encoding="utf-8")
+        if required not in source:
+            failures.append(f"{relative}: missing unified logging owner or routing")
+        if "support.logging" in source or "support/logging.py" in source:
+            failures.append(f"{relative}: contains retired logging owner")
+    return failures
 
 
 def _forbidden_python_imports(path: Path, root: Path) -> set[str]:
@@ -215,6 +264,8 @@ def main() -> int:
     failures.extend(_check_active_android_rules())
     failures.extend(_check_desktop_location())
     failures.extend(_check_active_desktop_rules())
+    failures.extend(_check_logging_boundaries())
+    failures.extend(_check_active_logging_rules())
     if failures:
         print("Product boundary check failed:", file=sys.stderr)
         for failure in failures:

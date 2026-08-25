@@ -7,7 +7,7 @@ import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.PowerManager
-import android.util.Log
+import com.smarttest.mobile.logging.SmartTestLog
 import com.smarttest.mobile.runner.device.model.BluetoothState
 import com.smarttest.mobile.runner.device.model.CpuCoreState
 import com.smarttest.mobile.runner.device.model.CpuState
@@ -201,10 +201,10 @@ class SystemDeviceStateProvider(
         return try {
             block()
         } catch (error: SecurityException) {
-            Log.w(tag, "system access denied for $label: ${error.message}")
+            SmartTestLog.warning(tag, "system access denied for $label: ${error.message}")
             null
         } catch (error: IllegalArgumentException) {
-            Log.w(tag, "system access unsupported for $label: ${error.message}")
+            SmartTestLog.warning(tag, "system access unsupported for $label: ${error.message}")
             null
         }
     }

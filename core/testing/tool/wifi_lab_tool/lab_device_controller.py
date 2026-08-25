@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 from urllib.request import urlopen
 
 import pytest
-from support.logging import smart_log
+from core.logging import smart_log
 
 ATTENUATOR_SWD_RC4DAT_8G_95 = "SWD-RC4DAT-8G-95"
 ATTENUATOR_VAUNIX_LDA_908V_8 = "Vaunix-LDA-908V-8"

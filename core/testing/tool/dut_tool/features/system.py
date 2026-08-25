@@ -5,7 +5,7 @@ import re
 import os
 import time
 
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 _SCALING_AVAILABLE_FREQUENCIES = "/sys/devices/system/cpu/cpufreq/policy0/scaling_available_frequencies"

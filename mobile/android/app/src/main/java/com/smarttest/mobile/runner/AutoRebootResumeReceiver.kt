@@ -3,7 +3,7 @@ package com.smarttest.mobile.runner
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
+import com.smarttest.mobile.logging.SmartTestLog
 import com.smarttest.mobile.runner.cases.power.AutoRebootSessionStore
 
 class AutoRebootResumeReceiver : BroadcastReceiver() {
@@ -22,14 +22,14 @@ class AutoRebootResumeReceiver : BroadcastReceiver() {
         val pendingCycle = session.completedCycles + 1
         val dispatchToken = "${session.requestId}:$pendingCycle"
         if (session.resumeDispatchToken == dispatchToken) {
-            Log.i(
+            SmartTestLog.info(
                 "AutoRebootResume",
                 "ignore duplicate boot resume dispatch action=$action requestId=${session.requestId}, cycle=$pendingCycle",
             )
             return
         }
         sessionStore.save(session.copy(resumeDispatchToken = dispatchToken))
-        Log.i(
+        SmartTestLog.info(
             "AutoRebootResume",
             "boot receiver resume requestId=${session.requestId}, trigger=${session.trigger}, " +
                 "cycles=${session.totalCycles}, completed=${session.completedCycles}, pendingCycle=$pendingCycle",

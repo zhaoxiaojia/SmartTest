@@ -8,6 +8,7 @@ from support.ci.check_product_boundaries import (
     ANDROID_RULES,
     CORE_RULES,
     DESKTOP_RULES,
+    LOGGING_RULES,
     _check_active_android_rules,
     _check_active_desktop_rules,
     _check_android_location,
@@ -17,6 +18,8 @@ from support.ci.check_product_boundaries import (
     _check_desktop_location,
     _check_web_frontend,
     _check_root_legacy_locations,
+    _check_logging_boundaries,
+    _check_active_logging_rules,
 )
 
 
@@ -161,6 +164,35 @@ class ProductBoundaryCheckTests(unittest.TestCase):
         self.assertEqual(
             failures,
             [".codex/skills/smarttest-ui-workflow/SKILL.md: contains legacy desktop filesystem path"],
+        )
+
+    def test_logging_boundary_rejects_legacy_private_and_direct_android_logging(self) -> None:
+        self._write("client/app/a.py", "from support.logging import smart_log\n")
+        self._write("web/backend/private.py", "import logging\nlog = logging.getLogger(__name__)\n")
+        self._write("core/runtime.py", "print('temporary')\n")
+        self._write("mobile/android/app/src/main/java/com/smarttest/mobile/Feature.kt", "import android.util.Log\nfun x() = Log.i(\"x\", \"y\")\n")
+        failures = _check_logging_boundaries(self.root)
+        self.assertEqual(len(failures), 4)
+
+    def test_logging_boundary_allows_unique_owners(self) -> None:
+        self._write("core/logging/logger.py", "import logging\nlog = logging.getLogger(__name__)\n")
+        self._write("client/app/a.py", "from core.logging import smart_log\n")
+        self._write("mobile/android/app/src/main/java/com/smarttest/mobile/logging/SmartTestLog.kt", "import android.util.Log\nfun x() = Log.i(\"x\", \"y\")\n")
+        self.assertEqual(_check_logging_boundaries(self.root), [])
+
+    def test_active_logging_rules_reject_retired_owner(self) -> None:
+        for relative, required in LOGGING_RULES.items():
+            self._write(relative, required)
+        self._write(
+            ".codex/skills/smarttest-testing-workflow/SKILL.md",
+            "core.logging\nsupport.logging\n",
+        )
+        self.assertEqual(
+            _check_active_logging_rules(self.root),
+            [
+                ".codex/skills/smarttest-testing-workflow/SKILL.md: "
+                "contains retired logging owner"
+            ],
         )
 
 

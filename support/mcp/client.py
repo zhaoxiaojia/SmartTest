@@ -182,7 +182,7 @@ def _parse_mcp_response(text: str) -> dict[str, Any]:
 
 def _trace_mcp(stage: str, **values: Any) -> None:
     details = " ".join(f"{key}={values[key]}" for key in sorted(values))
-    from support.logging import smart_log
+    from core.logging import smart_log
 
     smart_log(
         "%s %s",

@@ -13,7 +13,7 @@ from support.jira_integration.core.models import (
     CreateIssueResult,
     ExistingIssue,
 )
-from support.logging import smart_log
+from core.logging import smart_log
 from core.tools.SmartHome.redmine.clone_draft import (
     CloneDraft,
     RedmineCloneDraftService,

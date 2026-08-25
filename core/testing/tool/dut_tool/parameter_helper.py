@@ -8,7 +8,7 @@ from typing import Any
 from core.testing.params.adb_devices import list_adb_devices
 from core.testing.params.contracts import env_dynamic_sources
 from core.testing.params.options import dynamic_param_options, normalize_option_values
-from support.logging import smart_log
+from core.logging import smart_log
 
 DutFactory = Callable[[str | None], Any]
 DeviceLister = Callable[[], list[str]]

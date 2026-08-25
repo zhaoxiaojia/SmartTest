@@ -11,7 +11,7 @@ import sys
 
 from core.testing.params.adb_devices import resolve_adb_serial_for_command
 from core.contracts.android import PACKAGE_NAME, PRIVILEGED_CASE_IDS
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 def _log_process_result(label: str, result: subprocess.CompletedProcess[str]) -> None:

@@ -36,7 +36,7 @@ from core.testing.tool.dut_tool.features.wifi import WifiConnectParams
 from core.testing.tool.wifi_lab_tool.ixchariot import ix
 from core.testing.tool.dut_tool.command_batch import CommandRunner, CommandTimeoutError
 from core.testing.params.adb_devices import resolve_adb_serial_for_command
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 class BaseDut:

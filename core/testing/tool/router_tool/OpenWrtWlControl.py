@@ -4,7 +4,7 @@ import re, time
 from typing import Optional, Union, Dict, Any, List
 from .RouterControl import ConfigError
 from core.testing.tool.dut_tool.transports.ssh_tool import ssh_tool
-from support.logging import smart_log
+from core.logging import smart_log
 
 
 class OpenWrtWlControl:
