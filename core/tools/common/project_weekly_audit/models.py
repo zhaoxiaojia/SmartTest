@@ -30,15 +30,6 @@ class AuditAttentionPoint:
 
 UPDATE_MATRIX_POINTS = (
     AuditAttentionPoint(
-        "status.highlights", "status", "Project Status Report.Highlights",
-        "Highlights",
-        ("Highlights",),
-    ),
-    AuditAttentionPoint(
-        "status.impact", "status", "Project Status Report.Impact issues",
-        "Impact", ("Impact",),
-    ),
-    AuditAttentionPoint(
         "test.weekly", "test_information",
         "Basic Information.Test Information.Phase Status（当前阶段测试状态）",
         "Phase Status",

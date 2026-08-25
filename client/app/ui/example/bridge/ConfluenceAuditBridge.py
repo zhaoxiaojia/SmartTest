@@ -24,7 +24,6 @@ from core.tools.common.project_weekly_audit.project_collection import (
 )
 from core.tools.common.project_weekly_audit.plans import AuditPlan, AuditPlanStore
 from core.tools.common.project_weekly_audit.report import (
-    export_project_audit_xlsx,
     export_project_audit_xlsx_by_product_line,
 )
 from core.tools.common.project_weekly_audit.scheduler import (
@@ -1059,15 +1058,9 @@ class ConfluenceAuditBridge(QObject):
             return
         try:
             root = Path(QStandardPaths.writableLocation(QStandardPaths.DownloadLocation) or Path.home() / "Downloads")
-            if self._batch.product_lines:
-                paths = export_project_audit_xlsx_by_product_line(
-                    self._batch, root,
-                )
-            else:
-                paths = [export_project_audit_xlsx(
-                    self._batch,
-                    root / f"project_weekly_audit_{self._batch.id}.xlsx",
-                )]
+            paths = export_project_audit_xlsx_by_product_line(
+                self._batch, root,
+            )
             path = paths[0]
             self._set(
                 exportPath=str(path),

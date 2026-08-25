@@ -49,7 +49,7 @@ def filter_projects(
         input_count += 1
         reason = None
         stage_match = re.match(r"^\s*(\d+)", str(project.current_stage or ""))
-        stage_excluded = bool(stage_match and int(stage_match.group(1)) >= 5)
+        stage_excluded = bool(stage_match and int(stage_match.group(1)) >= 4)
         project_years = set(project.matching_years or (project.year,))
         matching_years = tuple(sorted(project_years & years if years else project_years))
         if stage_excluded:

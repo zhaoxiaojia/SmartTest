@@ -12,7 +12,7 @@ from support.windows_credentials import CredentialNotFoundError, WindowsCredenti
 from .models import AuditExecutionContext
 from .period import scheduled_reporting_window
 from .plans import AuditPlanStore
-from .report import export_project_audit_xlsx
+from .report import export_project_audit_xlsx_by_product_line
 from .service import ConfluenceAuditService
 from support.confluence_integration import ConfluenceClient, ConfluenceClientConfig
 
@@ -65,10 +65,8 @@ def run_plan(plan_id: str, dependencies: CommandDependencies | None = None) -> i
     finally:
         password = ""
     try:
-        report = deps.xlsx_exporter(
-            batch,
-            deps.report_dir / f"project_weekly_audit_{batch.id}.xlsx",
-        )
+        reports = deps.xlsx_exporter(batch, deps.report_dir)
+        report = reports[0]
     except Exception:
         _record(deps, plan.plan_id, "report_failed", "", run_at)
         _log(plan.plan_id, "report_failed")
@@ -94,7 +92,7 @@ def _default_dependencies() -> CommandDependencies:
         plans=AuditPlanStore(root / "plans"),
         credentials=WindowsCredentialStore(),
         service_factory=service_factory,
-        xlsx_exporter=export_project_audit_xlsx,
+        xlsx_exporter=export_project_audit_xlsx_by_product_line,
         report_dir=root / "reports",
         now=lambda: datetime.now().astimezone(),
     )

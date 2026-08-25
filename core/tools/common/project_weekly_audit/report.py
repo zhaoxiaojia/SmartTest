@@ -94,7 +94,7 @@ def export_project_audit_xlsx_by_product_line(batch, output_dir: Path):
         ).strip("._") or line.key
         paths.append(export_project_audit_xlsx(
             line_batch,
-            output_dir / f"project_weekly_audit_{safe_name}_{batch.id}.xlsx",
+            output_dir / f"{safe_name}_{batch.id}.xlsx",
         ))
     return paths
 
