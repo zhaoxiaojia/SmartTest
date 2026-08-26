@@ -69,6 +69,9 @@ class AuditPlanStore:
             "product_line_keys",
         ):
             filter_values[key] = tuple(filter_values.get(key, ()))
+        filter_values["project_space_fields"] = tuple(
+            tuple(item) for item in filter_values.get("project_space_fields", ())
+        )
         filter_values["source_url"] = UNIFIED_SOURCE
         filter_values["current_stages"] = ()
         return AuditPlan(

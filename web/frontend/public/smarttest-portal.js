@@ -48,7 +48,7 @@ function getGreeting() {
 function setGreeting() {
     const greetingEl = document.getElementById('greeting');
     if (greetingEl) {
-        greetingEl.textContent = getGreeting() + ', Alex';
+        greetingEl.textContent = getGreeting();
     }
 }
 
@@ -102,7 +102,7 @@ function updateMessageView(index) {
             sender: 'Sarah Chen',
             email: 'sarah.chen@company.com',
             date: 'Jan 2, 2026 at 9:45 AM',
-            body: `<p>Hi Alex,</p>
+            body: `<p>Hi,</p>
                    <p>I wanted to give you a quick update on the Q1 dashboard redesign project. We've completed the wireframes and initial mockups, and the team is ready to move into the development phase.</p>
                    <p>Key highlights from our progress:</p>
                    <p>• User research completed with 15 participants<br>
@@ -117,7 +117,7 @@ function updateMessageView(index) {
             sender: 'Analytics Bot',
             email: 'analytics@company.com',
             date: 'Jan 1, 2026 at 8:00 AM',
-            body: `<p>Hello Alex,</p>
+            body: `<p>Hello,</p>
                    <p>Here's your weekly analytics summary for December 25-31, 2025:</p>
                    <p><strong>Traffic Overview:</strong><br>
                    Total visitors: 45,230 (+12% vs last week)<br>
@@ -200,8 +200,30 @@ function closeMobileMenu() {
     }
 }
 
+function initReportNavigation() {
+    const routes = [
+        { href: '/jira.html', label: 'Jira', icon: '<path d="m12 2 7 7-7 7-7-7 7-7z"/><path d="m12 9 5 5-5 5-5-5"/>' },
+        { href: '/confluence.html', label: 'Confluence', icon: '<path d="M5 7c3-3 5-3 8-1l6 4-3 4-6-4c-1-.7-2-.5-3 .7L5 13"/><path d="M19 17c-3 3-5 3-8 1l-6-4 3-4 6 4c1 .7 2 .5 3-.7L19 11"/>' }
+    ];
+    document.querySelectorAll('.nav-menu, .mobile-menu-nav').forEach(menu => {
+        const wifi = [...menu.querySelectorAll('a')].find(link => link.textContent.trim() === 'Wi-Fi Data');
+        if (!wifi) return;
+        for (const route of routes) {
+            if (menu.querySelector(`a[href="${route.href}"]`)) continue;
+            const link = document.createElement('a');
+            link.href = route.href;
+            if (menu.classList.contains('nav-menu')) link.className = 'nav-link';
+            link.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">${route.icon}</svg>${route.label}`;
+            const wrapper = menu.classList.contains('nav-menu') ? document.createElement('div') : link;
+            if (wrapper !== link) { wrapper.className = 'nav-item'; wrapper.append(link); }
+            menu.insertBefore(wrapper, wifi.closest('.nav-item') || wifi);
+        }
+    });
+}
+
 // ===== Initialize =====
 document.addEventListener('DOMContentLoaded', function() {
+    initReportNavigation();
     initTheme();
     setGreeting();
 

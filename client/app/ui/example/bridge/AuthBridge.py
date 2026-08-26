@@ -16,6 +16,7 @@ from PySide6.QtGui import QGuiApplication
 
 from core.config import jsonTool
 from core.logging import smart_log
+from core.authentication import LdapAuthenticator, ldap_identity_from_attributes
 from support.windows_credentials import (
     CredentialNotFoundError,
     WindowsCredentialError,
@@ -116,20 +117,6 @@ def match_employee_profile(
     }
 
 
-def ldap_identity_from_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
-    display_name = str(attributes.get("displayName", "") or "").strip()
-    avatar_bytes = b""
-    for key in ("thumbnailPhoto", "jpegPhoto"):
-        value = attributes.get(key)
-        if isinstance(value, bytes):
-            avatar_bytes = value
-            break
-        if isinstance(value, list) and value and isinstance(value[0], bytes):
-            avatar_bytes = value[0]
-            break
-    return {"display_name": display_name, "avatar_bytes": avatar_bytes}
-
-
 LDAP_CREDENTIAL_PREFIX = "SmartTest/Auth/"
 
 
@@ -170,6 +157,11 @@ class AuthBridge(QObject):
         self._authentication_generation = 0
         self._pending_authentications: dict[int, dict[str, Any]] = {}
         self._authentication_runner = authentication_runner or self._start_authentication_thread
+        self._ldap_owner = LdapAuthenticator(
+            host=LDAP_HOST, domain=LDAP_DOMAIN, server_factory=Server,
+            connection_factory=Connection, authentication=NTLM, get_info=ALL,
+            subtree=SUBTREE,
+        )
         self._authenticationFinished.connect(self._finish_authentication)
         selected = self._account_store.get(self._selected_account_id)
         if selected:
@@ -268,12 +260,6 @@ class AuthBridge(QObject):
             self._display_name = self._profile["display_name"]
         self._avatar_url = self._avatar_url_for_username(self._username)
 
-    def _normalize_username(self, username: str) -> str:
-        clean_username = (username or "").strip()
-        if "\\" in clean_username or "@" in clean_username:
-            return clean_username
-        return f"{LDAP_DOMAIN}\\{clean_username}"
-
     def _load_password_secret(self) -> str:
         path = self._auth_secret_path()
         if not path.exists():
@@ -312,40 +298,6 @@ class AuthBridge(QObject):
             smart_log("Failed to cache LDAP avatar %s: %s", path, exc, level="warning")
             return ""
 
-    def _fetch_ldap_identity(self, connection: Connection, username: str) -> dict[str, Any]:
-        if SUBTREE is None:
-            return {"display_name": "", "avatar_bytes": b""}
-        try:
-            naming_contexts = list((connection.server.info.other or {}).get("defaultNamingContext") or [])
-            search_base = str(naming_contexts[0]) if naming_contexts else ""
-            if not search_base:
-                return {"display_name": "", "avatar_bytes": b""}
-            account_name = username.split("\\")[-1].split("@")[0].strip()
-            escaped_account = _escape_ldap_filter_value(account_name)
-            escaped_username = _escape_ldap_filter_value(username)
-            search_filter = (
-                f"(|(sAMAccountName={escaped_account})(userPrincipalName={escaped_username})(mail={escaped_username}))"
-            )
-            if not connection.search(
-                search_base=search_base,
-                search_filter=search_filter,
-                search_scope=SUBTREE,
-                attributes=["displayName", "thumbnailPhoto", "jpegPhoto"],
-                size_limit=1,
-            ):
-                return {"display_name": "", "avatar_bytes": b""}
-            if not connection.entries:
-                return {"display_name": "", "avatar_bytes": b""}
-            entry = connection.entries[0]
-            attributes = {
-                name: entry[name].value if name in entry else None
-                for name in ("displayName", "thumbnailPhoto", "jpegPhoto")
-            }
-            return ldap_identity_from_attributes(attributes)
-        except Exception as exc:  # noqa: BLE001
-            smart_log("LDAP avatar lookup failed for %s: %s", username, exc, level="info")
-            return {"display_name": "", "avatar_bytes": b""}
-
     def _set_auth_state(
         self, *, username: str, authenticated: bool, password: str = "", display_name: str = ""
     ) -> None:
@@ -373,76 +325,7 @@ class AuthBridge(QObject):
             self.authChanged.emit()
 
     def _ldap_authenticate(self, username: str, password: str) -> dict[str, Any]:
-        clean_username = (username or "").strip()
-        clean_password = password or ""
-        if not clean_username or not clean_password:
-            smart_log("ldap_authenticate: username or password empty (username=%s)", clean_username, level="info")
-            return {"success": False, "username": "", "code": "invalid_credentials", "detail": "username_or_password_empty"}
-        if Connection is None or Server is None or NTLM is None or ALL is None:
-            smart_log("ldap_authenticate: ldap3 dependency is not installed", level="error")
-            return {"success": False, "username": "", "code": "ldap_unavailable", "detail": "ldap3_not_installed"}
-
-        server_host = LDAP_HOST.strip()
-        connection: Connection | None = None
-        domain_user = self._normalize_username(clean_username)
-        try:
-            server = Server(server_host, get_info=ALL)
-            connection = Connection(
-                server,
-                user=domain_user,
-                password=clean_password,
-                authentication=NTLM,
-            )
-            if not connection.bind():
-                result = connection.result or {}
-                description = str(result.get("description", "") or "").strip()
-                message = str(result.get("message", "") or "").strip()
-                detail = " | ".join(part for part in [description, message] if part)
-                smart_log(
-                    "ldap_authenticate: LDAP bind failed (username=%s, server=%s, result=%s)",
-                    domain_user,
-                    server_host,
-                    connection.result,
-                    level="warning",
-                )
-                return {
-                    "success": False,
-                    "username": "",
-                    "code": "invalid_credentials",
-                    "detail": detail or "ldap_bind_failed",
-                }
-            smart_log(
-                "ldap_authenticate: LDAP bind success (username=%s, server=%s)",
-                domain_user,
-                server_host,
-                level="info",
-            )
-            identity = self._fetch_ldap_identity(connection, clean_username)
-            return {"success": True, "username": clean_username, "detail": "", **identity}
-        except LDAPException as exc:
-            smart_log(
-                "ldap_authenticate: LDAP exception (username=%s, server=%s): %s",
-                clean_username,
-                server_host,
-                exc,
-                level="error",
-                exc_info=True,
-            )
-            return {"success": False, "username": "", "code": "ldap_unavailable", "detail": str(exc)}
-        except Exception as exc:  # noqa: BLE001
-            smart_log(
-                "ldap_authenticate: unexpected exception (username=%s, server=%s): %s",
-                clean_username,
-                server_host,
-                exc,
-            level="error", exc_info=True)
-            return {"success": False, "username": "", "code": "ldap_unavailable", "detail": str(exc)}
-        finally:
-            if connection is not None:
-                try:
-                    connection.unbind()
-                except Exception:  # noqa: BLE001
-                    smart_log("ldap_authenticate: ignored unbind exception", exc_info=True, level="debug")
+        return self._ldap_owner.authenticate(username, password)
 
     @Slot(result=bool)
     def isAuthenticated(self) -> bool:
@@ -1096,13 +979,3 @@ def _bytes_from_blob(blob: _DataBlob) -> bytes:
     if not blob.pbData or blob.cbData == 0:
         return b""
     return ctypes.string_at(blob.pbData, blob.cbData)
-
-
-def _escape_ldap_filter_value(value: str) -> str:
-    return (
-        value.replace("\\", r"\5c")
-        .replace("*", r"\2a")
-        .replace("(", r"\28")
-        .replace(")", r"\29")
-        .replace("\x00", r"\00")
-    )

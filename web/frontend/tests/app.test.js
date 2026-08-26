@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createApp } from '../src/app.js'
+import { createAuthShell } from '../src/auth-shell.js'
 
 describe('SmartTest Web shell', () => {
   beforeEach(() => {
@@ -13,7 +14,8 @@ describe('SmartTest Web shell', () => {
   })
 
   it('renders the complete SmartTest primary navigation', async () => {
-    await createApp({ root: document.querySelector('#app'), api: {} }).start()
+    const authApi = { session: vi.fn().mockResolvedValue({ authenticated: false }) }
+    await createApp({ root: document.querySelector('#app'), api: {}, capabilities: { authApi } }).start()
 
     expect(document.querySelector('.logo-label').textContent).toBe('SmartTest')
     expect([...document.querySelectorAll('.nav-menu a')].map(link => [link.textContent.trim(), link.pathname])).toEqual([
@@ -22,9 +24,74 @@ describe('SmartTest Web shell', () => {
       ['Inbox', '/inbox.html'],
       ['Analytics', '/analytics.html'],
       ['Settings', '/settings.html'],
+      ['Jira', '/jira.html'],
+      ['Confluence', '/confluence.html'],
       ['Wi-Fi Data', '/wifi-database/peak-throughput']
     ])
     expect(document.querySelector('.nav-menu a.active').textContent.trim()).toBe('Dashboard')
+    expect(document.querySelector('[data-login]')).not.toBeNull()
+  })
+
+  it('uses the login page and renders an existing avatar identity with logout menu', async () => {
+    const authApi = {
+      session: vi.fn().mockResolvedValue({ authenticated: true, username: 'coco', displayName: 'Coco Chen', avatarUrl: '' }),
+      logout: vi.fn().mockResolvedValue({ authenticated: false })
+    }
+    await createApp({ root: document.querySelector('#app'), api: {}, capabilities: { authApi } }).start()
+    expect(document.querySelector('[data-user-name]').textContent).toBe('Coco Chen')
+    expect(document.querySelector('[data-user-avatar]').textContent).toBe('C')
+    document.querySelector('[data-user-trigger]').click()
+    document.querySelector('[data-logout]').click()
+    await vi.waitFor(() => expect(document.querySelector('[data-login]')).not.toBeNull())
+    expect(document.querySelector('[data-login]').getAttribute('href')).toBe('/login.html?next=%2F')
+    expect(authApi.logout).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders LDAP identity and avatar values as inert DOM data', async () => {
+    const authApi = {
+      session: vi.fn().mockResolvedValue({
+        authenticated: true,
+        username: 'coco',
+        displayName: '<img src=x onerror="globalThis.injected=true">',
+        avatarUrl: 'x" onerror="globalThis.avatarInjected=true'
+      })
+    }
+    await createApp({ root: document.querySelector('#app'), api: {}, capabilities: { authApi } }).start()
+    const entry = document.querySelector('[data-user-entry]')
+    expect(entry.querySelectorAll('img')).toHaveLength(1)
+    expect(entry.querySelector('[data-user-name]').textContent).toBe('<img src=x onerror="globalThis.injected=true">')
+    expect(entry.querySelector('[data-user-avatar] img').getAttribute('src')).toBe('x" onerror="globalThis.avatarInjected=true')
+    expect(entry.querySelector('[onerror]')).toBeNull()
+  })
+
+  it('adds the authenticated account name to the existing time-based greeting', async () => {
+    document.body.innerHTML = '<h1 id="greeting">Good evening</h1><div id="desktop"></div><div id="mobile"></div>'
+    const api = {
+      session: vi.fn().mockResolvedValue({ authenticated: true, username: 'chao.li', displayName: 'Chao Li' }),
+      logout: vi.fn().mockResolvedValue({ authenticated: false })
+    }
+    await createAuthShell({
+      root: document,
+      desktopHost: document.querySelector('#desktop'),
+      mobileHost: document.querySelector('#mobile'),
+      api
+    }).start()
+    expect(document.querySelector('#greeting').textContent).toBe('Good evening, chao.li')
+    document.querySelector('[data-user-trigger]').click()
+    document.querySelector('[data-logout]').click()
+    await vi.waitFor(() => expect(document.querySelector('#greeting').textContent).toBe('Good evening'))
+  })
+
+  it.each([['/jira.html', 'Jira', 'jira'], ['/confluence.html', 'Confluence', 'confluence']])('activates the report workspace route %s', async (path, label, source) => {
+    window.history.replaceState({}, '', path)
+    const section = document.createElement('section')
+    const start = vi.fn().mockResolvedValue()
+    const reportWorkspace = vi.fn().mockReturnValue({ section, start })
+    await createApp({ root: document.querySelector('#app'), api: {}, capabilities: { reportWorkspace } }).start()
+    expect(document.querySelector('.nav-menu a.active').textContent.trim()).toBe(label)
+    expect(reportWorkspace).toHaveBeenCalledWith(source)
+    expect(document.querySelector('main').contains(section)).toBe(true)
+    expect(start).toHaveBeenCalled()
   })
 
   it('uses the Wi-Fi Data navigation with the existing three database routes', async () => {

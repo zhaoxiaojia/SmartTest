@@ -1,6 +1,20 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createWifiDatabaseApi } from '../src/api.js'
+import { createAuthApi, createProjectFactsApi, createReportWorkspaceApi, createWifiDatabaseApi } from '../src/api.js'
+
+describe('Web session API contract', () => {
+  it('uses cookie-backed session endpoints without persisting credentials', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ authenticated: true }) })
+    const api = createAuthApi({ fetchImpl })
+    await api.login('coco', 'secret')
+    await api.session()
+    await api.logout()
+    expect(fetchImpl.mock.calls.map(call => call[0])).toEqual(['/api/auth/login', '/api/auth/session', '/api/auth/logout'])
+    expect(fetchImpl.mock.calls[0][1]).toMatchObject({ method: 'POST', credentials: 'same-origin' })
+    expect(fetchImpl.mock.calls[1][1]).toMatchObject({ credentials: 'same-origin' })
+    expect(fetchImpl.mock.calls[0][1].body).toBe(JSON.stringify({ username: 'coco', password: 'secret' }))
+  })
+})
 
 describe('Wi-Fi Database API contract', () => {
   it('keeps the legacy repeated-query filter contract and Peak type mapping', async () => {
@@ -43,5 +57,44 @@ describe('Wi-Fi Database API contract', () => {
     await expect(networkApi.getPerformance({ dataType: 'RVO' })).rejects.toMatchObject({
       name: 'ApiUnavailableError'
     })
+  })
+})
+
+describe('report workspace API contract', () => {
+  it('uses read-only list, detail and download endpoints', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ reports: [] }) })
+    const api = createReportWorkspaceApi({ fetchImpl })
+
+    await api.listReports('jira', { productLine: 'DOPL', year: 2026, search: 'audit' })
+    await api.getReport('jira', 'report-1')
+
+    const url = new URL(fetchImpl.mock.calls[0][0], 'https://smarttest.local')
+    expect(url.pathname).toBe('/api/report-workspaces/jira')
+    expect(url.searchParams.get('product_line')).toBe('DOPL')
+    expect(url.searchParams.get('year')).toBe('2026')
+    expect(fetchImpl.mock.calls[1][0]).toBe('/api/report-workspaces/jira/report-1')
+    expect(api.downloadUrl('jira', 'report-1')).toBe('/api/report-workspaces/jira/report-1/download')
+  })
+
+  it('sends Jira JQL when locating Client-generated audit reports', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ reports: [] }) })
+    const api = createReportWorkspaceApi({ fetchImpl })
+    await api.listReports('jira', { jql: 'project = TV AND issuetype = Bug' })
+    const url = new URL(fetchImpl.mock.calls[0][0], 'https://smarttest.local')
+    expect(url.searchParams.get('jql')).toBe('project = TV AND issuetype = Bug')
+  })
+})
+
+describe('Confluence project facts API contract', () => {
+  it('sends dynamic field filters and project/person search to the read-only endpoint', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ projects: [] }) })
+    await createProjectFactsApi({ fetchImpl }).getProjectFacts({
+      fields: { 'unexpected owner': ['Alice', 'Bob'], 'support mode': ['B'] }, search: 'Coco'
+    })
+    const url = new URL(fetchImpl.mock.calls[0][0], 'https://smarttest.local')
+    expect(url.pathname).toBe('/api/confluence/project-facts')
+    expect(url.searchParams.getAll('field.unexpected owner')).toEqual(['Alice', 'Bob'])
+    expect(url.searchParams.get('field.support mode')).toBe('B')
+    expect(url.searchParams.get('search')).toBe('Coco')
   })
 })

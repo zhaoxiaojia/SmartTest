@@ -146,6 +146,8 @@ class ProjectCollectionFilter:
     current_stages: tuple[str, ...] = ()
     included_project_ids: tuple[str, ...] = ()
     product_line_keys: tuple[str, ...] = ()
+    project_space_fields: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    exclude_late_stages: bool = True
 
 
 @dataclass(frozen=True)

@@ -891,6 +891,8 @@ class ConfluenceAuditBridge(QObject):
                 "currentStages": list(collection.filter.current_stages),
                 "includedProjectIds": list(collection.filter.included_project_ids),
                 "productLineKeys": list(collection.filter.product_line_keys),
+                "projectSpaceFields": [list(item) for item in collection.filter.project_space_fields],
+                "excludeLateStages": collection.filter.exclude_late_stages,
             },
             "visibleYears": list(collection.visible_years),
             "discoveryErrors": dict(collection.discovery_errors),
@@ -926,6 +928,8 @@ class ConfluenceAuditBridge(QObject):
             tuple(filter_value["currentStages"]),
             tuple(filter_value["includedProjectIds"]),
             tuple(filter_value.get("productLineKeys", ())),
+            tuple(tuple(item) for item in filter_value.get("projectSpaceFields", ())),
+            bool(filter_value.get("excludeLateStages", True)),
         )
         return ProjectCollection(
             str(value["collectionId"]), str(value["name"]), criteria,

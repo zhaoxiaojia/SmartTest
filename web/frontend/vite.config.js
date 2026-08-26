@@ -10,6 +10,8 @@ export default defineConfig({
         inbox: resolve(import.meta.dirname, 'inbox.html'),
         analytics: resolve(import.meta.dirname, 'analytics.html'),
         settings: resolve(import.meta.dirname, 'settings.html'),
+        jira: resolve(import.meta.dirname, 'jira.html'),
+        confluence: resolve(import.meta.dirname, 'confluence.html'),
         login: resolve(import.meta.dirname, 'login.html')
       }
     }

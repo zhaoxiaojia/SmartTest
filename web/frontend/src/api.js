@@ -6,6 +6,24 @@ export class ApiUnavailableError extends Error {
   }
 }
 
+export function createAuthApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
+  async function request(path, options = {}) {
+    let response
+    try { response = await fetchImpl(`${baseUrl}${path}`, { credentials: 'same-origin', ...options }) } catch (cause) {
+      throw new ApiUnavailableError('Authentication service unavailable.', { cause })
+    }
+    if (!response.ok) throw new ApiUnavailableError(`Authentication failed (${response.status}).`, { status: response.status })
+    return response.json()
+  }
+  return {
+    session: () => request('/auth/session'),
+    login: (username, password) => request('/auth/login', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username, password })
+    }),
+    logout: () => request('/auth/logout', { method: 'POST' })
+  }
+}
+
 const TYPE_MAP = {
   PEAK_THROUGHPUT: 'performance',
   RVR: 'RVR',
@@ -54,5 +72,49 @@ export function createWifiDatabaseApi({ fetchImpl = globalThis.fetch, baseUrl = 
   return {
     getFilters: filters => getJson('/filters', filters),
     getPerformance: filters => getJson('/performance', filters)
+  }
+}
+
+export function createReportWorkspaceApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
+  async function getJson(path, params) {
+    const query = new URLSearchParams()
+    if (params?.productLine) query.set('product_line', params.productLine)
+    if (params?.year) query.set('year', params.year)
+    if (params?.reportType) query.set('report_type', params.reportType)
+    if (params?.search) query.set('search', params.search)
+    if (params?.jql) query.set('jql', params.jql)
+    const suffix = query.size ? `?${query}` : ''
+    let response
+    try { response = await fetchImpl(`${baseUrl}${path}${suffix}`) } catch (cause) {
+      throw new ApiUnavailableError('Report workspace API unavailable.', { cause })
+    }
+    if (!response.ok) {
+      throw new ApiUnavailableError(`Report workspace API unavailable (${response.status}).`, { status: response.status })
+    }
+    return response.json()
+  }
+  const encode = value => encodeURIComponent(value)
+  return {
+    listReports: (source, filters) => getJson(`/report-workspaces/${encode(source)}`, filters),
+    getReport: (source, id) => getJson(`/report-workspaces/${encode(source)}/${encode(id)}`),
+    downloadUrl: (source, id) => `${baseUrl}/report-workspaces/${encode(source)}/${encode(id)}/download`
+  }
+}
+
+export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
+  return {
+    async getProjectFacts(filters = {}) {
+      const query = new URLSearchParams()
+      for (const [key, values] of Object.entries(filters.fields ?? {})) {
+        for (const value of Array.isArray(values) ? values : [values]) if (`${value}`.trim()) query.append(`field.${key}`, value)
+      }
+      if (filters.search) query.set('search', filters.search)
+      let response
+      try { response = await fetchImpl(`${baseUrl}/confluence/project-facts${query.size ? `?${query}` : ''}`) } catch (cause) {
+        throw new ApiUnavailableError('Project facts API unavailable.', { cause })
+      }
+      if (!response.ok) throw new ApiUnavailableError(`Project facts API unavailable (${response.status}).`, { status: response.status })
+      return response.json()
+    }
   }
 }

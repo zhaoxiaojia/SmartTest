@@ -327,6 +327,89 @@ Home 是上述模块的权限化聚合视图，不独立拥有业务数据。
 
 ## 12. 模块开发顺序
 
+### 12.1 Jira 报告工作台
+
+本模块已由 Coco 通过 `web/design/reference/jira-confluence-report-workspace.html` 确认视觉布局，开发与验收均以该本地 HTML 为桌面端视觉基准。
+
+范围与边界：
+
+- 顶部导航保留 `Jira` 和 `Confluence` 两个独立入口，现有页面、主题切换和 Wi-Fi Data 行为不变；
+- Jira 使用“左侧报告目录 + 右侧完整报告预览”及 Client 同口径 JQL 输入；
+- Jira 复用 Client 现有 Jira 审查、报告和导出业务 owner；
+- 浏览器只访问 Web API，第三方认证、访问、审查和报告生成逻辑不得复制到前端或 Web 后端；
+- 当前只读展示，不通过 Web 修改 Jira 或 Confluence；
+- 报告正文在页面中直接展示，报告工具栏提供来源跳转和 `Download`；下载必须复用后端权限范围与既有导出结果；
+- 不生成模拟业务数据；加载、无报告、无权限、配置缺失、外部失败和部分成功必须有明确页面状态；
+- 桌面端尽可能复现已确认 HTML，窄屏维持现有 SmartTest 响应式视觉语言。
+
+执行清单：
+
+- [x] 通过失败测试确定 Jira Web API 契约、只读边界、错误状态和下载行为；
+- [x] 复用 Client 对应报告导出 owner，Web 后端仅增加本地只读报告目录与传输适配，不复制第三方访问、审查或导出逻辑；
+- [x] 浏览器登录复用下沉到 Core 的 Client LDAP owner；Web 仅保存进程内临时会话，使用 HTTP-only/Secure cookie 标识，不向前端或磁盘传输密码；
+- [ ] 后续接入 `personnel.json` 人员映射及 I/M 岗数据范围，并让列表、正文和下载共用同一权限结果；
+- [x] 通过失败测试确定 Jira 报告工作台、筛选、报告选择、正文展示和下载交互；
+- [x] 实现 Jira 页面并与本地视觉基准比对；
+- [x] 验证加载、空数据、无权限、配置缺失、外部失败和部分成功；
+- [x] 验证现有 Dashboard 页面、主题切换、移动导航和 Wi-Fi Data 无回归；
+- [x] 运行前端测试、lint、build，后端聚焦测试和 `git diff --check`；
+- [x] 用实际浏览器截图与本地 HTML 对照，矫正导航、间距、尺寸、颜色、卡片、工具栏和响应式差异。
+
+当前限制：Web 已具备复用 Client LDAP 规则的进程内浏览器会话，但尚未接入 `personnel.json` 与 I/M 岗权限范围。Jira 模块仍只读取 Client 已导出的本地 XLSX，不使用会话凭据执行 Jira 查询或审查；API 保留明确的 `unauthorized` 状态，正式人员范围过滤由后续权限阶段接入。
+
+Jira 执行限制：Client 的新审查链路依赖 `JiraAuditBridge` 持有的运行时临时凭据，并经过 `resolve_audit_input`、`JiraAuditService.run`、人工确认后才允许 `export_audit_xlsx`。Web 当前不能安全复用该临时凭据会话，因此 Jira 页面的 JQL 动作只按导出文件中保存的“JQL 查询条件”精确定位 Client 已生成报告，不执行新查询或审查；新审查继续由 Client 发起。
+
+### 12.2 Confluence 全项目 QA 责任事实（Core 阶段）
+
+本阶段先建立 Core 唯一 owner，不接入或修改 Web 前端。该 owner 从全部已配置 Product Space 读取项目目录，不套用现有周审查的 A/B、年份、项目状态或 Stage1/2/3 资格过滤；现有 Client 周审查入口与规则保持不变。
+
+执行清单：
+
+- [x] 保留 Product Space 每个实际表头、原始值与标准化字段，并单列未知表头差异；
+- [x] 从 `Basic Information` 精确提取 `Major FAE QA`、`FAE QA`、`QA Reviewer`，保留多人及源数据提供的 Confluence 稳定身份；
+- [x] 使用现有 app-data JSON owner 原子保存版本化快照，与 Client 的有界内存缓存分离；
+- [x] 增量刷新复用未变化项目；失败时保留旧事实并标记 stale，目录缺失项目标记 inactive 而不删除；
+- [x] 提供只读本地查询与全字段 facets，不在查询时访问 Confluence；
+- [x] 通过全目录、未知列、角色多人、首次快照、零变化、单项目变化、局部失败、inactive、本地过滤与损坏/schema 拒绝测试；
+- [ ] 待 Coco 根据真实 Confluence 页面确认未知表头差异清单后，决定是否增加新的标准字段映射；
+- [ ] 待项目只读 Web 模块开发时，通过 Web 权限适配公开该 Core 查询契约。
+
+当前字段证据：仓库测试夹具可确认 `Page/页面`、`Project ID`、`Date of Commercial approval`、`Support Mode`、`Project Status`、`Current Stage`。除这些已有证据外不猜测别名；其他实际表头原样保存并进入 `field_discrepancies`。
+
+Confluence Web 接入清单：
+
+- [x] Web API 只读取 `ProjectFactStore.load` 并调用 `query_project_facts`，查询过程不访问 Confluence；
+- [x] 返回快照状态/时间、全量动态 facets、项目、字段差异及 stale/failed/inactive 数量；
+- [x] 明确展示 `no_snapshot`、`schema_error` 与 `partial_success`；
+- [x] Confluence 页面移除 Report Type、报告目录、报告预览、来源报告跳转和 Download；
+- [x] 按本地事实动态绘制全部 Product Space 表字段筛选、独立 `Product Space` 来源维度、项目/人员搜索及基础项目结果；
+- [x] 保留未知字段及原始表头标签，不在 Web 中猜测或合并别名；
+- [x] `Apply Filters` 只刷新下方 `角色 → 人员 → 该人员全部项目 → 项目基本信息`，不重建顶部筛选控件；
+- [x] 顶部筛选结构固定保留全部已确认字段，当前快照无字段值时显示空选项；
+- [x] 常用筛选固定为 `Product Space`、`Date of Commercial approval`、`Project ID`、`Project Status`、`Current Stage`、`Project Owner`、`Support Mode`；不显示独立 `Year`；
+- [x] 全部 Confluence 下拉筛选统一为多选：同字段取 OR、跨字段与项目/人员搜索取 AND；API 使用重复 `field.<key>` 参数。`Product Space` 稳定值保持 DOPL/SDPL/TV/OOPL，显示名直接来自 Core `PRODUCT_LINES.display_name`，Web 不维护映射；
+- [x] 顶部 facets 在快照加载完成后保持固定；勾选、取消、全选和清空仅更新浏览器本地选择，Apply/Reset 只刷新下方责任层级，不用过滤响应收缩顶部选项；Core 与 Web 请求边界通过 `core.logging.smart_log` 记录有界筛选、命中/排除计数及返回层级汇总，不记录搜索内容、人员身份或项目明细；
+- [x] `Date of Commercial approval` 复用 `ProjectCollectionFilter.years` 和现有商业批准日期年份解析，选项显示年份但字段名保持原字符；
+- [x] 其他真实 Product Space 字段进入“更多筛选”，勾选后显示、取消后移除并清值；只将启用字段 key 保存到浏览器 `localStorage`，不保存业务事实；
+- [x] 页面加载本地事实快照时显示 loading 并禁用 Apply；级联选项由 Core 当前过滤结果返回，失效选择清除并提示；刷新失败状态保留快照时间与 stale 信息；
+- [x] 无本地 `ProjectFactStore` 快照时，登录会话复用同一临时 LDAP 账号和密码构造既有 `ConfluenceClient`，调用 `refresh_project_facts` 一次生成缓存；缓存命中只做本地查询，显式刷新需要登录，并发刷新在 Web 编排层去重；
+- [x] 无快照首次查询立即返回带完整固定 facets/空 owner 层级的 `loading`，单一进程内后台任务执行刷新；前端保持七个常用筛选与更多筛选可见但禁用，并有界轮询至 `ready`、`partial_success` 或 `failed`，页面离开/组件销毁停止轮询；
+- [ ] Web 项目审查动作后续直接调用 `ConfluenceAuditService.run` 与 `export_project_audit_xlsx_by_product_line`；当前阶段仅把公共会话接入事实缓存刷新，不改变审查按钮边界；
+- [ ] 后续按 Coco 确认的管理视图实现组织层级、项目卡片与详情布局。
+
+四个 Product Space 的实测字段证据（2026-08-26，Atlas 使用 Chrome 核对）：
+
+- 共同字段：`Page/Project Link`、`Project ID`、`ODM`、`OEM/Operator`、`Key Part Number`、`Project Status`、`Current Stage`、`Project Owner`、`Support Mode`、`Date of Kick Off`、`planned closure`、`actual closure`、`Commercial approval`；
+- `DOPL` 缺少 `Launch OS`；
+- `SDPL` 缺少 `MP Time`、`Launch Time`、`Next Target`、`Next Target Date`；
+- `OOPL` 额外包含 `Sum`；
+- `Major PM` 当前在四个 Product Space 表中均不存在，因此保留空筛选结构，不推断来源；
+- 四个 Product Space 的字段顺序不同。Core 保存每个表的原始表头顺序和原始值，Web 不以某一个 Space 的顺序覆盖其他 Space。
+
+审查调用边界：Client 的 `ConfluenceAuditBridge.startAudit` 仍通过其登录会话构造 `ConfluenceAuditService`，按 `ProjectCollectionFilter` 执行既有 Stage1/2/3 审查点并导出。Web 进程内会话已可供后续工具复用，但本阶段只授权 Confluence 责任事实缓存刷新；未把 Web 审查按钮接入审查与导出链路，也未改变 Jira 行为。
+
+本地快照刷新边界：查询始终先读取 `ProjectFactStore`，缓存命中不访问 Confluence。无快照且已登录时，首个请求不等待第三方网络，立即返回完整筛选结构和 `loading`；进程内 single-flight 后台任务使用会话凭据复用 `ConfluenceClient + refresh_project_facts` 生成持久快照，同期请求继续返回 `loading`。完成后本地查询返回 `ready/partial_success`；失败返回 `failed`，显式刷新可重新启动任务。凭据只存在于会话及任务闭包，不写入响应、日志、浏览器存储或磁盘；服务退出不持久后台任务。
+
 采用“基础模块先行、业务模块逐个交付、Home 后聚合、最后统一整合”的顺序：
 
 1. **Web 基础壳与设计体系**：模块化路由、布局、导航、状态组件和 API 基础；
