@@ -4,6 +4,15 @@ const DATABASE_ROUTES = [
   { path: '/wifi-database/rvo', dataType: 'RVO', label: 'RVO' }
 ]
 
+const dashboardIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`
+const projectsIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`
+const inboxIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="m22 6-10 7L2 6"/></svg>`
+const analyticsIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>`
+const settingsIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.4 1z"/></svg>`
+const databaseIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 11v6c0 1.7 4 3 9 3s9-1.3 9-3v-6"/></svg>`
+const lightIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`
+const darkIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+
 function optionValues(payload, ...keys) {
   for (const key of keys) {
     if (Array.isArray(payload?.[key])) return payload[key]
@@ -30,9 +39,9 @@ function enhanceMultiSelect(select) {
   container.innerHTML = `<button type="button" class="multi-select__control form-select" aria-haspopup="listbox" aria-expanded="false">
       <span class="multi-select__summary">Select options</span><span class="multi-select__tags" hidden></span></button>
     <div class="multi-select__dropdown card shadow-lg" role="listbox" aria-multiselectable="true" aria-hidden="true">
-      <div class="multi-select__search"><input class="form-control form-control-sm" type="search" placeholder="Search options" aria-label="Search options"></div>
+      <div class="multi-select__search"><input class="form-control" type="search" placeholder="Search options" aria-label="Search options"></div>
       <div class="multi-select__options"></div><div class="multi-select__empty">No options available</div>
-      <div class="multi-select__actions"><button type="button" class="btn btn-light btn-sm" data-clear>Clear</button><button type="button" class="btn btn-primary btn-sm" data-select-all>Select All</button></div>
+      <div class="multi-select__actions"><button type="button" class="button button-secondary" data-clear>Clear</button><button type="button" class="button button-primary" data-select-all>Select All</button></div>
     </div>`
   select.after(container)
   const control = container.querySelector('.multi-select__control')
@@ -93,27 +102,27 @@ function renderReports(container, rows, selectedReports) {
 function databaseView(route, api, capabilities) {
   const section = document.createElement('section')
   section.innerHTML = `
-    <div class="database-header d-flex justify-content-between align-items-center mb-4">
-      <div><div class="text-body-secondary">Wi-Fi Database</div><h1 class="h2 mb-0"></h1></div>
-      <span class="badge text-bg-secondary" role="status">Connecting to API…</span>
+    <div class="database-header">
+      <div><div class="eyebrow">Wi-Fi Data</div><h1></h1></div>
+      <span class="status-badge status-neutral" role="status">Connecting to API…</span>
     </div>
-    <form class="card card-body mb-4">
-      <div class="row g-3">
-        <label class="col-md-3">Product Line<select name="productLines" class="form-select" multiple></select></label>
-        <label class="col-md-3">Project<select name="projects" class="form-select" multiple></select></label>
-        <label class="col-md-3">Test Report<select name="testReportCsvNames" class="form-select" multiple></select></label>
-        <label class="col-md-3">Standard<select name="standards" class="form-select" multiple></select></label>
-        <label class="col-md-3">Start Date<input name="startDate" class="form-control" type="date"></label>
-        <label class="col-md-3">End Date<input name="endDate" class="form-control" type="date"></label>
-        <div class="filter-actions col-md-6 d-flex align-items-end gap-2"><button class="btn btn-primary" type="submit">Apply Filters</button><button class="btn btn-outline-secondary" type="button" data-refresh>Refresh</button><button class="btn btn-outline-secondary" type="button" data-reset>Reset</button></div>
+    <form class="card filter-panel">
+      <div class="filter-grid">
+        <label>Product Line<select name="productLines" class="form-select" multiple></select></label>
+        <label>Project<select name="projects" class="form-select" multiple></select></label>
+        <label>Test Report<select name="testReportCsvNames" class="form-select" multiple></select></label>
+        <label>Standard<select name="standards" class="form-select" multiple></select></label>
+        <label>Start Date<input name="startDate" class="form-control" type="date"></label>
+        <label>End Date<input name="endDate" class="form-control" type="date"></label>
+        <div class="filter-actions"><button class="button button-primary" type="submit">Apply Filters</button><button class="button button-secondary" type="button" data-refresh>Refresh</button><button class="button button-secondary" type="button" data-reset>Reset</button></div>
       </div>
     </form>
-    <div class="card card-body mb-3"><strong>Selected reports <span class="badge text-bg-primary" data-report-count>0</span></strong><span data-reports>Select test reports and apply the filters.</span></div>
-    <div class="d-flex gap-2 mb-3">
-      <button class="btn btn-outline-success" type="button" data-export-excel disabled>Export Excel</button>
-      <button class="btn btn-outline-danger" type="button" data-export-pdf disabled>Export PDF</button>
+    <div class="card selected-reports"><strong>Selected reports <span class="count-badge" data-report-count>0</span></strong><span data-reports>Select test reports and apply the filters.</span></div>
+    <div class="export-actions">
+      <button class="button button-secondary" type="button" data-export-excel disabled>Export Excel</button>
+      <button class="button button-secondary" type="button" data-export-pdf disabled>Export PDF</button>
     </div>
-    <div class="small text-body-secondary mb-3" data-export-status aria-live="polite"></div>
+    <div class="inline-status" data-export-status aria-live="polite"></div>
     <div data-results>Choose filters and click “Apply Filters” to run the query.</div>`
   section.querySelector('h1').textContent = route.label
   const form = section.querySelector('form')
@@ -155,10 +164,10 @@ function databaseView(route, api, capabilities) {
     fillSelect(form.elements.testReportCsvNames, optionValues(payload, 'testReports', 'reportNames'))
     fillSelect(form.elements.standards, optionValues(payload, 'standards'))
     restoreState()
-    status.className = 'badge text-bg-success'
+    status.className = 'status-badge status-success'
     status.textContent = 'API connected'
   }).catch(() => {
-    status.className = 'badge text-bg-danger'
+    status.className = 'status-badge status-danger'
     status.textContent = 'API unavailable — filters and results cannot be loaded.'
   })
   const ready = loadFacets()
@@ -171,12 +180,12 @@ function databaseView(route, api, capabilities) {
   form.addEventListener('submit', async event => {
     event.preventDefault()
     if (!selected(form.elements.testReportCsvNames).length) {
-      status.className = 'badge text-bg-warning'
+      status.className = 'status-badge status-warning'
       status.textContent = 'Select at least one Test Report.'
       return
     }
     saveState()
-    status.className = 'badge text-bg-secondary'
+    status.className = 'status-badge status-neutral'
     status.textContent = 'Loading…'
     try {
       const payload = await api.getPerformance(filters())
@@ -185,11 +194,11 @@ function databaseView(route, api, capabilities) {
       renderReports(reports, latestRows, selected(form.elements.testReportCsvNames))
       excelButton.disabled = latestRows.length === 0
       pdfButton.disabled = latestRows.length === 0
-      status.className = 'badge text-bg-success'
+      status.className = 'status-badge status-success'
       const truncated = !Array.isArray(payload) && payload?.metadata?.truncated
       status.textContent = truncated ? 'Success — result limit reached; refine filters.' : 'Success'
     } catch {
-      status.className = 'badge text-bg-danger'
+      status.className = 'status-badge status-danger'
       status.textContent = 'API unavailable — performance data could not be loaded.'
     }
   })
@@ -206,13 +215,13 @@ function databaseView(route, api, capabilities) {
   const runExport = async (label, operation) => {
     excelButton.disabled = true
     pdfButton.disabled = true
-    exportStatus.className = 'small text-body-secondary mb-3'
+    exportStatus.className = 'inline-status'
     exportStatus.textContent = `Exporting ${label}…`
     try {
       await operation()
       exportStatus.textContent = `${label} export ready.`
     } catch (error) {
-      exportStatus.className = 'small text-danger mb-3'
+      exportStatus.className = 'inline-status inline-status-error'
       exportStatus.textContent = `${label} export failed: ${error?.message || 'Unknown error'}`
     } finally {
       const enabled = latestRows.length > 0
@@ -227,28 +236,74 @@ function databaseView(route, api, capabilities) {
 
 export function createApp({ root, api, capabilities = {} }) {
   root.innerHTML = `
-    <div class="app-shell">
-      <aside class="sidebar sidebar-dark border-end">
-        <a class="brand" href="/">SmartTest</a>
-        <div class="sidebar-label">Wi-Fi Database</div>
-        <nav class="sidebar-nav"></nav>
-      </aside>
-      <main class="content"></main>
+    <div class="mobile-menu-overlay"></div>
+    <div class="mobile-menu" aria-hidden="true">
+      <div class="mobile-menu-header"><a class="logo" href="/"><span class="logo-icon">✓</span><span class="logo-label">SmartTest</span></a><button class="mobile-menu-close" type="button" aria-label="Close navigation">×</button></div>
+      <nav class="mobile-menu-nav"></nav>
+      <div class="mobile-menu-footer"><div class="theme-toggle"><button class="theme-btn" type="button" data-theme="light" title="Light theme">${lightIcon}</button><button class="theme-btn" type="button" data-theme="dark" title="Dark theme">${darkIcon}</button></div></div>
+    </div>
+    <div class="app-container">
+      <nav class="top-nav">
+        <div class="nav-container">
+          <div class="nav-left"><a class="logo" href="/"><span class="logo-icon">✓</span><span class="logo-label">SmartTest</span></a><div class="nav-menu"></div></div>
+          <div class="nav-right"><div class="theme-toggle"><button class="theme-btn" type="button" data-theme="light" title="Light theme">${lightIcon}</button><button class="theme-btn" type="button" data-theme="dark" title="Dark theme">${darkIcon}</button></div><button class="mobile-menu-btn" type="button" aria-label="Open navigation"><span></span><span></span><span></span></button></div>
+        </div>
+      </nav>
+      <nav class="database-nav" aria-label="Wi-Fi Data"></nav>
+      <main class="main-content"></main>
     </div>`
-  const nav = root.querySelector('nav')
+  const nav = root.querySelector('.nav-menu')
+  const mobileNav = root.querySelector('.mobile-menu-nav')
+  const databaseNav = root.querySelector('.database-nav')
   const main = root.querySelector('main')
 
   function renderNavigation(route) {
     nav.replaceChildren()
-    const routes = route ? DATABASE_ROUTES : [{ path: DATABASE_ROUTES[0].path, label: 'Wi-Fi Database' }]
+    mobileNav.replaceChildren()
+    const routes = [
+      { path: '/', label: 'Dashboard', icon: dashboardIcon, active: !route },
+      { path: '/projects.html', label: 'Projects', icon: projectsIcon, active: false },
+      { path: '/inbox.html', label: 'Inbox', icon: inboxIcon, active: false },
+      { path: '/analytics.html', label: 'Analytics', icon: analyticsIcon, active: false },
+      { path: '/settings.html', label: 'Settings', icon: settingsIcon, active: false },
+      { path: DATABASE_ROUTES[0].path, label: 'Wi-Fi Data', icon: databaseIcon, active: Boolean(route) }
+    ]
     for (const item of routes) {
       const link = document.createElement('a')
-      link.className = 'nav-link'
+      link.className = `nav-link${item.active ? ' active' : ''}`
       link.href = item.path
-      link.textContent = item.label
+      link.innerHTML = `${item.icon}<span>${item.label}</span>`
       nav.append(link)
+      mobileNav.append(link.cloneNode(true))
+    }
+    databaseNav.replaceChildren()
+    databaseNav.hidden = !route
+    if (route) {
+      for (const item of DATABASE_ROUTES) {
+        const link = document.createElement('a')
+        link.className = item.path === route.path ? 'active' : ''
+        link.href = item.path
+        link.textContent = item.label
+        databaseNav.append(link)
+      }
     }
   }
+
+  function setTheme(theme) {
+    const dark = theme === 'dark'
+    document.documentElement.classList.toggle('dark-theme', dark)
+    localStorage.setItem('smarttest-web-theme', dark ? 'dark' : 'light')
+    root.querySelectorAll('[data-theme]').forEach(button => button.classList.toggle('active', button.dataset.theme === theme))
+  }
+
+  setTheme(localStorage.getItem('smarttest-web-theme') === 'dark' ? 'dark' : 'light')
+  root.querySelectorAll('[data-theme]').forEach(button => button.addEventListener('click', () => setTheme(button.dataset.theme)))
+  const menu = root.querySelector('.mobile-menu')
+  const overlay = root.querySelector('.mobile-menu-overlay')
+  const closeMenu = () => { menu.classList.remove('active'); overlay.classList.remove('active'); menu.setAttribute('aria-hidden', 'true') }
+  root.querySelector('.mobile-menu-btn').addEventListener('click', () => { menu.classList.add('active'); overlay.classList.add('active'); menu.setAttribute('aria-hidden', 'false') })
+  root.querySelector('.mobile-menu-close').addEventListener('click', closeMenu)
+  overlay.addEventListener('click', closeMenu)
 
   async function render() {
     const route = DATABASE_ROUTES.find(candidate => candidate.path === window.location.pathname)
@@ -264,8 +319,10 @@ export function createApp({ root, api, capabilities = {} }) {
   root.addEventListener('click', event => {
     const link = event.target.closest('a')
     if (!link || link.origin !== window.location.origin) return
+    if (!DATABASE_ROUTES.some(route => route.path === link.pathname)) return
     event.preventDefault()
     window.history.pushState({}, '', link.pathname)
+    closeMenu()
     render()
   })
   window.addEventListener('popstate', render)

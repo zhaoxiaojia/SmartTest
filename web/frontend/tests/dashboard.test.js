@@ -84,6 +84,7 @@ describe('legacy Wi-Fi Database domain processing', () => {
     const container = document.createElement('div')
 
     controller.render(container, rows, 'PEAK_THROUGHPUT')
+    expect(container.querySelector('section').className).toBe('scenario')
     controller.render(container, [{ ...rows[0], angleDeg: 0 }], 'RVO')
 
     expect(created[0].destroy).toHaveBeenCalledOnce()

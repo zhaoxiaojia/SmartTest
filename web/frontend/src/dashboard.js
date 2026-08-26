@@ -141,16 +141,14 @@ export function createChartController({ chartFactory }) {
     const scenarios = dataType === 'RVO' ? groupPolarSeries(rows, dataType) : groupLineSeries(rows, dataType)
     for (const scenario of scenarios) {
       const section = document.createElement('section')
-      section.className = 'scenario card card-body mb-3'
+      section.className = 'scenario'
       const title = document.createElement('h2')
-      title.className = 'h5'
       title.textContent = scenario.label
       section.append(title)
       for (const direction of DIRECTIONS) {
         const groups = scenario.directions[direction]
         if (!groups.length) continue
         const heading = document.createElement('h3')
-        heading.className = 'h6 mt-3'
         heading.textContent = direction === 'uplink' ? 'Tx (Uplink)' : 'Rx (Downlink)'
         const canvas = document.createElement('canvas')
         canvas.dataset.exportTitle = `${scenario.label} - ${heading.textContent}`
@@ -233,7 +231,7 @@ export async function exportPerformanceExcel(rows, { Workbook, saveFile = downlo
 
 export function exportVisibleChartsPdf(container, {
   JsPdf, createCanvas = () => document.createElement('canvas'),
-  background = getComputedStyle(document.documentElement).getPropertyValue('--wifi-panel').trim() || '#ffffff',
+  background = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim() || '#ffffff',
   dataType = 'Wi-Fi performance'
 }) {
   const canvases = [...container.querySelectorAll('canvas')].filter(canvas => canvas.width > 0 && canvas.height > 0)

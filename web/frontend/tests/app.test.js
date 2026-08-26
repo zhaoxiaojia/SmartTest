@@ -8,15 +8,50 @@ describe('SmartTest Web shell', () => {
     document.body.innerHTML = '<div id="app"></div>'
     window.history.replaceState({}, '', '/')
     sessionStorage.clear()
+    localStorage.clear()
+    document.documentElement.classList.remove('dark-theme')
   })
 
-  it('keeps Home content blank and exposes the Wi-Fi Database entry in the sidebar', async () => {
+  it('renders the complete SmartTest primary navigation', async () => {
     await createApp({ root: document.querySelector('#app'), api: {} }).start()
 
-    expect(document.querySelector('main').children).toHaveLength(0)
-    expect([...document.querySelectorAll('nav a')].map(link => [link.textContent.trim(), link.pathname])).toEqual([
-      ['Wi-Fi Database', '/wifi-database/peak-throughput']
+    expect(document.querySelector('.logo-label').textContent).toBe('SmartTest')
+    expect([...document.querySelectorAll('.nav-menu a')].map(link => [link.textContent.trim(), link.pathname])).toEqual([
+      ['Dashboard', '/'],
+      ['Projects', '/projects.html'],
+      ['Inbox', '/inbox.html'],
+      ['Analytics', '/analytics.html'],
+      ['Settings', '/settings.html'],
+      ['Wi-Fi Data', '/wifi-database/peak-throughput']
     ])
+    expect(document.querySelector('.nav-menu a.active').textContent.trim()).toBe('Dashboard')
+  })
+
+  it('uses the Wi-Fi Data navigation with the existing three database routes', async () => {
+    window.history.replaceState({}, '', '/wifi-database/rvr')
+    const api = { getFilters: vi.fn().mockResolvedValue({}), getPerformance: vi.fn() }
+
+    await createApp({ root: document.querySelector('#app'), api }).start()
+
+    expect(document.querySelector('.nav-menu a.active').textContent.trim()).toBe('Wi-Fi Data')
+    expect([...document.querySelectorAll('.database-nav a')].map(link => [link.textContent.trim(), link.pathname])).toEqual([
+      ['Peak Throughput', '/wifi-database/peak-throughput'],
+      ['RVR', '/wifi-database/rvr'],
+      ['RVO', '/wifi-database/rvo']
+    ])
+    expect(document.querySelector('.database-nav a.active').textContent.trim()).toBe('RVR')
+  })
+
+  it('persists the selected display theme', async () => {
+    await createApp({ root: document.querySelector('#app'), api: {} }).start()
+
+    document.querySelector('[data-theme="dark"]').click()
+    expect(document.documentElement.classList).toContain('dark-theme')
+    expect(localStorage.getItem('smarttest-web-theme')).toBe('dark')
+
+    document.querySelector('[data-theme="light"]').click()
+    expect(document.documentElement.classList).not.toContain('dark-theme')
+    expect(localStorage.getItem('smarttest-web-theme')).toBe('light')
   })
 
   it('requires a report, supports select-all/clear, and cascades filter facets', async () => {
