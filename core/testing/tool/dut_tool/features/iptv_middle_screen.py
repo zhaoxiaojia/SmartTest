@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from core.testing.runtime.steps import step_evidence, step_log
-from support.param_conversion import to_float, to_int, to_string_list
+from core.config.value_conversion import to_float, to_int, to_string_list
 
 
 TARGET_SOURCE_IDS = frozenset((4, 10, 18, 20, 21, 29, 31, 32, 33, 49, 52, 53, 54, 55, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 95, 96, 97, 98, 114))

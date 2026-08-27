@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from support.report import (
+from core.reporting import (
     build_run_report,
     export_pdf_report,
     report_file_stem,
@@ -148,7 +148,7 @@ def test_export_pdf_report_regenerates_html_and_uses_default_pdf_path(tmp_path, 
         calls.append((html, pdf_path, base_url.toLocalFile()))
         pdf_path.write_bytes(b"%PDF-1.4\n% fake\n")
 
-    monkeypatch.setattr("support.report.pdf.run.render_html_to_pdf", fake_renderer)
+    monkeypatch.setattr("core.reporting.pdf.run.render_html_to_pdf", fake_renderer)
 
     pdf_path = export_pdf_report("run-pdf", reports_dir=tmp_path)
 

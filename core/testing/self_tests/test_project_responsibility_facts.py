@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from support.confluence_integration.models import ConfluencePage
+from core.confluence.models import ConfluencePage
 from core.tools.common import project_weekly_audit
 from core.tools.common.project_weekly_audit.models import ProductLine
 from core.tools.common.project_weekly_audit.project_facts import (

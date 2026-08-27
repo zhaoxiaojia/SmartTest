@@ -17,7 +17,7 @@ from PySide6.QtGui import QGuiApplication
 from core.config import jsonTool
 from core.logging import smart_log
 from core.authentication import LdapAuthenticator, ldap_identity_from_attributes
-from support.windows_credentials import (
+from core.credentials.windows import (
     CredentialNotFoundError,
     WindowsCredentialError,
     WindowsCredentialStore,

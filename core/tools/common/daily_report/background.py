@@ -7,11 +7,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import time
 
-from support.jira_integration.auth.basic import JiraBasicAuth
-from support.jira_integration.services.issue_service import JiraIssueService
-from support.jira_integration.transport.client import JiraClient, JiraClientConfig
+from core.jira.auth.basic import JiraBasicAuth
+from core.jira.services.issue_service import JiraIssueService
+from core.jira.transport.client import JiraClient, JiraClientConfig
 from core.logging import smart_log
-from support.windows_credentials import WindowsCredentialStore
+from core.credentials.windows import WindowsCredentialStore
 
 from .projects import ProjectConfigStore
 from .delivery import DeliveryModeStore

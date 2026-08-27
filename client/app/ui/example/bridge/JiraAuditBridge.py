@@ -15,8 +15,8 @@ from core.tools.common.jira_format_audit import (
     export_audit_xlsx,
     resolve_audit_input,
 )
-from support.jira_integration.auth.basic import JiraBasicAuth
-from support.jira_integration.transport.client import JiraClient, JiraClientConfig
+from core.jira.auth.basic import JiraBasicAuth
+from core.jira.transport.client import JiraClient, JiraClientConfig
 from core.logging import smart_log
 
 

@@ -65,7 +65,7 @@ Each case has an objective/checkpoints, runtime parameters, explicit pre-actions
 UI persisted state -> core/testing/params/runtime.py -> case/step/runner
 ```
 
-Use `support/param_conversion.py`, `smart_log(...)`, and stable step/result identities. `None` checkpoint selection means do not check and is omitted from APK requests. Layer skills own further implementation rules.
+Use `core/config/value_conversion.py`, `smart_log(...)`, and stable step/result identities. `None` checkpoint selection means do not check and is omitted from APK requests. Layer skills own further implementation rules.
 
 ## 5. Evidence And Acceptance
 

@@ -12,7 +12,7 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from support.param_conversion import to_float, to_int, to_string_list
+from core.config.value_conversion import to_float, to_int, to_string_list
 from core.testing.test_context import smarttest_context
 from core.testing.runtime.steps import step_log
 

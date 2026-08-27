@@ -4,7 +4,7 @@ import re
 from typing import Any
 
 from core.jira.mcp_context import McpContextService
-from support.jira_integration.services.issue_service import JiraIssueService
+from core.jira.services.issue_service import JiraIssueService
 from core.jira.payloads import build_analysis_result, build_scope_context
 from core.jira.presenter import extract_actions, record_to_issue_row
 from core.jira.query_builder import build_base_jql

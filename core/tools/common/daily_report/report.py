@@ -13,8 +13,8 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from matplotlib.font_manager import FontProperties
 
-from support.report import LineSeries, render_line_chart
-from support.report.image.line import _cjk_font_family
+from core.reporting import LineSeries, render_line_chart
+from core.reporting.image.line import _cjk_font_family
 from .analyzer import analyze_daily_report
 from .models import DailyReportAnalysis, DailyReportIssue
 

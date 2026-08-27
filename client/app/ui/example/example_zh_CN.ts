@@ -417,8 +417,8 @@
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="762" />
         <location filename="bridge/ConfluenceAuditBridge.py" line="1392" />
-        <source>Confluence support is missing. Start SmartTest with the project .venv or run support/scripts/script-init-venv.py.</source>
-        <translation>缺少 Confluence 运行依赖。请使用项目 .venv 启动 SmartTest，或运行 support/scripts/script-init-venv.py。</translation>
+        <source>Confluence support is missing. Start SmartTest with the project .venv or run core/devtools/scripts/init_venv.py.</source>
+        <translation>缺少 Confluence 运行依赖。请使用项目 .venv 启动 SmartTest，或运行 core/devtools/scripts/init_venv.py。</translation>
     </message>
     <message>
         <location filename="bridge/ConfluenceAuditBridge.py" line="215" />

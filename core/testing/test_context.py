@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Callable
 from uuid import uuid4
 
-from support.param_conversion import normalize_value, to_bool, to_float, to_int, to_string, to_string_list, wire_string
+from core.config.value_conversion import normalize_value, to_bool, to_float, to_int, to_string, to_string_list, wire_string
 from core.config import jsonTool
 
 from core.testing.params.registry import SchemaRegistry, default_registry
@@ -1113,7 +1113,7 @@ class TestContext:
         }
 
     def finish_run(self, *, returncode: int, stopped: bool, finished_at: str | None = None) -> dict[str, Any]:
-        from support.report import build_run_report
+        from core.reporting import build_run_report
 
         self._returncode = int(returncode)
         self._stopped = bool(stopped)

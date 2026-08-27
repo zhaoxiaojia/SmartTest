@@ -9,8 +9,8 @@ from pathlib import Path
 
 from core.logging import configure_platform
 from example.imports import tool_resource_rc as _tool_resource_rc
-from support.packaging.tool_runtime_dependencies import TOOL_SMOKE_MODULES
-from support.packaging.tool_runtime_resources import missing_required
+from client.packaging.tool_runtime_dependencies import TOOL_SMOKE_MODULES
+from client.packaging.tool_runtime_resources import missing_required
 
 
 configure_platform("tool")
@@ -37,7 +37,7 @@ def portable_smoke_imports() -> None:
 
 
 def portable_credential_smoke(*, store=None, credential_ref: str | None = None) -> None:
-    from support.windows_credentials import (
+    from core.credentials.windows import (
         CredentialNotFoundError,
         WindowsCredentialStore,
     )

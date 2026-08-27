@@ -63,7 +63,7 @@ Rebuild the FluentUI QRC too when `client/app/ui/FluentUI/imports/resource.qrc` 
 
 Source validation is normal during development. Rebuild desktop packages only when requested, preparing a release, or targeting packaged-runtime behavior; packaged behavior remains the product target.
 
-`support/packaging/version.json` is the only product-version owner. Package builds consume its `MAJOR.MINOR.PATCH` value through `support/scripts/script-build-manifest.py` without changing it. Keep `build/generated/build_manifest.json` and `build/generated/installer_version.iss` consistent through that manifest/include chain; never bypass it.
+`core/release/version.json` is the only product-version owner. Package builds consume its `MAJOR.MINOR.PATCH` value through `core/devtools/scripts/build_manifest.py` without changing it. Keep `build/generated/build_manifest.json` and `build/generated/installer_version.iss` consistent through that manifest/include chain; never bypass it.
 
 ## Quality Check
 

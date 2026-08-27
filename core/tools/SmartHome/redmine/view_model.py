@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from support.jira_integration.core import UnifiedIssue
+from core.issues import UnifiedIssue
 from core.tools.SmartHome.redmine.models import RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineProject
 
 

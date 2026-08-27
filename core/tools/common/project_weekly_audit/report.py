@@ -4,7 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 import re
 
-from support.report.excel import write_xlsx_sections
+from core.reporting.excel import write_xlsx_sections
 
 from .models import AuditStatus, UPDATE_MATRIX_POINTS
 

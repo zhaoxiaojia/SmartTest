@@ -3,13 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Any, Iterable
 
-from support.jira_integration.core.create_schema import (
+from core.issues.create_schema import (
     CreateFieldControl,
     CreateFieldOption,
     CreateFieldSchema,
 )
-from support.jira_integration.core.models import CreateIssueRequest
-from support.jira_integration.core.third_party_bug import ThirdPartyBugAttachment
+from core.issues.models import CreateIssueRequest
+from core.issues.third_party_bug import ThirdPartyBugAttachment
 from core.tools.SmartHome.redmine.mapping import redmine_tracker_to_jira_type
 from core.tools.SmartHome.redmine.models import RedmineIssueDetail, RedmineProject
 

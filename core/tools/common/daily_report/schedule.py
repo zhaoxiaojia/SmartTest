@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 import json
 from pathlib import Path
 
-from support.scheduling import (
+from core.scheduling import (
     DailyTrigger, ScheduleDefinition, WeeklyTrigger,
     WindowsTaskScheduler, resolve_launch_command,
 )

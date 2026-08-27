@@ -4,7 +4,7 @@ import re
 import os
 from threading import Lock
 from core.logging import smart_log
-from support.confluence_integration import ConfluenceClient, ConfluenceClientConfig
+from core.confluence import ConfluenceClient, ConfluenceClientConfig
 
 from core.tools.common.project_weekly_audit import (
     PRODUCT_SPACE_FACET,

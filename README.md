@@ -5,8 +5,7 @@ SmartTest 是一个单仓库多端项目：
 - `client/`：Windows QML 桌面客户端；
 - `core/`：不依赖任何产品端的共享业务核心；
 - `web/`：独立 Web 前端和 FastAPI 后端；
-- `mobile/`：Android 客户端；
-- `support/`：仓库级开发、检查和打包入口。
+- `mobile/`：Android 客户端。
 
 依赖方向固定为：
 
@@ -23,7 +22,7 @@ mobile ------> web/backend -> core
 在仓库根目录执行一次初始化命令。该命令会创建或更新 `.venv`，安装 Client、测试、打包和 Web 后端 Python 依赖，安装 Playwright Chromium，并在 `web/frontend/` 执行 `npm ci`：
 
 ```powershell
-python support/scripts/script-init-venv.py
+python core/devtools/scripts/init_venv.py
 ```
 
 首次克隆、删除 `.venv` 后或依赖清单变化时重新执行；日常启动不需要重复初始化。任一依赖安装失败时脚本直接返回失败。
@@ -46,27 +45,22 @@ build/target/product/security/platform.pk8
 
 以下命令都从仓库根目录执行。
 
-### 开发
+### 独立开发
 
 ```powershell
-./.venv/Scripts/python.exe support/smarttest.py dev client
-./.venv/Scripts/python.exe support/smarttest.py dev web
-./.venv/Scripts/python.exe support/smarttest.py dev mobile
-./.venv/Scripts/python.exe support/smarttest.py dev all
+./.venv/Scripts/python.exe client/scripts/dev.py
+./.venv/Scripts/python.exe web/scripts/dev.py
 ```
 
-- `dev client`：启动桌面客户端；
-- `dev web`：同时启动 FastAPI（`http://127.0.0.1:8000`）和 Vite 前端；
-- `dev mobile`：执行 Android debug build，输出到 Gradle 的开发产物目录；
-- `dev all`：先构建 Mobile，再同时启动 Client、Web API 和 Web UI；任一长期进程失败时终止同组进程。
+Client 和 Web 分别维护自己的长期运行生命周期，不提供统一 `dev all`。Mobile 开发构建直接使用 `mobile/android/gradlew`。
 
 ### 检查
 
 ```powershell
-./.venv/Scripts/python.exe support/smarttest.py check client
-./.venv/Scripts/python.exe support/smarttest.py check web
-./.venv/Scripts/python.exe support/smarttest.py check mobile
-./.venv/Scripts/python.exe support/smarttest.py check all
+./.venv/Scripts/python.exe core/devtools/smarttest.py check client
+./.venv/Scripts/python.exe core/devtools/smarttest.py check web
+./.venv/Scripts/python.exe core/devtools/smarttest.py check mobile
+./.venv/Scripts/python.exe core/devtools/smarttest.py check all
 ```
 
 所有 `check` 都先验证产品边界。Client 执行编译和仓库入口测试；Web 执行后端 pytest 以及前端 test/lint/build；Mobile 执行 Gradle unit tests；`check all` 依次检查三个产品端。
@@ -74,17 +68,16 @@ build/target/product/security/platform.pk8
 ### 打包
 
 ```powershell
-./.venv/Scripts/python.exe support/smarttest.py package client
-./.venv/Scripts/python.exe support/smarttest.py package tool
-./.venv/Scripts/python.exe support/smarttest.py package mobile
-./.venv/Scripts/python.exe support/smarttest.py package all
+./.venv/Scripts/python.exe core/devtools/smarttest.py package client
+./.venv/Scripts/python.exe core/devtools/smarttest.py package web
+./.venv/Scripts/python.exe core/devtools/smarttest.py package mobile
+./.venv/Scripts/python.exe core/devtools/smarttest.py package all
 ```
 
-- `package client`：生成 Windows Client 安装程序；
-- `package tool`：生成 Tool 便携 ZIP；
+- `package client`：复用 Client 自有脚本生成 Windows Client 安装程序和 Tool 便携 ZIP；
+- `package web`：生成 Web 静态分发资源；
 - `package mobile`：构建并平台签名 Android APK；
-- `package all`：固定按 `mobile -> client -> tool` 调用三个既有 owner；
-- Web 不提供发布包，`package web` 会明确失败。
+- `package all`：固定按 `client -> web -> mobile` 复用三个单产品入口。
 
 正式产物只位于：
 
@@ -98,7 +91,7 @@ Client 和 Tool 的中间 runtime 分别位于 `build/client_runtime/`、`build/
 
 ## 版本与发布
 
-`support/packaging/version.json` 是 Client、Tool、Mobile 唯一的产品版本 owner，值必须使用 `MAJOR.MINOR.PATCH`。任何 `dev`、`check` 或 `package` 命令都不会自动修改版本。
+`core/release/version.json` 是全局产品版本 owner，值必须使用 `MAJOR.MINOR.PATCH`。任何 `dev`、`check` 或 `package` 命令都不会自动修改版本。
 
 准备新版本时手动修改一次，例如：
 

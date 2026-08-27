@@ -4,7 +4,7 @@ from typing import Any
 
 from PySide6.QtCore import QObject, Signal, Slot
 
-from support.ai import (
+from core.ai import (
     AIConfigurationError,
     AIKeyResolver,
     available_models,

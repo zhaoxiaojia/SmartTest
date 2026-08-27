@@ -287,10 +287,10 @@ class DailyReportBridge(QObject):
 
 
 def create_daily_report_bridge(auth_bridge, data_root):
-    from support.jira_integration.auth.basic import JiraBasicAuth
-    from support.jira_integration.services.issue_service import JiraIssueService
-    from support.jira_integration.transport.client import JiraClient, JiraClientConfig
-    from support.windows_credentials import WindowsCredentialStore
+    from core.jira.auth.basic import JiraBasicAuth
+    from core.jira.services.issue_service import JiraIssueService
+    from core.jira.transport.client import JiraClient, JiraClientConfig
+    from core.credentials.windows import WindowsCredentialStore
     from core.tools.common.daily_report import DailyReportService, DeliveryModeStore, ProjectConfigStore
     from core.tools.common.daily_report.background import run_scheduled_batch
     from core.tools.common.daily_report.schedule import DailyReportScheduleManager

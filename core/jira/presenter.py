@@ -1,8 +1,8 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any
 
-from support.jira_integration.core.models import IssueRecord
+from core.issues.models import IssueRecord
 
 
 def record_to_issue_row(record: IssueRecord) -> dict[str, Any]:

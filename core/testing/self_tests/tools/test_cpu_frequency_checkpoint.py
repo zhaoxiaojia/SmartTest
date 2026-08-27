@@ -319,7 +319,7 @@ def test_all_exposed_middle_screen_parameter_texts_are_translated(tmp_path) -> N
     from xml.etree import ElementTree
     from subprocess import run
     from PySide6.QtCore import QTranslator
-    from support.scripts import env
+    from client.scripts import env
 
     exposed = {key for case in MIDDLE_SCREEN_CASES for key in case.parameters}
     for locale in ("zh_CN", "en_US"):

@@ -6,8 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from typing import Any, Awaitable, Callable, Iterable
 
-from support.jira_integration.core.description import render_notes_description
-from support.jira_integration.core.models import (
+from core.issues.description import render_notes_description
+from core.issues.models import (
     AttachmentCancellation,
     AttachmentTransferResult,
     CreateIssueResult,

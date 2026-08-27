@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from support.jira_integration.services.issue_service import JiraIssueService
+from core.jira.services.issue_service import JiraIssueService
 from core.jira.payloads import build_browse_result, build_detail_result, build_scope_context
 from core.jira.presenter import record_to_issue_row
 from core.jira.query_builder import build_base_jql

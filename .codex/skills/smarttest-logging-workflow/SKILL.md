@@ -25,4 +25,4 @@ description: Use when changing SmartTest logger, print, Logcat, FastAPI access l
 1. Run focused Python logging and affected runtime/UI tests.
 2. For Web changes, assert one request record, safe fields, Uvicorn access-log suppression, and the backend suite.
 3. For Android changes, search production Kotlin for direct `Log` outside `SmartTestLog`, run unit/static tests, build debug APK, and follow the Android workflow for signing when available.
-4. Run `support/ci/test_check_product_boundaries.py`, `support/ci/check_product_boundaries.py`, a repository search for retired/private owners, and `git diff --check`.
+4. Run `core/devtools/ci/test_check_product_boundaries.py`, `core/devtools/ci/check_product_boundaries.py`, a repository search for retired/private owners, and `git diff --check`.

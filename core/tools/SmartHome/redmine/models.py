@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from support.jira_integration.core.third_party_bug import (
+from core.issues.third_party_bug import (
     ThirdPartyBugAttachment,
     ThirdPartyBugComment,
     ThirdPartyBugContext,

@@ -44,6 +44,8 @@ screen.png
 results/
 tmp_boot_video_debug/
 core/testing/self_tests/*
+!core/testing/self_tests/shared/
+!core/testing/self_tests/shared/**/*.py
 !core/testing/self_tests/android/
 core/testing/self_tests/android/*
 !core/testing/self_tests/android/test_android_client_log_levels.py

@@ -143,7 +143,7 @@ timeout, evidence type, pass/skip/fail rule, dependency, cleanup
 
 ## 8. 报告合同
 
-报告 owner：`core/testing/test_context.py`、`support/report/`、`support/report/json/store.py`、`client/app/ui/example/bridge/ReportBridge.py`。
+报告 owner：`core/testing/test_context.py`、`core/reporting/`、`core/reporting/json/store.py`、`client/app/ui/example/bridge/ReportBridge.py`。
 
 必须呈现：
 

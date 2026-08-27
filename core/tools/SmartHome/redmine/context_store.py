@@ -13,7 +13,7 @@ from typing import Any, Callable, Iterable
 
 from PySide6.QtCore import QStandardPaths
 
-from support.jira_integration.core import IssueStore, UnifiedIssue
+from core.issues import IssueStore, UnifiedIssue
 
 
 _CACHE_LOCK = threading.RLock()

@@ -23,16 +23,14 @@ jobs:
               - '.github/**'
               - 'client/**'
               - 'core/**'
-              - 'support/**'
             web:
               - '.github/**'
               - 'web/**'
-              - 'support/smarttest.py'
+              - 'core/devtools/**'
             mobile:
               - '.github/**'
               - 'mobile/**'
               - 'core/**'
-              - 'support/smarttest.py'
 
   client:
     needs: changes
@@ -43,7 +41,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.10'}
       - run: python -m pip install pytest
-      - run: python support/smarttest.py check client
+      - run: python core/devtools/smarttest.py check client
 
   web:
     needs: changes
@@ -58,7 +56,7 @@ jobs:
       - run: python -m pip install -r web/backend/requirements-dev.txt
       - run: npm ci
         working-directory: web/frontend
-      - run: python support/smarttest.py check web
+      - run: python core/devtools/smarttest.py check web
 
   mobile:
     needs: changes
@@ -68,4 +66,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: {distribution: temurin, java-version: '17', cache: gradle}
-      - run: python support/smarttest.py check mobile
+      - run: python core/devtools/smarttest.py check mobile

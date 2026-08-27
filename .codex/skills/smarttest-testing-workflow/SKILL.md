@@ -19,7 +19,7 @@ description: Use when changing SmartTest core/testing/, pytest discovery/executi
 | `core/testing/tool/pc_tool/serial_tool.py` | only serial implementation/enumeration/read/write/query boundary |
 | `core/testing/tool/equipment.py` | relay/router/attenuator and other lab composition |
 | `core/testing/reporting/store.py` | report JSON save/load/list/path only |
-| `support/report/` | report construction, summaries/filters, HTML/PDF, filenames |
+| `core/reporting/` | report construction, summaries/filters, HTML/PDF, filenames |
 
 `core/testing/` does not import product layers. Shared JSON/YAML persistence lives under `core/config/`; QML calls testing only through registered Python bridges. Avoid re-export/pass-through facades; import the business owner directly unless a stable external boundary is required.
 
@@ -53,7 +53,7 @@ Resolve DUT serial once at the run boundary and carry it in `RunConfig`. Do not 
 - Testing metadata is UI-neutral: keys, types, defaults, scopes, groups, option sources, runtime values. Frontend wording belongs to the UI skill.
 - Dynamic DUT/env options use contract declarations and `core/testing/tool/dut_tool/parameter_helper.py`; no page, case, or field-specific refresh helper.
 - Frontend values come from `%LOCALAPPDATA%\Amlogic\SmartTest` JSON through `core/config/jsonTool.py` and are read at business use through `core/testing/params/runtime.py`.
-- Conversion belongs only to `support/param_conversion.py`; never add `_int_param`, `_float_param`, `int(float(...))`, or equivalent private converters.
+- Conversion belongs only to `core/config/value_conversion.py`; never add `_int_param`, `_float_param`, `int(float(...))`, or equivalent private converters.
 - Pass stable identities across layers (nodeid, serial, source, request id, equipment), not copied values.
 - Android-mirrored keys are case-scoped (`caseId:paramId`) and align with `SmartTestCatalog.kt`. Frontend checkpoint `None` means skip: omit it from APK requests; Android readers also treat `"None"`/`"none"` as absent.
 

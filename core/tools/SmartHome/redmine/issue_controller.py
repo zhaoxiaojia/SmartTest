@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Any, Iterable
 
-from support.jira_integration.core import IssueStore, UnifiedIssue
+from core.issues import IssueStore, UnifiedIssue
 from core.tools.SmartHome.redmine import context_store
 from core.tools.SmartHome.redmine.models import (
     RedmineContext,

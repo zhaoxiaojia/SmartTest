@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 from typing import Literal, Sequence
 
-from support.scheduling import (
+from core.scheduling import (
     LaunchCommand,
     ScheduleDefinition,
     WeeklyTrigger,

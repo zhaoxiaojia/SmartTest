@@ -5,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-val productVersionFile = rootProject.file("../../support/packaging/version.json")
+val productVersionFile = rootProject.file("../../core/release/version.json")
 val productVersion = (JsonSlurper().parse(productVersionFile) as Map<*, *>)["version"] as String
 require(Regex("\\d+\\.\\d+\\.\\d+").matches(productVersion)) {
     "Product version must use MAJOR.MINOR.PATCH format in $productVersionFile"

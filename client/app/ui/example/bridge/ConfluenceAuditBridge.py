@@ -30,13 +30,13 @@ from core.tools.common.project_weekly_audit.scheduler import (
     TASK_PREFIX, WindowsAuditScheduler, resolve_audit_launch_command,
 )
 from core.tools.common.project_weekly_audit.service import ConfluenceAuditService
-from support.confluence_integration import (
+from core.confluence import (
     ConfluenceClient, ConfluenceClientConfig, ConfluenceDependencyError,
 )
 from core.logging import smart_log
-from support.windows_credentials import WindowsCredentialStore
-from support.account_snapshot_cache import AccountScopedSnapshotCache
-from support.account_dynamic_source import (
+from core.credentials.windows import WindowsCredentialStore
+from core.accounts.snapshot_cache import AccountScopedSnapshotCache
+from core.accounts.dynamic_source import (
     AccountDynamicSource, DynamicSourceEvent, RefreshState,
 )
 
@@ -758,7 +758,7 @@ class ConfluenceAuditBridge(QObject):
             "network": self.tr("Confluence network access failed. Check the network or VPN, then try again."),
             "dependency": self.tr(
                 "Confluence support is missing. Start SmartTest with the project .venv "
-                "or run support/scripts/script-init-venv.py.",
+                "or run core/devtools/scripts/init_venv.py.",
             ),
             "audit": self.tr("Confluence project refresh failed. Review the application log, then try again."),
         }
@@ -1388,7 +1388,7 @@ class ConfluenceAuditBridge(QObject):
                 "network": self.tr("Confluence network access failed. Check the network or VPN, then try again."),
                 "dependency": self.tr(
                     "Confluence support is missing. Start SmartTest with the project .venv "
-                    "or run support/scripts/script-init-venv.py.",
+                    "or run core/devtools/scripts/init_venv.py.",
                 ),
                 "audit": self.tr("Confluence audit failed. Review the application log, then try again."),
             }

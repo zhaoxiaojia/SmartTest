@@ -5,7 +5,7 @@ import json
 import re
 from typing import Any
 
-from support.mcp.client import McpClient, McpServerConfig, McpTool
+from core.mcp.client import McpClient, McpServerConfig, McpTool
 
 
 _SERVER_URLS = {

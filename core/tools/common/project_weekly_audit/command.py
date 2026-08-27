@@ -7,14 +7,14 @@ from pathlib import Path
 from typing import Callable
 
 from core.logging import smart_log
-from support.windows_credentials import CredentialNotFoundError, WindowsCredentialError, WindowsCredentialStore
+from core.credentials.windows import CredentialNotFoundError, WindowsCredentialError, WindowsCredentialStore
 
 from .models import AuditExecutionContext
 from .period import scheduled_reporting_window
 from .plans import AuditPlanStore
 from .report import export_project_audit_xlsx_by_product_line
 from .service import ConfluenceAuditService
-from support.confluence_integration import ConfluenceClient, ConfluenceClientConfig
+from core.confluence import ConfluenceClient, ConfluenceClientConfig
 
 EXIT_SUCCESS = 0
 EXIT_CONFIG = 2

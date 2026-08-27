@@ -11,9 +11,9 @@ from typing import Callable
 from uuid import uuid4
 
 from core.logging import smart_log
-from support.outlook import send_email
-from support.personal_outlook import send_email as send_personal_email
-from support.report import render_html_page_image
+from core.email.outlook import send_email
+from core.email.personal_outlook import send_email as send_personal_email
+from core.reporting import render_html_page_image
 
 from .report import (
     ISSUE_FIELDS,

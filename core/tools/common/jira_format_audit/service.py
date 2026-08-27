@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Protocol
 from urllib.parse import parse_qs, urlsplit
 
-from support.ai import (
+from core.ai import (
     AIChatClient,
     AIChatMessage,
     AIConfigurationError,

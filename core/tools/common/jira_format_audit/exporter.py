@@ -6,7 +6,7 @@ from pathlib import Path
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from support.report.excel import clean_excel_value, write_excel_workbook
+from core.reporting.excel import clean_excel_value, write_excel_workbook
 
 from .models import AuditReport
 from .rules import creator_names

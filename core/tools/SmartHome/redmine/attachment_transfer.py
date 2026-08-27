@@ -8,7 +8,7 @@ import re
 import tempfile
 from typing import Any, Iterable
 
-from support.jira_integration.core.models import (
+from core.issues.models import (
     AttachmentTransferResult,
     CreateIssueAttachment,
     JiraAttachmentMetadata,

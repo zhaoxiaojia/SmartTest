@@ -18,11 +18,11 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
 
-from support.browser_automation import BrowserRuntime, SupportedBrowserNotInstalledError
-from support.jira_integration.auth.basic import JiraBasicAuth
-from support.jira_integration.services.create_issue_service import CreateIssueService
-from support.jira_integration.services.create_schema_service import JiraCreateSchemaService
-from support.jira_integration.transport.client import JiraClient, JiraClientConfig
+from core.browser_automation import BrowserRuntime, SupportedBrowserNotInstalledError
+from core.jira.auth.basic import JiraBasicAuth
+from core.jira.services.create_issue_service import CreateIssueService
+from core.jira.services.create_schema_service import JiraCreateSchemaService
+from core.jira.transport.client import JiraClient, JiraClientConfig
 from core.logging import smart_log
 from core.tools.SmartHome.redmine.auth import RedmineAuthService
 from core.tools.SmartHome.redmine.attachment_transfer import RedmineAttachmentTransfer
