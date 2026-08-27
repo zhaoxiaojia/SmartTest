@@ -16,8 +16,9 @@ from .filters import WifiFilters
 from .service import WifiDatabaseQueries
 from .report_workspace import ClientAuditReportOwner, ReportNotFoundError
 from .project_facts_api import ProjectFactsWebOwner
-from .session import InMemorySessionStore
+from .session import PersistentSessionStore
 from .background_refresh import BackgroundFactsRefresh
+from .credentials import CredentialStoreError
 
 SESSION_COOKIE = "smarttest_session"
 
@@ -33,7 +34,7 @@ def default_authenticator():
 
 def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOwner.from_environment,
                project_facts_owner=ProjectFactsWebOwner, authenticator=default_authenticator,
-               session_store=InMemorySessionStore, facts_refresh=BackgroundFactsRefresh) -> FastAPI:
+               session_store=PersistentSessionStore, facts_refresh=BackgroundFactsRefresh) -> FastAPI:
     app = FastAPI(title="SmartTest Wi-Fi Database", docs_url=None, redoc_url=None, openapi_url=None)
     auth = authenticator()
     sessions = session_store()
@@ -49,6 +50,11 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         try:
             response = await call_next(request)
             status = response.status_code
+            if getattr(request.state, "renew_session_cookie", False):
+                response.set_cookie(
+                    SESSION_COOKIE, request.cookies[SESSION_COOKIE], httponly=True, secure=True,
+                    samesite="lax", max_age=sessions.ttl_seconds, path="/",
+                )
             response.headers["x-request-id"] = request_id
             return response
         finally:
@@ -69,7 +75,10 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         return {"status": "ok"}
 
     def current_session(request: Request):
-        return sessions.get(request.cookies.get(SESSION_COOKIE, ""))
+        value = sessions.get(request.cookies.get(SESSION_COOKIE, ""))
+        if value is not None and value.cookie_renewal_required:
+            request.state.renew_session_cookie = True
+        return value
 
     def public_session(value):
         if value is None:
@@ -87,10 +96,17 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             code = result.get("code") if result.get("code") in {"invalid_credentials", "ldap_unavailable"} else "ldap_unavailable"
             raise HTTPException(status_code=401 if code == "invalid_credentials" else 503,
                                 detail={"state": code})
-        session_id = sessions.create(result["username"], password,
-                                     result.get("display_name", ""), result.get("avatar_bytes", b""))
+        try:
+            session_id = sessions.create(result["username"], password,
+                                         result.get("display_name", ""), result.get("avatar_bytes", b""))
+        except CredentialStoreError as error:
+            smart_log("Persistent Web credential storage failed", platform="web", domain="auth",
+                      source="login", level="error", extra={"exception_type": type(error).__name__})
+            raise HTTPException(status_code=503, detail={"state": "credential_store_unavailable"}) from error
+        if facts.query(result["username"]).get("state") == "no_snapshot":
+            refresh.start(facts, result["username"], password)
         response.set_cookie(SESSION_COOKIE, session_id, httponly=True, secure=True,
-                            samesite="lax", max_age=8 * 60 * 60, path="/")
+                            samesite="lax", max_age=sessions.ttl_seconds, path="/")
         return public_session(sessions.get(session_id))
 
     @app.get("/api/auth/session")
@@ -109,6 +125,63 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         sessions.delete(request.cookies.get(SESSION_COOKIE, ""))
         response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, secure=True, samesite="lax")
         return {"authenticated": False}
+
+    @app.post("/api/auth/logout-all")
+    def logout_all(request: Request, response: Response):
+        value = current_session(request)
+        if value is None:
+            raise HTTPException(status_code=401, detail={"state": "unauthenticated"})
+        sessions.delete_all(value.username)
+        request.state.renew_session_cookie = False
+        response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, secure=True, samesite="lax")
+        return {"authenticated": False}
+
+    def authenticated_session(request: Request):
+        value = current_session(request)
+        if value is None:
+            raise HTTPException(status_code=401, detail={"state": "unauthenticated"})
+        return value
+
+    def validate_preference_payload(scope: str, payload: dict):
+        import json
+        import re
+        if not re.fullmatch(r"[A-Za-z0-9._/-]{1,160}", scope):
+            raise HTTPException(status_code=422, detail={"state": "invalid_scope"})
+        items = payload.get("items")
+        if not isinstance(items, dict) or any(not isinstance(key, str) or not key for key in items):
+            raise HTTPException(status_code=422, detail={"state": "invalid_preferences"})
+        sensitive = re.compile(r"password|passwd|secret|token|cookie|credential|authorization", re.I)
+        def contains_sensitive_key(value):
+            if isinstance(value, dict):
+                return any(sensitive.search(str(key)) or contains_sensitive_key(child) for key, child in value.items())
+            if isinstance(value, list):
+                return any(contains_sensitive_key(child) for child in value)
+            return False
+        if contains_sensitive_key(items):
+            raise HTTPException(status_code=422, detail={"state": "sensitive_preference"})
+        try:
+            encoded = json.dumps(items, ensure_ascii=False)
+        except (TypeError, ValueError) as error:
+            raise HTTPException(status_code=422, detail={"state": "invalid_preferences"}) from error
+        if len(encoded.encode("utf-8")) > 64 * 1024:
+            raise HTTPException(status_code=413, detail={"state": "preferences_too_large"})
+        version = payload.get("schemaVersion", 1)
+        if not isinstance(version, int) or not 1 <= version <= 1000:
+            raise HTTPException(status_code=422, detail={"state": "invalid_schema_version"})
+        return items, version
+
+    @app.get("/api/preferences/{scope:path}")
+    def get_preferences(scope: str, value=Depends(authenticated_session)):
+        return sessions.get_preferences(value.username, scope)
+
+    @app.put("/api/preferences/{scope:path}")
+    def put_preferences(scope: str, payload: dict = Body(...), value=Depends(authenticated_session)):
+        items, version = validate_preference_payload(scope, payload)
+        return sessions.upsert_preferences(value.username, scope, items, version)
+
+    @app.delete("/api/preferences/{scope:path}")
+    def delete_preferences(scope: str, value=Depends(authenticated_session)):
+        return {"deleted": sessions.delete_preferences(value.username, scope)}
 
     def filters_from_request(request: Request) -> WifiFilters:
         try:
@@ -146,28 +219,37 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         return facts
 
     @app.get("/api/confluence/project-facts")
-    def confluence_project_facts(request: Request, owner=Depends(resolve_project_facts_owner)):
+    def confluence_project_facts(request: Request, owner=Depends(resolve_project_facts_owner),
+                                 value=Depends(authenticated_session)):
         filters = {
             key.removeprefix("field."): tuple(value for value in request.query_params.getlist(key) if str(value).strip())
             for key, _value in request.query_params.multi_items()
             if key.startswith("field.")
         }
         search = request.query_params.get("search", "")
+        load_details = request.query_params.get("details") == "1"
         safe_filters = summarize_project_fact_filters(filters)
         smart_log("Confluence project facts request received", platform="web", domain="confluence",
                   source="confluence_project_facts", request_id=request.state.request_id,
                   extra={"filters": safe_filters, "search_enabled": bool(search.strip())})
-        result = owner.query(filters=filters, search=search)
-        refresh_state = refresh.state
+        if load_details and value.password:
+            result = owner.enrich(value.username, value.password, filters=filters, search=search)
+        elif load_details:
+            result = {**owner.query(value.username, filters=filters, search=search),
+                      "detailState": "reauthentication_required"}
+        else:
+            result = owner.query(value.username, filters=filters, search=search)
+        refresh_state = refresh.state_for(value.username)
         if refresh_state == "failed":
             result = {**result, "state": "failed"}
         elif refresh_state == "loading":
             result = {**result, "state": "loading"}
         elif result.get("state") == "no_snapshot":
-            value = current_session(request)
-            if value is not None:
+            if value.password:
                 refresh.start(owner, value.username, value.password)
                 result = {**result, "state": "loading"}
+            else:
+                result = {**result, "state": "reauthentication_required"}
         hierarchy = result.get("ownerHierarchy", [])
         hierarchy_summary = {
             "roles": len(hierarchy),
@@ -187,7 +269,9 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         value = current_session(request)
         if value is None:
             raise HTTPException(status_code=401, detail={"state": "unauthenticated"})
-        result = owner.query()
+        if not value.password:
+            raise HTTPException(status_code=401, detail={"state": "reauthentication_required"})
+        result = owner.query(value.username)
         refresh.start(owner, value.username, value.password)
         return {**result, "state": "loading"}
 

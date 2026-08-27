@@ -24,6 +24,25 @@ export function createAuthApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' }
   }
 }
 
+export function createPreferenceApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
+  async function request(scope, method, body) {
+    let response
+    const path = `${baseUrl}/preferences/${encodeURIComponent(scope.replace(/^\/+/, ''))}`
+    const options = { method, credentials: 'same-origin' }
+    if (body) { options.headers = { 'content-type': 'application/json' }; options.body = JSON.stringify(body) }
+    try { response = await fetchImpl(path, options) } catch (cause) {
+      throw new ApiUnavailableError('Preference service unavailable.', { cause })
+    }
+    if (!response.ok) throw new ApiUnavailableError(`Preference service unavailable (${response.status}).`, { status: response.status })
+    return response.json()
+  }
+  return {
+    get: scope => request(scope, 'GET'),
+    put: (scope, items) => request(scope, 'PUT', { items, schemaVersion: 1 }),
+    reset: scope => request(scope, 'DELETE')
+  }
+}
+
 const TYPE_MAP = {
   PEAK_THROUGHPUT: 'performance',
   RVR: 'RVR',
@@ -103,12 +122,13 @@ export function createReportWorkspaceApi({ fetchImpl = globalThis.fetch, baseUrl
 
 export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
   return {
-    async getProjectFacts(filters = {}) {
+    async getProjectFacts(filters = {}, { details = false } = {}) {
       const query = new URLSearchParams()
       for (const [key, values] of Object.entries(filters.fields ?? {})) {
         for (const value of Array.isArray(values) ? values : [values]) if (`${value}`.trim()) query.append(`field.${key}`, value)
       }
       if (filters.search) query.set('search', filters.search)
+      if (details) query.set('details', '1')
       let response
       try { response = await fetchImpl(`${baseUrl}/confluence/project-facts${query.size ? `?${query}` : ''}`) } catch (cause) {
         throw new ApiUnavailableError('Project facts API unavailable.', { cause })

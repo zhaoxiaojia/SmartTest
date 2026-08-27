@@ -38,7 +38,7 @@ export function createReportWorkspace({ root, source, api }) {
   root.innerHTML = `<section class="report-workspace">
     <header class="report-page-head"><div><div class="eyebrow"></div><h1></h1><p></p></div>
       <div class="report-actions"><button class="button button-secondary" type="button" data-refresh>↻ 更新报告</button><a class="button button-primary is-disabled" data-download>⇩ Download</a></div></header>
-    <form class="card report-filter-card">${filters}</form>
+    <form class="card report-filter-card" data-preference-region>${filters}</form>
     <div class="report-state report-state-loading" role="status">Loading reports…</div>
     <div class="report-master-detail">
       <aside class="card report-directory"><header><strong>Reports</strong><span class="count-badge" data-count>0 reports</span></header><div class="report-directory-list"></div></aside>

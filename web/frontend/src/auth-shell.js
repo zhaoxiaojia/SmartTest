@@ -40,6 +40,7 @@ export function createAuthShell({ root = document, desktopHost, mobileHost, api 
     async start() {
       if (api) { try { state = await api.session() } catch { state = { authenticated: false } } }
       render()
+      return state
     }
   }
 }

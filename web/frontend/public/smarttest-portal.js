@@ -1,26 +1,17 @@
-/* global document, localStorage */
+/* global document */
 
 // ===== Theme Toggle =====
 function initTheme() {
-    const savedTheme = localStorage.getItem('smarttest-web-theme');
-    if (savedTheme === 'dark') {
-        document.documentElement.classList.add('dark-theme');
-        document.body.classList.add('dark-theme');
-        updateThemeButtons('dark');
-    } else {
-        updateThemeButtons('light');
-    }
+    updateThemeButtons(document.documentElement.classList.contains('dark-theme') ? 'dark' : 'light');
 }
 
 function setTheme(theme) {
     if (theme === 'dark') {
         document.documentElement.classList.add('dark-theme');
         document.body.classList.add('dark-theme');
-        localStorage.setItem('smarttest-web-theme', 'dark');
     } else {
         document.documentElement.classList.remove('dark-theme');
         document.body.classList.remove('dark-theme');
-        localStorage.setItem('smarttest-web-theme', 'light');
     }
     updateThemeButtons(theme);
 }

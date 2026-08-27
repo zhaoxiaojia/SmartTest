@@ -1,4 +1,5 @@
 import { createAuthShell } from './auth-shell.js'
+import { createPreferenceStore } from './preference-store.js'
 
 const DATABASE_ROUTES = [
   { path: '/wifi-database/peak-throughput', dataType: 'PEAK_THROUGHPUT', label: 'Peak Throughput' },
@@ -47,7 +48,7 @@ export function enhanceMultiSelect(select, { emptyLabel = 'Select options', comp
   container.innerHTML = `<button type="button" class="multi-select__control form-select" aria-haspopup="listbox" aria-expanded="false">
       <span class="multi-select__summary">Select options</span><span class="multi-select__tags" hidden></span></button>
     <div class="multi-select__dropdown card shadow-lg" role="listbox" aria-multiselectable="true" aria-hidden="true">
-      ${searchable ? '<div class="multi-select__search"><input class="form-control" type="search" placeholder="Search options" aria-label="Search options"></div>' : ''}
+      ${searchable ? '<div class="multi-select__search"><input class="form-control" type="search" data-preference="off" placeholder="Search options" aria-label="Search options"></div>' : ''}
       <div class="multi-select__options"></div><div class="multi-select__empty">No options available</div>
       <div class="multi-select__actions"><button type="button" class="button button-secondary" data-clear>Clear</button><button type="button" class="button button-primary" data-select-all>Select all</button></div>
     </div>`
@@ -78,7 +79,7 @@ export function enhanceMultiSelect(select, { emptyLabel = 'Select options', comp
     options.replaceChildren()
     for (const option of select.options) {
       const label = document.createElement('label'); label.className = 'multi-select__option'
-      const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.className = 'form-check-input'; checkbox.value = option.value; checkbox.checked = option.selected
+      const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.className = 'form-check-input'; checkbox.dataset.preference = 'off'; checkbox.value = option.value; checkbox.checked = option.selected
       const text = document.createElement('span'); text.textContent = option.textContent
       checkbox.addEventListener('change', () => { option.selected = checkbox.checked; updateSummary(); select.dispatchEvent(new Event('change', { bubbles: true })) })
       label.append(checkbox, text); options.append(label)
@@ -121,7 +122,7 @@ function databaseView(route, api, capabilities) {
       <div><div class="eyebrow">Wi-Fi Data</div><h1></h1></div>
       <span class="status-badge status-neutral" role="status">Connecting to API…</span>
     </div>
-    <form class="card filter-panel">
+    <form class="card filter-panel" data-preference-region>
       <div class="filter-grid">
         <label>Product Line<select name="productLines" class="form-select" multiple></select></label>
         <label>Project<select name="projects" class="form-select" multiple></select></label>
@@ -129,7 +130,7 @@ function databaseView(route, api, capabilities) {
         <label>Standard<select name="standards" class="form-select" multiple></select></label>
         <label>Start Date<input name="startDate" class="form-control" type="date"></label>
         <label>End Date<input name="endDate" class="form-control" type="date"></label>
-        <div class="filter-actions"><button class="button button-primary" type="submit">Apply Filters</button><button class="button button-secondary" type="button" data-refresh>Refresh</button><button class="button button-secondary" type="button" data-reset>Reset</button></div>
+        <div class="filter-actions"><button class="button button-primary" type="submit">Apply Filters</button><button class="button button-secondary" type="button" data-refresh>Refresh</button><button class="button button-secondary" type="button" data-reset data-preference-reset>Reset</button></div>
       </div>
     </form>
     <div class="card selected-reports"><strong>Selected reports <span class="count-badge" data-report-count>0</span></strong><span data-reports>Select test reports and apply the filters.</span></div>
@@ -148,7 +149,6 @@ function databaseView(route, api, capabilities) {
   const pdfButton = section.querySelector('[data-export-pdf]')
   const exportStatus = section.querySelector('[data-export-status]')
   let latestRows = []
-  const stateKey = `wifi-database:${route.dataType}`
   const filters = () => ({
     dataType: route.dataType,
     productLines: selected(form.elements.productLines),
@@ -162,23 +162,12 @@ function databaseView(route, api, capabilities) {
 
   const controls = [...form.querySelectorAll('select[multiple]')]
   const updateCounts = controls.map(enhanceMultiSelect)
-  const saveState = () => sessionStorage.setItem(stateKey, JSON.stringify(filters()))
-  const restoreState = () => {
-    let state = {}; try { state = JSON.parse(sessionStorage.getItem(stateKey) || '{}') } catch { state = {} }
-    for (const select of controls) {
-      const wanted = new Set(state[select.name] || [])
-      for (const option of select.options) option.selected = wanted.has(option.value)
-    }
-    form.elements.startDate.value = state.startDate || ''
-    form.elements.endDate.value = state.endDate || ''
-    updateCounts.forEach(update => update())
-  }
   const loadFacets = () => api.getFilters(filters()).then(payload => {
     fillSelect(form.elements.productLines, optionValues(payload, 'productLines'))
     fillSelect(form.elements.projects, optionValues(payload, 'projects'))
     fillSelect(form.elements.testReportCsvNames, optionValues(payload, 'testReports', 'reportNames'))
     fillSelect(form.elements.standards, optionValues(payload, 'standards'))
-    restoreState()
+    updateCounts.forEach(update => update())
     status.className = 'status-badge status-success'
     status.textContent = 'API connected'
   }).catch(() => {
@@ -188,7 +177,6 @@ function databaseView(route, api, capabilities) {
   const ready = loadFacets()
 
   for (const control of controls) control.addEventListener('change', () => {
-    saveState()
     loadFacets()
   })
 
@@ -199,7 +187,6 @@ function databaseView(route, api, capabilities) {
       status.textContent = 'Select at least one Test Report.'
       return
     }
-    saveState()
     status.className = 'status-badge status-neutral'
     status.textContent = 'Loading…'
     try {
@@ -221,7 +208,7 @@ function databaseView(route, api, capabilities) {
   section.querySelector('[data-reset]').addEventListener('click', () => {
     form.reset()
     for (const select of controls) for (const option of select.options) option.selected = false
-    saveState(); updateCounts.forEach(update => update())
+    updateCounts.forEach(update => update())
     reports.textContent = 'Select test reports and apply the filters.'
     section.querySelector('[data-report-count]').textContent = '0'
     results.textContent = 'Choose filters and click “Apply Filters” to run the query.'
@@ -255,13 +242,13 @@ export function createApp({ root, api, capabilities = {} }) {
     <div class="mobile-menu" aria-hidden="true">
       <div class="mobile-menu-header"><a class="logo" href="/"><span class="logo-icon">✓</span><span class="logo-label">SmartTest</span></a><button class="mobile-menu-close" type="button" aria-label="Close navigation">×</button></div>
       <nav class="mobile-menu-nav"></nav>
-      <div class="mobile-menu-footer"><div data-user-mobile></div><div class="theme-toggle"><button class="theme-btn" type="button" data-theme="light" title="Light theme">${lightIcon}</button><button class="theme-btn" type="button" data-theme="dark" title="Dark theme">${darkIcon}</button></div></div>
+      <div class="mobile-menu-footer"><div data-user-mobile></div><div class="theme-toggle" data-preference-region data-preference-scope="global"><button class="theme-btn" type="button" data-theme="light" data-preference-key="theme" data-preference-value="light" title="Light theme">${lightIcon}</button><button class="theme-btn" type="button" data-theme="dark" data-preference-key="theme" data-preference-value="dark" title="Dark theme">${darkIcon}</button></div></div>
     </div>
     <div class="app-container">
       <nav class="top-nav">
         <div class="nav-container">
           <div class="nav-left"><a class="logo" href="/"><span class="logo-icon">✓</span><span class="logo-label">SmartTest</span></a><div class="nav-menu"></div></div>
-          <div class="nav-right"><div class="theme-toggle"><button class="theme-btn" type="button" data-theme="light" title="Light theme">${lightIcon}</button><button class="theme-btn" type="button" data-theme="dark" title="Dark theme">${darkIcon}</button></div><div class="user-entry" data-user-entry></div><button class="mobile-menu-btn" type="button" aria-label="Open navigation"><span></span><span></span><span></span></button></div>
+          <div class="nav-right"><div class="theme-toggle" data-preference-region data-preference-scope="global"><button class="theme-btn" type="button" data-theme="light" data-preference-key="theme" data-preference-value="light" title="Light theme">${lightIcon}</button><button class="theme-btn" type="button" data-theme="dark" data-preference-key="theme" data-preference-value="dark" title="Dark theme">${darkIcon}</button></div><div class="user-entry" data-user-entry></div><button class="mobile-menu-btn" type="button" aria-label="Open navigation"><span></span><span></span><span></span></button></div>
         </div>
       </nav>
       <nav class="database-nav" aria-label="Wi-Fi Data"></nav>
@@ -311,12 +298,12 @@ export function createApp({ root, api, capabilities = {} }) {
   function setTheme(theme) {
     const dark = theme === 'dark'
     document.documentElement.classList.toggle('dark-theme', dark)
-    localStorage.setItem('smarttest-web-theme', dark ? 'dark' : 'light')
     root.querySelectorAll('[data-theme]').forEach(button => button.classList.toggle('active', button.dataset.theme === theme))
   }
 
-  setTheme(localStorage.getItem('smarttest-web-theme') === 'dark' ? 'dark' : 'light')
+  setTheme('light')
   root.querySelectorAll('[data-theme]').forEach(button => button.addEventListener('click', () => setTheme(button.dataset.theme)))
+  root.addEventListener('preference:restored', event => { if (event.target.dataset.theme) setTheme(event.detail.value) })
   const menu = root.querySelector('.mobile-menu')
   const overlay = root.querySelector('.mobile-menu-overlay')
   const closeMenu = () => { menu.classList.remove('active'); overlay.classList.remove('active'); menu.setAttribute('aria-hidden', 'true') }
@@ -341,14 +328,23 @@ export function createApp({ root, api, capabilities = {} }) {
   }
 
   async function start() {
-    await authShell.start()
-    return render()
+    const session = await authShell.start()
+    await render()
+    if (session?.authenticated && capabilities.preferenceApi) {
+      const preferences = createPreferenceStore({ root, api: capabilities.preferenceApi })
+      await preferences.start()
+    }
   }
 
   root.addEventListener('click', event => {
     const link = event.target.closest('a')
     if (!link || link.origin !== window.location.origin) return
-    if (![...DATABASE_ROUTES, ...REPORT_ROUTES].some(route => route.path === link.pathname)) return
+    const route = [...DATABASE_ROUTES, ...REPORT_ROUTES].find(candidate => candidate.path === link.pathname)
+    if (!route) return
+    const canRender = route.source
+      ? typeof capabilities.reportWorkspace === 'function'
+      : typeof api?.getFilters === 'function'
+    if (!canRender) return
     event.preventDefault()
     window.history.pushState({}, '', link.pathname)
     closeMenu()

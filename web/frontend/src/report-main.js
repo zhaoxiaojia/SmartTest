@@ -1,4 +1,4 @@
-import { createAuthApi, createProjectFactsApi, createReportWorkspaceApi } from './api.js'
+import { createAuthApi, createPreferenceApi, createProjectFactsApi, createReportWorkspaceApi } from './api.js'
 import { createApp } from './app.js'
 import { createConfluenceProjects } from './confluence-projects.js'
 import { createReportWorkspace } from './report-workspace.js'
@@ -10,6 +10,7 @@ const app = createApp({
   api: {},
   capabilities: {
     authApi: createAuthApi(),
+    preferenceApi: createPreferenceApi(),
     reportWorkspace(source) {
       const section = document.createElement('div')
       return source === 'confluence'

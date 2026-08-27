@@ -1,6 +1,6 @@
 import { Chart, registerables } from 'chart.js'
 
-import { createAuthApi, createWifiDatabaseApi } from './api.js'
+import { createAuthApi, createPreferenceApi, createWifiDatabaseApi } from './api.js'
 import { createApp } from './app.js'
 import { createChartController, exportPerformanceExcel, exportVisibleChartsPdf } from './dashboard.js'
 
@@ -16,6 +16,7 @@ export function startWifiData() {
     api: createWifiDatabaseApi({ baseUrl: globalThis.SMARTTEST_API_BASE ?? '/api' }),
     capabilities: {
       authApi: createAuthApi({ baseUrl: globalThis.SMARTTEST_API_BASE ?? '/api' }),
+      preferenceApi: createPreferenceApi({ baseUrl: globalThis.SMARTTEST_API_BASE ?? '/api' }),
       charts,
       exportExcel: async rows => {
         const exceljs = await import('exceljs')

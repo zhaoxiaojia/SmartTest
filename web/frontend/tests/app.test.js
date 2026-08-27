@@ -109,16 +109,31 @@ describe('SmartTest Web shell', () => {
     expect(document.querySelector('.database-nav a.active').textContent.trim()).toBe('RVR')
   })
 
+  it('leaves report links to a full page load when the Wi-Fi bundle cannot render them', async () => {
+    window.history.replaceState({}, '', '/wifi-database/rvr')
+    const api = { getFilters: vi.fn().mockResolvedValue({}), getPerformance: vi.fn() }
+    const pushState = vi.spyOn(window.history, 'pushState')
+    await createApp({ root: document.querySelector('#app'), api }).start()
+
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true })
+    window.addEventListener('click', click => click.preventDefault(), { once: true })
+    document.querySelector('.nav-menu a[href="/confluence.html"]').dispatchEvent(event)
+
+    expect(pushState).not.toHaveBeenCalled()
+  })
+
   it('persists the selected display theme', async () => {
-    await createApp({ root: document.querySelector('#app'), api: {} }).start()
+    const preferenceApi = { get: vi.fn().mockResolvedValue({ items: {} }), put: vi.fn().mockResolvedValue({}), reset: vi.fn() }
+    const authApi = { session: vi.fn().mockResolvedValue({ authenticated: true, username: 'coco' }) }
+    await createApp({ root: document.querySelector('#app'), api: {}, capabilities: { authApi, preferenceApi } }).start()
 
     document.querySelector('[data-theme="dark"]').click()
     expect(document.documentElement.classList).toContain('dark-theme')
-    expect(localStorage.getItem('smarttest-web-theme')).toBe('dark')
+    await vi.waitFor(() => expect(preferenceApi.put).toHaveBeenCalledWith('global', { theme: 'dark' }))
 
     document.querySelector('[data-theme="light"]').click()
     expect(document.documentElement.classList).not.toContain('dark-theme')
-    expect(localStorage.getItem('smarttest-web-theme')).toBe('light')
+    await vi.waitFor(() => expect(preferenceApi.put).toHaveBeenLastCalledWith('global', { theme: 'light' }))
   })
 
   it('requires a report, supports select-all/clear, and cascades filter facets', async () => {
@@ -157,13 +172,16 @@ describe('SmartTest Web shell', () => {
   it('keeps independent filter state for each datatype and reset clears current state', async () => {
     window.history.replaceState({}, '', '/wifi-database/rvr')
     const api = { getFilters: vi.fn().mockResolvedValue({ testReports: ['rvr.csv'] }), getPerformance: vi.fn() }
-    const app = createApp({ root: document.querySelector('#app'), api, capabilities: { charts: { clear: vi.fn(), render: vi.fn() } } })
+    const preferenceApi = { get: vi.fn().mockResolvedValue({ items: {} }), put: vi.fn().mockResolvedValue({}), reset: vi.fn().mockResolvedValue({}) }
+    const authApi = { session: vi.fn().mockResolvedValue({ authenticated: true, username: 'coco' }) }
+    const app = createApp({ root: document.querySelector('#app'), api, capabilities: { authApi, preferenceApi, charts: { clear: vi.fn(), render: vi.fn() } } })
     await app.start()
     document.querySelector('select[name="testReportCsvNames"] option').selected = true
-    document.querySelector('select[name="testReportCsvNames"]').dispatchEvent(new Event('change'))
+    document.querySelector('select[name="testReportCsvNames"]').dispatchEvent(new Event('change', { bubbles: true }))
+    await vi.waitFor(() => expect(preferenceApi.put).toHaveBeenCalledWith('wifi-database/rvr', { testReportCsvNames: ['rvr.csv'] }))
     document.querySelector('[data-reset]').click()
     expect(document.querySelector('select[name="testReportCsvNames"]').selectedOptions).toHaveLength(0)
-    expect(sessionStorage.getItem('wifi-database:RVR')).toBeTruthy()
+    await vi.waitFor(() => expect(preferenceApi.reset).toHaveBeenCalledWith('wifi-database/rvr'))
   })
 
   it('shows an explicit unavailable state without crashing', async () => {

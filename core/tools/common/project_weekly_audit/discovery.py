@@ -9,6 +9,7 @@ from .models import ConfluenceProject, ProductLine, ProjectCandidate, ProjectCol
 from .project_collection import filter_projects
 
 PAGE_ALIASES = (
+    ("basic", re.compile(r"basic\s*information\s*$", re.I)),
     ("status", re.compile(r"(?:project\s*)?status\s*report\s*$", re.I)),
     ("test_information", re.compile(r"test\s*information\s*$", re.I)),
     ("test_plan", re.compile(r"test\s*plan\s*$", re.I)),
@@ -315,14 +316,16 @@ _PROJECT_GRAPH_MAX_DEPTH = 4
 _PROJECT_GRAPH_MAX_NODES = 100
 
 
-def discover_project_pages(client, project: ProjectCandidate, *, return_errors=False):
+def discover_project_pages(client, project: ProjectCandidate, *, return_errors=False, return_context=False,
+                           resolved_entry_page_id="", resolved_root_page_id=""):
     """Discover audited pages within the owning project's child-page graph."""
-    home = client.get_page_by_url(project.home_url)
+    home = (client.get_page(resolved_root_page_id) if resolved_root_page_id
+            else client.get_page_by_url(project.home_url))
     candidates = {}
     errors = {}
     error_types = Counter()
     graph_root = home
-    if canonical_page_kind(home.title) == "status":
+    if not resolved_root_page_id and canonical_page_kind(home.title) == "status":
         try:
             graph_root = client.get_parent_page(home.id) or home
         except Exception as exc:
@@ -332,10 +335,11 @@ def discover_project_pages(client, project: ProjectCandidate, *, return_errors=F
             )
             error_types[type(exc).__name__] += 1
 
-    queue = [(graph_root, 0)]
+    queue = [(graph_root, 0, [str(graph_root.id)])]
     visited = set()
+    candidate_paths = {}
     while queue and len(visited) < _PROJECT_GRAPH_MAX_NODES:
-        page, depth = queue.pop(0)
+        page, depth, path = queue.pop(0)
         page_id = str(page.id)
         if not page_id or page_id in visited:
             continue
@@ -345,6 +349,7 @@ def discover_project_pages(client, project: ProjectCandidate, *, return_errors=F
             kind_candidates = candidates.setdefault(kind, [])
             if all(existing.id != page.id for existing, _ in kind_candidates):
                 kind_candidates.append((page, prefix))
+                candidate_paths[str(page.id)] = path
 
         if depth >= _PROJECT_GRAPH_MAX_DEPTH:
             continue
@@ -358,7 +363,7 @@ def discover_project_pages(client, project: ProjectCandidate, *, return_errors=F
             )
             error_types[type(exc).__name__] += 1
         else:
-            queue.extend((child, depth + 1) for child in children)
+            queue.extend((child, depth + 1, [*path, str(child.id)]) for child in children)
 
     pages = {}
     conflicts = {}
@@ -387,7 +392,7 @@ def discover_project_pages(client, project: ProjectCandidate, *, return_errors=F
         level="warning" if errors else "info",
         extra={
             "project_id": project.project_id,
-            "entry_page_id": home.id,
+            "entry_page_id": resolved_entry_page_id or home.id,
             "root_page_id": graph_root.id,
             "visited_count": len(visited),
             "matched_kinds": sorted(pages),
@@ -396,6 +401,11 @@ def discover_project_pages(client, project: ProjectCandidate, *, return_errors=F
             "conflicts": dict(sorted(conflicts.items())),
         },
     )
+    if return_context:
+        return pages, errors, {
+            "entry_page_id": str(resolved_entry_page_id or home.id), "root_page_id": str(graph_root.id),
+            "page_paths": {kind: candidate_paths[str(page.id)] for kind, page in pages.items()},
+        }
     return (pages, errors) if return_errors else pages
 
 
@@ -413,6 +423,7 @@ def _safe_title(value):
 
 def _project_identity_tokens(project):
     values = (
+        project.status_page_id,
         project.project_id,
         project.name,
         _project_display_name(project.name, project.project_id),

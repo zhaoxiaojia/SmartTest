@@ -1,6 +1,18 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createAuthApi, createProjectFactsApi, createReportWorkspaceApi, createWifiDatabaseApi } from '../src/api.js'
+import { createAuthApi, createPreferenceApi, createProjectFactsApi, createReportWorkspaceApi, createWifiDatabaseApi } from '../src/api.js'
+
+describe('Preference API contract', () => {
+  it('reads, batch writes, and resets an encoded account scope', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: {} }) })
+    const api = createPreferenceApi({ fetchImpl })
+    await api.get('/wifi-database/rvr'); await api.put('/wifi-database/rvr', { standard: ['11be'] }); await api.reset('/wifi-database/rvr')
+    expect(fetchImpl.mock.calls.map(call => [call[0], call[1].method])).toEqual([
+      ['/api/preferences/wifi-database%2Frvr', 'GET'], ['/api/preferences/wifi-database%2Frvr', 'PUT'], ['/api/preferences/wifi-database%2Frvr', 'DELETE']
+    ])
+    expect(fetchImpl.mock.calls[1][1].body).toBe(JSON.stringify({ items: { standard: ['11be'] }, schemaVersion: 1 }))
+  })
+})
 
 describe('Web session API contract', () => {
   it('uses cookie-backed session endpoints without persisting credentials', async () => {

@@ -4,13 +4,13 @@ const STATE_COPY = {
   no_snapshot: 'No local project snapshot is available.',
   schema_error: 'Local project snapshot is unreadable.',
   partial_success: 'Some project facts are stale or failed.',
-  failed: 'Project facts refresh failed. Sign in and retry refresh.'
+  failed: 'Project facts refresh failed. Sign in and retry refresh.',
+  reauthentication_required: 'Please verify your account again before refreshing Confluence data.'
 }
 const COMMON_FILTERS = [
   '__product_space__', 'date of commercial approval', 'project id',
   'project status', 'current stage', 'project owner', 'support mode'
 ]
-const MORE_FILTERS_KEY = 'smarttest-confluence-more-filters'
 
 function node(tag, className, text) {
   const item = document.createElement(tag)
@@ -23,10 +23,10 @@ export function createConfluenceProjects({ root, api, pollDelay = ms => new Prom
   root.innerHTML = `<section class="report-workspace confluence-projects">
     <header class="report-page-head"><div><div class="eyebrow">Confluence · Project Facts</div><h1>Confluence Projects</h1><p>查看本地只读项目事实与 QA 责任信息。</p></div>
       <div class="report-actions"><button class="button button-primary" type="button" data-audit>生成项目审查报告</button></div></header>
-    <form class="card report-filter-card"><div class="report-filter-grid" data-main-facets></div>
+    <form class="card report-filter-card" data-preference-region><div class="report-filter-grid" data-main-facets></div>
       <details class="more-filter-panel"><summary>更多筛选</summary><div class="more-filter-options" data-more-facets></div></details>
-      <div class="report-filter-grid"><label>Project / Person Search<input class="form-control" name="search" type="search" placeholder="Project, person or Confluence identity"></label>
-      <div class="filter-actions"><button class="button button-primary" type="submit">Apply Filters</button><button class="button button-secondary" type="button" data-reset>Reset</button></div></div></form>
+      <div class="report-filter-grid"><label>Project / Person / Field Search<input class="form-control" name="search" type="search" placeholder="Project, person or Confluence field"></label>
+      <div class="filter-actions"><button class="button button-primary" type="submit">Apply Filters</button><button class="button button-secondary" type="button" data-reset data-preference-reset>Reset</button></div></div></form>
     <div class="report-state report-state-loading" role="status">Loading local project facts…</div><div class="inline-status" data-audit-status aria-live="polite"></div>
     <section class="card report-preview"><header class="report-preview-toolbar"><strong>Owner hierarchy</strong><span class="count-badge" data-count>0 projects</span></header>
       <div class="report-preview-body" data-projects></div></section></section>`
@@ -41,7 +41,6 @@ export function createConfluenceProjects({ root, api, pollDelay = ms => new Prom
   let destroyed = false
   let pollGeneration = 0
   let enabledMore = new Set()
-  try { enabledMore = new Set(JSON.parse(localStorage.getItem(MORE_FILTERS_KEY) || '[]')) } catch { enabledMore = new Set() }
 
   const currentFilters = () => {
     const fields = {}
@@ -83,10 +82,9 @@ export function createConfluenceProjects({ root, api, pollDelay = ms => new Prom
     moreRoot.replaceChildren()
     for (const facet of facets.filter(item => !COMMON_FILTERS.includes(item.key))) {
       const label = node('label', 'more-filter-option')
-      const checkbox = node('input', 'form-check-input'); checkbox.type = 'checkbox'; checkbox.value = facet.key; checkbox.checked = enabledMore.has(facet.key)
+      const checkbox = node('input', 'form-check-input'); checkbox.type = 'checkbox'; checkbox.name = 'enabledMoreFilters'; checkbox.value = facet.key; checkbox.checked = enabledMore.has(facet.key)
       checkbox.addEventListener('change', () => {
         if (checkbox.checked) enabledMore.add(facet.key); else enabledMore.delete(facet.key)
-        localStorage.setItem(MORE_FILTERS_KEY, JSON.stringify([...enabledMore]))
         renderFacets(facets)
       })
       label.append(checkbox, document.createTextNode(facet.label)); moreRoot.append(label)
@@ -110,10 +108,23 @@ export function createConfluenceProjects({ root, api, pollDelay = ms => new Prom
     if (invalid.length) root.querySelector('[data-audit-status]').textContent = `已清除失效筛选：${invalid.join('、')}`
   }
 
-  function renderProjects(hierarchy, projectCount = 0) {
+  function projectKey(project) { return project.identity || `${project.space_key || ''}:${project.project_id || ''}` }
+
+  function appendProject(parent, project) {
+    const projectNode = node('details', 'owner-project')
+    projectNode.append(node('summary', '', `${project.name || project.project_id} · ${project.space_key || '—'} · ${project.status || '—'}`))
+    const list = node('dl', 'project-basic-information')
+    for (const [key, value] of Object.entries(project.fields ?? {})) {
+      list.append(node('dt', '', key), node('dd', '', value || '—'))
+    }
+    projectNode.append(list); parent.append(projectNode)
+  }
+
+  function renderProjects(hierarchy, projectCount = 0, projects = []) {
     projectsRoot.replaceChildren()
     root.querySelector('[data-count]').textContent = `${projectCount} projects`
     if (!projectCount) { projectsRoot.append(node('div', 'report-empty', 'No matching projects.')); return }
+    const represented = new Set()
     for (const role of hierarchy ?? []) {
       const roleNode = node('details', 'owner-role'); roleNode.open = true
       roleNode.append(node('summary', '', `${role.role} (${role.people?.length ?? 0})`))
@@ -122,17 +133,18 @@ export function createConfluenceProjects({ root, api, pollDelay = ms => new Prom
         const personNode = node('details', 'owner-person'); personNode.open = true
         personNode.append(node('summary', '', `${person.name || person.identity} · ${person.identity || 'No stable identity'}`))
         for (const project of person.projects ?? []) {
-          const projectNode = node('details', 'owner-project')
-          projectNode.append(node('summary', '', `${project.name || project.project_id} · ${project.space_key || '—'} · ${project.status || '—'}`))
-          const list = node('dl', 'project-basic-information')
-          for (const [key, value] of Object.entries(project.fields ?? {})) {
-            list.append(node('dt', '', key), node('dd', '', value || '—'))
-          }
-          projectNode.append(list); personNode.append(projectNode)
+          represented.add(projectKey(project)); appendProject(personNode, project)
         }
         roleNode.append(personNode)
       }
       projectsRoot.append(roleNode)
+    }
+    const unavailable = projects.filter(project => project.responsibility_unavailable && !represented.has(projectKey(project)))
+    if (unavailable.length) {
+      const unavailableNode = node('details', 'owner-role'); unavailableNode.open = true
+      unavailableNode.append(node('summary', '', `Responsibility unavailable (${unavailable.length})`))
+      for (const project of unavailable) appendProject(unavailableNode, project)
+      projectsRoot.append(unavailableNode)
     }
   }
 
@@ -141,10 +153,13 @@ export function createConfluenceProjects({ root, api, pollDelay = ms => new Prom
     cacheReady = hasCache
     if (!facets.length) renderFacets(payload.facets, { loading: payload.state === 'loading' || !hasCache })
     else if (updateFacets) updateFacetOptions(payload.facets)
-    if (updateHierarchy) renderProjects(payload.ownerHierarchy ?? [], payload.projects?.length ?? 0)
+    if (updateHierarchy) renderProjects(payload.ownerHierarchy ?? [], payload.projects?.length ?? 0, payload.projects ?? [])
     status.className = `report-state report-state-${payload.state}`
     status.textContent = `${STATE_COPY[payload.state] ?? ''}${payload.snapshotTime ? ` Snapshot: ${payload.snapshotTime}` : ''}`.trim()
     status.hidden = payload.state === 'ready' && !payload.snapshotTime
+    if (payload.detailState === 'reauthentication_required') {
+      root.querySelector('[data-audit-status]').textContent = 'Please verify your account again before loading responsibility details.'
+    }
     setBusinessControlsEnabled(hasCache)
   }
 
@@ -166,12 +181,14 @@ export function createConfluenceProjects({ root, api, pollDelay = ms => new Prom
     }
   }
 
-  async function load({ updateHierarchy = true, updateFacets = true } = {}) {
+  async function load({ updateHierarchy = true, updateFacets = true, details = false } = {}) {
     const generation = ++pollGeneration
-    setBusinessControlsEnabled(false)
-    status.className = 'report-state report-state-loading'; status.hidden = false; status.textContent = STATE_COPY.loading
+    if (!details) {
+      setBusinessControlsEnabled(false)
+      status.className = 'report-state report-state-loading'; status.hidden = false; status.textContent = STATE_COPY.loading
+    }
     try {
-      const payload = await api.getProjectFacts(currentFilters())
+      const payload = await api.getProjectFacts(currentFilters(), { details })
       if (destroyed || generation !== pollGeneration) return
       present(payload, { updateHierarchy, updateFacets })
       if (payload.state === 'loading') poll(generation, currentFilters(), maxPolls)
@@ -181,7 +198,15 @@ export function createConfluenceProjects({ root, api, pollDelay = ms => new Prom
       setBusinessControlsEnabled(false)
     }
   }
-  form.addEventListener('submit', event => { event.preventDefault(); load({ updateHierarchy: true, updateFacets: false }) })
+  form.addEventListener('submit', event => { event.preventDefault(); load({ updateHierarchy: true, updateFacets: false, details: true }) })
+  form.addEventListener('preference:restored', event => {
+    if (event.target.name !== 'enabledMoreFilters') return
+    const restored = event.detail.value
+    const next = new Set(Array.isArray(restored) ? restored : [])
+    if ([...next].some(key => !enabledMore.has(key)) || [...enabledMore].some(key => !next.has(key))) {
+      enabledMore = next; renderFacets(facets)
+    }
+  })
   root.querySelector('[data-reset]').addEventListener('click', () => {
     form.reset()
     for (const select of form.querySelectorAll('select')) select._multiSelect?.syncFromSelect()

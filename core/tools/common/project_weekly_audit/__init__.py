@@ -8,6 +8,8 @@ from .project_facts import (
     ProjectFactsSchemaError,
     query_project_facts,
     refresh_project_facts,
+    refresh_project_catalogs,
+    enrich_project_facts,
     summarize_project_fact_filters,
 )
 
@@ -25,5 +27,7 @@ __all__ = [
     "ProjectFactsSchemaError",
     "query_project_facts",
     "refresh_project_facts",
+    "refresh_project_catalogs",
+    "enrich_project_facts",
     "summarize_project_fact_filters",
 ]

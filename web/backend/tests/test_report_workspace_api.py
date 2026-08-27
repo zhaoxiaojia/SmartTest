@@ -6,6 +6,42 @@ from openpyxl import Workbook
 from smarttest_web.app import create_app
 from smarttest_web.report_workspace import ClientAuditReportOwner
 from smarttest_web.project_facts_api import ProjectFactsWebOwner
+from smarttest_web.background_refresh import BackgroundFactsRefresh
+from test_web_session import FakeAuthenticator
+
+
+def _authenticated_client(app, username="coco"):
+    client = TestClient(app, base_url="https://testserver")
+    client.post("/api/auth/login", json={"username": username, "password": "secret"})
+    return client
+
+
+def test_confluence_snapshots_are_normalized_and_isolated_by_authenticated_account(tmp_path):
+    owner = ProjectFactsWebOwner(data_root=tmp_path)
+    owner.store_for(" Coco ").save({"schema_version": 1, "projects": [{
+        "project_id": "A", "space_key": "DOPL", "active": True, "fields": {}, "roles": {},
+    }]})
+    assert [row["project_id"] for row in owner.query("coco")["projects"]] == ["A"]
+    assert owner.query("COCO")["projects"][0]["project_id"] == "A"
+    assert owner.query("atlas")["state"] == "no_snapshot"
+    assert owner.store_for("coco").resolved_path != owner.store_for("atlas").resolved_path
+
+
+def test_confluence_project_facts_requires_login_and_never_uses_another_account_snapshot(tmp_path):
+    owner = ProjectFactsWebOwner(data_root=tmp_path)
+    owner.store_for("coco").save({"schema_version": 1, "projects": [{
+        "project_id": "COCO-ONLY", "space_key": "DOPL", "active": True, "fields": {}, "roles": {},
+    }]})
+    app = create_app(project_facts_owner=lambda: owner, authenticator=FakeAuthenticator)
+    anonymous = TestClient(app, base_url="https://testserver")
+    assert anonymous.get("/api/confluence/project-facts").status_code == 401
+    atlas_auth = FakeAuthenticator({"success": True, "username": "atlas", "display_name": "Atlas", "avatar_bytes": b""})
+    atlas = _authenticated_client(create_app(
+        project_facts_owner=lambda: owner, authenticator=lambda: atlas_auth,
+        facts_refresh=lambda: BackgroundFactsRefresh(submit=lambda _work: None),
+    ), "atlas")
+    assert atlas.get("/api/confluence/project-facts").json()["state"] == "loading"
+    assert "COCO-ONLY" not in atlas.get("/api/confluence/project-facts").text
 
 
 def _workbook(path, rows):
@@ -53,7 +89,7 @@ def test_confluence_project_facts_expose_dynamic_facets_and_filter_local_snapsho
             "roles": {"FAE QA": [{"name": "Coco", "identity": "u-1"}]},
         }],
     }
-    client = TestClient(create_app(project_facts_owner=lambda: ProjectFactsWebOwner(lambda: snapshot)))
+    client = _authenticated_client(create_app(project_facts_owner=lambda: ProjectFactsWebOwner(lambda _username: snapshot), authenticator=FakeAuthenticator))
     response = client.get("/api/confluence/project-facts", params={"field.unexpected owner": "Alice", "search": "u-1"})
     assert response.status_code == 200
     payload = response.json()
@@ -73,7 +109,7 @@ def test_confluence_facets_keep_full_structure_and_cascade_options_when_filtered
         {"project_id": "B", "name": "B", "space_key": "SDPL", "active": True, "status": "current",
          "fields": {"next target": "MP"}, "raw_headers": ["Next Target"], "roles": {}},
     ]}
-    client = TestClient(create_app(project_facts_owner=lambda: ProjectFactsWebOwner(lambda: snapshot)))
+    client = _authenticated_client(create_app(project_facts_owner=lambda: ProjectFactsWebOwner(lambda _username: snapshot), authenticator=FakeAuthenticator))
     payload = client.get("/api/confluence/project-facts", params={"field.__product_space__": "DOPL"}).json()
     assert [row["project_id"] for row in payload["projects"]] == ["A"]
     facets = {row["label"]: row["options"] for row in payload["facets"]}
@@ -90,9 +126,27 @@ def test_confluence_repeated_field_parameters_are_or_values():
         {"project_id": "B", "name": "B", "space_key": "DOPL", "active": True,
          "status": "current", "fields": {"support mode": "B"}, "roles": {}},
     ]}
-    client = TestClient(create_app(project_facts_owner=lambda: ProjectFactsWebOwner(lambda: snapshot)))
+    client = _authenticated_client(create_app(project_facts_owner=lambda: ProjectFactsWebOwner(lambda _username: snapshot), authenticator=FakeAuthenticator))
     response = client.get("/api/confluence/project-facts?field.support%20mode=A&field.support%20mode=B")
     assert [row["project_id"] for row in response.json()["projects"]] == ["A", "B"]
+
+
+def test_confluence_details_are_loaded_only_for_explicit_apply():
+    class Owner:
+        def __init__(self): self.enrich_calls = []
+        def query(self, username, *, filters=None, search=""):
+            return {"state": "ready", "snapshotTime": "now", "facets": [], "projects": [], "ownerHierarchy": []}
+        def enrich(self, username, password, *, filters=None, search=""):
+            self.enrich_calls.append((filters, search))
+            return self.query(username, filters=filters, search=search)
+
+    owner = Owner()
+    client = _authenticated_client(create_app(project_facts_owner=lambda: owner, authenticator=FakeAuthenticator))
+    client.get("/api/confluence/project-facts?field.support%20mode=A")
+    assert owner.enrich_calls == []
+    response = client.get("/api/confluence/project-facts?field.support%20mode=A&details=1")
+    assert response.status_code == 200
+    assert owner.enrich_calls == [({"support mode": ("A",)}, "")]
 
 
 def test_confluence_request_logs_safe_filter_and_response_summaries(monkeypatch):
@@ -105,7 +159,8 @@ def test_confluence_request_logs_safe_filter_and_response_summaries(monkeypatch)
         "status": "current", "fields": {"support mode": "A"},
         "roles": {"FAE QA": [{"name": "Private Person", "identity": "uid-secret"}]},
     }]}
-    client = TestClient(app_module.create_app(project_facts_owner=lambda: ProjectFactsWebOwner(lambda: snapshot)))
+    client = _authenticated_client(app_module.create_app(project_facts_owner=lambda: ProjectFactsWebOwner(lambda _username: snapshot), authenticator=FakeAuthenticator))
+    records.clear()
     response = client.get("/api/confluence/project-facts?field.support%20mode=A&field.project%20owner=Private%20Person&field.project%20id=SECRET-PROJECT&field.dynamic%20identity=uid-secret&search=Private%20Person")
     assert response.status_code == 200
     business = [(message, kwargs) for message, kwargs in records
@@ -125,9 +180,12 @@ def test_confluence_request_logs_safe_filter_and_response_summaries(monkeypatch)
 
 
 def test_confluence_project_facts_expose_missing_and_schema_states():
-    missing = TestClient(create_app(project_facts_owner=lambda: ProjectFactsWebOwner(lambda: None)))
+    missing = _authenticated_client(create_app(
+        project_facts_owner=lambda: ProjectFactsWebOwner(lambda _username: None), authenticator=FakeAuthenticator,
+        facts_refresh=lambda: BackgroundFactsRefresh(submit=lambda _work: None),
+    ))
     missing_payload = missing.get("/api/confluence/project-facts").json()
-    assert missing_payload["state"] == "no_snapshot"
+    assert missing_payload["state"] == "loading"
     assert [facet["label"] for facet in missing_payload["facets"]] == [
         "Product Space", "Page", "Date of Commercial approval", "Project ID", "ODM",
         "OEM/Operator", "Key Part Number", "Project Status", "Current Stage",
@@ -142,7 +200,7 @@ def test_confluence_project_facts_expose_missing_and_schema_states():
             from core.tools.common.project_weekly_audit import ProjectFactsSchemaError
             raise ProjectFactsSchemaError("bad")
 
-    broken = TestClient(create_app(project_facts_owner=lambda: ProjectFactsWebOwner(Broken().load)))
+    broken = _authenticated_client(create_app(project_facts_owner=lambda: ProjectFactsWebOwner(lambda _username: Broken().load()), authenticator=FakeAuthenticator))
     broken_payload = broken.get("/api/confluence/project-facts").json()
     assert broken_payload["state"] == "schema_error"
     assert [facet["label"] for facet in broken_payload["facets"]] == [

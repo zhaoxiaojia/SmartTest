@@ -325,9 +325,110 @@ Home 是上述模块的权限化聚合视图，不独立拥有业务数据。
 - 保留能够保护权限、历史、数据口径和关键业务契约的测试；
 - 不保留探索性测试、源码形状断言或重复等价用例。
 
-## 12. 模块开发顺序
+## 12. Web 持久会话与账号级前端偏好
 
-### 12.1 Jira 报告工作台
+### 12.1 目标与边界
+
+Web 登录会话与用户偏好由 Web 后端统一持久化，支持单台 Server 重启恢复、同一账号多设备同时登录，以及跨设备同步网页配置。继续复用现有 `LdapAuthenticator`，不引入 Redis、Keycloak 或第二套账号体系。
+
+- 登录会话采用最后活动时间起 90 天滑动过期；主动退出、账号禁用或会话撤销立即失效。
+- 每台设备持有独立会话；退出当前设备不影响其他设备，并提供撤销账号全部会话的后端能力。
+- Cookie 只保存高强度随机 token；SQLite 只保存 token 哈希、账号身份、会话时间和撤销状态。
+- 浏览器缓存、响应、日志和 SQLite session 表不得保存 LDAP 明文密码、Token 或 Cookie；LDAP 密码仅交给统一服务端 credential owner：Windows Credential Manager 持久化，Linux 以外部主密钥进行 AEAD 加密后将密文存入 Web SQLite。
+- Server 重启后由持久 session 的 credential reference 恢复 Confluence/Jira 服务端凭据；仅在凭据缺失、主密钥不可用或解密失败时要求用户重新验证。
+- Web 自有 SQLite 数据库位于既有 app-data 目录，启用 WAL、外键、busy timeout 和受控 schema 迁移；不写入源码目录或网络共享盘。
+
+### 12.2 持久会话模型
+
+`web_sessions` 保存会话唯一标识、`token_hash`、规范化账号、显示名、可选头像缓存、创建时间、最后访问时间、过期时间和撤销时间。原始 token 只存在于 `HttpOnly`、`Secure`、`SameSite=Lax` Cookie。
+
+登录成功创建新的设备会话；普通请求验证 token 哈希并按有限频率更新最后访问与过期时间，避免每个请求都写库。退出当前设备撤销当前记录；退出全部设备按当前认证账号撤销全部有效记录。过期记录由有界清理机制删除。
+
+### 12.3 账号级偏好模型
+
+`user_preferences` 以当前认证账号、页面 `scope` 和配置 `key` 唯一定位，保存 JSON 值、schema 版本和更新时间。后端只从认证会话取得账号，不信任前端提交的用户名；写入使用原子 upsert，多设备修改采用最后一次写入生效。
+
+保存主题、筛选勾选、搜索条件、排序、分页、页签、列显示、折叠状态及其他非敏感表单偏好。密码、Token、Cookie、临时凭据、文件上传、查询结果、报告、日志、运行进度和业务提交结果禁止进入偏好存储。
+
+### 12.4 前端自动持久化机制
+
+公共 `PreferenceStore` 只作用于页面配置区域和筛选区域，不盲扫所有表单。公共页面或组件在容器级声明偏好区域；区域内新增标准 `input`、`textarea`、`select`、checkbox、radio、switch、tab、折叠和排序控件后，由事件委托自动保存和恢复，不允许页面再编写独立缓存调用。
+
+- 页面 `scope` 默认取稳定路由；控件 `key` 优先取 `name`，其次取 `id`，公共自定义组件使用自身稳定语义标识。
+- 标准控件默认持久化，无需逐控件增加缓存代码；明确的临时控件可退出自动持久化。
+- 密码、敏感命名字段、隐藏字段、文件、按钮及禁止类型由公共边界强制排除。
+- 动态新增控件同样自动恢复与监听；自定义控件只允许在公共组件层增加一次适配，不逐实例接入。
+- 选择、布尔、页签和排序立即保存；文本、搜索和日期输入防抖保存；成组筛选合并写入。
+- 服务端偏好是跨设备权威数据；浏览器只允许使用内存或有界本地副本加速，写入失败必须显示未同步状态并保留重试能力。
+- 自动化测试扫描偏好区域内可编辑控件；缺少稳定 `name`/`id`、未被公共组件适配且未明确排除时测试失败。
+
+### 12.5 迁移与验收清单
+
+- [ ] 以失败测试固定 SQLite schema、迁移、WAL/并发、原子 upsert、损坏/不可用错误边界。
+- [ ] 用持久 `SessionStore` 替换 `InMemorySessionStore`，覆盖重启恢复、90 天滑动过期、有限续期、当前设备退出、全部设备撤销和过期清理。
+- [ ] 通过统一 credential owner 持久化服务端凭据，验证重启恢复；凭据缺失、主密钥不可用或解密失败时返回明确的重新验证状态。
+- [ ] 新增认证账号下的偏好读取、批量 upsert、scope reset API，覆盖越权、类型、大小、敏感字段和并发边界。
+- [ ] 实现公共前端 `PreferenceStore`、偏好区域自动发现、动态控件恢复、事件委托、防抖、合并保存、失败重试和未同步提示。
+- [ ] 迁移主题、Confluence 更多筛选及 Wi-Fi 三个页面筛选，删除被替代的 `localStorage`/`sessionStorage` 页面缓存逻辑。
+- [ ] Settings 只接入已有真实业务含义的配置；不得为模板中的账号资料、2FA、删除账号等占位控件伪造业务能力。
+- [ ] 验证同账号跨浏览器/设备恢复、不同账号隔离、最后写入生效、Server 重启恢复及敏感数据不落盘。
+- [ ] 运行前端聚焦测试、完整前端测试/lint/build、后端聚焦测试、完整 Web 后端测试和 `git diff --check`。
+
+### 12.6 Confluence 账号权限、页面发现与筛选修复
+
+Confluence 项目事实继续复用搬移前的页面发现 owner，不维护只从 `Project Status Report` 向下搜索的平行逻辑。目录入口为 Status 页面时，必须先上溯项目根，再从兄弟分支定位 `Basic Information`；缓存解析后的 entry/root page ID，不依赖目录 URL 是否直接携带 `pageId`。
+
+- 全文搜索范围保持项目、人员、Space key、全部 Project Space 字段值和 Confluence identity，页面文案使用 `Project / Person / Field Search`。
+- Product Space 过滤值继续使用 DOPL、SDPL、TV、OOPL；下拉分别显示 `China Operator Business`、`Smart Device Business`、`TV Business`、`Global Operator & STB Business`。空的旧快照显示名不得覆盖 Core 已有显示名。
+- 未选择 Product Space 时，Current Stage 下拉显示四个产品线源数据 Stage 的并集；选择一个或多个 Product Space 时，显示所选产品线 Stage 的并集。Stage 域不随年份、状态等其他筛选条件收缩，选择当前项目不存在的 Stage 只返回零匹配，不报错；名称保留源数据原文。
+- 不实现 `personnel.json` 的 I/M 范围过滤。使用当前登录账号访问 Confluence，项目事实快照按规范化账号隔离；无权访问的 Space、项目或页面直接排除，不向页面返回权限错误，也不得向其他账号泄露已有快照。
+- Server 重启只读取当前账号自己的历史快照；需要刷新时从该 session 的服务端 credential owner 恢复凭据，仅在恢复不可用或解密失败时返回重新验证状态。
+- API 已命中但责任人员采集失败时，页面仍展示项目基础结果并标记责任信息不可用，不得因 owner hierarchy 为空而显示成零项目。
+
+执行清单：
+
+- [ ] 以失败测试复现 Status 与 Basic Information 为兄弟页、目录 URL 缺少 pageId 和旧快照空显示名覆盖问题。
+- [ ] 复用既有 `discover_project_pages()` 上溯与遍历语义，删除或收敛平行页面发现逻辑，并缓存解析后的稳定页面 ID。
+- [ ] 将 ProjectFactStore/Web owner/API 查询切换为认证账号命名空间，验证账号隔离、重启恢复与无权项目静默排除。
+- [ ] 建立按 Product Space 独立保存的 Stage 域及选中 Space 并集契约，验证全集、子集和无匹配不报错。
+- [ ] 修复四个 Product Space 显示名、全文搜索文案及无责任人员项目的可见降级展示。
+- [ ] 用真实四个 Product Space 刷新验证页面发现、权限和 Stage 域；完成后移除或降级临时诊断，不保留重复日志。
+- [ ] 运行 Core 项目事实/旧发现/logging 边界测试、Web 后端、前端测试/lint/build、产品边界检查和 `git diff --check`。
+
+### 12.7 Confluence 首次缓存与目录优先加载
+
+Confluence 筛选器只依赖四个 Project Space 目录页，不得等待所有项目的 `Basic Information` 与责任人员详情采集完成。首次账号缓存采用目录优先的两阶段流程：
+
+1. 当前账号成功 LDAP 登录后，若其账号命名空间没有项目事实快照，立即启动后台初始化，不等待用户进入 Confluence 页面。
+2. 后台任务以四个相互独立的有界请求并行读取当前账号可访问的四个 Project Space 目录；目录阶段完成后立即原子保存账号级快照，提供全部目录字段、四空间显示名、各空间 Stage 域和基础项目结果。
+3. Web 查询在目录快照可用后立即开放筛选器。页面加载、筛选勾选、Reset 和普通轮询不得读取 `Basic Information`、责任人员或项目页面图。
+4. 用户点击 `Apply Filters` 后，先在账号目录缓存中完成过滤；只有匹配项目才进入既有页面发现 owner 并读取 `Basic Information` 与责任人员详情。零匹配不得发起详情请求；已有有效详情缓存直接复用。
+5. 单个 Space 或项目无权限时静默排除；单个命中项目详情慢、失败或无权限不得阻塞其他匹配结果。详情不可用的项目保持基础结果可见并标记责任信息不可用。
+6. Server 重启后直接读取当前账号已有目录与详情缓存，不访问 Confluence。目录缓存不存在时从持久 session 的服务端 credential owner 恢复凭据并初始化；凭据不可用或解密失败时返回明确的 `reauthentication_required`，前端显示重新验证提示，不保持无限 Loading。
+7. 账号重新登录或验证后自动启动缺失目录缓存初始化；前端有界轮询目录阶段，目录快照可用后停止禁用筛选器。Apply 详情请求使用独立状态，不得把筛选器重新置为 Loading。
+8. Preference scope 去除路由开头 `/`，例如 `confluence.html`，不得请求 `/api/preferences//confluence.html`。
+
+执行清单：
+
+- [ ] 以慢详情 fake client 复现四目录已完成但筛选器仍等待全部项目详情的问题，固定目录阶段先返回的时序契约。
+- [ ] 将项目事实收敛为并行目录快照与 Apply 按需详情两个独立入口，保留账号隔离、Stage 域、权限静默排除和失败事实。
+- [ ] 验证页面加载只发起四个目录请求，目录完成即保存；Apply 只读取过滤命中的项目详情，零匹配和缓存命中不访问详情。
+- [ ] 登录成功时只为缺失账号快照启动 single-flight 初始化；已有快照不访问 Confluence。
+- [ ] 修复无缓存且持久凭据不可用或解密失败时的前端重新验证提示，避免无限 Loading。
+- [ ] 规范化 Preference scope，并验证既有账号偏好读写不产生双斜杠。
+- [ ] 记录目录阶段与详情阶段的安全耗时和数量，不输出账号、凭据、页面正文、人员或项目明细。
+- [ ] 运行慢详情时序、账号隔离、Core/Web/前端、logging/产品边界和 `git diff --check` 验收。
+
+### 12.8 服务端持久凭据
+
+- 浏览器仍只保存随机 session Cookie；LDAP 密码仅由服务端凭据 owner 持久化，并以每个 session 独立的 credential reference 关联现有 SQLite session。
+- Windows 复用 `core/credentials/windows.py` 的 Windows Credential Manager owner；Ubuntu/Linux 使用 `cryptography` AEAD，加密后的 ciphertext、nonce 与 key version 存入现有 Web SQLite，主密钥只从 `SMARTTEST_WEB_CREDENTIAL_KEY` 外部配置读取，禁止写入数据库或日志。
+- server 重启后，持久 session 通过 credential reference 恢复 Jira/Confluence 共用凭据；多设备 session 相互独立。单设备 logout 只删除自己的凭据；logout-all、过期清理删除对应全部凭据。
+- 主密钥缺失、格式错误、版本不匹配或解密失败时安全失败，不回退到明文、浏览器存储或第二套账号体系，也不记录密码、token、ciphertext 或主密钥。
+
+## 13. 模块开发顺序
+
+### 13.1 Jira 报告工作台
 
 本模块已由 Coco 通过 `web/design/reference/jira-confluence-report-workspace.html` 确认视觉布局，开发与验收均以该本地 HTML 为桌面端视觉基准。
 
@@ -346,7 +447,7 @@ Home 是上述模块的权限化聚合视图，不独立拥有业务数据。
 
 - [x] 通过失败测试确定 Jira Web API 契约、只读边界、错误状态和下载行为；
 - [x] 复用 Client 对应报告导出 owner，Web 后端仅增加本地只读报告目录与传输适配，不复制第三方访问、审查或导出逻辑；
-- [x] 浏览器登录复用下沉到 Core 的 Client LDAP owner；Web 仅保存进程内临时会话，使用 HTTP-only/Secure cookie 标识，不向前端或磁盘传输密码；
+- [x] 浏览器登录复用下沉到 Core 的 Client LDAP owner；Web 使用 HTTP-only/Secure cookie 标识持久 session，密码不进入前端或 SQLite session 表，仅由 Windows Credential Manager 或 Linux AEAD credential owner 持久化；
 - [ ] 后续接入 `personnel.json` 人员映射及 I/M 岗数据范围，并让列表、正文和下载共用同一权限结果；
 - [x] 通过失败测试确定 Jira 报告工作台、筛选、报告选择、正文展示和下载交互；
 - [x] 实现 Jira 页面并与本地视觉基准比对；
@@ -355,11 +456,11 @@ Home 是上述模块的权限化聚合视图，不独立拥有业务数据。
 - [x] 运行前端测试、lint、build，后端聚焦测试和 `git diff --check`；
 - [x] 用实际浏览器截图与本地 HTML 对照，矫正导航、间距、尺寸、颜色、卡片、工具栏和响应式差异。
 
-当前限制：Web 已具备复用 Client LDAP 规则的进程内浏览器会话，但尚未接入 `personnel.json` 与 I/M 岗权限范围。Jira 模块仍只读取 Client 已导出的本地 XLSX，不使用会话凭据执行 Jira 查询或审查；API 保留明确的 `unauthorized` 状态，正式人员范围过滤由后续权限阶段接入。
+当前限制：Web 已具备复用 Client LDAP 规则的持久浏览器会话及服务端 credential owner，但尚未接入 `personnel.json` 与 I/M 岗权限范围。Jira 模块仍只读取 Client 已导出的本地 XLSX，不使用会话凭据执行 Jira 查询或审查；API 保留明确的 `unauthorized` 状态，正式人员范围过滤由后续权限阶段接入。
 
 Jira 执行限制：Client 的新审查链路依赖 `JiraAuditBridge` 持有的运行时临时凭据，并经过 `resolve_audit_input`、`JiraAuditService.run`、人工确认后才允许 `export_audit_xlsx`。Web 当前不能安全复用该临时凭据会话，因此 Jira 页面的 JQL 动作只按导出文件中保存的“JQL 查询条件”精确定位 Client 已生成报告，不执行新查询或审查；新审查继续由 Client 发起。
 
-### 12.2 Confluence 全项目 QA 责任事实（Core 阶段）
+### 13.2 Confluence 全项目 QA 责任事实（Core 阶段）
 
 本阶段先建立 Core 唯一 owner，不接入或修改 Web 前端。该 owner 从全部已配置 Product Space 读取项目目录，不套用现有周审查的 A/B、年份、项目状态或 Stage1/2/3 资格过滤；现有 Client 周审查入口与规则保持不变。
 
@@ -392,7 +493,7 @@ Confluence Web 接入清单：
 - [x] `Date of Commercial approval` 复用 `ProjectCollectionFilter.years` 和现有商业批准日期年份解析，选项显示年份但字段名保持原字符；
 - [x] 其他真实 Product Space 字段进入“更多筛选”，勾选后显示、取消后移除并清值；只将启用字段 key 保存到浏览器 `localStorage`，不保存业务事实；
 - [x] 页面加载本地事实快照时显示 loading 并禁用 Apply；级联选项由 Core 当前过滤结果返回，失效选择清除并提示；刷新失败状态保留快照时间与 stale 信息；
-- [x] 无本地 `ProjectFactStore` 快照时，登录会话复用同一临时 LDAP 账号和密码构造既有 `ConfluenceClient`，调用 `refresh_project_facts` 一次生成缓存；缓存命中只做本地查询，显式刷新需要登录，并发刷新在 Web 编排层去重；
+- [x] 无本地 `ProjectFactStore` 快照时，登录会话从统一服务端 credential owner 取得 LDAP 账号和密码构造既有 `ConfluenceClient` 并生成缓存；缓存命中只做本地查询，显式刷新需要登录，并发刷新在 Web 编排层去重；
 - [x] 无快照首次查询立即返回带完整固定 facets/空 owner 层级的 `loading`，单一进程内后台任务执行刷新；前端保持七个常用筛选与更多筛选可见但禁用，并有界轮询至 `ready`、`partial_success` 或 `failed`，页面离开/组件销毁停止轮询；
 - [ ] Web 项目审查动作后续直接调用 `ConfluenceAuditService.run` 与 `export_project_audit_xlsx_by_product_line`；当前阶段仅把公共会话接入事实缓存刷新，不改变审查按钮边界；
 - [ ] 后续按 Coco 确认的管理视图实现组织层级、项目卡片与详情布局。
@@ -406,9 +507,9 @@ Confluence Web 接入清单：
 - `Major PM` 当前在四个 Product Space 表中均不存在，因此保留空筛选结构，不推断来源；
 - 四个 Product Space 的字段顺序不同。Core 保存每个表的原始表头顺序和原始值，Web 不以某一个 Space 的顺序覆盖其他 Space。
 
-审查调用边界：Client 的 `ConfluenceAuditBridge.startAudit` 仍通过其登录会话构造 `ConfluenceAuditService`，按 `ProjectCollectionFilter` 执行既有 Stage1/2/3 审查点并导出。Web 进程内会话已可供后续工具复用，但本阶段只授权 Confluence 责任事实缓存刷新；未把 Web 审查按钮接入审查与导出链路，也未改变 Jira 行为。
+审查调用边界：Client 的 `ConfluenceAuditBridge.startAudit` 仍通过其登录会话构造 `ConfluenceAuditService`，按 `ProjectCollectionFilter` 执行既有 Stage1/2/3 审查点并导出。Web 持久 session 与服务端 credential owner 已可供后续工具复用，但本阶段只授权 Confluence 责任事实缓存刷新；未把 Web 审查按钮接入审查与导出链路，也未改变 Jira 行为。
 
-本地快照刷新边界：查询始终先读取 `ProjectFactStore`，缓存命中不访问 Confluence。无快照且已登录时，首个请求不等待第三方网络，立即返回完整筛选结构和 `loading`；进程内 single-flight 后台任务使用会话凭据复用 `ConfluenceClient + refresh_project_facts` 生成持久快照，同期请求继续返回 `loading`。完成后本地查询返回 `ready/partial_success`；失败返回 `failed`，显式刷新可重新启动任务。凭据只存在于会话及任务闭包，不写入响应、日志、浏览器存储或磁盘；服务退出不持久后台任务。
+本地快照刷新边界：查询始终先读取 `ProjectFactStore`，缓存命中不访问 Confluence。无快照且已登录时，首个请求不等待第三方网络，立即返回完整筛选结构和 `loading`；进程内 single-flight 后台任务从服务端 credential owner 恢复会话凭据并复用 `ConfluenceClient + refresh_project_facts` 生成持久快照，同期请求继续返回 `loading`。完成后本地查询返回 `ready/partial_success`；失败返回 `failed`，显式刷新可重新启动任务。凭据不写入响应、日志、浏览器存储或 SQLite session 表；Windows Credential Manager 或 Linux AEAD 密文存储独立持久化凭据，服务退出不持久后台任务。
 
 采用“基础模块先行、业务模块逐个交付、Home 后聚合、最后统一整合”的顺序：
 
@@ -427,7 +528,7 @@ Confluence Web 接入清单：
 
 模块顺序可以由 Coco 调整，但后置模块不得通过临时复制绕过尚未完成的基础 owner。
 
-## 13. 单模块交付方式
+## 14. 单模块交付方式
 
 每个模块使用同一流程：
 
@@ -441,9 +542,9 @@ Confluence Web 接入清单：
 8. 完成代码质量检查并交付；
 9. 下一模块复用已经交付的公共能力。
 
-## 14. 总体验收标准
+## 15. 总体验收标准
 
-### 14.1 功能验收
+### 15.1 功能验收
 
 - 登录身份与人员映射正确；
 - I 岗只能读取本人及参与项目范围；
@@ -457,7 +558,7 @@ Confluence Web 接入清单：
 - Home 只聚合已有模块结果；
 - Wi-Fi Database 现有能力无回归。
 
-### 14.2 代码质量验收
+### 15.2 代码质量验收
 
 - 没有重复人员、项目、认证、采集、审查、调度或测试模型；
 - 前端不直接访问 `core/` 或第三方平台；
@@ -466,7 +567,7 @@ Confluence Web 接入清单：
 - 没有临时模拟数据、调试输出、废弃尝试或无关改动；
 - 聚焦测试、最高实际环境验证和 `git diff --check` 通过。
 
-## 15. 当前明确不做
+## 16. 当前明确不做
 
 - 通过 Web 修改 Confluence、Jira 或 Redmine；
 - 通过 Web 编辑 `personnel.json`；
@@ -476,7 +577,7 @@ Confluence Web 接入清单：
 - 未经确认的第三方双向同步；
 - 为未来可能性预先拆分微服务。
 
-## 16. 待后续模块确定
+## 17. 待后续模块确定
 
 以下内容在对应模块启动时，根据实际环境和领导意图确定，不影响当前总体方向：
 

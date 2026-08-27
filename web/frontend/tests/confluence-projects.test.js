@@ -43,6 +43,19 @@ describe('Confluence project facts', () => {
     expect(document.body.textContent).not.toContain('Open in Confluence')
   })
 
+  it('keeps matched projects visible when responsibility data is unavailable', async () => {
+    const ownerless = { ...payload, projects: [{
+      identity: 'DOPL:A-1', project_id: 'A-1', name: 'Apollo', space_key: 'DOPL',
+      fields: { 'current stage': '2 IN DEVELOPMENT' }, roles: {}, responsibility_unavailable: true
+    }], ownerHierarchy: [{ role: 'Major FAE QA', people: [] }, { role: 'FAE QA', people: [] }, { role: 'QA Reviewer', people: [] }] }
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(ownerless) }
+    await createConfluenceProjects({ root: document.querySelector('#app'), api }).start()
+    expect(document.querySelector('[data-count]').textContent).toBe('1 projects')
+    expect(document.querySelector('[data-projects]').textContent).toContain('Apollo')
+    expect(document.querySelector('[data-projects]').textContent).toContain('Responsibility unavailable')
+    expect(document.body.textContent).toContain('Project / Person / Field Search')
+  })
+
   it('consumes the Core owner hierarchy and renders expandable role/person/project levels', async () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
     await createConfluenceProjects({ root: document.querySelector('#app'), api }).start()
@@ -51,7 +64,7 @@ describe('Confluence project facts', () => {
     expect(document.querySelector('details.owner-project summary').textContent).toContain('Apollo')
   })
 
-  it('keeps seven common filters and persists optional filter enablement', async () => {
+  it('keeps seven common filters and exposes optional filters to the common preference region', async () => {
     const complete = { ...payload, facets: [
       { key: '__product_space__', label: 'Product Space', options: ['DOPL'] },
       { key: 'date of commercial approval', label: 'Date of Commercial approval', options: [2025, 2026] },
@@ -69,7 +82,8 @@ describe('Confluence project facts', () => {
     ])
     document.querySelector('[data-more-facets] input[value="odm"]').click()
     expect(document.querySelector('[name="field.odm"]')).toBeTruthy()
-    expect(JSON.parse(localStorage.getItem('smarttest-confluence-more-filters'))).toEqual(['odm'])
+    expect(document.querySelector('[data-more-facets] input[value="odm"]').name).toBe('enabledMoreFilters')
+    expect(document.querySelector('form').hasAttribute('data-preference-region')).toBe(true)
     document.querySelector('[data-more-facets] input[value="odm"]').click()
     expect(document.querySelector('[name="field.odm"]')).toBeNull()
   })
@@ -150,6 +164,8 @@ describe('Confluence project facts', () => {
     await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(2))
     expect(form.elements['field.__product_space__']).toBe(productSpaceControl)
     expect(api.getProjectFacts.mock.calls[1][0]).toEqual({ fields: { '__product_space__': ['DOPL'], 'unexpected owner': ['Alice'] }, search: 'Coco' })
+    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: true })
+    expect(document.querySelector('[type="submit"]').disabled).toBe(false)
   })
 
   it('shows Product Space labels while submitting keys and supports select all and clear', async () => {

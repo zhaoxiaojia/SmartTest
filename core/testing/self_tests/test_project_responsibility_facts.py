@@ -10,6 +10,8 @@ from core.tools.common.project_weekly_audit.project_facts import (
     ProjectFactStore,
     ProjectFactsSchemaError,
     query_project_facts,
+    refresh_project_catalogs,
+    enrich_project_facts,
     refresh_project_facts,
 )
 
@@ -275,3 +277,170 @@ def test_roles_are_read_from_basic_information_child_when_catalog_links_project_
     assert snapshot["projects"][0]["detail_source"]["page_id"] == "basic"
     assert snapshot["projects"][0]["detail_path"] == ["root", "section", "basic"]
     assert snapshot["projects"][0]["roles"]["Major FAE QA"][0]["identity"] == "major-basic"
+
+
+def test_status_catalog_entry_ascends_to_root_and_caches_resolved_ids(tmp_path):
+    root = ConfluencePage("root", "Alpha", "https://c/root")
+    status = ConfluencePage("status", "1. Alpha-Project Status Report", "https://c/status")
+    basic = ConfluencePage("basic", "2. Alpha-Basic Information", "https://c/basic", version=3)
+
+    class SiblingClient(Client):
+        def get_page_by_url(self, url, *, prefer_export=False):
+            if "Project+Space" in url:
+                return self.space
+            return status
+
+        def get_parent_page(self, page_id):
+            return root
+
+        def get_page_children(self, page_id):
+            return [status, basic] if page_id == "root" else []
+
+        def get_page(self, page_id):
+            return _basic("basic", 3)
+
+    space = _space(rows=[("", "Alpha", "A", "NORMAL", "Stage 1", "Owner-X")])
+    # Keep a catalog URL with no pageId while retaining a stable business project ID.
+    space = ConfluencePage(space.id, space.title, space.url,
+                           view_body=space.view_body.replace("pageId=", "project/"), version=space.version,
+                           updated_at=space.updated_at)
+    client = SiblingClient(space)
+    snapshot = refresh_project_facts(client, ProjectFactStore(tmp_path / "facts.json"),
+                                     (ProductLine("X", space.url, "Line X"),))
+    row = snapshot["projects"][0]
+    assert row["status"] == "current"
+    assert row["entry_page_id"] == "status"
+    assert row["root_page_id"] == "root"
+    assert row["detail_source"]["page_id"] == "basic"
+
+
+def test_url_less_catalog_reuses_resolved_root_when_url_resolution_later_fails(tmp_path):
+    root = ConfluencePage("root", "Alpha", "https://c/root")
+    status = ConfluencePage("status", "1. Alpha-Project Status Report", "https://c/status")
+    basic = ConfluencePage("basic", "2. Alpha-Basic Information", "https://c/basic", version=3)
+
+    class CachedRootClient(Client):
+        def __init__(self, space, *, reject_project_url=False):
+            super().__init__(space)
+            self.reject_project_url = reject_project_url
+            self.project_url_calls = 0
+
+        def get_page_by_url(self, url, *, prefer_export=False):
+            if "Project+Space" in url:
+                return self.space
+            self.project_url_calls += 1
+            if self.reject_project_url:
+                raise RuntimeError("URL resolution unavailable")
+            return status
+
+        def get_parent_page(self, page_id):
+            return root
+
+        def get_page_children(self, page_id):
+            return [status, basic] if page_id == "root" else []
+
+        def get_page(self, page_id):
+            if page_id == "root":
+                return root
+            return _basic("basic", 3)
+
+    space = _space(rows=[("", "Alpha", "A", "NORMAL", "Stage 1", "Owner-X")])
+    space = ConfluencePage(space.id, space.title, space.url,
+                           view_body=space.view_body.replace("pageId=", "project/"), version=space.version,
+                           updated_at=space.updated_at)
+    store = ProjectFactStore(tmp_path / "facts.json")
+    first = CachedRootClient(space)
+    refresh_project_facts(first, store, (ProductLine("X", space.url, "Line X"),))
+    second = CachedRootClient(space, reject_project_url=True)
+
+    snapshot = refresh_project_facts(second, store, (ProductLine("X", space.url, "Line X"),))
+
+    assert second.project_url_calls == 0
+    assert snapshot["projects"][0]["status"] == "current"
+    assert snapshot["projects"][0]["root_page_id"] == "root"
+    assert snapshot["projects"][0]["detail_source"]["page_id"] == "basic"
+
+
+def test_stage_domain_uses_selected_space_union_independent_of_other_filters():
+    snapshot = {"projects": [
+        {"project_id": "A", "space_key": "DOPL", "active": True, "fields": {"current stage": "1 EVALUATION", "project status": "NORMAL"}},
+        {"project_id": "B", "space_key": "SDPL", "active": True, "fields": {"current stage": "3 EVT", "project status": "PAUSED"}},
+    ], "stage_domains": {"DOPL": ["1 EVALUATION", "2 DEVELOPMENT"], "SDPL": ["3 EVT"]}}
+    all_spaces = query_project_facts(snapshot, filters={"project status": "NORMAL"})
+    assert all_spaces["facets"]["current stage"] == ["1 EVALUATION", "2 DEVELOPMENT", "3 EVT"]
+    dopl = query_project_facts(snapshot, filters={PRODUCT_SPACE_FACET: "DOPL", "project status": "PAUSED"})
+    assert dopl["projects"] == []
+    assert dopl["facets"]["current stage"] == ["1 EVALUATION", "2 DEVELOPMENT"]
+
+
+def test_empty_snapshot_source_display_name_does_not_override_all_core_labels():
+    snapshot = {"sources": [
+        {"space_key": "DOPL", "display_name": None}, {"space_key": "SDPL", "display_name": ""},
+        {"space_key": "TV", "display_name": None}, {"space_key": "OOPL", "display_name": ""},
+    ], "projects": [
+        {"project_id": key, "space_key": key, "active": True, "fields": {}}
+        for key in ("DOPL", "SDPL", "TV", "OOPL")
+    ]}
+    options = query_project_facts(snapshot)["facets"][PRODUCT_SPACE_FACET]
+    assert dict((item["value"], item["label"]) for item in options) == {
+        "DOPL": "China Operator Business", "SDPL": "Smart Device Business",
+        "TV": "TV Business", "OOPL": "Global Operator & STB Business",
+    }
+
+
+def test_permission_denied_space_is_silently_removed_from_account_snapshot(tmp_path):
+    store = ProjectFactStore(tmp_path / "facts.json")
+    client = Client()
+    refresh_project_facts(client, store, (ProductLine("X", client.space.url, "Line X"),))
+
+    class ForbiddenError(RuntimeError):
+        response = type("Response", (), {"status_code": 403})()
+
+    class ForbiddenClient(Client):
+        def get_page_by_url(self, url, *, prefer_export=False):
+            raise ForbiddenError("private details must not leak")
+
+    snapshot = refresh_project_facts(
+        ForbiddenClient(), store, (ProductLine("X", client.space.url, "Line X"),),
+    )
+    assert snapshot["projects"] == []
+    assert snapshot["sources"] == []
+
+
+def test_catalog_initialization_fetches_four_catalogs_and_no_project_details(tmp_path):
+    class CatalogOnlyClient(Client):
+        def __init__(self):
+            super().__init__(_space(rows=[("101", "Alpha", "A", "NORMAL", "Stage 1", "Owner-X")]))
+            self.catalog_calls = 0
+
+        def get_page_by_url(self, url, *, prefer_export=False):
+            self.catalog_calls += 1
+            return self.space
+
+        def get_page_children(self, page_id):
+            raise AssertionError("catalog initialization must not discover project pages")
+
+        def get_page(self, page_id):
+            raise AssertionError("catalog initialization must not fetch Basic Information")
+
+    client = CatalogOnlyClient()
+    lines = tuple(ProductLine(key, f"https://c/{key}/Project+Space", key) for key in ("A", "B", "C", "D"))
+    snapshot = refresh_project_catalogs(client, ProjectFactStore(tmp_path / "facts.json"), lines)
+    assert client.catalog_calls == 4
+    assert snapshot["phase"] == "catalog_ready"
+    assert len(snapshot["projects"]) == 4
+
+
+def test_detail_enrichment_fetches_only_matches_and_reuses_valid_cache(tmp_path):
+    store = ProjectFactStore(tmp_path / "facts.json")
+    client = Client()
+    refresh_project_catalogs(client, store, (ProductLine("X", client.space.url, "Line X"),))
+    client.detail_calls.clear()
+
+    enrich_project_facts(client, store, filters={"support mode": "missing"})
+    assert client.detail_calls == []
+    enrich_project_facts(client, store, filters={"support mode": "A"})
+    assert client.detail_calls == ["101"]
+    client.detail_calls.clear()
+    enrich_project_facts(client, store, filters={"support mode": "A"})
+    assert client.detail_calls == []
