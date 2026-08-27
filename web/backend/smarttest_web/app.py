@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from threading import Lock
 from time import perf_counter
 from uuid import uuid4
 
@@ -320,5 +321,20 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
 
 
 configure_platform("web")
-app = create_app()
 configure_external_logging("uvicorn", "uvicorn.error", platform="web", domain="web")
+_default_app = None
+_default_app_lock = Lock()
+
+
+def _get_default_app():
+    global _default_app
+    if _default_app is None:
+        with _default_app_lock:
+            if _default_app is None:
+                _default_app = create_app()
+    return _default_app
+
+
+async def app(scope, receive, send):
+    """Create the default ASGI application lazily so imports never mutate app-data."""
+    await _get_default_app()(scope, receive, send)

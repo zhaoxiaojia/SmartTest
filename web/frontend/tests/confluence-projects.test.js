@@ -43,6 +43,15 @@ describe('Confluence project facts', () => {
     expect(document.body.textContent).not.toContain('Open in Confluence')
   })
 
+  it('places Review Filters between Apply Filters and Reset inside the filter actions', async () => {
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
+    await createConfluenceProjects({ root: document.querySelector('#app'), api }).start()
+    expect([...document.querySelector('.filter-actions').querySelectorAll('button')].map(button => button.textContent)).toEqual([
+      'Apply Filters', 'Review Filters', 'Reset'
+    ])
+    expect(document.querySelector('.report-page-head [data-audit]')).toBeNull()
+  })
+
   it('keeps matched projects visible when responsibility data is unavailable', async () => {
     const ownerless = { ...payload, projects: [{
       identity: 'DOPL:A-1', project_id: 'A-1', name: 'Apollo', space_key: 'DOPL',
@@ -56,12 +65,50 @@ describe('Confluence project facts', () => {
     expect(document.body.textContent).toContain('Project / Person / Field Search')
   })
 
-  it('consumes the Core owner hierarchy and renders expandable role/person/project levels', async () => {
+  it('renders identity-free metrics and custom expandable role and person cards', async () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
     await createConfluenceProjects({ root: document.querySelector('#app'), api }).start()
-    expect(document.querySelectorAll('details.owner-role').length).toBe(3)
-    expect(document.querySelector('details.owner-person summary').textContent).toContain('Coco')
-    expect(document.querySelector('details.owner-project summary').textContent).toContain('Apollo')
+    expect([...document.querySelectorAll('[data-metric] strong')].map(item => item.textContent)).toEqual(['1', '1', '1', '1.0'])
+    expect(document.querySelectorAll('details.owner-role, details.owner-person').length).toBe(0)
+    expect(document.body.textContent).not.toContain('u-1')
+    const roleToggle = document.querySelector('.owner-role-toggle')
+    expect(roleToggle.getAttribute('aria-expanded')).toBe('true')
+    roleToggle.click()
+    expect(roleToggle.getAttribute('aria-expanded')).toBe('false')
+    roleToggle.click()
+    const personToggle = document.querySelector('.owner-person-toggle')
+    personToggle.click()
+    expect(document.querySelector('.owner-project-list').textContent).toContain('Apollo')
+  })
+
+  it('builds a sorted horizontal workload chart and hides identity-only names', async () => {
+    const chartFactory = vi.fn(() => ({ destroy: vi.fn() }))
+    const identityOnly = { ...payload, ownerHierarchy: [{ role: 'FAE QA', people: [
+      { name: '2c93-user-key', identity: '2c93-user-key', projects: [{ name: 'Beta', space_key: 'TV' }] },
+      { name: 'Alice', identity: 'alice-key', projects: [{ name: 'One', space_key: 'DOPL' }, { name: 'Two', space_key: 'TV' }] }
+    ] }] }
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(identityOnly) }
+    await createConfluenceProjects({ root: document.querySelector('#app'), api, chartFactory }).start()
+    const config = chartFactory.mock.calls[0][1]
+    expect(config.options.indexAxis).toBe('y')
+    expect(config.data.labels).toEqual(['Alice', 'Unknown member'])
+    expect(config.data.datasets[0].data).toEqual([2, 1])
+    expect(document.body.textContent).not.toContain('2c93-user-key')
+    expect(document.body.textContent).toContain('Unknown member')
+  })
+
+  it('grows the workload chart surface for a long people list inside its bounded viewport', async () => {
+    const people = Array.from({ length: 20 }, (_, index) => ({
+      name: `Member ${index + 1}`, identity: `member-${index + 1}`,
+      projects: Array.from({ length: index % 3 + 1 }, (__, projectIndex) => ({ name: `Project ${index}-${projectIndex}`, space_key: 'TV' }))
+    }))
+    const api = { getProjectFacts: vi.fn().mockResolvedValue({ ...payload, ownerHierarchy: [{ role: 'FAE QA', people }] }) }
+    const chartFactory = vi.fn(() => ({ destroy: vi.fn() }))
+    await createConfluenceProjects({ root: document.querySelector('#app'), api, chartFactory }).start()
+    const viewport = document.querySelector('.workload-chart-scroll')
+    const surface = viewport.querySelector('.workload-chart-surface')
+    expect(Number.parseFloat(getComputedStyle(surface).height)).toBeGreaterThan(600)
+    expect(surface.parentElement).toBe(viewport)
   })
 
   it('keeps seven common filters and exposes optional filters to the common preference region', async () => {

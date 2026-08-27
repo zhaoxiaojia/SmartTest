@@ -111,6 +111,11 @@ class ConfluenceClient:
         parent_id = str((ancestors[-1] or {}).get("id") or "")
         return self.get_page(parent_id) if parent_id else None
 
+    def get_user_display_name(self, user_key: str) -> str:
+        """Resolve a Confluence identity through the maintained Atlassian client API."""
+        payload = self._api.get_user_details_by_userkey(str(user_key)) or {}
+        return str(payload.get("displayName") or payload.get("publicName") or payload.get("name") or "").strip()
+
     def get_page_children(self, page_id: str, *, limit: int = 100) -> list[ConfluencePage]:
         pages, start, seen_pages = [], 0, set()
         while True:

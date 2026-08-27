@@ -509,6 +509,16 @@ Confluence Web 接入清单：
 
 审查调用边界：Client 的 `ConfluenceAuditBridge.startAudit` 仍通过其登录会话构造 `ConfluenceAuditService`，按 `ProjectCollectionFilter` 执行既有 Stage1/2/3 审查点并导出。Web 持久 session 与服务端 credential owner 已可供后续工具复用，但本阶段只授权 Confluence 责任事实缓存刷新；未把 Web 审查按钮接入审查与导出链路，也未改变 Jira 行为。
 
+### 13.3 Confluence QA 责任汇总呈现
+
+Confluence 页面在既有账号隔离、筛选、Apply、缓存与权限结果之上呈现 SmartTest QA 责任汇总，不建立第二份人员或项目数据模型。页面仅使用筛选 API 返回的 `projects` 与 `ownerHierarchy` 计算匹配项目数、唯一 QA 人数、产品线数、平均每人项目分配数，并用口径说明卡明确平均值按“角色人员的项目分配总数 / 唯一人员数”计算。
+
+- 按角色分段切换横向 Chart.js 条形图；Y 轴为可读人员名，X 轴为项目数，按项目数降序，图表区域内部有界滚动。
+- 责任明细使用自定义卡片折叠：角色层显示角色、人数、分配数；人员层显示可读名称、项目数和产品线标签；展开后显示紧凑项目列表。不得使用原生 `details/summary` 或浏览器 disclosure triangle。
+- presentation 不显示 Confluence identity。名称缺失或仅等于 identity 时显示 `Unknown member`；源数据中本身可读的自由文本（包括 NA/TBD）保持原样。
+- 每个项目、每个责任角色属性按一对多展开：以 `<br>` 分隔逻辑段；段内 `ri:user` 或带稳定身份的用户链接各自形成一条人员—项目关系，无列表分隔符的尾随文字仅为职责说明，逗号、分号、`、`、`，` 明确引出的纯文本则继续作为额外人员。无结构化用户的段沿用可读纯文本人员回退（包括 NA/TBD）。同一 identity 在该项目角色内只计一次，纯文本人员按规范化名称去重。
+- 图表、卡片和汇总只使用真实筛选结果，不引入项目等级或虚构指标；空结果及 API 错误沿用既有页面状态语义。
+
 本地快照刷新边界：查询始终先读取 `ProjectFactStore`，缓存命中不访问 Confluence。无快照且已登录时，首个请求不等待第三方网络，立即返回完整筛选结构和 `loading`；进程内 single-flight 后台任务从服务端 credential owner 恢复会话凭据并复用 `ConfluenceClient + refresh_project_facts` 生成持久快照，同期请求继续返回 `loading`。完成后本地查询返回 `ready/partial_success`；失败返回 `failed`，显式刷新可重新启动任务。凭据不写入响应、日志、浏览器存储或 SQLite session 表；Windows Credential Manager 或 Linux AEAD 密文存储独立持久化凭据，服务退出不持久后台任务。
 
 采用“基础模块先行、业务模块逐个交付、Home 后聚合、最后统一整合”的顺序：

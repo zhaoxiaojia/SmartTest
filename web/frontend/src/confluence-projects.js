@@ -19,17 +19,19 @@ function node(tag, className, text) {
   return item
 }
 
-export function createConfluenceProjects({ root, api, pollDelay = ms => new Promise(resolve => setTimeout(resolve, ms)), maxPolls = 20 }) {
+export function createConfluenceProjects({ root, api, chartFactory, pollDelay = ms => new Promise(resolve => setTimeout(resolve, ms)), maxPolls = 20 }) {
   root.innerHTML = `<section class="report-workspace confluence-projects">
-    <header class="report-page-head"><div><div class="eyebrow">Confluence · Project Facts</div><h1>Confluence Projects</h1><p>查看本地只读项目事实与 QA 责任信息。</p></div>
-      <div class="report-actions"><button class="button button-primary" type="button" data-audit>生成项目审查报告</button></div></header>
+    <header class="report-page-head"><div><div class="eyebrow">Confluence · Project Facts</div><h1>Confluence Projects</h1><p>查看本地只读项目事实与 QA 责任信息。</p></div></header>
     <form class="card report-filter-card" data-preference-region><div class="report-filter-grid" data-main-facets></div>
       <details class="more-filter-panel"><summary>更多筛选</summary><div class="more-filter-options" data-more-facets></div></details>
       <div class="report-filter-grid"><label>Project / Person / Field Search<input class="form-control" name="search" type="search" placeholder="Project, person or Confluence field"></label>
-      <div class="filter-actions"><button class="button button-primary" type="submit">Apply Filters</button><button class="button button-secondary" type="button" data-reset data-preference-reset>Reset</button></div></div></form>
+      <div class="filter-actions"><button class="button button-primary" type="submit">Apply Filters</button><button class="button button-secondary" type="button" data-audit>Review Filters</button><button class="button button-secondary" type="button" data-reset data-preference-reset>Reset</button></div></div></form>
     <div class="report-state report-state-loading" role="status">Loading local project facts…</div><div class="inline-status" data-audit-status aria-live="polite"></div>
-    <section class="card report-preview"><header class="report-preview-toolbar"><strong>Owner hierarchy</strong><span class="count-badge" data-count>0 projects</span></header>
-      <div class="report-preview-body" data-projects></div></section></section>`
+    <section class="confluence-summary" data-summary></section>
+    <section class="card workload-card"><header class="report-preview-toolbar"><div><strong>Role workload</strong><div class="report-preview-meta">Project assignments per QA member</div></div><div class="role-segments" data-role-segments></div></header>
+      <div class="workload-chart-scroll"><div class="workload-chart-surface"><canvas data-workload-chart></canvas></div></div></section>
+    <section class="card report-preview"><header class="report-preview-toolbar"><strong>QA responsibility details</strong><span class="count-badge" data-count>0 projects</span></header>
+      <div class="report-preview-body owner-cards" data-projects></div></section></section>`
   const form = root.querySelector('form')
   const facetRoot = root.querySelector('[data-main-facets]')
   const moreRoot = root.querySelector('[data-more-facets]')
@@ -41,6 +43,8 @@ export function createConfluenceProjects({ root, api, pollDelay = ms => new Prom
   let destroyed = false
   let pollGeneration = 0
   let enabledMore = new Set()
+  let workloadChart
+  let activeRole = ''
 
   const currentFilters = () => {
     const fields = {}
@@ -110,40 +114,92 @@ export function createConfluenceProjects({ root, api, pollDelay = ms => new Prom
 
   function projectKey(project) { return project.identity || `${project.space_key || ''}:${project.project_id || ''}` }
 
-  function appendProject(parent, project) {
-    const projectNode = node('details', 'owner-project')
-    projectNode.append(node('summary', '', `${project.name || project.project_id} · ${project.space_key || '—'} · ${project.status || '—'}`))
-    const list = node('dl', 'project-basic-information')
-    for (const [key, value] of Object.entries(project.fields ?? {})) {
-      list.append(node('dt', '', key), node('dd', '', value || '—'))
+  function readableName(person) {
+    const name = String(person?.name ?? '').trim()
+    const identity = String(person?.identity ?? '').trim()
+    return !name || (identity && name.toLocaleLowerCase() === identity.toLocaleLowerCase()) ? 'Unknown member' : name
+  }
+
+  function toggleButton(className, label, panel, expanded = true) {
+    const button = node('button', className)
+    button.type = 'button'; button.setAttribute('aria-expanded', String(expanded)); button.setAttribute('aria-label', label)
+    button.append(node('span', 'accordion-icon', expanded ? '−' : '+'))
+    panel.hidden = !expanded
+    button.addEventListener('click', () => {
+      const next = button.getAttribute('aria-expanded') !== 'true'
+      button.setAttribute('aria-expanded', String(next)); button.querySelector('.accordion-icon').textContent = next ? '−' : '+'; panel.hidden = !next
+    })
+    return button
+  }
+
+  function renderSummary(hierarchy, projects) {
+    const people = new Set(); let assignments = 0
+    for (const role of hierarchy) for (const person of role.people ?? []) {
+      people.add(person.identity || readableName(person)); assignments += person.projects?.length ?? 0
     }
-    projectNode.append(list); parent.append(projectNode)
+    const values = [projects.length, people.size, new Set(projects.map(project => project.space_key).filter(Boolean)).size,
+      people.size ? (assignments / people.size).toFixed(1) : '0.0']
+    const labels = ['Matched projects', 'Unique QA people', 'Product lines', 'Avg assignments / person']
+    const summary = root.querySelector('[data-summary]'); summary.replaceChildren()
+    labels.forEach((label, index) => { const card = node('article', 'card summary-metric'); card.dataset.metric = ''; card.append(node('span', '', label), node('strong', '', values[index])); summary.append(card) })
+    const definition = node('article', 'card summary-definition'); definition.append(node('strong', '', 'Metric definition'), node('p', '', 'Average assignments per person = role project assignments ÷ unique QA people in the filtered results.'))
+    summary.append(definition)
+  }
+
+  function renderWorkload(hierarchy) {
+    const roles = hierarchy.filter(role => role.people?.length)
+    if (!roles.some(role => role.role === activeRole)) activeRole = roles[0]?.role ?? ''
+    const segments = root.querySelector('[data-role-segments]'); segments.replaceChildren()
+    for (const role of roles) {
+      const button = node('button', `role-segment${role.role === activeRole ? ' active' : ''}`, role.role); button.type = 'button'
+      button.setAttribute('aria-pressed', String(role.role === activeRole))
+      button.addEventListener('click', () => { activeRole = role.role; renderWorkload(hierarchy) }); segments.append(button)
+    }
+    workloadChart?.destroy(); workloadChart = null
+    const role = roles.find(item => item.role === activeRole)
+    const surface = root.querySelector('.workload-chart-surface')
+    surface.style.height = `${Math.max(240, (role?.people?.length ?? 0) * 36)}px`
+    if (!role || !chartFactory) return
+    const rows = role.people.map(person => ({ name: readableName(person), count: person.projects?.length ?? 0 }))
+      .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+    workloadChart = chartFactory(root.querySelector('[data-workload-chart]'), {
+      type: 'bar', data: { labels: rows.map(row => row.name), datasets: [{ label: 'Projects', data: rows.map(row => row.count) }] },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { display: false } } }
+    })
   }
 
   function renderProjects(hierarchy, projectCount = 0, projects = []) {
     projectsRoot.replaceChildren()
     root.querySelector('[data-count]').textContent = `${projectCount} projects`
+    renderSummary(hierarchy ?? [], projects)
+    renderWorkload(hierarchy ?? [])
     if (!projectCount) { projectsRoot.append(node('div', 'report-empty', 'No matching projects.')); return }
     const represented = new Set()
     for (const role of hierarchy ?? []) {
-      const roleNode = node('details', 'owner-role'); roleNode.open = true
-      roleNode.append(node('summary', '', `${role.role} (${role.people?.length ?? 0})`))
-      if (!role.people?.length) roleNode.append(node('div', 'report-empty', 'No assigned people.'))
+      const roleNode = node('article', 'owner-role')
+      const roleBody = node('div', 'owner-role-body')
+      const assignments = (role.people ?? []).reduce((sum, person) => sum + (person.projects?.length ?? 0), 0)
+      const roleHeader = node('header', 'owner-card-header'); roleHeader.append(node('div', 'owner-card-title', role.role), node('span', 'owner-card-meta', `${role.people?.length ?? 0} people · ${assignments} assignments`), toggleButton('owner-role-toggle', `Toggle ${role.role}`, roleBody))
+      roleNode.append(roleHeader, roleBody)
+      if (!role.people?.length) roleBody.append(node('div', 'report-empty compact', 'No assigned people.'))
       for (const person of role.people ?? []) {
-        const personNode = node('details', 'owner-person'); personNode.open = true
-        personNode.append(node('summary', '', `${person.name || person.identity} · ${person.identity || 'No stable identity'}`))
+        const personNode = node('section', 'owner-person'); const projectList = node('div', 'owner-project-list')
+        const tags = [...new Set((person.projects ?? []).map(project => project.space_key).filter(Boolean))]
+        const personHeader = node('header', 'owner-person-header'); personHeader.append(node('strong', '', readableName(person)), node('span', 'owner-card-meta', `${person.projects?.length ?? 0} projects`))
+        const tagRoot = node('span', 'owner-space-tags'); tags.forEach(tag => tagRoot.append(node('span', 'owner-space-tag', tag))); personHeader.append(tagRoot, toggleButton('owner-person-toggle', `Toggle projects for ${readableName(person)}`, projectList, false))
+        personNode.append(personHeader, projectList)
         for (const project of person.projects ?? []) {
-          represented.add(projectKey(project)); appendProject(personNode, project)
+          represented.add(projectKey(project)); projectList.append(node('div', 'owner-project-row', `${project.name || project.project_id} · ${project.space_key || '—'} · ${project.status || '—'}`))
         }
-        roleNode.append(personNode)
+        roleBody.append(personNode)
       }
       projectsRoot.append(roleNode)
     }
     const unavailable = projects.filter(project => project.responsibility_unavailable && !represented.has(projectKey(project)))
     if (unavailable.length) {
-      const unavailableNode = node('details', 'owner-role'); unavailableNode.open = true
-      unavailableNode.append(node('summary', '', `Responsibility unavailable (${unavailable.length})`))
-      for (const project of unavailable) appendProject(unavailableNode, project)
+      const unavailableNode = node('article', 'owner-role responsibility-unavailable')
+      unavailableNode.append(node('header', 'owner-card-header', `Responsibility unavailable (${unavailable.length})`))
+      for (const project of unavailable) unavailableNode.append(node('div', 'owner-project-row', `${project.name || project.project_id} · ${project.space_key || '—'}`))
       projectsRoot.append(unavailableNode)
     }
   }
@@ -215,6 +271,6 @@ export function createConfluenceProjects({ root, api, pollDelay = ms => new Prom
   auditButton.addEventListener('click', () => {
     root.querySelector('[data-audit-status]').textContent = 'Client runtime credential is required. Start the Confluence audit in SmartTest Client.'
   })
-  return { start: load, destroy() { destroyed = true; pollGeneration += 1 } }
+  return { start: load, destroy() { destroyed = true; pollGeneration += 1; workloadChart?.destroy() } }
 }
 import { enhanceMultiSelect, fillSelect, selected } from './app.js'

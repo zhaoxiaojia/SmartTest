@@ -82,6 +82,18 @@ def test_page_and_children_are_normalized():
     assert children[0].title == "Test Plan"
 
 
+def test_user_display_name_reuses_atlassian_user_lookup():
+    class UserApi(FakeConfluence):
+        def get_user_details_by_userkey(self, user_key):
+            assert user_key == "2c93-user-key"
+            return {"userKey": user_key, "displayName": "Alice Chen"}
+
+    client = ConfluenceClient(
+        ConfluenceClientConfig("https://confluence.example"), "u", "secret", api=UserApi(),
+    )
+    assert client.get_user_display_name("2c93-user-key") == "Alice Chen"
+
+
 def test_page_by_url_prefers_static_export_view_for_macro_catalogs():
     class ExportViewApi:
         def get_page_id(self, space, title):

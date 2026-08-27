@@ -19,6 +19,7 @@ from .project_collection import filter_projects, summarize_project_fact_filters
 
 
 SCHEMA_VERSION = 1
+ROLE_PARSER_VERSION = 2
 DEFAULT_STORE_PATH = Path("confluence_audit") / "project_responsibility_facts.json"
 ROLE_LABELS = ("Major FAE QA", "FAE QA", "QA Reviewer")
 PRODUCT_SPACE_FACET = "__product_space__"
@@ -133,7 +134,7 @@ def refresh_project_facts(client, store: ProjectFactStore, product_lines=PRODUCT
                     detail_unchanged = _same_page_evidence(
                         old.get("detail_source"), detail_metadata,
                     )
-                    if catalog_unchanged and detail_unchanged:
+                    if catalog_unchanged and detail_unchanged and _current_role_parser(old):
                         row = deepcopy(old)
                         row.update(catalog)
                         row.update(active=True, status="current", error=None)
@@ -145,7 +146,7 @@ def refresh_project_facts(client, store: ProjectFactStore, product_lines=PRODUCT
                 roles = _extract_roles(detail.body or detail.view_body)
                 row = {
                     **catalog, "roles": roles, "active": True, "status": "current",
-                    "error": None, "detail_source": _page_evidence(detail, line.key),
+                    "error": None, "detail_source": _detail_evidence(detail, line.key),
                     "detail_path": detail_path,
                     "updated_at": now.isoformat(),
                 }
@@ -272,12 +273,19 @@ def enrich_project_facts(client, store: ProjectFactStore, *, filters=None, searc
     matched = {row["identity"] for row in query_project_facts(snapshot, filters=filters, search=search)["projects"]}
     projects = []
     attempted = completed = 0
+    durable_names = _durable_role_names(snapshot.get("projects", ()))
+    resolved_names = dict(durable_names)
+    lookup_attempted = lookup_resolved = 0
     started = perf_counter()
     for original in snapshot["projects"]:
         if original.get("identity") not in matched or not original.get("active", True):
             projects.append(original); continue
-        if original.get("detail_source") and original.get("status") == "current":
-            projects.append(original); continue
+        if original.get("detail_source") and original.get("status") == "current" and _current_role_parser(original):
+            row = deepcopy(original)
+            lookup_counts = _resolve_role_names(client, row.get("roles", {}), resolved_names)
+            lookup_attempted += lookup_counts[0]
+            lookup_resolved += lookup_counts[1]
+            projects.append(row); continue
         attempted += 1
         row = deepcopy(original)
         try:
@@ -296,10 +304,14 @@ def enrich_project_facts(client, store: ProjectFactStore, *, filters=None, searc
             if metadata is None:
                 raise LookupError(errors.get("basic", "Basic Information page was not found"))
             detail = client.get_page(metadata.id)
+            roles = _extract_roles(detail.body or detail.view_body)
+            lookup_counts = _resolve_role_names(client, roles, resolved_names)
+            lookup_attempted += lookup_counts[0]
+            lookup_resolved += lookup_counts[1]
             row.update(entry_page_id=context["entry_page_id"], root_page_id=context["root_page_id"],
                        detail_path=context.get("page_paths", {}).get("basic", []),
-                       roles=_extract_roles(detail.body or detail.view_body), status="current", error=None,
-                       detail_source=_page_evidence(detail, row["space_key"]), updated_at=now.isoformat())
+                       roles=roles, status="current", error=None,
+                       detail_source=_detail_evidence(detail, row["space_key"]), updated_at=now.isoformat())
             completed += 1
         except Exception as exc:
             if not _is_access_denied(exc):
@@ -310,6 +322,8 @@ def enrich_project_facts(client, store: ProjectFactStore, *, filters=None, searc
     store.save(snapshot)
     smart_log("Confluence project facts phase: matched details completed", domain="confluence", source="project_facts",
               extra={"matched_count": len(matched), "attempted_count": attempted, "completed_count": completed,
+                     "identity_lookup_count": lookup_attempted, "identity_resolved_count": lookup_resolved,
+                     "identity_fallback_count": lookup_attempted - lookup_resolved,
                      "duration_ms": round((perf_counter() - started) * 1000, 3)})
     return snapshot
 
@@ -501,6 +515,44 @@ def _extract_roles(body):
     return roles
 
 
+def _durable_role_names(projects):
+    names = {}
+    for project in projects:
+        for people in project.get("roles", {}).values():
+            for person in people:
+                identity = str(person.get("identity") or "").strip()
+                name = str(person.get("name") or "").strip()
+                if identity and _human_role_name(name, identity):
+                    names.setdefault(identity, name)
+    return names
+
+
+def _resolve_role_names(client, roles, resolved_names):
+    attempted = resolved = 0
+    for people in roles.values():
+        for person in people:
+            identity = str(person.get("identity") or "").strip()
+            name = str(person.get("name") or "").strip()
+            if not identity:
+                continue
+            if _human_role_name(name, identity):
+                resolved_names.setdefault(identity, name)
+            elif identity not in resolved_names:
+                attempted += 1
+                try:
+                    resolved_name = client.get_user_display_name(identity)
+                except Exception:  # noqa: BLE001 - individual visibility must not fail enrichment
+                    resolved_name = ""
+                resolved_names[identity] = resolved_name or name or identity
+                resolved += bool(resolved_name)
+            person["name"] = resolved_names.get(identity) or name or identity
+    return attempted, resolved
+
+
+def _human_role_name(name, identity):
+    return bool(name and _normalize(name) != _normalize(identity))
+
+
 def _same_page_evidence(previous, current):
     if not previous or str(previous.get("page_id") or "") != str(current.id or ""):
         return False
@@ -515,41 +567,46 @@ def _is_access_denied(exc):
 
 def _people(cell):
     people = []
-    covered_names = set()
-    user_tags = re.findall(r"<ri:user\b[^>]*/?>", cell, re.I)
-    for tag in user_tags:
-        identity = _attribute(tag, "ri:account-id") or _attribute(tag, "ri:userkey") or _attribute(tag, "ri:username")
-        name = _attribute(tag, "ri:display-name") or identity
-        if identity or name:
-            people.append({"name": name, "identity": identity})
-            covered_names.add(_normalize(name))
-    for attrs, body in re.findall(r"<a\b([^>]*)>(.*?)</a>", cell, re.I | re.S):
-        name = text(body).strip()
-        href = _attribute(attrs, "href")
-        query = parse_qs(urlsplit(href).query)
-        identity = (_attribute(attrs, "data-account-id") or _attribute(attrs, "data-username")
-                    or (query.get("accountId") or query.get("userKey") or query.get("username") or [""])[0])
-        if name or identity:
-            people.append({"name": name or identity, "identity": identity})
-            covered_names.add(_normalize(name))
-    plain = re.sub(r"<ri:user\b[^>]*/?>", " ", cell, flags=re.I)
-    plain = re.sub(r"<a\b[^>]*>.*?</a>", " ", plain, flags=re.I | re.S)
-    plain_names = [name.strip() for name in re.split(r"[,;、，\n]+", text(plain)) if name.strip()]
-    if user_tags and len(plain_names) == 1 and len(user_tags) == 1:
-        people[0]["name"] = plain_names[0]
-        covered_names.add(_normalize(plain_names[0]))
-    for name in plain_names:
-        name = name.strip()
-        if name and _normalize(name) not in covered_names:
-            people.append({"name": name, "identity": ""})
-    unique = []
-    seen = set()
-    for person in people:
-        key = (person["identity"], _normalize(person["name"]))
-        if key not in seen:
-            seen.add(key)
-            unique.append(person)
-    return unique
+    seen_identities = set()
+    seen_plain_names = set()
+    for segment in re.split(r"<br\s*/?>", cell, flags=re.I):
+        structured = []
+        for tag in re.findall(r"<ri:user\b[^>]*/?>", segment, re.I):
+            identity = _attribute(tag, "ri:account-id") or _attribute(tag, "ri:userkey") or _attribute(tag, "ri:username")
+            if identity:
+                structured.append({"name": _attribute(tag, "ri:display-name") or identity, "identity": identity})
+
+        anchor_names = []
+        for attrs, body in re.findall(r"<a\b([^>]*)>(.*?)</a>", segment, re.I | re.S):
+            name = text(body).strip()
+            query = parse_qs(urlsplit(_attribute(attrs, "href")).query)
+            identity = (_attribute(attrs, "data-account-id") or _attribute(attrs, "data-username")
+                        or (query.get("accountId") or query.get("userKey") or query.get("username") or [""])[0])
+            if identity:
+                structured.append({"name": name or identity, "identity": identity})
+            elif name:
+                anchor_names.append(name)
+
+        residual = re.sub(r"<ri:user\b[^>]*/?>", " ", segment, flags=re.I)
+        residual = re.sub(r"<a\b[^>]*>.*?</a>", " ", residual, flags=re.I | re.S)
+        residual_text = text(residual).strip()
+        if structured:
+            plain_names = []
+            if re.match(r"^[,;、，]", residual_text):
+                plain_names = [name.strip() for name in re.split(r"[,;、，]+", residual_text) if name.strip()]
+        else:
+            plain_names = anchor_names + [name.strip() for name in re.split(r"[,;、，\n]+", residual_text) if name.strip()]
+
+        for person in structured:
+            if person["identity"] not in seen_identities:
+                seen_identities.add(person["identity"])
+                people.append(person)
+        for name in plain_names:
+            normalized = _normalize(name)
+            if normalized not in seen_plain_names:
+                seen_plain_names.add(normalized)
+                people.append({"name": name, "identity": ""})
+    return people
 
 
 def _attribute(value, name):
@@ -561,6 +618,16 @@ def _page_evidence(page, space_key):
     return {"space_key": space_key, "page_id": str(page.id), "url": page.url,
             "version": int(page.version or 0),
             "updated_at": page.updated_at.isoformat() if page.updated_at else None}
+
+
+def _detail_evidence(page, space_key):
+    evidence = _page_evidence(page, space_key)
+    evidence["role_parser_version"] = ROLE_PARSER_VERSION
+    return evidence
+
+
+def _current_role_parser(project):
+    return project.get("detail_source", {}).get("role_parser_version") == ROLE_PARSER_VERSION
 
 
 def _header(value):

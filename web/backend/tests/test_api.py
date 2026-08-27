@@ -1,4 +1,9 @@
 import json
+import os
+import subprocess
+import sys
+from concurrent.futures import ThreadPoolExecutor
+from time import sleep
 
 from fastapi.testclient import TestClient
 from core.logging import SMARTTEST_LOG_DIR_ENV
@@ -37,6 +42,39 @@ def test_health_does_not_resolve_database_owner():
     response = TestClient(app).get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_default_app_session_database_is_isolated_by_backend_fixture(isolate_server_credentials):
+    app = create_app(query_owner=lambda: (_ for _ in ()).throw(AssertionError("DB resolved")))
+    assert TestClient(app).get("/health").status_code == 200
+    assert isolate_server_credentials.database_path.exists()
+    assert isolate_server_credentials.database_path.parent == isolate_server_credentials.root
+
+
+def test_importing_backend_app_does_not_create_default_app_data(tmp_path):
+    environment = dict(os.environ, LOCALAPPDATA=str(tmp_path), PYTHONPATH="web/backend;.")
+    result = subprocess.run(
+        [sys.executable, "-c", "import smarttest_web.app"], cwd=os.getcwd(), env=environment,
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert not (tmp_path / "Amlogic" / "SmartTest" / "web" / "smarttest-web.db").exists()
+
+
+def test_default_asgi_app_is_initialized_once_under_concurrency(monkeypatch):
+    import smarttest_web.app as app_module
+    created = []
+    monkeypatch.setattr(app_module, "_default_app", None)
+
+    def factory():
+        sleep(.02)
+        value = object(); created.append(value); return value
+
+    monkeypatch.setattr(app_module, "create_app", factory)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        values = list(pool.map(lambda _index: app_module._get_default_app(), range(16)))
+    assert len(created) == 1
+    assert all(value is created[0] for value in values)
 
 
 def test_repeated_snake_case_filters_reach_owner_and_response_keeps_camel_case():

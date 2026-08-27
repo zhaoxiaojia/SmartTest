@@ -100,6 +100,39 @@ def test_full_catalog_preserves_unknown_columns_and_exact_multi_person_roles(tmp
     assert roles["QA Reviewer"][0]["identity"] == "review-101"
 
 
+def test_structured_role_users_expand_independently_and_ignore_interleaved_notes(tmp_path):
+    identities = [f"user-{index:02d}" for index in range(1, 12)]
+    entries = "".join(
+        f'<ac:link><ri:user ri:userkey="{identity}"/></ac:link> '
+        f'{"NPI Owner" if index % 2 else "NPI HDMI/Audio"}<br/>'
+        for index, identity in enumerate(identities, 1)
+    ) + '<ac:link><ri:user ri:userkey="user-01"/></ac:link> certification description'
+
+    class EspressoClient(Client):
+        def get_page(self, pid):
+            self.detail_calls.append(str(pid).removeprefix("basic-"))
+            body = f"<table><tr><th>FAE QA</th><td>{entries}</td></tr><tr><th>QA Reviewer</th><td>NA, TBD</td></tr></table>"
+            return ConfluencePage(str(pid), "Basic Information", "https://c/basic", body=body, version=1)
+
+        def get_user_display_name(self, identity):
+            return f"Member {identity.removeprefix('user-')}"
+
+    client = EspressoClient(_space(rows=[("101", "Espresso", "A", "NORMAL", "Stage 3", "Owner-X")]))
+    store = ProjectFactStore(tmp_path / "facts.json")
+    refresh_project_catalogs(client, store, (ProductLine("X", client.space.url, "Line X"),))
+    snapshot = enrich_project_facts(client, store)
+    people = snapshot["projects"][0]["roles"]["FAE QA"]
+    assert len(people) == 11
+    assert [person["identity"] for person in people] == identities
+    assert all(person["name"].startswith("Member ") for person in people)
+    assert not {"NPI Owner", "NPI HDMI/Audio", "certification description"} & {person["name"] for person in people}
+    assert [person["name"] for person in snapshot["projects"][0]["roles"]["QA Reviewer"]] == ["NA", "TBD"]
+
+    hierarchy_people = query_project_facts(snapshot)["ownerHierarchy"][1]["people"]
+    assert len(hierarchy_people) == 11
+    assert all(len(person["projects"]) == 1 for person in hierarchy_people)
+
+
 def test_incremental_refresh_skips_unchanged_and_refetches_only_changed_row(tmp_path):
     store = ProjectFactStore(tmp_path / "facts.json")
     first = Client()
@@ -444,3 +477,82 @@ def test_detail_enrichment_fetches_only_matches_and_reuses_valid_cache(tmp_path)
     client.detail_calls.clear()
     enrich_project_facts(client, store, filters={"support mode": "A"})
     assert client.detail_calls == []
+
+
+def test_legacy_cached_detail_is_reparsed_once_only_when_matched(tmp_path):
+    store = ProjectFactStore(tmp_path / "facts.json")
+    store.save({"schema_version": 1, "projects": [
+        {"identity": "X:Alpha-ID", "project_id": "Alpha-ID", "name": "Alpha", "space_key": "X",
+         "page_id": "101", "page_url": "https://c/pages/viewpage.action?pageId=101", "active": True,
+         "status": "current", "fields": {"support mode": "A"}, "detail_source": {"page_id": "basic-101", "version": 1},
+         "roles": {"FAE QA": [{"name": "NPI Owner", "identity": ""}]}}
+    ]})
+    client = Client()
+
+    enrich_project_facts(client, store, filters={"support mode": "missing"})
+    assert client.detail_calls == []
+    first = enrich_project_facts(client, store, filters={"support mode": "A"})
+    assert client.detail_calls == ["101"]
+    assert first["projects"][0]["detail_source"]["role_parser_version"] == 2
+    client.detail_calls.clear()
+    enrich_project_facts(client, store, filters={"support mode": "A"})
+    assert client.detail_calls == []
+
+
+def test_detail_enrichment_resolves_role_names_once_and_keeps_safe_fallbacks(tmp_path):
+    class IdentityClient(Client):
+        def __init__(self):
+            super().__init__(_space(rows=[
+                ("101", "Alpha", "A", "NORMAL", "Stage 1", "Owner-X"),
+                ("102", "Beta", "A", "NORMAL", "Stage 1", "Owner-X"),
+            ]))
+            self.user_calls = []
+
+        def get_page(self, page_id):
+            self.detail_calls.append(str(page_id).removeprefix("basic-"))
+            return ConfluencePage(str(page_id), "Basic Information", f"https://c/{page_id}", body="""
+                <table>
+                  <tr><th>Major FAE QA</th><td><ri:user ri:account-id="account-1"/></td></tr>
+                  <tr><th>FAE QA</th><td><ri:user ri:account-id="missing-user"/></td></tr>
+                  <tr><th>QA Reviewer</th><td><a data-account-id="account-3">Carol Wu</a></td></tr>
+                </table>
+            """, version=1)
+
+        def get_user_display_name(self, identity):
+            self.user_calls.append(identity)
+            if identity == "account-1": return "Alice Chen"
+            raise RuntimeError("not visible")
+
+    client = IdentityClient()
+    store = ProjectFactStore(tmp_path / "facts.json")
+    refresh_project_catalogs(client, store, (ProductLine("X", client.space.url, "Line X"),))
+    snapshot = enrich_project_facts(client, store)
+    assert client.user_calls == ["account-1", "missing-user"]
+    for row in snapshot["projects"]:
+        assert row["roles"]["Major FAE QA"] == [{"name": "Alice Chen", "identity": "account-1"}]
+        assert row["roles"]["FAE QA"] == [{"name": "missing-user", "identity": "missing-user"}]
+        assert row["roles"]["QA Reviewer"] == [{"name": "Carol Wu", "identity": "account-3"}]
+
+
+def test_cached_current_detail_resolves_unreadable_name_without_refetching_pages(tmp_path):
+    snapshot = {"schema_version": 1, "projects": [{
+        "identity": "X:A", "project_id": "A", "name": "Alpha", "space_key": "X",
+        "page_id": "status", "page_url": "https://c/status", "active": True, "status": "current",
+        "fields": {}, "detail_source": {"page_id": "basic", "version": 1, "role_parser_version": 2},
+        "roles": {"Major FAE QA": [{"name": "account-1", "identity": "account-1"}],
+                  "FAE QA": [{"name": "account-1", "identity": "account-1"}], "QA Reviewer": []},
+    }]}
+    store = ProjectFactStore(tmp_path / "facts.json")
+    store.save(snapshot)
+
+    class CachedClient:
+        def __init__(self): self.user_calls = []
+        def get_user_display_name(self, identity): self.user_calls.append(identity); return "Alice Chen"
+        def get_page_by_url(self, *_args, **_kwargs): raise AssertionError("cached detail must not rediscover pages")
+        def get_page(self, *_args, **_kwargs): raise AssertionError("cached detail must not be fetched")
+
+    client = CachedClient()
+    updated = enrich_project_facts(client, store)
+    assert client.user_calls == ["account-1"]
+    assert updated["projects"][0]["roles"]["Major FAE QA"][0]["name"] == "Alice Chen"
+    assert store.load()["projects"][0]["roles"]["FAE QA"][0]["name"] == "Alice Chen"
