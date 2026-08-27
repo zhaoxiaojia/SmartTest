@@ -6,7 +6,10 @@ import sys
 from pathlib import Path
 
 from core.logging import smart_log
-from support.browser_automation.errors import BrowserAutomationError
+from support.browser_automation.errors import (
+    BrowserAutomationError,
+    SupportedBrowserNotInstalledError,
+)
 from support.browser_automation.models import ContextKey
 from support.browser_automation.session import BrowserSession
 
@@ -34,17 +37,32 @@ class BrowserRuntime:
                 if cache_exists:
                     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(browser_cache)
                     injected_browser_path = True
-            from playwright.async_api import async_playwright
+            from playwright.async_api import Error as PlaywrightError, async_playwright
             driver = await async_playwright().start()
-            browser = await getattr(driver, browser_type).launch(headless=headless)
+            browser_launcher = getattr(driver, browser_type)
+            try:
+                browser = await browser_launcher.launch(headless=headless, channel="chrome")
+            except PlaywrightError as exc:
+                if "Chromium distribution 'chrome' is not found" not in str(exc):
+                    raise
+                try:
+                    browser = await browser_launcher.launch(headless=headless, channel="msedge")
+                except PlaywrightError as edge_exc:
+                    if "Chromium distribution 'msedge' is not found" in str(edge_exc):
+                        raise SupportedBrowserNotInstalledError(
+                            "Google Chrome or Microsoft Edge is required"
+                        ) from edge_exc
+                    raise
             self._playwright = driver
             return browser
-        except Exception as exc:
+        except BaseException as exc:
             if driver is not None:
                 try:
                     await driver.stop()
                 except Exception:
                     pass
+            if not isinstance(exc, Exception):
+                raise
             smart_log(
                 "Browser automation startup failed",
                 domain="support",
@@ -58,6 +76,8 @@ class BrowserRuntime:
                     "error_type": type(exc).__name__,
                 },
             )
+            if isinstance(exc, SupportedBrowserNotInstalledError):
+                raise
             raise BrowserAutomationError("Unable to start browser automation") from exc
         finally:
             if injected_browser_path:

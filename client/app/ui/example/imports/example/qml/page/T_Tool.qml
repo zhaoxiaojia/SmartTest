@@ -32,6 +32,21 @@ FluPage {
         onPositiveClicked: ScheduleBridge.deletePlan(root.pendingScheduleDeleteProvider, root.pendingScheduleDeletePlan)
     }
 
+    FluContentDialog {
+        id: supportedBrowserMissingDialog
+        title: qsTr("Supported browser required")
+        message: qsTr("Install Google Chrome or Microsoft Edge to use Redmine. Other browsers are not supported yet.")
+        positiveText: qsTr("OK")
+        buttonFlags: FluContentDialogType.PositiveButton
+    }
+
+    Connections {
+        target: RedmineBridge
+        function onSupportedBrowserMissing() {
+            supportedBrowserMissingDialog.open()
+        }
+    }
+
     function maybeStartRedmineLogin() {
         if (selectedTool.id !== "redmine") {
             autoStartedToolId = ""

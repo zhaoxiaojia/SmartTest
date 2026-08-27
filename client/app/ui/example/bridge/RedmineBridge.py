@@ -18,7 +18,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
 
-from support.browser_automation import BrowserRuntime
+from support.browser_automation import BrowserRuntime, SupportedBrowserNotInstalledError
 from support.jira_integration.auth.basic import JiraBasicAuth
 from support.jira_integration.services.create_issue_service import CreateIssueService
 from support.jira_integration.services.create_schema_service import JiraCreateSchemaService
@@ -88,6 +88,7 @@ class RedmineBridge(QObject):
     cloneInvalidFieldRequested = Signal(str, str)
     credentialsRequired = Signal()
     verificationRequired = Signal()
+    supportedBrowserMissing = Signal()
     resultReady = Signal(int, object)
     dataReady = Signal(int, object)
     dataProgressReady = Signal(int, int, str)
@@ -563,6 +564,8 @@ class RedmineBridge(QObject):
             try:
                 result = future.result()
             except Exception as exc:
+                if isinstance(exc, SupportedBrowserNotInstalledError):
+                    self.supportedBrowserMissing.emit()
                 result = AuthResult(AuthState.FAILED, username=self._account, reason="operation_exception")
                 smart_log(
                     "[REDMINE_AUTH] login failure",
