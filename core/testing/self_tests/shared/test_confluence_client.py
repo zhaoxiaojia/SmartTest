@@ -45,9 +45,10 @@ class FakeConfluence:
             "_links": {"webui": "/display/ABC/status"},
         }
 
-    def get_page_id(self, space, title):
+    def get_page_by_title(self, space, title, expand=None):
         assert (space, title) == ("M314", "Muffin314 Project Home")
-        return "home-1"
+        assert expand == "body.view,version"
+        return {"id": "home-1", "title": title, "body": {"view": {"value": "<table />"}}}
 
     def get_page_ancestors(self, page_id):
         assert page_id == "671973853"
@@ -73,6 +74,16 @@ def test_search_pages_paginates_and_normalizes():
     assert all(call[3] == "body.storage,body.view,version" for call in api.calls)
 
 
+def test_search_page_metadata_paginates_without_requesting_page_bodies():
+    api = FakeConfluence()
+    client = ConfluenceClient(ConfluenceClientConfig("https://confluence.example"), "u", "secret", api=api)
+
+    pages = client.search_page_metadata("space in (DOPL, SDPL)", limit=2)
+
+    assert [page.id for page in pages] == ["0", "1", "2"]
+    assert all(call[3] == "version,space" for call in api.calls)
+
+
 def test_page_and_children_are_normalized():
     api = FakeConfluence()
     client = ConfluenceClient(ConfluenceClientConfig("https://confluence.example"), "u", "secret", api=api)
@@ -94,37 +105,60 @@ def test_user_display_name_reuses_atlassian_user_lookup():
     assert client.get_user_display_name("2c93-user-key") == "Alice Chen"
 
 
-def test_page_by_url_prefers_static_export_view_for_macro_catalogs():
+def test_display_page_url_uses_one_targeted_title_request_with_catalog_expand():
     class ExportViewApi:
-        def get_page_id(self, space, title):
-            assert (space, title) == ("DOPL", "Project Space")
-            return "catalog"
+        def __init__(self):
+            self.calls = []
 
-        def get_page_by_id(self, page_id, expand=None):
-            assert page_id == "catalog"
-            assert expand == "body.storage,body.view,body.export_view,version"
+        def get_page_by_title(self, space, title, expand=None):
+            self.calls.append((space, title, expand))
+            assert (space, title) == ("DOPL", "Project Space")
             return {
-                "id": page_id,
+                "id": "catalog",
                 "title": "Project Space",
                 "_links": {"webui": "/display/DOPL/Project+Space"},
                 "body": {
-                    "storage": {"value": "<ac:structured-macro />"},
-                    "view": {"value": '<div class="table-filter-shell"></div>'},
-                    "export_view": {"value": "<table><tr><th>页面</th></tr></table>"},
+                    "view": {"value": "<table><tr><th>页面</th></tr></table>"},
                 },
             }
 
+    api = ExportViewApi()
     client = ConfluenceClient(
         ConfluenceClientConfig("https://confluence.example"),
-        "u", "secret", api=ExportViewApi(),
+        "u", "secret", api=api,
     )
 
     page = client.get_page_by_url(
         "https://confluence.example/display/DOPL/Project+Space",
-        prefer_export=True,
     )
 
     assert page.view_body == "<table><tr><th>页面</th></tr></table>"
+    assert api.calls == [("DOPL", "Project Space", "body.view,version")]
+
+
+def test_page_by_url_prefers_static_export_view_with_one_targeted_title_request():
+    class ExportViewApi:
+        def __init__(self):
+            self.calls = []
+
+        def get_page_by_title(self, space, title, expand=None):
+            self.calls.append((space, title, expand))
+            return {"id": "catalog", "title": title, "body": {
+                "view": {"value": '<div class="table-filter-shell"></div>'},
+                "export_view": {"value": "<table><tr><th>Page</th></tr></table>"},
+            }}
+
+    api = ExportViewApi()
+    client = ConfluenceClient(
+        ConfluenceClientConfig("https://confluence.example"), "u", "secret", api=api,
+    )
+
+    page = client.get_page_by_url(
+        "https://confluence.example/display/DOPL/Project+Space", prefer_export=True,
+    )
+
+    assert page.view_body == "<table><tr><th>Page</th></tr></table>"
+    assert api.calls == [("DOPL", "Project Space", "body.view,body.export_view,version")]
 
 
 def test_password_never_leaks_from_construction_failure(monkeypatch):

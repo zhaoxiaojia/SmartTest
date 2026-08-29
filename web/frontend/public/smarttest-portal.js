@@ -191,30 +191,8 @@ function closeMobileMenu() {
     }
 }
 
-function initReportNavigation() {
-    const routes = [
-        { href: '/jira.html', label: 'Jira', icon: '<path d="m12 2 7 7-7 7-7-7 7-7z"/><path d="m12 9 5 5-5 5-5-5"/>' },
-        { href: '/confluence.html', label: 'Confluence', icon: '<path d="M5 7c3-3 5-3 8-1l6 4-3 4-6-4c-1-.7-2-.5-3 .7L5 13"/><path d="M19 17c-3 3-5 3-8 1l-6-4 3-4 6 4c1 .7 2 .5 3-.7L19 11"/>' }
-    ];
-    document.querySelectorAll('.nav-menu, .mobile-menu-nav').forEach(menu => {
-        const wifi = [...menu.querySelectorAll('a')].find(link => link.textContent.trim() === 'Wi-Fi Data');
-        if (!wifi) return;
-        for (const route of routes) {
-            if (menu.querySelector(`a[href="${route.href}"]`)) continue;
-            const link = document.createElement('a');
-            link.href = route.href;
-            if (menu.classList.contains('nav-menu')) link.className = 'nav-link';
-            link.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">${route.icon}</svg>${route.label}`;
-            const wrapper = menu.classList.contains('nav-menu') ? document.createElement('div') : link;
-            if (wrapper !== link) { wrapper.className = 'nav-item'; wrapper.append(link); }
-            menu.insertBefore(wrapper, wifi.closest('.nav-item') || wifi);
-        }
-    });
-}
-
 // ===== Initialize =====
 document.addEventListener('DOMContentLoaded', function() {
-    initReportNavigation();
     initTheme();
     setGreeting();
 

@@ -1,26 +1,8 @@
-import { createAuthShell } from './auth-shell.js'
-import { createPreferenceStore } from './preference-store.js'
-
-const DATABASE_ROUTES = [
+export const DATABASE_ROUTES = [
   { path: '/wifi-database/peak-throughput', dataType: 'PEAK_THROUGHPUT', label: 'Peak Throughput' },
   { path: '/wifi-database/rvr', dataType: 'RVR', label: 'RVR' },
   { path: '/wifi-database/rvo', dataType: 'RVO', label: 'RVO' }
 ]
-const REPORT_ROUTES = [
-  { path: '/jira.html', source: 'jira', label: 'Jira' },
-  { path: '/confluence.html', source: 'confluence', label: 'Confluence' }
-]
-
-const dashboardIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`
-const projectsIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`
-const inboxIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="m22 6-10 7L2 6"/></svg>`
-const analyticsIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>`
-const settingsIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.4 1z"/></svg>`
-const databaseIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 11v6c0 1.7 4 3 9 3s9-1.3 9-3v-6"/></svg>`
-const jiraIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m12 2 7 7-7 7-7-7 7-7z"/><path d="m12 9 5 5-5 5-5-5"/></svg>`
-const confluenceIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 7c3-3 5-3 8-1l6 4-3 4-6-4c-1-.7-2-.5-3 .7L5 13"/><path d="M19 17c-3 3-5 3-8 1l-6-4 3-4 6 4c1 .7 2 .5 3-.7L19 11"/></svg>`
-const lightIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`
-const darkIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
 
 function optionValues(payload, ...keys) {
   for (const key of keys) {
@@ -236,120 +218,10 @@ function databaseView(route, api, capabilities) {
   return { section, ready }
 }
 
-export function createApp({ root, api, capabilities = {} }) {
-  root.innerHTML = `
-    <div class="mobile-menu-overlay"></div>
-    <div class="mobile-menu" aria-hidden="true">
-      <div class="mobile-menu-header"><a class="logo" href="/"><span class="logo-icon">✓</span><span class="logo-label">SmartTest</span></a><button class="mobile-menu-close" type="button" aria-label="Close navigation">×</button></div>
-      <nav class="mobile-menu-nav"></nav>
-      <div class="mobile-menu-footer"><div data-user-mobile></div><div class="theme-toggle" data-preference-region data-preference-scope="global"><button class="theme-btn" type="button" data-theme="light" data-preference-key="theme" data-preference-value="light" title="Light theme">${lightIcon}</button><button class="theme-btn" type="button" data-theme="dark" data-preference-key="theme" data-preference-value="dark" title="Dark theme">${darkIcon}</button></div></div>
-    </div>
-    <div class="app-container">
-      <nav class="top-nav">
-        <div class="nav-container">
-          <div class="nav-left"><a class="logo" href="/"><span class="logo-icon">✓</span><span class="logo-label">SmartTest</span></a><div class="nav-menu"></div></div>
-          <div class="nav-right"><div class="theme-toggle" data-preference-region data-preference-scope="global"><button class="theme-btn" type="button" data-theme="light" data-preference-key="theme" data-preference-value="light" title="Light theme">${lightIcon}</button><button class="theme-btn" type="button" data-theme="dark" data-preference-key="theme" data-preference-value="dark" title="Dark theme">${darkIcon}</button></div><div class="user-entry" data-user-entry></div><button class="mobile-menu-btn" type="button" aria-label="Open navigation"><span></span><span></span><span></span></button></div>
-        </div>
-      </nav>
-      <nav class="database-nav" aria-label="Wi-Fi Data"></nav>
-      <main class="main-content"></main>
-    </div>
-    `
-  const nav = root.querySelector('.nav-menu')
-  const mobileNav = root.querySelector('.mobile-menu-nav')
-  const databaseNav = root.querySelector('.database-nav')
-  const main = root.querySelector('main')
-  const authShell = createAuthShell({ root, desktopHost: root.querySelector('[data-user-entry]'), mobileHost: root.querySelector('[data-user-mobile]'), api: capabilities.authApi })
-
-  function renderNavigation(route) {
-    nav.replaceChildren()
-    mobileNav.replaceChildren()
-    const routes = [
-      { path: '/', label: 'Dashboard', icon: dashboardIcon, active: !route },
-      { path: '/projects.html', label: 'Projects', icon: projectsIcon, active: false },
-      { path: '/inbox.html', label: 'Inbox', icon: inboxIcon, active: false },
-      { path: '/analytics.html', label: 'Analytics', icon: analyticsIcon, active: false },
-      { path: '/settings.html', label: 'Settings', icon: settingsIcon, active: false },
-      { path: '/jira.html', label: 'Jira', icon: jiraIcon, active: route?.source === 'jira' },
-      { path: '/confluence.html', label: 'Confluence', icon: confluenceIcon, active: route?.source === 'confluence' },
-      { path: DATABASE_ROUTES[0].path, label: 'Wi-Fi Data', icon: databaseIcon, active: Boolean(route?.dataType) }
-    ]
-    for (const item of routes) {
-      const link = document.createElement('a')
-      link.className = `nav-link${item.active ? ' active' : ''}`
-      link.href = item.path
-      link.innerHTML = `${item.icon}<span>${item.label}</span>`
-      nav.append(link)
-      mobileNav.append(link.cloneNode(true))
-    }
-    databaseNav.replaceChildren()
-    databaseNav.hidden = !route?.dataType
-    if (route?.dataType) {
-      for (const item of DATABASE_ROUTES) {
-        const link = document.createElement('a')
-        link.className = item.path === route.path ? 'active' : ''
-        link.href = item.path
-        link.textContent = item.label
-        databaseNav.append(link)
-      }
-    }
-  }
-
-  function setTheme(theme) {
-    const dark = theme === 'dark'
-    document.documentElement.classList.toggle('dark-theme', dark)
-    root.querySelectorAll('[data-theme]').forEach(button => button.classList.toggle('active', button.dataset.theme === theme))
-  }
-
-  setTheme('light')
-  root.querySelectorAll('[data-theme]').forEach(button => button.addEventListener('click', () => setTheme(button.dataset.theme)))
-  root.addEventListener('preference:restored', event => { if (event.target.dataset.theme) setTheme(event.detail.value) })
-  const menu = root.querySelector('.mobile-menu')
-  const overlay = root.querySelector('.mobile-menu-overlay')
-  const closeMenu = () => { menu.classList.remove('active'); overlay.classList.remove('active'); menu.setAttribute('aria-hidden', 'true') }
-  root.querySelector('.mobile-menu-btn').addEventListener('click', () => { menu.classList.add('active'); overlay.classList.add('active'); menu.setAttribute('aria-hidden', 'false') })
-  root.querySelector('.mobile-menu-close').addEventListener('click', closeMenu)
-  overlay.addEventListener('click', closeMenu)
-
-  async function render() {
-    const route = DATABASE_ROUTES.find(candidate => candidate.path === window.location.pathname) ?? REPORT_ROUTES.find(candidate => candidate.path === window.location.pathname)
-    renderNavigation(route)
-    main.replaceChildren()
-    if (!route) return
-    if (route.source) {
-      const workspace = capabilities.reportWorkspace?.(route.source)
-      if (workspace) { main.append(workspace.section); await workspace.start() }
-      return
-    }
-    capabilities.charts?.clear?.()
-    const { section, ready } = databaseView(route, api, capabilities)
-    main.append(section)
-    await ready
-  }
-
-  async function start() {
-    const session = await authShell.start()
-    await render()
-    if (session?.authenticated && capabilities.preferenceApi) {
-      const preferences = createPreferenceStore({ root, api: capabilities.preferenceApi })
-      await preferences.start()
-    }
-  }
-
-  root.addEventListener('click', event => {
-    const link = event.target.closest('a')
-    if (!link || link.origin !== window.location.origin) return
-    const route = [...DATABASE_ROUTES, ...REPORT_ROUTES].find(candidate => candidate.path === link.pathname)
-    if (!route) return
-    const canRender = route.source
-      ? typeof capabilities.reportWorkspace === 'function'
-      : typeof api?.getFilters === 'function'
-    if (!canRender) return
-    event.preventDefault()
-    window.history.pushState({}, '', link.pathname)
-    closeMenu()
-    render()
-  })
-  window.addEventListener('popstate', render)
-  return { start }
+export async function mountWifiDatabase({ root, api, capabilities = {}, path = window.location.pathname }) {
+  const route = DATABASE_ROUTES.find(candidate => candidate.path === path) ?? DATABASE_ROUTES[0]
+  capabilities.charts?.clear?.()
+  const { section, ready } = databaseView(route, api, capabilities)
+  root.replaceChildren(section)
+  await ready
 }

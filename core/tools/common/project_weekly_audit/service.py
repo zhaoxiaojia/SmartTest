@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from core.logging import smart_log
 
-from .discovery import discover_project_collection, discover_project_pages
+from .discovery import discover_project_collection, discover_project_pages, locate_basic_information
 from .models import (
     AuditBatch,
     AuditExecutionContext,
@@ -16,8 +16,8 @@ from .models import (
     ProjectAudit,
     ProjectCandidate,
     ProjectCollectionFilter,
-    UPDATE_MATRIX_POINTS,
 )
+from .rules import UPDATE_MATRIX_POINTS
 from .regions import extract_page_region, extract_project_owner
 
 
@@ -92,6 +92,13 @@ class ConfluenceAuditService:
             pages, errors = discover_project_pages(
                 self.client, project, return_errors=True,
             )
+            basic, basic_error, _context = locate_basic_information(
+                self.client, project, discovered=(pages, errors, None),
+            )
+            if basic is not None:
+                pages["basic"] = basic
+            elif "basic" not in errors:
+                errors["basic"] = basic_error
         except Exception as exc:
             smart_log(
                 "Confluence project page discovery failed",

@@ -67,6 +67,17 @@ class ConfluenceClient:
             if not rows or start >= int(payload.get("totalSize") or start):
                 return pages
 
+    def search_page_metadata(self, cql: str, *, limit: int = 100) -> list[ConfluencePage]:
+        """Return permission-filtered current page metadata without downloading bodies."""
+        pages, start = [], 0
+        while True:
+            payload = self._api.cql(cql, start=start, limit=limit, expand="version,space")
+            rows = payload.get("results") or []
+            pages.extend(replace(self._page(row), body="", view_body="") for row in rows)
+            start += len(rows)
+            if not rows or start >= int(payload.get("totalSize") or start):
+                return pages
+
     def get_page(self, page_id: str, *, prefer_export=False) -> ConfluencePage:
         expand = (
             "body.storage,body.view,body.export_view,version"
@@ -99,10 +110,14 @@ class ConfluenceClient:
             space, title = parts[marker + 1], parts[marker + 2]
         except (ValueError, IndexError):
             raise ValueError("Unsupported Confluence page URL") from None
-        page_id = self._api.get_page_id(space, title)
-        if not page_id:
+        expand = (
+            "body.view,body.export_view,version"
+            if prefer_export else "body.view,version"
+        )
+        payload = self._api.get_page_by_title(space, title, expand=expand)
+        if not payload:
             raise ValueError("Confluence page could not be resolved")
-        return self.get_page(str(page_id), prefer_export=prefer_export)
+        return self._page(payload, prefer_export=prefer_export)
 
     def get_parent_page(self, page_id: str) -> ConfluencePage | None:
         ancestors = self._api.get_page_ancestors(page_id) or []

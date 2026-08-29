@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 import re
 
-from .models import AuditAttentionPoint, MISSING_QA
+from .models import MISSING_QA
+from .rules import AuditAttentionPoint
 from .html import html_tables, text
 
 
@@ -16,7 +17,13 @@ _PLAIN_LABEL = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 _OWNER_POINT = AuditAttentionPoint(
-    "", "status", "", "QA",
+    stable_key="owner.qa",
+    source_page="status",
+    source_field="QA",
+    output_key="QA",
+    owner="extract_project_owner",
+    failure_semantic="missing_qa",
+    label="",
     table_fields=("Window",),
 )
 

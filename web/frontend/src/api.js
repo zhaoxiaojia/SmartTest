@@ -135,6 +135,13 @@ export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = 
       }
       if (!response.ok) throw new ApiUnavailableError(`Project facts API unavailable (${response.status}).`, { status: response.status })
       return response.json()
-    }
+    },
+    async cancelProjectSync() {
+      const response = await fetchImpl(`${baseUrl}/confluence/project-facts/cancel`, {
+        method: 'POST', credentials: 'same-origin'
+      })
+      if (!response.ok) throw new ApiUnavailableError(`Project sync cancellation failed (${response.status}).`, { status: response.status })
+      return response.json()
+    },
   }
 }

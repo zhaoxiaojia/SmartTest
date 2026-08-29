@@ -43,11 +43,35 @@ describe('Confluence project facts', () => {
     expect(document.body.textContent).not.toContain('Open in Confluence')
   })
 
+  it('waits for restored dynamic filters before first rendering business results', async () => {
+    let releasePreferences
+    const filtered = { ...payload, projects: [], ownerHierarchy: [] }
+    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(payload).mockResolvedValueOnce(filtered) }
+    const waitForPreferences = vi.fn(() => new Promise(resolve => {
+      releasePreferences = () => {
+        document.querySelector('[name="field.__product_space__"] option').selected = true
+        resolve()
+      }
+    }))
+    const started = createConfluenceProjects({
+      root: document.querySelector('#app'), api, waitForPreferences
+    }).start()
+
+    await vi.waitFor(() => expect(releasePreferences).toBeTypeOf('function'))
+    expect(document.querySelector('[data-projects]').textContent).not.toContain('Apollo')
+    releasePreferences()
+    await started
+
+    expect(api.getProjectFacts).toHaveBeenCalledTimes(2)
+    expect(api.getProjectFacts.mock.calls[1][0].fields.__product_space__).toEqual(['DOPL'])
+    expect(document.querySelector('[data-projects]').textContent).toContain('No matching projects')
+  })
+
   it('places Review Filters between Apply Filters and Reset inside the filter actions', async () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
     await createConfluenceProjects({ root: document.querySelector('#app'), api }).start()
     expect([...document.querySelector('.filter-actions').querySelectorAll('button')].map(button => button.textContent)).toEqual([
-      'Apply Filters', 'Review Filters', 'Reset'
+      'Apply Filters', 'Cancel Sync', 'Review Filters', 'Reset'
     ])
     expect(document.querySelector('.report-page-head [data-audit]')).toBeNull()
   })
@@ -68,7 +92,7 @@ describe('Confluence project facts', () => {
   it('renders identity-free metrics and custom expandable role and person cards', async () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
     await createConfluenceProjects({ root: document.querySelector('#app'), api }).start()
-    expect([...document.querySelectorAll('[data-metric] strong')].map(item => item.textContent)).toEqual(['1', '1', '1', '1.0'])
+    expect([...document.querySelectorAll('[data-metric] strong')].map(item => item.textContent)).toEqual(['1', '1', '1', '1', '1.0'])
     expect(document.querySelectorAll('details.owner-role, details.owner-person').length).toBe(0)
     expect(document.body.textContent).not.toContain('u-1')
     const roleToggle = document.querySelector('.owner-role-toggle')
@@ -79,6 +103,18 @@ describe('Confluence project facts', () => {
     const personToggle = document.querySelector('.owner-person-toggle')
     personToggle.click()
     expect(document.querySelector('.owner-project-list').textContent).toContain('Apollo')
+  })
+
+  it('shows canonical accessible projects separately from filtered matched projects', async () => {
+    const api = { getProjectFacts: vi.fn().mockResolvedValue({ ...payload, accessibleProjectCount: 651 }) }
+    await createConfluenceProjects({ root: document.querySelector('#app'), api }).start()
+    const metrics = Object.fromEntries([...document.querySelectorAll('[data-metric]')].map(card => [
+      card.querySelector('span').textContent, card.querySelector('strong').textContent
+    ]))
+    expect(metrics['Accessible projects']).toBe('651')
+    expect(metrics['Matched projects']).toBe('1')
+    expect(document.querySelector('.summary-definition')).toBeNull()
+    expect(document.body.textContent).not.toContain('Metric definition')
   })
 
   it('builds a sorted horizontal workload chart and hides identity-only names', async () => {
@@ -165,15 +201,17 @@ describe('Confluence project facts', () => {
   it('renders all seven common filters from the immediate loading payload then polls to ready', async () => {
     const loading = { ...payload, state: 'loading', snapshotTime: null, projects: [], ownerHierarchy: [], facets: fixedFacets }
     const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(loading).mockResolvedValueOnce(payload) }
-    const pollDelay = vi.fn().mockResolvedValue()
-    const component = createConfluenceProjects({ root: document.querySelector('#app'), api, pollDelay, maxPolls: 3 })
+    let releasePoll
+    const pollDelay = vi.fn(() => new Promise(resolve => { releasePoll = resolve }))
+    const component = createConfluenceProjects({ root: document.querySelector('#app'), api, pollDelay })
     await component.start()
-    expect([...document.querySelectorAll('[data-main-facets] label')].map(row => row.firstChild.textContent)).toEqual([
+    expect([...document.querySelectorAll('[data-main-facets] > label')].map(row => row.firstChild.textContent)).toEqual([
       'Product Space', 'Date of Commercial approval', 'Project ID', 'Project Status', 'Current Stage', 'Project Owner', 'Support Mode'
     ])
     expect([...document.querySelectorAll('[data-main-facets] select')].every(item => item.disabled)).toBe(true)
     expect([...document.querySelectorAll('[data-main-facets] .multi-select__summary')].every(item => item.textContent === 'Loading…')).toBe(true)
     expect(document.querySelector('[role="status"]').textContent).toContain('Loading')
+    releasePoll()
     await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(2))
     await vi.waitFor(() => expect(document.querySelector('[type="submit"]').disabled).toBe(false))
   })
@@ -182,13 +220,29 @@ describe('Confluence project facts', () => {
     const loading = { ...payload, state: 'loading', snapshotTime: null, projects: [], ownerHierarchy: [], facets: fixedFacets }
     const failed = { ...loading, state: 'failed' }
     const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(loading).mockResolvedValueOnce(failed) }
-    const component = createConfluenceProjects({ root: document.querySelector('#app'), api, pollDelay: () => Promise.resolve(), maxPolls: 5 })
+    const component = createConfluenceProjects({ root: document.querySelector('#app'), api, pollDelay: () => Promise.resolve() })
     await component.start()
     await vi.waitFor(() => expect(document.querySelector('[role="status"]').textContent).toContain('failed'))
     expect(api.getProjectFacts).toHaveBeenCalledTimes(2)
     component.destroy()
     await Promise.resolve()
     expect(api.getProjectFacts).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps partial facets selectable and polls beyond twenty responses without requesting details', async () => {
+    const partial = { ...payload, state: 'loading', catalogProgress: { completed: 1, pending: 3, total: 4 } }
+    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(partial) }
+    for (let index = 0; index < 21; index += 1) api.getProjectFacts.mockResolvedValueOnce(partial)
+    api.getProjectFacts.mockResolvedValueOnce(payload)
+    const component = createConfluenceProjects({ root: document.querySelector('#app'), api, pollDelay: () => Promise.resolve() })
+
+    await component.start()
+    expect(document.querySelector('[name="field.__product_space__"]').disabled).toBe(false)
+    expect(document.querySelector('[type="submit"]').disabled).toBe(true)
+    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(23))
+    await vi.waitFor(() => expect(document.querySelector('[type="submit"]').disabled).toBe(false))
+    expect(api.getProjectFacts.mock.calls.every(call => call[1]?.details === false)).toBe(true)
+    component.destroy()
   })
 
   it('uses the shared styled checkbox class for optional filters', async () => {
@@ -213,6 +267,22 @@ describe('Confluence project facts', () => {
     expect(api.getProjectFacts.mock.calls[1][0]).toEqual({ fields: { '__product_space__': ['DOPL'], 'unexpected owner': ['Alice'] }, search: 'Coco' })
     expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: true })
     expect(document.querySelector('[type="submit"]').disabled).toBe(false)
+  })
+
+  it('shows indeterminate feedback immediately on Apply before the API responds', async () => {
+    let resolveApply
+    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(payload)
+      .mockImplementationOnce(() => new Promise(resolve => { resolveApply = resolve })),
+      cancelProjectSync: vi.fn() }
+    await createConfluenceProjects({ root: document.querySelector('#app'), api }).start()
+
+    document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+
+    const bar = document.querySelector('[data-async-feedback] [role="progressbar"]')
+    expect(bar.dataset.indeterminate).toBe('true')
+    expect(document.querySelector('[type="submit"]').disabled).toBe(true)
+    resolveApply({ ...payload, sync: { state: 'ready', completed: 1, total: 1 } })
+    await vi.waitFor(() => expect(document.querySelector('[data-async-feedback]').dataset.state).toBe('success'))
   })
 
   it('shows Product Space labels while submitting keys and supports select all and clear', async () => {
@@ -258,6 +328,39 @@ describe('Confluence project facts', () => {
     expect([...select.selectedOptions]).toEqual([])
     expect(document.querySelector('[name="search"]').value).toBe('')
     expect([...select.options].map(option => option.value)).toEqual(['DOPL', 'TV'])
+  })
+
+  it('refreshes results on a higher revision when the applied context is unchanged', async () => {
+    const syncing = { ...payload, revision: 4, sync: { state: 'loading', completed: 0, total: 1 } }
+    const updated = { ...payload, revision: 5, sync: { state: 'ready', completed: 1, total: 1 },
+      projects: [], ownerHierarchy: [] }
+    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce({ ...payload, revision: 3 })
+      .mockResolvedValueOnce(syncing).mockResolvedValueOnce(updated), cancelProjectSync: vi.fn() }
+    await createConfluenceProjects({ root: document.querySelector('#app'), api, pollDelay: () => Promise.resolve() }).start()
+    document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await vi.waitFor(() => expect(document.querySelector('[data-projects]').textContent).toContain('No matching projects'))
+    expect(document.querySelector('[type="submit"]').disabled).toBe(false)
+  })
+
+  it('does not apply an old revision after controls change and cancel keeps local results', async () => {
+    let finishPoll
+    const syncing = { ...payload, revision: 4, sync: { state: 'loading', completed: 0, total: 1 } }
+    const updated = { ...payload, revision: 5, sync: { state: 'ready', completed: 1, total: 1 },
+      projects: [{ ...payload.projects[0], name: 'Old job result' }], ownerHierarchy: [] }
+    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce({ ...payload, revision: 3 })
+      .mockResolvedValueOnce(syncing).mockImplementationOnce(() => new Promise(resolve => { finishPoll = () => resolve(updated) })),
+      cancelProjectSync: vi.fn().mockResolvedValue({ cancelled: true }) }
+    await createConfluenceProjects({ root: document.querySelector('#app'), api, pollDelay: () => Promise.resolve() }).start()
+    document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await vi.waitFor(() => expect(finishPoll).toBeTypeOf('function'))
+    document.querySelector('[name="search"]').value = 'changed'
+    document.querySelector('[data-cancel]').click()
+    await vi.waitFor(() => expect(api.cancelProjectSync).toHaveBeenCalledOnce())
+    finishPoll()
+    await Promise.resolve()
+    expect(document.querySelector('[data-projects]').textContent).not.toContain('Old job result')
+    expect(document.querySelector('[data-projects]').textContent).toContain('Apollo')
+    expect(document.querySelector('[type="submit"]').disabled).toBe(false)
   })
 
   it('shows the complete Core Product Space names without a search control', async () => {

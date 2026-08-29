@@ -400,12 +400,12 @@ Confluence 项目事实继续复用搬移前的页面发现 owner，不维护只
 Confluence 筛选器只依赖四个 Project Space 目录页，不得等待所有项目的 `Basic Information` 与责任人员详情采集完成。首次账号缓存采用目录优先的两阶段流程：
 
 1. 当前账号成功 LDAP 登录后，若其账号命名空间没有项目事实快照，立即启动后台初始化，不等待用户进入 Confluence 页面。
-2. 后台任务以四个相互独立的有界请求并行读取当前账号可访问的四个 Project Space 目录；目录阶段完成后立即原子保存账号级快照，提供全部目录字段、四空间显示名、各空间 Stage 域和基础项目结果。
-3. Web 查询在目录快照可用后立即开放筛选器。页面加载、筛选勾选、Reset 和普通轮询不得读取 `Basic Information`、责任人员或项目页面图。
+2. 后台任务以四个相互独立的有界请求并行读取当前账号可访问的四个 Project Space 目录；`display/<space>/<title>` 复用 atlassian-python-api 的 `get_page_by_title` 单次定向调用并仅展开 `body.view,version`，`pageId` URL 继续使用 `get_page_by_id`，不得手写 HTTP。
+3. 每个目录请求完成后立即解析并原子保存同一账号级 `catalog_loading` 部分快照，携带 completed/pending/total 进度；最终快照按稳定空间顺序合并为 `catalog_ready`。部分筛选项立即可见、可选，但最终完成前禁用 Apply。页面加载、筛选勾选、Reset 和普通轮询不得读取 `Basic Information`、责任人员或项目页面图。
 4. 用户点击 `Apply Filters` 后，先在账号目录缓存中完成过滤；只有匹配项目才进入既有页面发现 owner 并读取 `Basic Information` 与责任人员详情。零匹配不得发起详情请求；已有有效详情缓存直接复用。
 5. 单个 Space 或项目无权限时静默排除；单个命中项目详情慢、失败或无权限不得阻塞其他匹配结果。详情不可用的项目保持基础结果可见并标记责任信息不可用。
 6. Server 重启后直接读取当前账号已有目录与详情缓存，不访问 Confluence。目录缓存不存在时从持久 session 的服务端 credential owner 恢复凭据并初始化；凭据不可用或解密失败时返回明确的 `reauthentication_required`，前端显示重新验证提示，不保持无限 Loading。
-7. 账号重新登录或验证后自动启动缺失目录缓存初始化；前端有界轮询目录阶段，目录快照可用后停止禁用筛选器。Apply 详情请求使用独立状态，不得把筛选器重新置为 Loading。
+7. 账号重新登录或验证后自动启动缺失目录缓存初始化；前端轮询始终显式使用 `details=false`，持续到终态、页面销毁或请求代次切换，不设固定次数上限。目录最终完成后启用 Apply；失败必须进入终态。Apply 详情请求使用独立状态，不得把筛选器重新置为 Loading。
 8. Preference scope 去除路由开头 `/`，例如 `confluence.html`，不得请求 `/api/preferences//confluence.html`。
 
 执行清单：
@@ -462,13 +462,13 @@ Jira 执行限制：Client 的新审查链路依赖 `JiraAuditBridge` 持有的�
 
 ### 13.2 Confluence 全项目 QA 责任事实（Core 阶段）
 
-本阶段先建立 Core 唯一 owner，不接入或修改 Web 前端。该 owner 从全部已配置 Product Space 读取项目目录，不套用现有周审查的 A/B、年份、项目状态或 Stage1/2/3 资格过滤；现有 Client 周审查入口与规则保持不变。
+Core 项目事实是 Client 与 Web 共用的唯一业务 owner。该 owner 从全部已配置 Product Space 读取项目目录，不套用现有周审查的 A/B、年份、项目状态或 Stage1/2/3 资格过滤；现有 Client 周审查入口与规则保持不变。
 
 执行清单：
 
 - [x] 保留 Product Space 每个实际表头、原始值与标准化字段，并单列未知表头差异；
 - [x] 从 `Basic Information` 精确提取 `Major FAE QA`、`FAE QA`、`QA Reviewer`，保留多人及源数据提供的 Confluence 稳定身份；
-- [x] 使用现有 app-data JSON owner 原子保存版本化快照，与 Client 的有界内存缓存分离；
+- [x] 使用 Web SQLite 保存项目最新当前态、动态属性、人员关系、来源页面和账号可见集合；旧 app-data JSON 仅允许一次性迁移读取，不参与运行或双写；
 - [x] 增量刷新复用未变化项目；失败时保留旧事实并标记 stale，目录缺失项目标记 inactive 而不删除；
 - [x] 提供只读本地查询与全字段 facets，不在查询时访问 Confluence；
 - [x] 通过全目录、未知列、角色多人、首次快照、零变化、单项目变化、局部失败、inactive、本地过滤与损坏/schema 拒绝测试；
@@ -479,7 +479,7 @@ Jira 执行限制：Client 的新审查链路依赖 `JiraAuditBridge` 持有的�
 
 Confluence Web 接入清单：
 
-- [x] Web API 只读取 `ProjectFactStore.load` 并调用 `query_project_facts`，查询过程不访问 Confluence；
+- [x] Web API 只读取 `ConfluenceCurrentStateRepository` 并复用 Core 本地查询规则，查询过程不访问 Confluence；
 - [x] 返回快照状态/时间、全量动态 facets、项目、字段差异及 stale/failed/inactive 数量；
 - [x] 明确展示 `no_snapshot`、`schema_error` 与 `partial_success`；
 - [x] Confluence 页面移除 Report Type、报告目录、报告预览、来源报告跳转和 Download；
@@ -492,9 +492,9 @@ Confluence Web 接入清单：
 - [x] 顶部 facets 在快照加载完成后保持固定；勾选、取消、全选和清空仅更新浏览器本地选择，Apply/Reset 只刷新下方责任层级，不用过滤响应收缩顶部选项；Core 与 Web 请求边界通过 `core.logging.smart_log` 记录有界筛选、命中/排除计数及返回层级汇总，不记录搜索内容、人员身份或项目明细；
 - [x] `Date of Commercial approval` 复用 `ProjectCollectionFilter.years` 和现有商业批准日期年份解析，选项显示年份但字段名保持原字符；
 - [x] 其他真实 Product Space 字段进入“更多筛选”，勾选后显示、取消后移除并清值；只将启用字段 key 保存到浏览器 `localStorage`，不保存业务事实；
-- [x] 页面加载本地事实快照时显示 loading 并禁用 Apply；级联选项由 Core 当前过滤结果返回，失效选择清除并提示；刷新失败状态保留快照时间与 stale 信息；
-- [x] 无本地 `ProjectFactStore` 快照时，登录会话从统一服务端 credential owner 取得 LDAP 账号和密码构造既有 `ConfluenceClient` 并生成缓存；缓存命中只做本地查询，显式刷新需要登录，并发刷新在 Web 编排层去重；
-- [x] 无快照首次查询立即返回带完整固定 facets/空 owner 层级的 `loading`，单一进程内后台任务执行刷新；前端保持七个常用筛选与更多筛选可见但禁用，并有界轮询至 `ready`、`partial_success` 或 `failed`，页面离开/组件销毁停止轮询；
+- [x] 页面先显示 SQLite 当前态；后台同步期间展示进度并禁用 Apply/Review，级联选项由当前数据库结果返回，失败时保留最后成功时间与 stale 信息；
+- [x] 数据库无当前账号可见集合时，从统一服务端 credential owner 恢复凭据并以轻量 CQL 初始化可见关系；项目详情按 page ID/version 增量更新全局当前态，并发同步在项目级 single-flight 去重；
+- [x] 首次查询立即返回本地空结构并启动后台目录同步；完成的 Space/项目可渐进写入。前端有界轮询现有 job，页面离开、Cancel 或组件销毁停止当前轮询；revision 增长且筛选上下文未变化时自动刷新结果与 facets；
 - [ ] Web 项目审查动作后续直接调用 `ConfluenceAuditService.run` 与 `export_project_audit_xlsx_by_product_line`；当前阶段仅把公共会话接入事实缓存刷新，不改变审查按钮边界；
 - [ ] 后续按 Coco 确认的管理视图实现组织层级、项目卡片与详情布局。
 
@@ -519,7 +519,105 @@ Confluence 页面在既有账号隔离、筛选、Apply、缓存与权限结果�
 - 每个项目、每个责任角色属性按一对多展开：以 `<br>` 分隔逻辑段；段内 `ri:user` 或带稳定身份的用户链接各自形成一条人员—项目关系，无列表分隔符的尾随文字仅为职责说明，逗号、分号、`、`、`，` 明确引出的纯文本则继续作为额外人员。无结构化用户的段沿用可读纯文本人员回退（包括 NA/TBD）。同一 identity 在该项目角色内只计一次，纯文本人员按规范化名称去重。
 - 图表、卡片和汇总只使用真实筛选结果，不引入项目等级或虚构指标；空结果及 API 错误沿用既有页面状态语义。
 
-本地快照刷新边界：查询始终先读取 `ProjectFactStore`，缓存命中不访问 Confluence。无快照且已登录时，首个请求不等待第三方网络，立即返回完整筛选结构和 `loading`；进程内 single-flight 后台任务从服务端 credential owner 恢复会话凭据并复用 `ConfluenceClient + refresh_project_facts` 生成持久快照，同期请求继续返回 `loading`。完成后本地查询返回 `ready/partial_success`；失败返回 `failed`，显式刷新可重新启动任务。凭据不写入响应、日志、浏览器存储或 SQLite session 表；Windows Credential Manager 或 Linux AEAD 密文存储独立持久化凭据，服务退出不持久后台任务。
+### 13.4 Web 静态 Shell 与导航单一 owner
+
+Dashboard、Projects、Jira、Confluence、Wi-Fi Data、Settings 以及可直接访问的 Inbox、Analytics HTML 入口都静态持有同一套 Shell；JavaScript 不创建、替换或补写顶部导航。品牌统一为 `FAE-QA Data Center`，主导航固定为 Dashboard、Projects、Jira、Confluence、Wi-Fi Data、Settings，Inbox 与 Analytics 保留页面入口但不进入主导航。
+
+- `smarttest-portal.js` 只保留主题、移动菜单、Greeting、Inbox、Kanban 等公共交互，不插入导航项。
+- `main.js` 只在已有 Shell 上挂接认证、账号级偏好和 Wi-Fi 路由启动；Report 与 Wi-Fi main 只把各自业务内容挂载到既有 `main.main-content`。
+- Wi-Fi 业务视图由单一 `wifi-database.js` owner 管理；不保留 `createApp` 动态 Shell 或前端页面内路由机制。
+
+本地当前态刷新边界：Web 查询只读 SQLite 中的全局项目当前态和当前账号可见集合，命中时不访问 Confluence。无本地当前态且已登录时，请求不等待第三方网络；进程内 single-flight 后台任务从服务端 credential owner 恢复凭据，通过 `ConfluenceClient` 更新账号可见集合和全局项目当前态。凭据不写入响应、日志、浏览器存储或 SQLite session 表；Windows Credential Manager 或 Linux AEAD 密文存储独立持久化凭据，服务退出不持久后台任务。
+
+### 13.5 Confluence 当前态数据中心重构（待 Coco 审查）
+
+本阶段将 Confluence 从“查询时抓取并解析页面”调整为“后台同步最新状态、Web 查询本地结构化数据”。只关心 Confluence 当前最新信息，不保存页面正文历史、属性历史或项目历史快照。Confluence `version.number` 和 `version.when` 仅用于判断本地当前态是否需要更新，不形成可查询的业务历史。
+
+#### 13.5.1 数据获取边界
+
+- `core/confluence/` 是 Confluence 访问的唯一 owner，优先复用已声明依赖 `atlassian-python-api` 提供的 CQL、页面、子页面、用户和附件 API；业务模块不得直接创建另一套 HTTP Client。
+- 数据发现优先使用 CQL/REST API，只请求当前步骤需要的轻量字段。账号项目可见性只读取 `id`、`title`、`space`、`version` 等元数据，不展开正文。
+- 只有 `atlassian-python-api` 未封装目标 REST API 时，才允许在 `core/confluence/` 内通过其受维护会话调用 Confluence REST endpoint；不得把直接请求分散到 Web 或审查规则模块。
+- 只有 REST API 无法提供目标内容，且已有真实页面证明必须解析渲染结果时，才使用页面内容/HTML 解析作为备用手段。备用路径必须返回与 API 路径相同的 Core 模型，并记录来源和失败原因，不得静默切换口径。
+- 浏览器前端只访问 SmartTest Web API，不直接访问、登录或解析 Confluence。
+
+#### 13.5.2 Core 分层与复用
+
+Confluence 业务按以下单一职责分层，不保留 Web 专用采集器或第二套项目模型：
+
+1. `ConfluenceClient`：认证、CQL 分页、轻量元数据查询、按 page ID 获取当前页面、用户显示名解析和必要的 REST 备用访问。
+2. 项目发现与可见性：识别四个 Product Space 中的项目，建立稳定 `project_page_id`，并以当前账号执行轻量 CQL 得到该账号当前可见的项目集合。
+3. 当前态映射：把 Confluence 当前页面映射成稳定项目字段、动态原始属性、人员角色关系和来源页面元数据；未知字段原样保存，不要求数据库 schema 随每个 Confluence 新表头修改。
+4. 同步服务：负责账号可见性刷新、项目当前态增量刷新、并发去重、失败隔离、取消和同步进度；Web 只调用该服务，不编排页面级抓取细节。
+5. 本地查询：只查询数据库，并在账号可见集合内执行 facets、过滤、全文搜索、责任汇总和审查输入组装；查询路径不等待 Confluence。
+6. 项目审查：统一读取当前态项目模型和集中规则定义，产出责任事实、每周审查结果及后续新增审查事实；不得各自重复发现、下载或解析同一页面。
+
+#### 13.5.3 当前态数据库模型
+
+Web SQLite 增加 Confluence 当前态存储，至少包含以下逻辑实体；实际表名可沿用仓库命名规范，但职责不得合并：
+
+- `confluence_projects`：每个项目一行，以稳定的 Confluence 项目 page ID 为主键，保存 Product Space、显示名、项目链接、当前页面版本、更新时间和当前同步状态。
+- `confluence_project_attributes`：按项目和稳定字段 key 保存动态属性，保留原始表头、原始值与规范化值；新增 Confluence 表头不要求修改 Web 前端或数据库表结构。
+- `confluence_project_people`：按项目、审查身份/角色和人员记录一对多关系，保存稳定 identity 与已解析的页面显示名；同一项目的同一角色中每个人单独计数。
+- `confluence_project_pages`：记录项目所需当前来源页的 page ID、页面类型、当前版本、更新时间和解析状态，用于按版本增量获取 `Basic Information`、周报及后续审查页面。
+- `confluence_account_project_access`：只保存 `account_id -> project_page_id` 当前可见关系和检查时间；项目内容不按账号复制。
+- `confluence_sync_state`：保存账号/Space 的最近成功同步时间、当前 revision、结果和有限错误摘要；不保存凭据、正文历史或旧属性版本。
+
+数据库更新规则：
+
+- 同一项目无论由哪个有权限账号读取，都更新同一份项目当前态；仅当 Confluence 当前版本更新时重新获取和解析所需页面。
+- 一个账号完整分页查询成功后，事务性替换该账号的可见项目集合，避免分页过程中暴露半套权限结果。
+- 某账号看不到项目只表示删除该账号的可见关系，不得据此删除全局项目数据或判断项目已失效。
+- 单项目同步失败时保留上一次成功的当前态并标记 stale；不得用空数据覆盖成功结果。权限查询整体失败时保留旧可见集合并明确标记刷新失败。
+- 数据库 schema 使用受控迁移、外键、唯一约束和事务；多账号或后台任务命中同一项目时按 page ID single-flight，避免重复解析和相互覆盖。
+
+#### 13.5.4 同步与 Web 响应流程
+
+- 登录恢复、Server 重启或进入页面时，Web 立即使用该账号最近一次成功的可见集合和数据库当前态响应，不等待 Confluence。
+- 后台每 5–15 分钟使用仍有效的账号凭据刷新该账号可见集合；不同账号只影响可见关系，不产生项目内容副本。
+- 点击 `Apply Filters` 只有一个动作入口：先立即返回本地数据库结果，同时为当前可见且命中过滤范围的项目触发增量同步。同步期间显示进度和 Cancel，禁用 Apply/Review；Cancel 只中止该次网络同步，不清空已经返回的本地结果。
+- 同步任务按项目独立并发，谁先完成谁先提交当前态。每次提交增加数据 revision；前端在用户未修改当前筛选上下文时自动重新查询，更新项目结果和筛选 facets。
+- 用户修改筛选条件后不再用旧任务结果覆盖当前视图，但旧任务已经成功取得的项目最新态仍可写入公共数据库。
+- 后台同步失败不阻塞本地查询；页面展示最后成功更新时间、同步状态和有限错误摘要，并允许下一次 Apply 或周期任务重试。
+
+#### 13.5.5 项目属性与审查规则唯一 owner
+
+`core/tools/common/project_weekly_audit/` 继续作为项目审查业务 owner，但需要从抓取流程中拆出集中规则定义。所有从 Confluence 提取业务事实的规则必须可在同一位置检索，包括：
+
+- Project Space 原始字段与标准字段映射、日期/Stage/Support Mode 等规范化规则；
+- `Basic Information` 页面定位规则；
+- `Major FAE QA`、`FAE QA`、`QA Reviewer` 等人员角色提取、多人展开、identity 去重和显示名解析规则；
+- 现有每周审查的项目资格、审查周期、目标页面、静态判断、语义判断、证据和结果规则；
+- 后续新增的项目属性或审查项。
+
+规则层只接收 `ConfluenceClient` 返回的 Core 页面模型或数据库当前态模型，不持有账号凭据、不直接发网络请求、不写 Web 响应。每条规则需声明稳定 rule key、输入页面/字段、输出字段、确定性判断和失败语义；规则实现版本只用于定位解析口径，不保留项目历史结果。
+
+责任事实与每周审查共享项目发现、页面定位、人员解析和字段规范化能力，但保持各自结果模型，避免把人员汇总规则硬编码进周审服务或把周审资格条件套到全项目责任事实。
+
+#### 13.5.6 需要补充的工程约束与验收
+
+- **权限安全**：所有 Web 查询必须先关联 `confluence_account_project_access`；任何全局项目缓存都不能绕过账号可见关系返回。
+- **动态字段**：新增 Product Space 属性只需同步后进入属性表和 facets，不要求修改数据库列、API 字段清单或前端控件代码。
+- **性能**：可见性查询不下载正文；本地 Apply 在数据库查询完成后立即响应；详细同步不占用请求线程。
+- **一致性**：账号可见集合原子替换，项目当前态按项目事务提交，页面与属性不能出现跨版本拼接。
+- **可观察性**：记录同步 job、账号匿名标识、Space、项目总数/完成数/失败数、耗时和结果；不记录密码、页面正文、搜索词或人员敏感明细。
+- **数据恢复**：SQLite 备份、迁移和损坏恢复纳入 Web 数据库既有机制；恢复后允许后台重新构建 Confluence 当前态。
+- **测试**：覆盖轻量 CQL 分页与权限过滤、账号可见集合替换、多账号共享项目数据、动态未知字段、页面版本未变化跳过、单项目失败保留旧值、多人角色展开、周审规则复用、并发去重、取消、后台更新后 Web revision 刷新，以及查询路径不访问 Confluence。
+- **迁移**：现有账号隔离 JSON 只作为迁移输入；迁移成功后数据库成为唯一查询 owner，不长期维护 JSON 与数据库双写。
+
+实施边界：本节通过审查后再拆分执行清单。本阶段不修改 Confluence，不引入历史数据仓库，不引入 Redis，不新增第二个手动刷新按钮，也不改变 Jira 或 Wi-Fi Data 行为。
+
+#### 13.5.7 已批准实施清单
+
+- [x] 以测试先行扩展 `ConfluenceClient`：增加轻量 CQL 元数据分页和必要的受维护 REST 备用入口，移除业务层重复请求与不必要的正文传递。
+- [x] 建立 SQLite Confluence 当前态 schema、迁移和 repository，覆盖项目、动态属性、人员关系、来源页面、账号可见关系与同步状态；不实现历史表和 JSON/数据库长期双写。
+- [x] 将现有账号 JSON 当前事实迁移为数据库当前态；迁移后所有 Web 查询只读数据库，旧 JSON owner 和账号级项目内容副本退出运行链路。
+- [x] 整理项目发现、动态字段映射、页面定位和人员解析，使同步服务按 page ID/version 增量更新同一份全局项目数据。
+- [x] 实现账号轻量可见性刷新、事务性集合替换、项目级 single-flight、有限并发、取消、失败保留和 5–15 分钟后台同步。
+- [x] 调整 Web Apply：立即返回账号权限范围内的本地结果，同时启动当前范围增量同步；同步期间显示进度/Cancel并禁用 Apply/Review，revision 更新后在筛选上下文未变化时自动刷新结果与 facets。
+- [x] 将 Owner/多人角色、Basic Information 和现有每周审查的提取规则集中到项目审查 owner，共享项目模型、页面定位、字段规范化和人员解析，删除重复采集、转换与中间数据传递。
+- [x] 删除被数据库、同步服务和集中规则替代的 JSON 刷新、查询时详情抓取、Web 编排和兼容分支；检查净生产代码增长，拒绝并行 owner 和无必要包装。
+- [x] 完成 Core、数据库、Web API、前端状态、日志/边界测试、迁移测试、lint/build、`git diff --check` 和最高可行的实际账号验证；未得到 Coco 功能确认前不提交。
 
 采用“基础模块先行、业务模块逐个交付、Home 后聚合、最后统一整合”的顺序：
 

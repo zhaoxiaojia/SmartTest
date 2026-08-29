@@ -5,23 +5,21 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 import hashlib
 import json
-from pathlib import Path
 from time import perf_counter
 from urllib.parse import parse_qs, urljoin, urlsplit
 import re
 
-from core.config.jsonTool import read_json, resolve_json_path, write_json
 from core.logging import smart_log
-from .discovery import PRODUCT_LINES, _commercial_year, discover_project_pages
+from .discovery import PRODUCT_LINES, _commercial_year, locate_basic_information
 from .html import html_tables, links, text
 from .models import ConfluenceProject, ProjectCandidate, ProjectCollectionFilter
 from .project_collection import filter_projects, summarize_project_fact_filters
+from .role_parser import extract_project_roles, resolve_role_display_names
+from .rules import CANONICAL_PROJECT_FIELDS, ROLE_LABELS, normalize_project_field
 
 
 SCHEMA_VERSION = 1
 ROLE_PARSER_VERSION = 2
-DEFAULT_STORE_PATH = Path("confluence_audit") / "project_responsibility_facts.json"
-ROLE_LABELS = ("Major FAE QA", "FAE QA", "QA Reviewer")
 PRODUCT_SPACE_FACET = "__product_space__"
 PROJECT_SPACE_FACET_DEFINITIONS = (
     (PRODUCT_SPACE_FACET, "Product Space"),
@@ -47,147 +45,9 @@ PROJECT_SPACE_FACET_DEFINITIONS = (
     ("sum", "Sum"),
 )
 PROJECT_SPACE_FILTER_FIELDS = tuple(key for key, _label in PROJECT_SPACE_FACET_DEFINITIONS)
-CANONICAL_HEADERS = {
-    "page", "project id", "date of commercial approval", "support mode",
-    "project status", "current stage",
-}
 
 
-class ProjectFactsSchemaError(ValueError):
-    pass
-
-
-class ProjectFactStore:
-    def __init__(self, path: str | Path = DEFAULT_STORE_PATH):
-        self.path = Path(path)
-        self.resolved_path = resolve_json_path(self.path)
-
-    def load(self):
-        try:
-            payload = read_json(self.resolved_path, None)
-        except (ValueError, OSError) as exc:
-            raise ProjectFactsSchemaError(f"Project facts are unreadable: {type(exc).__name__}") from exc
-        if payload in ({}, None):
-            return None
-        if not isinstance(payload, dict) or payload.get("schema_version") != SCHEMA_VERSION or not isinstance(payload.get("projects"), list):
-            raise ProjectFactsSchemaError("Unsupported project facts schema")
-        return payload
-
-    def save(self, snapshot):
-        write_json(self.resolved_path, snapshot)
-
-
-def refresh_project_facts(client, store: ProjectFactStore, product_lines=PRODUCT_LINES, *, now=None):
-    now = now or datetime.now(timezone.utc)
-    previous = store.load() or {"projects": []}
-    old_by_id = {row["identity"]: row for row in previous["projects"]}
-    seen = set()
-    projects = []
-    stage_domains = {}
-    discrepancies = set()
-    sources = []
-    inaccessible_spaces = set()
-
-    for line in product_lines:
-        try:
-            source = client.get_page_by_url(line.source_url)
-        except Exception as exc:
-            if _is_access_denied(exc):
-                inaccessible_spaces.add(line.key)
-                continue
-            raise
-        source_evidence = _page_evidence(source, line.key)
-        source_evidence["display_name"] = line.display_name
-        sources.append(source_evidence)
-        catalog_rows = _catalog_rows(source, line.key)
-        for catalog in catalog_rows:
-            stage = catalog.get("fields", {}).get("current stage", "")
-            if stage and stage not in stage_domains.setdefault(line.key, []):
-                stage_domains[line.key].append(stage)
-            catalog["catalog_source"] = source_evidence
-            identity = catalog["identity"]
-            seen.add(identity)
-            discrepancies.update(catalog.pop("discrepancies"))
-            old = old_by_id.get(identity)
-            try:
-                catalog_unchanged = bool(old and old.get("catalog_fingerprint") == catalog["catalog_fingerprint"])
-                project = ProjectCandidate(
-                    status_page_id=catalog.get("page_id", ""), project_id=catalog["project_id"],
-                    name=" ".join(filter(None, (catalog["name"], catalog.get("page_id", "")))),
-                    status_url=catalog["page_url"], home_url=catalog["page_url"],
-                    space_key=line.key, page_identity=catalog["project_id"],
-                )
-                pages, discovery_errors, discovery_context = discover_project_pages(
-                    client, project, return_errors=True, return_context=True,
-                    resolved_entry_page_id=(old or {}).get("entry_page_id", "") if not catalog.get("page_id") else "",
-                    resolved_root_page_id=(old or {}).get("root_page_id", "") if not catalog.get("page_id") else "",
-                )
-                detail_metadata = pages.get("basic")
-                if detail_metadata is None:
-                    error = discovery_errors.get("basic", "Basic Information page was not found")
-                    raise LookupError(error)
-                detail_path = discovery_context.get("page_paths", {}).get(
-                    "basic", [discovery_context["root_page_id"], str(detail_metadata.id)],
-                )
-                catalog.update({key: discovery_context[key] for key in ("entry_page_id", "root_page_id")})
-                if old:
-                    detail_unchanged = _same_page_evidence(
-                        old.get("detail_source"), detail_metadata,
-                    )
-                    if catalog_unchanged and detail_unchanged and _current_role_parser(old):
-                        row = deepcopy(old)
-                        row.update(catalog)
-                        row.update(active=True, status="current", error=None)
-                        projects.append(row)
-                        continue
-                    detail = client.get_page(detail_metadata.id)
-                else:
-                    detail = client.get_page(detail_metadata.id)
-                roles = _extract_roles(detail.body or detail.view_body)
-                row = {
-                    **catalog, "roles": roles, "active": True, "status": "current",
-                    "error": None, "detail_source": _detail_evidence(detail, line.key),
-                    "detail_path": detail_path,
-                    "updated_at": now.isoformat(),
-                }
-            except Exception as exc:
-                if _is_access_denied(exc):
-                    continue
-                if old:
-                    row = deepcopy(old)
-                    row.update(catalog)
-                    row.update(active=True, status="stale", error={"type": type(exc).__name__, "message": str(exc)},
-                               updated_at=now.isoformat())
-                else:
-                    row = {
-                        **catalog, "roles": {label: [] for label in ROLE_LABELS},
-                        "active": True, "status": "failed",
-                        "error": {"type": type(exc).__name__, "message": str(exc)},
-                        "detail_source": None, "updated_at": now.isoformat(),
-                    }
-            projects.append(row)
-
-    for identity, old in old_by_id.items():
-        if old.get("space_key") in inaccessible_spaces:
-            continue
-        if identity not in seen:
-            row = deepcopy(old)
-            row.update(active=False, status="inactive", updated_at=now.isoformat())
-            projects.append(row)
-            discrepancies.update(row.get("field_discrepancies", ()))
-    projects.sort(key=lambda row: (row["project_id"].casefold(), row["identity"].casefold()))
-    snapshot = {
-        "schema_version": SCHEMA_VERSION,
-        "source": "Confluence Product Line Project Spaces",
-        "updated_at": now.isoformat(), "sources": sources,
-        "field_discrepancies": sorted(discrepancies, key=str.casefold),
-        "projects": projects, "stage_domains": stage_domains,
-    }
-    store.save(snapshot)
-    return snapshot
-
-
-def refresh_project_catalogs(client, store: ProjectFactStore, product_lines=PRODUCT_LINES, *, now=None):
+def refresh_project_catalogs(client, store, product_lines=PRODUCT_LINES, *, now=None):
     """Fetch only independent Product Space catalogs and publish them atomically."""
     started = perf_counter()
     now = now or datetime.now(timezone.utc)
@@ -204,128 +64,117 @@ def refresh_project_catalogs(client, store: ProjectFactStore, product_lines=PROD
         except Exception as exc:
             return index, line, None, [], exc, (perf_counter() - phase_started) * 1000
 
-    fetched = []
-    with ThreadPoolExecutor(max_workers=min(4, max(1, len(product_lines)))) as pool:
-        futures = [pool.submit(fetch, item) for item in enumerate(product_lines, start=1)]
-        for future in as_completed(futures):
-            fetched.append(future.result())
+    fetched = {}
 
-    projects = []
-    sources = []
-    stage_domains = {}
-    discrepancies = set()
-    seen = set()
-    inaccessible_spaces = set()
-    for index, line, source, rows, error, duration_ms in sorted(fetched):
-        if error:
-            if not _is_access_denied(error):
-                raise error
-            inaccessible_spaces.add(line.key)
-        else:
+    def build_snapshot(*, phase):
+        projects = []
+        sources = []
+        stage_domains = {}
+        discrepancies = set()
+        seen = set()
+        inaccessible_spaces = set()
+        completed_spaces = set()
+        for index, line, source, rows, error, _duration_ms in sorted(fetched.values()):
+            completed_spaces.add(line.key)
+            if error:
+                if not _is_access_denied(error):
+                    raise error
+                inaccessible_spaces.add(line.key)
+                continue
             evidence = _page_evidence(source, line.key)
             evidence["display_name"] = line.display_name
             sources.append(evidence)
-            for catalog in rows:
+            for source_catalog in rows:
+                catalog = deepcopy(source_catalog)
                 catalog["catalog_source"] = evidence
-                discrepancies.update(catalog.pop("discrepancies"))
+                discrepancies.update(catalog.pop("discrepancies", ()))
                 seen.add(catalog["identity"])
                 stage = catalog.get("fields", {}).get("current stage", "")
                 if stage and stage not in stage_domains.setdefault(line.key, []):
                     stage_domains[line.key].append(stage)
                 old = old_by_id.get(catalog["identity"])
                 if old and old.get("catalog_fingerprint") == catalog["catalog_fingerprint"]:
-                    row = deepcopy(old)
-                    row.update(catalog)
-                    row.update(active=True)
+                    row = deepcopy(old); row.update(catalog); row.update(active=True)
                 else:
                     row = {**catalog, "roles": {label: [] for label in ROLE_LABELS},
                            "active": True, "status": "catalog_ready", "error": None,
                            "detail_source": None, "updated_at": now.isoformat()}
                 projects.append(row)
-        smart_log(
-            "Confluence project facts phase: product catalog fetched",
-            domain="confluence", source="project_facts",
-            extra={"space_index": index, "catalog_count": len(rows), "accessible": error is None,
-                   "duration_ms": round(duration_ms, 3)},
-        )
-    for identity, old in old_by_id.items():
-        if identity not in seen and old.get("space_key") not in inaccessible_spaces:
-            row = deepcopy(old); row.update(active=False, status="inactive", updated_at=now.isoformat())
-            projects.append(row)
-    projects.sort(key=lambda row: (row["project_id"].casefold(), row["identity"].casefold()))
-    snapshot = {"schema_version": SCHEMA_VERSION, "source": "Confluence Product Line Project Spaces",
+        for identity, old in old_by_id.items():
+            space_key = old.get("space_key")
+            if space_key not in completed_spaces:
+                projects.append(deepcopy(old))
+            elif identity not in seen and space_key not in inaccessible_spaces:
+                row = deepcopy(old); row.update(active=False, status="inactive", updated_at=now.isoformat())
+                projects.append(row)
+        projects.sort(key=lambda row: (row["project_id"].casefold(), row["identity"].casefold()))
+        completed = len(fetched)
+        return {"schema_version": SCHEMA_VERSION, "source": "Confluence Product Line Project Spaces",
                 "updated_at": now.isoformat(), "sources": sources,
                 "field_discrepancies": sorted(discrepancies, key=str.casefold),
-                "projects": projects, "stage_domains": stage_domains, "phase": "catalog_ready"}
-    store.save(snapshot)
-    smart_log("Confluence project facts phase: catalog snapshot saved", domain="confluence", source="project_facts",
-              extra={"space_count": len(sources), "catalog_count": len(projects),
-                     "elapsed_ms": round((perf_counter() - started) * 1000, 3)})
+                "projects": projects, "stage_domains": stage_domains, "phase": phase,
+                "catalog_progress": {"completed": completed,
+                                     "pending": len(product_lines) - completed,
+                                     "total": len(product_lines)}}
+
+    with ThreadPoolExecutor(max_workers=min(4, max(1, len(product_lines)))) as pool:
+        futures = [pool.submit(fetch, item) for item in enumerate(product_lines, start=1)]
+        for future in as_completed(futures):
+            result = future.result()
+            index, line, _source, rows, error, duration_ms = result
+            fetched[index] = result
+            snapshot = build_snapshot(
+                phase="catalog_ready" if len(fetched) == len(product_lines) else "catalog_loading",
+            )
+            store.save(snapshot)
+            smart_log(
+                "Confluence project facts phase: product catalog fetched "
+                "(space=%s, duration_ms=%s, catalog_count=%s, progress=%s/%s)",
+                line.key, round(duration_ms, 3), len(rows), len(fetched), len(product_lines),
+                domain="confluence", source="project_facts",
+                extra={"space_index": index, "catalog_count": len(rows), "accessible": error is None,
+                       "duration_ms": round(duration_ms, 3), "completed": len(fetched),
+                       "pending": len(product_lines) - len(fetched)},
+            )
+    elapsed_ms = round((perf_counter() - started) * 1000, 3)
+    smart_log("Confluence project facts phase: catalog snapshot saved "
+              "(duration_ms=%s, space_count=%s, catalog_count=%s)",
+              elapsed_ms, len(snapshot["sources"]), len(snapshot["projects"]),
+              domain="confluence", source="project_facts",
+              extra={"space_count": len(snapshot["sources"]), "catalog_count": len(snapshot["projects"]),
+                     "elapsed_ms": elapsed_ms})
     return snapshot
 
 
-def enrich_project_facts(client, store: ProjectFactStore, *, filters=None, search="", now=None):
-    """Fetch Basic Information only for locally matched catalog projects."""
+def extract_project_detail(client, original, *, now=None, resolved_names=None):
+    """Fetch and map one catalog project into one complete current-state payload."""
     now = now or datetime.now(timezone.utc)
-    snapshot = store.load()
-    if snapshot is None:
-        return None
-    matched = {row["identity"] for row in query_project_facts(snapshot, filters=filters, search=search)["projects"]}
-    projects = []
-    attempted = completed = 0
-    durable_names = _durable_role_names(snapshot.get("projects", ()))
-    resolved_names = dict(durable_names)
-    lookup_attempted = lookup_resolved = 0
-    started = perf_counter()
-    for original in snapshot["projects"]:
-        if original.get("identity") not in matched or not original.get("active", True):
-            projects.append(original); continue
-        if original.get("detail_source") and original.get("status") == "current" and _current_role_parser(original):
-            row = deepcopy(original)
-            lookup_counts = _resolve_role_names(client, row.get("roles", {}), resolved_names)
-            lookup_attempted += lookup_counts[0]
-            lookup_resolved += lookup_counts[1]
-            projects.append(row); continue
-        attempted += 1
-        row = deepcopy(original)
-        try:
-            project = ProjectCandidate(
-                status_page_id=row.get("page_id", ""), project_id=row["project_id"],
-                name=" ".join(filter(None, (row["name"], row.get("page_id", "")))),
-                status_url=row["page_url"], home_url=row["page_url"],
-                space_key=row["space_key"], page_identity=row["project_id"],
-            )
-            pages, errors, context = discover_project_pages(
-                client, project, return_errors=True, return_context=True,
-                resolved_entry_page_id=row.get("entry_page_id", "") if not row.get("page_id") else "",
-                resolved_root_page_id=row.get("root_page_id", "") if not row.get("page_id") else "",
-            )
-            metadata = pages.get("basic")
-            if metadata is None:
-                raise LookupError(errors.get("basic", "Basic Information page was not found"))
-            detail = client.get_page(metadata.id)
-            roles = _extract_roles(detail.body or detail.view_body)
-            lookup_counts = _resolve_role_names(client, roles, resolved_names)
-            lookup_attempted += lookup_counts[0]
-            lookup_resolved += lookup_counts[1]
-            row.update(entry_page_id=context["entry_page_id"], root_page_id=context["root_page_id"],
-                       detail_path=context.get("page_paths", {}).get("basic", []),
-                       roles=roles, status="current", error=None,
-                       detail_source=_detail_evidence(detail, row["space_key"]), updated_at=now.isoformat())
-            completed += 1
-        except Exception as exc:
-            if not _is_access_denied(exc):
-                row.update(status="failed", error={"type": type(exc).__name__, "message": str(exc)},
-                           updated_at=now.isoformat())
-        projects.append(row)
-    snapshot = {**snapshot, "projects": projects, "phase": "ready", "updated_at": now.isoformat()}
-    store.save(snapshot)
-    smart_log("Confluence project facts phase: matched details completed", domain="confluence", source="project_facts",
-              extra={"matched_count": len(matched), "attempted_count": attempted, "completed_count": completed,
-                     "identity_lookup_count": lookup_attempted, "identity_resolved_count": lookup_resolved,
-                     "identity_fallback_count": lookup_attempted - lookup_resolved,
-                     "duration_ms": round((perf_counter() - started) * 1000, 3)})
-    return snapshot
+    row = deepcopy(original)
+    names = resolved_names if resolved_names is not None else {}
+    if row.get("detail_source") and row.get("status") == "current" and _current_role_parser(row):
+        resolve_role_display_names(client, row.get("roles", {}), names)
+        return row
+    project = ProjectCandidate(
+        status_page_id=row.get("page_id", ""), project_id=row["project_id"],
+        name=" ".join(filter(None, (row["name"], row.get("page_id", "")))),
+        status_url=row["page_url"], home_url=row["page_url"],
+        space_key=row["space_key"], page_identity=row["project_id"],
+    )
+    metadata, error, context = locate_basic_information(
+        client, project,
+        resolved_entry_page_id=row.get("entry_page_id", "") if not row.get("page_id") else "",
+        resolved_root_page_id=row.get("root_page_id", "") if not row.get("page_id") else "",
+    )
+    if metadata is None:
+        raise LookupError(error)
+    detail = client.get_page(metadata.id)
+    roles = extract_project_roles(detail.body or detail.view_body)
+    resolve_role_display_names(client, roles, names)
+    row.update(entry_page_id=context["entry_page_id"], root_page_id=context["root_page_id"],
+               detail_path=context.get("page_paths", {}).get("basic", []), roles=roles,
+               status="current", error=None,
+               detail_source=_detail_evidence(detail, row["space_key"]), updated_at=now.isoformat())
+    return row
 
 
 def query_project_facts(snapshot, *, filters=None, search="", include_inactive=False):
@@ -492,7 +341,7 @@ def _catalog_rows(source, space_key):
     result = []
     for row in merged.values():
         row["raw_headers"] = list(dict.fromkeys(row["raw_headers"]))
-        row["discrepancies"] = [header for header in row["raw_headers"] if _normalize(header) not in CANONICAL_HEADERS]
+        row["discrepancies"] = [header for header in row["raw_headers"] if normalize_project_field(header) not in CANONICAL_PROJECT_FIELDS]
         row["field_discrepancies"] = list(row["discrepancies"])
         row["catalog_fingerprint"] = hashlib.sha256(json.dumps(
             {"identity": row["identity"], "raw_fields": row["raw_fields"]},
@@ -502,116 +351,8 @@ def _catalog_rows(source, space_key):
     return result
 
 
-def _extract_roles(body):
-    roles = {label: [] for label in ROLE_LABELS}
-    for row in re.findall(r"<tr\b[^>]*>(.*?)</tr>", body or "", re.I | re.S):
-        cells = re.findall(r"<t[hd]\b[^>]*>(.*?)</t[hd]>", row, re.I | re.S)
-        if len(cells) < 2:
-            continue
-        label = text(cells[0]).strip()
-        if label not in roles:
-            continue
-        roles[label] = _people(cells[1])
-    return roles
-
-
-def _durable_role_names(projects):
-    names = {}
-    for project in projects:
-        for people in project.get("roles", {}).values():
-            for person in people:
-                identity = str(person.get("identity") or "").strip()
-                name = str(person.get("name") or "").strip()
-                if identity and _human_role_name(name, identity):
-                    names.setdefault(identity, name)
-    return names
-
-
-def _resolve_role_names(client, roles, resolved_names):
-    attempted = resolved = 0
-    for people in roles.values():
-        for person in people:
-            identity = str(person.get("identity") or "").strip()
-            name = str(person.get("name") or "").strip()
-            if not identity:
-                continue
-            if _human_role_name(name, identity):
-                resolved_names.setdefault(identity, name)
-            elif identity not in resolved_names:
-                attempted += 1
-                try:
-                    resolved_name = client.get_user_display_name(identity)
-                except Exception:  # noqa: BLE001 - individual visibility must not fail enrichment
-                    resolved_name = ""
-                resolved_names[identity] = resolved_name or name or identity
-                resolved += bool(resolved_name)
-            person["name"] = resolved_names.get(identity) or name or identity
-    return attempted, resolved
-
-
-def _human_role_name(name, identity):
-    return bool(name and _normalize(name) != _normalize(identity))
-
-
-def _same_page_evidence(previous, current):
-    if not previous or str(previous.get("page_id") or "") != str(current.id or ""):
-        return False
-    previous_updated = previous.get("updated_at")
-    current_updated = current.updated_at.isoformat() if current.updated_at else None
-    return int(previous.get("version") or 0) == int(current.version or 0) and previous_updated == current_updated
-
-
 def _is_access_denied(exc):
     return getattr(getattr(exc, "response", None), "status_code", None) in {401, 403}
-
-
-def _people(cell):
-    people = []
-    seen_identities = set()
-    seen_plain_names = set()
-    for segment in re.split(r"<br\s*/?>", cell, flags=re.I):
-        structured = []
-        for tag in re.findall(r"<ri:user\b[^>]*/?>", segment, re.I):
-            identity = _attribute(tag, "ri:account-id") or _attribute(tag, "ri:userkey") or _attribute(tag, "ri:username")
-            if identity:
-                structured.append({"name": _attribute(tag, "ri:display-name") or identity, "identity": identity})
-
-        anchor_names = []
-        for attrs, body in re.findall(r"<a\b([^>]*)>(.*?)</a>", segment, re.I | re.S):
-            name = text(body).strip()
-            query = parse_qs(urlsplit(_attribute(attrs, "href")).query)
-            identity = (_attribute(attrs, "data-account-id") or _attribute(attrs, "data-username")
-                        or (query.get("accountId") or query.get("userKey") or query.get("username") or [""])[0])
-            if identity:
-                structured.append({"name": name or identity, "identity": identity})
-            elif name:
-                anchor_names.append(name)
-
-        residual = re.sub(r"<ri:user\b[^>]*/?>", " ", segment, flags=re.I)
-        residual = re.sub(r"<a\b[^>]*>.*?</a>", " ", residual, flags=re.I | re.S)
-        residual_text = text(residual).strip()
-        if structured:
-            plain_names = []
-            if re.match(r"^[,;、，]", residual_text):
-                plain_names = [name.strip() for name in re.split(r"[,;、，]+", residual_text) if name.strip()]
-        else:
-            plain_names = anchor_names + [name.strip() for name in re.split(r"[,;、，\n]+", residual_text) if name.strip()]
-
-        for person in structured:
-            if person["identity"] not in seen_identities:
-                seen_identities.add(person["identity"])
-                people.append(person)
-        for name in plain_names:
-            normalized = _normalize(name)
-            if normalized not in seen_plain_names:
-                seen_plain_names.add(normalized)
-                people.append({"name": name, "identity": ""})
-    return people
-
-
-def _attribute(value, name):
-    match = re.search(rf"\b{re.escape(name)}\s*=\s*(['\"])(.*?)\1", value or "", re.I | re.S)
-    return match.group(2).strip() if match else ""
 
 
 def _page_evidence(page, space_key):
@@ -631,8 +372,7 @@ def _current_role_parser(project):
 
 
 def _header(value):
-    normalized = _normalize(text(value))
-    return "page" if normalized in {"页面", "page"} else normalized
+    return normalize_project_field(text(value))
 
 
 def _normalize(value):

@@ -7,9 +7,12 @@ from core.logging import smart_log
 from .html import html_tables, links, text
 from .models import ConfluenceProject, ProductLine, ProjectCandidate, ProjectCollectionFilter
 from .project_collection import filter_projects
+from .rules import BASIC_INFORMATION_RULE
 
 PAGE_ALIASES = (
-    ("basic", re.compile(r"basic\s*information\s*$", re.I)),
+    (BASIC_INFORMATION_RULE.output_key, re.compile(
+        re.escape(BASIC_INFORMATION_RULE.source_field).replace("\\ ", r"\s*") + r"\s*$", re.I,
+    )),
     ("status", re.compile(r"(?:project\s*)?status\s*report\s*$", re.I)),
     ("test_information", re.compile(r"test\s*information\s*$", re.I)),
     ("test_plan", re.compile(r"test\s*plan\s*$", re.I)),
@@ -407,6 +410,22 @@ def discover_project_pages(client, project: ProjectCandidate, *, return_errors=F
             "page_paths": {kind: candidate_paths[str(page.id)] for kind, page in pages.items()},
         }
     return (pages, errors) if return_errors else pages
+
+
+def locate_basic_information(client, project: ProjectCandidate, *, resolved_entry_page_id="",
+                             resolved_root_page_id="", discovered=None):
+    """Single owner for Basic Information location and its discovery metadata."""
+    if discovered is None:
+        pages, errors, context = discover_project_pages(
+            client, project, return_errors=True, return_context=True,
+            resolved_entry_page_id=resolved_entry_page_id,
+            resolved_root_page_id=resolved_root_page_id,
+        )
+    else:
+        pages, errors, context = discovered
+    page = pages.get("basic")
+    error = errors.get("basic", BASIC_INFORMATION_RULE.failure_semantic) if page is None else ""
+    return page, error, context
 
 
 def _page_identity(value):

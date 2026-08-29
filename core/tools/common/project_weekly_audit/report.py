@@ -6,7 +6,8 @@ import re
 
 from core.reporting.excel import write_xlsx_sections
 
-from .models import AuditStatus, UPDATE_MATRIX_POINTS
+from .models import AuditStatus
+from .rules import UPDATE_MATRIX_POINTS
 
 
 PROJECT_AUDIT_HEADERS = (

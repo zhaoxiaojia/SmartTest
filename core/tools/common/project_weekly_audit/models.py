@@ -2,7 +2,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Literal
 
 class AuditStatus(str, Enum):
     UPDATED = "updated"
@@ -15,70 +14,6 @@ class AuditStatus(str, Enum):
     UNKNOWN = "unknown"
 
 
-@dataclass(frozen=True)
-class AuditAttentionPoint:
-    rule_id: str
-    page_kind: str
-    label: str
-    standard_name: str
-    heading_names: tuple[str, ...] = ()
-    table_fields: tuple[str, ...] = ()
-    use_page_body: bool = False
-    table_region_fields: tuple[str, ...] = ()
-    heading_boundary: Literal["sibling", "page_end"] = "sibling"
-
-
-UPDATE_MATRIX_POINTS = (
-    AuditAttentionPoint(
-        "test.weekly", "test_information",
-        "Basic Information.Test Information.Phase Status（当前阶段测试状态）",
-        "Phase Status",
-        ("Phase Status", "Software Testing Status"),
-        ("Phase Status",),
-    ),
-    AuditAttentionPoint(
-        "test.summary", "test_information",
-        "Basic Information.Test Information.项目整体状态Summary",
-        "Summary",
-        ("Summary",), ("Summary",),
-    ),
-    AuditAttentionPoint(
-        "test.tasks", "test_information",
-        "Basic Information.Test Information.Task Arrangement of Important Test（Must give ETA）",
-        "Task Arrangement",
-        ("Task Arrangement",),
-        ("Task Arrangement",),
-    ),
-    AuditAttentionPoint(
-        "test.blocking", "test_information",
-        "Basic Information.Test Information.Blocking QA Testing Items",
-        "Blocking",
-        ("Blocking",),
-    ),
-    AuditAttentionPoint(
-        "plan.test", "test_plan",
-        "Basic Information.Test Information.Test Plan.Category", "Category",
-        table_region_fields=("Category",),
-    ),
-    AuditAttentionPoint(
-        "environment.setup", "environment",
-        "Basic Information.Test Information.Test Environment Setup and Precautions.测试环境搭建以及注意事项",
-        "测试环境",
-        ("测试环境", "Test Environment"),
-        heading_boundary="page_end",
-    ),
-    AuditAttentionPoint(
-        "experience.page", "experience",
-        "Basic Information.Test Information.Summary of Experience and Typical Cases",
-        "Summary of Experience and Typical Cases",
-        (), (), True,
-    ),
-    AuditAttentionPoint(
-        "report.weekly", "report_store",
-        "Basic Information.Test Information.Test Report Store",
-        "Test Report Store", (), (), True,
-    ),
-)
 MISSING_QA = "格式有误：查询不到QA"
 
 

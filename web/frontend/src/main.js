@@ -2,9 +2,7 @@ import { createAuthApi, createPreferenceApi } from './api.js'
 import { createAuthShell } from './auth-shell.js'
 import { createPreferenceStore } from './preference-store.js'
 
-if (window.location.pathname.startsWith('/wifi-database/')) {
-  import('./wifi-main.js').then(({ startWifiData }) => startWifiData())
-} else {
+async function startStaticShell() {
   const desktop = document.querySelector('.nav-right')
   const mobile = document.querySelector('.mobile-menu-footer')
   if (desktop && mobile) {
@@ -22,8 +20,19 @@ if (window.location.pathname.startsWith('/wifi-database/')) {
     }
     document.body.addEventListener('preference:restored', event => { if (event.target.dataset.preferenceKey === 'theme') applyTheme(event.detail.value) })
     document.body.addEventListener('click', event => { if (event.target.closest('[data-preference-key="theme"]')) applyTheme(event.target.closest('[data-preference-key="theme"]').dataset.preferenceValue) })
-    createAuthShell({ root: document.body, desktopHost, mobileHost, api: createAuthApi() }).start().then(async session => {
-      if (session.authenticated) await createPreferenceStore({ root: document, api: createPreferenceApi() }).start()
-    })
+    const session = await createAuthShell({ root: document.body, desktopHost, mobileHost, api: createAuthApi() }).start()
+    if (session.authenticated) await createPreferenceStore({ root: document, api: createPreferenceApi() }).start()
+  }
+  if (window.location.pathname.startsWith('/wifi-database/')) {
+    for (const link of document.querySelectorAll('.nav-menu a, .mobile-menu-nav a')) {
+      link.classList.toggle('active', link.getAttribute('href')?.startsWith('/wifi-database/'))
+    }
+    const databaseNav = document.querySelector('.database-nav')
+    databaseNav.hidden = false
+    for (const link of databaseNav.querySelectorAll('a')) link.classList.toggle('active', link.pathname === window.location.pathname)
+    const { startWifiData } = await import('./wifi-main.js')
+    await startWifiData()
   }
 }
+
+export const shellReady = startStaticShell()

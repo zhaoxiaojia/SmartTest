@@ -11,20 +11,28 @@ from core.confluence import ConfluenceClient, ConfluenceClientConfig
 from core.tools.common.project_weekly_audit import (
     PRODUCT_SPACE_FACET,
     PROJECT_SPACE_FACET_DEFINITIONS,
-    ProjectFactStore,
-    ProjectFactsSchemaError,
     refresh_project_catalogs,
-    enrich_project_facts,
+    extract_project_detail,
     query_project_facts,
 )
+from .confluence_repository import ConfluenceCurrentStateRepository
+from .confluence_migration import LegacyConfluenceSnapshotMigration
+from .confluence_sync import ConfluenceProjectSyncCoordinator
+from .session import default_web_database_path
 
 
 class ProjectFactsWebOwner:
     """Read-only Web transport over the durable Core project-facts owner."""
 
-    def __init__(self, load_snapshot=None, store=None, client_factory=None, data_root=None):
-        self._legacy_store = store
-        self._data_root = data_root or (app_data_dir() / "web" / "confluence-accounts")
+    def __init__(self, load_snapshot=None, client_factory=None, data_root=None,
+                 sync_coordinator=None):
+        database_path = ((data_root / "smarttest-web.db") if data_root else default_web_database_path())
+        self._repository = ConfluenceCurrentStateRepository(database_path)
+        self._sync_coordinator = sync_coordinator or ConfluenceProjectSyncCoordinator(self._repository)
+        self._legacy_data_root = data_root or (app_data_dir() / "web" / "confluence-accounts")
+        self._legacy_migration = LegacyConfluenceSnapshotMigration(
+            self._repository, self._legacy_data_root,
+        )
         self._load_snapshot = load_snapshot
         self._client_factory = client_factory or self._make_client
         self._refresh_lock = Lock()
@@ -39,18 +47,26 @@ class ProjectFactsWebOwner:
         return str(username or "").strip().casefold()
 
     def store_for(self, username):
-        if self._legacy_store is not None:
-            return self._legacy_store
         account = self.normalize_account(username)
+        store = self._repository.account_store(account)
         namespace = hashlib.sha256(account.encode("utf-8")).hexdigest()
-        return ProjectFactStore(self._data_root / namespace / "project_responsibility_facts.json")
+        self._legacy_migration.import_account(account, namespace)
+        return store
 
     def refresh(self, username, password):
         store = self.store_for(username)
         with self._refresh_lock:
             smart_log("Confluence project facts refresh started (cache=%s)", store.resolved_path,
                       platform="web", domain="confluence", source="ProjectFactsWebOwner")
-            snapshot = refresh_project_catalogs(self._client_factory(username, password), store)
+            client = self._client_factory(username, password)
+            memory = _CatalogSyncBuffer(store.load())
+            snapshot = refresh_project_catalogs(client, memory)
+            space_keys = sorted({row.get("space_key") for row in snapshot.get("projects", ()) if row.get("space_key")})
+            cql = "type=page AND space in (%s)" % ",".join(f'"{key}"' for key in space_keys)
+            visible_ids = {page.id for page in client.search_page_metadata(cql)}
+            snapshot = {**snapshot, "projects": [row for row in snapshot.get("projects", ())
+                                                  if str(row.get("page_id") or "") in visible_ids]}
+            store.save(snapshot)
             counts = {key: sum(1 for row in snapshot.get("projects", []) if row.get("status") == key)
                       for key in ("current", "stale", "failed", "inactive")}
             smart_log("Confluence project facts refresh finished (spaces=%s, projects=%s, result=%s)",
@@ -59,18 +75,28 @@ class ProjectFactsWebOwner:
                       platform="web", domain="confluence", source="ProjectFactsWebOwner", extra=counts)
         return self.query(username)
 
-    def enrich(self, username, password, *, filters=None, search=""):
+    def sync_details(self, username, password, *, filters=None, search="", cancelled=None, progress=None):
         store = self.store_for(username)
-        with self._refresh_lock:
-            enrich_project_facts(self._client_factory(username, password), store,
-                                 filters=filters, search=search)
+        snapshot = store.load()
+        if snapshot is None:
+            return self.query(username, filters=filters, search=search)
+        matched = query_project_facts(snapshot, filters=filters, search=search).get("projects", [])
+        client = self._client_factory(username, password)
+        progress = progress or (lambda *_: None)
+        progress(0, len(matched))
+
+        def fetch(project):
+            return extract_project_detail(client, project)
+
+        self._sync_coordinator.sync(matched, fetch, cancelled=cancelled or (lambda: False),
+                                    progress=progress)
         return self.query(username, filters=filters, search=search)
 
     def query(self, username, *, filters=None, search=""):
         store = self.store_for(username)
         try:
             snapshot = self._load_snapshot(username) if self._load_snapshot else store.load()
-        except ProjectFactsSchemaError:
+        except ValueError:
             return self._state("schema_error")
         if snapshot is None:
             smart_log("Confluence project facts cache miss (cache=%s)", store.resolved_path,
@@ -84,9 +110,13 @@ class ProjectFactsWebOwner:
             state: sum(1 for row in snapshot.get("projects", []) if row.get("status") == state)
             for state in ("stale", "failed", "inactive")
         }
-        state = "partial_success" if counts["stale"] or counts["failed"] else "ready"
+        state = ("loading" if snapshot.get("phase") == "catalog_loading" else
+                 "partial_success" if counts["stale"] or counts["failed"] else "ready")
         return {
             "state": state,
+            "revision": int(snapshot.get("revision") or 0),
+            "accessibleProjectCount": sum(1 for row in snapshot.get("projects", ()) if row.get("active", True)),
+            "catalogProgress": snapshot.get("catalog_progress"),
             "snapshotTime": snapshot.get("updated_at"),
             "facets": self._facets(snapshot, result.get("facets", {})),
             "projects": result.get("projects", []),
@@ -128,10 +158,25 @@ class ProjectFactsWebOwner:
              **({"source": "Confluence page version metadata"} if key == "__last_updated__" else {})}
             for key, label in PROJECT_SPACE_FACET_DEFINITIONS
         ]
-        return {"state": state, "snapshotTime": None, "facets": facets, "projects": [],
+        return {"state": state, "revision": 0, "accessibleProjectCount": 0,
+                "snapshotTime": None, "catalogProgress": None,
+                "facets": facets, "projects": [],
                 "ownerHierarchy": [{"role": role, "people": []} for role in ("Major FAE QA", "FAE QA", "QA Reviewer")],
                 "discrepancies": [], "counts": {"stale": 0, "failed": 0, "inactive": 0}}
 
 
 def _normalize(value):
     return re.sub(r"\s+", " ", str(value or "")).strip().casefold()
+
+
+class _CatalogSyncBuffer:
+    """Transient buffer used only until catalog visibility is atomically replaced."""
+
+    def __init__(self, snapshot=None):
+        self._snapshot = snapshot
+
+    def load(self):
+        return self._snapshot
+
+    def save(self, snapshot):
+        self._snapshot = snapshot

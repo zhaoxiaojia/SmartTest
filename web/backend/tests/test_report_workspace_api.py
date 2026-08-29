@@ -22,9 +22,27 @@ def test_confluence_snapshots_are_normalized_and_isolated_by_authenticated_accou
         "project_id": "A", "space_key": "DOPL", "active": True, "fields": {}, "roles": {},
     }]})
     assert [row["project_id"] for row in owner.query("coco")["projects"]] == ["A"]
+    assert owner.query("coco")["accessibleProjectCount"] == 1
     assert owner.query("COCO")["projects"][0]["project_id"] == "A"
     assert owner.query("atlas")["state"] == "no_snapshot"
-    assert owner.store_for("coco").resolved_path != owner.store_for("atlas").resolved_path
+    assert owner.store_for("coco").resolved_path == owner.store_for("atlas").resolved_path
+
+
+def test_confluence_loading_snapshot_returns_partial_facets_and_catalog_progress(tmp_path):
+    owner = ProjectFactsWebOwner(data_root=tmp_path)
+    owner.store_for("coco").save({"schema_version": 1, "phase": "catalog_loading",
+        "updated_at": "2026-08-28T01:00:00+00:00",
+        "catalog_progress": {"completed": 1, "pending": 3, "total": 4},
+        "projects": [{"identity": "DOPL:A", "project_id": "A", "name": "Alpha",
+                      "space_key": "DOPL", "active": True, "status": "catalog_ready",
+                      "fields": {"current stage": "Stage 3"}, "raw_headers": [], "roles": {}}]})
+
+    result = owner.query("coco")
+
+    assert result["state"] == "loading"
+    assert result["catalogProgress"] == {"completed": 1, "pending": 3, "total": 4}
+    assert result["revision"] == 1
+    assert next(facet for facet in result["facets"] if facet["key"] == "current stage")["options"] == ["Stage 3"]
 
 
 def test_confluence_project_facts_requires_login_and_never_uses_another_account_snapshot(tmp_path):
@@ -133,20 +151,45 @@ def test_confluence_repeated_field_parameters_are_or_values():
 
 def test_confluence_details_are_loaded_only_for_explicit_apply():
     class Owner:
-        def __init__(self): self.enrich_calls = []
+        def __init__(self): self.sync_calls = []
         def query(self, username, *, filters=None, search=""):
             return {"state": "ready", "snapshotTime": "now", "facets": [], "projects": [], "ownerHierarchy": []}
-        def enrich(self, username, password, *, filters=None, search=""):
-            self.enrich_calls.append((filters, search))
+        def sync_details(self, username, password, *, filters=None, search="", cancelled=None, progress=None):
+            self.sync_calls.append((filters, search))
             return self.query(username, filters=filters, search=search)
 
     owner = Owner()
-    client = _authenticated_client(create_app(project_facts_owner=lambda: owner, authenticator=FakeAuthenticator))
+    client = _authenticated_client(create_app(
+        project_facts_owner=lambda: owner, authenticator=FakeAuthenticator,
+        facts_refresh=lambda: BackgroundFactsRefresh(submit=lambda work: work()),
+    ))
     client.get("/api/confluence/project-facts?field.support%20mode=A")
-    assert owner.enrich_calls == []
+    assert owner.sync_calls == []
     response = client.get("/api/confluence/project-facts?field.support%20mode=A&details=1")
     assert response.status_code == 200
-    assert owner.enrich_calls == [({"support mode": ("A",)}, "")]
+    assert owner.sync_calls == [({"support mode": ("A",)}, "")]
+
+
+def test_scoped_detail_sync_publishes_initial_total_before_coordinator(tmp_path):
+    events = []
+
+    class Coordinator:
+        def sync(self, projects, fetch, *, cancelled, progress):
+            events.append(("sync", len(projects)))
+            return []
+
+    owner = ProjectFactsWebOwner(data_root=tmp_path, sync_coordinator=Coordinator(),
+                                 client_factory=lambda *_: object())
+    owner.store_for("coco").save({"phase": "ready", "projects": [
+        {"page_id": "p1", "project_id": "P1", "name": "One", "space_key": "DOPL",
+         "page_url": "https://c/p1", "active": True, "status": "current", "fields": {}, "roles": {}},
+        {"page_id": "p2", "project_id": "P2", "name": "Two", "space_key": "DOPL",
+         "page_url": "https://c/p2", "active": True, "status": "current", "fields": {}, "roles": {}},
+    ]})
+
+    owner.sync_details("coco", "secret", progress=lambda completed, total: events.append((completed, total)))
+
+    assert events == [(0, 2), ("sync", 2)]
 
 
 def test_confluence_request_logs_safe_filter_and_response_summaries(monkeypatch):
@@ -174,7 +217,7 @@ def test_confluence_request_logs_safe_filter_and_response_summaries(monkeypatch)
         "project owner": {"selected_count": 1},
         "project id": {"selected_count": 1},
         "dynamic identity": {"selected_count": 1},
-    }, "search_enabled": True}
+        }, "search_enabled": True, "details_requested": False}
     assert "Private Person" not in str(business) and "SECRET-PROJECT" not in str(business)
     assert sum(kwargs.get("source") == "request" for _message, kwargs in records) == 1
 
@@ -197,8 +240,7 @@ def test_confluence_project_facts_expose_missing_and_schema_states():
 
     class Broken:
         def load(self):
-            from core.tools.common.project_weekly_audit import ProjectFactsSchemaError
-            raise ProjectFactsSchemaError("bad")
+            raise ValueError("bad")
 
     broken = _authenticated_client(create_app(project_facts_owner=lambda: ProjectFactsWebOwner(lambda _username: Broken().load()), authenticator=FakeAuthenticator))
     broken_payload = broken.get("/api/confluence/project-facts").json()

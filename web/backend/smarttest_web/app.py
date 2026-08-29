@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from contextlib import asynccontextmanager
 from threading import Lock
 from time import perf_counter
 from uuid import uuid4
@@ -20,6 +21,7 @@ from .project_facts_api import ProjectFactsWebOwner
 from .session import PersistentSessionStore
 from .background_refresh import BackgroundFactsRefresh
 from .credentials import CredentialStoreError
+from .confluence_periodic import PeriodicConfluenceRefresh
 
 SESSION_COOKIE = "smarttest_session"
 
@@ -35,12 +37,24 @@ def default_authenticator():
 
 def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOwner.from_environment,
                project_facts_owner=ProjectFactsWebOwner, authenticator=default_authenticator,
-               session_store=PersistentSessionStore, facts_refresh=BackgroundFactsRefresh) -> FastAPI:
-    app = FastAPI(title="SmartTest Wi-Fi Database", docs_url=None, redoc_url=None, openapi_url=None)
+               session_store=PersistentSessionStore, facts_refresh=BackgroundFactsRefresh,
+               periodic_refresh=PeriodicConfluenceRefresh) -> FastAPI:
     auth = authenticator()
     sessions = session_store()
     facts = project_facts_owner()
     refresh = facts_refresh()
+    periodic = periodic_refresh(sessions, facts, refresh)
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        periodic.start()
+        try:
+            yield
+        finally:
+            periodic.stop()
+
+    app = FastAPI(title="SmartTest Wi-Fi Database", docs_url=None, redoc_url=None,
+                  openapi_url=None, lifespan=lifespan)
 
     @app.middleware("http")
     async def log_request(request: Request, call_next):
@@ -232,9 +246,11 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         safe_filters = summarize_project_fact_filters(filters)
         smart_log("Confluence project facts request received", platform="web", domain="confluence",
                   source="confluence_project_facts", request_id=request.state.request_id,
-                  extra={"filters": safe_filters, "search_enabled": bool(search.strip())})
+                  extra={"filters": safe_filters, "search_enabled": bool(search.strip()),
+                         "details_requested": load_details})
         if load_details and value.password:
-            result = owner.enrich(value.username, value.password, filters=filters, search=search)
+            result = owner.query(value.username, filters=filters, search=search)
+            refresh.start_details(owner, value.username, value.password, filters=filters, search=search)
         elif load_details:
             result = {**owner.query(value.username, filters=filters, search=search),
                       "detailState": "reauthentication_required"}
@@ -252,6 +268,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             else:
                 result = {**result, "state": "reauthentication_required"}
         hierarchy = result.get("ownerHierarchy", [])
+        result = {**result, "sync": refresh.status_for(value.username)}
         hierarchy_summary = {
             "roles": len(hierarchy),
             "people": sum(len(role.get("people", [])) for role in hierarchy),
@@ -262,8 +279,14 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                   source="confluence_project_facts", request_id=request.state.request_id,
                   extra={"state": result.get("state"), "snapshot_time": result.get("snapshotTime"),
                          "project_count": len(result.get("projects", [])),
-                         "facet_count": len(result.get("facets", [])), "hierarchy": hierarchy_summary})
+                         "facet_count": len(result.get("facets", [])), "hierarchy": hierarchy_summary,
+                         "catalog_progress": result.get("catalogProgress")})
         return result
+
+    @app.post("/api/confluence/project-facts/cancel")
+    def cancel_confluence_project_sync(value=Depends(authenticated_session)):
+        return {"cancelled": refresh.cancel(value.username),
+                "sync": refresh.status_for(value.username)}
 
     @app.post("/api/confluence/project-facts/refresh")
     def refresh_confluence_project_facts(request: Request, owner=Depends(resolve_project_facts_owner)):
