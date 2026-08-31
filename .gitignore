@@ -32,6 +32,7 @@ tmp_main_*.log
 teams_demo.py
 
 # Local playback OCR/debug capture output
+.worktrees/
 local_playback_capture_trials/
 local_playback_capture_trials_wait6/
 local_playback_multi_video_screenshots/
