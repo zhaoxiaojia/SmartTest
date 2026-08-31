@@ -141,6 +141,8 @@ def extract_region(body, point):
                         for row in table[row_index + 1:]
                         for item in row
                     ))
+                    if not content:
+                        continue
                     return RegionExtraction(
                         True, content, "table_region", "table", label,
                         "table_data_rows",
@@ -199,7 +201,7 @@ def _join_content(inline_value, region):
 
 
 def _label(value):
-    return re.sub(r"\s+", " ", str(value or "")).strip().casefold()
+    return re.sub(r"\s+", "", str(value or "")).casefold()
 
 
 def _matches_label(label, keywords):

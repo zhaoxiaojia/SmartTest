@@ -62,7 +62,7 @@ UPDATE_MATRIX_POINTS = (
                "Blocking", ("Blocking",)),
     _attention("plan.test", "test_plan",
                "Basic Information.Test Information.Test Plan.Category", "Category",
-               table_region_fields=("Category",)),
+               table_region_fields=("Category", "测试模块")),
     _attention("environment.setup", "environment",
                "Basic Information.Test Information.Test Environment Setup and Precautions.测试环境搭建以及注意事项",
                "测试环境", ("测试环境", "Test Environment"),

@@ -15,6 +15,7 @@ from core.confluence.audit import (
     previous_business_week,
 )
 from core.confluence.audit.models import AuditBatch, AuditFinding, ProjectAudit
+from core.confluence.audit.regions import extract_page_region
 from core.confluence.project import (
     ConfluencePageRef,
     ProductSpaceRef,
@@ -164,3 +165,33 @@ def test_confluence_exporter_preserves_specific_invalid_format_reasons(tmp_path)
     row = next(row for row in rows if "P1" in row)
     assert row[4:6] == ("格式有误：查询不到Phase Status", "格式有误：MissingSection")
     workbook.close()
+
+
+def test_test_plan_accepts_nonempty_test_module_column_as_category() -> None:
+    category = next(point for point in UPDATE_MATRIX_POINTS if point.rule_id == "plan.test")
+
+    region = extract_page_region(_document(
+        "plan", 1, datetime(2026, 8, 24, tzinfo=TZ),
+        "<table><tr><th rowspan='4'>测试<br/>模块</th><th>测试<br/>Owner</th></tr>"
+        "<tr><td>week51&amp;52</td></tr><tr><td>2023/xx/xx</td></tr>"
+        "<tr><td>系统功能</td><td>启动与升级</td></tr></table>",
+    ), category)
+
+    assert region.found
+    assert "系统功能" in region.content
+
+
+def test_test_plan_does_not_accept_empty_or_narrative_content_as_category() -> None:
+    category = next(point for point in UPDATE_MATRIX_POINTS if point.rule_id == "plan.test")
+
+    empty = extract_page_region(_document(
+        "plan", 1, datetime(2026, 8, 24, tzinfo=TZ),
+        "<table><tr><th>测试模块</th><th>测试内容</th></tr></table>",
+    ), category)
+    narrative = extract_page_region(_document(
+        "plan", 1, datetime(2026, 8, 24, tzinfo=TZ),
+        "<p>本项目按照里程碑完成测试与问题闭环。</p>",
+    ), category)
+
+    assert not empty.found
+    assert not narrative.found
