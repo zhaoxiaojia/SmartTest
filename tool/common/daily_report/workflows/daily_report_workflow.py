@@ -25,6 +25,16 @@ def _names(value):
     return tuple(name for item in value if (name := _named(item)))
 
 
+def _component_names(value):
+    if isinstance(value, str):
+        return tuple(
+            part.strip()
+            for part in value.split(",")
+            if part and part.strip()
+        )
+    return _names(value)
+
+
 def _timestamp(value):
     if isinstance(value, datetime):
         return value
@@ -58,7 +68,7 @@ def _records(result):
             "status": _named(fields.get("status")),
             "assignee": _named(fields.get("assignee")),
             "priority": _named(fields.get("priority")),
-            "components": _names(fields.get("components")),
+            "components": _component_names(fields.get("components")),
             "created": _timestamp(fields.get("created")),
             "updated": _timestamp(fields.get("updated")),
             "url": _named(record.get("url") or record.get("self")),

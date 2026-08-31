@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from tool.common.daily_report.workflows import a9_yocto_workbench as workflow
+from tool.common.daily_report.workflows import daily_report_workflow as workflow
 
 
 def test_workbench_source_uses_only_allowed_imports():
@@ -435,7 +435,11 @@ def test_main_normalizes_flat_field_variants_and_renders_deterministic_metrics(t
         "updated": "not-a-date",
         "url": "https://jira.example/browse/A9-2?x=1&y=2",
     }
-    wf = FakeWorkflow(tmp_path, jira_results=[[flat_issue]] + [[]] * 13)
+    wf = FakeWorkflow(
+        tmp_path,
+        inputs={"project_name": "A9 Yocto"},
+        jira_results=[[flat_issue]] + [[]] * 13,
+    )
 
     artifact = Path(workflow.main(wf))
 
@@ -447,6 +451,23 @@ def test_main_normalizes_flat_field_variants_and_renders_deterministic_metrics(t
     assert "停滞 ≥ 7 天" in stale_card
     assert '<div class="metric-value">1</div>' in stale_card
     assert html.count("<img") == 2 and ".xlsx" not in html
+
+
+def test_component_count_queries_split_comma_joined_component_strings(tmp_path):
+    wf = FakeWorkflow(
+        tmp_path,
+        jira_results=[{"issues": []}, {"issues": []}],
+    )
+    issues = workflow._records([_issue(components="Audio(AQ), Audio(Driver)")])
+
+    counts = workflow._server_component_counts(wf, 'labels = "BDS_IFPD"', issues)
+
+    assert counts == [("Audio(AQ)", 0), ("Audio(Driver)", 0)]
+    jira_calls = [args["jql"] for name, args in wf.tool_calls if name == "jira_search_issues"]
+    assert jira_calls == [
+        '(labels = "BDS_IFPD") AND component = "Audio(AQ)"',
+        '(labels = "BDS_IFPD") AND component = "Audio(Driver)"',
+    ]
 
 
 def test_empty_current_result_still_produces_complete_report(tmp_path, monkeypatch):
