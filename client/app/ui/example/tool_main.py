@@ -18,8 +18,7 @@ configure_platform("tool")
 
 TOOL_CONTEXT_NAMES = (
     "AppInfo", "TranslateHelper", "AISettingsBridge",
-    "AuthBridge", "ToolBridge", "RedmineBridge", "JiraAuditBridge",
-    "ConfluenceAuditBridge", "DailyReportBridge", "ScheduleBridge",
+    "AuthBridge", "ToolBridge", "RedmineBridge",
 )
 
 PORTABLE_SMOKE_MODULES = TOOL_SMOKE_MODULES
@@ -106,11 +105,7 @@ def create_context_objects(engine) -> dict[str, object]:
     from example.AppInfo import AppInfo
     from example.bridge.AISettingsBridge import AISettingsBridge
     from example.bridge.AuthBridge import AuthBridge
-    from example.bridge.ConfluenceAuditBridge import ConfluenceAuditBridge
-    from example.bridge.DailyReportBridge import create_daily_report_bridge
-    from example.bridge.JiraAuditBridge import JiraAuditBridge
     from example.bridge.RedmineBridge import RedmineBridge
-    from example.bridge.ScheduleBridge import ScheduleBridge
     from example.bridge.ToolBridge import ToolBridge
     from example.helper.TranslateHelper import TranslateHelper
     from core.config.jsonTool import app_data_dir
@@ -127,8 +122,6 @@ def create_context_objects(engine) -> dict[str, object]:
     migrate_frontend_state(app_data_dir() / "frontend_state.json")
     translate = TranslateHelper()
     translate.init(engine)
-    confluence = ConfluenceAuditBridge(auth)
-    daily_report = create_daily_report_bridge(auth, app_data_dir())
     return {
         "AppInfo": AppInfo(),
         "TranslateHelper": translate,
@@ -136,12 +129,6 @@ def create_context_objects(engine) -> dict[str, object]:
         "AuthBridge": auth,
         "ToolBridge": ToolBridge(),
         "RedmineBridge": RedmineBridge(auth),
-        "JiraAuditBridge": JiraAuditBridge(auth),
-        "ConfluenceAuditBridge": confluence,
-        "DailyReportBridge": daily_report,
-        "ScheduleBridge": ScheduleBridge({
-            "confluence": confluence, "daily_report": daily_report,
-        }),
     }
 
 

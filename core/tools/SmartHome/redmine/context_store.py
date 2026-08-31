@@ -13,11 +13,11 @@ from typing import Any, Callable, Iterable
 
 from PySide6.QtCore import QStandardPaths
 
-from core.issues import IssueStore, UnifiedIssue
+from core.tools.SmartHome.redmine.issue_store import RedmineIssue, RedmineIssueStore
 
 
 _CACHE_LOCK = threading.RLock()
-_VERSION = 2
+_VERSION = 3
 _DEFAULT_VIEW_ID = "__default__"
 _FILTER_KEYS = ("project", "status", "type", "subject", "text")
 _SNAPSHOT_KEYS = {
@@ -103,7 +103,7 @@ def load_view(account: str) -> dict[str, Any] | None:
     return _loaded_view(snapshot, _DEFAULT_VIEW_ID)
 
 
-def save_view(account: str, store: IssueStore, *, filters: dict[str, Any] | None = None) -> Path:
+def save_view(account: str, store: RedmineIssueStore, *, filters: dict[str, Any] | None = None) -> Path:
     return _save_issue_view(account, _DEFAULT_VIEW_ID, store, filters=filters)
 
 
@@ -117,7 +117,7 @@ def load_quick_view(account: str, quick_view_id: str) -> dict[str, Any] | None:
 def save_quick_view(
     account: str,
     quick_view_id: str,
-    store: IssueStore,
+    store: RedmineIssueStore,
     *,
     filters: dict[str, Any] | None = None,
 ) -> Path:
@@ -126,12 +126,12 @@ def save_quick_view(
 
 def reconcile_issue_records(
     account: str,
-    records: Iterable[UnifiedIssue],
+    records: Iterable[RedmineIssue],
     *,
-    known_records: Iterable[UnifiedIssue] = (),
-) -> list[UnifiedIssue]:
-    incoming = list(IssueStore(records).issue_list)
-    known = list(IssueStore(known_records).issue_list)
+    known_records: Iterable[RedmineIssue] = (),
+) -> list[RedmineIssue]:
+    incoming = list(RedmineIssueStore(records).issue_list)
+    known = list(RedmineIssueStore(known_records).issue_list)
     with _CACHE_LOCK:
         snapshot = _read_snapshot(account) if str(account or "") else None
         cached = _issues(snapshot["issue_list"]) if snapshot is not None else []
@@ -174,12 +174,12 @@ def save_watched_issue_ids(account: str, issue_ids: list[str]) -> Path:
 def _save_issue_view(
     account: str,
     view_id: str,
-    store: IssueStore,
+    store: RedmineIssueStore,
     *,
     filters: dict[str, Any] | None,
 ) -> Path:
-    if not isinstance(store, IssueStore):
-        raise TypeError("store must be an IssueStore")
+    if not isinstance(store, RedmineIssueStore):
+        raise TypeError("store must be a RedmineIssueStore")
     records = list(store.issue_list)
     selected_issue_id = str(store.selected_id or "")
     normalized_filters = _filters(filters)
@@ -353,14 +353,14 @@ def _empty_snapshot(account: str) -> dict[str, Any]:
     }
 
 
-def _issues(records: list[Any]) -> list[UnifiedIssue]:
-    return [UnifiedIssue.from_dict(record) for record in records]
+def _issues(records: list[Any]) -> list[RedmineIssue]:
+    return [RedmineIssue.from_dict(record) for record in records]
 
 
 def _merge_issues(
-    existing_records: Iterable[UnifiedIssue],
-    incoming_records: Iterable[UnifiedIssue],
-) -> dict[str, UnifiedIssue]:
+    existing_records: Iterable[RedmineIssue],
+    incoming_records: Iterable[RedmineIssue],
+) -> dict[str, RedmineIssue]:
     merged = {issue.id: issue for issue in existing_records}
     for issue in incoming_records:
         existing = merged.get(issue.id)
@@ -368,7 +368,7 @@ def _merge_issues(
     return merged
 
 
-def _merge_issue(existing: UnifiedIssue, incoming: UnifiedIssue) -> UnifiedIssue:
+def _merge_issue(existing: RedmineIssue, incoming: RedmineIssue) -> RedmineIssue:
     changes = {}
     if existing.detail_state == "loaded" and incoming.detail_state != "loaded":
         for field_name in _DETAIL_FIELDS:
@@ -380,7 +380,7 @@ def _merge_issue(existing: UnifiedIssue, incoming: UnifiedIssue) -> UnifiedIssue
 
 
 def _valid_issue_record(record: Any) -> bool:
-    defaults = UnifiedIssue().to_dict()
+    defaults = RedmineIssue().to_dict()
     if not isinstance(record, dict) or set(record) != set(defaults):
         return False
     for field_name, default in defaults.items():
@@ -419,7 +419,7 @@ def _valid_issue_record(record: Any) -> bool:
     ):
         return False
     try:
-        UnifiedIssue.from_dict(record)
+        RedmineIssue.from_dict(record)
     except (TypeError, ValueError):
         return False
     return True

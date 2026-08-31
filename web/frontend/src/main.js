@@ -2,7 +2,10 @@ import { createAuthApi, createPreferenceApi } from './api.js'
 import { createAuthShell } from './auth-shell.js'
 import { createPreferenceStore } from './preference-store.js'
 
+export let preferencesReady = Promise.resolve()
+
 async function startStaticShell() {
+  let session
   const desktop = document.querySelector('.nav-right')
   const mobile = document.querySelector('.mobile-menu-footer')
   if (desktop && mobile) {
@@ -20,8 +23,21 @@ async function startStaticShell() {
     }
     document.body.addEventListener('preference:restored', event => { if (event.target.dataset.preferenceKey === 'theme') applyTheme(event.detail.value) })
     document.body.addEventListener('click', event => { if (event.target.closest('[data-preference-key="theme"]')) applyTheme(event.target.closest('[data-preference-key="theme"]').dataset.preferenceValue) })
-    const session = await createAuthShell({ root: document.body, desktopHost, mobileHost, api: createAuthApi() }).start()
-    if (session.authenticated) await createPreferenceStore({ root: document, api: createPreferenceApi() }).start()
+    let preferences
+    session = await createAuthShell({ root: document.body, desktopHost, mobileHost, api: createAuthApi(),
+      onChanging() {
+        preferences?.destroy()
+        window.dispatchEvent(new Event('session:changing'))
+      },
+      async onSession(session) {
+        if (session.authenticated) {
+          preferences = createPreferenceStore({ root: document, api: createPreferenceApi() })
+          preferencesReady = preferences.start()
+        } else preferencesReady = Promise.resolve()
+        window.dispatchEvent(new CustomEvent('session:ready', { detail: session }))
+        await preferencesReady
+      }
+    }).start()
   }
   if (window.location.pathname.startsWith('/wifi-database/')) {
     for (const link of document.querySelectorAll('.nav-menu a, .mobile-menu-nav a')) {
@@ -33,6 +49,7 @@ async function startStaticShell() {
     const { startWifiData } = await import('./wifi-main.js')
     await startWifiData()
   }
+  return session
 }
 
 export const shellReady = startStaticShell()

@@ -1,28 +1,6 @@
 from __future__ import annotations
 
 
-def _background_command(argv, runner=None, daily_runner=None) -> int | None:
-    weekly_switch = "--project-weekly-audit-plan"
-    daily_switch = "--daily-report-run"
-    arguments = list(argv)
-    if daily_switch in arguments[1:]:
-        if arguments != [arguments[0], daily_switch]:
-            return 2
-        if daily_runner is None:
-            from core.tools.common.daily_report.background import run_scheduled_batch
-            daily_runner = run_scheduled_batch
-        return int(daily_runner())
-    switches = {weekly_switch}
-    selected = next((value for value in arguments[1:] if value in switches), None)
-    if selected is None:
-        return None
-    if len(arguments) != 3 or arguments[1] != selected or not arguments[2]:
-        return 2
-    if runner is None:
-        from core.tools.common.project_weekly_audit.command import run_plan as runner
-    return int(runner(arguments[2]))
-
-
 def _runtime_root():
     import sys
     from pathlib import Path
@@ -47,10 +25,6 @@ def main() -> int:
     from core.logging import configure_platform
 
     configure_platform("client")
-
-    background_result = _background_command(sys.argv)
-    if background_result is not None:
-        return background_result
 
     ui_root = root / "client" / "app" / "ui"
     # Ensure we import the in-repo FluentUI/example packages instead of any

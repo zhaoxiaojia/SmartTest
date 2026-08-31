@@ -16,9 +16,6 @@
         <file>example/qml/state/ApplicationState.qml</file>
         <file>example/qml/state/WindowState.qml</file>
         <file>example/qml/state/JiraPageState.qml</file>
-        <file>example/qml/state/JiraAuditWorkspaceState.qml</file>
-        <file>example/qml/state/ConfluenceAuditWorkspaceState.qml</file>
-        <file>example/qml/component/jiraaudit/JiraAuditWorkspace.qml</file>
         <file>example/qml/component/redmine/RedmineLoginView.qml</file>
         <file>example/qml/component/redmine/RedmineWorkspace.qml</file>
         <file>example/qml/component/issue/JiraIssueBrowserLayout.qml</file>
@@ -258,8 +255,5 @@
         <file>example/res/template/project/imports/project/qml/main.qml.in</file>
         <file>example/qml/page/T_Icons.qml</file>
         <file>example/qml/page/T_OpenGL.qml</file>
-        <file>example/qml/component/confluenceaudit/ConfluenceAuditWorkspace.qml</file>
-        <file>example/qml/component/dailyreport/DailyReportWorkspace.qml</file>
-        <file>example/qml/component/dailyreport/DailyReportPreview.qml</file>
     </qresource>
 </RCC>

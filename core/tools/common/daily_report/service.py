@@ -108,7 +108,7 @@ class DailyReportService:
                 specs=("key",),
                 max_workers=2,
             )
-            return frozenset(str(record.key) for record in records)
+            return frozenset(record.identity.key for record in records)
 
         with ThreadPoolExecutor(
             max_workers=8, thread_name_prefix="daily-report-jira"

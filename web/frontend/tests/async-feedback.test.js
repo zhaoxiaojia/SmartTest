@@ -12,17 +12,18 @@ describe('AsyncFeedback', () => {
     })
     expect(document.querySelector('#feedback').hidden).toBe(true)
 
-    feedback.update({ state: 'running', message: 'Syncing', completed: 0, total: 0 })
+    feedback.update({ state: 'running', stage: 'fetching_issues', processed: 0, total: 0 })
     let bar = document.querySelector('[role="progressbar"]')
     expect(bar.getAttribute('aria-valuenow')).toBeNull()
     expect(bar.dataset.indeterminate).toBe('true')
-    expect(document.querySelector('#feedback').textContent).toContain('Syncing')
+    expect(document.querySelector('#feedback').textContent).toContain('Fetching issues')
 
-    feedback.update({ state: 'running', completed: 2, total: 5 })
+    feedback.update({ state: 'running', stage: 'rule_auditing', processed: 2, total: 5 })
     bar = document.querySelector('[role="progressbar"]')
     expect(bar.getAttribute('aria-valuenow')).toBe('2')
     expect(bar.getAttribute('aria-valuemax')).toBe('5')
     expect(document.querySelector('#feedback').textContent).toContain('2/5')
+    expect(document.querySelector('#feedback').textContent).toContain('Rule auditing')
 
     for (const state of ['success', 'failed', 'cancelled']) {
       feedback.update({ state, message: state })

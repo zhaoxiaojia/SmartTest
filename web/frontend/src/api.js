@@ -7,6 +7,14 @@ export class ApiUnavailableError extends Error {
 }
 
 export function createAuthApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
+  async function change(path, options) {
+    const result = await request(path, options)
+    if (globalThis.window) {
+      window.localStorage.setItem('smarttest:identity-change', crypto.randomUUID())
+      window.dispatchEvent(new Event('auth:changed'))
+    }
+    return result
+  }
   async function request(path, options = {}) {
     let response
     try { response = await fetchImpl(`${baseUrl}${path}`, { credentials: 'same-origin', ...options }) } catch (cause) {
@@ -17,10 +25,10 @@ export function createAuthApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' }
   }
   return {
     session: () => request('/auth/session'),
-    login: (username, password) => request('/auth/login', {
+    login: (username, password) => change('/auth/login', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username, password })
     }),
-    logout: () => request('/auth/logout', { method: 'POST' })
+    logout: () => change('/auth/logout', { method: 'POST' })
   }
 }
 
@@ -94,41 +102,45 @@ export function createWifiDatabaseApi({ fetchImpl = globalThis.fetch, baseUrl = 
   }
 }
 
-export function createReportWorkspaceApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
-  async function getJson(path, params) {
-    const query = new URLSearchParams()
-    if (params?.productLine) query.set('product_line', params.productLine)
-    if (params?.year) query.set('year', params.year)
-    if (params?.reportType) query.set('report_type', params.reportType)
-    if (params?.search) query.set('search', params.search)
-    if (params?.jql) query.set('jql', params.jql)
-    const suffix = query.size ? `?${query}` : ''
+export function createManualAuditApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
+  async function request(path, { method = 'GET', body } = {}) {
+    const options = { method, credentials: 'same-origin' }
+    if (body !== undefined) {
+      options.headers = { 'content-type': 'application/json' }
+      options.body = JSON.stringify(body)
+    }
     let response
-    try { response = await fetchImpl(`${baseUrl}${path}${suffix}`) } catch (cause) {
-      throw new ApiUnavailableError('Report workspace API unavailable.', { cause })
+    try { response = await fetchImpl(`${baseUrl}${path}`, options) } catch (cause) {
+      throw new ApiUnavailableError('Manual audit API unavailable.', { cause })
     }
-    if (!response.ok) {
-      throw new ApiUnavailableError(`Report workspace API unavailable (${response.status}).`, { status: response.status })
-    }
+    if (!response.ok) throw new ApiUnavailableError(`Manual audit API unavailable (${response.status}).`, { status: response.status })
     return response.json()
   }
-  const encode = value => encodeURIComponent(value)
+  const encode = encodeURIComponent
+  const post = (path, body) => request(path, { method: 'POST', body })
   return {
-    listReports: (source, filters) => getJson(`/report-workspaces/${encode(source)}`, filters),
-    getReport: (source, id) => getJson(`/report-workspaces/${encode(source)}/${encode(id)}`),
-    downloadUrl: (source, id) => `${baseUrl}/report-workspaces/${encode(source)}/${encode(id)}/download`
+    createJiraAudit: body => post('/audits/jira', body),
+    getJiraAudit: id => request(`/audits/jira/${encode(id)}`),
+    cancelJiraAudit: id => post(`/audits/jira/${encode(id)}/cancel`),
+    exportJiraAudit: id => post(`/audits/jira/${encode(id)}/export`),
+    createConfluenceAudit: body => post('/audits/confluence', body),
+    getConfluenceAudit: id => request(`/audits/confluence/${encode(id)}`),
+    cancelConfluenceAudit: id => post(`/audits/confluence/${encode(id)}/cancel`),
+    exportConfluenceAudit: id => post(`/audits/confluence/${encode(id)}/export`),
+    downloadUrl: id => `${baseUrl}/downloads/${encode(id)}`,
   }
 }
 
 export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
   return {
-    async getProjectFacts(filters = {}, { details = false } = {}) {
+    async getProjectFacts(filters = {}, { details = false, catalog = false } = {}) {
       const query = new URLSearchParams()
       for (const [key, values] of Object.entries(filters.fields ?? {})) {
         for (const value of Array.isArray(values) ? values : [values]) if (`${value}`.trim()) query.append(`field.${key}`, value)
       }
       if (filters.search) query.set('search', filters.search)
       if (details) query.set('details', '1')
+      if (catalog) query.set('catalog', '1')
       let response
       try { response = await fetchImpl(`${baseUrl}/confluence/project-facts${query.size ? `?${query}` : ''}`) } catch (cause) {
         throw new ApiUnavailableError('Project facts API unavailable.', { cause })

@@ -2,12 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from core.issues.models import (
+from core.jira.attachments import (
     CreateIssueAttachment,
-    CreateIssueRequest,
     JiraAttachmentMetadata,
 )
-from core.jira.services.create_issue_service import CreateIssueService
+from core.jira.commands import CreateIssueCommand
+from core.jira.issue_command_service import IssueCommandService
 
 
 class Client:
@@ -26,11 +26,11 @@ class Client:
         self.created = []
         self.uploaded = []
 
-    def search_page(self, *_args, **_kwargs):
-        from core.issues.models import SearchPage
+    def find_issue_for_source(self, _command):
+        return self.found_issue
 
-        issues = [self.found_issue] if self.found_issue else []
-        return SearchPage(issues, 0, 1, len(issues))
+    def find_issue_for_external_url(self, _project_key, _external_url):
+        return self.found_issue
 
     def create_issue(self, payload):
         self.created.append(payload)
@@ -51,7 +51,7 @@ class Client:
 
 
 def request(*attachments):
-    return CreateIssueRequest(
+    return CreateIssueCommand(
         project_key="SH",
         issue_type="Bug",
         summary="bug",
@@ -81,7 +81,7 @@ def attachment(
 
 def test_create_then_upload_skips_matching_filename_and_size(tmp_path):
     client = Client(existing=({"filename": "same.log", "size": 4},))
-    result = CreateIssueService(client).create_issue(
+    result = IssueCommandService(client).create_issue(
         request(
             attachment(tmp_path, "same.log", b"same"),
             attachment(tmp_path, "new.log", b"new"),
@@ -89,7 +89,7 @@ def test_create_then_upload_skips_matching_filename_and_size(tmp_path):
     )
 
     assert result.issue_state == "created"
-    assert "attachments" not in client.created[0]["fields"]
+    assert client.created[0].attachments
     assert client.uploaded == [("SH-1", "new.log", 3)]
     assert result.attachment_state == "complete"
     assert [item.state for item in result.attachment_results] == [
@@ -105,7 +105,7 @@ def test_known_limit_skips_oversized_before_upload_but_preserves_created_issue(t
         )
     )
 
-    result = CreateIssueService(client).create_issue(
+    result = IssueCommandService(client).create_issue(
         request(attachment(tmp_path, "large.log", b"four"))
     )
 
@@ -147,7 +147,7 @@ def test_disabled_and_unknown_attachment_metadata_are_explicit(
 ):
     client = Client(metadata=metadata)
 
-    result = CreateIssueService(client).create_issue(
+    result = IssueCommandService(client).create_issue(
         request(attachment(tmp_path, "a.log", b"a"))
     )
 
@@ -163,7 +163,7 @@ def test_partial_upload_failure_preserves_issue_and_retry_only_uploads_missing(
     tmp_path,
 ):
     first = Client(fail={"b.log"})
-    result = CreateIssueService(first).create_issue(
+    result = IssueCommandService(first).create_issue(
         request(
             attachment(tmp_path, "a.log", b"a"),
             attachment(tmp_path, "b.log", b"bb"),
@@ -180,7 +180,7 @@ def test_partial_upload_failure_preserves_issue_and_retry_only_uploads_missing(
     assert result.attachment_results[1].retryable
 
     retry = Client(existing=({"filename": "a.log", "size": 1},))
-    retried = CreateIssueService(retry).sync_attachments(
+    retried = IssueCommandService(retry).sync_attachments(
         "SH-1",
         request(
             attachment(tmp_path, "a2.log", b"a"),
@@ -195,7 +195,7 @@ def test_existing_issue_only_syncs_missing_attachments_without_recreating(tmp_pa
         existing=({"filename": "a.log", "size": 1},),
         found_issue={"key": "SH-1", "fields": {"summary": "existing"}},
     )
-    result = CreateIssueService(
+    result = IssueCommandService(
         client, browse_base_url="https://jira.example"
     ).create_issue(
         request(
@@ -235,7 +235,7 @@ def test_unavailable_metadata_is_reported_as_unknown_instead_of_a_guessed_limit(
         def attachment_metadata(self):
             raise RuntimeError("offline")
 
-    metadata = CreateIssueService(UnavailableClient()).attachment_metadata()
+    metadata = IssueCommandService(UnavailableClient()).attachment_metadata()
 
     assert metadata == JiraAttachmentMetadata(
         available=False, enabled=None, upload_limit=None
@@ -243,7 +243,7 @@ def test_unavailable_metadata_is_reported_as_unknown_instead_of_a_guessed_limit(
 
 
 def test_created_issue_result_uses_the_browse_url_for_ui_navigation():
-    result = CreateIssueService(
+    result = IssueCommandService(
         Client(), browse_base_url="https://jira.example"
     ).create_issue(request())
 
@@ -303,7 +303,7 @@ def test_same_filename_and_size_sources_use_distinct_upload_names_on_retry(
         upload_filename="same--b.log",
     )
     client = SourceClient()
-    service = CreateIssueService(client)
+    service = IssueCommandService(client)
     result = service.create_issue(
         request(
             first,

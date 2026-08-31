@@ -88,6 +88,12 @@ input, select, textarea {
 .report-page-head > .report-actions { align-self: flex-end; }
 .button.is-disabled { pointer-events: none; color: #94a3b8; background: var(--bg-surface); border-color: var(--border-color); }
 .report-filter-card { padding: 1.125rem 1.25rem; margin-bottom: 1.125rem; }
+.jira-audit-form,.jira-audit-query { display: grid; gap: .75rem; }
+.jira-audit-form { grid-template-columns: minmax(0,1fr); margin-top: .875rem; }
+.jira-audit-query { color: var(--text-primary); font-size: .75rem; font-weight: 600; }
+.jira-audit-form > .jira-audit-full-width { grid-column: 1 / -1; width: 100%; min-width: 0; }
+.jira-audit-query textarea { min-height: 7rem; resize: vertical; }
+.jira-audit-form > .jira-audit-controls { grid-column: 1 / -1; align-items: center; }
 .report-filter-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1.45fr auto; gap: .875rem; align-items: end; }
 .report-filter-grid[data-main-facets] {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));

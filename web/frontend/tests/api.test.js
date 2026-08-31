@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createAuthApi, createPreferenceApi, createProjectFactsApi, createReportWorkspaceApi, createWifiDatabaseApi } from '../src/api.js'
+import { createAuthApi, createManualAuditApi, createPreferenceApi, createProjectFactsApi, createWifiDatabaseApi } from '../src/api.js'
 
 describe('Preference API contract', () => {
   it('reads, batch writes, and resets an encoded account scope', async () => {
@@ -72,28 +72,21 @@ describe('Wi-Fi Database API contract', () => {
   })
 })
 
-describe('report workspace API contract', () => {
-  it('uses read-only list, detail and download endpoints', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ reports: [] }) })
-    const api = createReportWorkspaceApi({ fetchImpl })
-
-    await api.listReports('jira', { productLine: 'DOPL', year: 2026, search: 'audit' })
-    await api.getReport('jira', 'report-1')
-
-    const url = new URL(fetchImpl.mock.calls[0][0], 'https://smarttest.local')
-    expect(url.pathname).toBe('/api/report-workspaces/jira')
-    expect(url.searchParams.get('product_line')).toBe('DOPL')
-    expect(url.searchParams.get('year')).toBe('2026')
-    expect(fetchImpl.mock.calls[1][0]).toBe('/api/report-workspaces/jira/report-1')
-    expect(api.downloadUrl('jira', 'report-1')).toBe('/api/report-workspaces/jira/report-1/download')
-  })
-
-  it('sends Jira JQL when locating Client-generated audit reports', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ reports: [] }) })
-    const api = createReportWorkspaceApi({ fetchImpl })
-    await api.listReports('jira', { jql: 'project = TV AND issuetype = Bug' })
-    const url = new URL(fetchImpl.mock.calls[0][0], 'https://smarttest.local')
-    expect(url.searchParams.get('jql')).toBe('project = TV AND issuetype = Bug')
+describe('manual audit API contract', () => {
+  it('uses task, cancellation, artifact lookup and common download endpoints', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+    const api = createManualAuditApi({ fetchImpl })
+    await api.createJiraAudit({ input: 'project=SH' })
+    await api.getJiraAudit('a1')
+    await api.cancelJiraAudit('a1')
+    await api.exportJiraAudit('a1')
+    await api.exportConfluenceAudit('c1')
+    expect(fetchImpl.mock.calls.map(call => call[0])).toEqual([
+      '/api/audits/jira', '/api/audits/jira/a1', '/api/audits/jira/a1/cancel',
+      '/api/audits/jira/a1/export',
+      '/api/audits/confluence/c1/export'
+    ])
+    expect(api.downloadUrl('d1')).toBe('/api/downloads/d1')
   })
 })
 
@@ -102,10 +95,11 @@ describe('Confluence project facts API contract', () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ projects: [] }) })
     await createProjectFactsApi({ fetchImpl }).getProjectFacts({
       fields: { 'unexpected owner': ['Alice', 'Bob'], 'support mode': ['B'] }, search: 'Coco'
-    })
+    }, { catalog: true })
     const url = new URL(fetchImpl.mock.calls[0][0], 'https://smarttest.local')
     expect(url.pathname).toBe('/api/confluence/project-facts')
     expect(url.searchParams.getAll('field.unexpected owner')).toEqual(['Alice', 'Bob'])
+    expect(url.searchParams.get('catalog')).toBe('1')
     expect(url.searchParams.get('field.support mode')).toBe('B')
     expect(url.searchParams.get('search')).toBe('Coco')
   })

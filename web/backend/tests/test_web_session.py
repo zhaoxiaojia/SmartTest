@@ -1,4 +1,3 @@
-from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 
 from fastapi.testclient import TestClient
@@ -29,7 +28,7 @@ class FakeFactsOwner:
         return {"state": "ready", "projects": self.snapshot["projects"], "facets": []}
 
     def refresh(self, username, password):
-        self.refresh_calls.append((username, password))
+        self.refresh_calls.append((username.account, password))
         self.snapshot = {"projects": [{"project_id": "A"}]}
         return self.query(username)
 
@@ -104,17 +103,24 @@ def test_multiple_devices_current_and_all_logout(tmp_path):
     assert client2.get("/api/auth/session").json() == {"authenticated": False}
 
 
-def test_restored_session_recovers_server_credential_for_external_refresh(tmp_path):
+def test_restored_session_recovers_server_credential_for_page_catalog_load(tmp_path):
     client, _ = make_client(tmp_path, facts=FakeFactsOwner())
     client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
     token = client.cookies.get("smarttest_session")
-    restarted, _ = make_client(tmp_path, sessions=PersistentSessionStore(tmp_path / "web.db"), facts=FakeFactsOwner())
+    restarted_facts = FakeFactsOwner()
+    restarted, _ = make_client(
+        tmp_path, sessions=PersistentSessionStore(tmp_path / "web.db"), facts=restarted_facts,
+    )
     restarted.cookies.set("smarttest_session", token)
     assert restarted.get("/api/auth/session").json()["authenticated"] is True
-    assert restarted.get("/api/confluence/project-facts").json()["state"] == "loading"
-    response = restarted.post("/api/confluence/project-facts/refresh")
+    response = restarted.get("/api/confluence/project-facts?catalog=1")
     assert response.status_code == 200
-    assert response.json()["state"] == "loading"
+    assert response.json()["state"] in {"loading", "ready"}
+    for _ in range(50):
+        if restarted_facts.refresh_calls:
+            break
+        sleep(.01)
+    assert restarted_facts.refresh_calls == [("coco", "secret")]
 
 
 def test_invalid_login_returns_safe_failure(tmp_path):
@@ -135,18 +141,27 @@ def test_existing_fact_cache_is_read_after_login(tmp_path):
 
 
 def test_concurrent_no_cache_refresh_is_deduplicated(tmp_path):
+    from threading import Event
+    started, release, finished = Event(), Event(), Event()
     class SlowFacts(FakeFactsOwner):
         def refresh(self, username, password):
-            self.refresh_calls.append((username, password)); sleep(.05)
-            self.snapshot = {"projects": [{"project_id": "A"}]}
+            self.refresh_calls.append((username.account, password))
+            started.set()
+            try:
+                assert release.wait(5)
+                self.snapshot = {"projects": [{"project_id": "A"}]}
+            finally:
+                finished.set()
 
     facts = SlowFacts()
     client, _ = make_client(tmp_path, facts=facts)
     client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        responses = list(pool.map(lambda _: client.get("/api/confluence/project-facts"), range(2)))
-    assert all(response.json()["state"] == "loading" for response in responses)
-    for _ in range(50):
-        if facts.refresh_calls: break
-        sleep(.01)
-    assert facts.refresh_calls == [("coco", "secret")]
+    try:
+        first = client.get("/api/confluence/project-facts?catalog=1")
+        assert started.wait(2)
+        second = client.get("/api/confluence/project-facts?catalog=1")
+        assert first.json()["state"] == second.json()["state"] == "loading"
+        assert facts.refresh_calls == [("coco", "secret")]
+    finally:
+        release.set()
+        assert finished.wait(2)

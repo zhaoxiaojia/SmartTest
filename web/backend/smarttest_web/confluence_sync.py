@@ -1,66 +1,45 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from threading import Lock
+
+from core.confluence.project import ProjectDetails
 
 
 class ConfluenceProjectSyncCoordinator:
-    """Bounded, process-wide single-flight coordinator for current project details."""
+    """Bounded foreground orchestration over the current-cache service."""
 
-    _guard = Lock()
-    _inflight = {}
+    def __init__(self, cache_service, *, max_workers: int = 4):
+        self._cache_service = cache_service
+        self._max_workers = max(1, int(max_workers))
 
-    def __init__(self, repository, *, max_workers=4):
-        self.repository = repository
-        self.max_workers = max(1, int(max_workers))
+    def sync(
+        self,
+        project_ids,
+        details: ProjectDetails,
+        *,
+        cancelled=lambda: False,
+        progress=lambda *_: None,
+    ) -> list[str]:
+        identifiers = tuple(str(project_id) for project_id in project_ids)
 
-    def sync(self, projects, fetch, *, cancelled=lambda: False, progress=lambda *_: None):
-        rows = list(projects)
-
-        def one(project):
+        def refresh(project_id: str) -> str:
             if cancelled():
                 return "cancelled"
-            key = str(project.get("page_id") or project.get("identity"))
-            source_version = int((project.get("detail_source") or {}).get("version") or 0)
-            if source_version and self.repository.stored_version(key) == source_version:
-                return "skipped"
-            with self._guard:
-                future = self._inflight.get(key)
-                if future is None:
-                    future = _SharedResult()
-                    self._inflight[key] = future
-                    owner = True
-                else:
-                    owner = False
-            if owner:
-                try:
-                    self.repository.upsert_project(fetch(project))
-                    future.set("updated")
-                except Exception as exc:  # noqa: BLE001
-                    self.repository.mark_project_stale(key, type(exc).__name__)
-                    future.set("failed")
             try:
-                return future.get()
-            finally:
-                if owner:
-                    with self._guard:
-                        self._inflight.pop(key, None)
+                self._cache_service.refresh_project(project_id, details)
+            except Exception:
+                return "failed"
+            return "updated"
 
-        results = []
-        with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
-            futures = [pool.submit(one, row) for row in rows]
+        results = ["cancelled"] * len(identifiers)
+        with ThreadPoolExecutor(max_workers=self._max_workers) as pool:
+            futures = {
+                pool.submit(refresh, project_id): index
+                for index, project_id in enumerate(identifiers)
+            }
+            completed = 0
             for future in as_completed(futures):
-                results.append(future.result()); progress(len(results), len(futures))
+                results[futures[future]] = future.result()
+                completed += 1
+                progress(completed, len(identifiers))
         return results
-
-
-class _SharedResult:
-    def __init__(self):
-        from threading import Event
-        self._event = Event(); self._value = None; self._error = None
-
-    def set(self, value): self._value = value; self._event.set()
-    def get(self):
-        self._event.wait()
-        if self._error: raise self._error
-        return self._value

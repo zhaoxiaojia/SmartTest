@@ -7,12 +7,12 @@ from dataclasses import dataclass, replace
 from typing import Any, Awaitable, Callable, Iterable
 
 from core.issues.description import render_notes_description
-from core.issues.models import (
+from core.jira.attachments import (
     AttachmentCancellation,
     AttachmentTransferResult,
-    CreateIssueResult,
-    ExistingIssue,
 )
+from core.jira.commands import CreateIssueResult
+from core.jira.domain import IssueRef
 from core.logging import smart_log
 from core.tools.SmartHome.redmine.clone_draft import (
     CloneDraft,
@@ -453,13 +453,11 @@ class RedmineCloneController:
                         payload = CreateIssueResult(
                             created=False,
                             issue_state="duplicate",
-                            existing_key=existing.key,
-                            issue_url=existing.web_url,
-                            raw=existing.raw,
+                            issue=existing,
                         )
                     else:
                         payload = create_service.create_issue(
-                            clone_draft.to_request()
+                            clone_draft.to_command()
                         )
                 if (
                     isinstance(payload, CreateIssueResult)
@@ -658,11 +656,11 @@ class RedmineCloneController:
                 continue
             record["result"] = payload
             if payload.issue_state == "created":
-                resolved[issue_id] = ExistingIssue(
+                resolved[issue_id] = IssueRef(
                     key=payload.issue_key, web_url=payload.issue_url
                 )
             elif payload.issue_state == "duplicate":
-                resolved[issue_id] = ExistingIssue(
+                resolved[issue_id] = IssueRef(
                     key=payload.existing_key or payload.issue_key,
                     web_url=payload.issue_url,
                 )

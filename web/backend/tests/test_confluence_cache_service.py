@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+from conftest import confirmed_access
+from core.confluence.project import ProjectDetails, ProjectQuery, ProjectSyncScope
+from core.confluence.project_mapper import ConfluenceProjectMapper
+from core.domain.detail import DetailState
+from smarttest_web.confluence.cache_service import ConfluenceProjectCacheService
+from smarttest_web.confluence.project_repository import ConfluenceProjectRepository
+from smarttest_web.database import WebDatabase
+
+
+def _row(version=1):
+    return {
+        "identity": "900", "project_id": "P100", "name": "Project One",
+        "space_key": "DOPL", "space_name": "DOPL", "page_url": "https://c/900",
+        "fields": {"project status": "Normal", "current stage": "EVT", "support mode": "Onsite"},
+        "catalog_source": {"page_id": "10", "title": "Catalog", "version": version},
+    }
+
+
+class ConfluenceGateway:
+    def __init__(self):
+        self.version = 1
+        self.catalog_calls = 0
+        self.detail_calls = []
+        self.fail_sections = set()
+
+    def query_project_catalog(self, query, page):
+        self.catalog_calls += 1
+        return {"projects": [_row(self.version)], "page": page, "page_size": 100, "total": 1}
+
+    def get_project_catalog(self, project_id):
+        return _row(self.version)
+
+    def refresh_project_catalogs(self, scope):
+        return {"projects": [_row(self.version)], "failed_product_spaces": []}
+
+    def load_project_sections(self, project_id, sections):
+        self.detail_calls.append((project_id, sections))
+        if sections[0] in self.fail_sections:
+            raise RuntimeError("offline")
+        return {
+            "roles": {"FAE QA": [{"identity": "u1", "name": "Alice"}]},
+            "milestones": {"SOP": "2026-10"}, "hardware": {}, "software": {},
+            "facts": {"region": "US"}, "evidence": [],
+        }
+
+
+def _service(tmp_path):
+    gateway = ConfluenceGateway()
+    repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
+    return ConfluenceProjectCacheService(gateway, ConfluenceProjectMapper(), repository, access=confirmed_access(repository.database)), gateway, repository
+
+
+def test_confluence_list_fetches_only_core_and_get_loads_only_requested_section(tmp_path) -> None:
+    service, gateway, _repository = _service(tmp_path)
+
+    page = service.list_projects(ProjectQuery(), 0, 100)
+    project = service.get_project("P100", ProjectDetails(facts=True))
+
+    assert page.projects[0].facts.state is DetailState.UNLOADED
+    assert project.facts.state is DetailState.LOADED
+    assert project.roles.state is DetailState.UNLOADED
+    assert dict(project.facts.value.values)["current stage"] == "EVT"
+    assert gateway.detail_calls == []
+
+
+def test_confluence_revision_change_and_remote_failure_preserve_cache(tmp_path) -> None:
+    service, gateway, repository = _service(tmp_path)
+    service.list_projects(ProjectQuery(), 0, 100)
+    service.get_project("P100", ProjectDetails(roles=True, facts=True))
+    gateway.version = 2
+    service.refresh_projects(ProjectSyncScope())
+
+    stale = repository.get("P100", ProjectDetails(roles=True, facts=True, evidence=True))
+    assert stale.roles.state is DetailState.STALE
+    assert stale.facts.state is DetailState.LOADED
+    assert stale.evidence.state is DetailState.UNLOADED
+
+    gateway.fail_sections.add("facts")
+    failed = service.refresh_project("P100", ProjectDetails(facts=True))
+    assert failed.facts.state is DetailState.FAILED
+    assert failed.facts.error_code == "remote_unavailable"
+    assert dict(failed.facts.value.values)["current stage"] == "EVT"
+    cached = repository.get("P100", ProjectDetails(roles=True))
+    assert cached.roles.state is DetailState.STALE
+
+
+def test_confluence_empty_filter_result_does_not_refetch_when_cache_exists(tmp_path) -> None:
+    service, gateway, _repository = _service(tmp_path)
+    service.list_projects(ProjectQuery(), 0, 100)
+
+    page = service.list_projects(
+        ProjectQuery.from_filters({"current stage": ("DVT",)}), 0, 100,
+    )
+
+    assert page.projects == ()
+    assert gateway.catalog_calls == 1
+
+
+def test_confluence_remote_detail_failure_preserves_catalog_fields(tmp_path) -> None:
+    service, gateway, _repository = _service(tmp_path)
+    service.list_projects(ProjectQuery())
+    gateway.fail_sections.add("facts")
+
+    project = service.refresh_project("P100", ProjectDetails(facts=True))
+
+    assert project.facts.state is DetailState.FAILED
+    assert dict(project.facts.value.values)["current stage"] == "EVT"
+    assert project.facts.error_code == "remote_unavailable"

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Any, Iterable
 
-from core.issues import IssueStore, UnifiedIssue
+from core.tools.SmartHome.redmine.issue_store import RedmineIssue, RedmineIssueStore
 from core.tools.SmartHome.redmine import context_store
 from core.tools.SmartHome.redmine.models import (
     RedmineContext,
@@ -13,10 +13,10 @@ from core.tools.SmartHome.redmine.models import (
 )
 from core.tools.SmartHome.redmine.view_model import (
     actionable_rows,
-    detail_row_from_unified,
-    issue_row_from_unified,
+    detail_row_from_issue,
+    issue_row,
     replace_detail,
-    unified_issue,
+    redmine_issue,
     view,
 )
 
@@ -30,7 +30,7 @@ class IssueSource:
     project: RedmineProject | None = None
     item: RedmineIssueListItem | None = None
     detail: RedmineIssueDetail | None = None
-    issue: UnifiedIssue | None = None
+    issue: RedmineIssue | None = None
     needs_detail: bool = False
 
 
@@ -61,7 +61,7 @@ class RedmineIssueController:
     ) -> None:
         self._account = str(account or "")
         self._all_projects = str(all_projects)
-        self._store = IssueStore()
+        self._store = RedmineIssueStore()
         self._active_view_id = "my_assigned"
         self._reset_projection()
 
@@ -91,12 +91,12 @@ class RedmineIssueController:
     @property
     def issue_rows(self) -> tuple[dict[str, Any], ...]:
         return tuple(
-            issue_row_from_unified(issue) for issue in self._store.issue_list
+            issue_row(issue) for issue in self._store.issue_list
         )
 
     @property
     def selected_issue(self) -> dict[str, Any]:
-        return detail_row_from_unified(self._store.selected_issue)
+        return detail_row_from_issue(self._store.selected_issue)
 
     @property
     def actionable_issues(self) -> tuple[dict[str, Any], ...]:
@@ -137,7 +137,7 @@ class RedmineIssueController:
         detail = next((entry for entry in context.issues if entry.id == issue_id), None)
         return EnrichmentProjection(
             tuple(
-                issue_row_from_unified(issue)
+                issue_row(issue)
                 for issue in projected.get("issue_list") or ()
             ),
             IssueSource(project=project, item=item, detail=detail),
@@ -154,9 +154,9 @@ class RedmineIssueController:
             return False
         records = cached["issue_list"]
         if not isinstance(records, list) or any(
-            not isinstance(issue, UnifiedIssue) for issue in records
+            not isinstance(issue, RedmineIssue) for issue in records
         ):
-            raise TypeError("Cached issue_list must contain UnifiedIssue records")
+            raise TypeError("Cached issue_list must contain RedmineIssue records")
         self._source_context = RedmineContext(account=self._account)
         self._filters = _normalize_filters(cached.get("filters"))
         self._replace_records(records, cached.get("selected_issue_id"))
@@ -235,7 +235,7 @@ class RedmineIssueController:
         issue = source.issue
         if issue is None and source.project is not None and source.item is not None:
             issue = self._store.upsert(
-                unified_issue(source.project, source.item, detail=source.detail)
+                redmine_issue(source.project, source.item, detail=source.detail)
             )
             source = replace(source, issue=issue)
         if issue is None:
@@ -265,7 +265,7 @@ class RedmineIssueController:
             project, item = _source_item(current)
         if project is None or item is None:
             return False
-        hydrated = unified_issue(
+        hydrated = redmine_issue(
             project, item, analysis=current.analysis, detail=detail
         )
         self._store.patch(
@@ -380,7 +380,7 @@ class RedmineIssueController:
         )
 
     def _replace_records(
-        self, records: Iterable[UnifiedIssue], selected_id: Any = ""
+        self, records: Iterable[RedmineIssue], selected_id: Any = ""
     ) -> None:
         self._store.replace_all(records or ())
         selected_id = str(selected_id or "")
@@ -463,7 +463,7 @@ def _context_with_project_ids(
 
 
 def _source_item(
-    issue: UnifiedIssue,
+    issue: RedmineIssue,
 ) -> tuple[RedmineProject, RedmineIssueListItem]:
     project = RedmineProject(
         name=str(issue.project.get("name") or ""),

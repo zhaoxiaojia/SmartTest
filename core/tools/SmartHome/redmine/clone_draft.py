@@ -8,7 +8,8 @@ from core.issues.create_schema import (
     CreateFieldOption,
     CreateFieldSchema,
 )
-from core.issues.models import CreateIssueRequest
+from core.jira.commands import CreateIssueCommand
+from core.tools.SmartHome.redmine.jira_mapper import RedmineToJiraMapper
 from core.issues.third_party_bug import ThirdPartyBugAttachment
 from core.tools.SmartHome.redmine.mapping import redmine_tracker_to_jira_type
 from core.tools.SmartHome.redmine.models import RedmineIssueDetail, RedmineProject
@@ -69,7 +70,7 @@ class CloneDraft:
             raise KeyError(field_id)
         self.fields = tuple(updated)
 
-    def to_request(self) -> CreateIssueRequest:
+    def to_command(self) -> CreateIssueCommand:
         controls = {
             field.field_id: (
                 field.schema.payload_control or field.schema.control
@@ -90,14 +91,13 @@ class CloneDraft:
             for field in self.fields
             if field.field_id not in standard_ids and field.value not in (None, "", [], {})
         }
-        return CreateIssueRequest(
+        return RedmineToJiraMapper().to_create_command(
             project_key=str(self.value("project") or ""),
             issue_type=str(self.value("issuetype") or ""),
             summary=str(self.value("summary") or ""),
             description=str(self.value("description") or ""),
             priority=str(self.value("priority") or ""),
             components=tuple(self.value("components") or ()),
-            source_system="redmine",
             source_id=self.source_id,
             source_url=self.source_url,
             description_includes_source_identity=True,

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 @dataclass(frozen=True)
-class ConfluenceClientConfig:
+class ConfluenceGatewayConfig:
     base_url: str
     def __post_init__(self):
         if not self.base_url.startswith(("http://", "https://")):

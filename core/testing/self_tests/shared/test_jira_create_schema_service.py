@@ -7,7 +7,6 @@ import pytest
 from core.issues.create_schema import CreateFieldControl
 from core.issues.errors import JiraRequestError
 from core.jira.services.create_schema_service import JiraCreateSchemaService
-from core.jira.transport.client import JiraClient
 
 
 CREATE_META = {
@@ -69,21 +68,26 @@ CREATE_META = {
 }
 
 
-class RecordingClient(JiraClient):
+class RecordingClient:
     def __init__(self, response_data):
         self.response_data = response_data
         self.calls = []
 
-    def _api_path(self, suffix):
-        return f"https://jira/rest/api/2/{suffix}"
+    def fetch_create_metadata(self, project_key, issue_type):
+        self.calls.append(("metadata", project_key, issue_type))
+        return self.response_data
 
-    def _request(self, method, url, *, params=None, json=None):
-        self.calls.append((method, url, params, json))
+    def search_users(self, query, *, project_key):
+        self.calls.append(("users", query, project_key))
+        return [
+            {"account": str(item.get("name") or ""), "display_name": str(item.get("displayName") or ""), "avatar_url": str((item.get("avatarUrls") or {}).get("48x48") or "")}
+            for item in self.response_data
+        ]
 
-        class Response:
-            data = self.response_data
-
-        return Response()
+    def current_user(self):
+        self.calls.append(("current_user",))
+        item = self.response_data
+        return {"account": str(item.get("name") or ""), "display_name": str(item.get("displayName") or ""), "avatar_url": str((item.get("avatarUrls") or {}).get("48x48") or "")}
 
 
 def test_fetch_create_metadata_scopes_project_and_issue_type():
@@ -92,16 +96,7 @@ def test_fetch_create_metadata_scopes_project_and_issue_type():
     payload = client.fetch_create_metadata("SH", "Bug")
 
     assert payload == CREATE_META
-    assert client.calls == [(
-        "GET",
-        "https://jira/rest/api/2/issue/createmeta",
-        {
-            "projectKeys": "SH",
-            "issuetypeNames": "Bug",
-            "expand": "projects.issuetypes.fields",
-        },
-        None,
-    )]
+    assert client.calls == [("metadata", "SH", "Bug")]
 
 
 def test_search_users_is_project_scoped_and_normalizes_public_identity_only():
@@ -119,12 +114,7 @@ def test_search_users_is_project_scoped_and_normalizes_public_identity_only():
         "display_name": "Fred Chen",
         "avatar_url": "https://jira/avatar/fred",
     }]
-    assert client.calls == [(
-        "GET",
-        "https://jira/rest/api/2/user/assignable/search",
-        {"project": "SH", "username": "fred"},
-        None,
-    )]
+    assert client.calls == [("users", "fred", "SH")]
 
 
 def test_current_user_reads_authenticated_identity_from_myself():
@@ -142,9 +132,7 @@ def test_current_user_reads_authenticated_identity_from_myself():
         "display_name": "Subing Xu",
         "avatar_url": "https://jira/avatar/subing",
     }
-    assert client.calls == [(
-        "GET", "https://jira/rest/api/2/myself", None, None,
-    )]
+    assert client.calls == [("current_user",)]
 
 
 def test_schema_maps_jira_native_controls_required_options_and_order():

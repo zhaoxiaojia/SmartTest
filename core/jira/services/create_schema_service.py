@@ -9,14 +9,13 @@ from core.issues.create_schema import (
     CreateFieldSchema,
 )
 from core.issues.errors import JiraRequestError
-from core.jira.transport.client import JiraClient
 
 
 _USER_FIELD_NAMES = {"assignee", "reporter", "manager", "fae coworker", "fae manager"}
 
 
 class JiraCreateSchemaService:
-    def __init__(self, client: JiraClient):
+    def __init__(self, client):
         self._client = client
 
     def schema(self, project_key: str, issue_type: str) -> tuple[CreateFieldSchema, ...]:

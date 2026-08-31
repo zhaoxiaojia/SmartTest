@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.issues import UnifiedIssue
+from core.tools.SmartHome.redmine.issue_store import RedmineIssue
 from core.tools.SmartHome.redmine.models import RedmineContext, RedmineIssueDetail, RedmineIssueListItem, RedmineProject
 
 
@@ -27,7 +27,7 @@ def view(
     if selected_detail is not None:
         details[selected_detail.id] = selected_detail
     issue_list = [
-        unified_issue(
+        redmine_issue(
             project,
             issue,
             analysis=analysis.get(issue.id),
@@ -49,21 +49,20 @@ def view(
     }
 
 
-def unified_issue(
+def redmine_issue(
     project: RedmineProject,
     item: RedmineIssueListItem,
     *,
     analysis: dict[str, Any] | None = None,
     detail: RedmineIssueDetail | None = None,
-) -> UnifiedIssue:
+) -> RedmineIssue:
     risk = dict(analysis or {})
     projected = detail_row(detail, item=item, project=project)
     reporter = _field_value(projected.get("peopleFields"), "Reporter")
     created_at = _field_value(projected.get("dateFields"), "Created")
-    return UnifiedIssue(
+    return RedmineIssue(
         id=item.id,
         key=item.id,
-        source_system="redmine",
         source_url=item.url,
         title=detail.subject if detail else item.subject,
         web_url=detail.url if detail else item.url,
@@ -98,7 +97,7 @@ def unified_issue(
     )
 
 
-def issue_row_from_unified(issue: UnifiedIssue) -> dict[str, Any]:
+def issue_row(issue: RedmineIssue) -> dict[str, Any]:
     project = issue.project
     analysis = issue.analysis
     clone = issue.clone
@@ -135,13 +134,13 @@ def issue_row_from_unified(issue: UnifiedIssue) -> dict[str, Any]:
     return row
 
 
-def detail_row_from_unified(issue: UnifiedIssue | None) -> dict[str, Any]:
+def detail_row_from_issue(issue: RedmineIssue | None) -> dict[str, Any]:
     if issue is None:
         return {}
     project = issue.project
     reporter = str(issue.reporter.get("name") or issue.reporter.get("displayName") or "")
     return {
-        **issue_row_from_unified(issue),
+        **issue_row(issue),
         "projectUrl": str(project.get("url") or ""),
         "projectPath": (
             [{"label": str(project.get("name") or ""), "url": str(project.get("url") or "")}]
@@ -159,8 +158,8 @@ def detail_row_from_unified(issue: UnifiedIssue | None) -> dict[str, Any]:
     }
 
 
-def actionable_rows(issues: list[UnifiedIssue] | tuple[UnifiedIssue, ...]) -> list[dict[str, Any]]:
-    rows = [issue_row_from_unified(issue) for issue in issues]
+def actionable_rows(issues: list[RedmineIssue] | tuple[RedmineIssue, ...]) -> list[dict[str, Any]]:
+    rows = [issue_row(issue) for issue in issues]
     return sorted(
         [row for row in rows if _row_is_actionable(row)],
         key=lambda row: (

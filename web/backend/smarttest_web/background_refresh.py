@@ -20,28 +20,26 @@ class BackgroundFactsRefresh:
     def state(self):
         return self.state_for("")
 
-    def state_for(self, username):
+    def state_for(self, access):
         with self._lock:
-            return self._states.get(str(username).strip().casefold(), "idle")
+            return self._states.get(str(access).strip().casefold(), "idle")
 
-    def status_for(self, username):
-        account = str(username).strip().casefold()
+    def status_for(self, access):
+        account = str(access).strip().casefold()
         with self._lock:
             job = self._jobs.get(account)
             if job:
-                return {key: job[key] for key in ("state", "completed", "total", "revision")}
-            return {"state": self._states.get(account, "idle"), "completed": 0,
-                    "total": 0, "revision": None}
+                return {key: job[key] for key in ("state", "completed", "total")}
+            return {"state": "idle", "completed": 0, "total": 0}
 
-    def start_details(self, owner, username, password, *, filters=None, search=""):
-        account = str(username).strip().casefold()
+    def start_details(self, owner, access, password, *, filters=None, search=""):
+        account = access.session_hash
         with self._lock:
             if self._jobs.get(account, {}).get("state") == "loading":
                 return False
-            previous_revision = self._jobs.get(account, {}).get("revision")
-            job = {"state": "loading", "completed": 0, "total": 0,
-                   "revision": previous_revision if previous_revision is not None else 0,
-                   "cancelled": False}
+            job = {
+                "state": "loading", "completed": 0, "total": 0, "cancelled": False,
+            }
             self._jobs[account] = job
 
         def cancelled():
@@ -57,8 +55,8 @@ class BackgroundFactsRefresh:
             if cancelled():
                 return
             try:
-                result = owner.sync_details(username, password, filters=filters, search=search,
-                                            cancelled=cancelled, progress=progress)
+                owner.sync_details(access, password, filters=filters, search=search,
+                                   cancelled=cancelled, progress=progress)
             except Exception:  # noqa: BLE001 - only safe job state crosses the API
                 with self._lock:
                     if not job["cancelled"]:
@@ -66,13 +64,13 @@ class BackgroundFactsRefresh:
             else:
                 with self._lock:
                     if not job["cancelled"]:
-                        job.update(state="ready", revision=(result or {}).get("revision"))
+                        job["state"] = "ready"
 
         self._submit(work)
         return True
 
-    def cancel(self, username):
-        account = str(username).strip().casefold()
+    def cancel(self, access):
+        account = str(access).strip().casefold()
         with self._lock:
             job = self._jobs.get(account)
             if not job or job["state"] != "loading":
@@ -80,8 +78,8 @@ class BackgroundFactsRefresh:
             job.update(cancelled=True, state="cancelled")
             return True
 
-    def start(self, owner, username, password):
-        account = str(username).strip().casefold()
+    def start(self, owner, access, password):
+        account = access.session_hash
         with self._lock:
             if self._states.get(account) == "loading":
                 return False
@@ -89,13 +87,13 @@ class BackgroundFactsRefresh:
 
         def work():
             try:
-                owner.refresh(username, password)
+                owner.refresh(access, password)
             except Exception:  # noqa: BLE001 - the public state is intentionally safe
                 with self._lock:
                     self._states[account] = "failed"
             else:
                 with self._lock:
-                    self._states[account] = "idle"
+                    self._states[account] = "ready"
 
         self._submit(work)
         return True

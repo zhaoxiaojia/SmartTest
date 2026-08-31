@@ -1,5 +1,8 @@
-export function createAuthShell({ root = document, desktopHost, mobileHost, api }) {
+export function createAuthShell({ root = document, desktopHost, mobileHost, api,
+  onChanging = () => {}, onSession = () => {} }) {
   let state = { authenticated: false }
+  let generation = 0
+  let confirmed = false
   const userNode = () => {
     if (!state.authenticated) {
       const login = document.createElement('a')
@@ -36,11 +39,24 @@ export function createAuthShell({ root = document, desktopHost, mobileHost, api 
     if (trigger) { const logout = trigger.parentElement.querySelector('[data-logout]'); logout.hidden = !logout.hidden }
     if (event.target.closest('[data-logout]') && api) { await api.logout(); state = { authenticated: false }; render() }
   })
-  return {
-    async start() {
-      if (api) { try { state = await api.session() } catch { state = { authenticated: false } } }
-      render()
-      return state
-    }
+  async function start() {
+    const current = ++generation
+    let next = { authenticated: false }
+    if (api) { try { next = await api.session() } catch { /* Unauthenticated shell. */ } }
+    if (current !== generation) return
+    const unchanged = confirmed && state.authenticated === next.authenticated && state.username === next.username
+    state = next; render()
+    confirmed = true
+    if (!unchanged) await onSession(state)
+    return state
   }
+  function changed(event) {
+    if (event.type === 'storage' && event.key !== 'smarttest:identity-change') return
+    confirmed = false
+    onChanging()
+    void start()
+  }
+  window.addEventListener('storage', changed)
+  window.addEventListener('auth:changed', changed)
+  return { start, destroy() { generation++; window.removeEventListener('storage', changed); window.removeEventListener('auth:changed', changed) } }
 }

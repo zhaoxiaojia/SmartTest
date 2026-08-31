@@ -1,10 +1,10 @@
 const STATE_COPY = {
-  loading: 'Loading local project facts…',
+  loading: 'Loading project catalog…',
   ready: '',
   no_snapshot: 'No local project snapshot is available.',
   schema_error: 'Local project snapshot is unreadable.',
   partial_success: 'Some project facts are stale or failed.',
-  failed: 'Project facts refresh failed. Sign in and retry refresh.',
+  failed: 'Project catalog load failed.',
   reauthentication_required: 'Please verify your account again before refreshing Confluence data.'
 }
 const COMMON_FILTERS = [
@@ -12,6 +12,7 @@ const COMMON_FILTERS = [
   'project status', 'current stage', 'project owner', 'support mode'
 ]
 import { createAsyncFeedback } from './async-feedback.js'
+import { createDownloadButton } from './download-button.js'
 
 function node(tag, className, text) {
   const item = document.createElement(tag)
@@ -21,14 +22,16 @@ function node(tag, className, text) {
 }
 
 export function createConfluenceProjects({ root, api, chartFactory, waitForPreferences,
-  pollDelay = ms => new Promise(resolve => setTimeout(resolve, ms)) }) {
+  pollDelay = ms => new Promise(resolve => setTimeout(resolve, ms)), downloadNavigate }) {
   root.innerHTML = `<section class="report-workspace confluence-projects">
     <header class="report-page-head"><div><div class="eyebrow">Confluence · Project Facts</div><h1>Confluence Projects</h1><p>查看本地只读项目事实与 QA 责任信息。</p></div></header>
     <form class="card report-filter-card" data-preference-region><div class="report-filter-grid" data-main-facets></div>
       <details class="more-filter-panel"><summary>更多筛选</summary><div class="more-filter-options" data-more-facets></div></details>
       <div class="report-filter-grid"><label>Project / Person / Field Search<input class="form-control" name="search" type="search" placeholder="Project, person or Confluence field"></label>
-      <div class="filter-actions"><button class="button button-primary" type="submit">Apply Filters</button><button class="button button-secondary" type="button" data-cancel hidden>Cancel Sync</button><button class="button button-secondary" type="button" data-audit>Review Filters</button><button class="button button-secondary" type="button" data-reset data-preference-reset>Reset</button></div></div></form>
-    <div class="report-state report-state-loading" role="status">Loading local project facts…</div><div class="async-feedback" data-async-feedback></div><div class="inline-status" data-audit-status aria-live="polite"></div>
+      <div class="filter-actions"><button class="button button-primary" type="submit">Apply Filters</button><button class="button button-secondary" type="button" data-cancel hidden>Cancel Sync</button><button class="button button-secondary" type="button" data-reset data-preference-reset>Reset</button></div></div>
+      <section class="weekly-review"><strong>Weekly Review</strong><label>Start<input class="form-control" name="reviewStartDate" type="date"></label><label>End<input class="form-control" name="reviewEndDate" type="date"></label>
+        <button class="button button-secondary" type="button" data-audit>Review Filters</button><button class="button button-secondary" type="button" data-audit-cancel disabled>Cancel Review</button><button class="button button-primary" type="button" data-audit-download disabled>Download</button></section></form>
+    <div class="report-state report-state-loading" role="status">Loading project catalog…</div><div class="async-feedback" data-async-feedback></div><div class="async-feedback" data-audit-progress></div><div class="inline-status" data-audit-status aria-live="polite"></div>
     <section class="confluence-summary" data-summary></section>
     <section class="card workload-card"><header class="report-preview-toolbar"><div><strong>Role workload</strong><div class="report-preview-meta">Project assignments per QA member</div></div><div class="role-segments" data-role-segments></div></header>
       <div class="workload-chart-scroll"><div class="workload-chart-surface"><canvas data-workload-chart></canvas></div></div></section>
@@ -41,6 +44,8 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
   const projectsRoot = root.querySelector('[data-projects]')
   const auditButton = root.querySelector('[data-audit]')
   const cancelButton = root.querySelector('[data-cancel]')
+  const auditCancelButton = root.querySelector('[data-audit-cancel]')
+  const auditDownloadButton = root.querySelector('[data-audit-download]')
   let facets = []
   let cacheReady = false
   let destroyed = false
@@ -49,15 +54,44 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
   let workloadChart
   let activeRole = ''
   let activeSync = null
+  let activeAuditId = ''
+  let appliedProjectIds = []
   const feedback = createAsyncFeedback({ root: root.querySelector('[data-async-feedback]'),
     cancelButton, onCancel: cancelSync })
+  const auditFeedback = createAsyncFeedback({ root: root.querySelector('[data-audit-progress]') })
+  const auditDownload = createDownloadButton({
+    element: auditDownloadButton,
+    prepare: async () => (await api.exportConfluenceAudit(activeAuditId)).download,
+    navigate: downloadNavigate,
+    artifactUrl: api.downloadUrl,
+  })
+  auditDownload.element.disabled = true
+
+  function setDefaultReviewPeriod() {
+    const now = new Date(Date.now() + 8 * 60 * 60 * 1000)
+    const day = now.getUTCDay() || 7
+    const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - day + 1))
+    const previous = new Date(monday.getTime() - 7 * 24 * 60 * 60 * 1000)
+    form.elements.reviewStartDate.value = previous.toISOString().slice(0, 10)
+    form.elements.reviewEndDate.value = monday.toISOString().slice(0, 10)
+  }
+  setDefaultReviewPeriod()
 
   function updateFeedback(sync) {
     if (sync?.state === 'loading') feedback.update({ state: 'running', message: 'Syncing project details…',
-      completed: sync.completed, total: sync.total })
+      processed: sync.completed, total: sync.total })
     else if (sync?.state === 'failed') feedback.update({ state: 'failed', message: 'Project detail sync failed.' })
     else if (sync?.state === 'cancelled') feedback.update({ state: 'cancelled' })
     else if (sync?.state === 'ready' && feedback.state === 'running') feedback.update({ state: 'success' })
+  }
+
+  function updateAuditFeedback(audit) {
+    const running = ['queued', 'running'].includes(audit?.status)
+    const state = running ? 'running' : ({
+      completed: 'success', failed: 'failed', cancelled: 'cancelled'
+    }[audit?.status] ?? 'idle')
+    auditFeedback.update({ state, stage: audit?.stage,
+      processed: audit?.progress?.processed, total: audit?.progress?.total })
   }
 
   const currentFilters = () => {
@@ -98,6 +132,7 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
       if (!facet) continue
       const label = node('label', '', facet.labels?.length > 1 ? `${facet.label} (${facet.labels.join(' / ')})` : facet.label)
       const select = node('select', 'form-select'); select.name = `field.${facet.key}`; select.multiple = true
+      select.dataset.readyLabel = `All ${facet.label}`
       fillSelect(select, facet.options ?? [])
       for (const option of select.options) option.selected = (selected[facet.key] ?? []).includes(option.value)
       label.append(select); facetRoot.append(label)
@@ -120,6 +155,9 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
   function updateFacetOptions(nextFacets) {
     const invalid = []
     facets = nextFacets ?? facets
+    for (const select of form.querySelectorAll('select[name^="field."]')) {
+      select._multiSelect?.setEmptyLabel(select.dataset.readyLabel)
+    }
     for (const facet of facets) {
       const select = form.elements[`field.${facet.key}`]
       if (!select) continue
@@ -224,24 +262,28 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
     }
   }
 
-  function present(payload, { updateHierarchy = true, updateFacets = true } = {}) {
-    const hasCache = Boolean(payload.snapshotTime) && ['ready', 'partial_success'].includes(payload.state)
-    const hasPartialCatalog = payload.state === 'loading' && Boolean(payload.snapshotTime) && payload.facets?.some(facet => facet.options?.length)
-    const syncing = payload.sync?.state === 'loading'
-    updateFeedback(payload.sync)
-    cacheReady = hasCache
+  function present(payload, {
+    updateHierarchy = true, updateFacets = true, detailRequested = false,
+  } = {}) {
+    const hasCache = ['ready', 'partial_success'].includes(payload.state)
+    const hasPartialCatalog = payload.state === 'loading' && payload.facets?.some(facet => facet.options?.length)
+    const hasDetailJob = detailRequested || Boolean(activeSync)
+    const syncing = hasDetailJob && payload.sync?.state === 'loading'
+    if (hasDetailJob) updateFeedback(payload.sync)
+    cacheReady = hasCache || hasPartialCatalog
     if (!facets.length) renderFacets(payload.facets, { loading: payload.state === 'loading' || !hasCache })
-    else if (updateFacets) updateFacetOptions(payload.facets)
-    if (updateHierarchy) renderProjects(payload.ownerHierarchy ?? [], payload.projects?.length ?? 0,
-      payload.projects ?? [], payload.accessibleProjectCount)
+    else if (updateFacets && (hasCache || hasPartialCatalog)) updateFacetOptions(payload.facets)
+    if (updateHierarchy) {
+      renderProjects(payload.ownerHierarchy ?? [], payload.projects?.length ?? 0,
+        payload.projects ?? [], payload.accessibleProjectCount)
+      appliedProjectIds = (payload.projects ?? []).map(project => project.project_id).filter(Boolean)
+    }
     status.className = `report-state report-state-${payload.state}`
-    status.textContent = `${STATE_COPY[payload.state] ?? ''}${payload.snapshotTime ? ` Snapshot: ${payload.snapshotTime}` : ''}`.trim()
-    if (syncing) status.textContent = `Syncing project details… ${payload.sync.completed ?? 0}/${payload.sync.total ?? 0}`
-    status.hidden = payload.state === 'ready' && !payload.snapshotTime
+    status.textContent = STATE_COPY[payload.state] ?? ''
+    status.hidden = payload.state === 'ready'
     if (payload.detailState === 'reauthentication_required') {
       root.querySelector('[data-audit-status]').textContent = 'Please verify your account again before loading responsibility details.'
     }
-    cancelButton.hidden = !syncing
     setBusinessControlsEnabled(hasCache || hasPartialCatalog, { applyEnabled: hasCache && !syncing })
     auditButton.disabled = !hasCache || syncing
   }
@@ -254,45 +296,44 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
       const payload = await api.getProjectFacts(filters, { details: false })
       if (destroyed || generation !== pollGeneration || !root.isConnected) return
       const contextUnchanged = !activeSync || contextToken(currentFilters()) === activeSync.token
-      const revisionAdvanced = activeSync && Number(payload.revision) > activeSync.revision
-      if (!activeSync || (contextUnchanged && revisionAdvanced)) {
+      if (!activeSync || (contextUnchanged && payload.sync?.state !== 'loading')) {
         present(payload)
-        if (activeSync) activeSync.revision = Number(payload.revision)
-      } else if (payload.sync?.state === 'loading') {
-        status.textContent = `Syncing project details… ${payload.sync.completed ?? 0}/${payload.sync.total ?? 0}`
+      } else {
+        updateFeedback(payload.sync)
       }
       if (payload.state === 'loading' || payload.sync?.state === 'loading') poll(generation)
       else {
         updateFeedback(payload.sync)
         activeSync = null
-        cancelButton.hidden = true
         setBusinessControlsEnabled(cacheReady, { applyEnabled: cacheReady })
       }
     } catch {
+      if (destroyed || generation !== pollGeneration) return
       if (activeSync) feedback.update({ state: 'failed', message: 'Project detail sync failed.' })
       status.className = 'report-state report-state-schema_error'; status.textContent = 'Local project facts API is unavailable.'
       setBusinessControlsEnabled(false)
     }
   }
 
-  async function load({ updateHierarchy = true, updateFacets = true, details = false,
+  async function load({ updateHierarchy = true, updateFacets = true, details = false, catalog = false,
     beginPolling = true } = {}) {
     const generation = ++pollGeneration
     const requestedFilters = currentFilters()
-    if (!details) {
+    if (!details && !cacheReady) {
       setBusinessControlsEnabled(false)
       status.className = 'report-state report-state-loading'; status.hidden = false; status.textContent = STATE_COPY.loading
     }
     try {
-      const payload = await api.getProjectFacts(requestedFilters, { details })
+      const options = catalog ? { details, catalog: true } : { details }
+      const payload = await api.getProjectFacts(requestedFilters, options)
       if (destroyed || generation !== pollGeneration) return
-      present(payload, { updateHierarchy, updateFacets })
+      present(payload, { updateHierarchy, updateFacets, detailRequested: details })
       if (details && payload.sync?.state === 'loading') {
-        activeSync = { token: contextToken(requestedFilters), filters: requestedFilters,
-          revision: Number(payload.revision) }
+        activeSync = { token: contextToken(requestedFilters), filters: requestedFilters }
       }
       if (beginPolling && (payload.state === 'loading' || payload.sync?.state === 'loading')) poll(generation)
     } catch {
+      if (destroyed || generation !== pollGeneration) return
       if (details || feedback.state === 'running') feedback.update({ state: 'failed', message: 'Project detail sync failed.' })
       status.className = 'report-state report-state-schema_error'; status.textContent = 'Local project facts API is unavailable.'
       renderProjects([], 0)
@@ -301,7 +342,6 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
   }
   form.addEventListener('submit', event => {
     event.preventDefault()
-    feedback.update({ state: 'running', message: 'Syncing project details…', completed: 0, total: 0 })
     setBusinessControlsEnabled(cacheReady, { applyEnabled: false })
     load({ updateHierarchy: true, updateFacets: false, details: true })
   })
@@ -314,12 +354,48 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
     }
   })
   root.querySelector('[data-reset]').addEventListener('click', () => {
-    form.reset()
-    for (const select of form.querySelectorAll('select')) select._multiSelect?.syncFromSelect()
-    load({ updateHierarchy: true, updateFacets: false })
+    form.elements.search.value = ''
+    for (const select of form.querySelectorAll('select[name^="field."]')) {
+      for (const option of select.options) option.selected = false
+      select._multiSelect?.syncFromSelect()
+    }
+    enabledMore.clear()
+    renderFacets(facets)
   })
-  auditButton.addEventListener('click', () => {
-    root.querySelector('[data-audit-status]').textContent = 'Client runtime credential is required. Start the Confluence audit in SmartTest Client.'
+  auditButton.addEventListener('click', async () => {
+    auditButton.disabled = true
+    auditCancelButton.disabled = false
+    auditDownload.element.disabled = true
+    root.querySelector('[data-audit-status]').textContent = ''
+    try {
+      const created = await api.createConfluenceAudit({
+        projectIds: appliedProjectIds,
+        startDate: form.elements.reviewStartDate.value,
+        endDate: form.elements.reviewEndDate.value,
+      })
+      if (destroyed) return
+      activeAuditId = created.auditId
+      let audit = created
+      updateAuditFeedback(audit)
+      while (['queued', 'running'].includes(audit.status)) {
+        await pollDelay(500)
+        if (destroyed) return
+        audit = await api.getConfluenceAudit(activeAuditId)
+        if (destroyed) return
+        updateAuditFeedback(audit)
+      }
+      auditDownload.element.disabled = audit.status !== 'completed'
+    } catch (error) {
+      if (destroyed) return
+      root.querySelector('[data-audit-status]').textContent = error?.status === 422 ? 'invalid review period' : 'audit unavailable'
+      auditFeedback.update({ state: 'failed' })
+    } finally {
+      if (!destroyed) { auditButton.disabled = false; auditCancelButton.disabled = true }
+    }
+  })
+  auditCancelButton.addEventListener('click', async () => {
+    await api.cancelConfluenceAudit(activeAuditId)
+    auditCancelButton.disabled = true
   })
   async function cancelSync() {
     await api.cancelProjectSync()
@@ -330,12 +406,11 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
     setBusinessControlsEnabled(cacheReady, { applyEnabled: cacheReady })
   }
   async function start() {
-    if (!waitForPreferences) return load()
-    await load({ updateHierarchy: false, beginPolling: false })
-    await waitForPreferences()
+    await load({ updateHierarchy: !waitForPreferences, beginPolling: false })
+    await waitForPreferences?.()
     if (destroyed) return
-    return load({ updateFacets: false })
+    return load({ catalog: true })
   }
-  return { start, destroy() { destroyed = true; pollGeneration += 1; workloadChart?.destroy() } }
+  return { start, destroy() { destroyed = true; pollGeneration += 1; auditDownload.destroy(); workloadChart?.destroy() } }
 }
 import { enhanceMultiSelect, fillSelect, selected } from './wifi-database.js'

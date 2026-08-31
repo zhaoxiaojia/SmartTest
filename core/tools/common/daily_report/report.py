@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from html import escape
 import math
 from pathlib import Path
@@ -127,54 +127,23 @@ def build_historical_jql(day: date, label: str = "BDS_IFPD") -> str:
     return f'status WAS NOT IN (Closed, Done, Verified) ON "{day.isoformat()}" AND labels = {label}'
 
 
-def _named(value) -> str:
-    if isinstance(value, dict):
-        return str(
-            value.get("displayName") or value.get("name") or value.get("value") or ""
-        )
-    return "" if value is None else str(value)
-
-
-def _names(value) -> tuple[str, ...]:
-    if value is None:
-        return ()
-    if isinstance(value, (str, dict)):
-        value = (value,)
-    return tuple(name for item in value if (name := _named(item)))
-
-
-def _datetime(value) -> datetime | None:
-    if isinstance(value, datetime):
-        return value
-    if not value:
-        return None
-    text = str(value).strip().replace("Z", "+00:00")
-    if len(text) >= 5 and text[-5] in "+-" and text[-4:].isdigit():
-        text = text[:-2] + ":" + text[-2:]
-    try:
-        return datetime.fromisoformat(text)
-    except ValueError:
-        return None
-
-
 def records_to_issues(
     records, jira_base_url: str = "https://jira.amlogic.com"
 ) -> tuple[DailyReportIssue, ...]:
     issues = {}
     for record in records:
-        fields = record.fields
-        key = str(record.key)
+        key = record.identity.key
         issues[key] = DailyReportIssue(
             key,
-            _named(fields.get("summary")),
-            _named(fields.get("status")),
-            _named(fields.get("assignee")),
-            _named(fields.get("priority")),
-            _names(fields.get("components")),
-            _names(fields.get("labels")),
-            _datetime(fields.get("created")),
-            _datetime(fields.get("updated")),
-            f"{jira_base_url.rstrip('/')}/browse/{key}",
+            record.summary,
+            record.status.name,
+            record.assignee.display_name if record.assignee else "",
+            record.priority.name if record.priority else "",
+            tuple(component.name for component in record.components if component.name),
+            tuple(record.labels),
+            record.created_at,
+            record.updated_at,
+            record.identity.web_url or f"{jira_base_url.rstrip('/')}/browse/{key}",
         )
     return tuple(issues.values())
 

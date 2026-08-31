@@ -1,25 +1,22 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import Any, Iterable
 
-from core.issues.models import IssueRecord, SearchPage
-from core.jira.fields.extractors import project_fields
+from core.jira.domain import Issue, IssueDetails, IssuePage
 from core.jira.fields.registry import FieldFetchPlan, FieldRegistry, build_default_registry
 from core.jira.fields.specs import FieldSpec
-
-if TYPE_CHECKING:
-    from core.jira.transport.client import JiraClient
+from core.jira.mapper import JiraIssueMapper
+from core.jira.repository import IssueRepository
 
 
 class JiraIssueService:
-    def __init__(
-        self,
-        client: "JiraClient",
-        *,
-        registry: FieldRegistry | None = None,
-    ):
-        self._client = client
+    """Application service over the Jira Issue repository."""
+
+    def __init__(self, gateway: Any, *, registry: FieldRegistry | None = None):
+        self._gateway = gateway
         self._registry = registry or build_default_registry()
+        self._mapper = JiraIssueMapper(gateway.config.base_url)
+        self._repository = IssueRepository(gateway, self._mapper)
 
     def search_records(
         self,
@@ -30,24 +27,16 @@ class JiraIssueService:
         page_size: int | None = None,
         max_workers: int | None = None,
         max_total_results: int | None = None,
-    ) -> list[IssueRecord]:
-        plan = self._registry.build_plan(specs, include_heavy=include_heavy)
-        raw_issues = self._client.search_all(
+    ) -> list[Issue]:
+        payloads = self._gateway.search_all_payloads(
             jql,
-            fields=list(plan.jira_fields),
-            expand=list(plan.expand) or None,
+            fields=list(self._gateway.CORE_FIELDS),
             page_size=page_size,
-            max_workers=max_workers,
             max_total_results=max_total_results,
         )
-        return [self._to_record(issue, list(plan.active_specs)) for issue in raw_issues]
+        return [self._mapper.from_search(payload) for payload in payloads]
 
-    def build_fetch_plan(
-        self,
-        specs: Iterable[str | FieldSpec],
-        *,
-        include_heavy: bool = False,
-    ) -> FieldFetchPlan:
+    def build_fetch_plan(self, specs: Iterable[str | FieldSpec], *, include_heavy: bool = False) -> FieldFetchPlan:
         return self._registry.build_plan(specs, include_heavy=include_heavy)
 
     def search_page_records(
@@ -58,39 +47,25 @@ class JiraIssueService:
         start_at: int,
         max_results: int,
         include_heavy: bool = False,
-    ) -> tuple[SearchPage, list[IssueRecord]]:
-        plan = self.build_fetch_plan(specs, include_heavy=include_heavy)
-        page = self._client.search_page(
-            jql,
-            start_at=start_at,
-            max_results=max_results,
-            fields=list(plan.jira_fields),
-            expand=list(plan.expand) or None,
-        )
-        records = [self._to_record(issue, list(plan.active_specs)) for issue in page.issues]
-        return page, records
+    ) -> tuple[IssuePage, list[Issue]]:
+        payload = self._gateway.search_payload(jql, start_at=start_at, max_results=max_results, fields=list(self._gateway.CORE_FIELDS))
+        issues = tuple(self._mapper.from_search(item) for item in payload.get("issues") or ())
+        page_size = int(payload.get("maxResults") or max_results)
+        page = IssuePage(issues, start_at // page_size if page_size else 0, page_size, int(payload.get("total") or len(issues)))
+        return page, list(issues)
 
     def fetch_favourite_filters(self) -> list[dict[str, Any]]:
-        return self._client.fetch_favourite_filters()
+        return self._gateway.fetch_favourite_filters()
 
-    def hydrate_issue(
-        self,
-        issue_key: str,
-        *,
-        specs: Iterable[str | FieldSpec],
-    ) -> IssueRecord:
-        plan = self._registry.build_plan(specs, include_heavy=True)
-        raw_issue = self._client.fetch_issue(
-            issue_key,
-            fields=list(plan.jira_fields),
-            expand=list(plan.expand) or None,
-        )
-        return self._to_record(raw_issue, list(plan.active_specs))
-
-    def _to_record(self, issue: dict[str, Any], specs: list[FieldSpec]) -> IssueRecord:
-        return IssueRecord(
-            key=str(issue.get("key", "")),
-            id=str(issue.get("id")) if issue.get("id") is not None else None,
-            raw=issue,
-            fields=project_fields(issue, specs),
+    def hydrate_issue(self, issue_key: str, *, specs: Iterable[str | FieldSpec]) -> Issue:
+        requested = {item.name if isinstance(item, FieldSpec) else str(item) for item in specs}
+        issue = self._repository.get(issue_key)
+        return self._repository.load_details(
+            issue,
+            IssueDetails(
+                description="description" in requested,
+                comments="comments" in requested,
+                attachments="attachments" in requested,
+                links="issuelinks" in requested or "links" in requested,
+            ),
         )

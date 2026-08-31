@@ -153,6 +153,16 @@ class PersistentSessionStore:
                               extra={"exception_type": type(exc).__name__})
             return WebSession(row[0], row[1], row[2] or b"", expires_at, password, renewed)
 
+    def resource_access(self, token, platform, database):
+        from .resource_access import ResourceAccess
+
+        value = self.get(token)
+        if value is None:
+            raise PermissionError("reauthentication_required")
+        access = ResourceAccess(database, value.username, platform, self._hash(token), now=self._now)
+        access.require_active()
+        return access
+
     def delete(self, token):
         token_hash = self._hash(token)
         with self._lock, self._connect() as connection:
@@ -211,26 +221,6 @@ class PersistentSessionStore:
     def contains_raw_token(self, token):
         with self._connect() as connection:
             return connection.execute("SELECT 1 FROM web_sessions WHERE token_hash=?", (token,)).fetchone() is not None
-
-    def active_account_credentials(self):
-        """Return one recoverable credential per active account for background refresh."""
-        now = self._now()
-        with self._connect() as connection:
-            rows = connection.execute("""SELECT username,credential_ref FROM web_sessions
-                WHERE revoked_at IS NULL AND expires_at>? AND credential_ref IS NOT NULL
-                ORDER BY last_seen_at DESC""", (now,)).fetchall()
-        result = []
-        seen = set()
-        for username, reference in rows:
-            if username in seen:
-                continue
-            try:
-                stored_username, password = self._credential_store.read(reference)
-            except CredentialStoreError:
-                continue
-            seen.add(username)
-            result.append((stored_username or username, password))
-        return result
 
     def get_preferences(self, username, scope):
         with self._connect() as connection:

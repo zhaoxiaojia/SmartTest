@@ -5,6 +5,20 @@ import { createPreferenceStore } from '../src/preference-store.js'
 describe('PreferenceStore', () => {
   beforeEach(() => { document.body.innerHTML = ''; window.history.replaceState({}, '', '/wifi-database/rvr') })
 
+  it('discards old-account hydration and delayed writes after identity disposal', async () => {
+    document.body.innerHTML = '<form data-preference-region><input name="search"></form>'
+    let resolveOld
+    const api = { get: () => new Promise(resolve => { resolveOld = resolve }), put: vi.fn() }
+    const store = createPreferenceStore({ root: document, api })
+    const starting = store.start()
+    store.destroy()
+    resolveOld({ items: { search: 'Alice private' } })
+    await starting
+    expect(document.querySelector('input').value).toBe('')
+    document.querySelector('input').dispatchEvent(new Event('change', { bubbles: true }))
+    expect(api.put).not.toHaveBeenCalled()
+  })
+
   it('restores and saves standard controls only inside preference regions', async () => {
     document.body.innerHTML = `<form data-preference-region><input name="search"><input id="enabled" type="checkbox"></form><input name="outside">`
     const api = { get: vi.fn().mockResolvedValue({ items: { search: 'apollo', enabled: true } }), put: vi.fn().mockResolvedValue({}) }

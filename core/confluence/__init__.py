@@ -1,7 +1,9 @@
-from .client import ConfluenceClient, ConfluenceDependencyError
-from .models import ConfluenceClientConfig, ConfluencePage
+from .gateway import ConfluenceGateway, ConfluenceDependencyError
+from .models import ConfluenceGatewayConfig, ConfluencePage
+from .project import Project
+from .project_repository import ProjectRepository
 
 __all__ = [
-    "ConfluenceClient", "ConfluenceClientConfig",
-    "ConfluenceDependencyError", "ConfluencePage",
+    "ConfluenceGateway", "ConfluenceGatewayConfig",
+    "ConfluenceDependencyError", "ConfluencePage", "Project", "ProjectRepository",
 ]

@@ -1,6 +1,4 @@
-"""Jira core models and errors."""
-
-from core.issues.issue_store import IssueStore, UnifiedIssue
+"""Third-party issue source values shared by source-specific integrations."""
 from core.issues.third_party_bug import (
     ThirdPartyBugAttachment,
     ThirdPartyBugComment,
@@ -11,12 +9,10 @@ from core.issues.third_party_bug import (
 )
 
 __all__ = [
-    "IssueStore",
     "ThirdPartyBugAttachment",
     "ThirdPartyBugComment",
     "ThirdPartyBugContext",
     "ThirdPartyBugDetail",
     "ThirdPartyBugListItem",
     "ThirdPartyBugProject",
-    "UnifiedIssue",
 ]

@@ -5,7 +5,7 @@ import re
 from typing import Iterable
 
 from core.jira.cache.metadata_cache import JiraFieldMetadataCache
-from core.issues.models import JiraFieldMetadata
+from core.jira.metadata import JiraFieldMetadata
 from core.jira.fields.specs import FieldSpec
 from core.logging import smart_log
 

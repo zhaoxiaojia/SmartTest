@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
 
+import pytest
+
 from core.confluence.models import ConfluencePage
-from core.tools.common.project_weekly_audit.models import ProductLine
-from core.tools.common.project_weekly_audit.project_facts import (
+from core.confluence.project_discovery import ProductLine
+from core.confluence.project_catalog import (
     PRODUCT_SPACE_FACET, extract_project_detail, query_project_facts,
     refresh_project_catalogs,
 )
@@ -55,6 +57,31 @@ def test_catalog_sync_preserves_dynamic_fields_and_publishes_ready_snapshot():
     assert store.saved[-1] == snapshot
 
 
+def test_recent_client_product_space_contract_accepts_chinese_page_header_and_dynamic_fields():
+    body = (
+        "<table><tbody><tr><th>页面</th><th>Project ID</th><th>ODM</th>"
+        "<th>Project Owner</th><th>Current Stage</th></tr>"
+        '<tr><td><a href="/pages/viewpage.action?pageId=900">Apollo</a></td>'
+        "<td>TV-100</td><td>ODM-X</td><td>Alice</td><td>EVT</td></tr>"
+        "</tbody></table>"
+    )
+    page = ConfluencePage(
+        "10", "Project Space", "https://c/display/TV/Project+Space",
+        view_body=body, version=7,
+    )
+
+    snapshot = refresh_project_catalogs(
+        CatalogClient({page.url: page}), MemoryStore(),
+        (ProductLine("TV", page.url, "TV Business"),),
+    )
+
+    assert snapshot["projects"][0]["page_id"] == "900"
+    assert snapshot["projects"][0]["fields"] == {
+        "page": "Apollo", "project id": "TV-100", "odm": "ODM-X",
+        "project owner": "Alice", "current stage": "EVT",
+    }
+
+
 def test_catalog_sync_publishes_each_space_without_detail_fetches():
     first, second = _space("X"), _space("Y", "Beta-ID", "102", "Stage 4")
     store = MemoryStore()
@@ -69,7 +96,10 @@ def test_forbidden_catalog_space_is_silently_absent_without_removing_other_space
     allowed = _space("X")
 
     class ForbiddenError(RuntimeError):
-        response = type("Response", (), {"status_code": 403})()
+        response = type("Response", (), {
+            "status_code": 403,
+            "headers": {"content-type": "application/json;charset=UTF-8"},
+        })()
 
     class PartialClient:
         def get_page_by_url(self, url, *, prefer_export=False):
@@ -83,6 +113,26 @@ def test_forbidden_catalog_space_is_silently_absent_without_removing_other_space
     ))
     assert [row["space_key"] for row in snapshot["projects"]] == ["X"]
     assert [source["space_key"] for source in snapshot["sources"]] == ["X"]
+
+
+def test_catalog_authentication_failure_is_not_published_as_empty_ready_snapshot():
+
+    class Unauthorized(RuntimeError):
+        response = type("Response", (), {
+            "status_code": 401, "headers": {"content-type": "text/html"},
+        })()
+
+    class Client:
+        def get_page_by_url(self, _url, *, prefer_export=False):
+            raise Unauthorized("credentials rejected")
+
+    store = MemoryStore()
+    with pytest.raises(Unauthorized):
+        refresh_project_catalogs(Client(), store, (
+            ProductLine("TV", "https://c/display/TV/Project+Space", "TV Business"),
+        ))
+
+    assert store.saved == []
 
 
 def test_single_project_extraction_expands_structured_and_delimited_people():

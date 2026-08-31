@@ -1,108 +1,124 @@
+from __future__ import annotations
+
+from dataclasses import replace
 import sqlite3
+
 import pytest
 
-from smarttest_web.confluence_repository import ConfluenceCurrentStateRepository
+from core.confluence.project import (
+    ConfluencePageRef,
+    ProductSpaceRef,
+    Project,
+    ProjectDetails,
+    ProjectIdentity,
+    ProjectMilestones,
+    ProjectRole,
+    SourceEvidence,
+)
+from core.domain.detail import DetailSection, DetailState
+from core.domain.values import FieldBag, NamedValue, PersonRef, SourceRevision
+from smarttest_web.confluence.project_repository import ConfluenceProjectRepository
+from smarttest_web.database import WebDatabase
+from smarttest_web.schema import initialize_current_cache_schema
 
 
-def _snapshot(project_id="page-1", owner="Alice", version=2):
-    return {"schema_version": 1, "updated_at": "2026-08-28T00:00:00Z", "phase": "ready",
-            "projects": [{"identity": f"DOPL:{project_id}", "page_id": project_id,
-                          "project_id": "P1", "name": "Project One", "space_key": "DOPL",
-                          "page_url": "https://c/pages/1", "active": True, "status": "current",
-                          "fields": {"current stage": "Stage 3", "new field": "Dynamic"},
-                          "raw_fields": {"Current Stage": "Stage 3", "New Field": "Dynamic"},
-                          "raw_headers": ["Current Stage", "New Field"],
-                          "roles": {"FAE QA": [{"identity": "u1", "name": owner}]},
-                          "catalog_source": {"page_id": "catalog", "version": version},
-                          "detail_source": {"page_id": "basic", "version": version}}]}
+def _project(revision: str = "4") -> Project:
+    return Project(
+        ProjectIdentity("900", "P100"), "Project One",
+        ProductSpaceRef("DOPL", "DOPL", "https://confluence/spaces/DOPL"),
+        ConfluencePageRef("10", "Catalog", "https://confluence/pages/10", 4),
+        NamedValue("normal", "Normal"), NamedValue("evt", "EVT"),
+        NamedValue("onsite", "Onsite"), "Customer A",
+        (PersonRef("u1", "alice", "Alice"),), SourceRevision(revision),
+    )
 
 
-def test_repository_shares_current_project_data_but_isolates_account_visibility(tmp_path):
-    repository = ConfluenceCurrentStateRepository(tmp_path / "web.db")
-    repository.import_legacy_snapshot("coco", _snapshot())
-    repository.import_legacy_snapshot("atlas", {**_snapshot(), "projects": []})
-
-    assert repository.load_account_snapshot("coco")["projects"][0]["fields"]["new field"] == "Dynamic"
-    assert repository.load_account_snapshot("atlas")["projects"] == []
-    with sqlite3.connect(tmp_path / "web.db") as connection:
-        assert connection.execute("select count(*) from confluence_projects").fetchone()[0] == 1
-        assert connection.execute("select count(*) from confluence_project_attributes").fetchone()[0] == 2
-        assert connection.execute("select count(*) from confluence_project_people").fetchone()[0] == 1
+def _repository(tmp_path) -> ConfluenceProjectRepository:
+    database = WebDatabase(tmp_path / "web.db")
+    initialize_current_cache_schema(database)
+    return ConfluenceProjectRepository(database)
 
 
-def test_account_catalog_refresh_preserves_shared_detail_and_replaces_only_its_visibility(tmp_path):
-    repository = ConfluenceCurrentStateRepository(tmp_path / "web.db")
-    repository.import_legacy_snapshot("coco", _snapshot(owner="Alice", version=2))
-    catalog = _snapshot(owner="", version=3)
-    project = catalog["projects"][0]
-    project.update(status="catalog_ready", detail_source=None, roles={})
-    project["fields"] = {"current stage": "Stage 4"}
+def test_project_core_and_all_detail_states_round_trip_without_field_loss(tmp_path) -> None:
+    repository = _repository(tmp_path)
+    project = _project()
+    roles = (ProjectRole(NamedValue("fae", "FAE QA"), (PersonRef("u2", "bob", "Bob"),)),)
+    evidence = (SourceEvidence("basic", ConfluencePageRef("11", "Basic", "https://confluence/pages/11", 7)),)
 
-    revision = repository.account_store("atlas").save(catalog)
+    repository.save_core((project,))
+    repository.replace_roles("P100", DetailSection.loaded(roles, source_revision="4"))
+    repository.replace_milestones("P100", DetailSection.stale(ProjectMilestones((("SOP", "2026-10"),)), source_revision="3"))
+    repository.replace_hardware("P100", DetailSection.failed("remote_unavailable", value=FieldBag.from_mapping({"board": "A"}), source_revision="3"))
+    repository.replace_software("P100", DetailSection())
+    repository.replace_facts("P100", DetailSection.loaded(FieldBag.from_mapping({"region": ["US", "EU"]}), source_revision="4"))
+    repository.replace_evidence("P100", DetailSection.loaded(evidence, source_revision="4"))
 
-    coco = repository.load_account_snapshot("coco")["projects"][0]
-    atlas = repository.load_account_snapshot("atlas")
-    assert revision == atlas["revision"]
-    assert [row["page_id"] for row in atlas["projects"]] == ["page-1"]
-    assert coco["roles"] == {"FAE QA": [{"identity": "u1", "name": "Alice"}]}
-    assert coco["detail_source"]["version"] == 2
-    assert coco["fields"]["new field"] == "Dynamic"
-    assert coco["fields"]["current stage"] == "Stage 4"
+    loaded = repository.get("P100", ProjectDetails(True, True, True, True, True, True))
 
-
-def test_failed_project_update_keeps_last_successful_current_state(tmp_path):
-    repository = ConfluenceCurrentStateRepository(tmp_path / "web.db")
-    repository.import_legacy_snapshot("coco", _snapshot(owner="Alice"))
-    failed = _snapshot(owner="", version=3)
-    failed["projects"][0].update(status="failed", error={"type": "TimeoutError", "message": "offline"})
-
-    repository.import_legacy_snapshot("coco", failed)
-
-    project = repository.load_account_snapshot("coco")["projects"][0]
-    assert project["roles"]["FAE QA"][0]["name"] == "Alice"
-    assert project["status"] == "stale"
+    assert replace(loaded, roles=DetailSection(), milestones=DetailSection(), hardware=DetailSection(), software=DetailSection(), facts=DetailSection(), evidence=DetailSection()) == project
+    assert loaded.roles == DetailSection.loaded(roles, source_revision="4")
+    assert loaded.milestones == DetailSection.stale(ProjectMilestones((("SOP", "2026-10"),)), source_revision="3")
+    assert loaded.hardware == DetailSection.failed("remote_unavailable", value=FieldBag.from_mapping({"board": "A"}), source_revision="3")
+    assert loaded.software.state is DetailState.UNLOADED
+    assert loaded.facts == DetailSection.loaded(FieldBag.from_mapping({"region": ["US", "EU"]}), source_revision="4")
+    assert loaded.evidence == DetailSection.loaded(evidence, source_revision="4")
 
 
-def test_visibility_replacement_is_atomic_and_increments_revision(tmp_path):
-    repository = ConfluenceCurrentStateRepository(tmp_path / "web.db")
-    first = repository.import_legacy_snapshot("coco", _snapshot("page-1"))
-    second = repository.import_legacy_snapshot("coco", _snapshot("page-2"))
-
-    assert second == first + 1
-    loaded = repository.load_account_snapshot("coco")
-    assert [row["page_id"] for row in loaded["projects"]] == ["page-2"]
-    assert loaded["revision"] == second
-
-
-def test_single_project_upsert_replaces_complete_state_without_changing_visibility(tmp_path):
-    repository = ConfluenceCurrentStateRepository(tmp_path / "web.db")
-    repository.import_legacy_snapshot("coco", _snapshot(owner="Alice", version=2))
-    project = _snapshot(owner="Bob", version=3)["projects"][0]
-    project["fields"] = {"replacement": "yes"}
-    project["raw_fields"] = {"Replacement": "yes"}
-    project["raw_headers"] = ["Replacement"]
-
-    repository.upsert_project(project)
-
-    loaded = repository.load_account_snapshot("coco")["projects"][0]
-    assert loaded["fields"] == {"replacement": "yes"}
-    assert loaded["roles"] == {"FAE QA": [{"identity": "u1", "name": "Bob"}]}
-    assert loaded["detail_source"]["version"] == 3
-    with sqlite3.connect(tmp_path / "web.db") as connection:
-        assert connection.execute("SELECT account_id,project_page_id FROM confluence_account_project_access").fetchall() == [("coco", "page-1")]
-        assert connection.execute("SELECT account_id FROM confluence_sync_state ORDER BY account_id").fetchall() == [("coco",)]
-
-
-def test_single_project_upsert_rolls_back_every_table_on_error(tmp_path):
-    repository = ConfluenceCurrentStateRepository(tmp_path / "web.db")
-    repository.import_legacy_snapshot("coco", _snapshot(owner="Alice", version=2))
-    broken = _snapshot(owner="Bob", version=3)["projects"][0]
-    broken["unserializable"] = {"not-json"}
+def test_project_detail_replace_failure_rolls_back_value_and_state(tmp_path) -> None:
+    repository = _repository(tmp_path)
+    repository.save_core((_project(),))
+    original = DetailSection.loaded(FieldBag.from_mapping({"kept": "yes"}), source_revision="4")
+    repository.replace_facts("P100", original)
 
     with pytest.raises(TypeError):
-        repository.upsert_project(broken)
+        repository.replace_facts(
+            "P100", DetailSection.loaded(FieldBag.from_mapping({"bad": {1}}), source_revision="5")
+        )
 
-    loaded = repository.load_account_snapshot("coco")["projects"][0]
-    assert loaded["fields"]["new field"] == "Dynamic"
-    assert loaded["roles"]["FAE QA"][0]["name"] == "Alice"
-    assert loaded["detail_source"]["version"] == 2
+    assert repository.get("P100", ProjectDetails(facts=True)).facts == original
+
+
+def test_failed_sections_round_trip_explicit_value_presence_without_revision(tmp_path) -> None:
+    repository = _repository(tmp_path)
+    repository.save_core((_project(),))
+    repository.replace_hardware(
+        "P100",
+        DetailSection.failed(
+            "remote_unavailable", value=FieldBag.from_mapping({"board": "old"}),
+        ),
+    )
+    repository.replace_facts(
+        "P100", DetailSection.failed("remote_unavailable", value=FieldBag()),
+    )
+    repository.replace_evidence(
+        "P100", DetailSection.failed("remote_unavailable", value=()),
+    )
+
+    loaded = repository.get(
+        "P100", ProjectDetails(hardware=True, facts=True, evidence=True),
+    )
+
+    assert loaded.hardware.value == FieldBag.from_mapping({"board": "old"})
+    assert loaded.hardware.source_revision == ""
+    assert loaded.facts.value == FieldBag()
+    assert loaded.evidence.value == ()
+
+
+def test_project_delete_cascades_details_and_clear_is_isolated_from_jira(tmp_path) -> None:
+    repository = _repository(tmp_path)
+    repository.save_core((_project(),))
+    repository.replace_facts("P100", DetailSection.loaded(FieldBag.from_mapping({"x": 1})))
+    with repository.database.transaction() as connection:
+        connection.execute(
+            "INSERT INTO jira_issues(issue_id,issue_key,summary,cached_at) VALUES('1','J-1','kept','now')"
+        )
+
+    repository.delete("P100")
+    with repository.database.connect() as connection:
+        assert connection.execute("SELECT count(*) FROM confluence_project_fields").fetchone()[0] == 0
+    repository.save_core((_project(),))
+    repository.clear()
+
+    with sqlite3.connect(repository.database.path) as connection:
+        assert connection.execute("SELECT count(*) FROM confluence_projects").fetchone()[0] == 0
+        assert connection.execute("SELECT summary FROM jira_issues").fetchone()[0] == "kept"

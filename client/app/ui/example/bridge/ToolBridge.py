@@ -44,11 +44,7 @@ def build_tool_groups() -> list[dict[str, Any]]:
         {
             "id": "common",
             "available": True,
-            "tools": [
-                {"id": "jira_audit"},
-                {"id": "confluence_audit"},
-                {"id": "daily_report"},
-            ],
+            "tools": [],
         }
     ]
     for group_id in ("STB", "TV", "SmartHome", "IPTV"):
@@ -92,26 +88,6 @@ class ToolBridge(QObject):
         return localized
 
     def _localized_tool(self, tool: dict[str, Any]) -> dict[str, Any]:
-        if tool.get("id") == "jira_audit":
-            return {
-                **tool,
-                "title": self.tr("Jira Format Audit"),
-                "description": self.tr("Review Jira issues against the FAE-QA format rules."),
-            }
-        if tool.get("id") == "confluence_audit":
-            return {
-                **tool,
-                "title": self.tr("Project Weekly Audit"),
-                "description": self.tr("Check every A-level project in development against the project page content standards."),
-            }
-        if tool.get("id") == "daily_report":
-            return {
-                **tool,
-                "title": self.tr("Daily Report"),
-                "description": self.tr(
-                    "Generate, review, and send the fixed four-project status reports."
-                ),
-            }
         return {
             **tool,
             "title": self.tr("redmine"),

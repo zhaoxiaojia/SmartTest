@@ -38,7 +38,7 @@ function restore(element, value) {
 
 export function createPreferenceStore({ root = document, api, route = () => window.location.pathname, debounceMs = 300 } = {}) {
   const values = new Map(); const timers = new Map(); const pending = new Map(); const flights = new Map()
-  let observer; let status
+  let observer; let status; let disposed = false
   const scopeValues = scope => {
     if (!values.has(scope)) values.set(scope, {})
     return values.get(scope)
@@ -49,17 +49,19 @@ export function createPreferenceStore({ root = document, api, route = () => wind
   }
   async function loadScope(scope) {
     if (values.has(scope)) return scopeValues(scope)
-    try { values.set(scope, (await api.get(scope)).items || {}) } catch { values.set(scope, {}) }
+    try { const result = await api.get(scope); if (!disposed) values.set(scope, result.items || {}) } catch { if (!disposed) values.set(scope, {}) }
     return scopeValues(scope)
   }
   async function flush(scope) {
+    if (disposed) return
     if (flights.has(scope)) return flights.get(scope)
     let failed = false
     const flight = (async () => {
-      while (pending.has(scope)) {
+      while (!disposed && pending.has(scope)) {
         const batch = pending.get(scope); pending.delete(scope)
-        try { await api.put(scope, batch); ensureStatus().textContent = '' }
+        try { await api.put(scope, batch); if (!disposed) ensureStatus().textContent = '' }
         catch {
+          if (disposed) return
           failed = true
           pending.set(scope, { ...batch, ...(pending.get(scope) || {}) })
           ensureStatus().textContent = '设置尚未同步，恢复连接后可重试。'; break
@@ -67,7 +69,7 @@ export function createPreferenceStore({ root = document, api, route = () => wind
       }
     })().finally(() => {
       flights.delete(scope)
-      if (!failed && pending.has(scope)) void flush(scope)
+      if (!disposed && !failed && pending.has(scope)) void flush(scope)
     })
     flights.set(scope, flight)
     return flight
@@ -80,10 +82,12 @@ export function createPreferenceStore({ root = document, api, route = () => wind
     else void flush(scope)
   }
   async function hydrate(container = root) {
+    if (disposed) return
     const controls = [...(container.matches?.(`${STANDARD}, [data-preference-key][data-preference-value]`) ? [container] : []),
       ...container.querySelectorAll?.(`${STANDARD}, [data-preference-key][data-preference-value]`) || []]
     const scopes = [...new Set(controls.filter(eligible).map(item => scopeOf(item, route())))]
     await Promise.all(scopes.map(loadScope))
+    if (disposed) return
     for (const control of controls.filter(eligible)) {
       const saved = scopeValues(scopeOf(control, route()))
       if (Object.hasOwn(saved, keyOf(control))) restore(control, saved[keyOf(control)])
@@ -111,6 +115,7 @@ export function createPreferenceStore({ root = document, api, route = () => wind
   return {
     async start() {
       ensureStatus(); await hydrate()
+      if (disposed) return
       root.addEventListener('input', handle); root.addEventListener('change', handle); root.addEventListener('click', handle)
       observer = new MutationObserver(records => records.forEach(record => {
         if (record.target.nodeType === 1) void hydrate(record.target)
@@ -123,6 +128,6 @@ export function createPreferenceStore({ root = document, api, route = () => wind
       return [...root.querySelectorAll('[data-preference-region] input, [data-preference-region] textarea, [data-preference-region] select')]
         .filter(element => element.dataset.preference !== 'off' && !EXCLUDED_TYPES.has(element.type) && !SENSITIVE.test(keyOf(element)) && !keyOf(element))
     },
-    destroy() { observer?.disconnect(); root.removeEventListener('input', handle); root.removeEventListener('change', handle); root.removeEventListener('click', handle) }
+    destroy() { disposed = true; timers.forEach(clearTimeout); timers.clear(); pending.clear(); values.clear(); flights.clear(); observer?.disconnect(); root.removeEventListener('input', handle); root.removeEventListener('change', handle); root.removeEventListener('click', handle) }
   }
 }

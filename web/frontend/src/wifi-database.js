@@ -68,7 +68,9 @@ export function enhanceMultiSelect(select, { emptyLabel = 'Select options', comp
     }
     empty.hidden = select.options.length > 0; updateSummary()
   }
-  select._multiSelect = { syncFromSelect, setDisabled(disabled) {
+  select._multiSelect = { syncFromSelect, setEmptyLabel(label) {
+    emptyLabel = label; updateSummary()
+  }, setDisabled(disabled) {
     control.disabled = disabled; if (search) search.disabled = disabled
     for (const input of options.querySelectorAll('input')) input.disabled = disabled
     if (disabled) for (const button of container.querySelectorAll('[data-clear], [data-select-all]')) button.disabled = true

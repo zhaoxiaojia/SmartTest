@@ -1,182 +1,278 @@
 from __future__ import annotations
 
-import re
 import os
-import hashlib
 from threading import Lock
-from core.config.jsonTool import app_data_dir
-from core.logging import smart_log
-from core.confluence import ConfluenceClient, ConfluenceClientConfig
 
-from core.tools.common.project_weekly_audit import (
-    PRODUCT_SPACE_FACET,
+from core.confluence import ConfluenceGateway, ConfluenceGatewayConfig
+from core.confluence.project import (
+    ProjectDetails,
+    ProjectQuery,
+    ProjectSyncScope,
+)
+from core.confluence.project_catalog import (
     PROJECT_SPACE_FACET_DEFINITIONS,
-    refresh_project_catalogs,
     extract_project_detail,
     query_project_facts,
+    refresh_project_catalogs,
 )
-from .confluence_repository import ConfluenceCurrentStateRepository
-from .confluence_migration import LegacyConfluenceSnapshotMigration
+from core.confluence.project_mapper import ConfluenceProjectMapper
+
+from .confluence.cache_service import ConfluenceProjectCacheService
+from .confluence.project_repository import ConfluenceProjectRepository
 from .confluence_sync import ConfluenceProjectSyncCoordinator
+from .database import WebDatabase
 from .session import default_web_database_path
+
+PAGE_CATALOG_PRODUCT_SPACES = ("TV", "SDPL", "DOPL", "OOPL")
 
 
 class ProjectFactsWebOwner:
-    """Read-only Web transport over the durable Core project-facts owner."""
+    """Web presentation owner over the Confluence current-state cache."""
 
-    def __init__(self, load_snapshot=None, client_factory=None, data_root=None,
-                 sync_coordinator=None):
-        database_path = ((data_root / "smarttest-web.db") if data_root else default_web_database_path())
-        self._repository = ConfluenceCurrentStateRepository(database_path)
-        self._sync_coordinator = sync_coordinator or ConfluenceProjectSyncCoordinator(self._repository)
-        self._legacy_data_root = data_root or (app_data_dir() / "web" / "confluence-accounts")
-        self._legacy_migration = LegacyConfluenceSnapshotMigration(
-            self._repository, self._legacy_data_root,
+    def __init__(
+        self,
+        *,
+        repository: ConfluenceProjectRepository | None = None,
+        client_factory=None,
+        data_root=None,
+        sync_coordinator_factory=ConfluenceProjectSyncCoordinator,
+    ):
+        database_path = (
+            data_root / "smarttest-web.db" if data_root else default_web_database_path()
         )
-        self._load_snapshot = load_snapshot
+        self._repository = repository or ConfluenceProjectRepository(WebDatabase(database_path))
         self._client_factory = client_factory or self._make_client
+        self._sync_coordinator_factory = sync_coordinator_factory
         self._refresh_lock = Lock()
 
     @staticmethod
     def _make_client(username, password):
         base_url = os.getenv("SMARTTEST_CONFLUENCE_BASE_URL", "https://confluence.amlogic.com")
-        return ConfluenceClient(ConfluenceClientConfig(base_url), username, password)
+        return ConfluenceGateway(ConfluenceGatewayConfig(base_url), username, password)
 
-    @staticmethod
-    def normalize_account(username):
-        return str(username or "").strip().casefold()
-
-    def store_for(self, username):
-        account = self.normalize_account(username)
-        store = self._repository.account_store(account)
-        namespace = hashlib.sha256(account.encode("utf-8")).hexdigest()
-        self._legacy_migration.import_account(account, namespace)
-        return store
-
-    def refresh(self, username, password):
-        store = self.store_for(username)
+    def refresh(self, access, password):
         with self._refresh_lock:
-            smart_log("Confluence project facts refresh started (cache=%s)", store.resolved_path,
-                      platform="web", domain="confluence", source="ProjectFactsWebOwner")
-            client = self._client_factory(username, password)
-            memory = _CatalogSyncBuffer(store.load())
-            snapshot = refresh_project_catalogs(client, memory)
-            space_keys = sorted({row.get("space_key") for row in snapshot.get("projects", ()) if row.get("space_key")})
-            cql = "type=page AND space in (%s)" % ",".join(f'"{key}"' for key in space_keys)
-            visible_ids = {page.id for page in client.search_page_metadata(cql)}
-            snapshot = {**snapshot, "projects": [row for row in snapshot.get("projects", ())
-                                                  if str(row.get("page_id") or "") in visible_ids]}
-            store.save(snapshot)
-            counts = {key: sum(1 for row in snapshot.get("projects", []) if row.get("status") == key)
-                      for key in ("current", "stale", "failed", "inactive")}
-            smart_log("Confluence project facts refresh finished (spaces=%s, projects=%s, result=%s)",
-                      len(snapshot.get("sources", [])), len(snapshot.get("projects", [])),
-                      "partial_success" if counts["stale"] or counts["failed"] else "ready",
-                      platform="web", domain="confluence", source="ProjectFactsWebOwner", extra=counts)
-        return self.query(username)
+            service = self._service(access, password)
+            result = service.refresh_projects(
+                ProjectSyncScope(product_space_keys=PAGE_CATALOG_PRODUCT_SPACES),
+            )
+            if result['failed']:
+                raise RuntimeError('remote_unavailable')
+        return self.query(access)
 
-    def sync_details(self, username, password, *, filters=None, search="", cancelled=None, progress=None):
-        store = self.store_for(username)
-        snapshot = store.load()
-        if snapshot is None:
-            return self.query(username, filters=filters, search=search)
-        matched = query_project_facts(snapshot, filters=filters, search=search).get("projects", [])
-        client = self._client_factory(username, password)
+    def sync_details(
+        self, access, password, *, filters=None, search="", cancelled=None, progress=None,
+    ):
+        selected = self.query(access, filters=filters, search=search)
+        project_ids = tuple(row["project_id"] for row in selected["projects"])
         progress = progress or (lambda *_: None)
-        progress(0, len(matched))
+        progress(0, len(project_ids))
+        service = self._service(access, password)
+        coordinator = self._sync_coordinator_factory(service)
+        coordinator.sync(
+            project_ids,
+            ProjectDetails(roles=True, facts=True, evidence=True),
+            cancelled=cancelled or (lambda: False),
+            progress=progress,
+        )
+        return self.query(access, filters=filters, search=search)
 
-        def fetch(project):
-            return extract_project_detail(client, project)
-
-        self._sync_coordinator.sync(matched, fetch, cancelled=cancelled or (lambda: False),
-                                    progress=progress)
-        return self.query(username, filters=filters, search=search)
-
-    def query(self, username, *, filters=None, search=""):
-        store = self.store_for(username)
-        try:
-            snapshot = self._load_snapshot(username) if self._load_snapshot else store.load()
-        except ValueError:
-            return self._state("schema_error")
-        if snapshot is None:
-            smart_log("Confluence project facts cache miss (cache=%s)", store.resolved_path,
-                      platform="web", domain="confluence", source="ProjectFactsWebOwner")
-            return self._state("no_snapshot")
-        smart_log("Confluence project facts cache hit (cache=%s, projects=%s)",
-                  store.resolved_path, len(snapshot.get("projects", [])),
-                  platform="web", domain="confluence", source="ProjectFactsWebOwner")
+    def query(self, access, *, filters=None, search="", page=0, page_size=10000):
+        cached = self._repository.list(ProjectQuery(), 0, 100000, visible_ids=access.ids("project", "catalog"))
+        if cached.total == 0:
+            return self._state("ready" if set(PAGE_CATALOG_PRODUCT_SPACES) <= access.ids("catalog", "ready") else "no_snapshot")
+        reader = ConfluenceProjectCacheService(None, ConfluenceProjectMapper(), self._repository, access=access)
+        projects = tuple(
+            reader.read_project(
+                project.identity.project_id, ProjectDetails(roles=True, facts=True),
+            )
+            for project in cached.projects
+        )
+        snapshot = {"projects": [_project_snapshot_row(project) for project in projects if project]}
         result = query_project_facts(snapshot, filters=filters, search=search)
-        counts = {
-            state: sum(1 for row in snapshot.get("projects", []) if row.get("status") == state)
-            for state in ("stale", "failed", "inactive")
-        }
-        state = ("loading" if snapshot.get("phase") == "catalog_loading" else
-                 "partial_success" if counts["stale"] or counts["failed"] else "ready")
+        start = int(page) * int(page_size)
+        visible = result["projects"]
         return {
-            "state": state,
-            "revision": int(snapshot.get("revision") or 0),
-            "accessibleProjectCount": sum(1 for row in snapshot.get("projects", ()) if row.get("active", True)),
-            "catalogProgress": snapshot.get("catalog_progress"),
-            "snapshotTime": snapshot.get("updated_at"),
-            "facets": self._facets(snapshot, result.get("facets", {})),
-            "projects": result.get("projects", []),
-            "ownerHierarchy": result.get("ownerHierarchy", []),
-            "discrepancies": snapshot.get("field_discrepancies", []),
-            "counts": counts,
+            "state": "ready",
+            "accessibleProjectCount": cached.total,
+            "facets": _facet_rows(result["facets"]),
+            "projects": visible[start:start + int(page_size)],
+            "pagination": {
+                "page": int(page),
+                "pageSize": int(page_size),
+                "total": len(visible),
+            },
+            "ownerHierarchy": result["ownerHierarchy"],
+            "discrepancies": [],
+            "counts": {"stale": 0, "failed": 0, "inactive": 0},
         }
 
-    @staticmethod
-    def _facets(snapshot, facets):
-        labels = {}
-        for project in snapshot.get("projects", []):
-            for header in project.get("raw_headers", []):
-                labels.setdefault(_normalize(header), set()).add(str(header))
-        canonical_labels = dict(PROJECT_SPACE_FACET_DEFINITIONS)
-        fixed_keys = [key for key, _label in PROJECT_SPACE_FACET_DEFINITIONS]
-        raw_order = [
-            _normalize(header)
-            for project in snapshot.get("projects", []) for header in project.get("raw_headers", [])
-        ]
-        extra_keys = list(dict.fromkeys(key for key in raw_order if key not in fixed_keys and key in facets))
-        extra_keys.extend(key for key in facets if key not in fixed_keys and key not in extra_keys)
-        ordered_keys = [*fixed_keys, *extra_keys]
-        return [
-            {
-                "key": key,
-                "label": canonical_labels.get(key) or sorted(labels.get(key, {key}), key=str.casefold)[0],
-                "labels": sorted(labels.get(key, {canonical_labels.get(key, key)}), key=str.casefold),
-                "options": facets.get(key, []),
-                **({"source": "Confluence page version metadata"} if key == "__last_updated__" else {}),
-            }
-            for key in ordered_keys
-        ]
+    def invalidate_project(self, project_id: str, access) -> None:
+        access.require("project", project_id, "catalog")
+        access.revoke("project", project_id)
+
+    def _service(self, access, password):
+        client = self._client_factory(access.account, password)
+        gateway = _ProjectFactsGateway(client, self._repository)
+        return ConfluenceProjectCacheService(
+            gateway, ConfluenceProjectMapper(), self._repository, access=access,
+        )
+
+    def audit_dependencies(self, access, password):
+        client = self._client_factory(access.account, password)
+        gateway = _ProjectFactsGateway(client, self._repository)
+        return (
+            ConfluenceProjectCacheService(
+                gateway, ConfluenceProjectMapper(), self._repository, access=access,
+            ),
+            self._repository,
+            client,
+        )
 
     @staticmethod
     def _state(state):
-        facets = [
-            {"key": key, "label": label, "labels": [label], "options": [],
-             **({"source": "Confluence page version metadata"} if key == "__last_updated__" else {})}
-            for key, label in PROJECT_SPACE_FACET_DEFINITIONS
-        ]
-        return {"state": state, "revision": 0, "accessibleProjectCount": 0,
-                "snapshotTime": None, "catalogProgress": None,
-                "facets": facets, "projects": [],
-                "ownerHierarchy": [{"role": role, "people": []} for role in ("Major FAE QA", "FAE QA", "QA Reviewer")],
-                "discrepancies": [], "counts": {"stale": 0, "failed": 0, "inactive": 0}}
+        return {
+            "state": state, "accessibleProjectCount": 0,
+            "facets": [
+                {"key": key, "label": label, "labels": [label], "options": []}
+                for key, label in PROJECT_SPACE_FACET_DEFINITIONS
+            ],
+            "projects": [], "ownerHierarchy": [], "discrepancies": [],
+            "counts": {"stale": 0, "failed": 0, "inactive": 0},
+        }
 
 
-def _normalize(value):
-    return re.sub(r"\s+", " ", str(value or "")).strip().casefold()
+class _ProjectFactsGateway:
+    def __init__(self, client, repository):
+        self._client = client
+        self._repository = repository
+        self._details = {}
+
+    def refresh_project_catalogs(self, scope):
+        buffer = _CatalogSyncBuffer()
+        snapshot = refresh_project_catalogs(self._client, buffer)
+        rows = snapshot.get("projects") or ()
+        if scope.product_space_keys:
+            allowed = set(scope.product_space_keys)
+            rows = [row for row in rows if row.get("space_key") in allowed]
+        return {"projects": rows, "failed_product_spaces": snapshot.get("failed_product_spaces") or (),
+                "complete_spaces": snapshot.get("complete_spaces") or ()}
+
+    def query_project_catalog(self, query, page):
+        payload = self.refresh_project_catalogs(ProjectSyncScope())
+        rows = payload["projects"]
+        return {"projects": rows, "page": page, "page_size": len(rows), "total": len(rows)}
+
+    def get_project_catalog(self, project_id):
+        self._details.pop(project_id, None)
+        project = self._repository.get(project_id, ProjectDetails(facts=True))
+        if project is None:
+            raise KeyError(project_id)
+        return _catalog_row(project)
+
+    def load_project_sections(self, project_id, sections):
+        if project_id not in self._details:
+            project = self._repository.get(project_id, ProjectDetails(facts=True))
+            if project is None:
+                raise KeyError(project_id)
+            self._details[project_id] = extract_project_detail(self._client, _catalog_row(project))
+        detail = self._details[project_id]
+        result = {}
+        if "roles" in sections:
+            result["roles"] = detail.get("roles") or {}
+        if "facts" in sections:
+            result["facts"] = detail.get("fields") or {}
+        if "evidence" in sections:
+            result["evidence"] = [
+                {"source": "catalog", **detail["catalog_source"]},
+                *detail["evidence"],
+            ]
+            result["access_grants"] = [
+                ("page", item["page_id"], "metadata", f"{project_id}:evidence")
+                for item in detail["evidence"]
+            ]
+        for name in ("milestones", "hardware", "software"):
+            if name in sections:
+                result[name] = {}
+        return result
 
 
 class _CatalogSyncBuffer:
-    """Transient buffer used only until catalog visibility is atomically replaced."""
-
-    def __init__(self, snapshot=None):
-        self._snapshot = snapshot
+    def __init__(self):
+        self._snapshot = None
 
     def load(self):
         return self._snapshot
 
     def save(self, snapshot):
         self._snapshot = snapshot
+
+
+def _catalog_row(project):
+    fields = dict(project.facts.value.values) if project.facts.value is not None else {}
+    return {
+        "identity": project.identity.confluence_id,
+        "page_id": project.catalog_page.page_id,
+        "project_id": project.identity.project_id,
+        "name": project.name,
+        "space_key": project.product_space.key,
+        "space_name": project.product_space.name,
+        "space_url": project.product_space.url,
+        "page_url": project.catalog_page.url,
+        "catalog_source": {
+            "page_id": project.catalog_page.page_id,
+            "title": project.catalog_page.title,
+            "url": project.catalog_page.url,
+            "version": project.revision.value,
+        },
+        "fields": {**fields,
+            "project status": project.status.name if project.status else "",
+            "current stage": project.stage.name if project.stage else "",
+            "support mode": project.support_mode.name if project.support_mode else "",
+            "oem/operator": project.customer_summary,
+        },
+    }
+
+
+def _project_snapshot_row(project):
+    fields = dict(project.facts.value.values) if project.facts.value is not None else {}
+    fields.update({
+        "project id": project.identity.project_id,
+        "project status": project.status.name if project.status else "",
+        "current stage": project.stage.name if project.stage else "",
+        "support mode": project.support_mode.name if project.support_mode else "",
+    })
+    roles = {
+        role.role.name: [
+            {"identity": person.identity, "account": person.account, "name": person.display_name}
+            for person in role.people
+        ]
+        for role in (project.roles.value or ())
+    }
+    return {
+        "identity": project.identity.confluence_id,
+        "project_id": project.identity.project_id,
+        "name": project.name,
+        "space_key": project.product_space.key,
+        "status": project.status.name if project.status else "",
+        "stage": project.stage.name if project.stage else "",
+        "support_mode": project.support_mode.name if project.support_mode else "",
+        "customer_summary": project.customer_summary,
+        "page_id": project.catalog_page.page_id,
+        "page_url": project.catalog_page.url,
+        "active": True,
+        "fields": fields,
+        "roles": roles,
+    }
+
+
+def _facet_rows(values):
+    labels = dict(PROJECT_SPACE_FACET_DEFINITIONS)
+    fixed = tuple(labels)
+    keys = (*fixed, *(key for key in sorted(values, key=str.casefold) if key not in labels))
+    return [{
+        "key": key,
+        "label": labels.get(key, key.title()),
+        "labels": [labels.get(key, key.title())],
+        "options": values.get(key, []),
+    } for key in keys]

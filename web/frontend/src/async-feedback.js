@@ -1,5 +1,10 @@
 const TERMINAL = new Set(['success', 'failed', 'cancelled'])
 
+function formatStage(stage) {
+  const value = String(stage ?? '').trim().replaceAll('_', ' ')
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : ''
+}
+
 export function createAsyncFeedback({ root, cancelButton, onCancel } = {}) {
   root.innerHTML = `<div class="async-feedback__head"><strong data-async-message></strong><span data-async-count></span></div>
     <div class="async-feedback__track" role="progressbar" aria-label="Task progress"><div class="async-feedback__fill"></div></div>`
@@ -20,23 +25,23 @@ export function createAsyncFeedback({ root, cancelButton, onCancel } = {}) {
 
   function update(next = {}) {
     state = next.state || 'idle'
-    const completed = Math.max(0, Number(next.completed) || 0)
+    const processed = Math.max(0, Number(next.processed) || 0)
     const total = Math.max(0, Number(next.total) || 0)
     const running = state === 'running'
     const determinate = running && total > 0
     root.hidden = state === 'idle'
     root.dataset.state = state
-    message.textContent = next.message || ({ running: 'Working…', success: 'Completed',
-      failed: 'Task failed', cancelled: 'Cancelled' }[state] ?? '')
-    count.textContent = determinate ? `${completed}/${total}` : ''
+    message.textContent = next.message || ({ success: 'Completed', failed: 'Task failed',
+      cancelled: 'Cancelled' }[state] ?? (formatStage(next.stage) || (running ? 'Working…' : '')))
+    count.textContent = determinate ? `${processed}/${total}` : ''
     track.hidden = !running
     track.dataset.indeterminate = String(running && !determinate)
     track.removeAttribute('aria-valuenow'); track.removeAttribute('aria-valuemax')
     if (determinate) {
       track.setAttribute('aria-valuemin', '0')
-      track.setAttribute('aria-valuenow', String(Math.min(completed, total)))
+      track.setAttribute('aria-valuenow', String(Math.min(processed, total)))
       track.setAttribute('aria-valuemax', String(total))
-      fill.style.width = `${Math.min(100, completed / total * 100)}%`
+      fill.style.width = `${Math.min(100, processed / total * 100)}%`
     } else {
       track.removeAttribute('aria-valuemin')
       fill.style.width = ''

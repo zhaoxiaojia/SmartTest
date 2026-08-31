@@ -4,13 +4,13 @@ import importlib
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QFile, QObject, Signal
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "client" / "app" / "ui"))
 jira_module = importlib.import_module("example.bridge.JiraBridge")
-jira_audit_module = importlib.import_module("example.bridge.JiraAuditBridge")
-confluence_module = importlib.import_module("example.bridge.ConfluenceAuditBridge")
+tool_module = importlib.import_module("example.bridge.ToolBridge")
+importlib.import_module("example.imports.resource_rc")
 
 
 class RuntimeAuth(QObject):
@@ -77,44 +77,14 @@ def test_jira_workspace_requests_runtime_password_and_bootstraps_once(monkeypatc
     assert len(HeldThread.pending) == 1
 
 
-def test_jira_audit_resumes_one_pending_request_after_password(monkeypatch):
-    HeldThread.pending = []
-    monkeypatch.setattr(jira_audit_module, "Thread", HeldThread)
-    auth = RuntimeAuth()
-    requests = []
-    auth.runtimeCredentialSupplyRequired.connect(lambda: requests.append(True))
-    bridge = jira_audit_module.JiraAuditBridge(auth)
+def test_common_tool_catalog_excludes_retired_client_tools_and_preserves_others():
+    groups = {group["id"]: group for group in tool_module.build_tool_groups()}
 
-    bridge.startAudit("project = SH")
-    assert requests == [True]
-    assert "LDAP" not in bridge.viewState["statusText"]
-
-    auth.password = "direct-password"
-    auth.runtimeCredentialSupplied.emit()
-    auth.runtimeCredentialSupplied.emit()
-
-    assert bridge.viewState["state"] == "resolving"
-    assert len(HeldThread.pending) == 1
+    assert groups["common"]["tools"] == []
+    assert groups["SmartHome"]["tools"] == [{"id": "redmine"}]
+    assert set(groups) == {"common", "STB", "TV", "SmartHome", "IPTV", "Wi-Fi"}
 
 
-def test_confluence_audit_resumes_one_pending_request_after_password(
-    monkeypatch, tmp_path,
-):
-    HeldThread.pending = []
-    monkeypatch.setattr(confluence_module, "Thread", HeldThread)
-    auth = RuntimeAuth()
-    requests = []
-    auth.runtimeCredentialSupplyRequired.connect(lambda: requests.append(True))
-    bridge = confluence_module.ConfluenceAuditBridge(auth, history_root=tmp_path)
-    bridge.toggleProductLine("DOPL")
-
-    bridge.startAudit()
-    assert requests == [True]
-    assert "LDAP" not in bridge.viewState["statusText"]
-
-    auth.password = "direct-password"
-    auth.runtimeCredentialSupplied.emit()
-    auth.runtimeCredentialSupplied.emit()
-
-    assert bridge.viewState["state"] == "discovering"
-    assert len(HeldThread.pending) == 1
+def test_jira_page_runtime_resources_and_bridge_remain_available():
+    assert QFile(":/example/qml/page/T_Jira.qml").exists()
+    assert jira_module.JiraBridge.__name__ == "JiraBridge"

@@ -19,10 +19,9 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
 
 from core.browser_automation import BrowserRuntime, SupportedBrowserNotInstalledError
-from core.jira.auth.basic import JiraBasicAuth
-from core.jira.services.create_issue_service import CreateIssueService
+from core.jira.gateway import JiraGateway
+from core.jira.issue_command_service import IssueCommandService
 from core.jira.services.create_schema_service import JiraCreateSchemaService
-from core.jira.transport.client import JiraClient, JiraClientConfig
 from core.logging import smart_log
 from core.tools.SmartHome.redmine.auth import RedmineAuthService
 from core.tools.SmartHome.redmine.attachment_transfer import RedmineAttachmentTransfer
@@ -435,11 +434,8 @@ class RedmineBridge(QObject):
         if not username or not password:
             return None, None, None
         base_url = os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")
-        self._jira_client = JiraClient(
-            JiraClientConfig(base_url=base_url),
-            JiraBasicAuth(username=username, password=password),
-        )
-        self._jira_create_service = CreateIssueService(
+        self._jira_client = JiraGateway(base_url, username, password)
+        self._jira_create_service = IssueCommandService(
             self._jira_client,
             browse_base_url=base_url,
         )
@@ -1256,7 +1252,7 @@ def _translated_args(template, *values):
 
 
 class _RedmineCloneChecker:
-    def __init__(self, service: CreateIssueService, *, project_key: str | None = None):
+    def __init__(self, service: IssueCommandService, *, project_key: str | None = None):
         self._service = service
         self._project_key = project_key or os.getenv("SMARTTEST_REDMINE_JIRA_PROJECT_KEY", "SH")
 

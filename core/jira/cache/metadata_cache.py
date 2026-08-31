@@ -5,7 +5,7 @@ import sqlite3
 import time
 from pathlib import Path
 
-from core.issues.models import JiraFieldMetadata
+from core.jira.metadata import JiraFieldMetadata
 
 
 class JiraFieldMetadataCache:
