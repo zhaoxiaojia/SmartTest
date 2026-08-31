@@ -11,6 +11,14 @@ Turn source material into traceable executable requirements before implementatio
 
 Also load `smarttest-testing-workflow`, plus `smarttest-ui-workflow` and/or `smarttest-android-workflow` when those layers change. Use `smarttest-dual-codex-delivery` only when Scheme B classifies the implementation medium/high risk.
 
+## Implementation Gate
+
+Before implementing any test case, read `references/case-implementation-template.md` completely and fill its Single-Case Implementation Contract. Extraction and read-only capability assessment do not require the reference until implementation is proposed.
+
+- Python is the default business executor. Select APK only when Android privilege/framework lifecycle, device-side continuity across reboot/suspend/ADB loss, or device-local low-latency sampling makes it the better owner.
+- Python and APK business execution are mutually exclusive. In APK mode Python pytest still exists, but owns only parameter handoff, trigger, progress/timeout/cancel supervision, result collection, and unified reporting; APK owns actions, checks, evidence, and device-side cleanup.
+- Stop before code when a checkpoint has no objective method/threshold, the execution owner is undecided, a required capability/equipment contract is missing, or the requested result exceeds the approved automation boundary.
+
 ## 1. Requirement Cards
 
 Use deterministic extractors for structured sources and save a compact manifest. One model reads the raw source; downstream work consumes the approved manifest unless a cited cell is ambiguous.
@@ -54,10 +62,10 @@ Reject case-local ADB/serial/install/file/conversion helpers, duplicate UI/repor
 Each case has an objective/checkpoints, runtime parameters, explicit pre-actions, declared shared lifecycle steps, and pass/fail/skip evidence.
 
 ```text
-UI persisted state -> testing/params/runtime.py -> case/step/runner
+UI persisted state -> core/testing/params/runtime.py -> case/step/runner
 ```
 
-Use `tools/param_conversion.py`, `smart_log(...)`, and stable step/result identities. `None` checkpoint selection means do not check and is omitted from APK requests. Layer skills own further implementation rules.
+Use `core/config/value_conversion.py`, `smart_log(...)`, and stable step/result identities. `None` checkpoint selection means do not check and is omitted from APK requests. Layer skills own further implementation rules.
 
 ## 5. Evidence And Acceptance
 

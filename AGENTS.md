@@ -43,11 +43,12 @@ Before editing, every active agent reads this file and each skill matching the t
 
 | Target or task | Required skill |
 |---|---|
-| `ui/**`, QML, bridges, translations, QRC | `smarttest-ui-workflow` |
-| `testing/**`, pytest, parameters, DUT/equipment, steps/reports | `smarttest-testing-workflow` |
+| `client/app/ui/**`, QML, bridges, translations, QRC | `smarttest-ui-workflow` |
+| `core/testing/**`, pytest, parameters, DUT/equipment, steps/reports | `smarttest-testing-workflow` |
 | test cases extracted or developed from plans/documents/images | `smarttest-case-development` plus every changed-layer skill |
-| `android_client/**`, APK runner/build/sign/install | `smarttest-android-workflow` |
+| `mobile/android/**`, APK runner/build/sign/install | `smarttest-android-workflow` |
 | desktop package/installer/build manifest | `smarttest-ui-workflow` |
+| logger、print、Logcat、FastAPI access log、日志格式或日志存储 | `smarttest-logging-workflow` plus every changed-layer skill |
 | medium/high-risk delegated implementation | `smarttest-dual-codex-delivery` plus every changed-layer skill |
 | cross-layer change | every skill for the affected layers |
 

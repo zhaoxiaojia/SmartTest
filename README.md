@@ -1,69 +1,117 @@
-# SmartTest (Forked UI Base)
-<div align=center>
-  <img width=64 src="doc/preview/fluent_design.svg">
-</div>
+# SmartTest
 
-<h1 align="center">
-  QML FluentUI 
-</h1>
-<p align="center">
-  A fluent design component library for Qt QML.
-</p>
+SmartTest 是一个单仓库多端项目：
 
-![win-badge] ![ubuntu-badge] ![macos-badge] ![release-badge] ![download-badge] ![download-latest]
+- `client/`：Windows QML 桌面客户端；
+- `core/`：不依赖任何产品端的共享业务核心；
+- `web/`：独立 Web 前端和 FastAPI 后端；
+- `mobile/`：Android 客户端。
 
-<p align="center">
-English | <a href="README_zh_CN.md">简体中文</a>
-</p>
-<div align=center>
-  <img src="doc/preview/demo_large.png">
-</div>
+依赖方向固定为：
 
-## Requirements
-+ Python 3.11
-
-## ⚽ Get started
-+ run `example` program.
-
-+ Build
-
-```bash
-python ./script-init-venv.py
-python ./script-start.py
-python ./script-build-nuitka.py
+```text
+client ---------------------> core
+web/frontend -> web/backend -> core
+mobile ------> web/backend -> core
 ```
 
-## 📑 Documentations
+## 环境准备
 
-(Work in progress...🚀)
+基础环境为 Python 3.10、Node.js/npm、JDK 17 和 Android SDK。Windows Client 发布机还需要 Inno Setup；Android 正式产物需要平台签名材料。
 
-## Supported components
+在仓库根目录执行一次初始化命令。该命令会创建或更新 `.venv`，安装 Client、测试、打包和 Web 后端 Python 依赖，安装 Playwright Chromium，并在 `web/frontend/` 执行 `npm ci`：
 
-|Catalog|Detail|Notes / Demos|
-|:----:|:----:|:----:|
-|FluApp|The initial entry of the program|Router supported(SPA)|
-|FluWindow|Frameless Window|*This only works on windows|
-|FluAppBar|Title bar on top of the window|Drag, minimize, maximize and close are supported.|
-|FluText|Common text||
-|FluButton|Common button|![btn](doc/preview/demo_standardbtn.png) |
-|FluFilledButton|Filled button|![filledbtn](doc/preview/demo_filledbtn.png)|
-|FluTextButton|Text button|![textbtn](doc/preview/demo_textbtn.png)|
-|FluToggleButton|Toggle buttons|![togglebtn](doc/preview/demo_toggle_btn.png)|
-|FluIcon|Common icon|![icons](doc/preview/demo_icon.png)|
-|FluRadioButton|radio button|![radiobtn](doc/preview/demo_radiobtn.png)|
-|FluTextBox|Single-line input box|![textbox](doc/preview/demo_textbox.png)|
-|FluMultiLineTextBox|Multi-lines input area|![textarea](doc/preview/demo_multiline_textbox.png)|
-|FluToggleSwitch|toggle switch|![toggleswitch](doc/preview/demo_toggle_switch.png)|
+```powershell
+python core/devtools/scripts/init_venv.py
+```
 
+首次克隆、删除 `.venv` 后或依赖清单变化时重新执行；日常启动不需要重复初始化。任一依赖安装失败时脚本直接返回失败。
 
-View more [`here`](doc/md/all_components.md)!
+签名材料只保存在构建机。默认约定目录为 `C:\SmartTestBuild\signing`，其中保持以下结构：
 
-## Reference
-+ Windows design guidelines: https://learn.microsoft.com/en-us/windows/apps/design/
-+ WinUI Gallery: https://github.com/microsoft/WinUI-Gallery
+```text
+prebuilts/sdk/tools/lib/signapk.jar
+build/target/product/security/platform.x509.pem
+build/target/product/security/platform.pk8
+```
 
+管理员设置机器级变量后，需要重启 GitHub Runner 服务：
 
-## License
+```powershell
+[Environment]::SetEnvironmentVariable('SMARTTEST_SIGNAPK_DIR', 'C:\SmartTestBuild\signing', 'Machine')
+```
 
-This FluentUI library currently licensed under [MIT License](./License)
+## 统一命令
 
+以下命令都从仓库根目录执行。
+
+### 独立开发
+
+```powershell
+./.venv/Scripts/python.exe client/scripts/dev.py
+./.venv/Scripts/python.exe web/scripts/dev.py
+```
+
+Client 和 Web 分别维护自己的长期运行生命周期，不提供统一 `dev all`。Mobile 开发构建直接使用 `mobile/android/gradlew`。
+
+### 检查
+
+```powershell
+./.venv/Scripts/python.exe core/devtools/smarttest.py check client
+./.venv/Scripts/python.exe core/devtools/smarttest.py check web
+./.venv/Scripts/python.exe core/devtools/smarttest.py check mobile
+./.venv/Scripts/python.exe core/devtools/smarttest.py check all
+```
+
+所有 `check` 都先验证产品边界。Client 执行编译和仓库入口测试；Web 执行后端 pytest 以及前端 test/lint/build；Mobile 执行 Gradle unit tests；`check all` 依次检查三个产品端。
+
+### 打包
+
+```powershell
+./.venv/Scripts/python.exe core/devtools/smarttest.py package client
+./.venv/Scripts/python.exe core/devtools/smarttest.py package web
+./.venv/Scripts/python.exe core/devtools/smarttest.py package mobile
+./.venv/Scripts/python.exe core/devtools/smarttest.py package all
+```
+
+- `package client`：复用 Client 自有脚本生成 Windows Client 安装程序和 Tool 便携 ZIP；
+- `package web`：生成 Web 静态分发资源；
+- `package mobile`：构建并平台签名 Android APK；
+- `package all`：固定按 `client -> web -> mobile` 复用三个单产品入口。
+
+正式产物只位于：
+
+```text
+dist/mobile/app-debug-platform.apk
+dist/client/SmartTest-Setup.exe
+dist/tool/SmartTestTool-<version>-windows-x64.zip
+```
+
+Client 和 Tool 的中间 runtime 分别位于 `build/client_runtime/`、`build/tool_runtime/`，不是发布产物。
+
+## 版本与发布
+
+`core/release/version.json` 是全局产品版本 owner，值必须使用 `MAJOR.MINOR.PATCH`。任何 `dev`、`check` 或 `package` 命令都不会自动修改版本。
+
+准备新版本时手动修改一次，例如：
+
+```json
+{
+  "version": "1.2.0"
+}
+```
+
+先运行检查并提交普通代码；普通 push/PR 只触发检查，不打包、不改版本。发布时创建与文件内容精确匹配的 tag：
+
+```powershell
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+`v*` tag 触发 `.github/workflows/release.yml`。工作流会先校验 tag 等于 `v` 加 `version.json` 的版本；不匹配会在安装依赖和打包之前明确失败。匹配后，带 `[self-hosted, Windows, X64, smarttest-release]` 标签的公司 Runner 创建固定 Python 环境，检查机器级签名配置，按 `package all` 生成并上传 APK、Client 安装程序和 Tool ZIP。Web 不参与发布打包。
+
+Runner 注册凭据和签名材料不得写入仓库、workflow 或日志。
+
+## 来源与许可证
+
+桌面界面复用了 QML FluentUI 项目的组件和设计模式，并继续遵循仓库中的许可证声明。Fluent Design 参考：[Windows design guidelines](https://learn.microsoft.com/windows/apps/design/) 和 [WinUI Gallery](https://github.com/microsoft/WinUI-Gallery)。仓库代码许可证见 [LICENSE](LICENSE)。

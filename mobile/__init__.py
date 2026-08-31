@@ -1,0 +1,1 @@
+"""SmartTest mobile platform integrations."""

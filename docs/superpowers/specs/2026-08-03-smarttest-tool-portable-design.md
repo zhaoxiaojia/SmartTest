@@ -91,3 +91,34 @@ frozen Tool 的资源根必须解析为包含完整清单的 onedir 根或 PyIns
 - [ ] 增加 portable context smoke CLI，并在 ZIP 创建前执行。
 - [ ] 验证现有 portable 目录、重新构建 Tool、从产物目录启动 smoke 与 UI，并检查 ZIP 结构。
 - [ ] 运行 Tool UI/打包聚焦测试、编译和 `git diff --check`，清除构建诊断残留。
+
+## 2026-08-18 动态依赖与凭据能力验证设计
+
+### 问题与目标
+
+Tool portable 的普通登录和 Redmine 登录会经过 Windows Credential Manager。PyWin32 在运行时动态加载 `win32timezone`，PyInstaller 静态分析未发现该模块；现有 smoke 仅导入表层模块，导致构建成功但点击登录时报 `No module named 'win32timezone'`。
+
+本次修复必须由 Tool 打包 owner 集中声明 PyWin32 动态依赖，并让构建后的 EXE 验证真实凭据能力。不得修改登录、Redmine 或凭据存储的业务行为，也不得以吞掉导入错误、回退明文存储或扩大整个 Python 环境打包范围来掩盖问题。
+
+### 依赖收集
+
+- 在现有 Tool PyInstaller 配置及其 hook 体系中集中维护 PyWin32 动态依赖，至少覆盖当前已确认的 `win32timezone`。
+- 复用 PyInstaller/PyWin32 已有 hook 或收集机制；只有现有机制不能覆盖顶层动态模块时才增加显式 hidden import。
+- 保持 `testing`、`android_client`、OpenCV 等现有瘦身排除边界，不无差别收集所有环境模块。
+
+### 构建后验证
+
+- portable smoke imports 必须从生成的 `SmartTestTool.exe` 内导入凭据链路所需动态模块，缺失时构建立即失败。
+- 新增 Credential Manager 能力 smoke：使用唯一临时 target 完成写入、读取和删除，并在成功或失败路径都尽力清理；不得读取、覆盖或输出真实账号、密码和既有凭据。
+- smoke 通过真实 `WindowsCredentialStore` owner 执行，避免复制第二套 Win32 API 调用。
+- 增加认证/Redmine 共享凭据边界验证，证明打包版能实例化并读取该 owner；不连接真实 LDAP 或 Redmine，不发送真实登录请求。
+- 任一 smoke 失败时停止 ZIP 生成，并输出阶段和异常类型，不输出凭据内容。
+
+### 验收与执行清单
+
+- [x] 先增加能稳定复现当前漏包或 smoke 缺口的失败测试，并记录 RED 结果。
+- [x] 集中补齐 PyWin32 动态依赖收集，保持现有 payload 排除边界。
+- [x] 增加无残留 Credential Manager capability smoke 和共享凭据边界 smoke。
+- [x] 聚焦测试、portable smoke、context smoke、启动检查和完整 Tool portable 构建通过。
+- [ ] 从新生成的 EXE 验证普通登录和 Redmine 登录不再出现动态模块缺失。
+- [x] 检查临时凭据已删除、ZIP 在全部验证通过后才生成、`git diff --check` 通过。

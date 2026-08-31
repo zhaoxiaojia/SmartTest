@@ -17,10 +17,10 @@ Use Atlas only for read-only work, mechanical extraction, simple checks, and sma
 
 Before work, load every matching owner skill:
 
-- `ui/**`: `smarttest-ui-workflow`
-- `testing/**`: `smarttest-testing-workflow`
+- `client/app/ui/**`: `smarttest-ui-workflow`
+- `core/testing/**`: `smarttest-testing-workflow`
 - case extraction/development: `smarttest-case-development`
-- `android_client/**`: `smarttest-android-workflow`
+- `mobile/android/**`: `smarttest-android-workflow`
 
 ## Role Boundaries
 

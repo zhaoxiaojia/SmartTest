@@ -1,0 +1,198 @@
+from datetime import datetime, timezone
+
+from core.confluence.models import ConfluencePage
+from core.tools.common.project_weekly_audit.models import ProductLine
+from core.tools.common.project_weekly_audit.project_facts import (
+    PRODUCT_SPACE_FACET, extract_project_detail, query_project_facts,
+    refresh_project_catalogs,
+)
+
+
+def _space(key="X", project_id="Alpha-ID", page_id="101", stage="Stage 1"):
+    body = (
+        "<table><tr><th>Page</th><th>Project ID</th><th>Support Mode</th>"
+        "<th>Project Status</th><th>Current Stage</th><th>Unexpected Owner</th></tr>"
+        f'<tr><td><a href="/pages/viewpage.action?pageId={page_id}">Alpha</a></td>'
+        f"<td>{project_id}</td><td>A</td><td>NORMAL</td><td>{stage}</td><td>Owner-X</td></tr>"
+        "</table>"
+    )
+    return ConfluencePage("space", "Project Space", f"https://c/display/{key}/Project+Space",
+                          view_body=body, version=1,
+                          updated_at=datetime(2026, 8, 1, tzinfo=timezone.utc))
+
+
+class MemoryStore:
+    def __init__(self):
+        self.snapshot = None
+        self.saved = []
+
+    def load(self):
+        return self.snapshot
+
+    def save(self, snapshot):
+        self.snapshot = snapshot
+        self.saved.append(snapshot)
+
+
+class CatalogClient:
+    def __init__(self, pages):
+        self.pages = pages
+
+    def get_page_by_url(self, url, *, prefer_export=False):
+        return self.pages[url]
+
+
+def test_catalog_sync_preserves_dynamic_fields_and_publishes_ready_snapshot():
+    page = _space()
+    store = MemoryStore()
+    snapshot = refresh_project_catalogs(
+        CatalogClient({page.url: page}), store,
+        (ProductLine("X", page.url, "Line X"),),
+    )
+    assert snapshot["phase"] == "catalog_ready"
+    assert snapshot["projects"][0]["fields"]["unexpected owner"] == "Owner-X"
+    assert snapshot["field_discrepancies"] == ["Unexpected Owner"]
+    assert store.saved[-1] == snapshot
+
+
+def test_catalog_sync_publishes_each_space_without_detail_fetches():
+    first, second = _space("X"), _space("Y", "Beta-ID", "102", "Stage 4")
+    store = MemoryStore()
+    refresh_project_catalogs(CatalogClient({first.url: first, second.url: second}), store, (
+        ProductLine("X", first.url, "Line X"), ProductLine("Y", second.url, "Line Y"),
+    ))
+    assert [row["catalog_progress"]["completed"] for row in store.saved] == [1, 2]
+    assert store.saved[-1]["phase"] == "catalog_ready"
+
+
+def test_forbidden_catalog_space_is_silently_absent_without_removing_other_spaces():
+    allowed = _space("X")
+
+    class ForbiddenError(RuntimeError):
+        response = type("Response", (), {"status_code": 403})()
+
+    class PartialClient:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            if "/Y/" in url:
+                raise ForbiddenError("private response")
+            return allowed
+
+    snapshot = refresh_project_catalogs(PartialClient(), MemoryStore(), (
+        ProductLine("X", allowed.url, "Line X"),
+        ProductLine("Y", "https://c/display/Y/Project+Space", "Line Y"),
+    ))
+    assert [row["space_key"] for row in snapshot["projects"]] == ["X"]
+    assert [source["space_key"] for source in snapshot["sources"]] == ["X"]
+
+
+def test_single_project_extraction_expands_structured_and_delimited_people():
+    catalog = refresh_project_catalogs(
+        CatalogClient({"https://c/display/X/Project+Space": _space()}), MemoryStore(),
+        (ProductLine("X", "https://c/display/X/Project+Space", "Line X"),),
+    )["projects"][0]
+
+    class DetailClient:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            return ConfluencePage("101", "Alpha Project", url)
+
+        def get_page_children(self, page_id):
+            return ([ConfluencePage("basic", "Alpha-Basic Information", "https://c/basic", version=2)]
+                    if page_id == "101" else [])
+
+        def get_page(self, page_id):
+            return ConfluencePage(page_id, "Alpha-Basic Information", "https://c/basic", body=(
+                '<table><tr><th>FAE QA</th><td><ri:user ri:userkey="u1"/>, Fae Two</td></tr></table>'
+            ), version=2)
+
+        def get_user_display_name(self, identity):
+            return "Fae One"
+
+    result = extract_project_detail(DetailClient(), catalog)
+    assert [person["name"] for person in result["roles"]["FAE QA"]] == ["Fae One", "Fae Two"]
+    assert result["detail_source"]["version"] == 2
+
+
+def test_realistic_role_cell_expands_eleven_people_without_turning_notes_into_people():
+    catalog = refresh_project_catalogs(
+        CatalogClient({"https://c/display/X/Project+Space": _space()}), MemoryStore(),
+        (ProductLine("X", "https://c/display/X/Project+Space", "Line X"),),
+    )["projects"][0]
+    identities = [f"user-{index}" for index in range(11)]
+    segments = [
+        f'<ri:user ri:userkey="{identity}"/> {"NPI Owner" if index == 0 else "certification description"}'
+        for index, identity in enumerate(identities)
+    ]
+    segments.append('<ri:user ri:userkey="user-0"/> NPI HDMI/Audio')
+
+    class DetailClient:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            return ConfluencePage("101", "Alpha Project", url)
+
+        def get_page_children(self, page_id):
+            return ([ConfluencePage("basic", "Alpha-Basic Information", "https://c/basic", version=2)]
+                    if page_id == "101" else [])
+
+        def get_page(self, page_id):
+            body = "<br/>".join(segments)
+            return ConfluencePage(page_id, "Alpha-Basic Information", "https://c/basic",
+                                  body=f"<table><tr><th>FAE QA</th><td>{body}</td></tr></table>", version=2)
+
+        def get_user_display_name(self, identity):
+            return f"Member {identity.split('-')[-1]}"
+
+    result = extract_project_detail(DetailClient(), catalog)
+    people = result["roles"]["FAE QA"]
+    assert [person["identity"] for person in people] == identities
+    assert len(people) == 11
+    assert not {"NPI Owner", "NPI HDMI/Audio", "certification description"} & {
+        person["name"] for person in people
+    }
+    hierarchy = query_project_facts({"projects": [result]})["ownerHierarchy"]
+    fae_people = next(role["people"] for role in hierarchy if role["role"] == "FAE QA")
+    assert len(fae_people) == 11
+    assert all(len(person["projects"]) == 1 for person in fae_people)
+
+
+def test_cached_root_id_avoids_url_resolution_and_still_locates_basic_sibling():
+    catalog = refresh_project_catalogs(
+        CatalogClient({"https://c/display/X/Project+Space": _space()}), MemoryStore(),
+        (ProductLine("X", "https://c/display/X/Project+Space", "Line X"),),
+    )["projects"][0]
+    catalog.update(page_id="", entry_page_id="status", root_page_id="root")
+    root = ConfluencePage("root", "Alpha", "https://c/root")
+    status = ConfluencePage("status", "1. Alpha-Project Status Report", "https://c/status")
+    basic = ConfluencePage("basic", "2. Alpha-Basic Information", "https://c/basic", version=3)
+
+    class CachedRootClient:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            raise AssertionError("cached root must avoid URL resolution")
+
+        def get_page(self, page_id):
+            if page_id == "root":
+                return root
+            return ConfluencePage(page_id, basic.title, basic.url,
+                                  body="<table><tr><th>FAE QA</th><td>TBD</td></tr></table>", version=3)
+
+        def get_page_children(self, page_id):
+            return [status, basic] if page_id == "root" else []
+
+        def get_user_display_name(self, identity):
+            raise AssertionError("plain readable fallback needs no identity lookup")
+
+    result = extract_project_detail(CachedRootClient(), catalog)
+    assert result["entry_page_id"] == "status"
+    assert result["root_page_id"] == "root"
+    assert result["detail_source"]["page_id"] == "basic"
+
+
+def test_local_query_filters_full_text_and_builds_role_hierarchy():
+    snapshot = {"projects": [{
+        "identity": "X:101", "page_id": "101", "project_id": "Alpha-ID", "name": "Alpha",
+        "space_key": "X", "page_url": "https://c/101", "active": True,
+        "fields": {"support mode": "A", "current stage": "Stage 1"},
+        "roles": {"FAE QA": [{"identity": "u1", "name": "Fae One"}]},
+    }], "stage_domains": {"X": ["Stage 1"]}}
+    result = query_project_facts(snapshot, filters={PRODUCT_SPACE_FACET: "X"}, search="Fae One")
+    assert [row["project_id"] for row in result["projects"]] == ["Alpha-ID"]
+    assert result["facets"]["current stage"] == ["Stage 1"]
+    assert len(result["ownerHierarchy"][1]["people"][0]["projects"]) == 1

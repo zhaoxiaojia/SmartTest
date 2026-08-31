@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - SmartTest</title>
+    <link rel="stylesheet" href="/src/smarttest-theme.css">
+
+</head>
+<body>
+    <!-- Theme Toggle (Fixed Position) -->
+    <div class="login-theme-toggle">
+        <div class="theme-toggle">
+            <button class="theme-btn theme-btn-light active" onclick="setTheme('light')" title="Light theme">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/>
+                    <line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/>
+                    <line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+            </button>
+            <button class="theme-btn theme-btn-dark" onclick="setTheme('dark')" title="Dark theme">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Login Page -->
+    <div class="login-page">
+        <div class="login-container">
+            <div class="login-card">
+                <div class="login-header">
+                    <div class="login-logo">
+                        <div class="logo-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                        </div>
+                        <span>SmartTest</span>
+                    </div>
+                    <h1 class="login-title">Welcome back</h1>
+                    <p class="login-subtitle">Sign in to your account to continue</p>
+                </div>
+
+                <form class="login-form" data-login-form>
+                    <div class="form-group">
+                        <label class="form-label" for="account-name">Account name</label>
+                        <input id="account-name" name="username" type="text" class="form-input" autocomplete="username" placeholder="Enter your account name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="account-password">Password</label>
+                        <input id="account-password" name="password" type="password" class="form-input" autocomplete="current-password" placeholder="Enter your password" required>
+                    </div>
+
+                    <div class="inline-status" data-auth-status aria-live="polite"></div>
+                    <button type="submit" class="btn btn-primary">Sign in</button>
+                </form>
+            </div>
+
+            <p style="text-align: center; margin-top: 1.5rem; font-size: 0.8125rem; color: var(--text-secondary);">
+                &copy; 2026 SmartTest
+            </p>
+        </div>
+    </div>
+
+    <script src="/smarttest-portal.js"></script><script type="module" src="/src/login-main.js"></script>
+</body>
+</html>

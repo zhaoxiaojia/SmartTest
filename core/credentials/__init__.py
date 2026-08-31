@@ -1,0 +1,1 @@
+"""Shared credential storage owners."""
