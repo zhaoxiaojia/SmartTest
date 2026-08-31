@@ -54,19 +54,21 @@ describe('Confluence project facts', () => {
     page.destroy()
   })
 
-  it('renders authorized cache before one background catalog refresh and keeps candidates usable', async () => {
+  it('renders authorized cache on entry and refreshes only the catalog after Reset', async () => {
     let refresh
     const api = { getProjectFacts: vi.fn().mockResolvedValueOnce({ ...payload, state: 'ready' })
+      .mockResolvedValueOnce({ ...payload, state: 'ready' })
       .mockImplementationOnce(() => new Promise(resolve => { refresh = resolve })) }
     const page = createConfluenceProjects({ root: document.querySelector('#app'), api, pollDelay: () => new Promise(() => {}) })
-    const started = page.start()
-    await vi.waitFor(() => expect(refresh).toBeTypeOf('function'))
+    await page.start()
     expect(api.getProjectFacts.mock.calls[0][1]).toEqual({ details: false })
-    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: false, catalog: true })
+    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: false })
     expect(document.querySelector('[data-projects]').textContent).toContain('Apollo')
     expect(document.querySelector('[name="field.__product_space__"]').disabled).toBe(false)
+    document.querySelector('[data-reset]').click()
+    await vi.waitFor(() => expect(refresh).toBeTypeOf('function'))
+    expect(api.getProjectFacts.mock.calls[2][1]).toEqual({ details: false, catalog: true })
     refresh({ ...payload, state: 'loading', sync: { state: 'idle' } })
-    await started
     expect(document.querySelector('[name="field.__product_space__"]').disabled).toBe(false)
     page.destroy()
   })
@@ -260,7 +262,7 @@ describe('Confluence project facts', () => {
     expect([...document.querySelectorAll('[data-main-facets] .multi-select__summary')]
       .every(item => !item.textContent.includes('Loading'))).toBe(true)
     expect(api.getProjectFacts.mock.calls[0][1]).toEqual({ details: false })
-    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: false, catalog: true })
+    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: false })
   })
 
   it('treats an empty completed catalog as ready and does not poll again', async () => {
@@ -322,7 +324,7 @@ describe('Confluence project facts', () => {
     await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(3))
     await vi.waitFor(() => expect(document.querySelector('[type="submit"]').disabled).toBe(false))
     expect(api.getProjectFacts.mock.calls.map(call => call[1])).toEqual([
-      { details: false }, { details: false, catalog: true }, { details: false },
+      { details: false }, { details: false }, { details: false },
     ])
     component.destroy()
   })
@@ -403,7 +405,7 @@ describe('Confluence project facts', () => {
     expect(document.querySelector('[data-projects]').textContent).toContain('No matching projects')
   })
 
-  it('Reset clears local values without fetching or replacing catalog facets', async () => {
+  it('Reset clears local values and refreshes catalog without requesting details', async () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
     await createConfluenceProjects({ root: document.querySelector('#app'), api }).start()
     const select = document.querySelector('[name="field.__product_space__"]')
@@ -412,7 +414,8 @@ describe('Confluence project facts', () => {
     document.querySelector('[name="reviewStartDate"]').value = '2026-08-01'
     document.querySelector('[name="reviewEndDate"]').value = '2026-08-08'
     document.querySelector('[data-reset]').click()
-    expect(api.getProjectFacts).toHaveBeenCalledTimes(2)
+    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(3))
+    expect(api.getProjectFacts.mock.calls[2][1]).toEqual({ details: false, catalog: true })
     expect([...select.selectedOptions]).toEqual([])
     expect(document.querySelector('[name="search"]').value).toBe('')
     expect(document.querySelector('[name="reviewStartDate"]').value).toBe('2026-08-01')
@@ -489,6 +492,9 @@ describe('Confluence project facts', () => {
     document.querySelector('[name="reviewEndDate"]').value = '2026-08-24'
     document.querySelector('[data-audit]').click()
     await vi.waitFor(() => expect(api.createConfluenceAudit).toHaveBeenCalledOnce())
+    expect(api.getProjectFacts.mock.calls.at(-1)).toEqual([
+      { fields: {}, search: '' }, { details: false }
+    ])
     expect(api.createConfluenceAudit).toHaveBeenCalledWith({
       projectIds: ['A-1'], startDate: '2026-08-17', endDate: '2026-08-24'
     })

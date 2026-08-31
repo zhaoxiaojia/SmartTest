@@ -36,6 +36,38 @@ def test_project_facts_owner_reads_and_invalidates_new_project_repository(tmp_pa
     assert owner.query(access)["state"] == "no_snapshot"
 
 
+def test_project_facts_query_keeps_its_access_snapshot_during_catalog_replacement(tmp_path) -> None:
+    repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
+    repository.save_core((Project(
+        ProjectIdentity("900", "P100"), "Project One",
+        ProductSpaceRef("DOPL", "DOPL"), ConfluencePageRef("10", "Catalog", version=1),
+        roles=DetailSection.loaded((ProjectRole(
+            NamedValue("fae", "FAE QA"), (PersonRef("alice", display_name="Alice"),),
+        ),)),
+    ),))
+    repository.replace_roles("P100", DetailSection.loaded((ProjectRole(
+        NamedValue("fae", "FAE QA"), (PersonRef("alice", display_name="Alice"),),
+    ),)))
+
+    class Access:
+        def __init__(self): self.catalog_reads = 0
+        def require_active(self): return None
+        def ids(self, kind, capability):
+            if kind == "project" and capability == "catalog":
+                self.catalog_reads += 1
+                return {"P100"} if self.catalog_reads == 1 else set()
+            if kind == "project" and capability == "roles": return {"P100"}
+            return set()
+        def require(self, kind, resource_id, capability):
+            if str(resource_id) not in self.ids(kind, capability): raise PermissionError("permission_denied")
+        def allows(self, kind, resource_id, capability): return str(resource_id) in self.ids(kind, capability)
+
+    result = ProjectFactsWebOwner(repository=repository).query(Access())
+
+    assert [row["project_id"] for row in result["projects"]] == ["P100"]
+    assert next(group for group in result["ownerHierarchy"] if group["role"] == "FAE QA")["people"][0]["name"] == "Alice"
+
+
 def test_project_facts_web_path_pages_current_projects(tmp_path) -> None:
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     repository.save_core(tuple(

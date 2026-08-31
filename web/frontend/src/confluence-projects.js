@@ -332,6 +332,7 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
         activeSync = { token: contextToken(requestedFilters), filters: requestedFilters }
       }
       if (beginPolling && (payload.state === 'loading' || payload.sync?.state === 'loading')) poll(generation)
+      return payload
     } catch {
       if (destroyed || generation !== pollGeneration) return
       if (details || feedback.state === 'running') feedback.update({ state: 'failed', message: 'Project detail sync failed.' })
@@ -361,6 +362,7 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
     }
     enabledMore.clear()
     renderFacets(facets)
+    load({ catalog: true })
   })
   auditButton.addEventListener('click', async () => {
     auditButton.disabled = true
@@ -409,7 +411,7 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
     await load({ updateHierarchy: !waitForPreferences, beginPolling: false })
     await waitForPreferences?.()
     if (destroyed) return
-    return load({ catalog: true })
+    return load()
   }
   return { start, destroy() { destroyed = true; pollGeneration += 1; auditDownload.destroy(); workloadChart?.destroy() } }
 }

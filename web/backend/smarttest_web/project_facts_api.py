@@ -26,6 +26,30 @@ from .session import default_web_database_path
 PAGE_CATALOG_PRODUCT_SPACES = ("TV", "SDPL", "DOPL", "OOPL")
 
 
+class _QueryAccessSnapshot:
+    """Stable authorization view for one cached query while catalog grants update."""
+
+    _keys = (
+        ("project", "catalog"), ("project", "roles"), ("project", "evidence"),
+        ("catalog", "ready"),
+        ("page", "metadata"),
+    )
+
+    def __init__(self, access):
+        access.require_active()
+        self._ids = {key: frozenset(access.ids(*key)) for key in self._keys}
+
+    def ids(self, kind, capability):
+        return self._ids.get((kind, capability), frozenset())
+
+    def allows(self, kind, resource_id, capability):
+        return str(resource_id) in self.ids(kind, capability)
+
+    def require(self, kind, resource_id, capability):
+        if not self.allows(kind, resource_id, capability):
+            raise PermissionError("permission_denied")
+
+
 class ProjectFactsWebOwner:
     """Web presentation owner over the Confluence current-state cache."""
 
@@ -78,10 +102,16 @@ class ProjectFactsWebOwner:
         return self.query(access, filters=filters, search=search)
 
     def query(self, access, *, filters=None, search="", page=0, page_size=10000):
-        cached = self._repository.list(ProjectQuery(), 0, 100000, visible_ids=access.ids("project", "catalog"))
+        query_access = _QueryAccessSnapshot(access)
+        cached = self._repository.list(
+            ProjectQuery(), 0, 100000,
+            visible_ids=query_access.ids("project", "catalog"),
+        )
         if cached.total == 0:
-            return self._state("ready" if set(PAGE_CATALOG_PRODUCT_SPACES) <= access.ids("catalog", "ready") else "no_snapshot")
-        reader = ConfluenceProjectCacheService(None, ConfluenceProjectMapper(), self._repository, access=access)
+            return self._state("ready" if set(PAGE_CATALOG_PRODUCT_SPACES) <= query_access.ids("catalog", "ready") else "no_snapshot")
+        reader = ConfluenceProjectCacheService(
+            None, ConfluenceProjectMapper(), self._repository, access=query_access,
+        )
         projects = tuple(
             reader.read_project(
                 project.identity.project_id, ProjectDetails(roles=True, facts=True),
