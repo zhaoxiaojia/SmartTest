@@ -60,3 +60,43 @@ assert any(window.objectName() == "toolLoginWindow" and window.isVisible()
            for window in app.allWindows())
 objects["RedmineBridge"].close()
 ''', tmp_path)
+
+
+def test_portable_clone_form_preserves_draft_edits_and_submit_signal(tmp_path):
+    _run_source('''
+component = QQmlComponent(engine, QUrl("qrc:/example/qml/component/issue/JiraCreateBatchDialog.qml"))
+assert component.isReady(), [error.toString() for error in component.errors()]
+dialog = component.createWithInitialProperties({
+    "batchState": "editing", "width": 900, "height": 700,
+    "cloneDrafts": [{"issueId": "r1", "state": "ready", "fields": [
+        {"fieldId": "summary", "name": "Summary", "control": "text", "value": "Imported summary"}
+    ]}]
+})
+assert dialog is not None, [error.toString() for error in component.errors()]
+from PySide6.QtQuick import QQuickWindow
+window = QQuickWindow()
+window.resize(900, 700)
+dialog.setParentItem(window.contentItem())
+window.show()
+QTest.qWait(100)
+edits, submissions = [], []
+dialog.updateCloneDraft.connect(lambda issue_id, field_id, value: edits.append((issue_id, field_id, value)))
+dialog.submitCloneBatch.connect(lambda: submissions.append(True))
+def find_visual(item, name):
+    if item.objectName() == name:
+        return item
+    for child in item.childItems():
+        found = find_visual(child, name)
+        if found is not None:
+            return found
+editor = find_visual(dialog, "jiraCreateText_summary")
+assert editor is not None and editor.property("text") == "Imported summary"
+editor.setProperty("text", "Updated summary")
+editor.editingFinished.emit()
+assert edits == [("r1", "summary", "Updated summary")]
+button = dialog.findChild(QObject, "jiraCloneBatchCreateButton")
+assert button is not None and button.property("visible") and not button.property("disabled")
+button.clicked.emit()
+assert submissions == [True]
+objects["RedmineBridge"].close()
+''', tmp_path)

@@ -29,17 +29,6 @@ COMMON_CC = (
     "gordon.pan@amlogic.com", "xiuyue.zhang@amlogic.com",
     "ping.xiong@amlogic.com", "Fred.chen@amlogic.com",
 )
-ISSUE_FIELDS = (
-    "key",
-    "summary",
-    "status",
-    "assignee",
-    "priority",
-    "labels",
-    "components",
-    "created",
-    "updated",
-)
 
 
 @dataclass(frozen=True)

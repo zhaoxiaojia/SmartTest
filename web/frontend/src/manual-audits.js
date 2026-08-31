@@ -24,7 +24,7 @@ export function createJiraManualAudit({ root, api, pollDelay = () => new Promise
     </div></header>
     <section class="card report-filter-card" data-audit-input-card>
       <h2>Review source</h2>
-      <form class="jira-audit-form" data-audit-form><label class="jira-audit-query jira-audit-full-width">JQL, Issue URL, or Filter URL
+      <form class="jira-audit-form" data-audit-form data-preference-region><label class="jira-audit-query jira-audit-full-width">JQL, Issue URL, or Filter URL
         <textarea class="form-control" name="auditInput" rows="5" required></textarea></label>
         <div class="filter-actions jira-audit-controls" data-audit-controls>
           <button type="submit" class="button button-primary" data-start-audit>Start Review</button>

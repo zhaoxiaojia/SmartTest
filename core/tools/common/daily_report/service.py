@@ -16,7 +16,6 @@ from core.email.personal_outlook import send_email as send_personal_email
 from core.reporting import render_html_page_image
 
 from .report import (
-    ISSUE_FIELDS,
     DailyReportArtifacts,
     ProjectConfig,
     build_historical_jql,
@@ -98,15 +97,11 @@ class DailyReportService:
         self._log("Daily Report query started", project_count=len(projects))
 
         def current(project):
-            return jira.search_records(
-                project.jql, specs=ISSUE_FIELDS, max_workers=4
-            )
+            return jira.search_records(project.jql)
 
         def historical(project, history_day):
             records = jira.search_records(
                 build_historical_jql(history_day, project.label),
-                specs=("key",),
-                max_workers=2,
             )
             return frozenset(record.identity.key for record in records)
 

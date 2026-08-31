@@ -15,14 +15,12 @@ from core.jira.attachments import (
     JiraAttachmentMetadata,
 )
 from core.jira.commands import CreateIssueCommand, UpdateIssueCommand
-from core.jira.metadata import JiraFieldMetadata
 
 
 @dataclass(frozen=True)
 class JiraGatewayConfig:
     base_url: str
     page_size: int = 100
-    max_workers: int = 6
 
 
 class JiraGatewayError(RuntimeError):
@@ -56,12 +54,11 @@ class JiraGateway:
         *,
         api: Any = None,
         page_size: int = 100,
-        max_workers: int = 6,
     ) -> None:
         clean_url = str(base_url or "").rstrip("/")
         if not clean_url:
             raise JiraGatewayError("jira_base_url_required")
-        self.config = JiraGatewayConfig(clean_url, page_size, max_workers)
+        self.config = JiraGatewayConfig(clean_url, page_size)
         if api is not None:
             self._api = api
             return
@@ -218,34 +215,6 @@ class JiraGateway:
         payload = self.search_payload(jql, max_results=1, fields=["summary"])
         issues = payload.get("issues") or ()
         return issues[0] if issues else None
-
-    def fetch_fields_metadata(self) -> list[JiraFieldMetadata]:
-        try:
-            payload = self._api.get_all_fields() or []
-        except Exception as exc:
-            raise JiraGatewayError("jira_fields_failed") from exc
-        return [
-            JiraFieldMetadata(
-                field_id=str(item.get("id") or ""),
-                name=str(item.get("name") or ""),
-                schema_type=(item.get("schema") or {}).get("type"),
-                schema_items=(item.get("schema") or {}).get("items"),
-                custom=bool(item.get("custom", False)),
-                custom_id=item.get("customId"),
-                schema_custom=(item.get("schema") or {}).get("custom"),
-                clause_names=tuple(item.get("clauseNames") or ()),
-                navigable=bool(item.get("navigable", True)),
-                searchable=bool(item.get("searchable", True)),
-            )
-            for item in payload if isinstance(item, dict)
-        ]
-
-    def fetch_favourite_filters(self) -> list[dict[str, Any]]:
-        try:
-            payload = self._api.get("rest/api/2/filter/favourite") or []
-        except Exception as exc:
-            raise JiraGatewayError("jira_filters_failed") from exc
-        return [item for item in payload if isinstance(item, dict)]
 
     def fetch_filter(self, filter_id: str) -> dict[str, Any]:
         try:

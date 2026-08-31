@@ -1,15 +1,6 @@
 from pathlib import Path
 
 
-def test_mcp_transport_and_jira_context_have_canonical_owners():
-    from core.mcp.client import McpClient, _parse_mcp_response
-    from core.jira.mcp_context import McpContextService
-
-    assert McpClient.__module__ == "core.mcp.client"
-    assert McpContextService.__module__ == "core.jira.mcp_context"
-    assert _parse_mcp_response('data: {"result": {"ok": true}}')["result"] == {"ok": True}
-
-
 def test_desktop_kpi_owner_preserves_interval_calculation():
     from client.app.debug.kpi.analysis import calculate_kpi_interval
 

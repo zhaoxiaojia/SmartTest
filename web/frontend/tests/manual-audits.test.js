@@ -2,8 +2,39 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 
 import { createJiraManualAudit } from '../src/manual-audits.js'
+import { createPreferenceStore } from '../src/preference-store.js'
 
 beforeEach(() => { document.body.innerHTML = '<div id="app"></div>' })
+
+it('saves and restores the Jira query without starting a review', async () => {
+  const saved = {}
+  const preferencesApi = {
+    get: async scope => ({ items: saved[scope] || {} }),
+    put: async (scope, items) => { saved[scope] = { ...saved[scope], ...items } },
+  }
+  const api = { createJiraAudit: vi.fn() }
+  const root = document.querySelector('#app')
+  let page = createJiraManualAudit({ root, api })
+  let store = createPreferenceStore({ root, api: preferencesApi, route: () => '/jira.html' })
+  try {
+    await store.start()
+    const input = root.querySelector('[name="auditInput"]')
+    input.value = 'project = SH ORDER BY updated DESC'
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    await vi.waitFor(() => expect(saved['jira.html']?.auditInput).toBe(input.value))
+    store.destroy()
+    page.destroy()
+    page = createJiraManualAudit({ root, api })
+    store = createPreferenceStore({ root, api: preferencesApi, route: () => '/jira.html' })
+    await store.start()
+    expect(root.querySelector('[name="auditInput"]').value).toBe('project = SH ORDER BY updated DESC')
+    expect(api.createJiraAudit).not.toHaveBeenCalled()
+    expect(root.querySelector('[data-audit-download]').disabled).toBe(true)
+  } finally {
+    store.destroy()
+    page.destroy()
+  }
+})
 
 it('discards old-session Jira creation before polling or enabling download', async () => {
   let release

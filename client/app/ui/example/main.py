@@ -24,7 +24,6 @@ from example.helper import Async
 from example.bridge.AuthBridge import AuthBridge
 from example.bridge.AISettingsBridge import AISettingsBridge
 from example.bridge.HomeBridge import HomeBridge
-from example.bridge.JiraBridge import JiraBridge
 from example.bridge.ReportBridge import ReportBridge
 from example.bridge.RunBridge import RunBridge
 from example.bridge.TestPageBridge import TestPageBridge
@@ -132,7 +131,6 @@ def main():
             "TestPageBridge": TestPageBridge(runtime_root),
             "RunBridge": RunBridge(runtime_root),
             "ReportBridge": ReportBridge(),
-            "JiraBridge": JiraBridge(auth_bridge),
             "DebugBridge": DebugBridge(runtime_root),
             "BootVideoBridge": BootVideoBridge(runtime_root),
         },

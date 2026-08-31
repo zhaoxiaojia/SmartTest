@@ -1,1 +1,0 @@
-"""Jira authentication modules."""

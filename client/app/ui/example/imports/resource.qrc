@@ -15,7 +15,6 @@
         <file>example/qml/component/AppTaskProgress.qml</file>
         <file>example/qml/state/ApplicationState.qml</file>
         <file>example/qml/state/WindowState.qml</file>
-        <file>example/qml/state/JiraPageState.qml</file>
         <file>example/qml/component/redmine/RedmineLoginView.qml</file>
         <file>example/qml/component/redmine/RedmineWorkspace.qml</file>
         <file>example/qml/component/issue/JiraIssueBrowserLayout.qml</file>
@@ -65,7 +64,6 @@
         <file>example/qml/page/T_Report.qml</file>
         <file>example/qml/page/T_Debug.qml</file>
         <file>example/qml/page/T_BootVideo.qml</file>
-        <file>example/qml/page/T_Jira.qml</file>
         <file>example/qml/page/T_QRCode.qml</file>
         <file>example/qml/page/T_RadioButton.qml</file>
         <file>example/qml/page/T_RatingControl.qml</file>
@@ -227,7 +225,6 @@
         <file>example/res/svg/avatar_11.svg</file>
         <file>example/res/svg/avatar_12.svg</file>
         <file>example/res/svg/deepseek-logo-icon.svg</file>
-        <file>example/res/svg/jira-software-icon.svg</file>
         <file>example/res/svg/home.svg</file>
         <file>example/res/svg/home_dark.svg</file>
         <file>example/i18n/example_en_US.qm</file>

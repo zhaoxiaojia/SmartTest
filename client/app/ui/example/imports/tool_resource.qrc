@@ -28,7 +28,6 @@
 <file>example/qml/component/issue/JiraOptionMultiPicker.qml</file>
 <file>example/qml/state/ApplicationState.qml</file>
 <file>example/qml/state/WindowState.qml</file>
-<file>example/qml/state/JiraPageState.qml</file>
 <file alias="example/res/image/app_icon.png">../../src/amlogic_icon.png</file>
 <file alias="example/res/image/taskbar_icon.png">../../src/smarttest_icon.png</file>
 <file>example/i18n/example_en_US.qm</file>

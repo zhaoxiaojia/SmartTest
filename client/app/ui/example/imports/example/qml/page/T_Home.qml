@@ -19,15 +19,9 @@ FluScrollablePage {
     property bool compactLayout: page.width < 760
     property bool wideLayout: page.width > 1180
     property var metricRows: [
-        { "label": qsTr("My Jira"), "value": "12", "trend": qsTr("3 waiting for test"), "accent": "#0C66E4" },
         { "label": qsTr("Confluence"), "value": "6", "trend": qsTr("new hot pages"), "accent": "#36B37E" },
         { "label": qsTr("DUT Online"), "value": "1", "trend": qsTr("latest device alive"), "accent": "#6554C0" },
         { "label": qsTr("Failed Runs"), "value": "2", "trend": qsTr("need review"), "accent": "#DE350B" }
-    ]
-    property var jiraRows: [
-        { "key": "IPTV-4821", "title": qsTr("Auto reboot case loses client status after DUT reboot"), "status": qsTr("In Progress"), "level": qsTr("High") },
-        { "key": "IPTV-4790", "title": qsTr("Packaged runner cannot locate Android signing resources"), "status": qsTr("Ready"), "level": qsTr("Medium") },
-        { "key": "IPTV-4755", "title": qsTr("Report logs should preserve scrollable full output"), "status": qsTr("Review"), "level": qsTr("Low") }
     ]
     property var confluenceRows: [
         { "title": qsTr("S6 U1 platform test checklist"), "meta": qsTr("updated today") },
@@ -36,8 +30,7 @@ FluScrollablePage {
     ]
     property var internalRows: [
         { "title": qsTr("IPTV daily build is green"), "meta": qsTr("Jenkins signal") },
-        { "title": qsTr("Two DUTs need USB reconnection"), "meta": qsTr("lab status") },
-        { "title": qsTr("MCP connector health check pending"), "meta": qsTr("intranet") }
+        { "title": qsTr("Two DUTs need USB reconnection"), "meta": qsTr("lab status") }
     ]
 
     Component.onCompleted: HomeBridge.refreshWallpaper()
@@ -86,7 +79,6 @@ FluScrollablePage {
             RowLayout {
                 spacing: 8
                 StatusPill { text: qsTr("Intranet first") }
-                StatusPill { text: qsTr("MCP ready layout") }
                 StatusPill { text: qsTr("Bing daily wallpaper") }
             }
 
@@ -144,38 +136,6 @@ FluScrollablePage {
 
         DashboardPanel {
             Layout.fillWidth: true
-            Layout.preferredHeight: page.width > 1080 ? 390 : 330
-            title: qsTr("My Jira")
-            subtitle: qsTr("Personal issues from intranet MCP")
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 18
-                spacing: 10
-                Repeater {
-                    model: page.jiraRows
-                    delegate: IssueRow {
-                        Layout.fillWidth: true
-                        issueKey: modelData.key
-                        issueTitle: modelData.title
-                        status: modelData.status
-                        level: modelData.level
-                    }
-                }
-                Item { Layout.fillHeight: true }
-                FluButton {
-                    text: qsTr("Open Jira")
-                    Layout.alignment: Qt.AlignRight
-                    onClicked: ItemsOriginal.navigateWithAuth({
-                        "title": "Jira",
-                        "url": "qrc:/example/qml/page/T_Jira.qml"
-                    })
-                }
-            }
-        }
-
-        DashboardPanel {
-            Layout.fillWidth: true
             Layout.preferredHeight: page.width > 1080 ? 390 : 310
             title: qsTr("Confluence Hotspots")
             subtitle: qsTr("Pages likely useful for today's work")
@@ -196,12 +156,6 @@ FluScrollablePage {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 1
                     color: page.panelBorderColor
-                }
-                QuickAction {
-                    Layout.fillWidth: true
-                    iconSource: FluentIcons.Search
-                    title: qsTr("Search knowledge base")
-                    meta: qsTr("Reserved for Confluence MCP")
                 }
                 Item { Layout.fillHeight: true }
             }
@@ -360,52 +314,6 @@ FluScrollablePage {
                 id: body
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-            }
-        }
-    }
-
-    component IssueRow: Rectangle {
-        property string issueKey
-        property string issueTitle
-        property string status
-        property string level
-
-        radius: 6
-        color: FluTheme.itemNormalColor
-        border.width: 1
-        border.color: page.panelBorderColor
-        Layout.preferredHeight: page.compactLayout ? 66 : 72
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 12
-            spacing: 10
-
-            Rectangle {
-                Layout.preferredWidth: 6
-                Layout.fillHeight: true
-                radius: 3
-                color: level === qsTr("High") ? "#DE350B" : level === qsTr("Medium") ? "#FFAB00" : "#36B37E"
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 4
-                FluText {
-                    text: issueKey + "  " + status
-                    color: page.mutedTextColor
-                    font: FluTextStyle.Caption
-                    elide: Text.ElideRight
-                }
-                FluText {
-                    Layout.fillWidth: true
-                    text: issueTitle
-                    color: page.strongTextColor
-                    font: FluTextStyle.Body
-                    maximumLineCount: 2
-                    wrapMode: Text.Wrap
-                    elide: Text.ElideRight
-                }
             }
         }
     }
