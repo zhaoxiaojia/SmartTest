@@ -62,6 +62,13 @@ Skill `MUST`/prohibitions, ownership boundaries, and acceptance gates are mandat
 - Keep one clear business owner per behavior. Reuse or extend that owner; do not add case-specific workarounds, parallel state/transport/report flows, or speculative abstraction.
 - Do not rebuild packages during ordinary debugging unless requested, preparing release handoff, required by the affected layer skill, or validating package-specific behavior.
 
+## Web Cache And Database Boundaries
+
+- Web 页面只保存展示和未提交控件状态；不得保存审查、导出或批量动作的权威资源 ID。
+- Web 进程内存只保存异步任务、进度、订阅和取消；服务重启后允许这些运行时状态消失，禁止在其中保存可复用的筛选结果或业务选择集。
+- SQLite 是项目事实、用户偏好和查询快照的唯一持久 owner。需要精确复用筛选范围的业务动作必须使用当前会话的数据库查询快照，不能信任前端 ID，也不能静默回退到全量数据。
+- 从本地缓存读取列表不得访问远端或启动详情任务；Apply 只刷新当前查询快照范围内的详情。筛选快照的完整规则见 `docs/superpowers/specs/2026-09-01-web-cache-database-boundaries-design.md`。
+
 ## Delivery Gates
 
 Delivery requires two independent results:
