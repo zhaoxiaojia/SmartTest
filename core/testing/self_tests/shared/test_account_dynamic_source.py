@@ -145,3 +145,10 @@ def test_publish_callback_can_close_from_another_thread_without_deadlock(tmp_pat
     source.open("a", lambda: 1, publish)
     assert close_completed.wait(0.1)
     assert callback_observed_close.is_set()
+
+
+def test_dynamic_source_uses_injected_submitter_for_refresh(tmp_path):
+    submitted=[]
+    source = AccountDynamicSource(AccountScopedSnapshotCache(tmp_path), "d", "s", lambda x: x, lambda x: x, ttl=NOW - NOW, now=lambda: NOW, submit=lambda work: (submitted.append(work), work())[1])
+    source.open("account", lambda: "fresh", lambda _event: None, force=True)
+    assert len(submitted) == 1

@@ -63,7 +63,6 @@ def _verify_dist_runtime(repo_root: Path) -> None:
         [
             str(runtime_python),
             "-c",
-            "import sys; sys.path.insert(0, r'build/client_runtime'); import core.config.value_conversion; import core.testing.params.options; import cv2; import core.testing.tool.boot_video.service; import client.app.ui.example.bridge.BootVideoBridge",
         ],
         cwd=str(repo_root),
     )

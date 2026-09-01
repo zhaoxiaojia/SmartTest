@@ -28,7 +28,6 @@ FORBIDDEN_ARCHIVE_MODULES = (
     "example.bridge.ReportBridge",
     "example.bridge.TestPageBridge",
     "example.bridge.DebugBridge",
-    "example.bridge.BootVideoBridge",
     "cv2",
     "testing",
     "mobile.android",

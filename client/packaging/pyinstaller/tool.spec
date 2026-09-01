@@ -22,7 +22,6 @@ a = Analysis(
         "cv2", "testing", "core.testing", "mobile.android",
         "example.main", "example.bridge.HomeBridge", "example.bridge.RunBridge",
         "example.bridge.ReportBridge", "example.bridge.TestPageBridge",
-        "example.bridge.DebugBridge", "example.bridge.BootVideoBridge",
     ],
     noarchive=False,
 )

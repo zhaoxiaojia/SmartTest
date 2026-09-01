@@ -30,7 +30,7 @@ from example.bridge.TestPageBridge import TestPageBridge
 from example.bridge.ToolBridge import ToolBridge
 from example.bridge.RedmineBridge import RedmineBridge
 from example.bridge.DebugBridge import DebugBridge
-from example.bridge.BootVideoBridge import BootVideoBridge
+from example.bridge.desktop_tasks import close_desktop_tasks
 from example.context_registry import register_context_objects, start_context_services
 from core.logging import smart_log
 from core.config.jsonTool import app_data_dir
@@ -100,6 +100,7 @@ def main():
     event_loop.create_task(Async.boot())
 
     app.aboutToQuit.connect(engine.deleteLater)
+    app.aboutToQuit.connect(close_desktop_tasks)
     app.aboutToQuit.connect(app_close_event.set)
     app.aboutToQuit.connect(lambda: event_loop.create_task(Async.delete()))
 
@@ -132,7 +133,6 @@ def main():
             "RunBridge": RunBridge(runtime_root),
             "ReportBridge": ReportBridge(),
             "DebugBridge": DebugBridge(runtime_root),
-            "BootVideoBridge": BootVideoBridge(runtime_root),
         },
     )
     app.aboutToQuit.connect(redmine_bridge.close)

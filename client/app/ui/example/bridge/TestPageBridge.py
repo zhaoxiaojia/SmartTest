@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+from .QtTaskAdapter import QtTaskAdapter
+from .desktop_tasks import DESKTOP_TASKS
 from datetime import datetime
 from pathlib import Path
 import sys
@@ -38,6 +40,7 @@ class TestPageBridge(QObject):
 
     def __init__(self, root_dir: Path):
         super().__init__(QGuiApplication.instance())
+        self._tasks = QtTaskAdapter(manager=DESKTOP_TASKS)
         self._root_dir = root_dir.resolve()
         self._registry: SchemaRegistry = default_registry()
         self._cases: list[dict[str, Any]] = []
@@ -45,7 +48,7 @@ class TestPageBridge(QObject):
         self._cases_by_file: dict[str, list[dict[str, Any]]] = {}
         self._state_path = self._default_state_path()
         self._trace_log_path = self._state_path.parent / "test_page_trace.log"
-        self._parameter_helper = ParameterHelper(apk_ensurer=ensure_test_apk_installed)
+        self._parameter_helper = ParameterHelper(apk_ensurer=ensure_test_apk_installed, to_thread=lambda work, *args, **kwargs: self._tasks.to_thread("dut-work", work, *args, **kwargs))
         self._state = ensure_state(self._state_path)
         smarttest_context().params.bind_ui_state(self._state)
         self._adb_devices: list[str] = []
@@ -132,7 +135,7 @@ class TestPageBridge(QObject):
             except RuntimeError:
                 self._trace("async_task_schedule_error", label=label, error=exc)
                 raise
-        loop.create_task(coro)
+        self._tasks.schedule_coroutine(loop, label, coro)
         self._trace("async_task_scheduled", label=label)
 
     def _schedule_adb_refresh(self, reason: str) -> None:
@@ -1023,7 +1026,7 @@ class TestPageBridge(QObject):
     async def _discover_cases_task(self, started_at: float) -> None:
         if is_packaged_runtime():
             load_started = time.monotonic()
-            cases = await asyncio.to_thread(load_packaged_test_catalog)
+            cases = await self._tasks.to_thread("discover_catalog", load_packaged_test_catalog)
             self._trace(
                 "catalog_loaded",
                 cases=len(cases),
@@ -1053,8 +1056,8 @@ class TestPageBridge(QObject):
             return
         try:
             collect_started = time.monotonic()
-            cases = await asyncio.to_thread(
-                discover_pytest_cases,
+            cases = await self._tasks.to_thread(
+                "discover_cases", discover_pytest_cases,
                 root_dir=self._root_dir,
                 python_executable=sys.executable,
             )

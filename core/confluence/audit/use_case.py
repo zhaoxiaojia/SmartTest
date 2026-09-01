@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import as_completed
 from datetime import datetime, timezone
 from typing import Protocol
 from uuid import uuid4
@@ -35,6 +36,14 @@ class _NoCancellation:
         return None
 
 
+class _CombinedCancellation:
+    def __init__(self, *tokens): self._tokens = tokens
+
+    def raise_if_cancelled(self) -> None:
+        for token in self._tokens:
+            token.raise_if_cancelled()
+
+
 class ConfluenceWeeklyAuditUseCase:
     def __init__(self, source: ConfluenceAuditProjectSource):
         self._source = source
@@ -46,30 +55,54 @@ class ConfluenceWeeklyAuditUseCase:
         *,
         cancellation=None,
         progress=lambda *_: None,
+        task_manager=None,
+        parent_task_id: str = "",
     ) -> AuditBatch:
         token = cancellation or _NoCancellation()
-        audits = []
-        for index, project in enumerate(projects, 1):
-            token.raise_if_cancelled()
-            progress("loading_details", index - 1, len(projects))
-            try:
-                loaded = self._source.load_project_details(
-                    project.identity.project_id,
-                    ProjectDetails(roles=True, evidence=True),
-                    token,
-                )
-                audits.append(self._audit_project(loaded, period, token, progress))
-            except Exception as error:
-                token.raise_if_cancelled()
-                reason = "remote_unavailable" if str(error) == "remote_unavailable" else "audit_failed"
-                audits.append(ProjectAudit(project, (AuditFinding(
-                    project.identity.project_id, project.name, "project.audit",
-                    AuditStatus.FAILED, reason, project.catalog_page.url,
-                ),), _owners(project)))
+        audits = self._audit_projects(
+            projects, period, token, progress,
+            task_manager=task_manager, parent_task_id=parent_task_id,
+        )
         progress("finalizing", len(audits), len(audits))
         return AuditBatch(
             uuid4().hex, period, datetime.now(timezone.utc), tuple(audits),
         )
+
+    def _audit_projects(self, projects, period, token, progress, *, task_manager, parent_task_id):
+        if task_manager is None or not parent_task_id:
+            return [self._audit_one(project, period, token, progress) for project in projects]
+        futures = {
+            task_manager.submit_child(
+                parent_task_id, "confluence-review-project",
+                lambda child_token, _child_progress, project=project: self._audit_one(
+                    project, period, _CombinedCancellation(token, child_token), lambda *_: None,
+                ),
+            ): index
+            for index, project in enumerate(projects)
+        }
+        audits = [None] * len(projects)
+        completed = 0
+        for future in as_completed(futures):
+            token.raise_if_cancelled()
+            audits[futures[future]] = future.result()
+            completed += 1
+            progress("loading_details", completed, len(projects))
+        return audits
+
+    def _audit_one(self, project, period, token, progress):
+        token.raise_if_cancelled()
+        try:
+            loaded = self._source.load_project_details(
+                project.identity.project_id, ProjectDetails(roles=True, evidence=True), token,
+            )
+            return self._audit_project(loaded, period, token, progress)
+        except Exception as error:
+            token.raise_if_cancelled()
+            reason = "remote_unavailable" if str(error) == "remote_unavailable" else "audit_failed"
+            return ProjectAudit(project, (AuditFinding(
+                project.identity.project_id, project.name, "project.audit",
+                AuditStatus.FAILED, reason, project.catalog_page.url,
+            ),), _owners(project))
 
     def _audit_project(self, project, period, token, progress):
         evidence = {

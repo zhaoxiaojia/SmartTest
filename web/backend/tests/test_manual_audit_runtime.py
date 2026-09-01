@@ -11,6 +11,29 @@ from smarttest_web.audit.registry import (
     ManualAuditRegistry,
 )
 from smarttest_web.downloads import DownloadArtifactService, DownloadNotFoundError
+from smarttest_web.app import _audit_task_payload
+import smarttest_web.app as web_app
+from core.async_tasks import AsyncTaskSnapshot
+
+
+
+def test_audit_status_includes_its_manager_root_snapshot_without_internal_id(monkeypatch) -> None:
+    registry = ManualAuditRegistry()
+    task = registry.create("confluence", "session-a", lambda *_: "ok")
+    task.manager_task_id = "audit-root"
+
+    class Tasks:
+        def snapshot(self, task_id):
+            assert task_id == "audit-root"
+            return AsyncTaskSnapshot("audit-root", "Weekly review", "running", (3, 12), "audit-root", revision=5)
+
+    monkeypatch.setattr("smarttest_web.task_manager.WEB_TASKS", Tasks())
+    data = _audit_task_payload(task)
+    assert data["task"] == {
+        "state": "running", "progress": {"processed": 3, "total": 12},
+        "revision": 5, "visibleChild": None,
+    }
+    assert "id" not in data["task"]
 
 
 def test_registry_isolates_sessions_and_rejects_only_same_source_active_task() -> None:

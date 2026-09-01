@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from threading import Lock, Thread
+from threading import Lock
+
+from .task_manager import WEB_TASKS, snapshot_payload
 
 
 class BackgroundFactsRefresh:
@@ -14,7 +16,7 @@ class BackgroundFactsRefresh:
 
     @staticmethod
     def _start_thread(work):
-        Thread(target=work, name="smarttest-confluence-facts", daemon=True).start()
+        return WEB_TASKS.submit("confluence-facts", lambda _token, progress: work(progress))
 
     @property
     def state(self):
@@ -28,9 +30,16 @@ class BackgroundFactsRefresh:
         account = str(access).strip().casefold()
         with self._lock:
             job = self._jobs.get(account)
-            if job:
-                return {key: job[key] for key in ("state", "completed", "total")}
-            return {"state": "idle", "completed": 0, "total": 0}
+            if not job:
+                return {"state": "idle", "completed": 0, "total": 0}
+            status = {key: job[key] for key in ("state", "completed", "total")}
+            task_id = job.get("task_id")
+        if task_id:
+            try:
+                status["task"] = snapshot_payload(WEB_TASKS.snapshot(task_id))
+            except KeyError:
+                pass
+        return status
 
     def start_details(self, owner, access, password, *, filters=None, search=""):
         account = access.session_hash
@@ -46,17 +55,19 @@ class BackgroundFactsRefresh:
             with self._lock:
                 return bool(job["cancelled"])
 
-        def progress(completed, total):
+        def progress(completed, total, manager_progress=lambda _completed, _total: None):
             with self._lock:
                 if not job["cancelled"]:
                     job.update(completed=completed, total=total)
+            manager_progress(completed, total)
 
-        def work():
+        def work(manager_progress=lambda _completed, _total: None):
             if cancelled():
                 return
             try:
                 owner.sync_details(access, password, filters=filters, search=search,
-                                   cancelled=cancelled, progress=progress)
+                                   cancelled=cancelled,
+                                   progress=lambda completed, total: progress(completed, total, manager_progress))
             except Exception:  # noqa: BLE001 - only safe job state crosses the API
                 with self._lock:
                     if not job["cancelled"]:
@@ -66,7 +77,9 @@ class BackgroundFactsRefresh:
                     if not job["cancelled"]:
                         job["state"] = "ready"
 
-        self._submit(work)
+        submitted = self._submit(work)
+        if submitted is not None:
+            job["task_id"] = WEB_TASKS.task_id(submitted)
         return True
 
     def cancel(self, access):

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future
 from dataclasses import dataclass
 from datetime import date, timedelta
 import os
@@ -70,6 +70,7 @@ class DailyReportService:
         today: Callable[[], date] = date.today,
         logger: Callable = smart_log,
         jira_base_url: str | None = None,
+        manager=None,
     ):
         self._issue_service_factory = issue_service_factory
         self._project_store = project_store
@@ -80,6 +81,7 @@ class DailyReportService:
         self._delivery_mode = delivery_mode
         self._today = today
         self._logger = logger
+        self._manager = manager
         self._jira_base_url = (
             jira_base_url
             or os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")
@@ -105,19 +107,21 @@ class DailyReportService:
             )
             return frozenset(record.identity.key for record in records)
 
-        with ThreadPoolExecutor(
-            max_workers=8, thread_name_prefix="daily-report-jira"
-        ) as executor:
-            current_futures = {
-                project: executor.submit(current, project) for project in projects
-            }
-            history_futures = {
-                (project, history_day): executor.submit(
-                    historical, project, history_day
-                )
-                for project in projects
-                for history_day in history_days
-            }
+        def submit(label, work, *args):
+            if self._manager is not None:
+                return self._manager.submit(label, lambda _token, _progress: work(*args))
+            future = Future()
+            try: future.set_result(work(*args))
+            except Exception as error: future.set_exception(error)
+            return future
+
+        current_futures = {
+            project: submit(f"daily-report-current:{project.safe_id}", current, project) for project in projects
+        }
+        history_futures = {
+            (project, history_day): submit(f"daily-report-history:{project.safe_id}", historical, project, history_day)
+            for project in projects for history_day in history_days
+        }
 
         reports, project_failures = [], []
         for project in projects:

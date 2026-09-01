@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from threading import Lock, Thread
+from threading import Lock
 from typing import Any
 from urllib.request import Request, urlopen
 
@@ -11,6 +11,8 @@ from PySide6.QtGui import QGuiApplication
 
 from core.config import jsonTool
 from core.logging import smart_log
+from .QtTaskAdapter import QtTaskAdapter
+from .desktop_tasks import DESKTOP_TASKS
 
 try:
     from example.helper.AppPaths import app_data_dir
@@ -22,16 +24,15 @@ _BING_ARCHIVE_URL = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=
 
 class HomeBridge(QObject):
     wallpaperChanged = Signal()
-    _wallpaperReady = Signal(object)
 
-    def __init__(self):
+    def __init__(self, *, task_adapter=None):
         super().__init__(QGuiApplication.instance())
         self._wallpaper_url = ""
         self._wallpaper_title = ""
         self._wallpaper_copyright = ""
         self._refreshing_wallpaper = False
+        self._tasks = task_adapter or QtTaskAdapter(manager=DESKTOP_TASKS)
         self._lock = Lock()
-        self._wallpaperReady.connect(self._on_wallpaper_ready)
         self._load_wallpaper_cache()
 
     def _cache_path(self) -> Path:
@@ -76,15 +77,13 @@ class HomeBridge(QObject):
             if self._refreshing_wallpaper:
                 return
             self._refreshing_wallpaper = True
-        Thread(target=self._refresh_wallpaper_worker, daemon=True).start()
+        self._tasks.submit("home-wallpaper", self._fetch_bing_wallpaper,
+                           on_success=self._on_wallpaper_ready, on_error=self._on_wallpaper_failed)
 
-    def _refresh_wallpaper_worker(self) -> None:
-        try:
-            self._wallpaperReady.emit(self._fetch_bing_wallpaper())
-        except Exception as exc:
-            smart_log("Failed to refresh home wallpaper: %s", exc, level="warning")
-            with self._lock:
-                self._refreshing_wallpaper = False
+    def _on_wallpaper_failed(self, error: Exception) -> None:
+        smart_log("Failed to refresh home wallpaper: %s", error, level="warning")
+        with self._lock:
+            self._refreshing_wallpaper = False
 
     def _on_wallpaper_ready(self, data: Any) -> None:
         with self._lock:

@@ -63,7 +63,6 @@
         <file>example/qml/page/T_Run.qml</file>
         <file>example/qml/page/T_Report.qml</file>
         <file>example/qml/page/T_Debug.qml</file>
-        <file>example/qml/page/T_BootVideo.qml</file>
         <file>example/qml/page/T_QRCode.qml</file>
         <file>example/qml/page/T_RadioButton.qml</file>
         <file>example/qml/page/T_RatingControl.qml</file>

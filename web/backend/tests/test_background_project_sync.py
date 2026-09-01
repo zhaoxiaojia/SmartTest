@@ -1,6 +1,8 @@
 from conftest import confirmed_access
 from smarttest_web.database import WebDatabase
+from core.async_tasks import AsyncTaskSnapshot
 from smarttest_web.background_refresh import BackgroundFactsRefresh
+import smarttest_web.background_refresh as background_refresh
 
 
 def test_catalog_refresh_state_is_not_reported_as_detail_sync_status(tmp_path):
@@ -58,3 +60,28 @@ def test_scoped_detail_job_is_single_flight_reports_progress_and_can_cancel(tmp_
     assert refresh.start_details(Owner(), access, "secret", filters={}, search="")
     assert refresh.cancel(access.session_hash)
     assert refresh.status_for(access.session_hash)["state"] == "cancelled"
+
+
+def test_detail_status_exposes_only_the_session_owned_root_snapshot(tmp_path, monkeypatch):
+    access = confirmed_access(WebDatabase(tmp_path / "access.db"))
+
+    class Tasks:
+        def task_id(self, _future): return "root-task"
+        def snapshot(self, task_id):
+            assert task_id == "root-task"
+            child = AsyncTaskSnapshot("child", "Fetching project A", "running", (99, 100), "root-task")
+            return AsyncTaskSnapshot("root-task", "Confluence details", "running", (2, 10), "root-task", visible_child=child, revision=3)
+
+    monkeypatch.setattr(background_refresh, "WEB_TASKS", Tasks())
+    refresh = BackgroundFactsRefresh(submit=lambda _work: object())
+
+    class Owner:
+        def sync_details(self, *_args, **_kwargs): return None
+
+    assert refresh.start_details(Owner(), access, "secret")
+    status = refresh.status_for(access.session_hash)
+    assert status["task"] == {
+        "state": "running", "progress": {"processed": 2, "total": 10},
+        "revision": 3, "visibleChild": {"label": "Fetching project A", "state": "running"},
+    }
+    assert "id" not in status["task"]

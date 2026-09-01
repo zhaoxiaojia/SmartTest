@@ -172,6 +172,7 @@ def main() -> None:
     from FluentUI import FluentUI
     from FluentUI.FluLogger import LogSetup
     from example.context_registry import register_context_objects, start_context_services
+    from example.bridge.desktop_tasks import close_desktop_tasks
     from example.helper import Async
 
     os.environ["QT_QUICK_CONTROLS_STYLE"] = "Basic"
@@ -191,6 +192,7 @@ def main() -> None:
     register_context_objects(engine, objects)
     redmine = objects["RedmineBridge"]
     app.aboutToQuit.connect(redmine.close)
+    app.aboutToQuit.connect(close_desktop_tasks)
     FluentUI.registerTypes(engine)
 
     event_loop = QEventLoop(app)

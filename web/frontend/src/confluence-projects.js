@@ -31,7 +31,7 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
       <div class="filter-actions"><button class="button button-primary" type="submit">Apply Filters</button><button class="button button-secondary" type="button" data-cancel hidden>Cancel Sync</button><button class="button button-secondary" type="button" data-reset data-preference-reset>Reset</button></div></div>
       <section class="weekly-review"><strong>Weekly Review</strong><label>Start<input class="form-control" name="reviewStartDate" type="date"></label><label>End<input class="form-control" name="reviewEndDate" type="date"></label>
         <button class="button button-secondary" type="button" data-audit>Review Filters</button><button class="button button-secondary" type="button" data-audit-cancel disabled>Cancel Review</button><button class="button button-primary" type="button" data-audit-download disabled>Download</button></section></form>
-    <div class="report-state report-state-loading" role="status">Loading project catalog…</div><div class="async-feedback" data-async-feedback></div><div class="async-feedback" data-audit-progress></div><div class="inline-status" data-audit-status aria-live="polite"></div>
+    <div class="report-state report-state-loading" role="status">Loading project catalog…</div><div class="async-feedback" data-async-feedback></div><div class="inline-status" data-audit-status aria-live="polite"></div>
     <section class="confluence-summary" data-summary></section>
     <section class="card workload-card"><header class="report-preview-toolbar"><div><strong>Role workload</strong><div class="report-preview-meta">Project assignments per QA member</div></div><div class="role-segments" data-role-segments></div></header>
       <div class="workload-chart-scroll"><div class="workload-chart-surface"><canvas data-workload-chart></canvas></div></div></section>
@@ -58,7 +58,6 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
   let appliedProjectIds = []
   const feedback = createAsyncFeedback({ root: root.querySelector('[data-async-feedback]'),
     cancelButton, onCancel: cancelSync })
-  const auditFeedback = createAsyncFeedback({ root: root.querySelector('[data-audit-progress]') })
   const auditDownload = createDownloadButton({
     element: auditDownloadButton,
     prepare: async () => (await api.exportConfluenceAudit(activeAuditId)).download,
@@ -77,21 +76,35 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
   }
   setDefaultReviewPeriod()
 
+  function taskState(value) {
+    return ({ running: 'running', queued: 'running', completed: 'success',
+      failed: 'failed', cancelled: 'cancelled' }[value] ?? 'idle')
+  }
+
+  function childMessage(message, task) {
+    const child = task?.visibleChild
+    return child ? `${message} · ${child.label}` : message
+  }
+
   function updateFeedback(sync) {
-    if (sync?.state === 'loading') feedback.update({ state: 'running', message: 'Syncing project details…',
-      processed: sync.completed, total: sync.total })
+    const task = sync?.task
+    if (sync?.state === 'loading') feedback.update({ state: task ? taskState(task.state) : 'running',
+      message: childMessage('Syncing project details…', task),
+      processed: task?.progress?.processed ?? sync.completed, total: task?.progress?.total ?? sync.total })
     else if (sync?.state === 'failed') feedback.update({ state: 'failed', message: 'Project detail sync failed.' })
     else if (sync?.state === 'cancelled') feedback.update({ state: 'cancelled' })
     else if (sync?.state === 'ready' && feedback.state === 'running') feedback.update({ state: 'success' })
   }
 
   function updateAuditFeedback(audit) {
+    const task = audit?.task
     const running = ['queued', 'running'].includes(audit?.status)
-    const state = running ? 'running' : ({
+    const state = task ? taskState(task.state) : (running ? 'running' : ({
       completed: 'success', failed: 'failed', cancelled: 'cancelled'
-    }[audit?.status] ?? 'idle')
-    auditFeedback.update({ state, stage: audit?.stage,
-      processed: audit?.progress?.processed, total: audit?.progress?.total })
+    }[audit?.status] ?? 'idle'))
+    const stage = childMessage('', task) || audit?.stage
+    feedback.update({ state, stage, processed: task?.progress?.processed ?? audit?.progress?.processed,
+      total: task?.progress?.total ?? audit?.progress?.total })
   }
 
   const currentFilters = () => {
@@ -390,7 +403,7 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
     } catch (error) {
       if (destroyed) return
       root.querySelector('[data-audit-status]').textContent = error?.status === 422 ? 'invalid review period' : 'audit unavailable'
-      auditFeedback.update({ state: 'failed' })
+      feedback.update({ state: 'failed' })
     } finally {
       if (!destroyed) { auditButton.disabled = false; auditCancelButton.disabled = true }
     }

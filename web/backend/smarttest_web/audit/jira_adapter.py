@@ -13,6 +13,7 @@ from core.jira.domain import Issue, IssueDetails
 from core.jira.gateway import JiraGateway
 from core.jira.mapper import JiraIssueMapper
 
+from ..task_manager import WEB_TASKS
 from ..database import WebDatabase
 from ..jira.cache_service import JiraIssueCacheService
 from ..jira.issue_repository import JiraIssueRepository
@@ -47,6 +48,7 @@ class WebJiraAuditOwner:
     def run(self, scope, cancellation, progress):
         return JiraAuditUseCase(self).run(
             scope, cancellation=cancellation, progress=progress,
+            task_manager=WEB_TASKS, parent_task_id=getattr(cancellation, "task_id", ""),
         )
 
     def list_issues(self, scope, cancellation) -> tuple[Issue, ...]:

@@ -29,6 +29,7 @@ from .report_workspace import ClientAuditReportOwner, ReportNotFoundError
 from .project_facts_api import ProjectFactsWebOwner
 from .session import PersistentSessionStore, default_web_database_path
 from .background_refresh import BackgroundFactsRefresh
+from .task_manager import close_web_tasks
 from .credentials import CredentialStoreError
 from .audit.registry import (
     AuditConflictError,
@@ -92,6 +93,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         finally:
             audits.close()
             downloads.close()
+            close_web_tasks()
 
     app = FastAPI(title="SmartTest Wi-Fi Database", docs_url=None, redoc_url=None,
                   openapi_url=None, lifespan=lifespan)
@@ -647,6 +649,12 @@ def _audit_task_payload(task) -> dict:
         "progress": {"processed": task.processed, "total": task.total},
         "errorCode": task.error_code,
     }
+    if task.manager_task_id:
+        try:
+            from .task_manager import WEB_TASKS, snapshot_payload
+            payload["task"] = snapshot_payload(WEB_TASKS.snapshot(task.manager_task_id))
+        except KeyError:
+            pass
     return payload
 
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, as_completed
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -43,7 +43,7 @@ PROJECT_SPACE_FACET_DEFINITIONS = (
 PROJECT_SPACE_FILTER_FIELDS = tuple(key for key, _label in PROJECT_SPACE_FACET_DEFINITIONS)
 
 
-def refresh_project_catalogs(client, store, product_lines=PRODUCT_LINES, *, now=None):
+def refresh_project_catalogs(client, store, product_lines=PRODUCT_LINES, *, now=None, manager=None):
     """Fetch only independent Product Space catalogs and publish them atomically."""
     now = now or datetime.now(timezone.utc)
     previous = store.load() or {"projects": []}
@@ -112,15 +112,24 @@ def refresh_project_catalogs(client, store, product_lines=PRODUCT_LINES, *, now=
                                      "pending": len(product_lines) - completed,
                                      "total": len(product_lines)}}
 
-    with ThreadPoolExecutor(max_workers=min(4, max(1, len(product_lines)))) as pool:
-        futures = [pool.submit(fetch, item) for item in enumerate(product_lines, start=1)]
-        for future in as_completed(futures):
-            result = future.result()
-            fetched[result[0]] = result
-            snapshot = build_snapshot(
-                phase="catalog_ready" if len(fetched) == len(product_lines) else "catalog_loading",
-            )
-            store.save(snapshot)
+    def submit(item):
+        if manager is not None:
+            return manager.submit(f"confluence-catalog:{item[1].key}", lambda _token, _progress: fetch(item))
+        future = Future()
+        try:
+            future.set_result(fetch(item))
+        except Exception as error:
+            future.set_exception(error)
+        return future
+
+    futures = [submit(item) for item in enumerate(product_lines, start=1)]
+    for future in as_completed(futures):
+        result = future.result()
+        fetched[result[0]] = result
+        snapshot = build_snapshot(
+            phase="catalog_ready" if len(fetched) == len(product_lines) else "catalog_loading",
+        )
+        store.save(snapshot)
     return snapshot
 
 

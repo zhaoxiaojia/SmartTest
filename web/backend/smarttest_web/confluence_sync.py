@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 
 from core.confluence.project import ProjectDetails
+from .task_manager import WEB_TASKS
 
 
 class ConfluenceProjectSyncCoordinator:
@@ -32,14 +33,20 @@ class ConfluenceProjectSyncCoordinator:
             return "updated"
 
         results = ["cancelled"] * len(identifiers)
-        with ThreadPoolExecutor(max_workers=self._max_workers) as pool:
-            futures = {
-                pool.submit(refresh, project_id): index
-                for index, project_id in enumerate(identifiers)
-            }
-            completed = 0
-            for future in as_completed(futures):
-                results[futures[future]] = future.result()
-                completed += 1
-                progress(completed, len(identifiers))
+        pending = iter(enumerate(identifiers))
+        futures = {}
+        for _ in range(min(self._max_workers, len(identifiers))):
+            index, project_id = next(pending, (None, None))
+            if project_id is not None:
+                futures[WEB_TASKS.submit("confluence-project-detail", lambda _token, _progress, project_id=project_id: refresh(project_id))] = index
+        completed = 0
+        while futures:
+            future = next(as_completed(futures))
+            index = futures.pop(future)
+            results[index] = future.result()
+            completed += 1
+            progress(completed, len(identifiers))
+            next_index, project_id = next(pending, (None, None))
+            if project_id is not None:
+                futures[WEB_TASKS.submit("confluence-project-detail", lambda _token, _progress, project_id=project_id: refresh(project_id))] = next_index
         return results

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from threading import RLock, Thread
+from threading import RLock
 
 
 class RefreshState(str, Enum):
@@ -41,7 +41,7 @@ class AccountDynamicSource:
         self.deserialize = deserialize
         self.ttl = ttl
         self.now = now or (lambda: datetime.now(timezone.utc))
-        self.submit = submit or self._thread_submit
+        self.submit = submit or (lambda work: work())
         self._lock = RLock()
         self._generation = 0
         self._account_hash = ""
@@ -169,7 +169,3 @@ class AccountDynamicSource:
         if isinstance(exc, (ConnectionError, TimeoutError, OSError)):
             return "network"
         return "source"
-
-    @staticmethod
-    def _thread_submit(callable_):
-        Thread(target=callable_, daemon=True).start()

@@ -68,3 +68,22 @@ def test_daily_preview_uses_lightweight_issue_service_for_current_and_history(tm
     assert batch.reports[0].artifacts.html_path.is_file()
     assert len(api.calls) == 14
     assert all(call[0] == "search" for call in api.calls)
+
+
+def test_daily_preview_submits_current_and_history_with_injected_manager(tmp_path):
+    from concurrent.futures import Future
+    from datetime import date
+    labels=[]
+    class Manager:
+        def submit(self, label, runner):
+            labels.append(label); future=Future()
+            try: future.set_result(runner(None, None))
+            except Exception as error: future.set_exception(error)
+            return future
+    api = StandardFieldApi(None)
+    issue_service = JiraIssueService(JiraGateway("https://jira.example", "u", "p", api=api))
+    service = DailyReportService(issue_service_factory=lambda *_: issue_service, project_store=type("Store", (), {"enabled": lambda self: (PROJECTS[0],)})(), report_root=tmp_path, today=lambda: date(2026, 8, 31), logger=lambda *_args, **_kwargs: None, manager=Manager())
+    batch = service.preview("u", "p")
+    assert len(batch.reports) == 1
+    assert labels[0].startswith("daily-report-current:")
+    assert len([label for label in labels if label.startswith("daily-report-history:")]) == 13

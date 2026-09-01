@@ -4,6 +4,7 @@ from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from openpyxl import load_workbook
+import pytest
 
 from core.confluence.audit import (
     AuditPeriod,
@@ -195,3 +196,88 @@ def test_test_plan_does_not_accept_empty_or_narrative_content_as_category() -> N
 
     assert not empty.found
     assert not narrative.found
+
+
+def test_confluence_use_case_starts_every_project_when_requests_are_below_capacity() -> None:
+    from threading import Barrier
+    from core.async_tasks import AsyncTaskManager
+
+    projects = (_project("P1"), _project("P2"))
+    period = AuditPeriod(datetime(2026, 8, 17, tzinfo=TZ), datetime(2026, 8, 24, tzinfo=TZ))
+    barrier = Barrier(2, timeout=1)
+
+    class Source:
+        def load_project_details(self, project_id, _details, _cancellation):
+            barrier.wait()
+            return next(project for project in projects if project.identity.project_id == project_id)
+        def load_current_page(self, page_id, _cancellation): return _document(page_id, 1, period.start, _body(page_id, "x"))
+        def load_page_versions(self, _page_id, _period, current, _cancellation): return (current,)
+
+    manager = AsyncTaskManager(max_workers=3)
+    try:
+        root = manager.submit_coordinator(
+            "confluence-review", lambda token, _progress: ConfluenceWeeklyAuditUseCase(Source()).run(
+                projects, period, task_manager=manager, parent_task_id=token.task_id,
+            ),
+        )
+        batch = root.result(timeout=2)
+        root_id = manager.task_id(root)
+        assert [item.project.identity.project_id for item in batch.projects] == ["P1", "P2"]
+        assert len([task for task in manager._tasks.values() if task.parent_id == root_id]) == 2
+    finally:
+        manager.close()
+
+
+def test_confluence_root_cancellation_cancels_scheduled_project_children() -> None:
+    from core.async_tasks import AsyncTaskManager, TaskCancelled
+
+    projects = (_project("P1"), _project("P2"))
+    period = AuditPeriod(datetime(2026, 8, 17, tzinfo=TZ), datetime(2026, 8, 24, tzinfo=TZ))
+    manager = AsyncTaskManager(max_workers=3)
+    root = manager.register_long_running("confluence-review")
+
+    class Source:
+        def load_project_details(self, project_id, _details, _cancellation):
+            if project_id == "P1":
+                manager.cancel(root)
+            return next(project for project in projects if project.identity.project_id == project_id)
+        def load_current_page(self, page_id, _cancellation):
+            return _document(page_id, 1, period.start, _body(page_id, "x"))
+        def load_page_versions(self, _page_id, _period, current, _cancellation): return (current,)
+
+    try:
+        with pytest.raises(TaskCancelled):
+            ConfluenceWeeklyAuditUseCase(Source()).run(
+                projects, period, task_manager=manager, parent_task_id=root,
+            )
+        assert all(task.token._event.is_set() for task in manager._tasks.values() if task.root_id == root)
+    finally:
+        manager.close()
+
+
+def test_confluence_review_uses_all_three_available_detail_workers() -> None:
+    from threading import Barrier
+    from core.async_tasks import AsyncTaskManager
+
+    projects = (_project("P1"), _project("P2"), _project("P3"))
+    period = AuditPeriod(datetime(2026, 8, 17, tzinfo=TZ), datetime(2026, 8, 24, tzinfo=TZ))
+    barrier = Barrier(3, timeout=1)
+
+    class Source:
+        def load_project_details(self, project_id, _details, _cancellation):
+            barrier.wait()
+            return next(project for project in projects if project.identity.project_id == project_id)
+        def load_current_page(self, page_id, _cancellation): return _document(page_id, 1, period.start, _body(page_id, "x"))
+        def load_page_versions(self, _page_id, _period, current, _cancellation): return (current,)
+
+    manager = AsyncTaskManager(max_workers=3)
+    try:
+        root = manager.submit_coordinator(
+            "confluence-review", lambda token, _progress: ConfluenceWeeklyAuditUseCase(Source()).run(
+                projects, period, task_manager=manager, parent_task_id=token.task_id,
+            ),
+        )
+        batch = root.result(timeout=2)
+        assert all(finding.status is not AuditStatus.FAILED for audit in batch.projects for finding in audit.findings)
+    finally:
+        manager.close()

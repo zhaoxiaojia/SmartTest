@@ -41,10 +41,12 @@ class ParameterHelper:
         device_lister: DeviceLister | None = None,
         dut_factory: DutFactory | None = None,
         apk_ensurer: ApkEnsurer | None = None,
+        to_thread=None,
     ) -> None:
         self._device_lister = device_lister or list_adb_devices
         self._dut_factory = dut_factory or _android_dut
         self._apk_ensurer = apk_ensurer
+        self._to_thread = to_thread or asyncio.to_thread
 
     def refresh_duts(self, selected_serial: str | None = None) -> list[str]:
         try:
@@ -56,7 +58,7 @@ class ParameterHelper:
         return devices
 
     async def refresh_duts_async(self, selected_serial: str | None = None) -> list[str]:
-        return await asyncio.to_thread(self.refresh_duts, selected_serial=selected_serial)
+        return await self._to_thread(self.refresh_duts, selected_serial=selected_serial)
 
     def prepare_android_client(
         self,
@@ -84,7 +86,7 @@ class ParameterHelper:
         *,
         stage_callback: StageCallback | None = None,
     ) -> bool:
-        return await asyncio.to_thread(
+        return await self._to_thread(
             self.prepare_android_client,
             selected_serial,
             stage_callback=stage_callback,
@@ -120,7 +122,7 @@ class ParameterHelper:
         param_targets: list[dict[str, str]],
         env_targets: list[dict[str, str]],
     ) -> ContextRefreshResult:
-        return await asyncio.to_thread(
+        return await self._to_thread(
             self.refresh_context,
             selected_serial=selected_serial,
             param_targets=param_targets,

@@ -23,6 +23,7 @@ from core.testing.state.store import load_state
 from core.testing.test_context import TestContext, smarttest_context
 from core.logging import default_log_path, log_display_fields, smart_log
 from core.reporting import save_run_report
+from .desktop_tasks import DESKTOP_TASKS
 
 try:
     from example.helper.AppPaths import app_data_dir
@@ -55,6 +56,7 @@ class RunBridge(QObject):
         self._statuses: dict[str, str] = {}
         self._finished_reports: dict[str, dict[str, Any]] = {}
         self._stop_requested = False
+        self._manager_task_id = ""
 
         self._logSignal.connect(self._append_log)
         self._eventSignal.connect(self._apply_event)
@@ -371,6 +373,12 @@ class RunBridge(QObject):
                 self._session = None
                 self._set_running(False)
                 failed = [code for code in self._returncodes.values() if int(code or 0) != 0]
+                if self._manager_task_id:
+                    DESKTOP_TASKS.complete_long_running(
+                        self._manager_task_id,
+                        failed=bool(failed) and not self._stop_requested,
+                    )
+                    self._manager_task_id = ""
                 preferred = batch_report or next(iter(self._finished_reports.values()), {})
                 self.runFinished.emit(
                     {
@@ -537,6 +545,7 @@ class RunBridge(QObject):
 
         self._session = None
         self._set_running(True)
+        self._manager_task_id = DESKTOP_TASKS.register_long_running("test-run", self.stopRun)
 
         for serial in dut_serials:
             threading.Thread(

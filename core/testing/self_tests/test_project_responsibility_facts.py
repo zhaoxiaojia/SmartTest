@@ -246,3 +246,27 @@ def test_local_query_filters_full_text_and_builds_role_hierarchy():
     assert [row["project_id"] for row in result["projects"]] == ["Alpha-ID"]
     assert result["facets"]["current stage"] == ["Stage 1"]
     assert len(result["ownerHierarchy"][1]["people"][0]["projects"]) == 1
+
+
+def test_catalog_uses_injected_task_manager_for_each_product_space():
+    from concurrent.futures import Future
+    submitted=[]
+    class Manager:
+        def submit(self, label, runner):
+            submitted.append(label); future=Future()
+            try: future.set_result(runner(None, None))
+            except Exception as error: future.set_exception(error)
+            return future
+    class Store:
+        def load(self): return {"projects": []}
+        def save(self, _payload): pass
+    lines = (type("Line", (), {"key":"A", "source_url":"a", "display_name":"A"})(),)
+    class Client:
+        def get_page_by_url(self, _url): return type("Page", (), {"view_body":"", "body":"", "id":"1", "url":"a", "title":"A", "version":0, "updated_at":None})()
+    import core.confluence.project_catalog as catalog
+    monkeypatch = __import__("pytest").MonkeyPatch(); monkeypatch.setattr(catalog, "_catalog_rows", lambda *_: [])
+    try:
+        refresh_project_catalogs(Client(), Store(), lines, manager=Manager())
+    finally:
+        monkeypatch.undo()
+    assert submitted == ["confluence-catalog:A"]

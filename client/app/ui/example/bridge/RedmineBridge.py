@@ -34,6 +34,8 @@ from core.tools.SmartHome.redmine.query import RedmineQuery, parse_terms
 from core.tools.SmartHome.redmine import context_store
 from core.tools.SmartHome.redmine.models import AuthResult, AuthState, Credential
 from client.app.ui.example.bridge.ToolBridge import amlogic_employees, employee_department, load_tool_access
+from .desktop_tasks import DESKTOP_TASKS
+from core.async_tasks import TaskCancelled
 
 
 async def _native_query(collector, filters):
@@ -53,9 +55,31 @@ async def _native_query(collector, filters):
     )
 
 
+class _ManagedCoroutineFuture:
+    def __init__(self, manager, manager_future, coroutine_future):
+        self._manager = manager
+        self._manager_future = manager_future
+        self._coroutine_future = coroutine_future
+
+    def cancel(self):
+        self._coroutine_future.cancel()
+        return self._manager.cancel(self._manager.task_id(self._manager_future))
+
+    def result(self, timeout=None):
+        return self._manager_future.result(timeout=timeout)
+
+    def add_done_callback(self, callback):
+        self._manager_future.add_done_callback(lambda _future: callback(self))
+
+    def snapshot(self):
+        return self._manager.snapshot(self._manager.task_id(self._manager_future))
+
+
 class _AsyncLoopWorker:
-    def __init__(self):
+    """Owns the browser's loop; its finite operations are bounded by the desktop task manager."""
+    def __init__(self, *, manager=DESKTOP_TASKS):
         self.loop = asyncio.new_event_loop()
+        self._manager = manager
         self._ready = Event()
         self._thread = Thread(target=self._run, name="redmine-browser", daemon=True)
         self._thread.start()
@@ -67,7 +91,22 @@ class _AsyncLoopWorker:
         self.loop.run_forever()
 
     def submit(self, coroutine) -> Future:
-        return asyncio.run_coroutine_threadsafe(coroutine, self.loop)
+        coroutine_future = asyncio.run_coroutine_threadsafe(coroutine, self.loop)
+
+        def wait(token, _progress):
+            try:
+                while True:
+                    token.raise_if_cancelled()
+                    try:
+                        return coroutine_future.result(timeout=0.05)
+                    except FutureTimeoutError:
+                        continue
+            except TaskCancelled:
+                coroutine_future.cancel()
+                raise
+
+        manager_future = self._manager.submit("redmine-browser", wait)
+        return _ManagedCoroutineFuture(self._manager, manager_future, coroutine_future)
 
     def stop(self, timeout=5):
         self.loop.call_soon_threadsafe(self.loop.stop)
@@ -153,6 +192,7 @@ class RedmineBridge(QObject):
             load_detail=self._load_source_detail,
             download_attachments=self._download_source_attachments,
             update_source_subject=self._update_source_subject,
+            task_manager=DESKTOP_TASKS,
         )
         self.resultReady.connect(self._apply)
         self.dataReady.connect(self._apply_data)

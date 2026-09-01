@@ -130,3 +130,85 @@ def test_jira_exporter_creates_summary_and_violation_workbook(tmp_path) -> None:
 
     assert workbook.sheetnames == ["汇总", "违规明细"]
     assert tuple(workbook["汇总"].values)[8] == ("创建人", "违规 Jira 数量", "违规 Jira 号")
+
+
+def test_jira_use_case_starts_every_detail_when_requests_are_below_capacity() -> None:
+    from threading import Barrier
+    from core.async_tasks import AsyncTaskManager
+
+    first = replace(_issue("SH-1", "Chao Li"), description=DetailSection())
+    second = replace(_issue("SH-2", "Chao Li"), description=DetailSection())
+    barrier = Barrier(2, timeout=1)
+
+    class Source:
+        def list_issues(self, _scope, _cancellation): return first, second
+        def load_details(self, issue, _details):
+            barrier.wait()
+            return replace(issue, description=DetailSection.loaded(RichText(GOOD_DESCRIPTION)))
+
+    manager = AsyncTaskManager(max_workers=3)
+    try:
+        root = manager.submit_coordinator(
+            "jira-review", lambda token, _progress: JiraAuditUseCase(Source()).run(
+                type("Scope", (), {"source_kind": "jql", "original": "x", "jql": "x"})(),
+                task_manager=manager, parent_task_id=token.task_id,
+            ),
+        )
+        report = root.result(timeout=2)
+        root_id = manager.task_id(root)
+        assert [item.key for item in report.issues] == ["SH-1", "SH-2"]
+        assert len([task for task in manager._tasks.values() if task.parent_id == root_id]) == 2
+    finally:
+        manager.close()
+
+
+def test_jira_root_cancellation_cancels_scheduled_issue_children() -> None:
+    from core.async_tasks import AsyncTaskManager, TaskCancelled
+
+    issues = tuple(replace(_issue(f"SH-{index}", "Chao Li"), description=DetailSection()) for index in (1, 2))
+    manager = AsyncTaskManager(max_workers=3)
+    root = manager.register_long_running("jira-review")
+
+    class Source:
+        def list_issues(self, _scope, _cancellation): return issues
+        def load_details(self, issue, _details):
+            if issue.identity.key == "SH-1":
+                manager.cancel(root)
+            return replace(issue, description=DetailSection.loaded(RichText(GOOD_DESCRIPTION)))
+
+    try:
+        with pytest.raises(TaskCancelled):
+            JiraAuditUseCase(Source()).run(
+                type("Scope", (), {"source_kind": "jql", "original": "x", "jql": "x"})(),
+                task_manager=manager, parent_task_id=root,
+            )
+        assert all(task.token._event.is_set() for task in manager._tasks.values() if task.root_id == root)
+    finally:
+        manager.close()
+
+
+def test_jira_review_uses_all_three_available_detail_workers() -> None:
+    from threading import Barrier
+    from core.async_tasks import AsyncTaskManager
+
+    issues = tuple(replace(_issue(f"SH-{index}", "Chao Li"), description=DetailSection()) for index in (1, 2, 3))
+    barrier = Barrier(3, timeout=1)
+
+    class Source:
+        def list_issues(self, _scope, _cancellation): return issues
+        def load_details(self, issue, _details):
+            barrier.wait()
+            return replace(issue, description=DetailSection.loaded(RichText(GOOD_DESCRIPTION)))
+
+    manager = AsyncTaskManager(max_workers=3)
+    try:
+        root = manager.submit_coordinator(
+            "jira-review", lambda token, _progress: JiraAuditUseCase(Source()).run(
+                type("Scope", (), {"source_kind": "jql", "original": "x", "jql": "x"})(),
+                task_manager=manager, parent_task_id=token.task_id,
+            ),
+        )
+        report = root.result(timeout=2)
+        assert [item.key for item in report.issues] == ["SH-1", "SH-2", "SH-3"]
+    finally:
+        manager.close()

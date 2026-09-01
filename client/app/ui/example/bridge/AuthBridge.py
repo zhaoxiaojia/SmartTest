@@ -8,7 +8,6 @@ import json
 from ctypes import wintypes
 from pathlib import Path
 from sys import platform
-from threading import Thread
 from typing import Any
 
 from PySide6.QtCore import QObject, Property, Signal, Slot
@@ -16,6 +15,8 @@ from PySide6.QtGui import QGuiApplication
 
 from core.config import jsonTool
 from core.logging import smart_log
+from .QtTaskAdapter import QtTaskAdapter
+from .desktop_tasks import DESKTOP_TASKS
 from core.authentication import LdapAuthenticator, ldap_identity_from_attributes
 from core.credentials.windows import (
     CredentialNotFoundError,
@@ -134,6 +135,7 @@ class AuthBridge(QObject):
         state_root: Path | None = None,
         credential_store=None,
         authentication_runner=None,
+        task_adapter=None,
     ):
         super().__init__(QGuiApplication.instance())
         self._project_root = Path(project_root) if project_root else Path(__file__).resolve().parents[5]
@@ -156,7 +158,8 @@ class AuthBridge(QObject):
         self._startup_session_restored = False
         self._authentication_generation = 0
         self._pending_authentications: dict[int, dict[str, Any]] = {}
-        self._authentication_runner = authentication_runner or self._start_authentication_thread
+        self._authentication_runner = authentication_runner
+        self._tasks = task_adapter or QtTaskAdapter(manager=DESKTOP_TASKS)
         self._ldap_owner = LdapAuthenticator(
             host=LDAP_HOST, domain=LDAP_DOMAIN, server_factory=Server,
             connection_factory=Connection, authentication=NTLM, get_info=ALL,
@@ -506,10 +509,6 @@ class AuthBridge(QObject):
             self._username = ""
             self._selected_account_id = ""
 
-    @staticmethod
-    def _start_authentication_thread(work) -> None:
-        Thread(target=work, name="smarttest-ldap-auth", daemon=True).start()
-
     def _begin_authentication(
         self,
         username: str,
@@ -545,14 +544,21 @@ class AuthBridge(QObject):
         }
         self._log_auth_event("authentication_started", account=username, source=source)
 
-        def work() -> None:
-            auth_result = self._ldap_authenticate(username, password)
+        def work() -> dict[str, Any]:
+            return self._ldap_authenticate(username, password)
+
+        def finish(auth_result: dict[str, Any]) -> None:
             self._authenticationFinished.emit({
                 "generation": generation,
                 "auth_result": auth_result,
             })
 
-        self._authentication_runner(work)
+        if self._authentication_runner is not None:
+            def emit_result() -> None:
+                finish(work())
+            self._authentication_runner(emit_result)
+        else:
+            self._tasks.submit("ldap-authentication", work, on_success=finish)
         return completed.get("result") or {
             "success": True,
             "code": "authenticating",

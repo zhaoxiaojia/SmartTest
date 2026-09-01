@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from typing import Any, Awaitable, Callable, Iterable
 
@@ -61,6 +60,7 @@ class RedmineCloneController:
         search_users: Callable[[str, str, str], Awaitable[Any]] | None = None,
         update_source_subject: Callable[[str, str], Awaitable[Any]] | None = None,
         attachment_cancel_wait: float = 35.0,
+        task_manager=None,
     ):
         self._issue_controller = issue_controller
         self._jira_dependencies = jira_dependencies or (lambda: (None, None, None))
@@ -74,6 +74,7 @@ class RedmineCloneController:
         self._search_users_override = search_users
         self._update_source_subject = update_source_subject
         self._attachment_cancel_wait = attachment_cancel_wait
+        self._task_manager = task_manager
         self._generation = 0
         self._state = "idle"
         self._selected_ids: list[str] = []
@@ -508,6 +509,18 @@ class RedmineCloneController:
                 )
         return results
 
+    def _submit_blocking(self, label, work, *args, **kwargs):
+        if self._task_manager is not None:
+            return self._task_manager.submit(label, lambda _token, _progress: work(*args, **kwargs))
+        from concurrent.futures import Future
+        future = Future()
+        try: future.set_result(work(*args, **kwargs))
+        except Exception as error: future.set_exception(error)
+        return future
+
+    async def _run_blocking(self, label, work, *args, **kwargs):
+        return await asyncio.wrap_future(self._submit_blocking(label, work, *args, **kwargs))
+
     async def _sync_source_attachments(
         self,
         create_service,
@@ -548,7 +561,7 @@ class RedmineCloneController:
             return _with_attachment_results(
                 payload, _merge_attachment_results(previous, failed)
             )
-        metadata = await asyncio.to_thread(create_service.attachment_metadata)
+        metadata = await self._run_blocking("jira-attachment-metadata", create_service.attachment_metadata)
         batch = None
         current: tuple[AttachmentTransferResult, ...] = ()
         executor = None
@@ -560,17 +573,10 @@ class RedmineCloneController:
                 duplicate_filenames=duplicate_filenames,
             )
             cancellation = AttachmentCancellation()
-            executor = ThreadPoolExecutor(
-                max_workers=1,
-                thread_name_prefix="jira-attachment-upload",
-            )
-            blocking = executor.submit(
-                create_service.sync_attachments,
-                issue_key,
-                tuple(batch.attachments),
-                metadata=metadata,
-                prior_results=tuple(batch.results),
-                cancellation=cancellation,
+            blocking = self._submit_blocking(
+                "jira-attachment-upload", create_service.sync_attachments,
+                issue_key, tuple(batch.attachments), metadata=metadata,
+                prior_results=tuple(batch.results), cancellation=cancellation,
             )
             wrapped = asyncio.wrap_future(blocking)
             try:

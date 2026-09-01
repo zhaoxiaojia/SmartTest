@@ -82,11 +82,16 @@ def test_jira_audit_runs_and_exports_once_before_session_scoped_download(tmp_pat
     audit_id = created["auditId"]
     completed = _wait(client, "jira", audit_id)
 
-    assert completed == {
+    assert {key: completed[key] for key in ("auditId", "source", "status", "stage", "progress", "errorCode")} == {
         "auditId": audit_id, "source": "jira", "status": "completed",
         "stage": "exporting", "progress": {"processed": 1, "total": 1},
         "errorCode": "",
     }
+    assert completed["task"] == {
+        "state": "completed", "progress": {"processed": 1, "total": 1},
+        "revision": completed["task"]["revision"], "visibleChild": None,
+    }
+    assert "id" not in completed["task"]
     assert owner.runs == 1
     assert owner.exports == 1
     assert client.post(f"/api/audits/jira/{audit_id}/confirm").status_code == 404

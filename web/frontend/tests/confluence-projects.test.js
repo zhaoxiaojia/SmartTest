@@ -499,9 +499,26 @@ describe('Confluence project facts', () => {
       projectIds: ['A-1'], startDate: '2026-08-17', endDate: '2026-08-24'
     })
     await vi.waitFor(() => expect(document.querySelector('[data-audit-download]').disabled).toBe(false))
-    expect(document.querySelector('[data-audit-progress]').dataset.state).toBe('success')
+    expect(document.querySelector('[data-async-feedback]').dataset.state).toBe('success')
     expect(document.querySelector('[data-audit-download]').textContent).toBe('Download')
     expect(document.querySelector('[data-audit-findings]')).toBeNull()
+  })
+
+  it('uses one root feedback component and renders a delayed child as text without changing its progress scale', async () => {
+    const api = {
+      getProjectFacts: vi.fn().mockResolvedValueOnce(payload).mockResolvedValueOnce(payload)
+        .mockResolvedValueOnce({ ...payload, sync: {
+          state: 'loading', completed: 9, total: 10,
+          task: { state: 'running', progress: { processed: 2, total: 10 }, visibleChild: { label: 'Loading project A', state: 'running' } },
+        } }),
+      cancelProjectSync: vi.fn(),
+    }
+    await createConfluenceProjects({ root: document.querySelector('#app'), api, pollDelay: () => new Promise(() => {}) }).start()
+    document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await vi.waitFor(() => expect(document.querySelector('[data-async-feedback]').dataset.state).toBe('running'))
+    expect(document.querySelectorAll('.async-feedback')).toHaveLength(1)
+    expect(document.querySelector('[data-async-feedback] [role="progressbar"]').getAttribute('aria-valuenow')).toBe('2')
+    expect(document.querySelector('[data-async-feedback]').textContent).toContain('Loading project A')
   })
 
   it.each([

@@ -17,6 +17,7 @@ from core.confluence.project import (
 )
 from core.domain.detail import DetailState
 
+from ..task_manager import WEB_TASKS
 from ..project_facts_api import ProjectFactsWebOwner
 from ..resource_access import remote_status
 
@@ -74,6 +75,7 @@ class WebConfluenceAuditOwner:
         return ConfluenceWeeklyAuditUseCase(self).run(
             resolved.projects, resolved.period,
             cancellation=cancellation, progress=progress,
+            task_manager=WEB_TASKS, parent_task_id=getattr(cancellation, "task_id", ""),
         )
 
     def load_project_details(self, project_id, details, cancellation):

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from threading import Lock, Thread
+from threading import Lock
 
 from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtGui import QGuiApplication
+
+from .QtTaskAdapter import QtTaskAdapter
+from .desktop_tasks import DESKTOP_TASKS
 
 from client.app.debug.kpi.analysis import load_kpi_review_frame, mark_kpi_review_frame, prepare_kpi_review_session
 
@@ -21,11 +24,12 @@ class DebugBridge(QObject):
     reviewFrameMarked = Signal("QVariantMap")
     errorOccurred = Signal(str)
 
-    def __init__(self, runtime_root: Path):
+    def __init__(self, runtime_root: Path, *, task_adapter=None):
         super().__init__(QGuiApplication.instance())
         self._runtime_root = runtime_root
         self._lock = Lock()
         self._review_running = False
+        self._tasks = task_adapter or QtTaskAdapter(manager=DESKTOP_TASKS)
         self._review_session: dict | None = None
 
     @Slot(str)
@@ -40,25 +44,28 @@ class DebugBridge(QObject):
                 return
             self._review_running = True
 
-        Thread(target=self._prepare_review_worker, args=(path,), daemon=True).start()
+        self._tasks.submit("kpi-review", lambda: self._prepare_review_worker(path),
+                           on_success=self._on_review_prepared, on_error=self._on_review_error)
 
-    def _prepare_review_worker(self, path: Path) -> None:
-        try:
-            session = prepare_kpi_review_session(
-                path,
-                work_root=self._review_work_dir(),
-                progress_callback=self.reviewProgress.emit,
-            )
-            frame = load_kpi_review_frame(session, frame_index=0)
-        except Exception as exc:
-            self.errorOccurred.emit(str(exc))
-        else:
-            self._review_session = session
-            self.reviewPrepared.emit(session)
-            self.reviewFrameLoaded.emit(frame)
-        finally:
-            with self._lock:
-                self._review_running = False
+    def _prepare_review_worker(self, path: Path) -> tuple[dict, dict]:
+        session = prepare_kpi_review_session(
+            path, work_root=self._review_work_dir(),
+            progress_callback=lambda progress: self._tasks.post(self.reviewProgress.emit, progress),
+        )
+        return session, load_kpi_review_frame(session, frame_index=0)
+
+    def _on_review_prepared(self, result: tuple[dict, dict]) -> None:
+        session, frame = result
+        self._review_session = session
+        self.reviewPrepared.emit(session)
+        self.reviewFrameLoaded.emit(frame)
+        with self._lock:
+            self._review_running = False
+
+    def _on_review_error(self, error: Exception) -> None:
+        self.errorOccurred.emit(str(error))
+        with self._lock:
+            self._review_running = False
 
     @Slot(int)
     def loadKpiReviewFrame(self, frame_index: int) -> None:

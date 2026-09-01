@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .task_manager import WEB_TASKS
+
 import os
 from threading import Lock
 
@@ -180,7 +182,7 @@ class _ProjectFactsGateway:
 
     def refresh_project_catalogs(self, scope):
         buffer = _CatalogSyncBuffer()
-        snapshot = refresh_project_catalogs(self._client, buffer)
+        snapshot = refresh_project_catalogs(self._client, buffer, manager=WEB_TASKS)
         rows = snapshot.get("projects") or ()
         if scope.product_space_keys:
             allowed = set(scope.product_space_keys)
