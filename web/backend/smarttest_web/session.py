@@ -81,6 +81,19 @@ class PersistentSessionStore:
                     updated_at REAL NOT NULL,
                     PRIMARY KEY (username, scope, key)
                 );
+                CREATE TABLE IF NOT EXISTS web_query_snapshots (
+                    session_hash TEXT NOT NULL,
+                    scope TEXT NOT NULL,
+                    filters_json TEXT NOT NULL,
+                    search TEXT NOT NULL,
+                    project_ids_json TEXT NOT NULL,
+                    facts_version TEXT NOT NULL,
+                    created_at REAL NOT NULL,
+                    updated_at REAL NOT NULL,
+                    expires_at REAL NOT NULL,
+                    PRIMARY KEY (session_hash, scope)
+                );
+                CREATE INDEX IF NOT EXISTS ix_web_query_snapshots_expiry ON web_query_snapshots(expires_at);
             """)
             columns = {row[1] for row in connection.execute("PRAGMA table_info(web_sessions)")}
             if "credential_ref" not in columns:
@@ -130,6 +143,7 @@ class PersistentSessionStore:
                 return None
             if row[4] <= now:
                 connection.execute("DELETE FROM web_sessions WHERE token_hash=?", (token_hash,))
+                connection.execute("DELETE FROM web_query_snapshots WHERE session_hash=?", (token_hash,))
                 connection.commit()
                 self._credentials.pop(token_hash, None)
                 if row[5]:
@@ -169,6 +183,7 @@ class PersistentSessionStore:
             row = connection.execute("SELECT credential_ref FROM web_sessions WHERE token_hash=?", (token_hash,)).fetchone()
             connection.execute("UPDATE web_sessions SET revoked_at=? WHERE token_hash=? AND revoked_at IS NULL",
                                (self._now(), token_hash))
+            connection.execute("DELETE FROM web_query_snapshots WHERE session_hash=?", (token_hash,))
             self._credentials.pop(token_hash, None)
         if row and row[0]:
             self._delete_credential(row[0])
@@ -180,6 +195,7 @@ class PersistentSessionStore:
                 "SELECT token_hash,credential_ref FROM web_sessions WHERE username=? AND revoked_at IS NULL", (username,)))
             cursor = connection.execute("UPDATE web_sessions SET revoked_at=? WHERE username=? AND revoked_at IS NULL",
                                         (now, username))
+            connection.executemany("DELETE FROM web_query_snapshots WHERE session_hash=?", ((token_hash,) for token_hash, _ in rows))
             for token_hash, _credential_ref in rows:
                 self._credentials.pop(token_hash, None)
         for _token_hash, credential_ref in rows:
@@ -189,14 +205,16 @@ class PersistentSessionStore:
     def cleanup(self, limit=100):
         with self._connect() as connection:
             rows = list(connection.execute(
-                "SELECT id,credential_ref FROM web_sessions WHERE expires_at<=? OR revoked_at IS NOT NULL LIMIT ?",
+                "SELECT id,token_hash,credential_ref FROM web_sessions WHERE expires_at<=? OR revoked_at IS NOT NULL LIMIT ?",
                 (self._now(), limit),
             ))
             cursor = connection.execute(
                 "DELETE FROM web_sessions WHERE id IN (SELECT id FROM web_sessions WHERE expires_at<=? OR revoked_at IS NOT NULL LIMIT ?)",
                 (self._now(), limit),
             )
-        for _id, credential_ref in rows:
+        with self._connect() as connection:
+            connection.executemany("DELETE FROM web_query_snapshots WHERE session_hash=?", ((token_hash,) for _id, token_hash, _credential_ref in rows))
+        for _id, _token_hash, credential_ref in rows:
             if credential_ref: self._delete_credential(credential_ref)
         return cursor.rowcount
 

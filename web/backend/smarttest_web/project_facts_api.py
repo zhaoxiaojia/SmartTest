@@ -139,6 +139,9 @@ class ProjectFactsWebOwner:
             "counts": {"stale": 0, "failed": 0, "inactive": 0},
         }
 
+    def facts_version(self) -> str:
+        return self._repository.facts_version()
+
     def invalidate_project(self, project_id: str, access) -> None:
         access.require("project", project_id, "catalog")
         access.revoke("project", project_id)

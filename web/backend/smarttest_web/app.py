@@ -29,7 +29,7 @@ from .report_workspace import ClientAuditReportOwner, ReportNotFoundError
 from .project_facts_api import ProjectFactsWebOwner
 from .session import PersistentSessionStore, default_web_database_path
 from .background_refresh import BackgroundFactsRefresh
-from .task_manager import close_web_tasks
+from .query_snapshot_repository import ConfluenceQuerySnapshotRepository
 from .credentials import CredentialStoreError
 from .audit.registry import (
     AuditConflictError,
@@ -83,6 +83,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     cache_database = WebDatabase(sessions.path)
     facts = project_facts_owner()
     refresh = facts_refresh()
+    snapshots = ConfluenceQuerySnapshotRepository(cache_database)
     audits = audit_registry()
     downloads = download_service()
 
@@ -93,7 +94,6 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         finally:
             audits.close()
             downloads.close()
-            close_web_tasks()
 
     app = FastAPI(title="SmartTest Wi-Fi Database", docs_url=None, redoc_url=None,
                   openapi_url=None, lifespan=lifespan)
@@ -336,6 +336,14 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         facts.invalidate_project(project_id, access_context(request))
         return {"invalidated": project_id}
 
+    def record_query_snapshot(access, value, filters, search, result):
+        if result.get("state") in {"ready", "partial_success"}:
+            snapshots.record(
+                access.session_hash, filters, search,
+                (row.get("project_id") for row in result.get("projects", ())),
+                getattr(facts, "facts_version", lambda: "")(), expires_at=value.expires_at,
+            )
+
     @app.get("/api/confluence/project-facts")
     def confluence_project_facts(request: Request, owner=Depends(resolve_project_facts_owner),
                                  value=Depends(authenticated_session)):
@@ -363,15 +371,18 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             )
         if load_details and value.password:
             result = query_current()
-            refresh.record_selection(access.session_hash, filters, search, result)
-            refresh.start_details(owner, access, value.password, filters=filters, search=search)
+            record_query_snapshot(access, value, filters, search, result)
+            refresh.start_details(
+                owner, access, value.password, filters=filters, search=search,
+                on_complete=lambda completed: record_query_snapshot(access, value, filters, search, completed),
+            )
         elif load_details:
             result = {**query_current(),
                       "detailState": "reauthentication_required"}
-            refresh.record_selection(access.session_hash, filters, search, result)
+            record_query_snapshot(access, value, filters, search, result)
         else:
             result = query_current()
-            refresh.record_selection(access.session_hash, filters, search, result)
+            record_query_snapshot(access, value, filters, search, result)
         if load_catalog and value.password:
             refresh.start(owner, access, value.password)
         refresh_state = refresh.state_for(access.session_hash)
@@ -460,13 +471,17 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         value=Depends(authenticated_session),
     ):
         access = access_context(request)
-        selection = refresh.applied_selection(access.session_hash)
-        if selection is None or not selection["project_ids"]:
+        selection = snapshots.get(access.session_hash)
+        if selection is not None and selection.facts_version != getattr(facts, "facts_version", lambda: "")():
+            result = facts.query(access, filters=selection.filters, search=selection.search)
+            record_query_snapshot(access, value, selection.filters, selection.search, result)
+            selection = snapshots.get(access.session_hash)
+        if selection is None or not selection.project_ids:
             raise HTTPException(status_code=422, detail={"state": "invalid_input"})
         owner = confluence_audit_owner(access, value.password)
         try:
             resolved = owner.resolve({
-                "projectIds": list(selection["project_ids"]),
+                "projectIds": list(selection.project_ids),
                 "startDate": payload.get("startDate"),
                 "endDate": payload.get("endDate"),
             })

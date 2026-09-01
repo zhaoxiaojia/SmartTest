@@ -80,6 +80,14 @@ class ConfluenceProjectRepository:
             projects = tuple(self._project_from_row(connection, row) for row in rows)
         return ProjectPage(projects, int(page), int(page_size), total)
 
+    def facts_version(self) -> str:
+        with self.database.connect() as connection:
+            row = connection.execute("""SELECT max(cached_at) FROM (
+                SELECT cached_at FROM confluence_projects
+                UNION ALL SELECT cached_at FROM confluence_project_detail_states
+            )""").fetchone()
+        return str(row[0] or "")
+
     def save_core(self, projects: Iterable[Project]) -> None:
         cached_at = _now()
         with self.database.transaction() as connection:

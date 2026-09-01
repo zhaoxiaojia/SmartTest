@@ -165,3 +165,23 @@ def test_concurrent_no_cache_refresh_is_deduplicated(tmp_path):
     finally:
         release.set()
         assert finished.wait(2)
+
+
+def test_second_app_lifespan_can_start_confluence_detail_sync(tmp_path):
+    class Facts(FakeFactsOwner):
+        def sync_details(self, _access, _password, **_kwargs):
+            return {"state": "ready", "projects": []}
+
+    store = PersistentSessionStore(tmp_path / "web.db")
+    first = create_app(authenticator=FakeAuthenticator, session_store=lambda: store,
+                       project_facts_owner=lambda: Facts({"projects": []}))
+    with TestClient(first, base_url="https://testserver"):
+        pass
+    second_facts = Facts({"projects": []})
+    second = create_app(authenticator=FakeAuthenticator, session_store=lambda: store,
+                        project_facts_owner=lambda: second_facts)
+    with TestClient(second, base_url="https://testserver") as client:
+        client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
+        response = client.get("/api/confluence/project-facts?details=1")
+
+    assert response.status_code == 200

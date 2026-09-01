@@ -13,6 +13,7 @@ from smarttest_web.audit.registry import ManualAuditRegistry
 from smarttest_web.background_refresh import BackgroundFactsRefresh
 from smarttest_web.downloads import DownloadArtifactService
 from test_web_session import FakeAuthenticator
+from smarttest_web.session import PersistentSessionStore
 
 
 class _Facts:
@@ -241,3 +242,38 @@ def test_confluence_review_uses_cached_session_selection_and_ignores_stale_clien
     second = client.post("/api/audits/confluence", json={**review, "projectIds": ["P156"]})
     assert second.status_code == 200
     assert owner.resolved[-1] == {"projectIds": ["P652"], "startDate": "2026-08-17", "endDate": "2026-08-24"}
+
+
+def test_confluence_query_snapshot_survives_app_restart_for_same_valid_session(tmp_path) -> None:
+    class Facts:
+        def query(self, _access, **_kwargs):
+            return {"state": "ready", "facets": [], "projects": [{"project_id": "P156"}], "ownerHierarchy": []}
+
+    class Owner(ConfluenceOwner):
+        def __init__(self): self.resolved = []
+        def resolve(self, payload): self.resolved.append(payload); return super().resolve(payload)
+
+    database = tmp_path / "web.db"
+    store = PersistentSessionStore(database)
+    owner = Owner()
+    def app():
+        return create_app(
+            authenticator=FakeAuthenticator, session_store=lambda: PersistentSessionStore(database),
+            project_facts_owner=Facts, audit_registry=lambda: ManualAuditRegistry(),
+            download_service=lambda: DownloadArtifactService(tmp_path / "downloads"),
+            jira_audit_owner=lambda _username, _password: JiraOwner(),
+            confluence_audit_owner=lambda _access, _password: owner,
+        )
+
+    first = TestClient(app(), base_url="https://testserver")
+    first.post("/api/auth/login", json={"username": "coco", "password": "secret"})
+    token = first.cookies.get("smarttest_session")
+    first.get("/api/confluence/project-facts")
+    restarted = TestClient(app(), base_url="https://testserver")
+    restarted.cookies.set("smarttest_session", token)
+    response = restarted.post("/api/audits/confluence", json={
+        "projectIds": ["forged"], "startDate": "2026-08-17", "endDate": "2026-08-24",
+    })
+
+    assert response.status_code == 200
+    assert owner.resolved[-1]["projectIds"] == ["P156"]

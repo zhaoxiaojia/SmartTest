@@ -42,27 +42,23 @@ def test_catalog_refresh_has_terminal_ready_state_even_when_owner_returns_no_row
 
 def test_scoped_detail_job_is_single_flight_reports_progress_and_can_cancel(tmp_path):
     access = confirmed_access(WebDatabase(tmp_path / 'access.db'))
-    submitted = []
+    submitted, completed = [], []
     refresh = BackgroundFactsRefresh(submit=submitted.append)
 
     class Owner:
-        def sync_details(self, username, password, *, filters, search, cancelled=None, progress=None):
-            progress(1, 2)
-            assert not cancelled()
-            return {"state": "ready", "projects": [{"project_id": "P156"}, {"project_id": "P156"}, {"project_id": "P652"}]}
+        def sync_details(self, _username, _password, *, cancelled=None, progress=None, **_kwargs):
+            progress(1, 2); assert not cancelled()
+            return {"state": "ready", "projects": [{"project_id": "P156"}]}
 
-    assert refresh.start_details(Owner(), access, "secret", filters={"stage": ["3"]}, search="changed")
-    assert not refresh.start_details(Owner(), access, "secret", filters={}, search="")
-    assert refresh.status_for(access.session_hash) == {"state": "loading", "completed": 0, "total": 0}
+    assert refresh.start_details(Owner(), access, "secret", on_complete=completed.append)
+    assert not refresh.start_details(Owner(), access, "secret")
     submitted.pop()()
     assert refresh.status_for(access.session_hash) == {"state": "ready", "completed": 1, "total": 2}
-    assert refresh.applied_selection(access.session_hash) == {
-        "filters": {"stage": ["3"]}, "search": "changed", "project_ids": ("P156", "P652"),
-    }
+    assert completed == [{"state": "ready", "projects": [{"project_id": "P156"}]}]
 
-    assert refresh.start_details(Owner(), access, "secret", filters={}, search="")
+    assert refresh.start_details(Owner(), access, "secret")
     assert refresh.cancel(access.session_hash)
-    assert refresh.status_for(access.session_hash)["state"] == "cancelled"
+
 
 
 def test_detail_status_exposes_only_the_session_owned_root_snapshot(tmp_path, monkeypatch):
@@ -90,20 +86,17 @@ def test_detail_status_exposes_only_the_session_owned_root_snapshot(tmp_path, mo
     assert "id" not in status["task"]
 
 
-def test_cached_query_selection_is_available_before_apply_and_replaced_only_by_next_query(tmp_path):
-    access = confirmed_access(WebDatabase(tmp_path / "access.db"))
-    refresh = BackgroundFactsRefresh(submit=lambda _work: None)
+def test_query_snapshot_persists_across_repository_restart_and_isolates_sessions(tmp_path):
+    from smarttest_web.query_snapshot_repository import ConfluenceQuerySnapshotRepository
 
-    refresh.record_selection(access.session_hash, {"stage": ("DVT",)}, "", {
-        "state": "ready", "projects": [{"project_id": "P156"}],
-    })
-    assert refresh.applied_selection(access.session_hash)["project_ids"] == ("P156",)
+    from smarttest_web.session import PersistentSessionStore
 
-    # Editing controls without another project-facts request cannot affect the server selection.
-    assert refresh.applied_selection(access.session_hash)["filters"] == {"stage": ("DVT",)}
-    refresh.record_selection(access.session_hash, {"stage": ("EVT",)}, "changed", {
-        "state": "ready", "projects": [{"project_id": "P652"}],
-    })
-    assert refresh.applied_selection(access.session_hash) == {
-        "filters": {"stage": ("EVT",)}, "search": "changed", "project_ids": ("P652",),
-    }
+    database = WebDatabase(tmp_path / "web.db")
+    PersistentSessionStore(database.path)
+    repository = ConfluenceQuerySnapshotRepository(database)
+    repository.record("session-a", {"stage": ("DVT",)}, "", ("P156",), "facts-1", expires_at=100)
+
+    restarted = ConfluenceQuerySnapshotRepository(database)
+    assert restarted.get("session-a", expires_at=1).project_ids == ("P156",)
+    assert restarted.get("session-b", expires_at=1) is None
+    assert restarted.get("session-a", expires_at=101) is None
