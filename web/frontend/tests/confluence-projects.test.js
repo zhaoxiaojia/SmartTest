@@ -490,13 +490,16 @@ describe('Confluence project facts', () => {
     }).start()
     document.querySelector('[name="reviewStartDate"]').value = '2026-08-17'
     document.querySelector('[name="reviewEndDate"]').value = '2026-08-24'
+    document.querySelector('[name="search"]').value = 'changed after apply'
+    const projectFactCalls = api.getProjectFacts.mock.calls.length
     document.querySelector('[data-audit]').click()
     await vi.waitFor(() => expect(api.createConfluenceAudit).toHaveBeenCalledOnce())
+    expect(api.getProjectFacts).toHaveBeenCalledTimes(projectFactCalls)
     expect(api.getProjectFacts.mock.calls.at(-1)).toEqual([
       { fields: {}, search: '' }, { details: false }
     ])
     expect(api.createConfluenceAudit).toHaveBeenCalledWith({
-      projectIds: ['A-1'], startDate: '2026-08-17', endDate: '2026-08-24'
+      startDate: '2026-08-17', endDate: '2026-08-24'
     })
     await vi.waitFor(() => expect(document.querySelector('[data-audit-download]').disabled).toBe(false))
     expect(document.querySelector('[data-async-feedback]').dataset.state).toBe('success')

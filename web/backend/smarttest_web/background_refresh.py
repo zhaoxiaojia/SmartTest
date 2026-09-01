@@ -26,6 +26,32 @@ class BackgroundFactsRefresh:
         with self._lock:
             return self._states.get(str(access).strip().casefold(), "idle")
 
+    def record_selection(self, access, filters, search, result) -> None:
+        if result.get("state") not in {"ready", "partial_success"}:
+            return
+        project_ids = tuple(dict.fromkeys(
+            str(row.get("project_id") or "") for row in result.get("projects", ())
+            if str(row.get("project_id") or "")
+        ))
+        account = str(access).strip().casefold()
+        with self._lock:
+            job = self._jobs.setdefault(account, {
+                "state": "idle", "completed": 0, "total": 0, "cancelled": False,
+            })
+            if job["state"] != "loading":
+                job.update(filters=filters or {}, search=search, project_ids=project_ids)
+
+    def applied_selection(self, access):
+        account = str(access).strip().casefold()
+        with self._lock:
+            job = self._jobs.get(account)
+            if not job or job["state"] in {"loading", "failed", "cancelled"} or "project_ids" not in job:
+                return None
+            return {
+                "filters": job.get("filters", {}), "search": job.get("search", ""),
+                "project_ids": job.get("project_ids", ()),
+            }
+
     def status_for(self, access):
         account = str(access).strip().casefold()
         with self._lock:
@@ -48,6 +74,7 @@ class BackgroundFactsRefresh:
                 return False
             job = {
                 "state": "loading", "completed": 0, "total": 0, "cancelled": False,
+                "filters": filters or {}, "search": search, "project_ids": (),
             }
             self._jobs[account] = job
 
@@ -65,9 +92,13 @@ class BackgroundFactsRefresh:
             if cancelled():
                 return
             try:
-                owner.sync_details(access, password, filters=filters, search=search,
-                                   cancelled=cancelled,
-                                   progress=lambda completed, total: progress(completed, total, manager_progress))
+                result = owner.sync_details(access, password, filters=filters, search=search,
+                                            cancelled=cancelled,
+                                            progress=lambda completed, total: progress(completed, total, manager_progress))
+                project_ids = tuple(dict.fromkeys(
+                    str(row.get("project_id") or "") for row in result.get("projects", ())
+                    if str(row.get("project_id") or "")
+                ))
             except Exception:  # noqa: BLE001 - only safe job state crosses the API
                 with self._lock:
                     if not job["cancelled"]:
@@ -75,7 +106,7 @@ class BackgroundFactsRefresh:
             else:
                 with self._lock:
                     if not job["cancelled"]:
-                        job["state"] = "ready"
+                        job.update(state="ready", project_ids=project_ids)
 
         submitted = self._submit(work)
         if submitted is not None:

@@ -363,12 +363,15 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             )
         if load_details and value.password:
             result = query_current()
+            refresh.record_selection(access.session_hash, filters, search, result)
             refresh.start_details(owner, access, value.password, filters=filters, search=search)
         elif load_details:
             result = {**query_current(),
                       "detailState": "reauthentication_required"}
+            refresh.record_selection(access.session_hash, filters, search, result)
         else:
             result = query_current()
+            refresh.record_selection(access.session_hash, filters, search, result)
         if load_catalog and value.password:
             refresh.start(owner, access, value.password)
         refresh_state = refresh.state_for(access.session_hash)
@@ -457,9 +460,16 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         value=Depends(authenticated_session),
     ):
         access = access_context(request)
+        selection = refresh.applied_selection(access.session_hash)
+        if selection is None or not selection["project_ids"]:
+            raise HTTPException(status_code=422, detail={"state": "invalid_input"})
         owner = confluence_audit_owner(access, value.password)
         try:
-            resolved = owner.resolve(payload)
+            resolved = owner.resolve({
+                "projectIds": list(selection["project_ids"]),
+                "startDate": payload.get("startDate"),
+                "endDate": payload.get("endDate"),
+            })
             task = audits.create(
                 "confluence", audit_session(request),
                 lambda token, progress: owner.run(resolved, token, progress),

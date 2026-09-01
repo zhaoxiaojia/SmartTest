@@ -10,13 +10,16 @@ from openpyxl import Workbook
 from core.jira.audit.models import AuditReport, JiraAuditScope
 from smarttest_web.app import create_app
 from smarttest_web.audit.registry import ManualAuditRegistry
+from smarttest_web.background_refresh import BackgroundFactsRefresh
 from smarttest_web.downloads import DownloadArtifactService
 from test_web_session import FakeAuthenticator
 
 
 class _Facts:
     def query(self, _username, **_kwargs):
-        return {"state": "ready", "facets": [], "projects": [], "ownerHierarchy": []}
+        return {"state": "ready", "facets": [], "projects": [{"project_id": "P1"}], "ownerHierarchy": []}
+    def sync_details(self, _access, _password, **_kwargs):
+        return {"state": "ready", "projects": [{"project_id": "P1"}]}
     def invalidate_project(self, _project_id): pass
 
 
@@ -59,6 +62,7 @@ def _clients(tmp_path):
         download_service=lambda: DownloadArtifactService(tmp_path / "downloads"),
         jira_audit_owner=lambda _username, _password: jira,
         confluence_audit_owner=lambda _username, _password: confluence,
+        facts_refresh=lambda: BackgroundFactsRefresh(submit=lambda work: work()),
     )
     first = TestClient(app, base_url="https://testserver")
     second = TestClient(app, base_url="https://testserver")
@@ -165,6 +169,7 @@ def test_jira_export_failure_is_a_terminal_failure_without_download(tmp_path) ->
 
 def test_confluence_audit_exports_one_zip_containing_product_line_workbooks(tmp_path) -> None:
     client, _other, _owner = _clients(tmp_path)
+    client.get("/api/confluence/project-facts?details=1")
     created = client.post("/api/audits/confluence", json={
         "projectIds": ["P1"], "startDate": "2026-08-17", "endDate": "2026-08-24",
     }).json()
@@ -192,3 +197,47 @@ def test_confluence_audit_exports_one_zip_containing_product_line_workbooks(tmp_
     assert sorted(zipfile.ZipFile(io.BytesIO(response.content)).namelist()) == [
         "DOPL_batch.xlsx", "TV_batch.xlsx",
     ]
+
+
+def test_confluence_review_uses_cached_session_selection_and_ignores_stale_client_ids(tmp_path) -> None:
+    class Facts:
+        def __init__(self): self.sync_calls = []
+        def query(self, _access, *, filters=None, **_kwargs):
+            project_id = "P652" if filters else "P156"
+            return {"state": "ready", "facets": [], "projects": [{"project_id": project_id}], "ownerHierarchy": []}
+        def sync_details(self, _access, _password, *, filters=None, search="", **_kwargs):
+            self.sync_calls.append((filters, search))
+            return {"state": "ready", "projects": [{"project_id": "P652"}]}
+
+    class Owner(ConfluenceOwner):
+        def __init__(self): self.resolved = []
+        def resolve(self, payload):
+            self.resolved.append(payload)
+            return super().resolve(payload)
+
+    facts, owner = Facts(), Owner()
+    app = create_app(
+        authenticator=FakeAuthenticator, project_facts_owner=lambda: facts,
+        facts_refresh=lambda: BackgroundFactsRefresh(submit=lambda work: work()),
+        audit_registry=lambda: ManualAuditRegistry(),
+        download_service=lambda: DownloadArtifactService(tmp_path / "downloads"),
+        jira_audit_owner=lambda _username, _password: JiraOwner(),
+        confluence_audit_owner=lambda _access, _password: owner,
+    )
+    client = TestClient(app, base_url="https://testserver")
+    client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
+    review = {"projectIds": ["P652"], "startDate": "2026-08-17", "endDate": "2026-08-24"}
+
+    assert client.post("/api/audits/confluence", json=review).status_code == 422
+    client.get("/api/confluence/project-facts")
+    first = client.post("/api/audits/confluence", json=review)
+    assert first.status_code == 200
+    assert _wait(client, "confluence", first.json()["auditId"])["status"] == "completed"
+    assert facts.sync_calls == []
+    # Changed controls are not sent to project-facts, so the previous server selection remains active.
+    assert owner.resolved == [{"projectIds": ["P156"], "startDate": "2026-08-17", "endDate": "2026-08-24"}]
+
+    client.get("/api/confluence/project-facts?field.current%20stage=EVT")
+    second = client.post("/api/audits/confluence", json={**review, "projectIds": ["P156"]})
+    assert second.status_code == 200
+    assert owner.resolved[-1] == {"projectIds": ["P652"], "startDate": "2026-08-17", "endDate": "2026-08-24"}

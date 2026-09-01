@@ -55,7 +55,6 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
   let activeRole = ''
   let activeSync = null
   let activeAuditId = ''
-  let appliedProjectIds = []
   const feedback = createAsyncFeedback({ root: root.querySelector('[data-async-feedback]'),
     cancelButton, onCancel: cancelSync })
   const auditDownload = createDownloadButton({
@@ -289,7 +288,6 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
     if (updateHierarchy) {
       renderProjects(payload.ownerHierarchy ?? [], payload.projects?.length ?? 0,
         payload.projects ?? [], payload.accessibleProjectCount)
-      appliedProjectIds = (payload.projects ?? []).map(project => project.project_id).filter(Boolean)
     }
     status.className = `report-state report-state-${payload.state}`
     status.textContent = STATE_COPY[payload.state] ?? ''
@@ -384,7 +382,6 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
     root.querySelector('[data-audit-status]').textContent = ''
     try {
       const created = await api.createConfluenceAudit({
-        projectIds: appliedProjectIds,
         startDate: form.elements.reviewStartDate.value,
         endDate: form.elements.reviewEndDate.value,
       })
