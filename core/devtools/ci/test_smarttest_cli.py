@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import runpy
 import subprocess
 import sys
@@ -50,6 +51,7 @@ def test_dev_is_product_owned_not_a_unified_command():
 def test_web_dev_exposes_frontend_to_local_network(monkeypatch):
     module = runpy.run_path(str(ROOT / "web/scripts/dev.py"), run_name="migration_contract")
     calls = []
+    monkeypatch.setattr(sys, "executable", str(ROOT / "outside/python.exe"))
 
     class FinishedProcess:
         returncode = 1
@@ -69,7 +71,10 @@ def test_web_dev_exposes_frontend_to_local_network(monkeypatch):
     )
 
     assert module["main"]() == 1
+    assert Path(calls[0][0][0]) == ROOT / ".venv/Scripts/python.exe"
+    assert Path(calls[1][0][0]) == ROOT / ".venv/Scripts/npm.cmd"
     assert calls[1][0][-3:] == ["--", "--host", "0.0.0.0"]
+    assert calls[1][1]["env"]["PATH"].split(os.pathsep)[0] == str(ROOT / ".venv/Scripts")
 
 
 def test_bootstrap_reuses_existing_dot_venv_without_recreating_running_python(tmp_path):
@@ -78,9 +83,24 @@ def test_bootstrap_reuses_existing_dot_venv_without_recreating_running_python(tm
     python.parent.mkdir(parents=True)
     python.touch()
     calls = []
-    module["initialize_environment"](tmp_path, runner=lambda command, **kwargs: calls.append(command))
-    assert [sys.executable, "-m", "venv", str(tmp_path / ".venv")] not in calls
-    assert calls[0][:4] == [str(python), "-m", "pip", "install"]
+    module["initialize_environment"](tmp_path, runner=lambda command, **kwargs: calls.append((command, kwargs)))
+    commands = [command for command, _ in calls]
+    assert [sys.executable, "-m", "venv", str(tmp_path / ".venv")] not in commands
+    assert commands[0][:4] == [str(python), "-m", "pip", "install"]
+    assert [str(python), "-m", "nodeenv", "-p", "--node=22.14.0", "--prebuilt"] in commands
+    assert commands[-1][0] == str(tmp_path / ".venv/Scripts/npm.cmd")
+    assert calls[-1][1]["env"]["PATH"].split(os.pathsep)[0] == str(python.parent)
+
+
+def test_web_check_and_package_use_managed_npm():
+    for script in ("check.py", "package.py"):
+        module = runpy.run_path(str(ROOT / "web/scripts" / script), run_name="migration_contract")
+        calls = []
+        module["main"](runner=lambda command, **kwargs: calls.append((command, kwargs)))
+        npm_calls = [(command, kwargs) for command, kwargs in calls if len(command) > 1 and command[1] == "run"]
+        assert npm_calls
+        assert all(Path(command[0]) == ROOT / ".venv/Scripts/npm.cmd" for command, _ in npm_calls)
+        assert all(kwargs["env"]["PATH"].split(os.pathsep)[0] == str(ROOT / ".venv/Scripts") for _, kwargs in npm_calls)
 
 
 def test_client_package_reuses_installer_and_portable_owners():

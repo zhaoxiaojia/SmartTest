@@ -17,9 +17,9 @@ mobile ------> web/backend -> core
 
 ## 环境准备
 
-基础环境为 Python 3.10、Node.js/npm、JDK 17 和 Android SDK。Windows Client 发布机还需要 Inno Setup；Android 正式产物需要平台签名材料。
+基础环境为 Python 3.10、JDK 17 和 Android SDK。Windows Client 发布机还需要 Inno Setup；Android 正式产物需要平台签名材料。Web 使用的固定 Node.js/npm 由初始化脚本安装到项目 `.venv`，不依赖系统预装。
 
-在仓库根目录执行一次初始化命令。该命令会创建或更新 `.venv`，安装 Client、测试、打包和 Web 后端 Python 依赖，安装 Playwright Chromium，并在 `web/frontend/` 执行 `npm ci`：
+在仓库根目录执行一次初始化命令。该命令会创建或更新 `.venv`，安装 Client、测试、打包和 Web 后端 Python 依赖，安装 Playwright Chromium 和固定版本的 Node.js/npm，并在 `web/frontend/` 执行 `npm ci`：
 
 ```powershell
 python core/devtools/scripts/init_venv.py

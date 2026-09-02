@@ -1,23 +1,31 @@
 """Start the Web API and frontend development servers together."""
 
+import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import time
 
 
 ROOT = Path(__file__).resolve().parents[2]
+BIN_DIR = ROOT / ".venv" / ("Scripts" if sys.platform.startswith("win") else "bin")
+PYTHON = BIN_DIR / ("python.exe" if sys.platform.startswith("win") else "python")
+NPM = BIN_DIR / ("npm.cmd" if sys.platform.startswith("win") else "npm")
 
 
 def main() -> int:
-    npm = shutil.which("npm.cmd" if sys.platform.startswith("win") else "npm") or "npm"
+    npm_env = os.environ.copy()
+    npm_env["PATH"] = os.pathsep.join(part for part in (str(BIN_DIR), npm_env.get("PATH", "")) if part)
     processes = [
         subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "smarttest_web.app:app", "--app-dir", "web/backend", "--reload", "--port", "8000", "--no-access-log"],
+            [str(PYTHON), "-m", "uvicorn", "smarttest_web.app:app", "--app-dir", "web/backend", "--reload", "--port", "8000", "--no-access-log"],
             cwd=ROOT,
         ),
-        subprocess.Popen([npm, "run", "dev", "--", "--host", "0.0.0.0"], cwd=ROOT / "web/frontend"),
+        subprocess.Popen(
+            [str(NPM), "run", "dev", "--", "--host", "0.0.0.0"],
+            cwd=ROOT / "web/frontend",
+            env=npm_env,
+        ),
     ]
     try:
         while all(process.poll() is None for process in processes):

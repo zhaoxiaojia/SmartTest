@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -13,13 +14,19 @@ PACKAGES = (
     "playwright==1.54.0", "pytest==8.4.1",
     "uiautomator2==3.5.2",
     "xlrd==2.0.2",
+    "nodeenv==1.9.1",
 )
+
+NODE_VERSION = "22.14.0"
 
 
 def initialize_environment(root=None, runner=subprocess.run):
     root = Path(root or Path(__file__).resolve().parents[3])
     venv = root / ".venv"
-    python = venv / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+    bin_dir = venv / ("Scripts" if sys.platform == "win32" else "bin")
+    python = bin_dir / ("python.exe" if sys.platform == "win32" else "python")
+    node = bin_dir / ("node.exe" if sys.platform == "win32" else "node")
+    npm = bin_dir / ("npm.cmd" if sys.platform == "win32" else "npm")
     if not python.is_file():
         runner([sys.executable, "-m", "venv", str(venv)], check=True)
     runner([str(python), "-m", "pip", "install", *PACKAGES], check=True)
@@ -32,9 +39,17 @@ def initialize_environment(root=None, runner=subprocess.run):
         ],
         check=True,
     )
+    if not node.is_file() or not npm.is_file():
+        runner(
+            [str(python), "-m", "nodeenv", "-p", f"--node={NODE_VERSION}", "--prebuilt"],
+            check=True,
+        )
+    npm_env = os.environ.copy()
+    npm_env["PATH"] = os.pathsep.join(part for part in (str(bin_dir), npm_env.get("PATH", "")) if part)
     runner(
-        ["npm.cmd" if sys.platform == "win32" else "npm", "ci"],
+        [str(npm), "ci"],
         cwd=root / "web" / "frontend",
+        env=npm_env,
         check=True,
     )
 
