@@ -47,6 +47,31 @@ def test_dev_is_product_owned_not_a_unified_command():
     assert (ROOT / "web/scripts/dev.py").is_file()
 
 
+def test_web_dev_exposes_frontend_to_local_network(monkeypatch):
+    module = runpy.run_path(str(ROOT / "web/scripts/dev.py"), run_name="migration_contract")
+    calls = []
+
+    class FinishedProcess:
+        returncode = 1
+
+        @staticmethod
+        def poll():
+            return 1
+
+        @staticmethod
+        def wait(timeout=None):
+            return 1
+
+    monkeypatch.setattr(
+        subprocess,
+        "Popen",
+        lambda command, **kwargs: calls.append((command, kwargs)) or FinishedProcess(),
+    )
+
+    assert module["main"]() == 1
+    assert calls[1][0][-3:] == ["--", "--host", "0.0.0.0"]
+
+
 def test_bootstrap_reuses_existing_dot_venv_without_recreating_running_python(tmp_path):
     module = runpy.run_path(str(ROOT / "core/devtools/scripts/init_venv.py"))
     python = tmp_path / ".venv" / "Scripts" / "python.exe"

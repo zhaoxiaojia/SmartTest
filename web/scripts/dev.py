@@ -17,7 +17,7 @@ def main() -> int:
             [sys.executable, "-m", "uvicorn", "smarttest_web.app:app", "--app-dir", "web/backend", "--reload", "--port", "8000", "--no-access-log"],
             cwd=ROOT,
         ),
-        subprocess.Popen([npm, "run", "dev"], cwd=ROOT / "web/frontend"),
+        subprocess.Popen([npm, "run", "dev", "--", "--host", "0.0.0.0"], cwd=ROOT / "web/frontend"),
     ]
     try:
         while all(process.poll() is None for process in processes):
