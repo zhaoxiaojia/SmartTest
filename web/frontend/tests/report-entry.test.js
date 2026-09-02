@@ -8,17 +8,15 @@ it('imports the real entry and preserves Apply controls and Review polling acros
     facets: [{ key: '__product_space__', label: 'Product Space', options: ['TV'] }],
     projects: [{ project_id: 'P1', name: 'Project One', space_key: 'TV' }], ownerHierarchy: [], sync: { state: 'idle' } }
   const respond = data => ({ ok: true, json: async () => data })
-  let finishRefresh, finishApply, finishReview
-  let snapshotRequests = 0
+  let finishCatalog, finishApply, finishReview
   const reviewRequests = []
   const fetchImpl = vi.fn(async (url, options = {}) => {
     const path = new URL(url, window.location.origin)
     if (path.pathname === '/api/auth/session') return respond({ authenticated: true, username: 'alice' })
     if (path.pathname.startsWith('/api/preferences/')) return respond({ items: {} })
     if (path.pathname === '/api/confluence/project-facts') {
+      if (path.searchParams.get('catalog') === '1') return new Promise(resolve => { finishCatalog = data => resolve(respond(data)) })
       if (path.searchParams.get('details') === '1') return new Promise(resolve => { finishApply = data => resolve(respond(data)) })
-      snapshotRequests += 1
-      if (snapshotRequests === 2) return new Promise(resolve => { finishRefresh = data => resolve(respond(data)) })
       return respond(ready)
     }
     if (path.pathname === '/api/audits/confluence' && options.method === 'POST') {
@@ -33,14 +31,14 @@ it('imports the real entry and preserves Apply controls and Review polling acros
   vi.stubGlobal('fetch', fetchImpl)
   await import('../src/report-main.js')
   try {
-    await vi.waitFor(() => expect(finishRefresh).toBeTypeOf('function'))
+    await vi.waitFor(() => expect(finishCatalog).toBeTypeOf('function'))
     const form = document.querySelector('main form')
     const select = form.elements['field.__product_space__']
     select.value = 'TV'
     form.elements.search.value = 'Project One'
     form.elements.reviewStartDate.value = '2026-08-17'
     form.elements.reviewEndDate.value = '2026-08-24'
-    finishRefresh(ready)
+    finishCatalog(ready)
     await vi.waitFor(() => expect(form.querySelector('[type="submit"]').disabled).toBe(false))
     expect(form.elements['field.__product_space__']).toBe(select)
     expect(select.value).toBe('TV')

@@ -54,7 +54,7 @@ describe('Confluence project facts', () => {
     page.destroy()
   })
 
-  it('renders authorized cache on entry and refreshes only the catalog after Reset', async () => {
+  it('renders authorized cache on entry and refreshes only the catalog on entry and after Reset', async () => {
     let refresh
     const api = { getProjectFacts: vi.fn().mockResolvedValueOnce({ ...payload, state: 'ready' })
       .mockResolvedValueOnce({ ...payload, state: 'ready' })
@@ -62,7 +62,7 @@ describe('Confluence project facts', () => {
     const page = createConfluenceProjects({ root: document.querySelector('#app'), api, pollDelay: () => new Promise(() => {}) })
     await page.start()
     expect(api.getProjectFacts.mock.calls[0][1]).toEqual({ details: false })
-    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: false })
+    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: false, catalog: true })
     expect(document.querySelector('[data-projects]').textContent).toContain('Apollo')
     expect(document.querySelector('[name="field.__product_space__"]').disabled).toBe(false)
     document.querySelector('[data-reset]').click()
@@ -262,7 +262,7 @@ describe('Confluence project facts', () => {
     expect([...document.querySelectorAll('[data-main-facets] .multi-select__summary')]
       .every(item => !item.textContent.includes('Loading'))).toBe(true)
     expect(api.getProjectFacts.mock.calls[0][1]).toEqual({ details: false })
-    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: false })
+    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: false, catalog: true })
   })
 
   it('treats an empty completed catalog as ready and does not poll again', async () => {
@@ -324,7 +324,7 @@ describe('Confluence project facts', () => {
     await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(3))
     await vi.waitFor(() => expect(document.querySelector('[type="submit"]').disabled).toBe(false))
     expect(api.getProjectFacts.mock.calls.map(call => call[1])).toEqual([
-      { details: false }, { details: false }, { details: false },
+      { details: false }, { details: false, catalog: true }, { details: false },
     ])
     component.destroy()
   })
@@ -496,7 +496,7 @@ describe('Confluence project facts', () => {
     await vi.waitFor(() => expect(api.createConfluenceAudit).toHaveBeenCalledOnce())
     expect(api.getProjectFacts).toHaveBeenCalledTimes(projectFactCalls)
     expect(api.getProjectFacts.mock.calls.at(-1)).toEqual([
-      { fields: {}, search: '' }, { details: false }
+      { fields: {}, search: '' }, { details: false, catalog: true }
     ])
     expect(api.createConfluenceAudit).toHaveBeenCalledWith({
       startDate: '2026-08-17', endDate: '2026-08-24'

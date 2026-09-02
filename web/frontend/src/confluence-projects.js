@@ -421,7 +421,7 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
     await load({ updateHierarchy: !waitForPreferences, beginPolling: false })
     await waitForPreferences?.()
     if (destroyed) return
-    return load()
+    return load({ catalog: true })
   }
   return { start, destroy() { destroyed = true; pollGeneration += 1; auditDownload.destroy(); workloadChart?.destroy() } }
 }
