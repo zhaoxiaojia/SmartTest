@@ -35,17 +35,19 @@
 采用：
 
 ```text
-Client QML
-  -> TestPageBridge
-    -> TestSuiteApiGateway
+Client QML（展示）
+  -> TestPageBridge（展示状态与异步编排）
+    -> WebTestSuiteSource（Web 数据源实现）
       -> SmartTest Web REST API
         -> TestSuiteRepository
           -> SQLite
 ```
 
 - QML 只展示状态并转发操作。
-- `TestPageBridge` 拥有目录选择关系、当前套件视图状态和异步操作编排。
-- Client 套件 gateway 是唯一 HTTP 边界，负责请求、会话携带及错误映射。
+- `TestPageBridge` 只拥有目录选择关系、当前套件展示状态和异步操作编排，不拥有 HTTP、Cookie 或 Web session 生命周期。
+- `client/app/data_sources/` 定义最小公共结果/错误契约；`WebTestSuiteSource` 是 Web Server 数据源实现和唯一 HTTP/session owner。这里不增加第三层公开 Gateway，也不抽象通用 CRUD。
+- 首次启动时 Web 不可用只产生可重试的数据源错误；服务恢复后用户点击刷新，同一次刷新重新建立 Web session 并加载列表，无需重启 Client。重复刷新合并或串行执行。
+- 读请求遇到 session 失效时允许重新登录并重试一次；创建、更新、删除、复制等写请求发生超时后不得盲目重试。
 - Web API 负责鉴权、输入校验和权限判定。
 - `TestSuiteRepository` 是套件持久化 owner。
 - SQLite 是套件唯一持久化事实源；Client 不建立套件本地数据库或 JSON 缓存。
@@ -305,13 +307,13 @@ activeSuiteRevision
 
 ## 9. 账户和会话
 
-- Client 登录成功后，使用本次内存中的同一组 LDAP 账号密码调用 Web `/api/auth/login`，由套件 gateway 在内存 CookieJar 中保存 `smarttest_session`。
+- Client 首次手动登录已由 `AuthBridge` 完成 LDAP 验证；Test Suite 使用本次内存中的同一组账号密码调用 Web `/api/auth/client-session` 建立 Web session，由 Web 数据源在内存 CookieJar 中保存 `smarttest_session`。该 Client 专用入口只校验账号密码非空并复用 `PersistentSessionStore`，不重复调用 LDAP。浏览器 `/api/auth/login` 仅在账户尚无 Web 侧保存凭据时执行 LDAP 首次验证；已有账户凭据时直接恢复 session。
 - Client 不额外显示 Web 登录框，也不把 Web Cookie、LDAP 密码写入 JSON、日志或报告。
 - Web API 通过现有 `authenticated_session` 得到账户身份。
 - Client 登出或切换账户时，调用 Web logout、清空 CookieJar、套件列表、active suite 和错误状态，再使用新账户建立 Web session。
 - 会话失效返回统一的重新登录状态；不得静默使用上一次账户的数据。
 - 自动建立 Web session 失败不影响手动选择和执行测试；套件区域显示未登录或服务不可用。
-- `AuthBridge` 只向注入的 Python gateway 提供当前已认证的内存凭据，不通过 QML Property/Slot 暴露密码。
+- `AuthBridge` 只向注入的 Python 数据源提供当前已认证的内存凭据，不通过 QML Property/Slot 暴露密码。
 
 ## 10. 代码位置
 
@@ -319,7 +321,7 @@ activeSuiteRevision
 
 - `client/app/ui/example/imports/example/qml/page/T_TestConfig.qml`
 - `client/app/ui/example/bridge/TestPageBridge.py`
-- `client/app/test_suites/api_gateway.py` 新增测试套件 API gateway；当前 Client 没有可复用的 Web HTTP owner。
+- `client/app/data_sources/common.py` 定义最小数据源结果/错误；`client/app/data_sources/web_test_suites.py` 实现测试套件 Web 数据源、HTTP 和 session 生命周期。
 - `web/backend/smarttest_web/` 新增 `test_suite_repository.py`。
 - `web/backend/smarttest_web/app.py` 按现有单应用结构注册 REST API，不另建并行应用。
 - Web SQLite migration owner。
@@ -382,7 +384,7 @@ activeSuiteRevision
 
 1. Web 数据模型、migration、repository 和权限测试。
 2. Web REST API 与契约测试。
-3. Client gateway 和异步状态测试。
+3. Client Web 数据源和异步展示状态测试。
 4. 目录三态选择及批量操作。
 5. Test 页面套件布局、loading 和交互。
 6. 端到端源码验证、清理和交付审查。
@@ -466,12 +468,13 @@ POST   /api/test-suites/{suite_id}/copy
 - [ ] 非 owner 读取私有记录、更新和删除统一返回 `404 not_found`；不得泄露资源存在性。
 - [ ] 运行新 API 测试及 `web/backend/tests/test_api.py`、`test_web_session.py`，预期全部 PASS。
 
-### 任务 3：Client Web 套件会话 gateway
+### 任务 3：Client Web 套件数据源
 
 **文件：**
 
-- 新建：`client/app/test_suites/__init__.py`
-- 新建：`client/app/test_suites/api_gateway.py`
+- 新建：`client/app/data_sources/__init__.py`
+- 新建：`client/app/data_sources/common.py`
+- 新建：`client/app/data_sources/web_test_suites.py`
 - 修改：`client/app/ui/example/bridge/AuthBridge.py`
 - 新建：`core/testing/self_tests/ui/test_test_suite_api_gateway.py`
 - 复用：Python 标准库 `urllib.request`、`http.cookiejar.CookieJar`，不新增 HTTP 依赖。
@@ -484,24 +487,25 @@ class AuthenticatedCredentials:
     username: str
     password: str
 
-class TestSuiteApiGateway:
+class WebTestSuiteSource:
     def __init__(self, base_url: str, *, timeout_seconds: float = 10.0): ...
-    def login(self, credentials: AuthenticatedCredentials) -> dict: ...
-    def logout(self) -> None: ...
-    def list_suites(self, scope: str) -> list[dict]: ...
-    def get_suite(self, suite_id: str) -> dict: ...
-    def create_suite(self, payload: dict) -> dict: ...
-    def update_suite(self, suite_id: str, payload: dict) -> dict: ...
-    def delete_suite(self, suite_id: str) -> None: ...
-    def copy_suite(self, suite_id: str, payload: dict) -> dict: ...
+    def switch_account(self, credentials, scope: str) -> DataSourceResult[list[dict]]: ...
+    def discard_session(self) -> None: ...
+    def list_suites(self, credentials, scope: str) -> DataSourceResult[list[dict]]: ...
+    def get_suite(self, credentials, suite_id: str) -> DataSourceResult[dict]: ...
+    def create_suite(self, credentials, payload: dict) -> DataSourceResult[dict]: ...
+    def update_suite(self, credentials, suite_id: str, payload: dict) -> DataSourceResult[dict]: ...
+    def delete_suite(self, credentials, suite_id: str) -> DataSourceResult[None]: ...
+    def copy_suite(self, credentials, suite_id: str, payload: dict) -> DataSourceResult[dict]: ...
 ```
 
-- [ ] 写 gateway 失败测试：登录 Cookie 仅存内存、后续请求携带 Cookie、401 映射为 `authentication_required`、409/422/503 映射稳定错误码、日志/异常不包含密码或 Cookie。
+- [ ] 写 Web 数据源失败测试：登录 Cookie 仅存内存、后续请求携带 Cookie、401 映射为 `authentication_required`、409/422/503 映射稳定错误码、日志/错误不包含密码或 Cookie；首次不可用后刷新可重新登录并恢复列表。
 - [ ] 写 `AuthBridge.authenticated_credentials()` 失败测试：仅已认证时返回 Python dataclass；方法不得声明为 QML Slot/Property。
 - [ ] 运行两个测试并确认 RED。
-- [ ] 使用标准库 opener + CookieJar 实现单一 HTTP owner；base URL 只从 `SMARTTEST_WEB_BASE_URL` 读取，未配置时返回 `service_unavailable`，不在代码中硬编码部署地址。正式环境使用 HTTPS，保证 Web 返回的 Secure session Cookie 可被 CookieJar 发送。
-- [ ] AuthBridge 登录成功、退出和切换账户只发出现有 `authChanged`；gateway 生命周期由 TestPageBridge 响应该信号，不向 QML 传递凭据。
-- [ ] 运行 gateway、AuthBridge 和日志脱敏测试，预期全部 PASS。
+- [ ] 使用标准库 opener + CookieJar 实现 Web 数据源这一单一 HTTP/session owner；base URL 只从 `SMARTTEST_WEB_BASE_URL` 读取，未配置时返回可重试的 `service_unavailable`，不在代码中硬编码部署地址。Web session Cookie 的 Secure 属性由 Web 端统一依据当前请求 scheme 设置：本地 HTTP 开发环境不设置 Secure，HTTPS 正式环境必须设置 Secure；login、续期、logout、logout-all 使用同一策略。
+- [ ] 每个需要鉴权的套件数据源调用由 Bridge 传入当前内存凭据，数据源不保存密码。GET 和写操作仅在服务端明确返回 HTTP 401 时重新登录并重放一次；超时、断连等结果不明确的传输失败不得重放写操作。
+- [ ] AuthBridge 登录成功、退出和切换账户只发出现有 `authChanged`；数据源生命周期由 TestPageBridge 编排，不向 QML 传递凭据。
+- [ ] 运行数据源、AuthBridge 和日志脱敏测试，预期全部 PASS。
 
 ### 任务 4：Bridge 套件异步状态与加载语义
 
@@ -515,11 +519,11 @@ class TestSuiteApiGateway:
 
 ```python
 auth_bridge = AuthBridge()
-suite_gateway = TestSuiteApiGateway(web_base_url())
+suite_source = WebTestSuiteSource(web_base_url())
 test_page_bridge = TestPageBridge(
     runtime_root,
     auth_bridge=auth_bridge,
-    suite_gateway=suite_gateway,
+    suite_source=suite_source,
 )
 ```
 
@@ -539,7 +543,7 @@ Models: suiteRows()
 - [ ] 写失败测试：认证后自动登录 Web 并加载 mine；切换账户先清空旧状态和 Cookie；未登录/服务失败不影响当前用例选择；列表读取与 discovery 并行；写操作互斥。
 - [ ] 写加载失败测试：替换而非合并、按 `orderedNodeids` 保序、失效 nodeid 被报告、只保存/emit/上下文刷新一次、共享加载不设置可更新权限。
 - [ ] 运行 `test_test_page_suites.py` 并确认 RED。
-- [ ] 在 main 中显式注入 AuthBridge 和 gateway；不得从 QML 或全局单例查找密码。
+- [ ] 在 main 中显式注入 AuthBridge 和数据源；不得从 QML 或全局单例查找密码。
 - [ ] 复用现有 Qt/async task adapter 执行网络调用；不得阻塞 GUI 线程或新增线程管理器。
 - [ ] 实现成功、错误和重试状态；错误保留最后成功列表。
 - [ ] 运行新测试及现有 TestPageBridge、参数映射、异步反馈测试，预期全部 PASS。
@@ -584,5 +588,5 @@ Models: suiteRows()
 - [ ] 验证 Web 不可用时仍可手动选择并运行测试，套件区域给出可恢复错误。
 - [ ] 运行 Web backend 全量测试、相关 Client/UI/self-tests、pytest collect、compileall、翻译/QRC 校验和 bounded source startup。
 - [ ] 搜索并移除 `TEMP_DIAGNOSTIC`、临时 print、密码/Cookie 输出、重复 helper、source-shape 探针和被放弃的兼容路径。
-- [ ] 执行 `git diff --check`，按 Web repository/API、Client gateway/Bridge、QML 交互三个业务结果形成原子提交。
+- [ ] 执行 `git diff --check`，按 Web repository/API、Client 数据源/Bridge、QML 交互三个业务结果形成原子提交。
 - [ ] Atlas 从 status、stat、scoped diff、测试证据和最高实际环境验证完成 Functional Acceptance 与 Code Quality 双门禁。

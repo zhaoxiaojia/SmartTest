@@ -24,6 +24,15 @@ Rectangle {
     readonly property alias current: d.current
     property alias view: table_view
     id:control
+    function checkedFor(rowData, fallbackChecked) {
+        if (rowData && rowData.selectionState !== undefined) {
+            return rowData.selectionState === "checked"
+        }
+        return fallbackChecked === true
+    }
+    function indeterminateFor(rowData) {
+        return rowData && rowData.selectionState === "partial"
+    }
     color: FluTheme.frameColor
     onDataSourceChanged: {
         tree_model.setDataSource(dataSource)
@@ -267,16 +276,15 @@ Rectangle {
                     Layout.leftMargin: 5
                     horizontalPadding:0
                     verticalPadding: 0
-                    checked: rowModel.checked
+                    checked: control.checkedFor(rowModel.data, rowModel.checked)
+                    indeterminate: control.indeterminateFor(rowModel.data)
                     animationEnabled:false
                     visible: control.checkable && (!control.checkLeafOnly || !rowModel.hasChildren())
                     padding: 0
                     clickListener: function(){
                         var nextChecked = !rowModel.checked
                         tree_model.checkRow(row,nextChecked)
-                        if(!rowModel.hasChildren()){
-                            control.leafCheckToggled(rowModel.data, nextChecked)
-                        }
+                        control.leafCheckToggled(rowModel.data, nextChecked)
                     }
                     Layout.alignment: Qt.AlignVCenter
                 }

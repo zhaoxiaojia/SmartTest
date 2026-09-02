@@ -10,6 +10,7 @@ from typing import Any
 
 FILENAME = "auth_accounts.json"
 SCHEMA_VERSION = 1
+LEGACY_AUTO_LOGIN_KEY = "auto_login"
 
 
 def canonical_username(username: str) -> str:
@@ -66,8 +67,6 @@ class AuthAccountStore:
         display_name: str,
         remember_password: bool,
         last_login_at: str | None = None,
-        *,
-        auto_login: bool = False,
     ) -> str:
         account_id = account_id_for_username(username)
         timestamp = last_login_at or datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
@@ -76,12 +75,8 @@ class AuthAccountStore:
             "username": str(username).strip(),
             "display_name": str(display_name or username).strip(),
             "remember_password": bool(remember_password),
-            "auto_login": bool(auto_login),
             "last_login_at": timestamp,
         })
-        if item["auto_login"]:
-            for entry in self._data["accounts"]:
-                entry["auto_login"] = False
         self._data["accounts"] = [entry for entry in self._data["accounts"] if entry["account_id"] != account_id]
         self._data["accounts"].append(item)
         self._data["last_account_id"] = account_id
@@ -92,17 +87,6 @@ class AuthAccountStore:
         for item in self._data["accounts"]:
             if item["account_id"] == account_id:
                 item["remember_password"] = bool(enabled)
-                self._save()
-                return True
-        return False
-
-    def set_auto_login(self, account_id: str, enabled: bool) -> bool:
-        for item in self._data["accounts"]:
-            if item["account_id"] == account_id:
-                if enabled:
-                    for entry in self._data["accounts"]:
-                        entry["auto_login"] = False
-                item["auto_login"] = bool(enabled)
                 self._save()
                 return True
         return False
@@ -158,6 +142,7 @@ class AuthAccountStore:
                 str(value) for value in data.get("pending_credential_cleanup", [])
                 if isinstance(value, str)
             ]
+            legacy_auto_login_present = False
             seen = set()
             for raw in data["accounts"]:
                 if not isinstance(raw, dict) or not str(raw.get("username", "")).strip():
@@ -165,15 +150,17 @@ class AuthAccountStore:
                 account_id = account_id_for_username(raw["username"])
                 if account_id in seen:
                     continue
+                legacy_auto_login_present = legacy_auto_login_present or LEGACY_AUTO_LOGIN_KEY in raw
                 seen.add(account_id)
                 clean["accounts"].append({
                     "account_id": account_id,
                     "username": str(raw["username"]).strip(),
                     "display_name": str(raw.get("display_name", raw["username"])).strip(),
                     "remember_password": bool(raw.get("remember_password", False)),
-                    "auto_login": bool(raw.get("auto_login", False)),
                     "last_login_at": str(raw.get("last_login_at", "")),
                 })
+            if legacy_auto_login_present:
+                self._write(clean)
             return clean
         except (OSError, ValueError, json.JSONDecodeError):
             stamp = datetime.now().strftime("%Y%m%d%H%M%S%f")

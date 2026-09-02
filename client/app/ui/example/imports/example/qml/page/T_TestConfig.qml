@@ -5,6 +5,7 @@ import QtQml 2.15
 import FluentUI 1.0
 import "../global"
 import "../component"
+import "../state"
 
 FluPage {
     id: page_root
@@ -18,6 +19,14 @@ FluPage {
     property var dutDynamicParamsModel: []
     property var envEquipmentModel: []
     property var caseTreeDataSource: []
+    property var suiteModel: []
+    property var suiteSelectedRow: null
+    property string suiteDialogMode: "create"
+    property string suiteDraftName: ""
+    property string suiteDraftDescription: ""
+    property bool suiteDraftShared: false
+    property bool suiteServiceAvailable: TestPageBridge.suiteError === ""
+    TestPageState{ id: test_page_state }
     property var caseExpandState: ({})
     property var caseParamExpandState: ({})
     property string validationDialogMessage: ""
@@ -28,6 +37,35 @@ FluPage {
             return path.substring("testing/tests/".length)
         }
         return path
+    }
+
+    function suiteErrorText(code){
+        if(code === "authentication_required") return qsTr("Please sign in to use test suites.")
+        if(code === "invalid_input") return qsTr("Please check the suite name and selected cases.")
+        if(code === "name_conflict") return qsTr("A test suite with this name already exists.")
+        if(code === "not_found") return qsTr("The test suite no longer exists or is not accessible.")
+        if(code === "revision_conflict") return qsTr("The test suite changed elsewhere. Refresh and try again.")
+        if(code === "service_unavailable") return qsTr("The test suite service is unavailable.")
+        if(code.indexOf("missing_nodeids:") === 0) return qsTr("Some saved test cases are no longer available:\n%1").arg(code.substring(16))
+        return code
+    }
+
+    function openSuiteDialog(mode, row){
+        suiteDialogMode = mode
+        if(mode === "update" && row){
+            suiteDraftName = row.name || ""
+            suiteDraftDescription = row.description || ""
+            suiteDraftShared = row.visibility === "shared"
+        }else if(mode === "copy" && row){
+            suiteDraftName = (row.name || "") + " Copy"
+            suiteDraftDescription = ""
+            suiteDraftShared = false
+        }else{
+            suiteDraftName = ""
+            suiteDraftDescription = ""
+            suiteDraftShared = false
+        }
+        dialog_suite.open()
     }
 
     function themePair(lightColor, darkColor){
@@ -451,7 +489,10 @@ FluPage {
                 iconSource: iconSource,
                 expanded: node.expanded === true,
                 file: node.file,
-                checked: node.checked === true
+                checked: node.checked === true,
+                selectionState: node.selectionState || (node.checked === true ? "checked" : "unchecked"),
+                selectableCount: node.selectableCount || 0,
+                selectedCount: node.selectedCount || 0
             }
             if(node.children !== undefined){
                 copy.children = decorateTreeNodes(node.children)
@@ -478,6 +519,22 @@ FluPage {
             stateVersion = stateVersion + 1
             refreshViewModels()
         }
+        function onSuiteChanged(){
+            suiteModel = TestPageBridge.suiteRows()
+            if(suiteSelectedRow){
+                var selectedStillVisible = false
+                for(var i = 0; i < suiteModel.length; i++){
+                    if(suiteModel[i].id === suiteSelectedRow.id){
+                        suiteSelectedRow = suiteModel[i]
+                        selectedStillVisible = true
+                        break
+                    }
+                }
+                if(!selectedStillVisible){
+                    suiteSelectedRow = null
+                }
+            }
+        }
         function onErrorOccurred(msg){
             showError(msg)
         }
@@ -497,6 +554,7 @@ FluPage {
     Component.onCompleted: {
         TestPageBridge.discoverCases()
         refreshViewModels()
+        suiteModel = TestPageBridge.suiteRows()
     }
 
     FluSplitLayout{
@@ -518,6 +576,134 @@ FluPage {
                 ColumnLayout{
                     anchors.fill: parent
                     spacing: 8
+                    RowLayout{
+                        Layout.fillWidth: true
+                        FluText{ text: qsTr("Test Suites"); font: FluTextStyle.Subtitle; Layout.fillWidth: true }
+                        FluIconButton{
+                            iconSource: test_page_state.suitePanelExpanded ? FluentIcons.ChevronUp : FluentIcons.ChevronDown
+                            onClicked: test_page_state.updateSuitePanel(!test_page_state.suitePanelExpanded, test_page_state.suitePanelHeight)
+                        }
+                    }
+                    FluSplitLayout{
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        orientation: Qt.Vertical
+                    FluGroupBox{
+                        title: ""
+                        visible: test_page_state.suitePanelExpanded
+                        SplitView.fillWidth: true
+                        SplitView.preferredHeight: test_page_state.suitePanelHeight
+                        SplitView.minimumHeight: 140
+                        onHeightChanged: {
+                            if(visible && height >= 140){
+                                test_page_state.updateSuitePanel(test_page_state.suitePanelExpanded, height)
+                            }
+                        }
+                        ColumnLayout{
+                            anchors.fill: parent
+                            RowLayout{
+                                Layout.fillWidth: true
+                                FluToggleButton{
+                                    text: qsTr("My Suites")
+                                    checked: TestPageBridge.suiteScope === "mine"
+                                    onClicked: TestPageBridge.setSuiteScope("mine")
+                                }
+                                FluToggleButton{
+                                    text: qsTr("Shared Suites")
+                                    checked: TestPageBridge.suiteScope === "shared"
+                                    onClicked: TestPageBridge.setSuiteScope("shared")
+                                }
+                                Item{ Layout.fillWidth: true }
+                                FluIconButton{
+                                    iconSource: FluentIcons.Refresh
+                                    disabled: TestPageBridge.suiteRefreshRunning
+                                    onClicked: TestPageBridge.refreshSuites()
+                                }
+                            }
+                            AppLoadingIndicator{
+                                visible: TestPageBridge.suitePanelLoading || TestPageBridge.suiteRefreshRunning
+                                running: visible
+                                compact: true
+                                text: qsTr("Loading test suites...")
+                            }
+                            FluTextBox{
+                                Layout.fillWidth: true
+                                placeholderText: qsTr("Search test suites...")
+                                onTextChanged: TestPageBridge.setSuiteSearchText(text)
+                            }
+                            FluText{
+                                visible: TestPageBridge.suiteError !== ""
+                                text: suiteErrorText(TestPageBridge.suiteError)
+                                color: FluTheme.dark ? "#FF99A4" : "#C42B1C"
+                                wrapMode: Text.Wrap
+                                Layout.fillWidth: true
+                            }
+                            ListView{
+                                id: list_suites
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+                                model: suiteModel
+                                delegate: Rectangle{
+                                    width: list_suites.width
+                                    height: 34
+                                    radius: 4
+                                    color: page_root.suiteSelectedRow && page_root.suiteSelectedRow.id === modelData.id
+                                           ? FluTheme.itemPressColor : "transparent"
+                                    RowLayout{
+                                        anchors.fill: parent
+                                        anchors.margins: 5
+                                        FluText{ text: modelData.name; Layout.fillWidth: true; elide: Text.ElideRight }
+                                        FluText{ text: qsTr("%1 cases").arg(modelData.caseCount); font: FluTextStyle.Caption }
+                                        FluText{ text: modelData.ownerDisplayName; font: FluTextStyle.Caption }
+                                    }
+                                    MouseArea{ anchors.fill: parent; onClicked: page_root.suiteSelectedRow = modelData }
+                                }
+                                FluText{
+                                    anchors.centerIn: parent
+                                    visible: !TestPageBridge.suitePanelLoading && suiteModel.length === 0
+                                    text: TestPageBridge.suiteScope === "mine" ? qsTr("No personal test suites yet.") : qsTr("No shared test suites.")
+                                }
+                            }
+                            RowLayout{
+                                Layout.fillWidth: true
+                                FluButton{
+                                    text: qsTr("Load")
+                                    disabled: !suiteServiceAvailable || !suiteSelectedRow || !TestPageBridge.discoveryLoaded || TestPageBridge.suiteActionRunning
+                                    onClicked: TestPageBridge.loadSuite(suiteSelectedRow.id)
+                                }
+                                FluButton{
+                                    visible: TestPageBridge.suiteScope === "mine"
+                                    text: qsTr("Update")
+                                    disabled: !suiteServiceAvailable || !suiteSelectedRow || TestPageBridge.activeSuiteId !== suiteSelectedRow.id || TestPageBridge.suiteActionRunning
+                                    onClicked: openSuiteDialog("update", suiteSelectedRow)
+                                }
+                                FluButton{
+                                    visible: TestPageBridge.suiteScope === "mine"
+                                    text: qsTr("Delete")
+                                    disabled: !suiteServiceAvailable || !suiteSelectedRow || TestPageBridge.suiteActionRunning
+                                    onClicked: dialog_delete_suite.open()
+                                }
+                                Item{ Layout.fillWidth: true }
+                                FluFilledButton{
+                                    text: TestPageBridge.suiteScope === "mine" ? qsTr("Save Current") : qsTr("Save a Copy")
+                                    disabled: !suiteServiceAvailable || TestPageBridge.suiteActionRunning
+                                              || (TestPageBridge.suiteScope === "shared" && !suiteSelectedRow)
+                                    onClicked: openSuiteDialog(
+                                        TestPageBridge.suiteScope === "mine" ? "create" : "copy",
+                                        suiteSelectedRow
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    FluFrame{
+                        SplitView.fillWidth: true
+                        SplitView.fillHeight: true
+                        padding: 0
+                        ColumnLayout{
+                            anchors.fill: parent
+                            spacing: 8
                     FluText{
                         text: qsTr("Test Cases")
                         font: FluTextStyle.Subtitle
@@ -541,7 +727,7 @@ FluPage {
                             cellHeight: 32
                             depthPadding: 10
                             checkable: true
-                            checkLeafOnly: true
+                            checkLeafOnly: false
                             clickLeafRowToToggleCheckOnly: true
                             columnSource: [{
                                 title: "",
@@ -550,8 +736,11 @@ FluPage {
                             }]
                             dataSource: caseTreeDataSource
                             onLeafCheckToggled: (rowData, checked)=>{
-                                if(rowData && rowData.file){
+                                if(rowData && rowData.rowType === "file" && rowData.file){
                                     TestPageBridge.setFileSelected(rowData.file, checked === true)
+                                }else if(rowData && rowData._key){
+                                    TestPageBridge.setTreeNodeSelected(rowData._key, checked === true,
+                                                                       (txt_filter.text || "").toString())
                                 }
                             }
                             onBranchToggled: (rowData, expanded)=>{
@@ -560,6 +749,9 @@ FluPage {
                                 }
                             }
                         }
+                    }
+                        }
+                    }
                     }
                 }
             }
@@ -1425,6 +1617,61 @@ FluPage {
                 ItemsOriginal.startPageByItem({ title: qsTr("Run"), url: "qrc:/example/qml/page/T_Run.qml" })
             }
         }
+    }
+
+    FluContentDialog{
+        id: dialog_suite
+        title: suiteDialogMode === "update" ? qsTr("Update Test Suite") : qsTr("Save Test Suite")
+        buttonFlags: FluContentDialogType.NegativeButton | FluContentDialogType.PositiveButton
+        negativeText: qsTr("Cancel")
+        positiveText: qsTr("Save")
+        positiveDisabled: suiteDraftName.trim() === ""
+        onPositiveClicked: {
+            var visibility = suiteDraftShared ? "shared" : "private"
+            var name = suiteDraftName.trim()
+            if(suiteDialogMode === "update"){
+                TestPageBridge.updateActiveSuite(name, suiteDraftDescription, visibility)
+            }else if(suiteDialogMode === "copy" && suiteSelectedRow){
+                TestPageBridge.copySuite(suiteSelectedRow.id, name, visibility)
+            }else{
+                TestPageBridge.createSuite(name, suiteDraftDescription, visibility)
+            }
+        }
+        contentDelegate: Component{
+            ColumnLayout{
+                width: dialog_suite.width
+                spacing: 10
+                FluText{ text: qsTr("Suite name"); font: FluTextStyle.BodyStrong }
+                FluTextBox{
+                    Layout.fillWidth: true
+                    text: page_root.suiteDraftName
+                    placeholderText: qsTr("Enter a suite name")
+                    onTextChanged: page_root.suiteDraftName = text
+                } // persistence-opt-out: transient suite dialog
+                FluText{ text: qsTr("Description"); font: FluTextStyle.BodyStrong }
+                FluMultilineTextBox{
+                    Layout.fillWidth: true
+                    text: page_root.suiteDraftDescription
+                    placeholderText: qsTr("Optional description")
+                    onTextChanged: page_root.suiteDraftDescription = text
+                } // persistence-opt-out: transient suite dialog
+                FluCheckBox{
+                    text: qsTr("Share with other users")
+                    checked: page_root.suiteDraftShared
+                    onClicked: page_root.suiteDraftShared = checked
+                }
+            }
+        }
+    }
+
+    FluContentDialog{
+        id: dialog_delete_suite
+        title: qsTr("Delete Test Suite")
+        message: qsTr("Delete the selected test suite? This cannot be undone.")
+        buttonFlags: FluContentDialogType.NegativeButton | FluContentDialogType.PositiveButton
+        negativeText: qsTr("Cancel")
+        positiveText: qsTr("Delete")
+        onPositiveClicked: if(suiteSelectedRow) TestPageBridge.deleteSuite(suiteSelectedRow.id)
     }
 
     FluContentDialog{

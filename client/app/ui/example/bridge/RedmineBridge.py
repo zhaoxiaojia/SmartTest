@@ -470,9 +470,10 @@ class RedmineBridge(QObject):
     def _jira_dependencies(self):
         if self._jira_client is not None:
             return self._jira_client, self._jira_create_service, self._jira_schema_service
-        username, password = self._auth.transientCredential()
-        if not username or not password:
+        credentials = self._auth.runtime_credentials()
+        if credentials is None:
             return None, None, None
+        username, password = credentials.username, credentials.password
         base_url = os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")
         self._jira_client = JiraGateway(base_url, username, password)
         self._jira_create_service = IssueCommandService(
@@ -766,7 +767,11 @@ class RedmineBridge(QObject):
 
     @Slot()
     def startLogin(self):
-        username, password = self._auth.transientCredential()
+        credentials = self._auth.runtime_credentials()
+        if credentials is None:
+            self.credentialsRequired.emit()
+            return
+        username, password = credentials.username, credentials.password
         self._account = username
 
         async def operation():

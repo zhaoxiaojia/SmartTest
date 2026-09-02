@@ -96,3 +96,15 @@ def remote_status(error):
             return status
         error = error.__cause__
     return None
+
+
+def remote_credentials_rejected(error):
+    while error is not None:
+        response = getattr(error, "response", None)
+        if getattr(response, "status_code", None) == 401:
+            headers = getattr(response, "headers", {}) or {}
+            challenge = next((str(value) for key, value in headers.items()
+                              if str(key).casefold() == "www-authenticate"), "")
+            return challenge.strip().casefold().startswith("basic")
+        error = error.__cause__
+    return False

@@ -53,13 +53,13 @@ def test_schema_migration_is_idempotent_and_upsert_is_atomic(tmp_path):
     second.upsert_preferences("coco", "global", {"theme": "light", "compact": True}, 2)
     assert second.get_preferences("coco", "global")["items"] == {"compact": True, "theme": "light"}
     with sqlite3.connect(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 3
 
 
 def test_newer_unknown_schema_is_not_silently_downgraded(tmp_path):
     path = tmp_path / "future.db"
     with sqlite3.connect(path) as connection:
-        connection.execute("PRAGMA user_version=3")
+        connection.execute("PRAGMA user_version=4")
     try:
         PersistentSessionStore(path)
     except RuntimeError as error:

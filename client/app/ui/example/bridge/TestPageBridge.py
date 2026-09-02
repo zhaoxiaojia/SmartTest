@@ -38,10 +38,28 @@ class TestPageBridge(QObject):
     errorOccurred = Signal(str)
     _refreshStageChanged = Signal(str, int, str)
 
-    def __init__(self, root_dir: Path):
+    suiteChanged = Signal()
+
+    def __init__(self, root_dir: Path, *, auth_bridge=None, suite_source=None):
         super().__init__(QGuiApplication.instance())
         self._tasks = QtTaskAdapter(manager=DESKTOP_TASKS)
         self._root_dir = root_dir.resolve()
+        self._auth_bridge = auth_bridge
+        self._suite_source = suite_source
+        self._suite_panel_loading = False
+        self._suite_refresh_running = False
+        self._suite_refresh_pending = False
+        self._suite_action_running = False
+        self._suite_action_kind = ""
+        self._suite_error = ""
+        self._suite_scope = "mine"
+        self._suite_search_text = ""
+        self._suite_rows: list[dict[str, Any]] = []
+        self._active_suite_id = ""
+        self._active_suite_revision = 0
+        self._suite_session_generation = 0
+        self._suite_view_generation = 0
+        self._suite_io_lock = asyncio.Lock()
         self._registry: SchemaRegistry = default_registry()
         self._cases: list[dict[str, Any]] = []
         self._cases_by_nodeid: dict[str, dict[str, Any]] = {}
@@ -69,6 +87,304 @@ class TestPageBridge(QObject):
         state_changed = self._sync_dut_selection() or state_changed
         if state_changed:
             save_state(self._state_path, self._state)
+        if auth_bridge is not None and hasattr(auth_bridge, "authChanged"):
+            auth_bridge.authChanged.connect(self._on_auth_changed)
+
+    def _suite_credentials(self):
+        getter = getattr(self._auth_bridge, "runtime_credentials", None)
+        return getter() if callable(getter) else None
+
+    def _suite_username(self) -> str:
+        credentials = self._suite_credentials()
+        return str(getattr(credentials, "username", "") or "")
+
+    def _set_suite_error(self, error) -> None:
+        self._suite_error = str(getattr(error, "code", "") or "service_unavailable")
+        invalidator = getattr(self._auth_bridge, "invalidate_runtime_credentials", None)
+        if self._suite_error == "invalid_credentials" and callable(invalidator):
+            invalidator(self._suite_error)
+
+    @Slot()
+    def _on_auth_changed(self) -> None:
+        self._suite_session_generation += 1
+        self._suite_view_generation += 1
+        generation = self._suite_session_generation
+        view_generation = self._suite_view_generation
+        self._suite_rows = []
+        self._active_suite_id = ""
+        self._active_suite_revision = 0
+        self._suite_error = ""
+        self._suite_refresh_running = False
+        self._suite_refresh_pending = False
+        self._suite_action_running = False
+        self._suite_action_kind = ""
+        credentials = self._suite_credentials()
+        if self._suite_source is None:
+            self.suiteChanged.emit()
+            return
+        self._suite_panel_loading = True
+        self.suiteChanged.emit()
+        self._create_task(
+            self._reset_suite_session(credentials, generation, view_generation),
+            label="suite_session",
+        )
+
+    async def _reset_suite_session(self, credentials, generation: int, view_generation: int) -> None:
+        self._trace(
+            "suite_session_start",
+            generation=generation,
+            view_generation=view_generation,
+        )
+        try:
+            async with self._suite_io_lock:
+                if generation != self._suite_session_generation:
+                    return
+                result = await self._tasks.to_thread(
+                    "suite-account",
+                    self._suite_source.switch_account,
+                    credentials,
+                    self._suite_scope,
+                )
+                if (generation == self._suite_session_generation
+                        and view_generation == self._suite_view_generation):
+                    if result.ok:
+                        self._suite_rows = [dict(row) for row in (result.value or [])]
+                        self._suite_error = ""
+                    else:
+                        self._set_suite_error(result.error)
+        finally:
+            current = generation == self._suite_session_generation
+            if current:
+                self._suite_panel_loading = False
+                self.suiteChanged.emit()
+            self._trace(
+                "suite_session_done",
+                generation=generation,
+                view_generation=view_generation,
+                current=current,
+                final_error=self._suite_error if current else "stale_result_discarded",
+            )
+
+    async def _refresh_suites_task(
+        self, generation: int, view_generation: int, scope: str
+    ) -> None:
+        self._trace(
+            "suite_refresh_start",
+            generation=generation,
+            view_generation=view_generation,
+            scope=scope,
+        )
+        try:
+            async with self._suite_io_lock:
+                if (generation != self._suite_session_generation
+                        or view_generation != self._suite_view_generation):
+                    return
+                credentials = self._suite_credentials()
+                if credentials is None:
+                    self._suite_error = "authentication_required"
+                    return
+                result = await self._tasks.to_thread(
+                    "suite-list", self._suite_source.list_suites, credentials, scope
+                )
+                if (generation == self._suite_session_generation
+                        and view_generation == self._suite_view_generation
+                        and scope == self._suite_scope):
+                    if result.ok:
+                        self._suite_rows = [dict(row) for row in (result.value or [])]
+                        self._suite_error = ""
+                    else:
+                        self._set_suite_error(result.error)
+        finally:
+            current = generation == self._suite_session_generation
+            if current:
+                self._suite_refresh_running = False
+                self.suiteChanged.emit()
+                if self._suite_refresh_pending:
+                    self._suite_refresh_pending = False
+                    self.refreshSuites()
+            self._trace(
+                "suite_refresh_done",
+                generation=generation,
+                view_generation=view_generation,
+                current=current,
+                final_error=self._suite_error if current else "stale_result_discarded",
+            )
+
+    @Slot()
+    def refreshSuites(self) -> None:
+        if self._suite_source is None or self._suite_refresh_running:
+            return
+        self._suite_view_generation += 1
+        generation = self._suite_session_generation
+        view_generation = self._suite_view_generation
+        scope = self._suite_scope
+        self._suite_refresh_running = True
+        self.suiteChanged.emit()
+        self._create_task(
+            self._refresh_suites_task(generation, view_generation, scope),
+            label="suite_refresh",
+        )
+
+    @Slot(str)
+    def setSuiteScope(self, scope: str) -> None:
+        if scope not in {"mine", "shared"} or scope == self._suite_scope:
+            return
+        self._suite_scope = scope
+        self._suite_rows = []
+        self.suiteChanged.emit()
+        if self._suite_refresh_running:
+            self._suite_view_generation += 1
+            self._suite_refresh_pending = True
+            return
+        self.refreshSuites()
+
+    def _suite_write_payload(self, name: str, description: str, visibility: str) -> dict[str, Any]:
+        return {"name": str(name or "").strip(), "description": str(description or ""),
+                "visibility": visibility, "orderedNodeids": self._selected_nodeids()}
+
+    def _apply_suite_selection(self, detail: dict[str, Any], current_username: str) -> list[str]:
+        available = set(self._cases_by_nodeid)
+        ordered = [str(item) for item in detail.get("orderedNodeids", [])]
+        valid = [nodeid for nodeid in ordered if nodeid in available]
+        missing = [nodeid for nodeid in ordered if nodeid not in available]
+        self._state.selected = []
+        self._state.selected_files = []
+        for nodeid in valid:
+            self._set_case_selected(nodeid, True)
+        self._active_suite_id = str(detail.get("id", ""))
+        self._active_suite_revision = int(detail.get("revision", 0) or 0)
+        if str(detail.get("ownerUsername", "")) != current_username:
+            self._active_suite_revision = 0
+        self._save_and_emit()
+        self._schedule_context_refresh("suite_loaded")
+        return missing
+
+    async def _suite_action(self, kind: str, generation: int, function, *args) -> None:
+        self._suite_action_running = True
+        self._suite_action_kind = kind
+        self._suite_error = ""
+        self.suiteChanged.emit()
+        try:
+            async with self._suite_io_lock:
+                if generation != self._suite_session_generation:
+                    return
+                action_result = await self._tasks.to_thread("suite-action", function, *args)
+                if generation != self._suite_session_generation:
+                    return
+                if not action_result.ok:
+                    self._set_suite_error(action_result.error)
+                    return
+                result = action_result.value
+                rows_result = None
+                if kind != "load":
+                    credentials = self._suite_credentials()
+                    if credentials is not None:
+                        rows_result = await self._tasks.to_thread(
+                            "suite-list",
+                            self._suite_source.list_suites,
+                            credentials,
+                            self._suite_scope,
+                        )
+                if generation != self._suite_session_generation:
+                    return
+            if kind == "load":
+                missing = self._apply_suite_selection(result, self._suite_username())
+                if missing:
+                    self._suite_error = "missing_nodeids:" + "\n".join(missing)
+            elif isinstance(result, dict):
+                self._active_suite_id = str(result.get("id", ""))
+                self._active_suite_revision = int(result.get("revision", 0) or 0)
+            elif kind == "delete":
+                if self._active_suite_id == str(args[0] if args else ""):
+                    self._active_suite_id = ""
+                    self._active_suite_revision = 0
+            if rows_result is not None and generation == self._suite_session_generation:
+                if rows_result.ok:
+                    self._suite_rows = [dict(row) for row in (rows_result.value or [])]
+                else:
+                    self._set_suite_error(rows_result.error)
+        finally:
+            if generation == self._suite_session_generation:
+                self._suite_action_running = False
+                self._suite_action_kind = ""
+                self.suiteChanged.emit()
+
+    def _start_suite_action(self, kind: str, function, *args) -> None:
+        if self._suite_action_running or self._suite_source is None:
+            return
+        credentials = self._suite_credentials()
+        if credentials is None:
+            self._suite_error = "authentication_required"
+            self.suiteChanged.emit()
+            return
+        self._create_task(
+            self._suite_action(
+                kind, self._suite_session_generation, function, credentials, *args
+            ),
+            label=f"suite_{kind}",
+        )
+
+    @Slot(str)
+    def loadSuite(self, suite_id: str) -> None:
+        if not self._discovery_loaded:
+            self._suite_error = "invalid_input"
+            self.suiteChanged.emit()
+            return
+        self._start_suite_action("load", self._suite_source.get_suite, suite_id)
+
+    @Slot(str, str, str)
+    def createSuite(self, name: str, description: str, visibility: str) -> None:
+        payload = self._suite_write_payload(name, description, visibility)
+        if not payload["orderedNodeids"]:
+            self._suite_error = "invalid_input"
+            self.suiteChanged.emit()
+            return
+        self._start_suite_action("create", self._suite_source.create_suite, payload)
+
+    @Slot(str, str, str)
+    def updateActiveSuite(self, name: str, description: str, visibility: str) -> None:
+        if not self._active_suite_id or not self._active_suite_revision:
+            return
+        payload = self._suite_write_payload(name, description, visibility)
+        payload["revision"] = self._active_suite_revision
+        self._start_suite_action("update", self._suite_source.update_suite,
+                                 self._active_suite_id, payload)
+
+    @Slot(str)
+    def deleteSuite(self, suite_id: str) -> None:
+        self._start_suite_action("delete", self._suite_source.delete_suite, suite_id)
+
+    @Slot(str, str, str)
+    def copySuite(self, suite_id: str, name: str, visibility: str) -> None:
+        self._start_suite_action("copy", self._suite_source.copy_suite, suite_id,
+                                 {"name": name, "visibility": visibility})
+
+    @Slot(result="QVariantList")
+    def suiteRows(self):
+        query = self._suite_search_text.casefold()
+        if not query:
+            return list(self._suite_rows)
+        return [row for row in self._suite_rows if query in str(row.get("name", "")).casefold()
+                or query in str(row.get("ownerDisplayName", "")).casefold()]
+
+    @Slot(str)
+    def setSuiteSearchText(self, value: str) -> None:
+        normalized = str(value or "").strip()
+        if normalized == self._suite_search_text:
+            return
+        self._suite_search_text = normalized
+        self.suiteChanged.emit()
+
+    suitePanelLoading = Property(bool, lambda self: self._suite_panel_loading, notify=suiteChanged)
+    suiteRefreshRunning = Property(bool, lambda self: self._suite_refresh_running, notify=suiteChanged)
+    suiteActionRunning = Property(bool, lambda self: self._suite_action_running, notify=suiteChanged)
+    suiteActionKind = Property(str, lambda self: self._suite_action_kind, notify=suiteChanged)
+    suiteError = Property(str, lambda self: self._suite_error, notify=suiteChanged)
+    suiteScope = Property(str, lambda self: self._suite_scope, notify=suiteChanged)
+    suiteSearchText = Property(str, lambda self: self._suite_search_text, notify=suiteChanged)
+    activeSuiteId = Property(str, lambda self: self._active_suite_id, notify=suiteChanged)
+    activeSuiteRevision = Property(int, lambda self: self._active_suite_revision, notify=suiteChanged)
+    discoveryLoaded = Property(bool, lambda self: self._discovery_loaded, notify=casesChanged)
 
     def _trace(self, stage: str, **values: Any) -> None:
         details = " ".join(f"{key}={values[key]}" for key in sorted(values))
@@ -1245,6 +1561,7 @@ class TestPageBridge(QObject):
     @Slot(str, "QVariantList", result="QVariantList")
     def caseTree(self, filter_text: str, expanded_keys: list[Any]):
         selected_files = set(self.selectedFiles())
+        selected = set(self._selected_nodeids())
         expanded = {str(item) for item in (expanded_keys or []) if str(item)}
         normalized_filter = str(filter_text or "").strip().lower()
 
@@ -1301,8 +1618,13 @@ class TestPageBridge(QObject):
                         "file": file_path,
                         "file_source": "dynamic",
                         "checked": file_path in selected_files,
+                        "nodeids": [],
                     }
                 )
+            file_node = next(item for item in parent["files"] if item["key"] == file_key)
+            nodeid = str(case.get("nodeid", ""))
+            if nodeid and nodeid not in file_node["nodeids"]:
+                file_node["nodeids"].append(nodeid)
 
         force_expand = bool(normalized_filter)
 
@@ -1311,6 +1633,9 @@ class TestPageBridge(QObject):
             sort_nodes(node["files"])
             children = [build_folder(item) for item in node["folders"]]
             children.extend(build_file(item) for item in node["files"])
+            nodeids = [nodeid for child in children for nodeid in child.get("_nodeids", [])]
+            selected_count = sum(nodeid in selected for nodeid in nodeids)
+            selection_state = _selection_state(selected_count, len(nodeids))
             return {
                 "title": node["label"],
                 "title_source": node.get("label_source", "dynamic"),
@@ -1319,9 +1644,15 @@ class TestPageBridge(QObject):
                 "iconSource": "Folder",
                 "expanded": force_expand or node["key"] in expanded,
                 "children": children,
+                "selectionState": selection_state,
+                "checked": selection_state == "checked",
+                "selectableCount": len(nodeids),
+                "selectedCount": selected_count,
+                "_nodeids": nodeids,
             }
 
         def build_file(node: dict[str, Any]) -> dict[str, Any]:
+            nodeids = list(node.get("nodeids", []))
             return {
                 "title": node["label"],
                 "title_source": node.get("label_source", "dynamic"),
@@ -1331,6 +1662,7 @@ class TestPageBridge(QObject):
                 "file": node["file"],
                 "file_source": node.get("file_source", "dynamic"),
                 "checked": node["checked"],
+                "_nodeids": nodeids,
             }
 
         sort_nodes(root["folders"])
@@ -1339,8 +1671,10 @@ class TestPageBridge(QObject):
         children.extend(build_file(item) for item in root["files"])
         if not children:
             return []
-        return [
-            {
+        root_nodeids = [nodeid for child in children for nodeid in child.get("_nodeids", [])]
+        selected_count = sum(nodeid in selected for nodeid in root_nodeids)
+        root_selection_state = _selection_state(selected_count, len(root_nodeids))
+        result = {
                 "title": "tests",
                 "title_source": "dynamic",
                 "_key": "root:tests",
@@ -1348,8 +1682,18 @@ class TestPageBridge(QObject):
                 "iconSource": "Folder",
                 "expanded": True,
                 "children": children,
+                "selectionState": root_selection_state,
+                "checked": root_selection_state == "checked",
+                "selectableCount": len(root_nodeids),
+                "selectedCount": selected_count,
+                "_nodeids": root_nodeids,
             }
-        ]
+        def remove_internal_nodeids(node: dict[str, Any]) -> None:
+            node.pop("_nodeids", None)
+            for child in node.get("children", []):
+                remove_internal_nodeids(child)
+        remove_internal_nodeids(result)
+        return [result]
 
     @Slot(result="QVariantList")
     def globalParamRows(self):
@@ -1511,6 +1855,54 @@ class TestPageBridge(QObject):
         self._save_and_emit()
         if selected:
             self._schedule_context_refresh("file_selected")
+
+    def _tree_nodeids(self, node_key: str, filter_text: str) -> list[str]:
+        key = str(node_key or "").strip()
+        normalized_filter = str(filter_text or "").strip().lower()
+        result: list[str] = []
+        for case in self._cases:
+            nodeid = str(case.get("nodeid", ""))
+            file_path = str(case.get("file", ""))
+            short_file = self._trimmed_case_path(file_path)
+            matches = (not normalized_filter or normalized_filter in file_path.lower()
+                       or normalized_filter in short_file.lower()
+                       or normalized_filter in str(case.get("name", "")).lower())
+            if not matches:
+                continue
+            if key == "root:tests":
+                belongs = True
+            elif key.startswith("folder:"):
+                prefix = key[len("folder:"):].rstrip("/") + "/"
+                belongs = short_file.startswith(prefix)
+            elif key.startswith("file:"):
+                belongs = short_file == key[len("file:"):]
+            else:
+                belongs = False
+            if belongs and nodeid and nodeid not in result:
+                result.append(nodeid)
+        return result
+
+    @Slot(str, bool, str)
+    def setTreeNodeSelected(self, node_key: str, selected: bool, filter_text: str) -> None:
+        nodeids = self._tree_nodeids(node_key, filter_text)
+        changed = False
+        for nodeid in nodeids:
+            changed = self._set_case_selected(nodeid, selected) or changed
+        if not changed:
+            return
+        self._sync_selected_file_order()
+        self._reorder_selected_cases_by_file_order()
+        self._save_and_emit()
+        self._schedule_context_refresh("tree_selection")
+
+    @Slot()
+    def clearSelectedCases(self) -> None:
+        if not self._state.selected and not self._state.selected_files:
+            return
+        self._state.selected = []
+        self._state.selected_files = []
+        self._save_and_emit()
+        self._schedule_context_refresh("selection_cleared")
 
     @Slot(str, result=bool)
     def isCaseSelected(self, nodeid: str) -> bool:
@@ -1682,6 +2074,14 @@ class TestPageBridge(QObject):
 
 def _trace_timestamp() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+
+def _selection_state(selected_count: int, selectable_count: int) -> str:
+    if selectable_count <= 0 or selected_count <= 0:
+        return "unchecked"
+    if selected_count >= selectable_count:
+        return "checked"
+    return "partial"
 
 
 def _storage_playback_path(value: str) -> str:

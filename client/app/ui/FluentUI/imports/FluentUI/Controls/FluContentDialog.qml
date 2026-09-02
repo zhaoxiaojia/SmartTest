@@ -11,6 +11,7 @@ FluPopup {
     property string neutralText: qsTr("Close")
     property string negativeText: qsTr("Cancel")
     property string positiveText: qsTr("OK")
+    property bool positiveDisabled: false
     property int messageTextFormart: Text.AutoText
     property int delayTime: 100
     property int buttonFlags: FluContentDialogType.NegativeButton | FluContentDialogType.PositiveButton
@@ -144,6 +145,7 @@ FluPopup {
                             id:positive_btn
                             visible: control.buttonFlags&FluContentDialogType.PositiveButton
                             text: positiveText
+                            disabled: control.positiveDisabled
                             width: parent.width
                             anchors.centerIn: parent
                             onClicked: {

@@ -4,6 +4,15 @@ import os
 
 import env
 
+DEFAULT_WEB_BASE_URL = "http://127.0.0.1:8000"
+
+
+def client_environment():
+    child_environment = env.environment()
+    child_environment.setdefault("SMARTTEST_WEB_BASE_URL", DEFAULT_WEB_BASE_URL)
+    return child_environment
+
+
 if __name__ == "__main__":
     scripts_dir = os.path.dirname(os.path.abspath(__file__))
     isFast = False
@@ -24,5 +33,5 @@ if __name__ == "__main__":
 
     cmd3 = [env.python(), os.path.join("client", "app", "main.py")]
     print("RUN:", cmd3)
-    r3 = subprocess.run(cmd3, env=env.environment())
+    r3 = subprocess.run(cmd3, env=client_environment())
     print("RC :", r3.returncode)

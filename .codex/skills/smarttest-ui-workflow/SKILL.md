@@ -22,6 +22,14 @@ description: Use when changing SmartTest client/app/ui/, QML/FluentUI pages, Pyt
 - Refreshed scalar/path facts may replace stale persisted values. Multi-select refresh updates candidates only; user selection owns the persisted run value.
 - Render normal numeric/equipment inputs as text boxes unless incremental controls are requested. Use compact bounded inputs for short values and full width for paths/long/multiline values.
 
+### SmartTest 登录与凭据生命周期
+
+- 首次验证账户时才访问 LDAP。验证成功后，凭据由运行机器的平台安全存储按账户持久化：Windows 使用 Windows Credential Manager，Linux/Ubuntu 使用项目既有加密存储；不得按 Web session、Cookie 或页面复制凭据。
+- 后续 Client/Web 启动、Web 服务重启或 session 过期时，直接用已保存的账户凭据恢复或新建 session，不重复 LDAP。Client 与 Web 遵循同一业务规则，但各自的平台凭据 owner 独立。
+- logout、session expiry、revoke 和普通 HTTP 401 只结束 session，不删除账户凭据。网络、超时、服务不可用或 LDAP 不可达也不得推断凭据失效。
+- 只有 Jira、Confluence 等下游明确返回 `invalid_credentials` 时，唯一凭据失效入口才可删除该账户凭据、使该账户所有 session 失效，并要求重新 LDAP；没有明确分类时必须保留凭据并如实报告错误。
+- 密码不得暴露给 QML，也不得进入日志、SQLite 明文、报告或前端状态；Python 业务统一从认证 owner 获取进程内凭据。
+
 ### 前端显示状态持久化
 
 - 新增普通用户可编辑控件时，页面使用 `PersistentPage`，控件默认使用对应的 `Persist*` 包装并声明稳定 `objectName`；明确不需要恢复的临时输入必须声明 `persistEnabled: false`。

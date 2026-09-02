@@ -42,23 +42,25 @@ def test_linux_backend_encrypts_credentials_without_storing_plaintext_or_master_
         assert connection.execute("SELECT key_version FROM web_credentials").fetchone() == (1,)
 
 
-def test_persistent_session_restores_credential_after_process_restart_and_logout_is_per_device(tmp_path):
+def test_account_credential_survives_restart_and_session_logout(tmp_path):
     database = tmp_path / "web.db"
     environment = {"SMARTTEST_WEB_CREDENTIAL_KEY": base64.urlsafe_b64encode(b"m" * 32).decode()}
     first = PersistentSessionStore(database, credential_store=create_credential_store(database, platform_name="linux", environ=environment))
     one = first.create("coco", "one")
     two = first.create("coco", "two")
     restarted = PersistentSessionStore(database, credential_store=create_credential_store(database, platform_name="linux", environ=environment))
-    assert restarted.get(one).password == "one"
+    assert restarted.get(one).password == "two"
     assert restarted.get(two).password == "two"
     restarted.delete(one)
     assert restarted.get(one) is None
     assert restarted.get(two).password == "two"
     restarted.delete_all("coco")
     assert restarted.get(two) is None
+    restored = restarted.create_from_saved("coco")
+    assert restarted.get(restored).password == "two"
 
 
-def test_expired_session_removes_its_persisted_credential(tmp_path):
+def test_expired_session_keeps_account_credential_for_new_session(tmp_path):
     database = tmp_path / "web.db"
     environment = {"SMARTTEST_WEB_CREDENTIAL_KEY": base64.urlsafe_b64encode(b"e" * 32).decode()}
     clock = [100.0]
@@ -68,7 +70,50 @@ def test_expired_session_removes_its_persisted_credential(tmp_path):
     clock[0] = 111.0
     assert sessions.get(token) is None
     with sqlite3.connect(database) as connection:
-        assert connection.execute("SELECT count(*) FROM web_credentials").fetchone() == (0,)
+        assert connection.execute("SELECT count(*) FROM web_credentials").fetchone() == (1,)
+    restored = sessions.create_from_saved("coco")
+    assert sessions.get(restored).password == "secret"
+
+
+def test_explicit_invalid_credentials_deletes_account_credential_and_revokes_sessions(tmp_path):
+    database = tmp_path / "web.db"
+    environment = {"SMARTTEST_WEB_CREDENTIAL_KEY": base64.urlsafe_b64encode(b"i" * 32).decode()}
+    sessions = PersistentSessionStore(
+        database,
+        credential_store=create_credential_store(database, platform_name="linux", environ=environment),
+    )
+    one = sessions.create("coco", "secret")
+    two = sessions.create_from_saved("coco")
+
+    assert sessions.invalidate_credentials("coco") == 2
+    assert sessions.get(one) is None
+    assert sessions.get(two) is None
+    with pytest.raises(CredentialStoreError):
+        sessions.create_from_saved("coco")
+
+
+def test_legacy_per_session_credential_is_migrated_to_account_owner(tmp_path):
+    database = tmp_path / "web.db"
+    environment = {"SMARTTEST_WEB_CREDENTIAL_KEY": base64.urlsafe_b64encode(b"l" * 32).decode()}
+    credentials = create_credential_store(database, platform_name="linux", environ=environment)
+    sessions = PersistentSessionStore(database, credential_store=credentials)
+    token = sessions.create("coco", "secret")
+    token_hash = sessions._hash(token)
+    credentials.delete(sessions._account_key("coco"))
+    credentials.write(token_hash, "coco", "secret")
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE web_sessions SET credential_ref=? WHERE token_hash=?",
+            (token_hash, token_hash),
+        )
+
+    restarted = PersistentSessionStore(database, credential_store=credentials)
+    assert restarted.get(token).password == "secret"
+    with sqlite3.connect(database) as connection:
+        assert connection.execute(
+            "SELECT credential_ref FROM web_sessions WHERE token_hash=?", (token_hash,),
+        ).fetchone() == (None,)
+    assert restarted.create_from_saved("coco")
 
 
 @pytest.mark.parametrize("configured", [None, "not-base64", base64.urlsafe_b64encode(b"short").decode()])

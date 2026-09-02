@@ -2,6 +2,7 @@ import os
 import sys
 import asyncio
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 from qasync import QEventLoop
 
 from PySide6.QtCore import QProcess, QUrl
@@ -34,6 +35,7 @@ from example.bridge.desktop_tasks import close_desktop_tasks
 from example.context_registry import register_context_objects, start_context_services
 from core.logging import smart_log
 from core.config.jsonTool import app_data_dir
+from client.app.data_sources import WebTestSuiteSource, web_base_url
 from client.app.ui.page_state_migration import migrate_frontend_state
 
 _uri = "example"
@@ -54,6 +56,27 @@ def _exit_code_from_event_result(result) -> int:
     if isinstance(result, int):
         return result
     return 0
+
+
+def _log_web_base_url(base_url: str) -> None:
+    try:
+        parsed = urlsplit(base_url)
+        safe_base_url = urlunsplit((
+            parsed.scheme,
+            parsed.netloc.rsplit("@", 1)[-1],
+            parsed.path,
+            "",
+            "",
+        )) or "<unset>"
+    except ValueError:
+        safe_base_url = "<invalid>"
+    smart_log(
+        "SmartTest Web source configured (base_url=%s)",
+        safe_base_url,
+        domain="ui",
+        source="startup",
+        extra={"web_base_url": safe_base_url},
+    )
 
 
 # noinspection PyTypeChecker
@@ -114,6 +137,9 @@ def main():
         extra={"runtime_root": str(runtime_root), "entrypoint": str(Path(sys.argv[0]).resolve())},
     )
     auth_bridge = AuthBridge()
+    suite_base_url = web_base_url()
+    _log_web_base_url(suite_base_url)
+    suite_source = WebTestSuiteSource(suite_base_url)
     migrate_frontend_state(app_data_dir() / "frontend_state.json")
     redmine_bridge = RedmineBridge(auth_bridge)
     translate_helper = TranslateHelper()
@@ -129,13 +155,15 @@ def main():
             "ToolBridge": ToolBridge(),
             "RedmineBridge": redmine_bridge,
             "HomeBridge": HomeBridge(),
-            "TestPageBridge": TestPageBridge(runtime_root),
+            "TestPageBridge": TestPageBridge(runtime_root, auth_bridge=auth_bridge,
+                                               suite_source=suite_source),
             "RunBridge": RunBridge(runtime_root),
             "ReportBridge": ReportBridge(),
             "DebugBridge": DebugBridge(runtime_root),
         },
     )
     app.aboutToQuit.connect(redmine_bridge.close)
+    app.aboutToQuit.connect(suite_source.discard_session)
     FluentUI.registerTypes(engine)
     qml_file = QUrl("qrc:/example/qml/App.qml")
     engine.load(qml_file)

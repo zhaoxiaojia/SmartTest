@@ -1,8 +1,11 @@
 from time import sleep
 
 from fastapi.testclient import TestClient
+import pytest
 
 from smarttest_web.app import create_app
+from smarttest_web.background_refresh import BackgroundFactsRefresh
+from smarttest_web.credentials import CredentialStoreError
 from smarttest_web.project_facts_api import ProjectFactsWebOwner
 from smarttest_web.session import PersistentSessionStore
 
@@ -90,6 +93,51 @@ def test_eligible_activity_renews_browser_cookie_with_database_expiry(tmp_path):
     assert "set-cookie" not in client.get("/api/auth/session").headers
 
 
+def test_https_login_renew_and_logout_keep_secure_cookie_attribute(tmp_path):
+    clock = [1_000.0]
+    store = PersistentSessionStore(
+        tmp_path / "https-cookie.db", ttl_seconds=100,
+        refresh_interval_seconds=20, now=lambda: clock[0],
+    )
+    client, _ = make_client(tmp_path, sessions=store)
+    login = client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
+    assert "secure" in login.headers["set-cookie"].lower()
+    clock[0] += 21
+    renewed = client.get("/api/auth/session")
+    assert renewed.json()["authenticated"] is True
+    assert "secure" in renewed.headers["set-cookie"].lower()
+    logout = client.post("/api/auth/logout")
+    assert "secure" in logout.headers["set-cookie"].lower()
+    client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
+    logout_all = client.post("/api/auth/logout-all")
+    assert "secure" in logout_all.headers["set-cookie"].lower()
+
+
+def test_http_login_renew_and_logout_variants_omit_secure_cookie_attribute(tmp_path):
+    clock = [1_000.0]
+    store = PersistentSessionStore(
+        tmp_path / "http-cookie.db", ttl_seconds=100,
+        refresh_interval_seconds=20, now=lambda: clock[0],
+    )
+    client = TestClient(create_app(
+        authenticator=FakeAuthenticator,
+        session_store=lambda: store,
+        project_facts_owner=lambda: FakeFactsOwner({"projects": []}),
+    ), base_url="http://testserver")
+
+    login = client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
+    assert "secure" not in login.headers["set-cookie"].lower()
+    clock[0] += 21
+    renewed = client.get("/api/auth/session")
+    assert renewed.json()["authenticated"] is True
+    assert "secure" not in renewed.headers["set-cookie"].lower()
+    logout = client.post("/api/auth/logout")
+    assert "secure" not in logout.headers["set-cookie"].lower()
+    client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
+    logout_all = client.post("/api/auth/logout-all")
+    assert "secure" not in logout_all.headers["set-cookie"].lower()
+
+
 def test_multiple_devices_current_and_all_logout(tmp_path):
     client1, store = make_client(tmp_path)
     client2, _ = make_client(tmp_path, sessions=store)
@@ -128,7 +176,107 @@ def test_invalid_login_returns_safe_failure(tmp_path):
     response = make_client(tmp_path, authenticator=auth)[0].post("/api/auth/login", json={"username": "coco", "password": "secret"})
     assert response.status_code == 401
     assert response.json() == {"detail": {"state": "invalid_credentials"}}
+    assert auth.calls == [("coco", "secret")]
     assert "secret" not in response.text
+
+
+def test_browser_login_reuses_saved_account_credential_without_ldap(tmp_path):
+    first_auth = FakeAuthenticator()
+    first, _ = make_client(tmp_path, authenticator=first_auth)
+    assert first.post("/api/auth/login", json={"username": "coco", "password": "secret"}).status_code == 200
+    assert first_auth.calls == [("coco", "secret")]
+
+    unavailable_ldap = FakeAuthenticator({"success": False, "code": "ldap_unavailable"})
+    restarted, _ = make_client(tmp_path, authenticator=unavailable_ldap)
+    response = restarted.post("/api/auth/login", json={"username": "coco", "password": "secret"})
+
+    assert response.status_code == 200
+    assert unavailable_ldap.calls == []
+
+
+def test_explicit_downstream_basic_auth_rejection_invalidates_account_and_sessions(tmp_path):
+    class ExplicitRejection(RuntimeError):
+        response = type("Response", (), {
+            "status_code": 401,
+            "headers": {"WWW-Authenticate": 'Basic realm="Atlassian"'},
+        })()
+
+    class RejectingFacts(FakeFactsOwner):
+        def refresh(self, *_args):
+            raise ExplicitRejection("safe rejection")
+
+    store = PersistentSessionStore(tmp_path / "explicit-rejection.db")
+    refresh = BackgroundFactsRefresh(submit=lambda work: work())
+    client = TestClient(create_app(
+        authenticator=lambda: FakeAuthenticator(),
+        session_store=lambda: store,
+        project_facts_owner=lambda: RejectingFacts({"projects": []}),
+        facts_refresh=lambda: refresh,
+    ), base_url="https://testserver")
+    client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
+
+    rejected = client.get("/api/confluence/project-facts?catalog=1")
+
+    assert rejected.status_code == 200
+    assert rejected.json()["state"] == "invalid_credentials"
+    follow_up = client.get("/api/test-suites?scope=mine")
+    assert follow_up.status_code == 401
+    assert follow_up.json()["detail"]["state"] == "invalid_credentials"
+    with pytest.raises(CredentialStoreError):
+        store.create_from_saved("coco")
+
+
+def test_general_downstream_401_does_not_invalidate_account_credentials(tmp_path):
+    class General401(RuntimeError):
+        response = type("Response", (), {"status_code": 401, "headers": {}})()
+
+    class RejectingFacts(FakeFactsOwner):
+        def refresh(self, *_args):
+            raise General401("not an explicit credential rejection")
+
+    store = PersistentSessionStore(tmp_path / "general-401.db")
+    refresh = BackgroundFactsRefresh(submit=lambda work: work())
+    client = TestClient(create_app(
+        authenticator=lambda: FakeAuthenticator(),
+        session_store=lambda: store,
+        project_facts_owner=lambda: RejectingFacts({"projects": []}),
+        facts_refresh=lambda: refresh,
+    ), base_url="https://testserver")
+    client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
+
+    response = client.get("/api/confluence/project-facts?catalog=1")
+
+    assert response.json()["state"] == "failed"
+    assert client.get("/api/test-suites?scope=mine").status_code == 200
+    assert store.create_from_saved("coco")
+
+
+def test_explicit_jira_basic_auth_rejection_invalidates_account(tmp_path):
+    class ExplicitRejection(RuntimeError):
+        response = type("Response", (), {
+            "status_code": 401,
+            "headers": {"www-authenticate": 'Basic realm="Atlassian"'},
+        })()
+
+    class RejectingJira:
+        def list_issues(self, *_args):
+            raise ExplicitRejection("safe rejection")
+
+    store = PersistentSessionStore(tmp_path / "jira-rejection.db")
+    client = TestClient(create_app(
+        authenticator=lambda: FakeAuthenticator(),
+        session_store=lambda: store,
+        project_facts_owner=lambda: FakeFactsOwner({"projects": []}),
+        jira_cache_owner=lambda *_args: RejectingJira(),
+    ), base_url="https://testserver")
+    client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
+
+    response = client.get("/api/jira/issues")
+
+    assert response.status_code == 401
+    assert response.json()["detail"]["state"] == "invalid_credentials"
+    with pytest.raises(CredentialStoreError):
+        store.create_from_saved("coco")
 
 
 def test_existing_fact_cache_is_read_after_login(tmp_path):

@@ -41,7 +41,8 @@ class BackgroundFactsRefresh:
                 pass
         return status
 
-    def start_details(self, owner, access, password, *, filters=None, search="", on_complete=None):
+    def start_details(self, owner, access, password, *, filters=None, search="", on_complete=None,
+                      on_error=None):
         account = access.session_hash
         with self._lock:
             if self._jobs.get(account, {}).get("state") == "loading":
@@ -70,10 +71,11 @@ class BackgroundFactsRefresh:
                                             progress=lambda completed, total: progress(completed, total, manager_progress))
                 if on_complete is not None:
                     on_complete(result)
-            except Exception:  # noqa: BLE001 - only safe job state crosses the API
+            except Exception as error:  # noqa: BLE001 - only safe job state crosses the API
+                error_state = on_error(error) if on_error is not None else "failed"
                 with self._lock:
                     if not job["cancelled"]:
-                        job["state"] = "failed"
+                        job["state"] = error_state
             else:
                 with self._lock:
                     if not job["cancelled"]:
@@ -93,7 +95,7 @@ class BackgroundFactsRefresh:
             job.update(cancelled=True, state="cancelled")
             return True
 
-    def start(self, owner, access, password):
+    def start(self, owner, access, password, *, on_error=None):
         account = access.session_hash
         with self._lock:
             if self._states.get(account) == "loading":
@@ -103,9 +105,10 @@ class BackgroundFactsRefresh:
         def work(_manager_progress=lambda _completed, _total: None):
             try:
                 owner.refresh(access, password)
-            except Exception:  # noqa: BLE001 - the public state is intentionally safe
+            except Exception as error:  # noqa: BLE001 - the public state is intentionally safe
+                error_state = on_error(error) if on_error is not None else "failed"
                 with self._lock:
-                    self._states[account] = "failed"
+                    self._states[account] = error_state
             else:
                 with self._lock:
                     self._states[account] = "ready"

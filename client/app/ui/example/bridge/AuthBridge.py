@@ -25,6 +25,7 @@ from core.credentials.windows import (
 )
 from .ToolBridge import amlogic_employees
 from .auth_accounts import AuthAccountStore, account_id_for_username
+from client.app.data_sources.common import AuthenticatedCredentials
 
 try:
     from example.helper.AppPaths import app_data_dir
@@ -123,10 +124,8 @@ LDAP_CREDENTIAL_PREFIX = "SmartTest/Auth/"
 
 class AuthBridge(QObject):
     authChanged = Signal()
+    preferencesChanged = Signal()
     authenticationCompleted = Signal("QVariantMap")
-    runtimeCredentialSupplyRequired = Signal()
-    runtimeCredentialSupplied = Signal()
-    runtimeCredentialSupplyCancelled = Signal()
     _authenticationFinished = Signal(object)
 
     def __init__(
@@ -154,7 +153,6 @@ class AuthBridge(QObject):
         self._auth_state = "credential_required" if self._selected_account_id else "signed_out"
         self._auth_busy = False
         self._remember_password = False
-        self._auto_login = False
         self._startup_session_restored = False
         self._authentication_generation = 0
         self._pending_authentications: dict[int, dict[str, Any]] = {}
@@ -169,7 +167,6 @@ class AuthBridge(QObject):
         selected = self._account_store.get(self._selected_account_id)
         if selected:
             self._remember_password = bool(selected["remember_password"])
-            self._auto_login = bool(selected.get("auto_login", False))
             self._username = str(selected["username"])
         self._resolve_profile()
         self._avatar_url = self._avatar_url_for_username(self._username)
@@ -177,7 +174,6 @@ class AuthBridge(QObject):
             "state_restored",
             account=self._username or "<none>",
             remember=self._remember_password,
-            auto=self._auto_login,
             authenticated=self._authenticated,
         )
 
@@ -254,15 +250,6 @@ class AuthBridge(QObject):
                 domain="ui",
                 source="AuthBridge",
             )
-    def _apply_authenticated_identity(self, username: str, display_name: str) -> None:
-        self._username = str(username or "").strip()
-        self._display_name = str(display_name or "").strip() or self._username
-        self._authenticated = bool(self._username)
-        self._resolve_profile()
-        if self._profile:
-            self._display_name = self._profile["display_name"]
-        self._avatar_url = self._avatar_url_for_username(self._username)
-
     def _load_password_secret(self) -> str:
         path = self._auth_secret_path()
         if not path.exists():
@@ -330,12 +317,53 @@ class AuthBridge(QObject):
     def _ldap_authenticate(self, username: str, password: str) -> dict[str, Any]:
         return self._ldap_owner.authenticate(username, password)
 
-    @Slot(result=bool)
-    def isAuthenticated(self) -> bool:
-        return self._authenticated
-
     def _get_authenticated(self) -> bool:
         return self._authenticated
+
+    def runtime_credentials(self) -> AuthenticatedCredentials | None:
+        if not self._authenticated or not self._username or not self._password:
+            return None
+        return AuthenticatedCredentials(self._username, self._password)
+
+    def invalidate_runtime_credentials(self, code: str) -> bool:
+        if str(code or "") != "invalid_credentials":
+            return False
+        account_id = self._selected_account_id
+        item = self._account_store.get(account_id) if account_id else None
+        if (not self._authenticated and not self._password
+                and not self._account_store.active_account_id
+                and not bool(item and item.get("remember_password"))):
+            return False
+        self._authentication_generation += 1
+        self._pending_authentications.clear()
+        self._auth_busy = False
+        cleanup_ok = self._credential_delete(account_id) if account_id else True
+        if account_id:
+            self._account_store.set_remember_password(account_id, False)
+            self._account_store.clear_active_account()
+            if cleanup_ok:
+                self._account_store.clear_credential_cleanup(account_id)
+            else:
+                self._account_store.mark_credential_cleanup(account_id)
+        self._clear_session()
+        self._remember_password = False
+        if item:
+            self._username = str(item["username"])
+            self._display_name = str(item.get("display_name", "") or self._username)
+            self._resolve_profile()
+            self._avatar_url = self._avatar_url_for_username(self._username)
+            self._auth_state = "credential_required"
+        else:
+            self._auth_state = "signed_out"
+        self.authChanged.emit()
+        self.preferencesChanged.emit()
+        self._log_auth_event(
+            "runtime_credential_invalidated",
+            account=str(item.get("username", "")) if item else "<none>",
+            code="invalid_credentials",
+            success=cleanup_ok,
+        )
+        return True
 
     @Slot(result=str)
     def currentUsername(self) -> str:
@@ -384,70 +412,6 @@ class AuthBridge(QObject):
         roles = self._profile.get("roles", []) or []
         return self._get_job_title() or (str(roles[0]) if roles else self._profile_value("employee_type"))
 
-    def currentPassword(self) -> str:
-        return self._password
-
-    def transientCredential(self) -> tuple[str, str]:
-        return self._username, self._password
-
-    @Slot(result="QVariantMap")
-    def acquireRuntimeCredential(self) -> dict[str, Any]:
-        if not self._authenticated:
-            self.runtimeCredentialSupplyRequired.emit()
-            return {"status": "unauthenticated"}
-        if self._username and self._password:
-            return {"status": "ready"}
-        item = self._account_store.get(self._selected_account_id)
-        if item and item.get("remember_password"):
-            try:
-                username, password = self._credential_store.read(
-                    self._selected_account_id,
-                )
-            except (CredentialNotFoundError, KeyError, WindowsCredentialError):
-                username, password = "", ""
-            if username and password and account_id_for_username(username) == self._selected_account_id:
-                self._password = password
-                return {"status": "ready"}
-        self.runtimeCredentialSupplyRequired.emit()
-        return {"status": "password_required"}
-
-    @Slot(str, bool, result="QVariantMap")
-    def supplyRuntimeCredential(self, password: str, remember_password: bool = False) -> dict[str, Any]:
-        if not self._authenticated or not self._username:
-            return {"success": False, "code": "unauthenticated", "requiresPassword": True}
-        if not password:
-            return {"success": False, "code": "password_required", "requiresPassword": True}
-        self._password = password
-        saved = False
-        if remember_password and self._selected_account_id:
-            try:
-                self._credential_store.write(self._selected_account_id, self._username, password)
-                self._account_store.set_remember_password(self._selected_account_id, True)
-                self._remember_password = True
-                saved = True
-            except WindowsCredentialError:
-                self._account_store.set_remember_password(self._selected_account_id, False)
-                self._remember_password = False
-                saved = False
-        elif self._selected_account_id:
-            self._credential_delete(self._selected_account_id)
-            self._account_store.set_remember_password(self._selected_account_id, False)
-            self._remember_password = False
-        self.runtimeCredentialSupplied.emit()
-        return {
-            "success": True,
-            "code": "credential_supplied" if not remember_password or saved else "credential_not_saved",
-            "requiresPassword": False,
-        }
-
-    @Slot()
-    def cancelRuntimeCredentialSupply(self) -> None:
-        self.runtimeCredentialSupplyCancelled.emit()
-
-    @Slot(result=bool)
-    def hasCredential(self) -> bool:
-        return bool(self._password)
-
     @Slot(result=str)
     def ldapServer(self) -> str:
         return LDAP_HOST
@@ -460,7 +424,6 @@ class AuthBridge(QObject):
                 "displayName": item["display_name"],
                 "label": f'{item["display_name"]} ({item["username"]})' + ("  🔒" if item["remember_password"] else ""),
                 "rememberPassword": item["remember_password"],
-                "autoLogin": item.get("auto_login", False),
                 "avatarUrl": self._avatar_url_for_username(item["username"]),
                 "isCurrent": self._authenticated and item["account_id"] == self._selected_account_id,
                 "isLastUsed": item["account_id"] == self._account_store.last_account_id,
@@ -482,9 +445,6 @@ class AuthBridge(QObject):
 
     def _get_remember_password(self) -> bool:
         return self._remember_password
-
-    def _get_auto_login(self) -> bool:
-        return self._auto_login
 
     def _get_has_saved_credential(self) -> bool:
         item = self._account_store.get(self._selected_account_id) if self._selected_account_id else None
@@ -525,12 +485,6 @@ class AuthBridge(QObject):
         self.authChanged.emit()
         completed = {}
         target_account_id = account_id_for_username(username)
-        target_account = self._account_store.get(target_account_id)
-        auto_login = (
-            bool(target_account.get("auto_login", False))
-            if target_account and target_account_id != self._selected_account_id
-            else self._auto_login
-        )
         self._pending_authentications[generation] = {
             "username": username,
             "password": password,
@@ -539,7 +493,6 @@ class AuthBridge(QObject):
             "source": source,
             "completed": completed,
             "target_account_id": target_account_id,
-            "auto_login": auto_login,
             "previously_authenticated": self._authenticated,
         }
         self._log_auth_event("authentication_started", account=username, source=source)
@@ -578,14 +531,14 @@ class AuthBridge(QObject):
         remember_password = bool(pending["remember_password"])
         saved_credential = bool(pending["saved_credential"])
         source = str(pending["source"])
-        auto_login = bool(pending["auto_login"])
         auth_result = request["auth_result"]
         self._auth_busy = False
         if not auth_result["success"]:
             previously_authenticated = bool(pending["previously_authenticated"])
+            preference_changed = False
             if not previously_authenticated:
                 self._clear_session()
-            self._auth_state = "authenticated" if previously_authenticated else "auth_failed"
+            self._auth_state = "authenticated" if previously_authenticated else "credential_required"
             failure_code = str(auth_result.get("code", "") or "invalid_credentials")
             target_account_id = str(pending["target_account_id"])
             if saved_credential and failure_code == "invalid_credentials" and target_account_id:
@@ -593,7 +546,10 @@ class AuthBridge(QObject):
                 self._account_store.set_remember_password(target_account_id, False)
                 if target_account_id == self._selected_account_id:
                     self._remember_password = False
+                    preference_changed = True
             self.authChanged.emit()
+            if preference_changed:
+                self.preferencesChanged.emit()
             message = (
                 self.tr("Unable to connect to LDAP. Please try again later.")
                 if failure_code == "ldap_unavailable"
@@ -624,13 +580,11 @@ class AuthBridge(QObject):
                 saved = False
         else:
             self._credential_delete(account_id)
-        account_id = self._account_store.record_login(
-            validated_username, display_name, saved, auto_login=auto_login
-        )
+        account_id = self._account_store.record_login(validated_username, display_name, saved)
         self._account_store.set_active_account(account_id)
         self._selected_account_id = account_id
         self._remember_password = saved
-        self._auto_login = auto_login
+        self.preferencesChanged.emit()
         avatar_bytes = auth_result.get("avatar_bytes", b"")
         if isinstance(avatar_bytes, bytes) and avatar_bytes:
             self._set_avatar_bytes(validated_username, avatar_bytes)
@@ -700,7 +654,7 @@ class AuthBridge(QObject):
         except (CredentialNotFoundError, KeyError, WindowsCredentialError):
             self._account_store.set_remember_password(self._selected_account_id, False)
             self._remember_password = False
-            self.authChanged.emit()
+            self.preferencesChanged.emit()
             return {"success": False, "code": "credential_required", "message": self.tr("Please enter the password again."), "requiresPassword": True}
         return self._begin_authentication(username, password, True, saved_credential=True, source="manual")
 
@@ -723,8 +677,8 @@ class AuthBridge(QObject):
             self._selected_account_id = account_id
             self._username = item["username"]
             self._remember_password = bool(item["remember_password"])
-            self._auto_login = bool(item.get("auto_login", False))
             self._avatar_url = self._avatar_url_for_username(self._username)
+            self.preferencesChanged.emit()
         if not item.get("remember_password"):
             if not switching_authenticated_session:
                 self._auth_state = "credential_required"
@@ -755,26 +709,12 @@ class AuthBridge(QObject):
             self._credential_delete(self._selected_account_id)
             self._account_store.set_remember_password(self._selected_account_id, False)
             persisted = True
-        self.authChanged.emit()
+        self.preferencesChanged.emit()
         self._log_auth_event(
             "remember_password_updated", enabled=bool(enabled), persisted=persisted,
             pending=bool(enabled and not persisted),
         )
         return {"success": True, "code": "updated", "message": "", "requiresPassword": not enabled}
-
-    @Slot(bool, result="QVariantMap")
-    def setAutoLogin(self, enabled: bool) -> dict[str, Any]:
-        self._auto_login = bool(enabled)
-        persisted = False
-        if self._selected_account_id:
-            self._account_store.set_auto_login(self._selected_account_id, enabled)
-            persisted = True
-        self.authChanged.emit()
-        self._log_auth_event(
-            "auto_login_updated", enabled=bool(enabled),
-            persisted=persisted, pending=bool(enabled and not persisted),
-        )
-        return {"success": True, "code": "updated", "message": "", "requiresPassword": not self._remember_password}
 
     @Slot()
     def restoreStartupSession(self) -> None:
@@ -783,18 +723,7 @@ class AuthBridge(QObject):
             return
         self._startup_session_restored = True
         active_account_id = self._account_store.active_account_id
-        active = self._account_store.get(active_account_id) if active_account_id else None
-        if active:
-            self._selected_account_id = active_account_id
-            self._remember_password = bool(active.get("remember_password", False))
-            self._auto_login = bool(active.get("auto_login", False))
-            self._apply_authenticated_identity(active["username"], active.get("display_name", ""))
-            self._auth_state = "authenticated"
-            self.authChanged.emit()
-            self._log_auth_event("startup_session_restored", account=active["username"])
-            return
-        accounts = self._account_store.accounts()
-        selected = next((item for item in accounts if item.get("auto_login")), None)
+        selected = self._account_store.get(active_account_id) if active_account_id else None
         if selected is None:
             selected = self._account_store.get(self._account_store.last_account_id)
         if selected is None:
@@ -803,12 +732,49 @@ class AuthBridge(QObject):
         self._selected_account_id = selected["account_id"]
         self._username = selected["username"]
         self._remember_password = bool(selected.get("remember_password", False))
-        self._auto_login = bool(selected.get("auto_login", False))
         self._resolve_profile()
         self._avatar_url = self._avatar_url_for_username(self._username)
-        self._auth_state = "signed_out" if self._remember_password else "credential_required"
-        self.authChanged.emit()
-        self._log_auth_event("startup_account_selected", account=selected["username"], auto=self._auto_login)
+        self.preferencesChanged.emit()
+        self._log_auth_event(
+            "startup_account_selected", account=selected["username"],
+            restore_requested=selected["account_id"] == active_account_id,
+        )
+        if selected["account_id"] != active_account_id:
+            self._auth_state = "credential_required"
+            self.authChanged.emit()
+            return
+        if not self._remember_password:
+            self._auth_state = "credential_required"
+            self.authChanged.emit()
+            self._log_auth_event("startup_credential_unavailable", account=selected["username"])
+            return
+        try:
+            credential_username, password = self._credential_store.read(selected["account_id"])
+        except (CredentialNotFoundError, KeyError, WindowsCredentialError):
+            self._account_store.set_remember_password(selected["account_id"], False)
+            self._remember_password = False
+            self.preferencesChanged.emit()
+            self._auth_state = "credential_required"
+            self.authChanged.emit()
+            self._log_auth_event("startup_credential_unavailable", account=selected["username"])
+            return
+        if account_id_for_username(credential_username) != selected["account_id"] or not password:
+            self._credential_delete(selected["account_id"])
+            self._account_store.set_remember_password(selected["account_id"], False)
+            self._remember_password = False
+            self.preferencesChanged.emit()
+            self._auth_state = "credential_required"
+            self.authChanged.emit()
+            self._log_auth_event("startup_credential_unavailable", account=selected["username"])
+            return
+        self._log_auth_event("startup_credential_available", account=selected["username"])
+        self._set_auth_state(
+            username=credential_username,
+            authenticated=True,
+            password=password,
+            display_name=str(selected.get("display_name", "") or credential_username),
+        )
+        self._log_auth_event("startup_session_restored", account=credential_username, success=True)
 
     @Slot()
     def useOtherAccount(self) -> None:
@@ -820,7 +786,6 @@ class AuthBridge(QObject):
         self._authentication_generation += 1
         self._auth_busy = False
         self._remember_password = False
-        self._auto_login = False
         self._auth_state = "signed_out"
         self.authChanged.emit()
 
@@ -839,7 +804,7 @@ class AuthBridge(QObject):
             self._auth_state = "authenticated"
         else:
             self._clear_session()
-            self._auth_state = "signed_out"
+            self._auth_state = "credential_required" if self._selected_account_id else "signed_out"
         self.authChanged.emit()
         self._log_auth_event("authentication_cancelled", result="cancelled")
 
@@ -854,14 +819,14 @@ class AuthBridge(QObject):
         if item:
             self._username = item["username"]
             self._remember_password = bool(item["remember_password"])
-            self._auto_login = bool(item.get("auto_login", False))
             self._avatar_url = self._avatar_url_for_username(self._username)
             if not self._remember_password:
                 self._credential_delete(account_id)
-            self._auth_state = "credential_required" if not self._remember_password else "signed_out"
+            self._auth_state = "credential_required"
         else:
             self._auth_state = "signed_out"
         self.authChanged.emit()
+        self.preferencesChanged.emit()
         self._log_auth_event(
             "logout", account=str(item.get("username", "")) if item else "<none>",
             result="signed_out", remember=self._remember_password,
@@ -893,7 +858,6 @@ class AuthBridge(QObject):
             self._username = str(selected["username"])
             self._display_name = str(selected.get("display_name", "") or self._username)
             self._remember_password = bool(selected.get("remember_password", False))
-            self._auto_login = bool(selected.get("auto_login", False))
             self._resolve_profile()
             self._avatar_url = self._avatar_url_for_username(self._username)
         else:
@@ -902,9 +866,9 @@ class AuthBridge(QObject):
             self._profile = {}
             self._avatar_url = ""
             self._remember_password = False
-            self._auto_login = False
-        self._auth_state = "signed_out"
+        self._auth_state = "credential_required" if selected else "signed_out"
         self.authChanged.emit()
+        self.preferencesChanged.emit()
         if not cleanup_ok:
             self._log_auth_event(
                 "account_removed", account=str(item.get("username", "")) if item else "<none>",
@@ -939,9 +903,8 @@ class AuthBridge(QObject):
     selectedAccountId = Property(str, _get_selected_account_id, notify=authChanged)
     authState = Property(str, _get_auth_state_name, notify=authChanged)
     authBusy = Property(bool, _get_auth_busy, notify=authChanged)
-    rememberPassword = Property(bool, _get_remember_password, notify=authChanged)
-    autoLogin = Property(bool, _get_auto_login, notify=authChanged)
-    hasSavedCredential = Property(bool, _get_has_saved_credential, notify=authChanged)
+    rememberPassword = Property(bool, _get_remember_password, notify=preferencesChanged)
+    hasSavedCredential = Property(bool, _get_has_saved_credential, notify=preferencesChanged)
 
 
 class _DataBlob(ctypes.Structure):

@@ -11,7 +11,7 @@ import time
 
 from core.config.jsonTool import app_data_dir
 from core.logging import smart_log
-from .credentials import CredentialStoreError, create_credential_store
+from .credentials import CredentialMissingError, CredentialStoreError, create_credential_store
 
 
 SESSION_TTL_SECONDS = 90 * 24 * 60 * 60
@@ -57,7 +57,7 @@ class PersistentSessionStore:
     def _migrate(self):
         with self._connect() as connection:
             connection.execute("PRAGMA journal_mode=WAL")
-            if connection.execute("PRAGMA user_version").fetchone()[0] > 2:
+            if connection.execute("PRAGMA user_version").fetchone()[0] > 3:
                 raise RuntimeError("Unsupported SmartTest Web database schema.")
             connection.executescript("""
                 CREATE TABLE IF NOT EXISTS web_sessions (
@@ -98,7 +98,9 @@ class PersistentSessionStore:
             columns = {row[1] for row in connection.execute("PRAGMA table_info(web_sessions)")}
             if "credential_ref" not in columns:
                 connection.execute("ALTER TABLE web_sessions ADD COLUMN credential_ref TEXT")
-            connection.execute("PRAGMA user_version=2")
+            if "revoked_reason" not in columns:
+                connection.execute("ALTER TABLE web_sessions ADD COLUMN revoked_reason TEXT")
+            connection.execute("PRAGMA user_version=3")
 
     @property
     def journal_mode(self):
@@ -109,24 +111,46 @@ class PersistentSessionStore:
     def _hash(token):
         return hashlib.sha256((token or "").encode("utf-8")).hexdigest()
 
+    @staticmethod
+    def _account_key(username):
+        normalized = str(username or "").strip().casefold()
+        return "account-" + hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+    def saved_credentials(self, username):
+        normalized = str(username or "").strip().casefold()
+        if not normalized:
+            raise CredentialMissingError("Server credential was not found.")
+        cached = self._credentials.get(normalized)
+        if cached is not None:
+            return normalized, cached
+        stored_username, password = self._credential_store.read(self._account_key(normalized))
+        if str(stored_username).strip().casefold() != normalized:
+            raise CredentialMissingError("Server credential was not found.")
+        self._credentials[normalized] = password
+        return normalized, password
+
     def create(self, username, password, display_name="", avatar_bytes=b""):
         self.cleanup()
+        normalized = str(username).strip().casefold()
+        self._credential_store.write(self._account_key(normalized), normalized, password)
+        self._credentials[normalized] = password
+        return self._create_session(normalized, display_name, avatar_bytes)
+
+    def create_from_saved(self, username, display_name="", avatar_bytes=b""):
+        normalized, _password = self.saved_credentials(username)
+        self.cleanup()
+        return self._create_session(normalized, display_name, avatar_bytes)
+
+    def _create_session(self, username, display_name="", avatar_bytes=b""):
         token = secrets.token_urlsafe(32)
         token_hash = self._hash(token)
-        credential_ref = token_hash
         now = self._now()
-        self._credential_store.write(credential_ref, username, password)
         with self._lock, self._connect() as connection:
-            try:
-                connection.execute(
+            connection.execute(
                 "INSERT INTO web_sessions(token_hash,username,display_name,avatar,created_at,last_seen_at,expires_at,credential_ref) VALUES(?,?,?,?,?,?,?,?)",
                 (token_hash, str(username).strip().lower(), display_name or username, avatar_bytes or None,
-                 now, now, now + self._ttl, credential_ref),
-                )
-            except Exception:
-                self._credential_store.delete(credential_ref)
-                raise
-            self._credentials[token_hash] = password
+                 now, now, now + self._ttl, None),
+            )
         return token
 
     def get(self, token):
@@ -145,9 +169,6 @@ class PersistentSessionStore:
                 connection.execute("DELETE FROM web_sessions WHERE token_hash=?", (token_hash,))
                 connection.execute("DELETE FROM web_query_snapshots WHERE session_hash=?", (token_hash,))
                 connection.commit()
-                self._credentials.pop(token_hash, None)
-                if row[5]:
-                    self._delete_credential(row[5])
                 return None
             expires_at = row[4]
             renewed = False
@@ -156,11 +177,28 @@ class PersistentSessionStore:
                 connection.execute("UPDATE web_sessions SET last_seen_at=?,expires_at=? WHERE token_hash=?",
                                    (now, expires_at, token_hash))
                 renewed = True
-            password = self._credentials.get(token_hash)
-            if password is None and row[5]:
+            normalized = str(row[0]).strip().casefold()
+            password = self._credentials.get(normalized)
+            if password is None:
                 try:
-                    _stored_username, password = self._credential_store.read(row[5])
-                    self._credentials[token_hash] = password
+                    _stored_username, password = self.saved_credentials(normalized)
+                except CredentialMissingError:
+                    if row[5]:
+                        try:
+                            _stored_username, password = self._credential_store.read(row[5])
+                            self._credential_store.write(
+                                self._account_key(normalized), normalized, password,
+                            )
+                            self._credentials[normalized] = password
+                            self._delete_legacy_credential(row[5])
+                            connection.execute(
+                                "UPDATE web_sessions SET credential_ref=NULL WHERE token_hash=?",
+                                (token_hash,),
+                            )
+                        except CredentialStoreError as exc:
+                            smart_log("Persistent Web credential recovery failed", platform="web", domain="auth",
+                                      source="PersistentSessionStore", level="warning",
+                                      extra={"exception_type": type(exc).__name__})
                 except CredentialStoreError as exc:
                     smart_log("Persistent Web credential recovery failed", platform="web", domain="auth",
                               source="PersistentSessionStore", level="warning",
@@ -180,32 +218,52 @@ class PersistentSessionStore:
     def delete(self, token):
         token_hash = self._hash(token)
         with self._lock, self._connect() as connection:
-            row = connection.execute("SELECT credential_ref FROM web_sessions WHERE token_hash=?", (token_hash,)).fetchone()
             connection.execute("UPDATE web_sessions SET revoked_at=? WHERE token_hash=? AND revoked_at IS NULL",
                                (self._now(), token_hash))
             connection.execute("DELETE FROM web_query_snapshots WHERE session_hash=?", (token_hash,))
-            self._credentials.pop(token_hash, None)
-        if row and row[0]:
-            self._delete_credential(row[0])
 
     def delete_all(self, username):
         now = self._now()
         with self._lock, self._connect() as connection:
-            rows = list(connection.execute(
-                "SELECT token_hash,credential_ref FROM web_sessions WHERE username=? AND revoked_at IS NULL", (username,)))
+            token_hashes = [row[0] for row in connection.execute(
+                "SELECT token_hash FROM web_sessions WHERE username=? AND revoked_at IS NULL", (username,))]
             cursor = connection.execute("UPDATE web_sessions SET revoked_at=? WHERE username=? AND revoked_at IS NULL",
                                         (now, username))
-            connection.executemany("DELETE FROM web_query_snapshots WHERE session_hash=?", ((token_hash,) for token_hash, _ in rows))
-            for token_hash, _credential_ref in rows:
-                self._credentials.pop(token_hash, None)
-        for _token_hash, credential_ref in rows:
-            if credential_ref: self._delete_credential(credential_ref)
+            connection.executemany("DELETE FROM web_query_snapshots WHERE session_hash=?",
+                                   ((token_hash,) for token_hash in token_hashes))
         return cursor.rowcount
+
+    def invalidate_credentials(self, username):
+        normalized = str(username or "").strip().casefold()
+        now = self._now()
+        with self._lock, self._connect() as connection:
+            token_hashes = [row[0] for row in connection.execute(
+                "SELECT token_hash FROM web_sessions WHERE username=? AND revoked_at IS NULL",
+                (normalized,),
+            )]
+            cursor = connection.execute(
+                "UPDATE web_sessions SET revoked_at=?,revoked_reason='invalid_credentials' "
+                "WHERE username=? AND revoked_at IS NULL",
+                (now, normalized),
+            )
+            connection.executemany("DELETE FROM web_query_snapshots WHERE session_hash=?",
+                                   ((token_hash,) for token_hash in token_hashes))
+        self._credentials.pop(normalized, None)
+        self._credential_store.delete(self._account_key(normalized))
+        return cursor.rowcount
+
+    def rejection_state(self, token):
+        token_hash = self._hash(token)
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT revoked_reason FROM web_sessions WHERE token_hash=?", (token_hash,),
+            ).fetchone()
+        return str(row[0] or "") if row else ""
 
     def cleanup(self, limit=100):
         with self._connect() as connection:
             rows = list(connection.execute(
-                "SELECT id,token_hash,credential_ref FROM web_sessions WHERE expires_at<=? OR revoked_at IS NOT NULL LIMIT ?",
+                "SELECT id,token_hash FROM web_sessions WHERE expires_at<=? OR revoked_at IS NOT NULL LIMIT ?",
                 (self._now(), limit),
             ))
             cursor = connection.execute(
@@ -213,12 +271,11 @@ class PersistentSessionStore:
                 (self._now(), limit),
             )
         with self._connect() as connection:
-            connection.executemany("DELETE FROM web_query_snapshots WHERE session_hash=?", ((token_hash,) for _id, token_hash, _credential_ref in rows))
-        for _id, _token_hash, credential_ref in rows:
-            if credential_ref: self._delete_credential(credential_ref)
+            connection.executemany("DELETE FROM web_query_snapshots WHERE session_hash=?",
+                                   ((token_hash,) for _id, token_hash in rows))
         return cursor.rowcount
 
-    def _delete_credential(self, credential_ref):
+    def _delete_legacy_credential(self, credential_ref):
         try:
             self._credential_store.delete(credential_ref)
         except CredentialStoreError as exc:

@@ -5,7 +5,11 @@ from types import SimpleNamespace
 class MemoryCredentialStore:
     def __init__(self): self.values = {}
     def write(self, reference, username, password): self.values[reference] = (username, password)
-    def read(self, reference): return self.values[reference]
+    def read(self, reference):
+        from smarttest_web.credentials import CredentialMissingError
+        if reference not in self.values:
+            raise CredentialMissingError("credential not found")
+        return self.values[reference]
     def delete(self, reference): self.values.pop(reference, None)
 
 

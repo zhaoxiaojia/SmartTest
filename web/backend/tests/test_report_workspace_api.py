@@ -167,11 +167,13 @@ def test_confluence_request_logs_one_safe_request_record(monkeypatch) -> None:
     )
 
     assert response.status_code == 200
-    assert len(records) == 1
-    message, record = records[0]
+    request_records = [item for item in records if item[1].get("source") == "request"]
+    assert len(request_records) == 1
+    message, record = request_records[0]
     assert record["source"] == "request"
     assert record["extra"]["path"] == "/api/confluence/project-facts"
     assert record["extra"]["status"] == 200
+    assert any(item[1].get("source") == "session_resolve" for item in records)
     assert "Private Person" not in str(records) and "SECRET-PROJECT" not in str(records)
 
 

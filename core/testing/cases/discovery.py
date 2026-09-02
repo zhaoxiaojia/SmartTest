@@ -41,12 +41,7 @@ def discover_pytest_cases(
     if test_paths is None:
         test_paths = [core_root / "testing" / "tests"]
 
-    command_paths = [
-        path.resolve().relative_to(core_root)
-        if path.resolve() == core_root or core_root in path.resolve().parents
-        else path
-        for path in test_paths
-    ]
+    command_paths = [path.resolve() for path in test_paths]
 
     python_executable = python_executable or "python"
 
@@ -64,11 +59,13 @@ def discover_pytest_cases(
             "--collect-only",
             "-q",
             "--disable-warnings",
+            "--rootdir",
+            str(core_root),
         ] + [str(p) for p in command_paths]
 
         proc = subprocess.run(
             cmd,
-            cwd=str(core_root),
+            cwd=str(root_dir),
             env=env,
             capture_output=True,
             text=True,

@@ -30,7 +30,9 @@ from .project_facts_api import ProjectFactsWebOwner
 from .session import PersistentSessionStore, default_web_database_path
 from .background_refresh import BackgroundFactsRefresh
 from .query_snapshot_repository import ConfluenceQuerySnapshotRepository
-from .credentials import CredentialStoreError
+from .test_suite_repository import NameConflictError, RevisionConflictError, TestSuiteRepository
+from .credentials import CredentialMissingError, CredentialStoreError
+from .resource_access import remote_credentials_rejected
 from .audit.registry import (
     AuditConflictError,
     AuditNotFoundError,
@@ -84,6 +86,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     facts = project_facts_owner()
     refresh = facts_refresh()
     snapshots = ConfluenceQuerySnapshotRepository(cache_database)
+    test_suites = TestSuiteRepository(cache_database)
     audits = audit_registry()
     downloads = download_service()
 
@@ -98,6 +101,48 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     app = FastAPI(title="SmartTest Wi-Fi Database", docs_url=None, redoc_url=None,
                   openapi_url=None, lifespan=lifespan)
 
+    def set_session_cookie(request: Request, response: Response, token: str) -> None:
+        secure = request.url.scheme.lower() == "https"
+        response.set_cookie(
+            SESSION_COOKIE,
+            token,
+            httponly=True,
+            secure=secure,
+            samesite="lax",
+            max_age=sessions.ttl_seconds,
+            path="/",
+        )
+        smart_log(
+            f"Web session cookie cookie_action=set secure={str(secure).lower()} "
+            f"request_id={request.state.request_id}",
+            platform="web", domain="auth", source="session_cookie",
+            request_id=request.state.request_id,
+            extra={"cookie_action": "set", "secure": secure,
+                   "request_scheme": request.url.scheme.lower(),
+                   "request_id": request.state.request_id},
+            emit_runtime_event=False,
+        )
+
+    def clear_session_cookie(request: Request, response: Response) -> None:
+        secure = request.url.scheme.lower() == "https"
+        response.delete_cookie(
+            SESSION_COOKIE,
+            path="/",
+            httponly=True,
+            secure=secure,
+            samesite="lax",
+        )
+        smart_log(
+            f"Web session cookie cookie_action=clear secure={str(secure).lower()} "
+            f"request_id={request.state.request_id}",
+            platform="web", domain="auth", source="session_cookie",
+            request_id=request.state.request_id,
+            extra={"cookie_action": "clear", "secure": secure,
+                   "request_scheme": request.url.scheme.lower(),
+                   "request_id": request.state.request_id},
+            emit_runtime_event=False,
+        )
+
     @app.middleware("http")
     async def log_request(request: Request, call_next):
         started = perf_counter()
@@ -108,21 +153,19 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             response = await call_next(request)
             status = response.status_code
             if getattr(request.state, "renew_session_cookie", False):
-                response.set_cookie(
-                    SESSION_COOKIE, request.cookies[SESSION_COOKIE], httponly=True, secure=True,
-                    samesite="lax", max_age=sessions.ttl_seconds, path="/",
-                )
+                set_session_cookie(request, response, request.cookies[SESSION_COOKIE])
             response.headers["x-request-id"] = request_id
             return response
         finally:
             smart_log(
-                f"{request.method} {request.url.path} {status}",
+                f"{request.method} {request.url.path} {status} request_id={request_id}",
                 platform="web",
                 domain="web",
                 level="error" if status >= 500 else "warning" if status >= 400 else "info",
                 source="request",
                 request_id=request_id,
                 extra={"method": request.method, "path": request.url.path, "status": status,
+                       "request_id": request_id,
                        "duration_ms": round((perf_counter() - started) * 1000, 3)},
                 emit_runtime_event=False,
             )
@@ -132,7 +175,18 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         return {"status": "ok"}
 
     def current_session(request: Request):
+        cookie_present = bool(request.cookies.get(SESSION_COOKIE, ""))
         value = sessions.get(request.cookies.get(SESSION_COOKIE, ""))
+        smart_log(
+            f"Web session resolve cookie_present={str(cookie_present).lower()} "
+            f"session_found={str(value is not None).lower()} "
+            f"request_id={request.state.request_id}",
+            platform="web", domain="auth", source="session_resolve",
+            request_id=request.state.request_id,
+            extra={"cookie_present": cookie_present, "session_found": value is not None,
+                   "request_id": request.state.request_id},
+            emit_runtime_event=False,
+        )
         if value is not None and value.cookie_renewal_required:
             request.state.renew_session_cookie = True
         return value
@@ -144,29 +198,77 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                 "displayName": value.display_name,
                 "avatarUrl": "/api/auth/avatar" if value.avatar_bytes else ""}
 
+    def establish_session(request: Request, response: Response, *, username: str,
+                          password: str | None, display_name: str = "",
+                          avatar_bytes: bytes = b""):
+        try:
+            if password is None:
+                session_id = sessions.create_from_saved(username, display_name, avatar_bytes)
+            else:
+                session_id = sessions.create(username, password, display_name, avatar_bytes)
+        except CredentialStoreError as error:
+            smart_log("Persistent Web credential storage failed", platform="web", domain="auth",
+                      source="session", level="error",
+                      extra={"exception_type": type(error).__name__})
+            raise HTTPException(
+                status_code=503,
+                detail={"state": "credential_store_unavailable"},
+            ) from error
+        old_token = request.cookies.get(SESSION_COOKIE, "")
+        if old_token:
+            sessions.delete(old_token)
+            audits.cancel_session(_session_owner(old_token))
+        set_session_cookie(request, response, session_id)
+        return public_session(sessions.get(session_id))
+
     @app.post("/api/auth/login")
     def login(request: Request, response: Response, payload: dict = Body(...)):
         username = str(payload.get("username") or "").strip()
         password = str(payload.get("password") or "")
+        try:
+            sessions.saved_credentials(username)
+        except CredentialMissingError:
+            pass
+        except CredentialStoreError as error:
+            raise HTTPException(
+                status_code=503,
+                detail={"state": "credential_store_unavailable"},
+            ) from error
+        else:
+            return establish_session(
+                request,
+                response,
+                username=username,
+                password=None,
+                display_name=username,
+            )
         result = auth.authenticate(username, password)
         if not result.get("success"):
             code = result.get("code") if result.get("code") in {"invalid_credentials", "ldap_unavailable"} else "ldap_unavailable"
             raise HTTPException(status_code=401 if code == "invalid_credentials" else 503,
                                 detail={"state": code})
-        try:
-            session_id = sessions.create(result["username"], password,
-                                         result.get("display_name", ""), result.get("avatar_bytes", b""))
-        except CredentialStoreError as error:
-            smart_log("Persistent Web credential storage failed", platform="web", domain="auth",
-                      source="login", level="error", extra={"exception_type": type(error).__name__})
-            raise HTTPException(status_code=503, detail={"state": "credential_store_unavailable"}) from error
-        old_token = request.cookies.get(SESSION_COOKIE, "")
-        if old_token:
-            sessions.delete(old_token)
-            audits.cancel_session(_session_owner(old_token))
-        response.set_cookie(SESSION_COOKIE, session_id, httponly=True, secure=True,
-                            samesite="lax", max_age=sessions.ttl_seconds, path="/")
-        return public_session(sessions.get(session_id))
+        return establish_session(
+            request,
+            response,
+            username=result["username"],
+            password=password,
+            display_name=result.get("display_name", ""),
+            avatar_bytes=result.get("avatar_bytes", b""),
+        )
+
+    @app.post("/api/auth/client-session")
+    def client_session(request: Request, response: Response, payload: dict = Body(...)):
+        username = str(payload.get("username") or "").strip()
+        password = str(payload.get("password") or "")
+        if not username or not password:
+            raise HTTPException(status_code=422, detail={"state": "invalid_input"})
+        return establish_session(
+            request,
+            response,
+            username=username,
+            password=password,
+            display_name=username,
+        )
 
     @app.get("/api/auth/session")
     def session(request: Request):
@@ -185,7 +287,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         downloads.clear_session(_session_owner(token))
         sessions.delete(token)
         audits.cancel_session(_session_owner(token))
-        response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, secure=True, samesite="lax")
+        clear_session_cookie(request, response)
         return {"authenticated": False}
 
     @app.post("/api/auth/logout-all")
@@ -196,14 +298,104 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         downloads.clear_session(audit_session(request))
         sessions.delete_all(value.username)
         request.state.renew_session_cookie = False
-        response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, secure=True, samesite="lax")
+        clear_session_cookie(request, response)
         return {"authenticated": False}
 
     def authenticated_session(request: Request):
         value = current_session(request)
         if value is None:
-            raise HTTPException(status_code=401, detail={"state": "unauthenticated"})
+            state = sessions.rejection_state(request.cookies.get(SESSION_COOKIE, ""))
+            raise HTTPException(status_code=401, detail={"state": state or "unauthenticated"})
         return value
+
+    def suite_payload(record, *, detail: bool = False):
+        payload = {
+            "id": record.id, "ownerUsername": record.owner_username,
+            "ownerDisplayName": record.owner_display_name, "name": record.name,
+            "description": record.description, "visibility": record.visibility,
+            "caseCount": len(record.ordered_nodeids), "revision": record.revision,
+            "createdAt": record.created_at, "updatedAt": record.updated_at,
+        }
+        if detail:
+            payload["orderedNodeids"] = list(record.ordered_nodeids)
+        return payload
+
+    def suite_input(payload: dict, *, revision_required: bool = False):
+        name = payload.get("name")
+        description = payload.get("description", "")
+        visibility = payload.get("visibility", "private")
+        nodeids = payload.get("orderedNodeids")
+        revision = payload.get("revision")
+        if (not isinstance(name, str) or not name.strip() or
+                not isinstance(description, str) or visibility not in {"private", "shared"} or
+                not isinstance(nodeids, list) or not nodeids or
+                any(not isinstance(item, str) or not item.strip() for item in nodeids) or
+                revision_required and (not isinstance(revision, int) or isinstance(revision, bool))):
+            raise HTTPException(status_code=422, detail={"state": "invalid_input"})
+        return name, description, visibility, nodeids, revision
+
+    @app.get("/api/test-suites")
+    def list_test_suites(scope: str, value=Depends(authenticated_session)):
+        if scope == "mine":
+            rows = test_suites.list_mine(value.username)
+        elif scope == "shared":
+            rows = test_suites.list_shared(value.username)
+        else:
+            raise HTTPException(status_code=422, detail={"state": "invalid_input"})
+        return [suite_payload(row) for row in rows]
+
+    @app.get("/api/test-suites/{suite_id}")
+    def get_test_suite(suite_id: str, value=Depends(authenticated_session)):
+        record = test_suites.get_visible(suite_id, value.username)
+        if record is None:
+            raise HTTPException(status_code=404, detail={"state": "not_found"})
+        return suite_payload(record, detail=True)
+
+    @app.post("/api/test-suites")
+    def create_test_suite(payload: dict = Body(...), value=Depends(authenticated_session)):
+        name, description, visibility, nodeids, _ = suite_input(payload)
+        try:
+            record = test_suites.create(owner_username=value.username,
+                owner_display_name=value.display_name or value.username, name=name,
+                description=description, visibility=visibility, ordered_nodeids=nodeids)
+        except NameConflictError as error:
+            raise HTTPException(status_code=409, detail={"state": "name_conflict"}) from error
+        return suite_payload(record, detail=True)
+
+    @app.put("/api/test-suites/{suite_id}")
+    def update_test_suite(suite_id: str, payload: dict = Body(...), value=Depends(authenticated_session)):
+        name, description, visibility, nodeids, revision = suite_input(payload, revision_required=True)
+        try:
+            record = test_suites.update(suite_id, owner_username=value.username, revision=revision,
+                name=name, description=description, visibility=visibility, ordered_nodeids=nodeids)
+        except NameConflictError as error:
+            raise HTTPException(status_code=409, detail={"state": "name_conflict"}) from error
+        except RevisionConflictError as error:
+            raise HTTPException(status_code=409, detail={"state": "revision_conflict"}) from error
+        if record is None:
+            raise HTTPException(status_code=404, detail={"state": "not_found"})
+        return suite_payload(record, detail=True)
+
+    @app.delete("/api/test-suites/{suite_id}")
+    def delete_test_suite(suite_id: str, value=Depends(authenticated_session)):
+        if not test_suites.delete(suite_id, owner_username=value.username):
+            raise HTTPException(status_code=404, detail={"state": "not_found"})
+        return {"deleted": True}
+
+    @app.post("/api/test-suites/{suite_id}/copy")
+    def copy_test_suite(suite_id: str, payload: dict = Body(...), value=Depends(authenticated_session)):
+        name = payload.get("name")
+        visibility = payload.get("visibility", "private")
+        if not isinstance(name, str) or not name.strip() or visibility not in {"private", "shared"}:
+            raise HTTPException(status_code=422, detail={"state": "invalid_input"})
+        try:
+            record = test_suites.copy(suite_id, reader_username=value.username,
+                owner_display_name=value.display_name or value.username, name=name, visibility=visibility)
+        except NameConflictError as error:
+            raise HTTPException(status_code=409, detail={"state": "name_conflict"}) from error
+        if record is None:
+            raise HTTPException(status_code=404, detail={"state": "not_found"})
+        return suite_payload(record, detail=True)
 
     def audit_session(request: Request) -> str:
         return _session_owner(request.cookies.get(SESSION_COOKIE, ""))
@@ -302,13 +494,24 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         except Exception as error:
             raise HTTPException(status_code=503, detail={"state": "cache_unavailable"}) from error
 
+    def raise_downstream_error(value, error):
+        if remote_credentials_rejected(error):
+            sessions.invalidate_credentials(value.username)
+            raise HTTPException(
+                status_code=401, detail={"state": "invalid_credentials"},
+            ) from error
+        raise error
+
     @app.get("/api/jira/issues")
     def jira_issues(
         query: str = "", page: int = 0, pageSize: int = 100,
         value=Depends(authenticated_session),
     ):
         owner = resolve_jira_cache(value)
-        result = owner.list_issues(query, page, pageSize)
+        try:
+            result = owner.list_issues(query, page, pageSize)
+        except Exception as error:
+            raise_downstream_error(value, error)
         return {
             "issues": [_issue_payload(issue, ()) for issue in result.issues],
             "pagination": {"page": result.page, "pageSize": result.page_size, "total": result.total},
@@ -321,7 +524,10 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         if any(name not in allowed for name in names):
             raise HTTPException(status_code=422, detail={"state": "invalid_details"})
         details = IssueDetails(**{name: True for name in names})
-        issue = resolve_jira_cache(value).get_issue(issue_key, details)
+        try:
+            issue = resolve_jira_cache(value).get_issue(issue_key, details)
+        except Exception as error:
+            raise_downstream_error(value, error)
         if issue is None:
             raise HTTPException(status_code=404, detail={"state": "not_found"})
         return _issue_payload(issue, names)
@@ -343,6 +549,12 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                 (row.get("project_id") for row in result.get("projects", ())),
                 getattr(facts, "facts_version", lambda: "")(), expires_at=value.expires_at,
             )
+
+    def downstream_refresh_error(value, error):
+        if not remote_credentials_rejected(error):
+            return "failed"
+        sessions.invalidate_credentials(value.username)
+        return "invalid_credentials"
 
     @app.get("/api/confluence/project-facts")
     def confluence_project_facts(request: Request, owner=Depends(resolve_project_facts_owner),
@@ -375,6 +587,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             refresh.start_details(
                 owner, access, value.password, filters=filters, search=search,
                 on_complete=lambda completed: record_query_snapshot(access, value, filters, search, completed),
+                on_error=lambda error: downstream_refresh_error(value, error),
             )
         elif load_details:
             result = {**query_current(),
@@ -384,10 +597,15 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             result = query_current()
             record_query_snapshot(access, value, filters, search, result)
         if load_catalog and value.password:
-            refresh.start(owner, access, value.password)
+            refresh.start(
+                owner, access, value.password,
+                on_error=lambda error: downstream_refresh_error(value, error),
+            )
         refresh_state = refresh.state_for(access.session_hash)
         if refresh_state == "failed":
             result = {**result, "state": "failed"}
+        elif refresh_state == "invalid_credentials":
+            result = {**result, "state": "invalid_credentials"}
         elif refresh_state == "loading":
             result = {**result, "state": "loading"}
         elif refresh_state == "ready" and result.get("state") == "no_snapshot":
