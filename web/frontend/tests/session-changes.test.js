@@ -53,3 +53,23 @@ it('announces successful login and logout without storing identity or credential
   expect(JSON.stringify(localStorage)).not.toMatch(/alice|private-password/)
   window.removeEventListener('auth:changed', changed)
 })
+
+it('keeps successful login successful when an HTTP IP origin has no crypto.randomUUID', async () => {
+  localStorage.clear()
+  const changed = vi.fn()
+  window.addEventListener('auth:changed', changed)
+  vi.stubGlobal('crypto', {})
+  try {
+    const api = createAuthApi({ fetchImpl: vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ authenticated: true }),
+    }) })
+    await expect(api.login('alice', 'private-password')).resolves.toEqual({ authenticated: true })
+    expect(changed).toHaveBeenCalledOnce()
+    expect(localStorage.getItem('smarttest:identity-change')).toBeTruthy()
+    expect(JSON.stringify(localStorage)).not.toMatch(/alice|private-password/)
+  } finally {
+    vi.unstubAllGlobals()
+    window.removeEventListener('auth:changed', changed)
+  }
+})

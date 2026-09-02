@@ -6,11 +6,16 @@ export class ApiUnavailableError extends Error {
   }
 }
 
+function identityChangeMarker() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID()
+  return `${Date.now()}-${Math.random()}`
+}
+
 export function createAuthApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
   async function change(path, options) {
     const result = await request(path, options)
     if (globalThis.window) {
-      window.localStorage.setItem('smarttest:identity-change', crypto.randomUUID())
+      window.localStorage.setItem('smarttest:identity-change', identityChangeMarker())
       window.dispatchEvent(new Event('auth:changed'))
     }
     return result

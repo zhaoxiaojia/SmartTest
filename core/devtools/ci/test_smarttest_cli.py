@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 import runpy
+import shutil
 import subprocess
 import sys
 
@@ -48,10 +49,12 @@ def test_dev_is_product_owned_not_a_unified_command():
     assert (ROOT / "web/scripts/dev.py").is_file()
 
 
-def test_web_dev_exposes_frontend_to_local_network(monkeypatch):
+def test_web_dev_exposes_frontend_to_local_network():
     module = runpy.run_path(str(ROOT / "web/scripts/dev.py"), run_name="migration_contract")
     calls = []
-    monkeypatch.setattr(sys, "executable", str(ROOT / "outside/python.exe"))
+    python = (ROOT / "outside/python.exe").resolve()
+    npm = Path(shutil.which("npm.cmd")).resolve()
+    module["run"].__globals__["resolve_runtime_tools"] = lambda: (python, npm)
 
     class FinishedProcess:
         returncode = 1
@@ -64,17 +67,19 @@ def test_web_dev_exposes_frontend_to_local_network(monkeypatch):
         def wait(timeout=None):
             return 1
 
-    monkeypatch.setattr(
-        subprocess,
-        "Popen",
-        lambda command, **kwargs: calls.append((command, kwargs)) or FinishedProcess(),
+    result = module["run"](
+        popen=lambda command, **kwargs: calls.append((command, kwargs)) or FinishedProcess(),
+        port_in_use=lambda: False,
+        wait_for_health=lambda _processes: False,
+        terminate_tree=lambda _process: None,
+        wait_for_port_release=lambda: True,
     )
 
-    assert module["main"]() == 1
-    assert Path(calls[0][0][0]) == ROOT / ".venv/Scripts/python.exe"
-    assert Path(calls[1][0][0]) == ROOT / ".venv/Scripts/npm.cmd"
+    assert result == 1
+    assert Path(calls[0][0][0]) == python
+    assert Path(calls[1][0][0]) == npm
     assert calls[1][0][-3:] == ["--", "--host", "0.0.0.0"]
-    assert calls[1][1]["env"]["PATH"].split(os.pathsep)[0] == str(ROOT / ".venv/Scripts")
+    assert calls[1][1]["env"]["PATH"].split(os.pathsep)[0] == str(npm.parent)
 
 
 def test_bootstrap_reuses_existing_dot_venv_without_recreating_running_python(tmp_path):

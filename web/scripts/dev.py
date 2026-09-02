@@ -2,7 +2,9 @@
 
 import os
 from pathlib import Path
+import importlib.util
 import json
+import shutil
 import socket
 import subprocess
 import sys
@@ -11,9 +13,6 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[2]
-BIN_DIR = ROOT / ".venv" / ("Scripts" if sys.platform.startswith("win") else "bin")
-PYTHON = BIN_DIR / ("python.exe" if sys.platform.startswith("win") else "python")
-NPM = BIN_DIR / ("npm.cmd" if sys.platform.startswith("win") else "npm")
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -23,6 +22,31 @@ from core.logging import smart_log
 HOST = "127.0.0.1"
 PORT = 8000
 HEALTH_URL = f"http://{HOST}:{PORT}/health"
+MANAGED_PYTHON = ROOT / ".venv" / (
+    "Scripts/python.exe" if sys.platform.startswith("win") else "bin/python"
+)
+
+
+def web_backend_dependencies_available():
+    return all(importlib.util.find_spec(name) is not None for name in ("fastapi", "uvicorn"))
+
+
+def resolve_runtime_tools(
+    *, python_executable=None, managed_python=MANAGED_PYTHON,
+    backend_dependencies_available=web_backend_dependencies_available,
+    which=shutil.which,
+):
+    python = Path(python_executable or sys.executable).resolve()
+    if not backend_dependencies_available() and Path(managed_python).is_file():
+        python = Path(managed_python).resolve()
+    npm_name = "npm.cmd" if sys.platform.startswith("win") else "npm"
+    adjacent_npm = python.parent / npm_name
+    if adjacent_npm.is_file():
+        return python, adjacent_npm
+    system_npm = which(npm_name)
+    if system_npm:
+        return python, Path(system_npm).resolve()
+    raise FileNotFoundError(f"{npm_name} was not found beside Python or on PATH")
 
 
 def _log(message: str, *, level: str = "info", **extra) -> None:
@@ -36,11 +60,7 @@ def backend_process_kwargs() -> dict[str, int]:
     """Keep Uvicorn reload control events inside its own Windows process group."""
     if not sys.platform.startswith("win"):
         return {}
-    return {
-        "creationflags": (
-            subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
-        )
-    }
+    return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
 
 
 def is_backend_port_in_use(*, timeout_seconds: float = 0.2) -> bool:
@@ -205,15 +225,16 @@ def run(
             port=PORT,
         )
 
-    npm_env = os.environ.copy()
-    npm_env["PATH"] = os.pathsep.join(
-        part for part in (str(BIN_DIR), npm_env.get("PATH", "")) if part
-    )
     processes = []
     try:
+        python, npm = resolve_runtime_tools()
+        npm_env = os.environ.copy()
+        npm_env["PATH"] = os.pathsep.join(
+            part for part in (str(npm.parent), npm_env.get("PATH", "")) if part
+        )
         backend = popen(
             [
-                str(PYTHON), "-m", "uvicorn", "smarttest_web.app:app",
+                str(python), "-m", "uvicorn", "smarttest_web.app:app",
                 "--app-dir", "web/backend", "--reload", "--reload-dir",
                 "web/backend", "--port", str(PORT), "--no-access-log",
             ],
@@ -222,7 +243,7 @@ def run(
         )
         processes.append(backend)
         frontend = popen(
-            [str(NPM), "run", "dev", "--", "--host", "0.0.0.0"],
+            [str(npm), "run", "dev", "--", "--host", "0.0.0.0"],
             cwd=ROOT / "web/frontend",
             env=npm_env,
         )

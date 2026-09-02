@@ -27,6 +27,62 @@ class FakeProcess:
     def wait(self, timeout=None): return self.returncode
 
 
+def test_windows_backend_keeps_process_group_and_inherits_development_console():
+    kwargs = dev.backend_process_kwargs()
+
+    if sys.platform.startswith("win"):
+        assert kwargs["creationflags"] & subprocess.CREATE_NEW_PROCESS_GROUP
+        assert not kwargs["creationflags"] & subprocess.CREATE_NO_WINDOW
+    else:
+        assert kwargs == {}
+
+
+def test_runtime_tools_use_adjacent_npm_for_managed_environment(tmp_path):
+    python = tmp_path / "Scripts" / "python.exe"
+    npm = python.parent / "npm.cmd"
+    python.parent.mkdir()
+    python.touch()
+    npm.touch()
+
+    assert dev.resolve_runtime_tools(
+        python_executable=python,
+        backend_dependencies_available=lambda: True,
+        which=lambda _name: "system/npm.cmd",
+    ) == (python.resolve(), npm.resolve())
+
+
+def test_runtime_tools_use_path_npm_for_system_environment(tmp_path):
+    python = tmp_path / "python.exe"
+    npm = tmp_path / "node" / "npm.cmd"
+    python.touch()
+    npm.parent.mkdir()
+    npm.touch()
+
+    assert dev.resolve_runtime_tools(
+        python_executable=python,
+        backend_dependencies_available=lambda: True,
+        which=lambda _name: str(npm),
+    ) == (python.resolve(), npm.resolve())
+
+
+def test_runtime_tools_use_managed_python_when_system_environment_lacks_backend(tmp_path):
+    system_python = tmp_path / "system" / "python.exe"
+    managed_python = tmp_path / ".venv" / "Scripts" / "python.exe"
+    npm = managed_python.parent / "npm.cmd"
+    system_python.parent.mkdir()
+    managed_python.parent.mkdir(parents=True)
+    system_python.touch()
+    managed_python.touch()
+    npm.touch()
+
+    assert dev.resolve_runtime_tools(
+        python_executable=system_python,
+        managed_python=managed_python,
+        backend_dependencies_available=lambda: False,
+        which=lambda _name: None,
+    ) == (managed_python.resolve(), npm.resolve())
+
+
 def test_direct_script_loads_core_logging_outside_repository_cwd(tmp_path):
     script = Path(dev.__file__).resolve()
     environment = dict(os.environ)
