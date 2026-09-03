@@ -568,6 +568,14 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         search = request.query_params.get("search", "")
         load_details = request.query_params.get("details") == "1"
         load_catalog = request.query_params.get("catalog") == "1"
+        replay_snapshot = request.query_params.get("snapshot") == "1"
+        reset_snapshot = request.query_params.get("reset") == "1"
+        if replay_snapshot:
+            selection = snapshots.get(access.session_hash)
+            if selection is not None:
+                filters, search = selection.filters, selection.search
+        elif reset_snapshot:
+            filters, search = {}, ""
         pagination = {}
         if "page" in request.query_params or "pageSize" in request.query_params:
             try:
@@ -584,8 +592,11 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         if load_details and value.password:
             result = query_current()
             record_query_snapshot(access, value, filters, search, result)
+            selection = snapshots.get(access.session_hash)
             refresh.start_details(
-                owner, access, value.password, filters=filters, search=search,
+                owner, access, value.password,
+                filters=selection.filters if selection is not None else filters,
+                search=selection.search if selection is not None else search,
                 on_complete=lambda completed: record_query_snapshot(access, value, filters, search, completed),
                 on_error=lambda error: downstream_refresh_error(value, error),
             )

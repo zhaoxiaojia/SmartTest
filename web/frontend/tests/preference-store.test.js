@@ -19,6 +19,21 @@ describe('PreferenceStore', () => {
     expect(api.put).not.toHaveBeenCalled()
   })
 
+  it('coalesces concurrent hydration for the same preference scope', async () => {
+    document.body.innerHTML = '<form data-preference-region><input name="search"></form>'
+    let finish
+    const api = { get: vi.fn(() => new Promise(resolve => { finish = resolve })), put: vi.fn() }
+    const store = createPreferenceStore({ root: document, api })
+
+    const first = store.start()
+    const second = store.start()
+    expect(api.get).toHaveBeenCalledOnce()
+    finish({ items: { search: 'Apollo' } })
+    await Promise.all([first, second])
+    expect(document.querySelector('[name="search"]').value).toBe('Apollo')
+    store.destroy()
+  })
+
   it('restores and saves standard controls only inside preference regions', async () => {
     document.body.innerHTML = `<form data-preference-region><input name="search"><input id="enabled" type="checkbox"></form><input name="outside">`
     const api = { get: vi.fn().mockResolvedValue({ items: { search: 'apollo', enabled: true } }), put: vi.fn().mockResolvedValue({}) }

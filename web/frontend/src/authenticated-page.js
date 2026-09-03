@@ -23,7 +23,7 @@ export function startAuthenticatedPage({ mount }) {
       section.textContent = 'Please sign in.'
       return
     }
-    page = mount(section)
+    page = mount(section, session)
     void page?.start?.()
   }
 

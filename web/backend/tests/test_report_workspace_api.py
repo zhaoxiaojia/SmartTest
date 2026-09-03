@@ -7,6 +7,7 @@ from smarttest_web.app import create_app
 from smarttest_web.background_refresh import BackgroundFactsRefresh
 from smarttest_web.downloads import DownloadArtifactService
 from smarttest_web.report_workspace import ClientAuditReportOwner
+from smarttest_web.session import PersistentSessionStore
 from test_web_session import FakeAuthenticator
 
 
@@ -67,10 +68,64 @@ def test_confluence_details_are_loaded_only_for_explicit_apply() -> None:
     response = client.get("/api/confluence/project-facts?field.support%20mode=A&details=1")
 
     assert response.status_code == 200
-    assert owner.sync_calls == [({"support mode": ("A",)}, "")]
+    assert owner.sync_calls == [({"support mode": ["A"]}, "")]
 
     client.get("/api/confluence/project-facts?field.support%20mode=A")
-    assert owner.sync_calls == [({"support mode": ("A",)}, "")]
+    assert owner.sync_calls == [({"support mode": ["A"]}, "")]
+
+
+def test_project_page_entry_replays_the_current_session_query_snapshot(tmp_path) -> None:
+    class Facts(ReadyFactsOwner):
+        def __init__(self):
+            super().__init__()
+            self.query_calls = []
+
+        def query(self, _access, *, filters=None, search="", **_kwargs):
+            self.query_calls.append((filters, search))
+            project_id = "FILTERED" if filters else "ALL"
+            return {
+                "state": "ready", "facets": [],
+                "projects": [{"project_id": project_id}], "ownerHierarchy": [],
+            }
+
+    facts = Facts()
+    client = _authenticated_client(create_app(
+        session_store=lambda: PersistentSessionStore(tmp_path / "web.db"),
+        project_facts_owner=lambda: facts,
+        authenticator=FakeAuthenticator,
+    ))
+
+    client.get("/api/confluence/project-facts", params={
+        "field.current stage": "EVT", "search": "Apollo", "details": "1",
+    })
+    facts.query_calls.clear()
+    response = client.get("/api/confluence/project-facts", params={"snapshot": "1"})
+
+    assert response.json()["projects"] == [{"project_id": "FILTERED"}]
+    assert facts.query_calls == [({"current stage": ["EVT"]}, "Apollo")]
+
+
+def test_project_reset_replaces_session_snapshot_with_authorized_catalog_scope(tmp_path) -> None:
+    class Facts(ReadyFactsOwner):
+        def query(self, _access, *, filters=None, search="", **_kwargs):
+            project_id = "FILTERED" if filters or search else "ALL"
+            return {
+                "state": "ready", "facets": [],
+                "projects": [{"project_id": project_id}], "ownerHierarchy": [],
+            }
+
+    client = _authenticated_client(create_app(
+        session_store=lambda: PersistentSessionStore(tmp_path / "web.db"),
+        project_facts_owner=Facts,
+        authenticator=FakeAuthenticator,
+    ))
+    client.get("/api/confluence/project-facts", params={"field.current stage": "EVT", "details": "1"})
+
+    reset = client.get("/api/confluence/project-facts", params={"reset": "1"})
+    replayed = client.get("/api/confluence/project-facts", params={"snapshot": "1"})
+
+    assert reset.json()["projects"] == [{"project_id": "ALL"}]
+    assert replayed.json()["projects"] == [{"project_id": "ALL"}]
 
 
 def test_login_does_not_prefetch_confluence_catalog() -> None:

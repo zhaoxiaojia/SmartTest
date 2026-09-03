@@ -37,7 +37,7 @@ function restore(element, value) {
 }
 
 export function createPreferenceStore({ root = document, api, route = () => window.location.pathname, debounceMs = 300 } = {}) {
-  const values = new Map(); const timers = new Map(); const pending = new Map(); const flights = new Map()
+  const values = new Map(); const timers = new Map(); const pending = new Map(); const flights = new Map(); const loads = new Map()
   let observer; let status; let disposed = false
   const scopeValues = scope => {
     if (!values.has(scope)) values.set(scope, {})
@@ -49,8 +49,13 @@ export function createPreferenceStore({ root = document, api, route = () => wind
   }
   async function loadScope(scope) {
     if (values.has(scope)) return scopeValues(scope)
-    try { const result = await api.get(scope); if (!disposed) values.set(scope, result.items || {}) } catch { if (!disposed) values.set(scope, {}) }
-    return scopeValues(scope)
+    if (loads.has(scope)) return loads.get(scope)
+    const loading = (async () => {
+      try { const result = await api.get(scope); if (!disposed) values.set(scope, result.items || {}) } catch { if (!disposed) values.set(scope, {}) }
+      return scopeValues(scope)
+    })().finally(() => loads.delete(scope))
+    loads.set(scope, loading)
+    return loading
   }
   async function flush(scope) {
     if (disposed) return
@@ -128,6 +133,6 @@ export function createPreferenceStore({ root = document, api, route = () => wind
       return [...root.querySelectorAll('[data-preference-region] input, [data-preference-region] textarea, [data-preference-region] select')]
         .filter(element => element.dataset.preference !== 'off' && !EXCLUDED_TYPES.has(element.type) && !SENSITIVE.test(keyOf(element)) && !keyOf(element))
     },
-    destroy() { disposed = true; timers.forEach(clearTimeout); timers.clear(); pending.clear(); values.clear(); flights.clear(); observer?.disconnect(); root.removeEventListener('input', handle); root.removeEventListener('change', handle); root.removeEventListener('click', handle) }
+    destroy() { disposed = true; timers.forEach(clearTimeout); timers.clear(); pending.clear(); values.clear(); flights.clear(); loads.clear(); observer?.disconnect(); root.removeEventListener('input', handle); root.removeEventListener('change', handle); root.removeEventListener('click', handle) }
   }
 }

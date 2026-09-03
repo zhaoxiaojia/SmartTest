@@ -68,6 +68,9 @@ Skill `MUST`/prohibitions, ownership boundaries, and acceptance gates are mandat
 - Web 进程内存只保存异步任务、进度、订阅和取消；服务重启后允许这些运行时状态消失，禁止在其中保存可复用的筛选结果或业务选择集。
 - SQLite 是项目事实、用户偏好和查询快照的唯一持久 owner。需要精确复用筛选范围的业务动作必须使用当前会话的数据库查询快照，不能信任前端 ID，也不能静默回退到全量数据。
 - 从本地缓存读取列表不得访问远端或启动详情任务；Apply 只刷新当前查询快照范围内的详情。筛选快照的完整规则见 `docs/superpowers/specs/2026-09-01-web-cache-database-boundaries-design.md`。
+- Web 页面重新进入时必须优先重放当前会话最后一个有效数据库查询快照，不得先清空结果，也不得因进入页面自动启动远端详情任务。Apply 必须先用当前控件条件更新数据库查询快照，再严格按该快照执行；Reset 必须清空已应用筛选和搜索并在账号授权 catalog 边界内重建快照。
+- 固定展示结构不得由权限或当前查询结果决定。Projects 对所有账号始终展示 Core `PRODUCT_LINES` 定义的四个完整名称产品线容器；权限只约束容器内容和筛选候选。
+- 为避免多 HTML 页面返回时视觉清空，前端可按账号在当前浏览器会话保存一份可丢弃的最后展示 payload；它只能用于同步首帧渲染，必须由后台 SQLite 快照响应原位校准，账号切换/注销时清理，且任何业务动作不得从中读取权威资源 ID。
 
 ## Delivery Gates
 

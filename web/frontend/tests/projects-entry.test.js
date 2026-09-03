@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest'
 
-it('mounts the Projects entry and preserves Apply controls and Weekly Review polling across same-session ready', async () => {
+it('mounts the persisted Projects snapshot and preserves controls and Weekly Review polling across same-session ready', async () => {
   window.history.replaceState({}, '', '/projects.html')
   document.body.innerHTML = '<nav class="nav-right"></nav><div class="mobile-menu-footer"></div><main class="main-content"></main>'
   const ready = { state: 'ready', accessibleProjectCount: 1,
@@ -14,14 +14,13 @@ it('mounts the Projects entry and preserves Apply controls and Weekly Review pol
     facets: [{ key: '__product_space__', label: 'Product Space', options: ['TV'] }],
     projects: [{ project_id: 'P1', name: 'Project One', space_key: 'TV' }], ownerHierarchy: [], sync: { state: 'idle' } }
   const respond = data => ({ ok: true, json: async () => data })
-  let finishCatalog, finishApply, finishReview
+  let finishApply, finishReview
   const reviewRequests = []
   const fetchImpl = vi.fn(async (url, options = {}) => {
     const path = new URL(url, window.location.origin)
     if (path.pathname === '/api/auth/session') return respond({ authenticated: true, username: 'alice' })
     if (path.pathname.startsWith('/api/preferences/')) return respond({ items: {} })
     if (path.pathname === '/api/confluence/project-facts') {
-      if (path.searchParams.get('catalog') === '1') return new Promise(resolve => { finishCatalog = data => resolve(respond(data)) })
       if (path.searchParams.get('details') === '1') return new Promise(resolve => { finishApply = data => resolve(respond(data)) })
       return respond(ready)
     }
@@ -37,15 +36,18 @@ it('mounts the Projects entry and preserves Apply controls and Weekly Review pol
   vi.stubGlobal('fetch', fetchImpl)
   await import('../src/projects-main.js')
   try {
-    await vi.waitFor(() => expect(finishCatalog).toBeTypeOf('function'))
+    await vi.waitFor(() => expect(document.querySelector('main form')?.querySelector('[type="submit"]').disabled).toBe(false))
     const form = document.querySelector('main form')
     const select = form.elements['field.__product_space__']
     select.value = 'TV'
     form.elements.search.value = 'Project One'
     form.elements.reviewStartDate.value = '2026-08-17'
     form.elements.reviewEndDate.value = '2026-08-24'
-    finishCatalog(ready)
-    await vi.waitFor(() => expect(form.querySelector('[type="submit"]').disabled).toBe(false))
+    const entryRequests = fetchImpl.mock.calls.map(([url]) => new URL(url, window.location.origin))
+      .filter(url => url.pathname === '/api/confluence/project-facts')
+    expect(entryRequests).toHaveLength(1)
+    expect(entryRequests[0].searchParams.get('snapshot')).toBe('1')
+    expect(entryRequests[0].searchParams.has('catalog')).toBe(false)
     expect(form.elements['field.__product_space__']).toBe(select)
     expect(select.value).toBe('TV')
 

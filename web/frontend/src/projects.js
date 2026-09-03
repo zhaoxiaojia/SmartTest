@@ -21,8 +21,17 @@ function node(tag, className, text) {
   return item
 }
 
-export function createProjects({ root, api, chartFactory, waitForPreferences,
+export function createProjects({ root, api, chartFactory, waitForPreferences, account,
   pollDelay = ms => new Promise(resolve => setTimeout(resolve, ms)), downloadNavigate }) {
+  const displayKey = account ? `smarttest:projects-display:${encodeURIComponent(String(account).trim().toLocaleLowerCase())}` : ''
+  const readDisplay = () => {
+    if (!displayKey) return null
+    try { return JSON.parse(sessionStorage.getItem(displayKey)) } catch { return null }
+  }
+  const saveDisplay = payload => {
+    if (!displayKey || !['ready', 'partial_success'].includes(payload?.state)) return
+    try { sessionStorage.setItem(displayKey, JSON.stringify(payload)) } catch { /* optional display acceleration */ }
+  }
   root.innerHTML = `<section class="report-workspace projects-workspace">
     <header class="report-page-head"><div><div class="eyebrow">Projects · Current Facts</div><h1>Projects</h1><p>查看本地只读项目事实与 QA 责任信息。</p></div></header>
     <form class="card report-filter-card" data-preference-region><div class="report-filter-grid" data-main-facets></div>
@@ -313,6 +322,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences,
     }
     setBusinessControlsEnabled(hasCache || hasPartialCatalog, { applyEnabled: hasCache && !syncing })
     auditButton.disabled = !hasCache || syncing
+    saveDisplay(payload)
   }
 
   async function poll(generation) {
@@ -343,6 +353,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences,
   }
 
   async function load({ updateHierarchy = true, updateFacets = true, details = false, catalog = false,
+    snapshot = false, reset = false,
     beginPolling = true } = {}) {
     const generation = ++pollGeneration
     const requestedFilters = currentFilters()
@@ -351,7 +362,8 @@ export function createProjects({ root, api, chartFactory, waitForPreferences,
       status.className = 'report-state report-state-loading'; status.hidden = false; status.textContent = STATE_COPY.loading
     }
     try {
-      const options = catalog ? { details, catalog: true } : { details }
+      const options = { details, ...(catalog ? { catalog: true } : {}),
+        ...(snapshot ? { snapshot: true } : {}), ...(reset ? { reset: true } : {}) }
       const payload = await api.getProjectFacts(requestedFilters, options)
       if (destroyed || generation !== pollGeneration) return
       present(payload, { updateHierarchy, updateFacets, detailRequested: details })
@@ -364,7 +376,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences,
       if (destroyed || generation !== pollGeneration) return
       if (details || feedback.state === 'running') feedback.update({ state: 'failed', message: 'Project detail sync failed.' })
       status.className = 'report-state report-state-schema_error'; status.textContent = 'Local project facts API is unavailable.'
-      renderProjects([])
+      if (!cacheReady) renderProjects([])
       setBusinessControlsEnabled(false)
     }
   }
@@ -389,7 +401,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences,
     }
     enabledMore.clear()
     renderFacets(facets)
-    load({ catalog: true })
+    load({ reset: true })
   })
   auditButton.addEventListener('click', async () => {
     auditButton.disabled = true
@@ -434,11 +446,16 @@ export function createProjects({ root, api, chartFactory, waitForPreferences,
     setBusinessControlsEnabled(cacheReady, { applyEnabled: cacheReady })
   }
   async function start() {
-    await load({ updateHierarchy: !waitForPreferences, beginPolling: false })
+    const previousDisplay = readDisplay()
+    if (previousDisplay) present(previousDisplay)
+    const loaded = await load({ snapshot: true })
     await waitForPreferences?.()
     if (destroyed) return
-    return load({ catalog: true })
+    return loaded
   }
-  return { start, destroy() { destroyed = true; pollGeneration += 1; auditDownload.destroy(); workloadChart?.destroy() } }
+  return {
+    start,
+    destroy() { destroyed = true; pollGeneration += 1; auditDownload.destroy(); workloadChart?.destroy() },
+  }
 }
 import { enhanceMultiSelect, fillSelect, selected } from './wifi-database.js'

@@ -4,6 +4,15 @@ import { createPreferenceStore } from './preference-store.js'
 
 export let preferencesReady = Promise.resolve()
 
+const DISPOSABLE_DISPLAY_PREFIX = 'smarttest:projects-display:'
+
+function clearDisposableDisplayState() {
+  for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
+    const key = sessionStorage.key(index)
+    if (key?.startsWith(DISPOSABLE_DISPLAY_PREFIX)) sessionStorage.removeItem(key)
+  }
+}
+
 async function startStaticShell() {
   let session
   const desktop = document.querySelector('.nav-right')
@@ -27,6 +36,7 @@ async function startStaticShell() {
     session = await createAuthShell({ root: document.body, desktopHost, mobileHost, api: createAuthApi(),
       onChanging() {
         preferences?.destroy()
+        clearDisposableDisplayState()
         window.dispatchEvent(new Event('session:changing'))
       },
       async onSession(session) {

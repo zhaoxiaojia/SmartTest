@@ -9,8 +9,9 @@ const manualAuditApi = createManualAuditApi()
 Chart.register(...registerables)
 
 startAuthenticatedPage({
-  mount: root => createProjects({
+  mount: (root, session) => createProjects({
     root,
+    account: session.username,
     api: { ...projectFactsApi, ...manualAuditApi },
     chartFactory: (canvas, config) => new Chart(canvas, config),
     waitForPreferences: async () => {

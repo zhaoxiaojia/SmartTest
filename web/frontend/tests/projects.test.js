@@ -35,27 +35,71 @@ const fixedFacets = [
 ].map(([key, label]) => ({ key, label, labels: [label], options: [] }))
 
 describe('Projects', () => {
-  beforeEach(() => { document.body.innerHTML = '<div id="app"></div>'; localStorage.clear() })
+  beforeEach(() => { document.body.innerHTML = '<div id="app"></div>'; localStorage.clear(); sessionStorage.clear() })
 
-  it('keeps existing filter controls and review dates when a background catalog request fails', async () => {
-    let failCatalog
+  it('renders the previous account display before snapshot calibration completes', async () => {
+    const first = createProjects({ root: document.querySelector('#app'), account: 'alice',
+      api: { getProjectFacts: vi.fn().mockResolvedValue(payload) } })
+    await first.start(); first.destroy()
+    document.body.innerHTML = '<div id="app"></div>'
+    let finishSnapshot
+    const calibrated = { ...payload, projects: [], ownerHierarchy: [] }
+    const second = createProjects({ root: document.querySelector('#app'), account: 'alice',
+      api: { getProjectFacts: vi.fn(() => new Promise(resolve => { finishSnapshot = resolve })) } })
+
+    const starting = second.start()
+    expect(document.querySelector('[data-projects]').textContent).toContain('Apollo')
+    finishSnapshot(calibrated)
+    await starting
+    expect(document.querySelectorAll('.project-card')).toHaveLength(0)
+  })
+
+  it('isolates disposable display state by account and clears it on identity change', async () => {
+    const alice = createProjects({ root: document.querySelector('#app'), account: 'alice',
+      api: { getProjectFacts: vi.fn().mockResolvedValue(payload) } })
+    await alice.start()
+    alice.destroy()
+    document.body.innerHTML = '<div id="app"></div>'
+    const bob = createProjects({ root: document.querySelector('#app'), account: 'bob',
+      api: { getProjectFacts: vi.fn(() => new Promise(() => {})) } })
+
+    void bob.start()
+    expect(document.querySelector('[data-projects]').textContent).not.toContain('Apollo')
+    expect(document.querySelector('[role="status"]').textContent).toContain('Loading')
+  })
+
+  it('keeps the previous display when snapshot calibration fails', async () => {
+    const first = createProjects({ root: document.querySelector('#app'), account: 'alice',
+      api: { getProjectFacts: vi.fn().mockResolvedValue(payload) } })
+    await first.start(); first.destroy()
+    document.body.innerHTML = '<div id="app"></div>'
+    const second = createProjects({ root: document.querySelector('#app'), account: 'alice',
+      api: { getProjectFacts: vi.fn().mockRejectedValue(new Error('offline')) } })
+
+    await second.start()
+    expect(document.querySelector('[data-projects]').textContent).toContain('Apollo')
+    expect(document.querySelector('[role="status"]').textContent).toContain('unavailable')
+  })
+
+  it('keeps the page and review dates when Reset cannot restore the catalog scope', async () => {
+    let failReset
     const api = { getProjectFacts: vi.fn().mockResolvedValueOnce({ ...payload, state: 'ready' })
-      .mockImplementationOnce(() => new Promise((_resolve, reject) => { failCatalog = reject })) }
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { failReset = reject })) }
     const page = createProjects({ root: document.querySelector('#app'), api })
-    const starting = page.start()
-    await vi.waitFor(() => expect(failCatalog).toBeTypeOf('function'))
+    await page.start()
     const form = document.querySelector('form'), select = form.elements['field.__product_space__']
     select.value = 'TV'
     form.elements.search.value = 'local edit'
     form.elements.reviewStartDate.value = '2026-08-17'
     form.elements.reviewEndDate.value = '2026-08-24'
     const review = form.querySelector('[data-audit]')
-    failCatalog(new Error('offline'))
-    await starting
+    form.querySelector('[data-reset]').click()
+    await vi.waitFor(() => expect(failReset).toBeTypeOf('function'))
+    failReset(new Error('offline'))
+    await vi.waitFor(() => expect(document.querySelector('[role="status"]').textContent).toContain('unavailable'))
     expect(document.querySelector('form')).toBe(form)
-    expect(form.elements['field.__product_space__']).toBe(select)
-    expect(select.value).toBe('TV')
-    expect(form.elements.search.value).toBe('local edit')
+    expect(form.elements['field.__product_space__'].value).toBe('')
+    expect(form.elements.search.value).toBe('')
     expect(form.elements.reviewStartDate.value).toBe('2026-08-17')
     expect(form.elements.reviewEndDate.value).toBe('2026-08-24')
     expect(form.querySelector('[data-audit]')).toBe(review)
@@ -63,21 +107,13 @@ describe('Projects', () => {
     page.destroy()
   })
 
-  it('renders authorized cache on entry and refreshes only the catalog on entry and after Reset', async () => {
-    let refresh
-    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce({ ...payload, state: 'ready' })
-      .mockResolvedValueOnce({ ...payload, state: 'ready' })
-      .mockImplementationOnce(() => new Promise(resolve => { refresh = resolve })) }
+  it('renders the persisted session snapshot on entry without starting remote work', async () => {
+    const api = { getProjectFacts: vi.fn().mockResolvedValue({ ...payload, state: 'ready' }) }
     const page = createProjects({ root: document.querySelector('#app'), api, pollDelay: () => new Promise(() => {}) })
     await page.start()
-    expect(api.getProjectFacts.mock.calls[0][1]).toEqual({ details: false })
-    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: false, catalog: true })
+    expect(api.getProjectFacts).toHaveBeenCalledOnce()
+    expect(api.getProjectFacts.mock.calls[0]).toEqual([{ fields: {}, search: '' }, { details: false, snapshot: true }])
     expect(document.querySelector('[data-projects]').textContent).toContain('Apollo')
-    expect(document.querySelector('[name="field.__product_space__"]').disabled).toBe(false)
-    document.querySelector('[data-reset]').click()
-    await vi.waitFor(() => expect(refresh).toBeTypeOf('function'))
-    expect(api.getProjectFacts.mock.calls[2][1]).toEqual({ details: false, catalog: true })
-    refresh({ ...payload, state: 'loading', sync: { state: 'idle' } })
     expect(document.querySelector('[name="field.__product_space__"]').disabled).toBe(false)
     page.destroy()
   })
@@ -132,10 +168,9 @@ describe('Projects', () => {
       .not.toEqual(expect.arrayContaining(['DOPL', 'SDPL', 'TV', 'OOPL']))
   })
 
-  it('waits for restored dynamic filters before first rendering business results', async () => {
+  it('renders the persisted snapshot while preferences restore unapplied controls', async () => {
     let releasePreferences
-    const filtered = { ...payload, projects: [], ownerHierarchy: [] }
-    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(payload).mockResolvedValueOnce(filtered) }
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
     const waitForPreferences = vi.fn(() => new Promise(resolve => {
       releasePreferences = () => {
         document.querySelector('[name="field.__product_space__"] option').selected = true
@@ -147,13 +182,13 @@ describe('Projects', () => {
     }).start()
 
     await vi.waitFor(() => expect(releasePreferences).toBeTypeOf('function'))
-    expect(document.querySelector('[data-projects]').textContent).not.toContain('Apollo')
+    expect(document.querySelector('[data-projects]').textContent).toContain('Apollo')
     releasePreferences()
     await started
 
-    expect(api.getProjectFacts).toHaveBeenCalledTimes(2)
-    expect(api.getProjectFacts.mock.calls[1][0].fields.__product_space__).toEqual(['DOPL'])
-    expect(document.querySelectorAll('.project-card')).toHaveLength(0)
+    expect(api.getProjectFacts).toHaveBeenCalledOnce()
+    expect([...document.querySelector('[name="field.__product_space__"]').selectedOptions].map(option => option.value)).toEqual(['DOPL'])
+    expect(document.querySelectorAll('.project-card')).toHaveLength(1)
   })
 
   it('keeps project controls separate from the Weekly Review controls', async () => {
@@ -280,7 +315,7 @@ describe('Projects', () => {
 
   it('renders all seven common filters from the immediate loading payload then polls to ready', async () => {
     const loading = { ...payload, state: 'loading', projects: [], ownerHierarchy: [], facets: fixedFacets }
-    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(loading).mockResolvedValueOnce(loading).mockResolvedValueOnce(payload) }
+    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(loading).mockResolvedValueOnce(payload) }
     let releasePoll
     const pollDelay = vi.fn(() => new Promise(resolve => { releasePoll = resolve }))
     const component = createProjects({ root: document.querySelector('#app'), api, pollDelay })
@@ -292,12 +327,12 @@ describe('Projects', () => {
     expect([...document.querySelectorAll('[data-main-facets] .multi-select__summary')].every(item => item.textContent === 'Loading…')).toBe(true)
     expect(document.querySelector('[role="status"]').textContent).toContain('Loading')
     releasePoll()
-    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(3))
+    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(2))
     await vi.waitFor(() => expect(document.querySelector('[type="submit"]').disabled).toBe(false))
     expect([...document.querySelectorAll('[data-main-facets] .multi-select__summary')]
       .every(item => !item.textContent.includes('Loading'))).toBe(true)
-    expect(api.getProjectFacts.mock.calls[0][1]).toEqual({ details: false })
-    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: false, catalog: true })
+    expect(api.getProjectFacts.mock.calls[0][1]).toEqual({ details: false, snapshot: true })
+    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: false })
   })
 
   it('treats an empty completed catalog as ready and does not poll again', async () => {
@@ -310,8 +345,8 @@ describe('Projects', () => {
 
     await createProjects({ root: document.querySelector('#app'), api, pollDelay }).start()
 
-    expect(api.getProjectFacts).toHaveBeenCalledTimes(2)
-    expect(api.getProjectFacts.mock.calls[0][1]).toEqual({ details: false })
+    expect(api.getProjectFacts).toHaveBeenCalledOnce()
+    expect(api.getProjectFacts.mock.calls[0][1]).toEqual({ details: false, snapshot: true })
     expect(pollDelay).not.toHaveBeenCalled()
     expect(document.querySelector('[type="submit"]').disabled).toBe(false)
   })
@@ -359,7 +394,7 @@ describe('Projects', () => {
     await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(3))
     await vi.waitFor(() => expect(document.querySelector('[type="submit"]').disabled).toBe(false))
     expect(api.getProjectFacts.mock.calls.map(call => call[1])).toEqual([
-      { details: false }, { details: false, catalog: true }, { details: false },
+      { details: false, snapshot: true }, { details: false }, { details: false },
     ])
     component.destroy()
   })
@@ -381,16 +416,16 @@ describe('Projects', () => {
     form.elements['field.__product_space__'].value = 'DOPL'
     form.elements.search.value = 'Coco'
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(3))
+    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(2))
     expect(form.elements['field.__product_space__']).toBe(productSpaceControl)
-    expect(api.getProjectFacts.mock.calls[2][0]).toEqual({ fields: { '__product_space__': ['DOPL'], 'unexpected owner': ['Alice'] }, search: 'Coco' })
-    expect(api.getProjectFacts.mock.calls[2][1]).toEqual({ details: true })
+    expect(api.getProjectFacts.mock.calls[1][0]).toEqual({ fields: { '__product_space__': ['DOPL'], 'unexpected owner': ['Alice'] }, search: 'Coco' })
+    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: true })
     expect(document.querySelector('[type="submit"]').disabled).toBe(false)
   })
 
   it('shows detail feedback only after Apply starts a real detail job', async () => {
     let resolveApply
-    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(payload).mockResolvedValueOnce(payload)
+    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(payload)
       .mockImplementationOnce(() => new Promise(resolve => { resolveApply = resolve })),
       cancelProjectSync: vi.fn() }
     await createProjects({
@@ -416,31 +451,31 @@ describe('Projects', () => {
     expect([...select.options].map(option => option.textContent)).toEqual(['China Operator Business', 'TV Business'])
     multi.querySelector('.multi-select__control').click()
     multi.querySelector('[data-select-all]').click()
-    expect(api.getProjectFacts).toHaveBeenCalledTimes(2)
+    expect(api.getProjectFacts).toHaveBeenCalledOnce()
     expect(multi.querySelector('.multi-select__tags').textContent).toContain('China Operator Business+1')
     multi.querySelector('.multi-select__control').click()
     multi.querySelector('[data-clear]').click()
-    expect(api.getProjectFacts).toHaveBeenCalledTimes(2)
+    expect(api.getProjectFacts).toHaveBeenCalledOnce()
     expect(multi.querySelector('.multi-select__summary').textContent).toBe('All Product Space')
   })
 
   it('keeps catalog facets fixed while Apply updates only downstream results', async () => {
     const filtered = { ...payload, facets: [{ key: '__product_space__', label: 'Product Space', options: [] }],
       projects: [], ownerHierarchy: [] }
-    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(payload).mockResolvedValueOnce(payload).mockResolvedValueOnce(filtered) }
+    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(payload).mockResolvedValueOnce(filtered) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
     const select = document.querySelector('[name="field.__product_space__"]')
     select.options[0].selected = true
     select.dispatchEvent(new Event('change', { bubbles: true }))
-    expect(api.getProjectFacts).toHaveBeenCalledTimes(2)
+    expect(api.getProjectFacts).toHaveBeenCalledOnce()
     expect([...select.options].map(option => option.value)).toEqual(['DOPL', 'TV'])
     document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(3))
+    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(2))
     expect([...select.options].map(option => option.value)).toEqual(['DOPL', 'TV'])
     expect(document.querySelectorAll('.project-card')).toHaveLength(0)
   })
 
-  it('Reset clears local values and refreshes catalog without requesting details', async () => {
+  it('Reset clears local values and restores the authorized catalog scope without details', async () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
     const select = document.querySelector('[name="field.__product_space__"]')
@@ -449,8 +484,8 @@ describe('Projects', () => {
     document.querySelector('[name="reviewStartDate"]').value = '2026-08-01'
     document.querySelector('[name="reviewEndDate"]').value = '2026-08-08'
     document.querySelector('[data-reset]').click()
-    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(3))
-    expect(api.getProjectFacts.mock.calls[2][1]).toEqual({ details: false, catalog: true })
+    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(2))
+    expect(api.getProjectFacts.mock.calls[1]).toEqual([{ fields: {}, search: '' }, { details: false, reset: true }])
     expect([...select.selectedOptions]).toEqual([])
     expect(document.querySelector('[name="search"]').value).toBe('')
     expect(document.querySelector('[name="reviewStartDate"]').value).toBe('2026-08-01')
@@ -463,7 +498,7 @@ describe('Projects', () => {
       ? { ...facet, options: [{ value: 'DOPL', label: 'China Operator Business' }] }
       : facet) }
     const api = { getProjectFacts: vi.fn()
-      .mockResolvedValueOnce(payload).mockResolvedValueOnce(narrowed).mockResolvedValueOnce(payload) }
+      .mockResolvedValueOnce(narrowed).mockResolvedValueOnce(payload) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
     expect([...document.querySelector('[name="field.__product_space__"]').options].map(option => option.value)).toEqual(['DOPL'])
     expect([...document.querySelectorAll('[data-product-space-group] summary strong')].map(item => item.textContent)).toEqual(
@@ -472,7 +507,7 @@ describe('Projects', () => {
     document.querySelector('[name="field.__product_space__"] option').selected = true
     document.querySelector('[name="search"]').value = 'filtered'
     document.querySelector('[data-reset]').click()
-    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(3))
+    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(2))
 
     const restored = document.querySelector('[name="field.__product_space__"]')
     expect([...restored.options].map(option => option.value)).toEqual(['DOPL', 'TV'])
@@ -484,7 +519,7 @@ describe('Projects', () => {
     const syncing = { ...payload, sync: { state: 'loading', completed: 0, total: 1 } }
     const updated = { ...payload, sync: { state: 'ready', completed: 1, total: 1 },
       projects: [], ownerHierarchy: [] }
-    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(payload).mockResolvedValueOnce(payload)
+    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(payload)
       .mockResolvedValueOnce(syncing).mockResolvedValueOnce(updated), cancelProjectSync: vi.fn() }
     await createProjects({ root: document.querySelector('#app'), api, pollDelay: () => Promise.resolve() }).start()
     document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
@@ -497,7 +532,7 @@ describe('Projects', () => {
     const syncing = { ...payload, sync: { state: 'loading', completed: 0, total: 1 } }
     const updated = { ...payload, sync: { state: 'ready', completed: 1, total: 1 },
       projects: [{ ...payload.projects[0], name: 'Old job result' }], ownerHierarchy: [] }
-    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(payload).mockResolvedValueOnce(payload)
+    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(payload)
       .mockResolvedValueOnce(syncing).mockImplementationOnce(() => new Promise(resolve => { finishPoll = () => resolve(updated) })),
       cancelProjectSync: vi.fn().mockResolvedValue({ cancelled: true }) }
     await createProjects({ root: document.querySelector('#app'), api, pollDelay: () => Promise.resolve() }).start()
@@ -547,7 +582,7 @@ describe('Projects', () => {
     await vi.waitFor(() => expect(api.createConfluenceAudit).toHaveBeenCalledOnce())
     expect(api.getProjectFacts).toHaveBeenCalledTimes(projectFactCalls)
     expect(api.getProjectFacts.mock.calls.at(-1)).toEqual([
-      { fields: {}, search: '' }, { details: false, catalog: true }
+      { fields: {}, search: '' }, { details: false, snapshot: true }
     ])
     expect(api.createConfluenceAudit).toHaveBeenCalledWith({
       startDate: '2026-08-17', endDate: '2026-08-24'
@@ -560,7 +595,7 @@ describe('Projects', () => {
 
   it('uses one root feedback component and renders a delayed child as text without changing its progress scale', async () => {
     const api = {
-      getProjectFacts: vi.fn().mockResolvedValueOnce(payload).mockResolvedValueOnce(payload)
+      getProjectFacts: vi.fn().mockResolvedValueOnce(payload)
         .mockResolvedValueOnce({ ...payload, sync: {
           state: 'loading', completed: 9, total: 10,
           task: { state: 'running', progress: { processed: 2, total: 10 }, visibleChild: { label: 'Loading project A', state: 'running' } },
