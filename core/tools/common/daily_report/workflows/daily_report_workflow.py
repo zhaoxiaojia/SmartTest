@@ -367,7 +367,7 @@ def _render_html(
         metric(f"停滞 ≥ {config['stale_days']} 天", len(stale), "最后更新时间", "stale"),
     ))
     priority_rows = _bar_rows((("P0", p0), ("P1", p1), ("P2", p2), (f"停滞 ≥ {config['stale_days']} 天", len(stale))))
-    status_chart = '<img data-chart="status-composition" width="200" height="200" src="{}" alt="状态 分布" style="display:block;width:200px;height:200px;max-width:100%;margin:auto">{}'.format(
+    status_chart = '<img data-chart="status-composition" src="{}" alt="状态 分布" style="display:block;max-width:100%;height:auto;margin:auto">{}'.format(
         status_image, _status_legend(statuses.most_common(6))
     )
     trend_chart = '<img data-chart="unclosed-trend" width="640" height="320" src="{}" alt="每日未关闭趋势" style="display:block;width:640px;height:320px;max-width:100%;margin:auto">'.format(

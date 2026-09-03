@@ -1,6 +1,9 @@
+from datetime import date
+import re
+
 import pytest
 
-from .daily_report_workflow import _names, _search_issues
+from .daily_report_workflow import _names, _render_html, _search_issues
 
 
 def test_names_splits_comma_separated_components():
@@ -30,3 +33,28 @@ def test_search_error_includes_jql_and_original_response():
     message = str(error.value)
     assert jql in message
     assert "The component value does not exist" in message
+
+
+def test_status_chart_preserves_the_rendered_image_aspect_ratio():
+    html = _render_html(
+        {
+            "project_name": "A9 Yocto",
+            "jql": "labels = Linux-A9_Yocto",
+            "stale_days": 7,
+            "trend_days": 14,
+            "detail_priorities": ["P0", "P1"],
+        },
+        [],
+        [],
+        date(2026, 9, 3),
+        "data:image/png;base64,status",
+        "data:image/png;base64,trend",
+    )
+
+    status_tag = re.search(
+        r'<img data-chart="status-composition"[^>]+>', html
+    ).group(0)
+
+    assert 'width="200"' not in status_tag
+    assert 'height="200"' not in status_tag
+    assert "height:auto" in status_tag
