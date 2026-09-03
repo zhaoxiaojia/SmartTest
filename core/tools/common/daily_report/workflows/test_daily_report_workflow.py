@@ -3,7 +3,7 @@ import re
 
 import pytest
 
-from .daily_report_workflow import _names, _render_html, _search_issues
+from .daily_report_workflow import _names, _render_html, _search_issues, _status_legend
 
 
 def test_names_splits_comma_separated_components():
@@ -57,4 +57,20 @@ def test_status_chart_preserves_the_rendered_image_aspect_ratio():
 
     assert 'width="200"' not in status_tag
     assert 'height="200"' not in status_tag
-    assert "height:auto" in status_tag
+    assert "height:200px" in status_tag
+    assert "width:auto" in status_tag
+    assert 'class="status-chart-crop"' in html
+
+
+def test_status_legend_displays_only_percentages():
+    legend = _status_legend(
+        (("To Do", 18), ("In Progress", 18), ("Resolved", 13), ("Open", 10))
+    )
+
+    assert "To Do" not in legend
+    assert "In Progress" not in legend
+    assert "Resolved" not in legend
+    assert "Open" not in legend
+    assert ["30.5%", "30.5%", "22.0%", "16.9%"] == re.findall(
+        r'<td class="status-percentage">([^<]+)</td>', legend
+    )
