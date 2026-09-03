@@ -245,18 +245,27 @@ def _bar_rows(values):
     ) or '<tr><td class="muted">—</td></tr>'
 
 
-CHART_COLORS = ("#5470c6", "#91cc75", "#fac858", "#ee6666", "#73c0de", "#3ba272")
+CHART_COLORS = (
+    "#5470c6",
+    "#91cc75",
+    "#fac858",
+    "#ee6666",
+    "#73c0de",
+    "#3ba272",
+)
 
 
 def _status_legend(values):
     values = list(values)[:6]
     total = sum(count for _, count in values)
     rows = []
-    for index, (_, count) in enumerate(values):
+    for index, (name, count) in enumerate(values):
         rows.append(
             '<tr class="status-legend-item"><td><span class="legend-swatch" style="background:{}"></span></td>'
-            '<td class="status-percentage">{:.1f}%</td></tr>'.format(
-                CHART_COLORS[index], count * 100 / total if total else 0
+            '<td class="status-name">{}</td><td class="status-percentage">{:.1f}%</td></tr>'.format(
+                CHART_COLORS[index],
+                escape(name or "未设置"),
+                count * 100 / total if total else 0,
             )
         )
     return '<table class="status-legend" role="presentation">{}</table>'.format(
@@ -369,8 +378,13 @@ def _render_html(
         metric(f"停滞 ≥ {config['stale_days']} 天", len(stale), "最后更新时间", "stale"),
     ))
     priority_rows = _bar_rows((("P0", p0), ("P1", p1), ("P2", p2), (f"停滞 ≥ {config['stale_days']} 天", len(stale))))
-    status_chart = '<div class="status-chart-crop" style="width:200px;height:200px;overflow:hidden;margin:auto"><img data-chart="status-composition" src="{}" alt="状态 分布" style="display:block;height:200px;width:auto;max-width:none"></div>{}'.format(
-        status_image, _status_legend(statuses.most_common(6))
+    status_chart = (
+        '<div class="status-chart-crop" style="width:200px;height:200px;overflow:hidden;margin:auto">'
+        '<img data-chart="status-composition" src="{}" alt="状态 分布" '
+        'style="display:block;height:200px;width:auto;max-width:none"></div>{}'
+    ).format(
+        status_image,
+        _status_legend(statuses.most_common(6)),
     )
     trend_chart = '<img data-chart="unclosed-trend" width="640" height="320" src="{}" alt="每日未关闭趋势" style="display:block;width:640px;height:320px;max-width:100%;margin:auto">'.format(
         trend_image
