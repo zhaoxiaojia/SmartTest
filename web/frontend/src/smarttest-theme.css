@@ -50,13 +50,33 @@ html {
 /* ===== Base Styles ===== */
 html {
     scroll-behavior: smooth;
+    overflow-y: auto;
+    scrollbar-color: var(--text-secondary) var(--bg-secondary);
+    scrollbar-width: auto;
+}
+
+html::-webkit-scrollbar {
+    width: 12px;
+}
+
+html::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+html::-webkit-scrollbar-thumb {
+    background: var(--text-secondary);
+    border: 3px solid var(--bg-secondary);
+    border-radius: 999px;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+    background: var(--text-primary);
 }
 
 body {
     font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--bg-secondary);
     color: var(--text-primary);
-    overflow-y: auto;
     min-height: 100vh;
     line-height: 1.6;
     transition: var(--transition);
