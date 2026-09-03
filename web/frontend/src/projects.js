@@ -5,7 +5,7 @@ const STATE_COPY = {
   schema_error: 'Local project snapshot is unreadable.',
   partial_success: 'Some project facts are stale or failed.',
   failed: 'Project catalog load failed.',
-  reauthentication_required: 'Please verify your account again before refreshing Confluence data.'
+  reauthentication_required: 'Please verify your account again before refreshing project data.'
 }
 const COMMON_FILTERS = [
   '__product_space__', 'date of commercial approval', 'project id',
@@ -21,22 +21,22 @@ function node(tag, className, text) {
   return item
 }
 
-export function createConfluenceProjects({ root, api, chartFactory, waitForPreferences,
+export function createProjects({ root, api, chartFactory, waitForPreferences,
   pollDelay = ms => new Promise(resolve => setTimeout(resolve, ms)), downloadNavigate }) {
-  root.innerHTML = `<section class="report-workspace confluence-projects">
-    <header class="report-page-head"><div><div class="eyebrow">Confluence · Project Facts</div><h1>Confluence Projects</h1><p>查看本地只读项目事实与 QA 责任信息。</p></div></header>
+  root.innerHTML = `<section class="report-workspace projects-workspace">
+    <header class="report-page-head"><div><div class="eyebrow">Projects · Current Facts</div><h1>Projects</h1><p>查看本地只读项目事实与 QA 责任信息。</p></div></header>
     <form class="card report-filter-card" data-preference-region><div class="report-filter-grid" data-main-facets></div>
       <details class="more-filter-panel"><summary>更多筛选</summary><div class="more-filter-options" data-more-facets></div></details>
-      <div class="report-filter-grid"><label>Project / Person / Field Search<input class="form-control" name="search" type="search" placeholder="Project, person or Confluence field"></label>
+      <div class="report-filter-grid"><label>Project / Person / Field Search<input class="form-control" name="search" type="search" placeholder="Project, person or field"></label>
       <div class="filter-actions"><button class="button button-primary" type="submit">Apply Filters</button><button class="button button-secondary" type="button" data-cancel hidden>Cancel Sync</button><button class="button button-secondary" type="button" data-reset data-preference-reset>Reset</button></div></div>
       <section class="weekly-review"><strong>Weekly Review</strong><label>Start<input class="form-control" name="reviewStartDate" type="date"></label><label>End<input class="form-control" name="reviewEndDate" type="date"></label>
         <button class="button button-secondary" type="button" data-audit>Review Filters</button><button class="button button-secondary" type="button" data-audit-cancel disabled>Cancel Review</button><button class="button button-primary" type="button" data-audit-download disabled>Download</button></section></form>
     <div class="report-state report-state-loading" role="status">Loading project catalog…</div><div class="async-feedback" data-async-feedback></div><div class="inline-status" data-audit-status aria-live="polite"></div>
-    <section class="confluence-summary" data-summary></section>
+    <section class="projects-summary" data-summary></section>
     <section class="card workload-card"><header class="report-preview-toolbar"><div><strong>Role workload</strong><div class="report-preview-meta">Project assignments per QA member</div></div><div class="role-segments" data-role-segments></div></header>
       <div class="workload-chart-scroll"><div class="workload-chart-surface"><canvas data-workload-chart></canvas></div></div></section>
-    <section class="card report-preview"><header class="report-preview-toolbar"><strong>QA responsibility details</strong><span class="count-badge" data-count>0 projects</span></header>
-      <div class="report-preview-body owner-cards" data-projects></div></section></section>`
+    <section class="card report-preview"><header class="report-preview-toolbar"><strong>Projects by Product Space</strong><span class="count-badge" data-count>0 projects</span></header>
+      <div class="report-preview-body product-space-groups" data-projects></div></section></section>`
   const form = root.querySelector('form')
   const facetRoot = root.querySelector('[data-main-facets]')
   const moreRoot = root.querySelector('[data-more-facets]')
@@ -55,6 +55,7 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
   let activeRole = ''
   let activeSync = null
   let activeAuditId = ''
+  let productSpaceDefinitions = []
   const feedback = createAsyncFeedback({ root: root.querySelector('[data-async-feedback]'),
     cancelButton, onCancel: cancelSync })
   const auditDownload = createDownloadButton({
@@ -191,18 +192,6 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
     return !name || (identity && name.toLocaleLowerCase() === identity.toLocaleLowerCase()) ? 'Unknown member' : name
   }
 
-  function toggleButton(className, label, panel, expanded = true) {
-    const button = node('button', className)
-    button.type = 'button'; button.setAttribute('aria-expanded', String(expanded)); button.setAttribute('aria-label', label)
-    button.append(node('span', 'accordion-icon', expanded ? '−' : '+'))
-    panel.hidden = !expanded
-    button.addEventListener('click', () => {
-      const next = button.getAttribute('aria-expanded') !== 'true'
-      button.setAttribute('aria-expanded', String(next)); button.querySelector('.accordion-icon').textContent = next ? '−' : '+'; panel.hidden = !next
-    })
-    return button
-  }
-
   function renderSummary(hierarchy, projects, accessibleProjectCount) {
     const people = new Set(); let assignments = 0
     for (const role of hierarchy) for (const person of role.people ?? []) {
@@ -238,39 +227,66 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
     })
   }
 
-  function renderProjects(hierarchy, projectCount = 0, projects = [], accessibleProjectCount) {
+  function renderProjects(hierarchy, projects = [], accessibleProjectCount) {
     projectsRoot.replaceChildren()
-    root.querySelector('[data-count]').textContent = `${projectCount} projects`
-    renderSummary(hierarchy ?? [], projects, accessibleProjectCount)
+    const seenProjects = new Set()
+    const uniqueProjects = projects.filter(project => {
+      const key = projectKey(project)
+      if (seenProjects.has(key)) return false
+      seenProjects.add(key)
+      return true
+    })
+    root.querySelector('[data-count]').textContent = `${uniqueProjects.length} projects`
+    renderSummary(hierarchy ?? [], uniqueProjects, accessibleProjectCount)
     renderWorkload(hierarchy ?? [])
-    if (!projectCount) { projectsRoot.append(node('div', 'report-empty', 'No matching projects.')); return }
-    const represented = new Set()
-    for (const role of hierarchy ?? []) {
-      const roleNode = node('article', 'owner-role')
-      const roleBody = node('div', 'owner-role-body')
-      const assignments = (role.people ?? []).reduce((sum, person) => sum + (person.projects?.length ?? 0), 0)
-      const roleHeader = node('header', 'owner-card-header'); roleHeader.append(node('div', 'owner-card-title', role.role), node('span', 'owner-card-meta', `${role.people?.length ?? 0} people · ${assignments} assignments`), toggleButton('owner-role-toggle', `Toggle ${role.role}`, roleBody))
-      roleNode.append(roleHeader, roleBody)
-      if (!role.people?.length) roleBody.append(node('div', 'report-empty compact', 'No assigned people.'))
-      for (const person of role.people ?? []) {
-        const personNode = node('section', 'owner-person'); const projectList = node('div', 'owner-project-list')
-        const tags = [...new Set((person.projects ?? []).map(project => project.space_key).filter(Boolean))]
-        const personHeader = node('header', 'owner-person-header'); personHeader.append(node('strong', '', readableName(person)), node('span', 'owner-card-meta', `${person.projects?.length ?? 0} projects`))
-        const tagRoot = node('span', 'owner-space-tags'); tags.forEach(tag => tagRoot.append(node('span', 'owner-space-tag', tag))); personHeader.append(tagRoot, toggleButton('owner-person-toggle', `Toggle projects for ${readableName(person)}`, projectList, false))
-        personNode.append(personHeader, projectList)
-        for (const project of person.projects ?? []) {
-          represented.add(projectKey(project)); projectList.append(node('div', 'owner-project-row', `${project.name || project.project_id} · ${project.space_key || '—'} · ${project.status || '—'}`))
-        }
-        roleBody.append(personNode)
-      }
-      projectsRoot.append(roleNode)
+    const projectStage = project => String(project.stage || project.fields?.['current stage'] || '').trim()
+    const productSpaceLabels = new Map(productSpaceDefinitions.map(option => [
+      String(option?.value ?? option).trim(),
+      typeof option === 'object' ? String(option?.label ?? '').trim() : '',
+    ]))
+
+    const displayValue = value => Array.isArray(value) ? value.filter(item => item != null && String(item).trim()).join(', ') : String(value ?? '').trim()
+    const coreFields = new Set(['__product_space__', 'project id', 'project status', 'current stage', 'support mode'])
+    const addFact = (rootNode, label, value) => {
+      const text = displayValue(value)
+      if (!text) return
+      const row = node('div', 'project-card-fact')
+      row.append(node('span', 'project-card-label', label), node('span', 'project-card-value', text))
+      rootNode.append(row)
     }
-    const unavailable = projects.filter(project => project.responsibility_unavailable && !represented.has(projectKey(project)))
-    if (unavailable.length) {
-      const unavailableNode = node('article', 'owner-role responsibility-unavailable')
-      unavailableNode.append(node('header', 'owner-card-header', `Responsibility unavailable (${unavailable.length})`))
-      for (const project of unavailable) unavailableNode.append(node('div', 'owner-project-row', `${project.name || project.project_id} · ${project.space_key || '—'}`))
-      projectsRoot.append(unavailableNode)
+    const createProjectCard = (project, productSpaceLabel) => {
+      const card = node('article', 'kanban-card project-card')
+      card.dataset.projectId = projectKey(project)
+      const heading = node('div', 'kanban-card-title', project.name || project.project_id)
+      const identifier = node('div', 'kanban-card-desc', project.project_id)
+      const badges = node('div', 'project-card-badges')
+      for (const value of [productSpaceLabel, project.status, projectStage(project) || 'Unspecified', project.support_mode]) {
+        if (value) badges.append(node('span', 'badge badge-blue', value))
+      }
+      const facts = node('div', 'project-card-facts')
+      addFact(facts, 'Customer', project.customer_summary)
+      for (const [role, people] of Object.entries(project.roles ?? {})) {
+        addFact(facts, role, (people ?? []).map(readableName))
+      }
+      for (const [label, value] of Object.entries(project.fields ?? {})) {
+        if (!coreFields.has(label.toLocaleLowerCase())) addFact(facts, label, value)
+      }
+      card.append(heading, identifier, badges)
+      if (facts.childElementCount) card.append(facts)
+      return card
+    }
+
+    for (const { value: productSpaceKey, label: productSpaceLabel } of productSpaceDefinitions) {
+      const spaceProjects = uniqueProjects.filter(project => project.space_key === productSpaceKey)
+      const group = node('details', 'product-space-group'); group.dataset.productSpaceGroup = ''; group.open = true
+      const summary = node('summary', 'product-space-summary')
+      const count = node('span', 'kanban-count', spaceProjects.length); count.dataset.productCount = ''
+      summary.append(node('strong', 'kanban-title', productSpaceLabel), count)
+      const cards = node('div', 'product-card-grid'); cards.dataset.productGrid = ''
+      if (spaceProjects.length) {
+        spaceProjects.forEach(project => cards.append(createProjectCard(project, productSpaceLabels.get(productSpaceKey))))
+      } else cards.append(node('div', 'product-space-empty', 'No projects.'))
+      group.append(summary, cards); projectsRoot.append(group)
     }
   }
 
@@ -282,12 +298,12 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
     const hasDetailJob = detailRequested || Boolean(activeSync)
     const syncing = hasDetailJob && payload.sync?.state === 'loading'
     if (hasDetailJob) updateFeedback(payload.sync)
+    if (payload.productSpaces) productSpaceDefinitions = payload.productSpaces
     cacheReady = hasCache || hasPartialCatalog
     if (!facets.length) renderFacets(payload.facets, { loading: payload.state === 'loading' || !hasCache })
     else if (updateFacets && (hasCache || hasPartialCatalog)) updateFacetOptions(payload.facets)
     if (updateHierarchy) {
-      renderProjects(payload.ownerHierarchy ?? [], payload.projects?.length ?? 0,
-        payload.projects ?? [], payload.accessibleProjectCount)
+      renderProjects(payload.ownerHierarchy ?? [], payload.projects ?? [], payload.accessibleProjectCount)
     }
     status.className = `report-state report-state-${payload.state}`
     status.textContent = STATE_COPY[payload.state] ?? ''
@@ -348,7 +364,7 @@ export function createConfluenceProjects({ root, api, chartFactory, waitForPrefe
       if (destroyed || generation !== pollGeneration) return
       if (details || feedback.state === 'running') feedback.update({ state: 'failed', message: 'Project detail sync failed.' })
       status.className = 'report-state report-state-schema_error'; status.textContent = 'Local project facts API is unavailable.'
-      renderProjects([], 0)
+      renderProjects([])
       setBusinessControlsEnabled(false)
     }
   }

@@ -4,9 +4,9 @@ import { resolve } from 'node:path'
 import { JSDOM } from 'jsdom'
 import { describe, expect, it } from 'vitest'
 
-const entries = ['index.html', 'projects.html', 'jira.html', 'confluence.html', 'settings.html', 'inbox.html', 'analytics.html']
+const entries = ['index.html', 'projects.html', 'jira.html', 'settings.html', 'inbox.html', 'analytics.html']
 const brandedEntries = [...entries, 'login.html']
-const navigation = ['Dashboard', 'Projects', 'Jira', 'Confluence', 'Wi-Fi Data', 'Settings']
+const navigation = ['Dashboard', 'Projects', 'Jira', 'Wi-Fi Data', 'Settings']
 
 describe('static FAE-QA Data Center shell entries', () => {
   it.each(brandedEntries)('%s uses only the FAE-QA Data Center user-facing brand', file => {

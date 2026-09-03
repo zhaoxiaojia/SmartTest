@@ -142,32 +142,6 @@ function updateMessageView(index) {
     document.querySelector('.message-view-body').innerHTML = msg.body;
 }
 
-// ===== Kanban =====
-function initKanban() {
-    const cards = document.querySelectorAll('.kanban-card');
-    const columns = document.querySelectorAll('.kanban-cards');
-
-    cards.forEach(card => {
-        card.setAttribute('draggable', true);
-
-        card.addEventListener('dragstart', () => {
-            card.classList.add('dragging');
-        });
-
-        card.addEventListener('dragend', () => {
-            card.classList.remove('dragging');
-        });
-    });
-
-    columns.forEach(column => {
-        column.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            const dragging = document.querySelector('.dragging');
-            column.appendChild(dragging);
-        });
-    });
-}
-
 // ===== Mobile Menu =====
 function toggleMobileMenu() {
     const menu = document.querySelector('.mobile-menu');
@@ -195,10 +169,6 @@ function closeMobileMenu() {
 document.addEventListener('DOMContentLoaded', function() {
     initTheme();
     setGreeting();
-
-    if (document.querySelector('.kanban-board')) {
-        initKanban();
-    }
 
     // Close mobile menu on overlay click
     const overlay = document.querySelector('.mobile-menu-overlay');

@@ -12,11 +12,13 @@ from core.confluence.project import (
     ProjectSyncScope,
 )
 from core.confluence.project_catalog import (
+    PRODUCT_SPACE_FACET,
     PROJECT_SPACE_FACET_DEFINITIONS,
     extract_project_detail,
     query_project_facts,
     refresh_project_catalogs,
 )
+from core.confluence.project_discovery import PRODUCT_LINES
 from core.confluence.project_mapper import ConfluenceProjectMapper
 
 from .confluence.cache_service import ConfluenceProjectCacheService
@@ -105,12 +107,14 @@ class ProjectFactsWebOwner:
 
     def query(self, access, *, filters=None, search="", page=0, page_size=10000):
         query_access = _QueryAccessSnapshot(access)
+        ready_product_spaces = query_access.ids("catalog", "ready")
         cached = self._repository.list(
             ProjectQuery(), 0, 100000,
             visible_ids=query_access.ids("project", "catalog"),
         )
         if cached.total == 0:
-            return self._state("ready" if set(PAGE_CATALOG_PRODUCT_SPACES) <= query_access.ids("catalog", "ready") else "no_snapshot")
+            state = "ready" if set(PAGE_CATALOG_PRODUCT_SPACES) <= ready_product_spaces else "no_snapshot"
+            return self._state(state, ready_product_spaces)
         reader = ConfluenceProjectCacheService(
             None, ConfluenceProjectMapper(), self._repository, access=query_access,
         )
@@ -127,7 +131,8 @@ class ProjectFactsWebOwner:
         return {
             "state": "ready",
             "accessibleProjectCount": cached.total,
-            "facets": _facet_rows(result["facets"]),
+            "productSpaces": _product_space_rows(),
+            "facets": _facet_rows(result["facets"], ready_product_spaces),
             "projects": visible[start:start + int(page_size)],
             "pagination": {
                 "page": int(page),
@@ -165,11 +170,13 @@ class ProjectFactsWebOwner:
         )
 
     @staticmethod
-    def _state(state):
+    def _state(state, ready_product_spaces=()):
         return {
             "state": state, "accessibleProjectCount": 0,
+            "productSpaces": _product_space_rows(),
             "facets": [
-                {"key": key, "label": label, "labels": [label], "options": []}
+                {"key": key, "label": label, "labels": [label],
+                 "options": _product_space_rows(ready_product_spaces) if key == PRODUCT_SPACE_FACET else []}
                 for key, label in PROJECT_SPACE_FACET_DEFINITIONS
             ],
             "projects": [], "ownerHierarchy": [], "discrepancies": [],
@@ -301,7 +308,16 @@ def _project_snapshot_row(project):
     }
 
 
-def _facet_rows(values):
+def _product_space_rows(allowed=None):
+    allowed = None if allowed is None else set(allowed)
+    return [
+        {"value": line.key, "label": line.display_name}
+        for line in PRODUCT_LINES
+        if allowed is None or line.key in allowed
+    ]
+
+
+def _facet_rows(values, ready_product_spaces=()):
     labels = dict(PROJECT_SPACE_FACET_DEFINITIONS)
     fixed = tuple(labels)
     keys = (*fixed, *(key for key in sorted(values, key=str.casefold) if key not in labels))
@@ -309,5 +325,6 @@ def _facet_rows(values):
         "key": key,
         "label": labels.get(key, key.title()),
         "labels": [labels.get(key, key.title())],
-        "options": values.get(key, []),
+        "options": (_product_space_rows(ready_product_spaces)
+                    if key == PRODUCT_SPACE_FACET else values.get(key, [])),
     } for key in keys]

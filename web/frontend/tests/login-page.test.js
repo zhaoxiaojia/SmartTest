@@ -13,14 +13,14 @@ describe('SmartTest login page', () => {
   })
 
   it('authenticates once and returns to the requested internal page', async () => {
-    window.history.replaceState({}, '', '/login.html?next=%2Fconfluence.html%3Fview%3Downers')
+    window.history.replaceState({}, '', '/login.html?next=%2Fprojects.html%3Fview%3Downers')
     const api = { session: vi.fn().mockResolvedValue({ authenticated: false }), login: vi.fn().mockResolvedValue({ authenticated: true }) }
     const navigate = vi.fn()
     await createLoginPage({ root: document, api, navigate }).start()
     const form = document.querySelector('form')
     form.elements.username.value = 'coco'; form.elements.password.value = 'secret'
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith('/confluence.html?view=owners'))
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith('/projects.html?view=owners'))
     expect(api.login).toHaveBeenCalledWith('coco', 'secret')
     expect(form.elements.password.value).toBe('')
   })

@@ -36,6 +36,36 @@ def test_project_facts_owner_reads_and_invalidates_new_project_repository(tmp_pa
     assert owner.query(access)["state"] == "no_snapshot"
 
 
+def test_project_facts_exposes_core_product_labels_and_only_catalog_ready_filter_candidates(tmp_path) -> None:
+    repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
+    repository.save_core((Project(
+        ProjectIdentity("900", "P100"), "Project One",
+        ProductSpaceRef("DOPL", "China Operator Business"), ConfluencePageRef("10", "Catalog"),
+        status=NamedValue("normal", "Normal"),
+    ),))
+    access = confirmed_access(repository.database, ("P100",))
+    access.publish([
+        ("catalog", "DOPL", "ready", "DOPL"),
+        ("catalog", "TV", "ready", "TV"),
+    ], lambda: None)
+
+    result = ProjectFactsWebOwner(repository=repository).query(
+        access, filters={"project status": ("DOES NOT MATCH",)},
+    )
+
+    assert result["productSpaces"] == [
+        {"value": "DOPL", "label": "China Operator Business"},
+        {"value": "SDPL", "label": "Smart Device Business"},
+        {"value": "TV", "label": "TV Business"},
+        {"value": "OOPL", "label": "Global Operator & STB Business"},
+    ]
+    product_space = next(facet for facet in result["facets"] if facet["key"] == "__product_space__")
+    assert product_space["options"] == [
+        {"value": "DOPL", "label": "China Operator Business"},
+        {"value": "TV", "label": "TV Business"},
+    ]
+
+
 def test_project_facts_query_keeps_its_access_snapshot_during_catalog_replacement(tmp_path) -> None:
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     repository.save_core((Project(

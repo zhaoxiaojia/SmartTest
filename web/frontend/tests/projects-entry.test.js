@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest'
 
-it('imports the real entry and preserves Apply controls and Review polling across same-session ready', async () => {
-  window.history.replaceState({}, '', '/confluence.html')
+it('mounts the Projects entry and preserves Apply controls and Weekly Review polling across same-session ready', async () => {
+  window.history.replaceState({}, '', '/projects.html')
   document.body.innerHTML = '<nav class="nav-right"></nav><div class="mobile-menu-footer"></div><main class="main-content"></main>'
   const ready = { state: 'ready', accessibleProjectCount: 1,
+    productSpaces: [
+      { value: 'DOPL', label: 'China Operator Business' },
+      { value: 'SDPL', label: 'Smart Device Business' },
+      { value: 'TV', label: 'TV Business' },
+      { value: 'OOPL', label: 'Global Operator & STB Business' },
+    ],
     facets: [{ key: '__product_space__', label: 'Product Space', options: ['TV'] }],
     projects: [{ project_id: 'P1', name: 'Project One', space_key: 'TV' }], ownerHierarchy: [], sync: { state: 'idle' } }
   const respond = data => ({ ok: true, json: async () => data })
@@ -29,7 +35,7 @@ it('imports the real entry and preserves Apply controls and Review polling acros
     throw new Error(`Unexpected request: ${path.pathname}`)
   })
   vi.stubGlobal('fetch', fetchImpl)
-  await import('../src/report-main.js')
+  await import('../src/projects-main.js')
   try {
     await vi.waitFor(() => expect(finishCatalog).toBeTypeOf('function'))
     const form = document.querySelector('main form')

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest'
 
-it.each(['changing', 'ready'])('ignores old bootstrap after session:%s', async eventName => {
+it.each(['changing', 'ready'])('shared authenticated page ignores old bootstrap after session:%s', async eventName => {
   vi.resetModules()
   window.history.replaceState({}, '', '/jira.html')
   document.body.innerHTML = '<main class="main-content"></main>'
@@ -9,7 +9,7 @@ it.each(['changing', 'ready'])('ignores old bootstrap after session:%s', async e
   const shellReady = new Promise(resolve => { finishBootstrap = resolve })
   vi.doMock('../src/main.js', () => ({ shellReady, preferencesReady: Promise.resolve() }))
   const listeners = vi.spyOn(window, 'addEventListener')
-  await import('../src/report-main.js')
+  await import('../src/jira-main.js')
   try {
     window.dispatchEvent(new CustomEvent(`session:${eventName}`, {
       detail: { authenticated: true, username: 'bob' }
