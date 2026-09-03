@@ -1,7 +1,12 @@
 import { defineConfig } from 'vite'
 import { resolve } from 'node:path'
+import { WEB_BRAND_NAME, WEB_BRAND_TOKEN } from './src/brand.js'
 
 export default defineConfig({
+  plugins: [{
+    name: 'smarttest-web-brand',
+    transformIndexHtml: html => html.replaceAll(WEB_BRAND_TOKEN, WEB_BRAND_NAME)
+  }],
   build: {
     rollupOptions: {
       input: {

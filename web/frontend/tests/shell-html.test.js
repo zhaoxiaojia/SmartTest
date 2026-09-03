@@ -8,18 +8,21 @@ const entries = ['index.html', 'projects.html', 'jira.html', 'settings.html', 'i
 const brandedEntries = [...entries, 'login.html']
 const navigation = ['Dashboard', 'Projects', 'Jira', 'Wi-Fi Data', 'Settings']
 
-describe('static FAE-QA Data Center shell entries', () => {
-  it.each(brandedEntries)('%s uses only the FAE-QA Data Center user-facing brand', file => {
-    const document = new JSDOM(readFileSync(resolve(import.meta.dirname, '..', file), 'utf8')).window.document
+describe('static FAE QA Data Center shell entries', () => {
+  it.each(brandedEntries)('%s uses only the shared Web brand token', file => {
+    const html = readFileSync(resolve(import.meta.dirname, '..', file), 'utf8')
+    const document = new JSDOM(html).window.document
     expect(document.title).not.toContain('SmartTest')
     expect(document.body.textContent).not.toContain('SmartTest')
-    expect(`${document.title} ${document.body.textContent}`).toContain('FAE-QA Data Center')
+    expect(html).toContain('__SMARTTEST_WEB_BRAND__')
+    expect(html).not.toContain('FAE-QA Data Center')
+    expect(html).not.toContain('FAE QA Data Center')
   })
 
   it.each(entries)('%s owns the common shell and main mount point', file => {
     const html = readFileSync(resolve(import.meta.dirname, '..', file), 'utf8')
     const document = new JSDOM(html).window.document
-    expect(document.querySelector('.logo').textContent.replace(/\s+/g, ' ').trim()).toContain('FAE-QA Data Center')
+    expect(document.querySelector('.logo').textContent.replace(/\s+/g, ' ').trim()).toContain('__SMARTTEST_WEB_BRAND__')
     expect([...document.querySelectorAll('.nav-menu a')].map(link => link.textContent.trim())).toEqual(navigation)
     expect([...document.querySelectorAll('.mobile-menu-nav a')].map(link => link.textContent.trim())).toEqual(navigation)
     expect(document.querySelector('main.main-content')).not.toBeNull()

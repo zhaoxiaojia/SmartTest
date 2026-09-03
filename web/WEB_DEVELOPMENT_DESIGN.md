@@ -521,7 +521,7 @@ Confluence 页面在既有账号隔离、筛选、Apply、缓存与权限结果�
 
 ### 13.4 Web 静态 Shell 与导航单一 owner
 
-Dashboard、Projects、Jira、Confluence、Wi-Fi Data、Settings 以及可直接访问的 Inbox、Analytics HTML 入口都静态持有同一套 Shell；JavaScript 不创建、替换或补写顶部导航。品牌统一为 `FAE-QA Data Center`，主导航固定为 Dashboard、Projects、Jira、Confluence、Wi-Fi Data、Settings，Inbox 与 Analytics 保留页面入口但不进入主导航。
+Dashboard、Projects、Jira、Confluence、Wi-Fi Data、Settings 以及可直接访问的 Inbox、Analytics HTML 入口都静态持有同一套 Shell；JavaScript 不创建、替换或补写顶部导航。品牌统一为 `FAE QA Data Center`，主导航固定为 Dashboard、Projects、Jira、Confluence、Wi-Fi Data、Settings，Inbox 与 Analytics 保留页面入口但不进入主导航。
 
 - `smarttest-portal.js` 只保留主题、移动菜单、Greeting、Inbox、Kanban 等公共交互，不插入导航项。
 - `main.js` 只在已有 Shell 上挂接认证、账号级偏好和 Wi-Fi 路由启动；Report 与 Wi-Fi main 只把各自业务内容挂载到既有 `main.main-content`。
