@@ -54,8 +54,7 @@ class ConfluenceProjectCacheService:
         if evidence.value is not None:
             pages = self._access.ids("page", "metadata")
             evidence = replace(evidence, value=tuple(item for item in evidence.value if item.source == "catalog" or item.page.page_id in pages))
-        owners = tuple(person for role in project.roles.value or () for person in role.people)
-        return replace(project, evidence=evidence, owner_summary=owners)
+        return replace(project, evidence=evidence)
 
     def get_project(self, project_id: str, details: ProjectDetails, cancellation=None) -> Project | None:
         project = self.read_project(project_id, details)

@@ -10,9 +10,9 @@ import re
 from time import perf_counter
 
 from core.logging import smart_log
-from .project_discovery import PRODUCT_LINES, ProjectLocation, _commercial_year, discover_project_pages, locate_basic_information
+from .project_discovery import PRODUCT_LINES, ProjectLocation, _commercial_year, canonical_project_name, discover_project_pages, locate_basic_information
 from .html import html_tables, links, text
-from .role_parser import extract_project_roles, resolve_role_display_names
+from .role_parser import extract_project_roles, extract_role_people, resolve_role_display_names
 from .project_rules import CANONICAL_PROJECT_FIELDS, ROLE_LABELS, normalize_project_field
 
 
@@ -326,6 +326,7 @@ def _catalog_rows(source, space_key):
             identity = f"{space_key}:{project_id}"
             row = merged.setdefault(identity, {
                 "raw_fields": {}, "raw_field_html": {}, "fields": {}, "raw_headers": [],
+                "project_owners": [],
             })
             for raw_header, normalized, cell in zip(raw_headers, normalized_headers, cells):
                 value = text(cell).strip()
@@ -335,8 +336,18 @@ def _catalog_rows(source, space_key):
                     row["raw_field_html"][raw_header] = cell
                 if value and normalized not in row["fields"]:
                     row["fields"][normalized] = value
+                if value and normalized == "project owner":
+                    known = {
+                        person.get("identity") or str(person.get("name") or "").casefold()
+                        for person in row["project_owners"]
+                    }
+                    row["project_owners"].extend(
+                        person for person in extract_role_people(cell, "Project Owner")
+                        if (person.get("identity") or str(person.get("name") or "").casefold()) not in known
+                    )
             page_url = urljoin(source.url, href)
-            row.update(identity=identity, project_id=project_id, name=label or project_id,
+            row.update(identity=identity, project_id=project_id,
+                       name=canonical_project_name(label, project_id),
                        space_key=space_key, page_url=page_url,
                        page_id=(parse_qs(urlsplit(page_url).query).get("pageId") or [""])[0])
     if not found_catalog:

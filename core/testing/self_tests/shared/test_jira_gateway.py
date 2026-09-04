@@ -26,6 +26,14 @@ class RecordingApi:
         self.calls.append(("create", fields))
         return {"id": "1", "key": "SH-1"}
 
+    def get_all_fields(self):
+        self.calls.append(("fields",))
+        return [
+            {"id": "customfield_101", "name": "Project ID"},
+            {"id": "customfield_102", "name": "Software Release"},
+            {"id": "customfield_103", "name": "Severity"},
+        ]
+
 
 def test_jira_gateway_search_requests_only_lightweight_core_fields() -> None:
     api = RecordingApi()
@@ -38,6 +46,22 @@ def test_jira_gateway_search_requests_only_lightweight_core_fields() -> None:
     assert "comment" not in call[2]
     assert "attachment" not in call[2]
     assert "description" not in call[2]
+
+
+def test_release_search_resolves_custom_field_ids_from_metadata_and_includes_fix_versions() -> None:
+    api = RecordingApi()
+    gateway = JiraGateway("https://jira.example", "u", "p", api=api)
+
+    payload = gateway.search_release_issues('"Project ID" = "P100"')
+
+    assert api.calls[0] == ("fields",)
+    assert api.calls[1][0:3] == (
+        "jql", '"Project ID" = "P100"',
+        [*JiraGateway.CORE_FIELDS, "fixVersions", "resolutiondate", "customfield_101", "customfield_102", "customfield_103"],
+    )
+    assert payload["fieldMetadata"] == {
+        "customfield_101": "Project ID", "customfield_102": "Software Release", "customfield_103": "Severity",
+    }
 
 
 def test_jira_gateway_loads_comments_without_fetching_other_sections() -> None:

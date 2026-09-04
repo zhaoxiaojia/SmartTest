@@ -29,6 +29,21 @@ class JiraGateway:
     def search_issues(self, query, page=0):
         return {"issues": [_payload(self.revision)], "page": page, "page_size": 100, "total": 1}
 
+    def search_release_issues(self, query, page=0):
+        payload = _payload(self.revision)
+        payload["fields"].update({
+            "customfield_101": "P100", "customfield_102": {"value": "Android 16"},
+            "fixVersions": [{"id": "v1", "name": "Android 16", "released": False}],
+        })
+        return {
+            "issues": [payload], "page": page, "page_size": 100, "total": 1,
+            "fieldMetadata": {
+                "customfield_101": "Project ID", "customfield_102": "Software Release",
+                "customfield_103": "Severity", "customfield_104": "Compare Status",
+                "customfield_105": "QA Assignee", "customfield_106": "Manager",
+            },
+        }
+
     def get_issue(self, issue_key):
         return _payload(self.revision)
 
@@ -108,3 +123,18 @@ def test_jira_remote_detail_failure_without_old_value_records_failed_state(tmp_p
     assert issue.attachments.state is DetailState.FAILED
     assert issue.attachments.value is None
     assert issue.attachments.error_code == "remote_unavailable"
+
+
+def test_release_refresh_saves_core_and_stable_release_projection(tmp_path) -> None:
+    service, _gateway, repository = _service(tmp_path)
+
+    result = service.refresh_release_issues('"Project ID" = "P100"')
+
+    assert result["total"] == 1
+    with repository.database.connect() as connection:
+        assert connection.execute(
+            "SELECT project_business_id,software_release FROM jira_issue_release_facts"
+        ).fetchone() == ("P100", "Android 16")
+        assert connection.execute(
+            "SELECT version_name FROM jira_issue_fix_versions"
+        ).fetchone()[0] == "Android 16"

@@ -6,6 +6,7 @@ from typing import Any
 from core.confluence.project import ConfluencePageRef, ProductSpaceRef, Project, ProjectIdentity, ProjectMilestones, ProjectRole, SourceEvidence
 from core.domain.detail import DetailSection
 from core.domain.values import FieldBag, NamedValue, PersonRef, SourceRevision
+from core.confluence.project_rules import canonical_project_role_id
 
 
 class ConfluenceProjectMapper:
@@ -17,7 +18,9 @@ class ConfluenceProjectMapper:
             str(payload.get("name") or ""),
             str(payload.get("page_url") or ""),
         )
-        owners = tuple(person for people in _mapping(payload.get("roles")).values() for person in (_person(item) for item in people or ()) if person)
+        owners = tuple(
+            person for person in (_person(item) for item in payload.get("project_owners") or ()) if person
+        )
         return Project(
             ProjectIdentity(str(payload.get("identity") or payload.get("page_id") or ""), str(payload.get("project_id") or "")),
             str(payload.get("name") or ""),
@@ -40,10 +43,13 @@ class ConfluenceProjectMapper:
         changes: dict[str, Any] = {}
         if "roles" in sections:
             roles = tuple(
-                ProjectRole(NamedValue(name=str(role)), tuple(person for person in (_person(item) for item in people or ()) if person))
+                ProjectRole(
+                    NamedValue(canonical_project_role_id(role), str(role)),
+                    tuple(person for person in (_person(item) for item in people or ()) if person),
+                )
                 for role, people in _mapping(payload.get("roles")).items()
             )
-            changes.update(roles=DetailSection.loaded(roles, source_revision=revision), owner_summary=tuple(person for role in roles for person in role.people))
+            changes["roles"] = DetailSection.loaded(roles, source_revision=revision)
         if "milestones" in sections:
             changes["milestones"] = DetailSection.loaded(ProjectMilestones(tuple((str(key), str(value)) for key, value in _mapping(payload.get("milestones")).items())), source_revision=revision)
         for name in ("hardware", "software", "facts"):

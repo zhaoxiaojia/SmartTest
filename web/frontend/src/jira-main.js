@@ -1,6 +1,9 @@
-import { createManualAuditApi } from './api.js'
+import { createManualAuditApi, createReleaseApi } from './api.js'
 import { startAuthenticatedPage } from './authenticated-page.js'
-import { createJiraManualAudit } from './manual-audits.js'
+import { createJiraWorkbench } from './jira-workbench.js'
 
-const api = createManualAuditApi()
-startAuthenticatedPage({ mount: root => createJiraManualAudit({ root, api }) })
+const api = { ...createManualAuditApi(), ...createReleaseApi() }
+const query = new URLSearchParams(window.location.search)
+const snapshot = query.get('snapshot') || ''
+const projectId = query.get('projectId') || ''
+startAuthenticatedPage({ mount: root => createJiraWorkbench({ root, api, snapshot, projectId }) })

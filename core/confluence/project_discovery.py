@@ -97,21 +97,22 @@ def _commercial_year(value):
     return None
 
 
-_LEADING_PAGE_ORDINAL = re.compile(
-    r"^\s*\d+\.\s*(?:[★☆*]\s*)?(?=[^\W\d_])",
+_PROJECT_NAME_PREFIX = re.compile(
+    r"^\s*(?:(?:[★☆*#_~]+\s*)|(?:\d+(?:\s*[.)、:：-]\s*|\s+)))+",
 )
-_PAGE_TYPE_SUFFIX = re.compile(
-    r"\s*[-–—]\s*\**\s*"
+_PROJECT_NAME_SUFFIX = re.compile(
+    r"\s*(?:[-–—:：]\s*)?\**\s*"
     r"(?:Basic\s+Information|Project\s+Status\s+Report)\s*\**\s*$",
     re.IGNORECASE,
 )
 
 
-def _project_display_name(title, project_id):
+def canonical_project_name(title, project_id=""):
     """Derive a UI name without changing the Confluence audit target title."""
     value = str(title or "").strip()
-    value = _LEADING_PAGE_ORDINAL.sub("", value)
-    value = _PAGE_TYPE_SUFFIX.sub("", value).strip()
+    value = _PROJECT_NAME_PREFIX.sub("", value)
+    value = _PROJECT_NAME_SUFFIX.sub("", value).strip(" \t-–—:：")
+    value = re.sub(r"\s+", " ", value)
     return value or str(project_id)
 
 
@@ -228,7 +229,7 @@ def _project_identity_tokens(project):
         project.status_page_id,
         project.project_id,
         project.name,
-        _project_display_name(project.name, project.project_id),
+        canonical_project_name(project.name, project.project_id),
     )
     return {
         token

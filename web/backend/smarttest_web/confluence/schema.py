@@ -5,6 +5,7 @@ from ..schema import ensure_component_schema
 
 
 CONFLUENCE_TABLES = (
+    "project_current_releases",
     "confluence_account_project_access",
     "confluence_project_attributes",
     "confluence_project_people",
@@ -32,6 +33,14 @@ CONFLUENCE_STATEMENTS = (
         source_revision TEXT NOT NULL DEFAULT '', cached_at TEXT NOT NULL
     )""",
     "CREATE INDEX IF NOT EXISTS confluence_projects_space_idx ON confluence_projects(product_space_key)",
+    """CREATE TABLE IF NOT EXISTS project_current_releases (
+        confluence_id TEXT PRIMARY KEY REFERENCES confluence_projects(confluence_id) ON DELETE CASCADE,
+        project_id TEXT NOT NULL DEFAULT '', release_name TEXT NOT NULL DEFAULT '',
+        launch_time TEXT NOT NULL DEFAULT '', mp_time TEXT NOT NULL DEFAULT '',
+        next_target TEXT NOT NULL DEFAULT '', next_target_date TEXT NOT NULL DEFAULT '',
+        current_hw_stage TEXT NOT NULL DEFAULT '', status_summary TEXT NOT NULL DEFAULT '',
+        source_revision TEXT NOT NULL DEFAULT '', cached_at TEXT NOT NULL
+    )""",
     """CREATE TABLE IF NOT EXISTS confluence_project_owners (
         confluence_id TEXT NOT NULL REFERENCES confluence_projects(confluence_id) ON DELETE CASCADE,
         identity TEXT NOT NULL, account TEXT NOT NULL DEFAULT '', display_name TEXT NOT NULL DEFAULT '',

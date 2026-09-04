@@ -18,6 +18,7 @@ from core.confluence.project import (
     ProjectRole,
     SourceEvidence,
 )
+from core.confluence.project_discovery import canonical_project_name
 from core.domain.detail import DetailSection, DetailState
 from core.domain.values import FieldBag, NamedValue, PersonRef, SourceRevision
 from core.logging import smart_log
@@ -27,12 +28,15 @@ from .schema import initialize_confluence_schema
 
 
 _SECTIONS = ("roles", "milestones", "hardware", "software", "facts", "evidence")
+_PROJECT_NAME_MIGRATION_COMPONENT = "confluence_project_name"
+_PROJECT_NAME_MIGRATION_VERSION = 1
 
 
 class ConfluenceProjectRepository:
     def __init__(self, database: WebDatabase):
         self.database = database
         initialize_confluence_schema(database)
+        _upgrade_cached_project_names(database)
 
     def get(self, project_id: str, details: ProjectDetails) -> Project | None:
         with self.database.connect() as connection:
@@ -233,6 +237,7 @@ class ConfluenceProjectRepository:
                 "INSERT INTO confluence_project_milestones VALUES(?,?,?)",
                 ((confluence_id, key, value) for key, value in (section.value.values if section.value else ())),
             )
+            self._rebuild_current_release(connection, confluence_id, section.source_revision)
         self._replace(project_id, "milestones", section, write)
 
     def replace_hardware(self, project_id: str, section: DetailSection[FieldBag]) -> None:
@@ -287,7 +292,44 @@ class ConfluenceProjectRepository:
                     "INSERT INTO confluence_project_fields VALUES(?,?,?,?)",
                     (confluence_id, name, key, json.dumps(value, ensure_ascii=False)),
                 )
+            if name == "facts":
+                self._rebuild_current_release(connection, confluence_id, section.source_revision)
         self._replace(project_id, name, section, write)
+
+    @staticmethod
+    def _rebuild_current_release(connection, confluence_id: str, source_revision: str) -> None:
+        fields = {}
+        for key, value_json in connection.execute(
+            """SELECT field_key,value_json FROM confluence_project_fields
+            WHERE confluence_id=? AND section_name='facts'""", (confluence_id,),
+        ):
+            fields[_normalized_field_name(key)] = _field_display_value(json.loads(value_json))
+        for key, value in connection.execute(
+            "SELECT milestone_key,milestone_value FROM confluence_project_milestones WHERE confluence_id=?",
+            (confluence_id,),
+        ):
+            fields[_normalized_field_name(key)] = str(value or "")
+        project = connection.execute(
+            "SELECT project_id,source_revision FROM confluence_projects WHERE confluence_id=?",
+            (confluence_id,),
+        ).fetchone()
+        if project is None:
+            return
+        connection.execute(
+            """INSERT INTO project_current_releases
+            (confluence_id,project_id,release_name,launch_time,mp_time,next_target,next_target_date,
+             current_hw_stage,status_summary,source_revision,cached_at)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(confluence_id) DO UPDATE SET
+            project_id=excluded.project_id,release_name=excluded.release_name,
+            launch_time=excluded.launch_time,mp_time=excluded.mp_time,
+            next_target=excluded.next_target,next_target_date=excluded.next_target_date,
+            current_hw_stage=excluded.current_hw_stage,status_summary=excluded.status_summary,
+            source_revision=excluded.source_revision,cached_at=excluded.cached_at""",
+            (confluence_id, project[0], fields.get("launch os", ""), fields.get("launch time", ""),
+             fields.get("mp time", ""), fields.get("next target", ""),
+             fields.get("next target date", ""), fields.get("current hw stage", ""),
+             fields.get("status summary", ""), str(source_revision or project[1] or ""), _now()),
+        )
 
     def _replace(self, project_id: str, name: str, section: DetailSection, writer: Callable) -> None:
         with self.database.transaction() as connection:
@@ -391,6 +433,30 @@ def _project_values(project: Project, cached_at: str) -> tuple:
     )
 
 
+def _upgrade_cached_project_names(database: WebDatabase) -> None:
+    with database.transaction() as connection:
+        marker = connection.execute(
+            "SELECT version FROM smarttest_schema WHERE component=?",
+            (_PROJECT_NAME_MIGRATION_COMPONENT,),
+        ).fetchone()
+        if marker is not None and int(marker[0]) >= _PROJECT_NAME_MIGRATION_VERSION:
+            return
+        for confluence_id, project_id, name in connection.execute(
+            "SELECT confluence_id,project_id,name FROM confluence_projects",
+        ):
+            canonical_name = canonical_project_name(name, project_id)
+            if canonical_name != name:
+                connection.execute(
+                    "UPDATE confluence_projects SET name=? WHERE confluence_id=?",
+                    (canonical_name, confluence_id),
+                )
+        connection.execute(
+            """INSERT INTO smarttest_schema(component,version) VALUES(?,?)
+            ON CONFLICT(component) DO UPDATE SET version=excluded.version""",
+            (_PROJECT_NAME_MIGRATION_COMPONENT, _PROJECT_NAME_MIGRATION_VERSION),
+        )
+
+
 def person_values(person: PersonRef) -> tuple[str, str, str]:
     return person.identity, person.account, person.display_name
 
@@ -413,3 +479,17 @@ def _empty_value(name: str):
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _normalized_field_name(value) -> str:
+    return " ".join(str(value or "").strip().casefold().split())
+
+
+def _field_display_value(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        return str(value.get("value") or value.get("name") or value.get("displayName") or "")
+    if isinstance(value, (list, tuple)):
+        return ", ".join(filter(None, (_field_display_value(item) for item in value)))
+    return str(value)

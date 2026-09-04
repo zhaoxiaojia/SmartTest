@@ -170,3 +170,39 @@ export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = 
     },
   }
 }
+
+export function createReleaseApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
+  async function request(path, { method = 'GET', filters = {}, options = {} } = {}) {
+    const query = new URLSearchParams()
+    for (const [key, values] of Object.entries(filters)) {
+      for (const value of Array.isArray(values) ? values : [values]) if (`${value}`.trim()) query.append(key, value)
+    }
+    if (options.snapshot === true) query.set('snapshot', '1')
+    else if (options.snapshot) query.set('snapshot', options.snapshot)
+    if (options.reset) query.set('reset', '1')
+    if (options.page !== undefined) query.set('page', options.page)
+    if (options.pageSize !== undefined) query.set('pageSize', options.pageSize)
+    if (options.projectId) query.set('projectId', options.projectId)
+    let response
+    try {
+      response = await fetchImpl(`${baseUrl}${path}${query.size ? `?${query}` : ''}`, {
+        method, credentials: 'same-origin'
+      })
+    } catch (cause) {
+      throw new ApiUnavailableError('Release API unavailable.', { cause })
+    }
+    if (!response.ok) throw new ApiUnavailableError(`Release API unavailable (${response.status}).`, { status: response.status })
+    return response.json()
+  }
+  return {
+    getDashboardReleases: (filters = {}, options = {}) => request('/dashboard/releases', { filters, options }),
+    syncDashboardReleases: () => request('/dashboard/releases/sync', { method: 'POST' }),
+    getDashboardRelease: projectId => request(`/dashboard/releases/${encodeURIComponent(projectId)}`),
+    getJiraReleaseIssues: (filters = {}, options = {}) => request('/jira/release-issues', { filters, options }),
+    syncJiraReleaseIssues: () => request('/jira/release-issues/sync', { method: 'POST' }),
+    getJiraReleaseIssue: (issueKey, details = []) => request(
+      `/jira/release-issues/${encodeURIComponent(issueKey)}`,
+      { filters: { details } },
+    ),
+  }
+}

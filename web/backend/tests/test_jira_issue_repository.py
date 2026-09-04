@@ -100,6 +100,36 @@ def test_detail_replace_failure_rolls_back_value_and_state(tmp_path) -> None:
     assert repository.get("SH-100", IssueDetails(description=True)).description == original
 
 
+def test_release_projection_uses_field_metadata_names_and_standard_fix_versions(tmp_path) -> None:
+    repository = _repository(tmp_path)
+    repository.save_core((_issue(),))
+
+    repository.replace_release_fields(
+        "SH-100",
+        {
+            "customfield_101": "P100",
+            "customfield_102": {"value": "Android 16"},
+            "customfield_103": [{"value": "Critical"}],
+            "customfield_104": {"name": "qa.user", "displayName": "QA User"},
+            "resolutiondate": "2026-09-03T08:30:00+00:00",
+            "fixVersions": [{"id": "v1", "name": "Android 16", "released": False, "releaseDate": "2026-11-02"}],
+        },
+        {
+            "customfield_101": "Project ID", "customfield_102": "Software Release",
+            "customfield_103": "Severity", "customfield_104": "QA Assignee",
+            "customfield_105": "Compare Status", "customfield_106": "Manager",
+        },
+    )
+
+    with repository.database.connect() as connection:
+        fact = connection.execute("SELECT * FROM jira_issue_release_facts WHERE issue_id='100'").fetchone()
+        versions = connection.execute("SELECT version_id,version_name,released,release_date FROM jira_issue_fix_versions").fetchall()
+        metadata = dict(connection.execute("SELECT field_name,field_key FROM jira_release_field_metadata"))
+    assert fact == ("100", "P100", "Android 16", "Critical", "", "qa.user", "", "2026-09-03T08:30:00+00:00")
+    assert versions == [("v1", "Android 16", 0, "2026-11-02")]
+    assert metadata["Project ID"] == "customfield_101"
+
+
 def test_failed_sections_round_trip_explicit_value_presence_without_revision(tmp_path) -> None:
     repository = _repository(tmp_path)
     repository.save_core((_issue(),))

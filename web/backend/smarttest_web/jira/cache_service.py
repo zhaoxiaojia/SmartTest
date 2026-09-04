@@ -56,6 +56,27 @@ class JiraIssueCacheService:
             ),
         }
 
+    def refresh_release_issues(self, scope: str, *, page: int = 0) -> dict:
+        payload = self._gateway.search_release_issues(scope, page)
+        metadata = payload.get("fieldMetadata") or {}
+        issues, rows, failures = [], [], []
+        for row in payload.get("issues") or ():
+            try:
+                issues.append(self._mapper.from_search(row))
+                rows.append(row)
+            except Exception:
+                failures.append(str(row.get("key") or row.get("id") or "mapping_failed"))
+        self._repository.save_core(issues)
+        for issue, row in zip(issues, rows):
+            fields = row.get("fields") if isinstance(row.get("fields"), dict) else {}
+            self._repository.replace_release_fields(issue.identity.key, fields, metadata)
+        return {
+            "issues": tuple(issues), "failed": tuple(failures),
+            "total": int(payload.get("total") or len(issues)),
+            "page_size": int(payload.get("maxResults") or payload.get("page_size")
+                             or getattr(getattr(self._gateway, "config", None), "page_size", 100)),
+        }
+
     def refresh_issue(self, issue_key: str, details: IssueDetails) -> Issue:
         core = self._mapper.from_search(self._gateway.get_issue(issue_key))
         self._repository.save_core((core,))

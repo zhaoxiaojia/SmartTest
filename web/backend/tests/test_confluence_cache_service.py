@@ -9,13 +9,16 @@ from core.domain.detail import DetailState
 from smarttest_web.confluence.cache_service import ConfluenceProjectCacheService
 from smarttest_web.confluence.project_repository import ConfluenceProjectRepository
 from smarttest_web.database import WebDatabase
+from smarttest_web.release_query import ProjectReleaseQueryService
 
 
 def _row(version=1):
     return {
         "identity": "900", "project_id": "P100", "name": "Project One",
         "space_key": "DOPL", "space_name": "DOPL", "page_url": "https://c/900",
-        "fields": {"project status": "Normal", "current stage": "EVT", "support mode": "Onsite"},
+        "fields": {"project status": "Normal", "current stage": "EVT", "support mode": "Onsite",
+                   "project owner": "Catalog Owner", "launch os": "Android 16", "launch time": "2026-10-01"},
+        "project_owners": [{"identity": "owner-1", "name": "Catalog Owner"}],
         "catalog_source": {"page_id": "10", "title": "Catalog", "version": version},
     }
 
@@ -152,3 +155,35 @@ def test_confluence_remote_detail_failure_preserves_catalog_fields(tmp_path) -> 
     assert project.facts.state is DetailState.FAILED
     assert dict(project.facts.value.values)["current stage"] == "EVT"
     assert project.facts.error_code == "remote_unavailable"
+
+
+def test_detail_refresh_preserves_confluence_catalog_owner_and_exposes_all_major_qa(tmp_path) -> None:
+    service, gateway, repository = _service(tmp_path)
+    gateway.load_project_sections = lambda _project_id, _sections: {
+        "roles": {
+            "Major FAE QA": [
+                {"identity": "qa-1", "name": "Alice"},
+                {"identity": "qa-2", "name": "Bob"},
+            ],
+            "FAE QA": [{"identity": "other-qa", "name": "Mallory"}],
+        },
+    }
+    service.refresh_projects(ProjectSyncScope())
+
+    refreshed = service.refresh_project("P100", ProjectDetails(roles=True))
+    dashboard = ProjectReleaseQueryService(repository.database).dashboard(visible_ids=("900",))
+    release = dashboard["releases"][0]
+    with repository.database.connect() as connection:
+        stored_roles = tuple(connection.execute(
+            """SELECT role_id,role_name FROM confluence_project_roles
+            WHERE confluence_id='900' ORDER BY role_id""",
+        ))
+
+    assert [person.display_name for person in refreshed.owner_summary] == ["Catalog Owner"]
+    assert stored_roles == (
+        ("role.fae_qa", "FAE QA"),
+        ("role.major_fae_qa", "Major FAE QA"),
+    )
+    assert release["projectOwners"] == "Catalog Owner"
+    assert set(release["majorFaeQa"].split(", ")) == {"Alice", "Bob"}
+    assert "Mallory" not in release["majorFaeQa"]

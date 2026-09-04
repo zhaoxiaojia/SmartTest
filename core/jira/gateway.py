@@ -45,6 +45,9 @@ class JiraGateway:
         "updated",
         "labels",
     )
+    RELEASE_FIELD_NAMES = (
+        "Project ID", "Software Release", "Severity", "Compare Status", "QA Assignee", "Manager",
+    )
 
     def __init__(
         self,
@@ -72,6 +75,31 @@ class JiraGateway:
     def search_issues(self, query: str, page: int = 0) -> dict[str, Any]:
         start = int(page) * self.config.page_size
         return self.search_payload(query, start_at=start, max_results=self.config.page_size, fields=list(self.CORE_FIELDS))
+
+    def search_release_issues(self, query: str, page: int = 0) -> dict[str, Any]:
+        metadata = self.release_field_metadata()
+        requested = [
+            *self.CORE_FIELDS, "fixVersions", "resolutiondate",
+            *(key for key, name in metadata.items() if name in self.RELEASE_FIELD_NAMES),
+        ]
+        start = int(page) * self.config.page_size
+        payload = self.search_payload(
+            query, start_at=start, max_results=self.config.page_size, fields=requested,
+        )
+        return {**payload, "fieldMetadata": metadata}
+
+    def release_field_metadata(self) -> dict[str, str]:
+        try:
+            getter = getattr(self._api, "get_all_fields", None)
+            payload = getter() if getter is not None else self._api.get("rest/api/2/field")
+        except Exception as exc:
+            raise JiraGatewayError("jira_field_metadata_failed") from exc
+        wanted = set(self.RELEASE_FIELD_NAMES)
+        return {
+            str(item.get("id") or ""): str(item.get("name") or "")
+            for item in payload or ()
+            if isinstance(item, dict) and str(item.get("name") or "") in wanted and item.get("id")
+        }
 
     def search_payload(
         self,

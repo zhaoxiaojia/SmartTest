@@ -5,6 +5,9 @@ from ..schema import ensure_component_schema
 
 
 JIRA_TABLES = (
+    "jira_issue_fix_versions",
+    "jira_issue_release_facts",
+    "jira_release_field_metadata",
     "jira_issue_components",
     "jira_issue_custom_fields",
     "jira_issue_links",
@@ -34,6 +37,23 @@ JIRA_STATEMENTS = (
     )""",
     "CREATE INDEX IF NOT EXISTS jira_issues_project_key_idx ON jira_issues(project_key)",
     "CREATE INDEX IF NOT EXISTS jira_issues_updated_at_idx ON jira_issues(updated_at)",
+    """CREATE TABLE IF NOT EXISTS jira_issue_release_facts (
+        issue_id TEXT PRIMARY KEY REFERENCES jira_issues(issue_id) ON DELETE CASCADE,
+        project_business_id TEXT NOT NULL DEFAULT '', software_release TEXT NOT NULL DEFAULT '',
+        severity TEXT NOT NULL DEFAULT '', compare_status TEXT NOT NULL DEFAULT '',
+        qa_assignee_identity TEXT NOT NULL DEFAULT '', manager_identity TEXT NOT NULL DEFAULT '',
+        resolved_at TEXT NOT NULL DEFAULT ''
+    )""",
+    """CREATE TABLE IF NOT EXISTS jira_issue_fix_versions (
+        issue_id TEXT NOT NULL REFERENCES jira_issues(issue_id) ON DELETE CASCADE,
+        version_id TEXT NOT NULL DEFAULT '', version_name TEXT NOT NULL DEFAULT '',
+        released INTEGER, release_date TEXT NOT NULL DEFAULT '',
+        PRIMARY KEY(issue_id,version_id,version_name)
+    )""",
+    """CREATE TABLE IF NOT EXISTS jira_release_field_metadata (
+        field_name TEXT PRIMARY KEY, field_key TEXT NOT NULL,
+        cached_at TEXT NOT NULL
+    )""",
     """CREATE TABLE IF NOT EXISTS jira_issue_labels (
         issue_id TEXT NOT NULL REFERENCES jira_issues(issue_id) ON DELETE CASCADE,
         label TEXT NOT NULL, PRIMARY KEY(issue_id,label)
@@ -92,3 +112,7 @@ def initialize_jira_schema(database: WebDatabase) -> None:
         drop_tables=JIRA_TABLES,
         statements=JIRA_STATEMENTS,
     )
+    with database.transaction() as connection:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(jira_issue_release_facts)")}
+        if "resolved_at" not in columns:
+            connection.execute("ALTER TABLE jira_issue_release_facts ADD COLUMN resolved_at TEXT NOT NULL DEFAULT ''")

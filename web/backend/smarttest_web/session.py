@@ -88,6 +88,8 @@ class PersistentSessionStore:
                     search TEXT NOT NULL,
                     project_ids_json TEXT NOT NULL,
                     facts_version TEXT NOT NULL,
+                    release_names_json TEXT NOT NULL DEFAULT '[]',
+                    jira_cache_version TEXT NOT NULL DEFAULT '',
                     created_at REAL NOT NULL,
                     updated_at REAL NOT NULL,
                     expires_at REAL NOT NULL,
@@ -100,6 +102,11 @@ class PersistentSessionStore:
                 connection.execute("ALTER TABLE web_sessions ADD COLUMN credential_ref TEXT")
             if "revoked_reason" not in columns:
                 connection.execute("ALTER TABLE web_sessions ADD COLUMN revoked_reason TEXT")
+            snapshot_columns = {row[1] for row in connection.execute("PRAGMA table_info(web_query_snapshots)")}
+            if "release_names_json" not in snapshot_columns:
+                connection.execute("ALTER TABLE web_query_snapshots ADD COLUMN release_names_json TEXT NOT NULL DEFAULT '[]'")
+            if "jira_cache_version" not in snapshot_columns:
+                connection.execute("ALTER TABLE web_query_snapshots ADD COLUMN jira_cache_version TEXT NOT NULL DEFAULT ''")
             connection.execute("PRAGMA user_version=3")
 
     @property

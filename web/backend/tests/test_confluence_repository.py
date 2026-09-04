@@ -18,6 +18,11 @@ from core.confluence.project import (
 )
 from core.domain.detail import DetailSection, DetailState
 from core.domain.values import FieldBag, NamedValue, PersonRef, SourceRevision
+from core.confluence.models import ConfluencePage
+from core.confluence.project_catalog import refresh_project_catalogs
+from core.confluence.project_discovery import ProductLine
+from core.confluence.project_mapper import ConfluenceProjectMapper
+from smarttest_web.release_query import ProjectReleaseQueryService
 from smarttest_web.confluence.project_repository import ConfluenceProjectRepository
 from smarttest_web.database import WebDatabase
 from smarttest_web.schema import initialize_current_cache_schema
@@ -104,6 +109,25 @@ def test_project_detail_replace_failure_rolls_back_value_and_state(tmp_path) -> 
     assert repository.get("P100", ProjectDetails(facts=True)).facts == original
 
 
+def test_current_release_projection_tracks_only_named_confluence_fields(tmp_path) -> None:
+    repository = _repository(tmp_path)
+    repository.save_core((_project(),))
+
+    repository.replace_facts("P100", DetailSection.loaded(FieldBag.from_mapping({
+        "Launch OS": "Android 16", "Launch Time": "2026-11-02", "MP Time": "2026-10-18",
+        "Next Target": "DVT exit", "Next Target Date": "2026-09-20",
+        "Current HW Stage": "DVT2", "Status Summary": "On track",
+        "planned closure": "2099-01-01",
+    }), source_revision="detail-r2"))
+
+    with repository.database.connect() as connection:
+        row = connection.execute("SELECT * FROM project_current_releases WHERE confluence_id='900'").fetchone()
+    assert row[1:] == (
+        "P100", "Android 16", "2026-11-02", "2026-10-18", "DVT exit", "2026-09-20",
+        "DVT2", "On track", "detail-r2", row[-1],
+    )
+
+
 def test_failed_sections_round_trip_explicit_value_presence_without_revision(tmp_path) -> None:
     repository = _repository(tmp_path)
     repository.save_core((_project(),))
@@ -148,3 +172,101 @@ def test_project_delete_cascades_details_and_clear_is_isolated_from_jira(tmp_pat
     with sqlite3.connect(repository.database.path) as connection:
         assert connection.execute("SELECT count(*) FROM confluence_projects").fetchone()[0] == 0
         assert connection.execute("SELECT summary FROM jira_issues").fetchone()[0] == "kept"
+
+
+def test_canonical_catalog_name_is_unchanged_through_sqlite_and_dashboard_query(tmp_path) -> None:
+    page = ConfluencePage(
+        "catalog", "Project Space", "https://c/display/DOPL/Project+Space",
+        view_body=(
+            "<table><tr><th>Page</th><th>Project ID</th><th>Launch OS</th><th>Launch Time</th></tr>"
+            '<tr><td><a href="/pages/viewpage.action?pageId=900">★ 1. Apollo - Project Status Report</a></td>'
+            "<td>P100</td><td>Android 16</td><td>2026-10-01</td></tr></table>"
+        ),
+    )
+    store = type("Store", (), {"load": lambda self: None, "save": lambda self, value: setattr(self, "value", value)})()
+    client = type("Client", (), {"get_page_by_url": lambda self, _url: page})()
+    row = refresh_project_catalogs(
+        client, store, (ProductLine("DOPL", page.url, "DOPL"),),
+    )["projects"][0]
+    repository = _repository(tmp_path)
+    project = ConfluenceProjectMapper().from_catalog(row)
+
+    repository.save_core((project,))
+    repository.replace_facts(project.identity.confluence_id, project.facts)
+    stored = repository.get("P100", ProjectDetails())
+    dashboard = ProjectReleaseQueryService(repository.database).dashboard(visible_ids=("DOPL:P100",))
+
+    assert stored.name == "Apollo"
+    assert dashboard["releases"][0]["projectName"] == "Apollo"
+
+
+def test_repository_initialization_upgrades_legacy_cached_names_once_without_touching_source_facts(tmp_path) -> None:
+    database = WebDatabase(tmp_path / "web.db")
+    initialize_current_cache_schema(database)
+    dirty_title = "1.★ Apollo - Project Status Report"
+    cached_at = "2026-09-01T01:02:03+00:00"
+    with database.transaction() as connection:
+        connection.executemany(
+            """INSERT INTO confluence_projects VALUES(
+            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                (
+                    "legacy", "P100", dirty_title, "DOPL", "DOPL", "https://c/DOPL",
+                    "catalog-1", dirty_title, "https://c/pages/catalog-1", 7,
+                    "normal", "Normal", "evt", "EVT", "onsite", "Onsite",
+                    "Customer A", "catalog-r7", cached_at,
+                ),
+                (
+                    "clean", "P200", "Orion", "TV", "TV", "https://c/TV",
+                    "catalog-2", "2. Orion - Project Status Report", "https://c/pages/catalog-2", 4,
+                    "normal", "Normal", "dvt", "DVT", "remote", "Remote",
+                    "Customer B", "catalog-r4", cached_at,
+                ),
+            ),
+        )
+        connection.executemany(
+            """INSERT INTO project_current_releases VALUES(
+            ?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                ("legacy", "P100", "Android 16", "2026-10-01", "", "", "", "", "", "facts-r1", cached_at),
+                ("clean", "P200", "Android 17", "2026-11-01", "", "", "", "", "", "facts-r2", cached_at),
+            ),
+        )
+        connection.execute(
+            "INSERT INTO confluence_project_fields VALUES(?,?,?,?)",
+            ("legacy", "facts", "Page", f'{{"title": "{dirty_title}"}}'),
+        )
+        connection.execute(
+            "INSERT INTO confluence_project_evidence VALUES(?,?,?,?,?,?)",
+            ("legacy", "status", "status-1", dirty_title, "https://c/pages/status-1", 9),
+        )
+
+    ConfluenceProjectRepository(database)
+    with database.connect() as connection:
+        first = tuple(connection.execute(
+            """SELECT confluence_id,name,catalog_page_title,source_revision,cached_at
+            FROM confluence_projects ORDER BY confluence_id""",
+        ))
+        raw_field = connection.execute(
+            "SELECT value_json FROM confluence_project_fields WHERE confluence_id='legacy'",
+        ).fetchone()[0]
+        evidence = connection.execute(
+            """SELECT page_title,page_url,page_version FROM confluence_project_evidence
+            WHERE confluence_id='legacy'""",
+        ).fetchone()
+
+    ConfluenceProjectRepository(database)
+    with database.connect() as connection:
+        second = tuple(connection.execute(
+            """SELECT confluence_id,name,catalog_page_title,source_revision,cached_at
+            FROM confluence_projects ORDER BY confluence_id""",
+        ))
+    dashboard = ProjectReleaseQueryService(database).dashboard(visible_ids=("legacy", "clean"))
+
+    assert first == second == (
+        ("clean", "Orion", "2. Orion - Project Status Report", "catalog-r4", cached_at),
+        ("legacy", "Apollo", dirty_title, "catalog-r7", cached_at),
+    )
+    assert raw_field == f'{{"title": "{dirty_title}"}}'
+    assert evidence == (dirty_title, "https://c/pages/status-1", 9)
+    assert [row["projectName"] for row in dashboard["releases"]] == ["Apollo", "Orion"]

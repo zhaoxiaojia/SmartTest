@@ -31,6 +31,8 @@ from .project_facts_api import ProjectFactsWebOwner
 from .session import PersistentSessionStore, default_web_database_path
 from .background_refresh import BackgroundFactsRefresh
 from .query_snapshot_repository import ConfluenceQuerySnapshotRepository
+from .release_query import ProjectReleaseQueryService
+from .release_snapshot_repository import ReleaseQuerySnapshotRepository
 from .test_suite_repository import NameConflictError, RevisionConflictError, TestSuiteRepository
 from .credentials import CredentialMissingError, CredentialStoreError
 from .resource_access import remote_credentials_rejected
@@ -77,6 +79,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                project_facts_owner=ProjectFactsWebOwner, authenticator=default_authenticator,
                session_store=PersistentSessionStore, facts_refresh=BackgroundFactsRefresh,
                jira_cache_owner=default_jira_cache_owner,
+               release_query_owner=ProjectReleaseQueryService,
                audit_registry=ManualAuditRegistry,
                download_service=DownloadArtifactService,
                jira_audit_owner=default_jira_audit_owner,
@@ -87,6 +90,8 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     facts = project_facts_owner()
     refresh = facts_refresh()
     snapshots = ConfluenceQuerySnapshotRepository(cache_database)
+    release_snapshots = ReleaseQuerySnapshotRepository(cache_database)
+    releases = release_query_owner(cache_database)
     test_suites = TestSuiteRepository(cache_database)
     audits = audit_registry()
     downloads = download_service()
@@ -405,6 +410,237 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         base = os.getenv("SMARTTEST_CONFLUENCE_BASE_URL", "https://confluence.amlogic.com")
         return sessions.resource_access(request.cookies.get(SESSION_COOKIE, ""),
                                         f"confluence:{base.rstrip('/').lower()}", cache_database)
+
+    def release_access(request):
+        access = access_context(request)
+        access.require_active()
+        return access
+
+    def release_filters(request, names):
+        return {
+            name: tuple(value for value in request.query_params.getlist(name) if str(value).strip())
+            for name in names if request.query_params.getlist(name)
+        }
+
+    def release_snapshot_payload(snapshot):
+        return {
+            "scope": snapshot.scope,
+            "updatedAt": snapshot.updated_at,
+            "confluenceFactsVersion": snapshot.confluence_facts_version,
+            "jiraCacheVersion": snapshot.jira_cache_version,
+        }
+
+    def record_release_snapshot(value, access, scope, filters, search, result, project_ids=()):
+        release_rows = tuple(row for row in result.get("releases", ()) if row.get("projectId"))
+        selected = result.get("selectedRelease") or {}
+        if release_rows:
+            selected_ids = tuple(row["projectId"] for row in release_rows)
+            release_names = tuple(
+                "" if row.get("releaseName") == "版本未填写" else str(row.get("releaseName") or "")
+                for row in release_rows
+            )
+        elif selected.get("projectId"):
+            selected_ids = (selected["projectId"],)
+            release_names = (
+                "" if selected.get("releaseName") == "版本未填写" else str(selected.get("releaseName") or ""),
+            )
+        else:
+            selected_ids = tuple(project_ids) or tuple(dict.fromkeys(
+                row.get("projectId") for row in result.get("issues", ()) if row.get("projectId")
+            ))
+            release_names = ()
+        freshness = result.get("sourceFreshness") or {}
+        release_snapshots.record(
+            access.session_hash, scope, filters, search, selected_ids, release_names,
+            freshness.get("confluence", ""), freshness.get("jira", ""), expires_at=value.expires_at,
+        )
+        return release_snapshots.get(access.session_hash, scope)
+
+    @app.get("/api/dashboard/releases")
+    def dashboard_releases(request: Request, value=Depends(authenticated_session)):
+        access = release_access(request)
+        filters = release_filters(request, ("productLine", "stage", "project", "release", "owner", "qa", "status"))
+        search = request.query_params.get("search", "")
+        project_ids = ()
+        if request.query_params.get("snapshot") == "1":
+            selection = release_snapshots.get(access.session_hash, "release-dashboard")
+            if selection is not None:
+                filters, search, project_ids = selection.filters, selection.search, selection.project_ids
+        elif request.query_params.get("reset") == "1":
+            filters, search = {}, ""
+        result = releases.dashboard(
+            visible_ids=access.ids("project", "catalog"), project_ids=project_ids, filters=filters,
+        )
+        selection = record_release_snapshot(
+            value, access, "release-dashboard", filters, search, result, project_ids,
+        )
+        return {**result, "querySnapshot": release_snapshot_payload(selection), "syncState": "idle"}
+
+    def refresh_jira_release_scope(value, project_ids):
+        if not project_ids:
+            return
+        quoted = ",".join(f'"{str(project_id).replace(chr(34), chr(92) + chr(34))}"' for project_id in project_ids)
+        query = f'"Project ID" in ({quoted})'
+        owner = resolve_jira_cache(value)
+        page = 0
+        while True:
+            refreshed = owner.refresh_release_issues(query, page=page)
+            page_size = max(1, int(refreshed.get("page_size") or 100))
+            if (page + 1) * page_size >= int(refreshed.get("total") or 0):
+                break
+            page += 1
+
+    @app.post("/api/dashboard/releases/sync")
+    def sync_dashboard_releases(request: Request, value=Depends(authenticated_session)):
+        access = release_access(request)
+        selection = release_snapshots.get(access.session_hash, "release-dashboard")
+        if selection is None:
+            raise HTTPException(status_code=409, detail={"state": "no_snapshot"})
+        try:
+            facts.sync_details(
+                access, value.password, filters={"project id": selection.project_ids}, search="",
+            )
+            refresh_jira_release_scope(value, selection.project_ids)
+            sync_state = "ready"
+        except Exception as error:
+            sync_state = downstream_refresh_error(value, error)
+        result = releases.dashboard(
+            visible_ids=access.ids("project", "catalog"), project_ids=selection.project_ids,
+            filters=selection.filters,
+        )
+        updated = record_release_snapshot(
+            value, access, "release-dashboard", selection.filters, selection.search,
+            result, selection.project_ids,
+        )
+        return {**result, "querySnapshot": release_snapshot_payload(updated), "syncState": sync_state}
+
+    @app.get("/api/dashboard/releases/{project_id}")
+    def dashboard_release(project_id: str, request: Request, value=Depends(authenticated_session)):
+        del value
+        access = release_access(request)
+        selection = release_snapshots.get(access.session_hash, "release-dashboard")
+        if selection is None or project_id not in selection.project_ids:
+            raise HTTPException(status_code=404, detail={"state": "not_found"})
+        result = releases.dashboard(
+            visible_ids=access.ids("project", "catalog"), project_ids=(project_id,), filters={},
+        )
+        if not result.get("releases"):
+            raise HTTPException(status_code=404, detail={"state": "not_found"})
+        return result["releases"][0]
+
+    @app.get("/api/jira/release-issues")
+    def jira_release_issues(request: Request, value=Depends(authenticated_session)):
+        access = release_access(request)
+        try:
+            page = int(request.query_params.get("page", "0"))
+            page_size = int(request.query_params.get("pageSize", "50"))
+            if page < 0 or not 1 <= page_size <= 200:
+                raise ValueError
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail={"state": "invalid_pagination"}) from error
+        filters = release_filters(request, (
+            "productLine", "project", "release", "fixVersion", "softwareRelease", "status", "resolution", "priority", "severity",
+            "component", "assignee", "qaAssignee", "association",
+        ))
+        search = request.query_params.get("search", "")
+        project_ids = ()
+        snapshot_mode = request.query_params.get("snapshot", "")
+        selection = None
+        if snapshot_mode == "dashboard":
+            selection = release_snapshots.get(access.session_hash, "release-dashboard")
+            requested_project = request.query_params.get("projectId", "")
+            if selection is None:
+                raise HTTPException(status_code=409, detail={"state": "no_snapshot"})
+            if not requested_project and len(selection.project_ids) == 1:
+                requested_project = selection.project_ids[0]
+            if requested_project not in selection.project_ids:
+                raise HTTPException(status_code=404, detail={"state": "not_found"})
+            release_index = selection.project_ids.index(requested_project)
+            if release_index >= len(selection.release_names):
+                raise HTTPException(status_code=409, detail={"state": "stale_snapshot"})
+            project_ids = (requested_project,)
+            filters.update({
+                "_scopeRelease": (selection.release_names[release_index],),
+                "_openOnly": True,
+                "_drilldownScope": True,
+            })
+        elif snapshot_mode == "1":
+            selection = release_snapshots.get(access.session_hash, "jira-release-workbench")
+            if selection is not None:
+                project_ids = selection.project_ids
+                filters, search = selection.filters, selection.search
+        elif request.query_params.get("reset") == "1":
+            selection = release_snapshots.get(access.session_hash, "jira-release-workbench")
+            if selection is not None and selection.filters.get("_drilldownScope"):
+                project_ids = selection.project_ids
+                filters = {
+                    key: value for key, value in selection.filters.items() if key.startswith("_")
+                }
+            else:
+                filters, search = {}, ""
+        else:
+            selection = release_snapshots.get(access.session_hash, "jira-release-workbench")
+            if selection is not None and selection.filters.get("_drilldownScope"):
+                project_ids = selection.project_ids
+                constraints = {
+                    key: value for key, value in selection.filters.items() if key.startswith("_")
+                }
+                filters.update(constraints)
+        result = releases.issues(
+            visible_ids=access.ids("project", "catalog"), project_ids=project_ids,
+            filters=filters, page=page, page_size=page_size,
+        )
+        selection = record_release_snapshot(
+            value, access, "jira-release-workbench", filters, search, result, project_ids,
+        )
+        return {**result, "querySnapshot": release_snapshot_payload(selection), "syncState": "idle"}
+
+    @app.post("/api/jira/release-issues/sync")
+    def sync_jira_release_issues(request: Request, value=Depends(authenticated_session)):
+        access = release_access(request)
+        selection = release_snapshots.get(access.session_hash, "jira-release-workbench")
+        if selection is None:
+            raise HTTPException(status_code=409, detail={"state": "no_snapshot"})
+        try:
+            refresh_jira_release_scope(value, selection.project_ids)
+            sync_state = "ready"
+        except Exception as error:
+            sync_state = downstream_refresh_error(value, error)
+        result = releases.issues(
+            visible_ids=access.ids("project", "catalog"), project_ids=selection.project_ids,
+            filters=selection.filters, page=0, page_size=50,
+        )
+        updated = record_release_snapshot(
+            value, access, "jira-release-workbench", selection.filters, selection.search,
+            result, selection.project_ids,
+        )
+        return {**result, "querySnapshot": release_snapshot_payload(updated), "syncState": sync_state}
+
+    @app.get("/api/jira/release-issues/{issue_key}")
+    def jira_release_issue(issue_key: str, request: Request, value=Depends(authenticated_session)):
+        access = release_access(request)
+        selection = release_snapshots.get(access.session_hash, "jira-release-workbench")
+        if selection is None:
+            raise HTTPException(status_code=404, detail={"state": "not_found"})
+        release_detail = releases.issue_detail(
+            issue_key, visible_ids=access.ids("project", "catalog"), project_ids=selection.project_ids,
+            filters=selection.filters,
+        )
+        if release_detail is None:
+            raise HTTPException(status_code=404, detail={"state": "not_found"})
+        names = tuple(dict.fromkeys(request.query_params.getlist("details")))
+        allowed = {"description", "comments", "attachments", "links", "custom_fields"}
+        if any(name not in allowed for name in names):
+            raise HTTPException(status_code=422, detail={"state": "invalid_details"})
+        details = IssueDetails(**{name: True for name in names})
+        try:
+            issue = resolve_jira_cache(value).get_issue(issue_key, details)
+        except Exception as error:
+            raise_downstream_error(value, error)
+        if issue is None:
+            raise HTTPException(status_code=404, detail={"state": "not_found"})
+        current = _issue_payload(issue, names)
+        return {**release_detail, "details": current["details"]}
 
     @app.exception_handler(PermissionError)
     async def permission_error(_request, error):

@@ -82,6 +82,29 @@ def test_recent_client_product_space_contract_accepts_chinese_page_header_and_dy
     }
 
 
+@pytest.mark.parametrize(("source_name", "expected_name"), (
+    ("1. ★ Apollo - Project Status Report", "Apollo"),
+    ("** 02) Orion Project Status Report **", "Orion"),
+    ("Clean Project", "Clean Project"),
+))
+def test_catalog_canonicalizes_only_the_project_display_name(source_name, expected_name):
+    body = (
+        "<table><tr><th>Page</th><th>Project ID</th><th>Project Owner</th></tr>"
+        f'<tr><td><a href="/pages/viewpage.action?pageId=900">{source_name}</a></td>'
+        "<td>P100</td><td>Owner One, Owner Two</td></tr></table>"
+    )
+    page = ConfluencePage("10", "Project Space", "https://c/display/X/Project+Space", view_body=body)
+
+    project = refresh_project_catalogs(
+        CatalogClient({page.url: page}), MemoryStore(),
+        (ProductLine("X", page.url, "Line X"),),
+    )["projects"][0]
+
+    assert project["name"] == expected_name
+    assert project["fields"]["page"] == source_name
+    assert [person["name"] for person in project["project_owners"]] == ["Owner One", "Owner Two"]
+
+
 def test_catalog_sync_publishes_each_space_without_detail_fetches():
     first, second = _space("X"), _space("Y", "Beta-ID", "102", "Stage 4")
     store = MemoryStore()

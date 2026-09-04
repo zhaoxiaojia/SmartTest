@@ -15,7 +15,7 @@ def extract_project_roles(body):
             continue
         role = text(cells[0]).strip()
         if role in roles:
-            roles[role] = _people(cells[1], role)
+            roles[role] = extract_role_people(cells[1], role)
     return roles
 
 
@@ -38,7 +38,7 @@ def resolve_role_display_names(client, roles, resolved_names):
     return attempted, resolved
 
 
-def _people(cell, role):
+def extract_role_people(cell, role):
     people, seen_ids, seen_names = [], set(), set()
     for segment_index, segment in enumerate(re.split(r"<br\s*/?>", cell, flags=re.I)):
         structured, anchor_names = [], []

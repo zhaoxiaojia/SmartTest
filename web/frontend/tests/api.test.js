@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createAuthApi, createManualAuditApi, createPreferenceApi, createProjectFactsApi, createWifiDatabaseApi } from '../src/api.js'
+import { createAuthApi, createManualAuditApi, createPreferenceApi, createProjectFactsApi, createReleaseApi, createWifiDatabaseApi } from '../src/api.js'
 
 describe('Preference API contract', () => {
   it('reads, batch writes, and resets an encoded account scope', async () => {
@@ -110,5 +110,25 @@ describe('Confluence project facts API contract', () => {
     expect(url.searchParams.has('catalog')).toBe(false)
     expect(url.searchParams.get('field.support mode')).toBe('B')
     expect(url.searchParams.get('search')).toBe('Coco')
+  })
+})
+
+describe('Release Dashboard and Jira workbench API contract', () => {
+  it('encodes repeated release filters and server snapshot modes', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ releases: [] }) })
+    const api = createReleaseApi({ fetchImpl })
+    await api.getDashboardReleases({ productLine: ['DOPL'], stage: ['EVT'] }, { snapshot: true })
+    await api.getJiraReleaseIssues(
+      { priority: ['P0', 'P1'] },
+      { snapshot: 'dashboard', projectId: 'P100', page: 2, pageSize: 25 },
+    )
+    const dashboard = new URL(fetchImpl.mock.calls[0][0], 'https://smarttest.local')
+    const jira = new URL(fetchImpl.mock.calls[1][0], 'https://smarttest.local')
+    expect(dashboard.searchParams.get('snapshot')).toBe('1')
+    expect(dashboard.searchParams.getAll('productLine')).toEqual(['DOPL'])
+    expect(jira.searchParams.get('snapshot')).toBe('dashboard')
+    expect(jira.searchParams.get('projectId')).toBe('P100')
+    expect(jira.searchParams.getAll('priority')).toEqual(['P0', 'P1'])
+    expect(jira.searchParams.get('pageSize')).toBe('25')
   })
 })

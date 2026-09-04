@@ -25,6 +25,13 @@ ROLE_RULES = tuple(
     for label in ("Major FAE QA", "FAE QA", "QA Reviewer")
 )
 ROLE_LABELS = tuple(rule.source_field for rule in ROLE_RULES)
+_ROLE_IDS = {rule.source_field.casefold(): rule.stable_key for rule in ROLE_RULES}
+MAJOR_QA_ROLE_ID = _ROLE_IDS["major fae qa"]
+
+
+def canonical_project_role_id(value):
+    normalized = re.sub(r"\s+", " ", str(value or "")).strip().casefold()
+    return _ROLE_IDS.get(normalized, "")
 
 _CONFIRMED_PROJECT_FIELDS = (
     "page", "project id", "date of commercial approval", "support mode",

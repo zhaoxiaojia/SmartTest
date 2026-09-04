@@ -171,6 +171,56 @@ class JiraIssueRepository:
                 )
         self._replace(issue_key, "custom_fields", section, write)
 
+    def replace_release_fields(self, issue_key: str, fields: dict, field_metadata: dict) -> None:
+        """Project stable release facts by Jira field names, never hard-coded custom IDs."""
+        names = {str(name).strip().casefold(): str(key) for key, name in field_metadata.items()}
+        cached_at = _now()
+        with self.database.transaction() as connection:
+            row = connection.execute(
+                "SELECT issue_id FROM jira_issues WHERE issue_key=?", (issue_key,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(issue_key)
+            issue_id = row[0]
+            def named(name):
+                return fields.get(names.get(name.casefold(), ""))
+            connection.execute(
+                """INSERT INTO jira_issue_release_facts
+                (issue_id,project_business_id,software_release,severity,compare_status,
+                 qa_assignee_identity,manager_identity,resolved_at) VALUES(?,?,?,?,?,?,?,?)
+                ON CONFLICT(issue_id) DO UPDATE SET
+                project_business_id=excluded.project_business_id,
+                software_release=excluded.software_release,severity=excluded.severity,
+                compare_status=excluded.compare_status,
+                qa_assignee_identity=excluded.qa_assignee_identity,
+                manager_identity=excluded.manager_identity,resolved_at=excluded.resolved_at""",
+                (issue_id, _display_value(named("Project ID")), _display_value(named("Software Release")),
+                 _display_value(named("Severity")), _display_value(named("Compare Status")),
+                 _identity_value(named("QA Assignee")), _identity_value(named("Manager")),
+                 str(fields.get("resolutiondate") or "")),
+            )
+            connection.execute("DELETE FROM jira_issue_fix_versions WHERE issue_id=?", (issue_id,))
+            for version in fields.get("fixVersions") or ():
+                if not isinstance(version, dict):
+                    continue
+                connection.execute(
+                    """INSERT INTO jira_issue_fix_versions
+                    (issue_id,version_id,version_name,released,release_date) VALUES(?,?,?,?,?)""",
+                    (issue_id, str(version.get("id") or ""), str(version.get("name") or ""),
+                     int(version["released"]) if isinstance(version.get("released"), bool) else None,
+                     str(version.get("releaseDate") or "")),
+                )
+            for key, name in field_metadata.items():
+                if str(name).strip().casefold() in {
+                    "project id", "software release", "severity", "compare status", "qa assignee", "manager"
+                }:
+                    connection.execute(
+                        """INSERT INTO jira_release_field_metadata(field_name,field_key,cached_at)
+                        VALUES(?,?,?) ON CONFLICT(field_name) DO UPDATE SET
+                        field_key=excluded.field_key,cached_at=excluded.cached_at""",
+                        (str(name).strip(), str(key), cached_at),
+                    )
+
     def mark_details_stale(self, issue_key: str, sections: Iterable[str]) -> None:
         names = tuple(name for name in sections if name in _SECTIONS)
         if not names:
@@ -298,3 +348,19 @@ def _datetime(value: str | None) -> datetime | None:
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _display_value(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        return str(value.get("value") or value.get("name") or value.get("displayName") or "")
+    if isinstance(value, (list, tuple)):
+        return ", ".join(filter(None, (_display_value(item) for item in value)))
+    return str(value)
+
+
+def _identity_value(value) -> str:
+    if isinstance(value, dict):
+        return str(value.get("accountId") or value.get("key") or value.get("name") or value.get("displayName") or "")
+    return _display_value(value)
