@@ -132,7 +132,7 @@ describe('Projects', () => {
     expect(document.querySelector('[data-download]')).toBeNull()
   })
 
-  it('keeps four full-name product-space groups and preserves unique project order within each waterfall', async () => {
+  it('groups projects under collapsed Major FAE QA rows inside expanded product spaces', async () => {
     const grouped = {
       ...payload,
       state: 'ready',
@@ -157,8 +157,14 @@ describe('Projects', () => {
     ])
     expect(groups.every(group => group.open)).toBe(true)
     expect(groups.map(group => group.querySelector('[data-product-count]').textContent)).toEqual(['2', '1', '1', '0'])
-    expect([...groups[0].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-first', 'p-second'])
-    expect(document.querySelectorAll('[data-project-id="p-first"]')).toHaveLength(1)
+    const qaGroups = [...groups[0].querySelectorAll('[data-major-fae-qa-group]')]
+    expect(qaGroups.map(group => group.querySelector('summary strong').textContent)).toEqual(['Coco', 'Bob', 'Unassigned'])
+    expect(qaGroups.map(group => group.querySelector('[data-qa-project-count]').textContent)).toEqual(['1', '1', '1'])
+    expect(qaGroups.every(group => !group.open)).toBe(true)
+    expect([...qaGroups[0].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-first'])
+    expect([...qaGroups[1].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-first'])
+    expect([...qaGroups[2].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-second'])
+    expect(document.querySelectorAll('[data-project-id="p-first"]')).toHaveLength(2)
     expect(document.querySelector('[data-project-id="p-none"]').textContent).toContain('No Owner Project')
     expect(document.querySelector('[data-project-id="p-first"]').textContent).toContain('Coco, Bob')
     expect(document.querySelector('[data-project-id="p-first"]').textContent).toContain('one, two')
@@ -166,6 +172,25 @@ describe('Projects', () => {
     expect(groups.every(group => group.querySelector('[data-product-grid]'))).toBe(true)
     expect([...document.querySelectorAll('.project-card-badges .badge')].map(item => item.textContent))
       .not.toEqual(expect.arrayContaining(['DOPL', 'SDPL', 'TV', 'OOPL']))
+  })
+
+  it('orders Major FAE QA groups by project count from high to low', async () => {
+    const project = (identity, owner) => ({
+      identity, project_id: identity, name: identity, space_key: 'DOPL', status: 'ACTIVE', stage: 'Development',
+      roles: { 'Major FAE QA': [{ name: owner, identity: `id-${owner}` }] }, fields: {}
+    })
+    const sorted = { ...payload, state: 'ready', projects: [
+      project('small-1', 'Small'),
+      project('high-1', 'High'), project('high-2', 'High'), project('high-3', 'High'),
+      project('equal-a-1', 'Equal A'), project('equal-a-2', 'Equal A'),
+      project('equal-b-1', 'Equal B'), project('equal-b-2', 'Equal B'),
+    ], ownerHierarchy: [] }
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(sorted) }
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+
+    const groups = [...document.querySelector('[data-product-space-group]').querySelectorAll('[data-major-fae-qa-group]')]
+    expect(groups.map(group => group.querySelector('summary strong').textContent)).toEqual(['High', 'Equal A', 'Equal B', 'Small'])
+    expect(groups.map(group => group.querySelector('[data-qa-project-count]').textContent)).toEqual(['3', '2', '2', '1'])
   })
 
   it('renders the persisted snapshot while preferences restore unapplied controls', async () => {
@@ -198,6 +223,49 @@ describe('Projects', () => {
       'Apply Filters', 'Cancel Sync', 'Reset'
     ])
     expect(document.querySelector('.weekly-review [data-audit]').textContent).toBe('Review Filters')
+  })
+
+  it('places catalog feedback above the filter controls', async () => {
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+    const form = document.querySelector('.report-filter-card')
+    const status = form.querySelector('[role="status"]')
+
+    expect(status).not.toBeNull()
+    expect(status.compareDocumentPosition(form.querySelector('[data-main-facets]')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('renders Weekly Review as a heading followed by one control row', async () => {
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+    const review = document.querySelector('.weekly-review')
+    const controls = review.querySelector('.weekly-review-controls')
+
+    expect(review.firstElementChild.classList).toContain('weekly-review-title')
+    expect([...controls.children].map(item => item.textContent)).toEqual([
+      'Start', 'End', 'Review Filters', 'Cancel Review', 'Download'
+    ])
+  })
+
+  it('separates each project card summary from hover-revealed details', async () => {
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+    const card = document.querySelector('.project-card')
+
+    expect(card.querySelector('.project-card-summary').textContent).toContain('Apollo')
+    expect(card.querySelector('.project-card-summary').textContent).not.toContain('Major FAE QA')
+    expect(card.querySelector('.project-card-details').textContent).toContain('Major FAE QA')
+    expect(card.querySelector('.project-card-details').textContent).toContain('Coco')
+  })
+
+  it('shows only the project name in the card title', async () => {
+    const titled = { ...payload, projects: [{
+      ...payload.projects[0], name: '1.* Apollo - Project Status Report'
+    }] }
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(titled) }
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+
+    expect(document.querySelector('.project-card .kanban-card-title').textContent).toBe('Apollo')
   })
 
   it('keeps matched projects visible when responsibility data is unavailable', async () => {
@@ -512,8 +580,8 @@ describe('Projects', () => {
       .mockResolvedValueOnce(narrowed).mockResolvedValueOnce(payload) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
     expect([...document.querySelector('[name="field.__product_space__"]').options].map(option => option.value)).toEqual(['DOPL'])
-    expect([...document.querySelectorAll('[data-product-space-group] summary strong')].map(item => item.textContent)).toEqual(
-      productSpaces.map(item => item.label))
+    expect([...document.querySelectorAll('[data-product-space-group]')]
+      .map(group => group.querySelector(':scope > summary strong').textContent)).toEqual(productSpaces.map(item => item.label))
 
     document.querySelector('[name="field.__product_space__"] option').selected = true
     document.querySelector('[name="search"]').value = 'filtered'

@@ -34,13 +34,13 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
   }
   root.innerHTML = `<section class="report-workspace projects-workspace">
     <header class="report-page-head"><div><div class="eyebrow">Projects · Current Facts</div><h1>Projects</h1><p>查看本地只读项目事实与 QA 责任信息。</p></div></header>
-    <form class="card report-filter-card" data-preference-region><div class="report-filter-grid" data-main-facets></div>
+    <form class="card report-filter-card" data-preference-region><div class="report-state report-state-loading" role="status">Loading project catalog…</div><div class="report-filter-grid" data-main-facets></div>
       <details class="more-filter-panel"><summary>更多筛选</summary><div class="more-filter-options" data-more-facets></div></details>
       <div class="report-filter-grid"><label>Project / Person / Field Search<input class="form-control" name="search" type="search" placeholder="Project, person or field"></label>
       <div class="filter-actions"><button class="button button-primary" type="submit">Apply Filters</button><button class="button button-secondary" type="button" data-cancel hidden>Cancel Sync</button><button class="button button-secondary" type="button" data-reset data-preference-reset>Reset</button></div></div>
-      <section class="weekly-review"><strong>Weekly Review</strong><label>Start<input class="form-control" name="reviewStartDate" type="date"></label><label>End<input class="form-control" name="reviewEndDate" type="date"></label>
-        <button class="button button-secondary" type="button" data-audit>Review Filters</button><button class="button button-secondary" type="button" data-audit-cancel disabled>Cancel Review</button><button class="button button-primary" type="button" data-audit-download disabled>Download</button></section></form>
-    <div class="report-state report-state-loading" role="status">Loading project catalog…</div><div class="async-feedback" data-async-feedback></div><div class="inline-status" data-audit-status aria-live="polite"></div>
+      <section class="weekly-review"><strong class="weekly-review-title">Weekly Review</strong><div class="weekly-review-controls"><label>Start<input class="form-control" name="reviewStartDate" type="date"></label><label>End<input class="form-control" name="reviewEndDate" type="date"></label>
+        <button class="button button-secondary" type="button" data-audit>Review Filters</button><button class="button button-secondary" type="button" data-audit-cancel disabled>Cancel Review</button><button class="button button-primary" type="button" data-audit-download disabled>Download</button></div></section></form>
+    <div class="async-feedback" data-async-feedback></div><div class="inline-status" data-audit-status aria-live="polite"></div>
     <section class="projects-summary" data-summary></section>
     <section class="card workload-card"><header class="report-preview-toolbar"><div><strong>Role workload</strong><div class="report-preview-meta">Project assignments per QA member</div></div><div class="role-segments" data-role-segments></div></header>
       <div class="workload-chart-scroll"><div class="workload-chart-surface"><canvas data-workload-chart></canvas></div></div></section>
@@ -255,6 +255,8 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     ]))
 
     const displayValue = value => Array.isArray(value) ? value.filter(item => item != null && String(item).trim()).join(', ') : String(value ?? '').trim()
+    const projectDisplayName = project => String(project.name || project.project_id || '').trim()
+      .replace(/^\d+\.\*?\s*/, '').replace(/\s*-\s*Project Status Report\s*$/i, '').trim()
     const coreFields = new Set(['__product_space__', 'project id', 'project status', 'current stage', 'support mode'])
     const addFact = (rootNode, label, value) => {
       const text = displayValue(value)
@@ -266,13 +268,14 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     const createProjectCard = (project, productSpaceLabel) => {
       const card = node('article', 'kanban-card project-card')
       card.dataset.projectId = projectKey(project)
-      const heading = node('div', 'kanban-card-title', project.name || project.project_id)
+      const summary = node('div', 'project-card-summary')
+      const heading = node('div', 'kanban-card-title', projectDisplayName(project))
       const identifier = node('div', 'kanban-card-desc', project.project_id)
       const badges = node('div', 'project-card-badges')
       for (const value of [productSpaceLabel, project.status, projectStage(project) || 'Unspecified', project.support_mode]) {
         if (value) badges.append(node('span', 'badge badge-blue', value))
       }
-      const facts = node('div', 'project-card-facts')
+      const facts = node('div', 'project-card-details project-card-facts')
       addFact(facts, 'Customer', project.customer_summary)
       for (const [role, people] of Object.entries(project.roles ?? {})) {
         addFact(facts, role, (people ?? []).map(readableName))
@@ -280,9 +283,24 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       for (const [label, value] of Object.entries(project.fields ?? {})) {
         if (!coreFields.has(label.toLocaleLowerCase())) addFact(facts, label, value)
       }
-      card.append(heading, identifier, badges)
+      summary.append(heading, identifier, badges)
+      card.append(summary)
       if (facts.childElementCount) card.append(facts)
       return card
+    }
+
+    const groupByMajorFaeQa = projects => {
+      const groups = new Map()
+      for (const project of projects) {
+        const people = (project.roles?.['Major FAE QA'] ?? []).filter(person => readableName(person))
+        for (const person of people.length ? people : [{ identity: '__unassigned__', name: 'Unassigned' }]) {
+          const name = readableName(person)
+          const key = person.identity || name
+          if (!groups.has(key)) groups.set(key, { name, projects: [] })
+          groups.get(key).projects.push(project)
+        }
+      }
+      return [...groups.values()].sort((left, right) => right.projects.length - left.projects.length)
     }
 
     for (const { value: productSpaceKey, label: productSpaceLabel } of productSpaceDefinitions) {
@@ -291,11 +309,19 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       const summary = node('summary', 'product-space-summary')
       const count = node('span', 'kanban-count', spaceProjects.length); count.dataset.productCount = ''
       summary.append(node('strong', 'kanban-title', productSpaceLabel), count)
-      const cards = node('div', 'product-card-grid'); cards.dataset.productGrid = ''
+      const qaGroups = node('div', 'major-fae-qa-groups'); qaGroups.dataset.productGrid = ''
       if (spaceProjects.length) {
-        spaceProjects.forEach(project => cards.append(createProjectCard(project, productSpaceLabels.get(productSpaceKey))))
-      } else cards.append(node('div', 'product-space-empty', 'No projects.'))
-      group.append(summary, cards); projectsRoot.append(group)
+        for (const qa of groupByMajorFaeQa(spaceProjects)) {
+          const qaGroup = node('details', 'major-fae-qa-group'); qaGroup.dataset.majorFaeQaGroup = ''
+          const qaSummary = node('summary', 'major-fae-qa-summary')
+          const qaCount = node('span', 'kanban-count', qa.projects.length); qaCount.dataset.qaProjectCount = ''
+          qaSummary.append(node('strong', '', qa.name), qaCount)
+          const cards = node('div', 'product-card-grid')
+          qa.projects.forEach(project => cards.append(createProjectCard(project, productSpaceLabels.get(productSpaceKey))))
+          qaGroup.append(qaSummary, cards); qaGroups.append(qaGroup)
+        }
+      } else qaGroups.append(node('div', 'product-space-empty', 'No projects.'))
+      group.append(summary, qaGroups); projectsRoot.append(group)
     }
   }
 

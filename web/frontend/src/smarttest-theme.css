@@ -120,6 +120,10 @@ input, select, textarea {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
 }
 .report-filter-grid label { display: grid; gap: .4375rem; color: var(--text-primary); font-size: .75rem; font-weight: 600; }
+.weekly-review { margin-top: 1rem; }
+.weekly-review-title { display: block; margin-bottom: .75rem; }
+.weekly-review-controls { display: grid; grid-template-columns: repeat(2,minmax(12rem,1fr)) repeat(3,auto); gap: .5rem; align-items: end; }
+.weekly-review-controls label { display: grid; gap: .4375rem; color: var(--text-primary); font-size: .75rem; font-weight: 600; }
 .more-filter-panel { margin: .875rem 0; }
 .more-filter-panel summary { width: fit-content; color: var(--text-primary); font-size: .8125rem; font-weight: 600; cursor: pointer; }
 .more-filter-options { display: grid; grid-template-columns: repeat(auto-fit,minmax(11rem,1fr)); gap: .5rem; margin-top: .75rem; }
@@ -188,10 +192,16 @@ input, select, textarea {
 .product-space-groups { display: grid; gap: 1rem; }
 .product-space-group { overflow: hidden; border: 1px solid var(--border-color); border-radius: .75rem; background: var(--bg-surface); }
 .product-space-summary { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .875rem 1rem; cursor: pointer; list-style-position: inside; }
+.major-fae-qa-groups { display: grid; gap: .75rem; padding: 0 .875rem .875rem; }
+.major-fae-qa-group { overflow: hidden; border: 1px solid var(--border-color); border-radius: .625rem; background: var(--bg-primary); }
+.major-fae-qa-summary { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .75rem .875rem; cursor: pointer; list-style-position: inside; }
+.major-fae-qa-group > .product-card-grid { padding-top: .75rem; border-top: 1px solid var(--border-color); }
 .product-card-grid { padding: 0 .875rem .125rem; columns: 18rem; column-gap: .75rem; }
 .project-card { margin-bottom: .75rem; break-inside: avoid; cursor: default; }
 .product-space-empty { padding: .75rem 0 1.5rem; color: var(--text-secondary); text-align: center; font-size: .8125rem; }
-.project-card-badges { display: flex; flex-wrap: wrap; gap: .375rem; margin-bottom: .75rem; }
+.project-card-badges { display: flex; flex-wrap: wrap; gap: .375rem; }
+.project-card .project-card-details { display: none; margin-top: .75rem; }
+.project-card:hover .project-card-details { display: grid; }
 .project-card-facts { display: grid; gap: .5rem; padding-top: .75rem; border-top: 1px solid var(--border-color); }
 .project-card-fact { display: grid; grid-template-columns: minmax(6rem,.8fr) minmax(0,1.2fr); gap: .5rem; font-size: .75rem; line-height: 1.45; }
 .project-card-label { color: var(--text-secondary); }
@@ -199,11 +209,13 @@ input, select, textarea {
 
 @media (max-width: 1180px) {
   .report-filter-grid { grid-template-columns: repeat(2,1fr); }
+  .weekly-review-controls { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .report-summary { grid-template-columns: repeat(2,1fr); }
   .projects-summary { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 @media (max-width: 820px) {
   .report-page-head { display: block; }
+  .weekly-review-controls { grid-template-columns: 1fr; }
   .report-page-head > .report-actions { margin-top: 1rem; }
   .report-filter-grid,.report-master-detail { grid-template-columns: 1fr; }
   .report-directory { max-height: 340px; overflow: auto; }
