@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import replace
 from datetime import datetime
+from time import perf_counter
 from typing import Any
 from urllib.parse import parse_qs, unquote_plus, urlsplit
 
@@ -8,6 +9,8 @@ try:
     from atlassian import Confluence
 except ImportError:
     Confluence = None
+
+from core.logging import smart_log
 
 from .models import ConfluenceGatewayConfig, ConfluencePage
 
@@ -41,6 +44,20 @@ class ConfluenceGateway:
         if value.startswith(("http://", "https://")):
             return value
         return f"{self.config.base_url.rstrip('/')}/{value.lstrip('/')}" if value else ""
+
+    @staticmethod
+    def _timed(stage, operation, **extra):
+        started = perf_counter()
+        outcome = "success"
+        try:
+            return operation()
+        except Exception:
+            outcome = "failure"
+            raise
+        finally:
+            smart_log("Confluence REST timing", domain="framework", source="confluence_gateway", emit_runtime_event=False,
+                      extra={"stage": stage, "duration_ms": round((perf_counter() - started) * 1000, 3),
+                             "outcome": outcome, **extra})
 
     def _page(self, payload: dict, *, prefer_export=False) -> ConfluencePage:
         content = payload.get("content") if isinstance(payload.get("content"), dict) else payload
@@ -83,18 +100,17 @@ class ConfluenceGateway:
             "body.storage,body.view,body.export_view,version"
             if prefer_export else "body.storage,body.view,version"
         )
-        return self._page(
-            self._api.get_page_by_id(page_id, expand=expand),
-            prefer_export=prefer_export,
-        )
+        return self._timed("rest.page.current", lambda: self._page(
+            self._api.get_page_by_id(page_id, expand=expand), prefer_export=prefer_export,
+        ), page_id=str(page_id))
 
     def get_page_version(self, page_id: str, version: int) -> ConfluencePage:
-        return self._page(self._api.get_page_by_id(
+        return self._timed("rest.page.history", lambda: self._page(self._api.get_page_by_id(
             page_id,
             expand="body.storage,body.view,version",
             status="historical",
             version=int(version),
-        ))
+        )), page_id=str(page_id), version=int(version))
 
     def get_page_by_url(self, url: str, *, prefer_export=False) -> ConfluencePage:
         configured = urlsplit(self.config.base_url)
@@ -114,13 +130,15 @@ class ConfluenceGateway:
             "body.view,body.export_view,version"
             if prefer_export else "body.view,version"
         )
-        payload = self._api.get_page_by_title(space, title, expand=expand)
+        payload = self._timed("rest.catalog.page", lambda: self._api.get_page_by_title(space, title, expand=expand),
+                              space_key=space)
         if not payload:
             raise ValueError("Confluence page could not be resolved")
         return self._page(payload, prefer_export=prefer_export)
 
     def get_parent_page(self, page_id: str) -> ConfluencePage | None:
-        ancestors = self._api.get_page_ancestors(page_id) or []
+        ancestors = self._timed("rest.page.ancestors", lambda: self._api.get_page_ancestors(page_id) or [],
+                                page_id=str(page_id))
         if not ancestors:
             return None
         parent_id = str((ancestors[-1] or {}).get("id") or "")
@@ -128,46 +146,50 @@ class ConfluenceGateway:
 
     def get_user_display_name(self, user_key: str) -> str:
         """Resolve a Confluence identity through the maintained Atlassian client API."""
-        payload = self._api.get_user_details_by_userkey(str(user_key)) or {}
+        payload = self._timed("rest.user.lookup", lambda: self._api.get_user_details_by_userkey(str(user_key)) or {})
         return str(payload.get("displayName") or payload.get("publicName") or payload.get("name") or "").strip()
 
     def get_page_children(self, page_id: str, *, limit: int = 100) -> list[ConfluencePage]:
+        started = perf_counter()
         pages, start, seen_pages = [], 0, set()
-        while True:
-            payload = self._api.get_page_child_by_type(
-                page_id, type="page", start=start, limit=limit,
-                expand="version",
-            ) or {}
-            list_response = isinstance(payload, list)
-            rows = payload if list_response else payload.get("results") or []
-            if not rows:
-                return pages
-            signature = tuple(
-                (
-                    str(row.get("id") or ""),
-                    str(row.get("title") or ""),
-                    str((row.get("_links") or {}).get("webui") or ""),
+        request_count = 0
+        try:
+            while True:
+                request_count += 1
+                payload = self._api.get_page_child_by_type(
+                    page_id, type="page", start=start, limit=limit,
+                    expand="version",
+                ) or {}
+                list_response = isinstance(payload, list)
+                rows = payload if list_response else payload.get("results") or []
+                if not rows:
+                    return pages
+                signature = tuple(
+                    (
+                        str(row.get("id") or ""),
+                        str(row.get("title") or ""),
+                        str((row.get("_links") or {}).get("webui") or ""),
+                    )
+                    for row in rows
                 )
-                for row in rows
-            )
-            if signature in seen_pages:
-                raise RuntimeError(
-                    "Confluence child-page pagination returned a repeated page",
+                if signature in seen_pages:
+                    raise RuntimeError(
+                        "Confluence child-page pagination returned a repeated page",
+                    )
+                seen_pages.add(signature)
+                pages.extend(
+                    replace(self._page(row), body="", view_body="")
+                    for row in rows
                 )
-            seen_pages.add(signature)
-            pages.extend(
-                replace(self._page(row), body="", view_body="")
-                for row in rows
-            )
-            start += len(rows)
-            if list_response and len(rows) < limit:
-                return pages
-            total = None if list_response else payload.get(
-                "totalSize", payload.get("total"),
-            )
-            if (
-                total is not None and start >= int(total)
-            ) or (
-                total is None and len(rows) < limit
-            ):
-                return pages
+                start += len(rows)
+                if list_response and len(rows) < limit:
+                    return pages
+                total = None if list_response else payload.get(
+                    "totalSize", payload.get("total"),
+                )
+                if (total is not None and start >= int(total)) or (total is None and len(rows) < limit):
+                    return pages
+        finally:
+            smart_log("Confluence REST timing", domain="framework", source="confluence_gateway", emit_runtime_event=False,
+                      extra={"stage": "rest.page.children", "duration_ms": round((perf_counter() - started) * 1000, 3),
+                             "page_id": str(page_id), "request_count": request_count, "child_count": len(pages)})

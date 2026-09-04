@@ -138,8 +138,13 @@ export function createManualAuditApi({ fetchImpl = globalThis.fetch, baseUrl = '
 
 export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
   return {
+    async getProjectFactsStatus() {
+      const response = await fetchImpl(`${baseUrl}/confluence/project-facts/status`, { credentials: 'same-origin' })
+      if (!response.ok) throw new ApiUnavailableError(`Project facts status unavailable (${response.status}).`, { status: response.status })
+      return response.json()
+    },
     async getProjectFacts(filters = {}, {
-      details = false, catalog = false, snapshot = false, reset = false,
+      details = false, snapshot = false, reset = false,
     } = {}) {
       const query = new URLSearchParams()
       for (const [key, values] of Object.entries(filters.fields ?? {})) {
@@ -147,7 +152,6 @@ export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = 
       }
       if (filters.search) query.set('search', filters.search)
       if (details) query.set('details', '1')
-      if (catalog) query.set('catalog', '1')
       if (snapshot) query.set('snapshot', '1')
       if (reset) query.set('reset', '1')
       let response

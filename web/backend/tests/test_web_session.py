@@ -161,7 +161,7 @@ def test_restored_session_recovers_server_credential_for_page_catalog_load(tmp_p
     )
     restarted.cookies.set("smarttest_session", token)
     assert restarted.get("/api/auth/session").json()["authenticated"] is True
-    response = restarted.get("/api/confluence/project-facts?catalog=1")
+    response = restarted.get("/api/confluence/project-facts")
     assert response.status_code == 200
     assert response.json()["state"] in {"loading", "ready"}
     for _ in range(50):
@@ -210,12 +210,12 @@ def test_explicit_downstream_basic_auth_rejection_invalidates_account_and_sessio
     client = TestClient(create_app(
         authenticator=lambda: FakeAuthenticator(),
         session_store=lambda: store,
-        project_facts_owner=lambda: RejectingFacts({"projects": []}),
+        project_facts_owner=RejectingFacts,
         facts_refresh=lambda: refresh,
     ), base_url="https://testserver")
     client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
 
-    rejected = client.get("/api/confluence/project-facts?catalog=1")
+    rejected = client.get("/api/confluence/project-facts")
 
     assert rejected.status_code == 200
     assert rejected.json()["state"] == "invalid_credentials"
@@ -239,12 +239,12 @@ def test_general_downstream_401_does_not_invalidate_account_credentials(tmp_path
     client = TestClient(create_app(
         authenticator=lambda: FakeAuthenticator(),
         session_store=lambda: store,
-        project_facts_owner=lambda: RejectingFacts({"projects": []}),
+        project_facts_owner=RejectingFacts,
         facts_refresh=lambda: refresh,
     ), base_url="https://testserver")
     client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
 
-    response = client.get("/api/confluence/project-facts?catalog=1")
+    response = client.get("/api/confluence/project-facts")
 
     assert response.json()["state"] == "failed"
     assert client.get("/api/test-suites?scope=mine").status_code == 200
@@ -305,9 +305,9 @@ def test_concurrent_no_cache_refresh_is_deduplicated(tmp_path):
     client, _ = make_client(tmp_path, facts=facts)
     client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
     try:
-        first = client.get("/api/confluence/project-facts?catalog=1")
+        first = client.get("/api/confluence/project-facts")
         assert started.wait(2)
-        second = client.get("/api/confluence/project-facts?catalog=1")
+        second = client.get("/api/confluence/project-facts")
         assert first.json()["state"] == second.json()["state"] == "loading"
         assert facts.refresh_calls == [("coco", "secret")]
     finally:

@@ -303,14 +303,13 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     updateHierarchy = true, updateFacets = true, detailRequested = false,
   } = {}) {
     const hasCache = ['ready', 'partial_success'].includes(payload.state)
-    const hasPartialCatalog = payload.state === 'loading' && payload.facets?.some(facet => facet.options?.length)
     const hasDetailJob = detailRequested || Boolean(activeSync)
     const syncing = hasDetailJob && payload.sync?.state === 'loading'
     if (hasDetailJob) updateFeedback(payload.sync)
     if (payload.productSpaces) productSpaceDefinitions = payload.productSpaces
-    cacheReady = hasCache || hasPartialCatalog
+    cacheReady = hasCache
     if (!facets.length) renderFacets(payload.facets, { loading: payload.state === 'loading' || !hasCache })
-    else if (updateFacets && (hasCache || hasPartialCatalog)) updateFacetOptions(payload.facets)
+    else if (updateFacets && hasCache) updateFacetOptions(payload.facets)
     if (updateHierarchy) {
       renderProjects(payload.ownerHierarchy ?? [], payload.projects ?? [], payload.accessibleProjectCount)
     }
@@ -320,7 +319,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     if (payload.detailState === 'reauthentication_required') {
       root.querySelector('[data-audit-status]').textContent = 'Please verify your account again before loading responsibility details.'
     }
-    setBusinessControlsEnabled(hasCache || hasPartialCatalog, { applyEnabled: hasCache && !syncing })
+    setBusinessControlsEnabled(hasCache, { applyEnabled: hasCache && !syncing })
     auditButton.disabled = !hasCache || syncing
     saveDisplay(payload)
   }
@@ -329,18 +328,19 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     await pollDelay(500)
     if (destroyed || generation !== pollGeneration || !root.isConnected) return
     try {
-      const filters = activeSync?.filters ?? currentFilters()
-      const payload = await api.getProjectFacts(filters, { details: false })
+      const sync = await api.getProjectFactsStatus()
       if (destroyed || generation !== pollGeneration || !root.isConnected) return
-      const contextUnchanged = !activeSync || contextToken(currentFilters()) === activeSync.token
-      if (!activeSync || (contextUnchanged && payload.sync?.state !== 'loading')) {
-        present(payload)
-      } else {
-        updateFeedback(payload.sync)
+      if (sync.state === 'loading') {
+        if (activeSync) updateFeedback(sync)
+        poll(generation)
       }
-      if (payload.state === 'loading' || payload.sync?.state === 'loading') poll(generation)
       else {
-        updateFeedback(payload.sync)
+        const filters = activeSync?.filters ?? currentFilters()
+        const payload = await api.getProjectFacts(filters, { details: false })
+        if (destroyed || generation !== pollGeneration || !root.isConnected) return
+        const contextUnchanged = !activeSync || contextToken(currentFilters()) === activeSync.token
+        if (!activeSync || contextUnchanged) present(payload)
+        updateFeedback(sync)
         activeSync = null
         setBusinessControlsEnabled(cacheReady, { applyEnabled: cacheReady })
       }
@@ -352,7 +352,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     }
   }
 
-  async function load({ updateHierarchy = true, updateFacets = true, details = false, catalog = false,
+  async function load({ updateHierarchy = true, updateFacets = true, details = false,
     snapshot = false, reset = false,
     beginPolling = true } = {}) {
     const generation = ++pollGeneration
@@ -362,7 +362,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       status.className = 'report-state report-state-loading'; status.hidden = false; status.textContent = STATE_COPY.loading
     }
     try {
-      const options = { details, ...(catalog ? { catalog: true } : {}),
+      const options = { details,
         ...(snapshot ? { snapshot: true } : {}), ...(reset ? { reset: true } : {}) }
       const payload = await api.getProjectFacts(requestedFilters, options)
       if (destroyed || generation !== pollGeneration) return
@@ -410,6 +410,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     root.querySelector('[data-audit-status]').textContent = ''
     try {
       const created = await api.createConfluenceAudit({
+        filters: currentFilters(),
         startDate: form.elements.reviewStartDate.value,
         endDate: form.elements.reviewEndDate.value,
       })

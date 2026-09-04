@@ -7,7 +7,9 @@ import hashlib
 import json
 from urllib.parse import parse_qs, urljoin, urlsplit
 import re
+from time import perf_counter
 
+from core.logging import smart_log
 from .project_discovery import PRODUCT_LINES, ProjectLocation, _commercial_year, discover_project_pages, locate_basic_information
 from .html import html_tables, links, text
 from .role_parser import extract_project_roles, resolve_role_display_names
@@ -48,14 +50,25 @@ def refresh_project_catalogs(client, store, product_lines=PRODUCT_LINES, *, now=
     now = now or datetime.now(timezone.utc)
     previous = store.load() or {"projects": []}
     old_by_id = {row["identity"]: row for row in previous["projects"]}
+    total_started = perf_counter()
 
     def fetch(index_line):
         index, line = index_line
+        request_started = perf_counter()
         try:
             source = client.get_page_by_url(line.source_url)
+            request_ms = round((perf_counter() - request_started) * 1000, 3)
+            parse_started = perf_counter()
             rows = _catalog_rows(source, line.key)
+            smart_log("Confluence catalog stage timing", domain="framework", source="confluence_catalog", emit_runtime_event=False,
+                      extra={"stage": "catalog.line", "space_key": line.key, "duration_ms": request_ms,
+                             "parse_duration_ms": round((perf_counter() - parse_started) * 1000, 3), "project_count": len(rows), "outcome": "success"})
             return index, line, source, rows, None
         except Exception as exc:
+            smart_log("Confluence catalog stage timing", domain="framework", source="confluence_catalog", emit_runtime_event=False,
+                      extra={"stage": "catalog.line", "space_key": line.key,
+                             "duration_ms": round((perf_counter() - request_started) * 1000, 3),
+                             "project_count": 0, "outcome": "failure", "exception_type": type(exc).__name__})
             return index, line, None, [], exc
 
     fetched = {}
@@ -130,6 +143,9 @@ def refresh_project_catalogs(client, store, product_lines=PRODUCT_LINES, *, now=
             phase="catalog_ready" if len(fetched) == len(product_lines) else "catalog_loading",
         )
         store.save(snapshot)
+    smart_log("Confluence catalog stage timing", domain="framework", source="confluence_catalog", emit_runtime_event=False,
+              extra={"stage": "catalog.total", "duration_ms": round((perf_counter() - total_started) * 1000, 3),
+                     "space_count": len(product_lines), "project_count": len(snapshot["projects"])})
     return snapshot
 
 
@@ -138,6 +154,7 @@ def extract_project_detail(client, original, *, now=None, resolved_names=None):
     now = now or datetime.now(timezone.utc)
     row = deepcopy(original)
     names = resolved_names if resolved_names is not None else {}
+    total_started = perf_counter()
     if row.get("detail_source") and row.get("status") == "current" and _current_role_parser(row):
         resolve_role_display_names(client, row.get("roles", {}), names)
         return row
@@ -147,26 +164,42 @@ def extract_project_detail(client, original, *, now=None, resolved_names=None):
         status_url=row["page_url"], home_url=row["page_url"],
         space_key=row["space_key"], page_identity=row["project_id"],
     )
+    discovery_started = perf_counter()
     discovered = discover_project_pages(
         client, project,
         return_errors=True, return_context=True,
         resolved_entry_page_id=row.get("entry_page_id", "") if not row.get("page_id") else "",
         resolved_root_page_id=row.get("root_page_id", "") if not row.get("page_id") else "",
     )
+    smart_log("Confluence detail stage timing", domain="framework", source="confluence_detail", emit_runtime_event=False,
+              extra={"stage": "detail.discovery", "duration_ms": round((perf_counter() - discovery_started) * 1000, 3),
+                     "page_count": len(discovered[0]), "error_count": len(discovered[1])})
     metadata, error, context = locate_basic_information(client, project, discovered=discovered)
     if metadata is None:
         raise LookupError(error)
+    basic_started = perf_counter()
     detail = client.get_page(metadata.id)
+    basic_ms = round((perf_counter() - basic_started) * 1000, 3)
     pages, _errors, _context = discovered
     pages["basic"] = detail
+    parse_started = perf_counter()
     roles = extract_project_roles(detail.body or detail.view_body)
-    resolve_role_display_names(client, roles, names)
+    parse_ms = round((perf_counter() - parse_started) * 1000, 3)
+    user_started = perf_counter()
+    attempted, resolved = resolve_role_display_names(client, roles, names)
+    smart_log("Confluence detail stage timing", domain="framework", source="confluence_detail", emit_runtime_event=False,
+              extra={"stage": "detail.basic_information", "duration_ms": basic_ms,
+                     "parse_duration_ms": parse_ms, "user_lookup_duration_ms": round((perf_counter() - user_started) * 1000, 3),
+                     "user_lookup_count": attempted, "user_resolved_count": resolved})
     row.update(entry_page_id=context["entry_page_id"], root_page_id=context["root_page_id"],
                detail_path=context.get("page_paths", {}).get("basic", []), roles=roles,
                status="current", error=None,
                evidence=[{"source": kind, **_page_evidence(page, row["space_key"])}
                          for kind, page in pages.items()],
                detail_source=_detail_evidence(detail, row["space_key"]), updated_at=now.isoformat())
+    smart_log("Confluence detail stage timing", domain="framework", source="confluence_detail", emit_runtime_event=False,
+              extra={"stage": "detail.total", "duration_ms": round((perf_counter() - total_started) * 1000, 3),
+                     "evidence_count": len(row["evidence"])})
     return row
 
 

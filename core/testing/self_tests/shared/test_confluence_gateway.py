@@ -119,6 +119,22 @@ def test_page_and_children_are_normalized():
     assert children[0].title == "Test Plan"
 
 
+def test_gateway_records_safe_rest_stage_timings(monkeypatch):
+    import core.confluence.gateway as gateway_module
+
+    records = []
+    monkeypatch.setattr(gateway_module, "smart_log", lambda message, **kwargs: records.append((message, kwargs)), raising=False)
+    client = ConfluenceGateway(ConfluenceGatewayConfig("https://confluence.example"), "u", "SECRET", api=FakeConfluence())
+
+    client.get_page("10")
+    client.get_page_children("10")
+
+    stages = [kwargs["extra"]["stage"] for _message, kwargs in records]
+    assert stages == ["rest.page.current", "rest.page.children"]
+    assert all(kwargs["extra"]["duration_ms"] >= 0 for _message, kwargs in records)
+    assert "SECRET" not in repr(records)
+
+
 def test_user_display_name_reuses_atlassian_user_lookup():
     class UserApi(FakeConfluence):
         def get_user_details_by_userkey(self, user_key):

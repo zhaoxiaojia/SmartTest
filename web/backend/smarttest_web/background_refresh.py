@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from threading import Lock
+from time import perf_counter
+
+from core.logging import smart_log
 
 from .task_manager import WEB_TASKS, snapshot_payload
 
@@ -11,7 +14,6 @@ class BackgroundFactsRefresh:
     def __init__(self, submit=None):
         self._submit = submit or self._start_thread
         self._lock = Lock()
-        self._states = {}
         self._jobs = {}
 
     @staticmethod
@@ -24,7 +26,7 @@ class BackgroundFactsRefresh:
 
     def state_for(self, access):
         with self._lock:
-            return self._states.get(str(access).strip().casefold(), "idle")
+            return self._jobs.get(str(access).strip().casefold(), {}).get("state", "idle")
 
     def status_for(self, access):
         account = str(access).strip().casefold()
@@ -41,14 +43,14 @@ class BackgroundFactsRefresh:
                 pass
         return status
 
-    def start_details(self, owner, access, password, *, filters=None, search="", on_complete=None,
-                      on_error=None):
+    def start_details(self, owner, access, password, *, filters=None, search="", on_error=None):
         account = access.session_hash
         with self._lock:
             if self._jobs.get(account, {}).get("state") == "loading":
                 return False
             job = {
-                "state": "loading", "completed": 0, "total": 0, "cancelled": False,
+                "state": "loading", "completed": 0, "total": 0,
+                "cancelled": False, "kind": "details",
             }
             self._jobs[account] = job
 
@@ -66,11 +68,11 @@ class BackgroundFactsRefresh:
             if cancelled():
                 return
             try:
-                result = owner.sync_details(access, password, filters=filters, search=search,
-                                            cancelled=cancelled,
-                                            progress=lambda completed, total: progress(completed, total, manager_progress))
-                if on_complete is not None:
-                    on_complete(result)
+                owner.refresh_and_sync_details(
+                    access, password, filters=filters, search=search,
+                    cancelled=cancelled,
+                    progress=lambda completed, total: progress(completed, total, manager_progress),
+                )
             except Exception as error:  # noqa: BLE001 - only safe job state crosses the API
                 error_state = on_error(error) if on_error is not None else "failed"
                 with self._lock:
@@ -90,7 +92,7 @@ class BackgroundFactsRefresh:
         account = str(access).strip().casefold()
         with self._lock:
             job = self._jobs.get(account)
-            if not job or job["state"] != "loading":
+            if not job or job.get("kind") != "details" or job["state"] != "loading":
                 return False
             job.update(cancelled=True, state="cancelled")
             return True
@@ -98,20 +100,37 @@ class BackgroundFactsRefresh:
     def start(self, owner, access, password, *, on_error=None):
         account = access.session_hash
         with self._lock:
-            if self._states.get(account) == "loading":
+            if self._jobs.get(account, {}).get("state") == "loading":
                 return False
-            self._states[account] = "loading"
+            job = {"state": "loading", "completed": 0, "total": 0, "kind": "catalog"}
+            self._jobs[account] = job
+        smart_log("Confluence catalog background state", platform="web", domain="framework", source="confluence_catalog_refresh", emit_runtime_event=False,
+                  extra={"stage": "filter.background_schedule", "duration_ms": 0, "outcome": "scheduled", "credential_present": bool(password)})
 
         def work(_manager_progress=lambda _completed, _total: None):
+            started = perf_counter()
+            smart_log("Confluence catalog background state", platform="web", domain="framework", source="confluence_catalog_refresh", emit_runtime_event=False,
+                      extra={"stage": "filter.background_start", "duration_ms": 0, "outcome": "started"})
             try:
-                owner.refresh(access, password)
+                result = owner.refresh(access, password)
+                smart_log("Confluence catalog background timing", platform="web", domain="framework", source="confluence_catalog_refresh", emit_runtime_event=False,
+                          extra={"stage": "filter.background_owner", "duration_ms": round((perf_counter() - started) * 1000, 3),
+                                 "result_state": str(result.get("state") or "") if isinstance(result, dict) else "complete",
+                                 "project_count": len(result.get("projects") or ()) if isinstance(result, dict) else 0})
             except Exception as error:  # noqa: BLE001 - the public state is intentionally safe
                 error_state = on_error(error) if on_error is not None else "failed"
+                smart_log("Confluence catalog background timing", platform="web", domain="framework", level="error", source="confluence_catalog_refresh", emit_runtime_event=False,
+                          extra={"stage": "filter.background_total", "duration_ms": round((perf_counter() - started) * 1000, 3),
+                                 "outcome": "failure", "error_state": error_state, "exception_type": type(error).__name__,
+                                 "sqlite_error_name": str(getattr(error, "sqlite_errorname", "") or "")})
                 with self._lock:
-                    self._states[account] = error_state
+                    job["state"] = error_state
             else:
                 with self._lock:
-                    self._states[account] = "ready"
+                    job["state"] = "ready"
+                smart_log("Confluence catalog background timing", platform="web", domain="framework", source="confluence_catalog_refresh", emit_runtime_event=False,
+                          extra={"stage": "filter.background_total", "duration_ms": round((perf_counter() - started) * 1000, 3),
+                                 "outcome": "success", "refresh_state": "ready"})
 
         self._submit(work)
         return True

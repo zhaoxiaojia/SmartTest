@@ -197,7 +197,9 @@ def test_page_entry_persists_recent_client_catalog_contract_for_all_four_spaces(
         client_factory=lambda _username, _password: CatalogClient(),
     )
 
-    result = owner.refresh(confirmed_access(repository.database), "secret")
+    access = confirmed_access(repository.database)
+    owner.refresh(access, "secret")
+    result = owner.query(access)
 
     assert result["accessibleProjectCount"] == 4
     assert {row["space_key"] for row in result["projects"]} == {"TV", "SDPL", "DOPL", "OOPL"}
@@ -219,3 +221,93 @@ def test_apply_catalog_roundtrip_keeps_dynamic_fields_for_detail_extraction(tmp_
     payload = _ProjectFactsGateway(object(), repository).get_project_catalog("P100")
 
     assert payload["fields"]["odm"] == "ODM-X"
+
+
+def test_apply_refreshes_the_matching_cross_space_identity_only(tmp_path) -> None:
+    repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
+    projects = tuple(
+        Project(
+            ProjectIdentity(f"{space}:P100", "P100"), f"{space} Project",
+            ProductSpaceRef(space), ConfluencePageRef(f"{space}-page"),
+            facts=DetailSection.loaded(FieldBag.from_mapping({"support mode": "A"})),
+        )
+        for space in ("DOPL", "TV")
+    )
+    repository.save_core(projects)
+    for project in projects:
+        repository.replace_facts(project.identity.confluence_id, project.facts)
+    synced = []
+
+    class Coordinator:
+        def __init__(self, _service): pass
+        def sync(self, project_ids, _details, **_kwargs): synced.extend(project_ids)
+
+    access = confirmed_access(repository.database, ("DOPL:P100", "TV:P100"))
+    owner = ProjectFactsWebOwner(
+        repository=repository, sync_coordinator_factory=Coordinator,
+        client_factory=lambda *_args: object(),
+    )
+
+    owner.sync_details(access, "secret", filters={"__product_space__": ("TV",)})
+
+    assert synced == ["TV:P100"]
+
+
+def test_catalog_refresh_does_not_requery_all_project_facts(tmp_path) -> None:
+    repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
+    owner = ProjectFactsWebOwner(repository=repository)
+
+    class Service:
+        def refresh_projects(self, _scope):
+            return {"projects": (), "failed": ()}
+
+    owner._service = lambda *_args: Service()
+    owner.query = lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("duplicate query"))
+
+    assert owner.refresh(confirmed_access(repository.database), "secret") is None
+
+
+def test_project_facts_query_uses_one_repository_batch_instead_of_per_project_get(tmp_path, monkeypatch) -> None:
+    repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
+    repository.save_core(tuple(
+        Project(ProjectIdentity(str(index), f"P{index}"), f"Project {index}",
+                ProductSpaceRef("DOPL"), ConfluencePageRef(str(index)))
+        for index in range(3)
+    ))
+    access = confirmed_access(repository.database, tuple(f"P{index}" for index in range(3)))
+    monkeypatch.setattr(repository, "get", lambda *_args: (_ for _ in ()).throw(AssertionError("N+1 get")))
+
+    result = ProjectFactsWebOwner(repository=repository).query(access)
+
+    assert len(result["projects"]) == 3
+
+
+def test_apply_refreshes_catalog_before_recomputing_detail_scope(tmp_path) -> None:
+    repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
+    old = Project(ProjectIdentity("DOPL:OLD", "OLD"), "Old", ProductSpaceRef("DOPL"),
+                  ConfluencePageRef("1"), support_mode=NamedValue(name="A"))
+    new = Project(ProjectIdentity("DOPL:NEW", "NEW"), "New", ProductSpaceRef("DOPL"),
+                  ConfluencePageRef("2"), support_mode=NamedValue(name="A"))
+    repository.save_core((old,))
+    access = confirmed_access(repository.database, ("DOPL:OLD",))
+    synced = []
+
+    class Service:
+        def refresh_projects(self, _scope):
+            repository.save_core((new,))
+            access.publish((("project", "DOPL:NEW", "catalog", "DOPL"),
+                            ("project", "DOPL:NEW", "roles", "DOPL"),
+                            ("project", "DOPL:NEW", "facts", "DOPL")), lambda: None,
+                           replace_scopes=("DOPL",))
+            return {"projects": (new,), "failed": ()}
+
+    class Coordinator:
+        def __init__(self, _service): pass
+        def sync(self, project_ids, _details, **_kwargs): synced.extend(project_ids)
+
+    owner = ProjectFactsWebOwner(repository=repository, sync_coordinator_factory=Coordinator)
+    owner._service = lambda *_args: Service()
+
+    owner.refresh_and_sync_details(access, "secret", filters={"support mode": ("A",)})
+
+    assert synced == ["DOPL:NEW"]

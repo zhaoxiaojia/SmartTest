@@ -12,6 +12,7 @@ from core.confluence.project import (
     ProjectDetails,
     ProjectIdentity,
     ProjectMilestones,
+    ProjectQuery,
     ProjectRole,
     SourceEvidence,
 )
@@ -62,6 +63,31 @@ def test_project_core_and_all_detail_states_round_trip_without_field_loss(tmp_pa
     assert loaded.software.state is DetailState.UNLOADED
     assert loaded.facts == DetailSection.loaded(FieldBag.from_mapping({"region": ["US", "EU"]}), source_revision="4")
     assert loaded.evidence == DetailSection.loaded(evidence, source_revision="4")
+
+
+def test_catalog_transaction_preserves_duplicate_owner_and_cross_space_project_id(tmp_path) -> None:
+    repository = _repository(tmp_path)
+    duplicate_owner = PersonRef("u1", "alice", "Alice")
+    first = replace(
+        _project(),
+        identity=ProjectIdentity("DOPL:P100", "P100"),
+        owner_summary=(duplicate_owner, duplicate_owner),
+    )
+    second = replace(
+        _project(),
+        identity=ProjectIdentity("TV:P100", "P100"),
+        product_space=ProductSpaceRef("TV", "TV Business"),
+        owner_summary=(),
+    )
+
+    repository.save_core((first, second))
+
+    stored = repository.list(ProjectQuery(), 0, 10)
+    assert [(project.identity.confluence_id, project.identity.project_id) for project in stored.projects] == [
+        ("DOPL:P100", "P100"), ("TV:P100", "P100"),
+    ]
+    assert repository.get("DOPL:P100", ProjectDetails()).owner_summary == (duplicate_owner,)
+    assert repository.get("TV:P100", ProjectDetails()).product_space.key == "TV"
 
 
 def test_project_detail_replace_failure_rolls_back_value_and_state(tmp_path) -> None:

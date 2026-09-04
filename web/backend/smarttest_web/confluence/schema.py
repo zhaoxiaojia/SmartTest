@@ -22,7 +22,7 @@ CONFLUENCE_TABLES = (
 
 CONFLUENCE_STATEMENTS = (
     """CREATE TABLE IF NOT EXISTS confluence_projects (
-        confluence_id TEXT PRIMARY KEY, project_id TEXT NOT NULL UNIQUE,
+        confluence_id TEXT PRIMARY KEY, project_id TEXT NOT NULL,
         name TEXT NOT NULL DEFAULT '', product_space_key TEXT NOT NULL DEFAULT '',
         product_space_name TEXT NOT NULL DEFAULT '', product_space_url TEXT NOT NULL DEFAULT '',
         catalog_page_id TEXT NOT NULL DEFAULT '', catalog_page_title TEXT NOT NULL DEFAULT '',
@@ -81,7 +81,7 @@ def initialize_confluence_schema(database: WebDatabase) -> None:
     ensure_component_schema(
         database,
         component="confluence_cache",
-        version=2,
+        version=3,
         drop_tables=CONFLUENCE_TABLES,
         statements=CONFLUENCE_STATEMENTS,
     )

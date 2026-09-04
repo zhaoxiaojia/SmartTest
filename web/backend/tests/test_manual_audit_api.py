@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from pathlib import Path
+import sqlite3
 import time
 
 from fastapi.testclient import TestClient
@@ -21,6 +23,7 @@ class _Facts:
         return {"state": "ready", "facets": [], "projects": [{"project_id": "P1"}], "ownerHierarchy": []}
     def sync_details(self, _access, _password, **_kwargs):
         return {"state": "ready", "projects": [{"project_id": "P1"}]}
+    def refresh(self, _access, _password): return None
     def invalidate_project(self, _project_id): pass
 
 
@@ -200,15 +203,18 @@ def test_confluence_audit_exports_one_zip_containing_product_line_workbooks(tmp_
     ]
 
 
-def test_confluence_review_uses_cached_session_selection_and_ignores_stale_client_ids(tmp_path) -> None:
+def test_confluence_review_queries_current_filters_records_snapshot_and_ignores_client_ids(
+    tmp_path, isolate_server_credentials,
+) -> None:
     class Facts:
-        def __init__(self): self.sync_calls = []
-        def query(self, _access, *, filters=None, **_kwargs):
-            project_id = "P652" if filters else "P156"
-            return {"state": "ready", "facets": [], "projects": [{"project_id": project_id}], "ownerHierarchy": []}
-        def sync_details(self, _access, _password, *, filters=None, search="", **_kwargs):
-            self.sync_calls.append((filters, search))
-            return {"state": "ready", "projects": [{"project_id": "P652"}]}
+        def __init__(self): self.query_calls = []; self.refresh_calls = 0
+        def refresh(self, _access, _password): self.refresh_calls += 1
+        def query(self, _access, *, filters=None, search="", **_kwargs):
+            self.query_calls.append((filters, search))
+            project_id = "P652" if filters == {"support mode": ("A", "B")} else "P156"
+            return {"state": "ready", "facets": [], "projects": [{
+                "identity": f"DOPL:{project_id}", "project_id": project_id,
+            }], "ownerHierarchy": []}
 
     class Owner(ConfluenceOwner):
         def __init__(self): self.resolved = []
@@ -227,25 +233,37 @@ def test_confluence_review_uses_cached_session_selection_and_ignores_stale_clien
     )
     client = TestClient(app, base_url="https://testserver")
     client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
-    review = {"projectIds": ["P652"], "startDate": "2026-08-17", "endDate": "2026-08-24"}
+    review = {
+        "projectIds": ["forged"],
+        "filters": {"fields": {"support mode": ["A", "B"]}, "search": "mode review"},
+        "startDate": "2026-08-17", "endDate": "2026-08-24",
+    }
 
-    assert client.post("/api/audits/confluence", json=review).status_code == 422
     client.get("/api/confluence/project-facts")
     first = client.post("/api/audits/confluence", json=review)
     assert first.status_code == 200
     assert _wait(client, "confluence", first.json()["auditId"])["status"] == "completed"
-    assert facts.sync_calls == []
-    # Changed controls are not sent to project-facts, so the previous server selection remains active.
-    assert owner.resolved == [{"projectIds": ["P156"], "startDate": "2026-08-17", "endDate": "2026-08-24"}]
+    assert facts.query_calls[-1] == ({"support mode": ("A", "B")}, "mode review")
+    assert facts.refresh_calls == 1
+    assert owner.resolved == [{"projectIds": ["DOPL:P652"], "startDate": "2026-08-17", "endDate": "2026-08-24"}]
+    with sqlite3.connect(isolate_server_credentials.database_path) as connection:
+        snapshot = connection.execute(
+            "SELECT filters_json, search, project_ids_json FROM web_query_snapshots",
+        ).fetchone()
+    assert json.loads(snapshot[0]) == {"support mode": ["A", "B"]}
+    assert snapshot[1] == "mode review"
+    assert json.loads(snapshot[2]) == ["DOPL:P652"]
 
-    client.get("/api/confluence/project-facts?field.current%20stage=EVT")
     second = client.post("/api/audits/confluence", json={**review, "projectIds": ["P156"]})
     assert second.status_code == 200
-    assert owner.resolved[-1] == {"projectIds": ["P652"], "startDate": "2026-08-17", "endDate": "2026-08-24"}
+    assert _wait(client, "confluence", second.json()["auditId"])["status"] == "completed"
+    assert facts.refresh_calls == 2
+    assert owner.resolved[-1] == {"projectIds": ["DOPL:P652"], "startDate": "2026-08-17", "endDate": "2026-08-24"}
 
 
 def test_confluence_query_snapshot_survives_app_restart_for_same_valid_session(tmp_path) -> None:
     class Facts:
+        def refresh(self, _access, _password): return None
         def query(self, _access, **_kwargs):
             return {"state": "ready", "facets": [], "projects": [{"project_id": "P156"}], "ownerHierarchy": []}
 
@@ -276,4 +294,5 @@ def test_confluence_query_snapshot_survives_app_restart_for_same_valid_session(t
     })
 
     assert response.status_code == 200
+    assert _wait(restarted, "confluence", response.json()["auditId"])["status"] == "completed"
     assert owner.resolved[-1]["projectIds"] == ["P156"]

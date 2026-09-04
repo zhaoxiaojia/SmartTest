@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from conftest import confirmed_access
 from core.confluence.project import ProjectDetails, ProjectQuery, ProjectSyncScope
 from core.confluence.project_mapper import ConfluenceProjectMapper
@@ -50,6 +52,48 @@ def _service(tmp_path):
     gateway = ConfluenceGateway()
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     return ConfluenceProjectCacheService(gateway, ConfluenceProjectMapper(), repository, access=confirmed_access(repository.database)), gateway, repository
+
+
+def test_catalog_ready_is_not_published_when_sqlite_write_fails(tmp_path, monkeypatch) -> None:
+    import smarttest_web.confluence.cache_service as cache_module
+
+    records = []
+    monkeypatch.setattr(cache_module, "smart_log", lambda message, **kwargs: records.append((message, kwargs)), raising=False)
+    service, gateway, repository = _service(tmp_path)
+    gateway.refresh_project_catalogs = lambda _scope: {
+        "projects": [_row()], "failed_product_spaces": [], "complete_spaces": ["DOPL"],
+    }
+    monkeypatch.setattr(repository, "save_core", lambda _projects: (_ for _ in ()).throw(RuntimeError("db failed")))
+
+    with pytest.raises(RuntimeError, match="db failed"):
+        service.refresh_projects(ProjectSyncScope())
+
+    assert service._access.ids("project", "catalog") == set()
+    assert service._access.ids("catalog", "ready") == set()
+    failed = next(kwargs for message, kwargs in records if message == "Confluence catalog publish timing" and kwargs["extra"].get("outcome") == "failure")
+    assert failed["extra"]["exception_type"] == "RuntimeError"
+    assert failed["extra"]["sqlite_error_name"] == ""
+    assert "db failed" not in repr(records)
+
+
+def test_catalog_refresh_emits_safe_mapping_and_publish_timings(tmp_path, monkeypatch) -> None:
+    import smarttest_web.confluence.cache_service as cache_module
+    import smarttest_web.confluence.project_repository as repository_module
+
+    records = []
+    capture = lambda message, **kwargs: records.append((message, kwargs))
+    monkeypatch.setattr(cache_module, "smart_log", capture, raising=False)
+    monkeypatch.setattr(repository_module, "smart_log", capture, raising=False)
+    service, gateway, _repository = _service(tmp_path)
+    gateway.refresh_project_catalogs = lambda _scope: {
+        "projects": [_row()], "failed_product_spaces": [], "complete_spaces": ["DOPL"],
+    }
+
+    service.refresh_projects(ProjectSyncScope())
+
+    stages = {kwargs["extra"]["stage"] for _message, kwargs in records}
+    assert {"filter.catalog_mapping", "filter.catalog_publish_begin", "filter.catalog_publish", "filter.sqlite_write"} <= stages
+    assert "P100" not in repr(records) and "900" not in repr(records)
 
 
 def test_confluence_list_fetches_only_core_and_get_loads_only_requested_section(tmp_path) -> None:

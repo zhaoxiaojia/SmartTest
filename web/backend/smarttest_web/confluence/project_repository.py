@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import datetime, timezone
 import json
+from time import perf_counter
 from typing import Callable, Iterable
 
 from core.confluence.project import (
@@ -19,6 +20,7 @@ from core.confluence.project import (
 )
 from core.domain.detail import DetailSection, DetailState
 from core.domain.values import FieldBag, NamedValue, PersonRef, SourceRevision
+from core.logging import smart_log
 
 from ..database import WebDatabase
 from .schema import initialize_confluence_schema
@@ -35,7 +37,10 @@ class ConfluenceProjectRepository:
     def get(self, project_id: str, details: ProjectDetails) -> Project | None:
         with self.database.connect() as connection:
             row = connection.execute(
-                "SELECT * FROM confluence_projects WHERE project_id=?", (project_id,)
+                """SELECT * FROM confluence_projects
+                WHERE confluence_id=? OR project_id=?
+                ORDER BY CASE WHEN confluence_id=? THEN 0 ELSE 1 END, product_space_key
+                LIMIT 1""", (project_id, project_id, project_id)
             ).fetchone()
             if row is None:
                 return None
@@ -51,8 +56,9 @@ class ConfluenceProjectRepository:
         parameters: list[str] = []
         if visible_ids is not None:
             identifiers = tuple(visible_ids)
-            clauses.append(f"project_id IN ({','.join('?' for _ in identifiers)})")
-            parameters.extend(identifiers)
+            placeholders = ','.join('?' for _ in identifiers)
+            clauses.append(f"(confluence_id IN ({placeholders}) OR project_id IN ({placeholders}))")
+            parameters.extend((*identifiers, *identifiers))
         if query.search.strip():
             needle = f"%{query.search.strip()}%"
             clauses.append("(project_id LIKE ? OR name LIKE ? OR customer_summary LIKE ?)")
@@ -74,10 +80,11 @@ class ConfluenceProjectRepository:
                 f"SELECT count(*) FROM confluence_projects {where}", tuple(parameters)
             ).fetchone()[0])
             rows = connection.execute(
-                f"SELECT * FROM confluence_projects {where} ORDER BY project_id LIMIT ? OFFSET ?",
+                f"SELECT * FROM confluence_projects {where} ORDER BY project_id,product_space_key LIMIT ? OFFSET ?",
                 (*parameters, int(page_size), int(page) * int(page_size)),
             ).fetchall()
-            projects = tuple(self._project_from_row(connection, row) for row in rows)
+            owners = self._owners_by_project(connection, tuple(row[0] for row in rows))
+            projects = tuple(self._project_from_row(connection, row, owners.get(row[0], ())) for row in rows)
         return ProjectPage(projects, int(page), int(page_size), total)
 
     def facts_version(self) -> str:
@@ -88,8 +95,72 @@ class ConfluenceProjectRepository:
             )""").fetchone()
         return str(row[0] or "")
 
+    def load_many(self, projects: Iterable[Project], details: ProjectDetails) -> tuple[Project, ...]:
+        """Load presentation detail sections for a project page in bounded SQL batches."""
+        projects = tuple(projects)
+        identities = tuple(project.identity.confluence_id for project in projects)
+        if not identities or not details.sections():
+            return projects
+        placeholders = ",".join("?" for _ in identities)
+        roles_by_project: dict[str, list[ProjectRole]] = {}
+        facts_by_project: dict[str, FieldBag] = {}
+        states = {}
+        with self.database.connect() as connection:
+            for identity, name, state, revision, error, has_value in connection.execute(
+                f"""SELECT confluence_id,section_name,state,source_revision,error_code,has_value
+                FROM confluence_project_detail_states
+                WHERE section_name IN ('roles','facts') AND confluence_id IN ({placeholders})""", identities,
+            ):
+                states[(identity, name)] = (DetailState(state), revision, error, bool(has_value))
+            if details.roles:
+                role_people: dict[tuple[str, str, str], list[PersonRef]] = {}
+                for row in connection.execute(
+                    f"""SELECT r.confluence_id,r.role_id,r.role_name,p.identity,p.account,p.display_name
+                    FROM confluence_project_roles r
+                    LEFT JOIN confluence_project_role_people p
+                    ON p.confluence_id=r.confluence_id AND p.role_id=r.role_id
+                    WHERE r.confluence_id IN ({placeholders})
+                    ORDER BY r.confluence_id,r.role_id,p.identity""", identities,
+                ):
+                    key = (row[0], row[1], row[2])
+                    people = role_people.setdefault(key, [])
+                    if row[3] is not None:
+                        people.append(PersonRef(row[3], row[4], row[5]))
+                for (identity, role_id, role_name), people in role_people.items():
+                    roles_by_project.setdefault(identity, []).append(
+                        ProjectRole(NamedValue(role_id, role_name), tuple(people)),
+                    )
+            if details.facts:
+                values: dict[str, list[tuple[str, object]]] = {}
+                for identity, key, value in connection.execute(
+                    f"""SELECT confluence_id,field_key,value_json FROM confluence_project_fields
+                    WHERE section_name='facts' AND confluence_id IN ({placeholders})
+                    ORDER BY confluence_id,field_key""", identities,
+                ):
+                    values.setdefault(identity, []).append((key, json.loads(value)))
+                facts_by_project = {identity: FieldBag(tuple(rows)) for identity, rows in values.items()}
+        def section(identity, name, value):
+            state = states.get((identity, name))
+            if state is None:
+                return DetailSection()
+            detail_state, revision, error, has_value = state
+            if has_value and value is None:
+                value = _empty_value(name)
+            return DetailSection(detail_state, value if has_value else None, revision, error)
+        return tuple(replace(
+            project,
+            **({"roles": section(project.identity.confluence_id, "roles", tuple(roles_by_project.get(project.identity.confluence_id, ())))}
+               if details.roles else {}),
+            **({"facts": section(project.identity.confluence_id, "facts", facts_by_project.get(project.identity.confluence_id))}
+               if details.facts else {}),
+        ) for project in projects)
+
     def save_core(self, projects: Iterable[Project]) -> None:
+        projects = tuple(projects)
         cached_at = _now()
+        started = perf_counter()
+        smart_log("Confluence catalog SQLite timing", platform="web", domain="framework", source="confluence_repository", emit_runtime_event=False,
+                  extra={"stage": "filter.sqlite_write_begin", "duration_ms": 0, "project_count": len(projects)})
         with self.database.transaction() as connection:
             for project in projects:
                 old = connection.execute(
@@ -121,7 +192,10 @@ class ConfluenceProjectRepository:
                 )
                 connection.executemany(
                     "INSERT INTO confluence_project_owners VALUES(?,?,?,?)",
-                    ((project.identity.confluence_id, *person_values(person)) for person in project.owner_summary),
+                    (
+                        (project.identity.confluence_id, *person_values(person))
+                        for person in dict.fromkeys(project.owner_summary)
+                    ),
                 )
                 for section in _SECTIONS:
                     connection.execute(
@@ -136,6 +210,9 @@ class ConfluenceProjectRepository:
                         WHERE confluence_id=? AND state='loaded'""",
                         (cached_at, project.identity.confluence_id),
                     )
+        smart_log("Confluence catalog SQLite timing", platform="web", domain="framework", source="confluence_repository", emit_runtime_event=False,
+                  extra={"stage": "filter.sqlite_write", "duration_ms": round((perf_counter() - started) * 1000, 3),
+                         "project_count": len(projects), "outcome": "success"})
 
     def replace_roles(self, project_id: str, section: DetailSection[tuple[ProjectRole, ...]]) -> None:
         def write(connection, confluence_id):
@@ -215,7 +292,10 @@ class ConfluenceProjectRepository:
     def _replace(self, project_id: str, name: str, section: DetailSection, writer: Callable) -> None:
         with self.database.transaction() as connection:
             row = connection.execute(
-                "SELECT confluence_id FROM confluence_projects WHERE project_id=?", (project_id,)
+                """SELECT confluence_id FROM confluence_projects
+                WHERE confluence_id=? OR project_id=?
+                ORDER BY CASE WHEN confluence_id=? THEN 0 ELSE 1 END, product_space_key
+                LIMIT 1""", (project_id, project_id, project_id)
             ).fetchone()
             if row is None:
                 raise KeyError(project_id)
@@ -231,11 +311,26 @@ class ConfluenceProjectRepository:
                  section.error_code, int(section.value is not None), _now()),
             )
 
-    def _project_from_row(self, connection, row) -> Project:
-        owners = tuple(PersonRef(item[0], item[1], item[2]) for item in connection.execute(
-            "SELECT identity,account,display_name FROM confluence_project_owners WHERE confluence_id=? ORDER BY identity",
-            (row[0],),
-        ))
+    @staticmethod
+    def _owners_by_project(connection, identities) -> dict[str, tuple[PersonRef, ...]]:
+        if not identities:
+            return {}
+        placeholders = ",".join("?" for _ in identities)
+        grouped: dict[str, list[PersonRef]] = {}
+        for confluence_id, identity, account, display_name in connection.execute(
+            f"""SELECT confluence_id,identity,account,display_name
+            FROM confluence_project_owners WHERE confluence_id IN ({placeholders})
+            ORDER BY confluence_id,identity""", identities,
+        ):
+            grouped.setdefault(confluence_id, []).append(PersonRef(identity, account, display_name))
+        return {identity: tuple(people) for identity, people in grouped.items()}
+
+    def _project_from_row(self, connection, row, owners=None) -> Project:
+        if owners is None:
+            owners = tuple(PersonRef(item[0], item[1], item[2]) for item in connection.execute(
+                "SELECT identity,account,display_name FROM confluence_project_owners WHERE confluence_id=? ORDER BY identity",
+                (row[0],),
+            ))
         return Project(
             ProjectIdentity(row[0], row[1]), row[2], ProductSpaceRef(row[3], row[4], row[5]),
             ConfluencePageRef(row[6], row[7], row[8], int(row[9])),

@@ -26,20 +26,25 @@ from core.confluence.project import (
     SourceEvidence,
 )
 from core.domain.detail import DetailSection
-from core.domain.values import NamedValue, PersonRef
+from core.domain.values import FieldBag, NamedValue, PersonRef
 
 
 TZ = ZoneInfo("Asia/Shanghai")
 
 
-def _project(project_id="P1", line="DOPL"):
+def _project(
+    project_id="P1", line="DOPL", *, support_mode="", project_status="",
+    commercial_date="",
+):
     sources = {
         "test_information": "10", "test_plan": "11", "environment": "12",
         "experience": "13", "report_store": "14", "basic": "15",
     }
     return Project(
         ProjectIdentity(project_id, project_id), f"Project {project_id}",
-        ProductSpaceRef(line, line), ConfluencePageRef("1", "Catalog"),
+        ProductSpaceRef(line, line), ConfluencePageRef("1", "Catalog", f"https://c/{project_id}"),
+        status=NamedValue(name=project_status) if project_status else None,
+        support_mode=NamedValue(name=support_mode) if support_mode else None,
         roles=DetailSection.loaded((ProjectRole(
             NamedValue("fae", "FAE QA"),
             (PersonRef("alice", "alice", "Alice"), PersonRef("alice", "alice", "Alice")),
@@ -48,6 +53,9 @@ def _project(project_id="P1", line="DOPL"):
             SourceEvidence(name, ConfluencePageRef(page_id, name, f"https://c/{page_id}"))
             for name, page_id in sources.items()
         )),
+        facts=DetailSection.loaded(FieldBag.from_mapping({
+            "date of commercial approval": commercial_date,
+        })),
     )
 
 
@@ -141,6 +149,39 @@ def test_confluence_exporter_writes_one_workbook_per_product_line(tmp_path) -> N
     assert load_workbook(paths[0]).sheetnames == ["Project Weekly Audit"]
 
 
+def test_confluence_exporter_preserves_legacy_mode_sections_columns_sort_and_links(tmp_path) -> None:
+    period = AuditPeriod(datetime(2026, 8, 17, tzinfo=TZ), datetime(2026, 8, 24, tzinfo=TZ))
+    findings = tuple(
+        AuditFinding("P", point.label, point.rule_id, AuditStatus.UPDATED, "")
+        for point in UPDATE_MATRIX_POINTS
+    )
+    batch = AuditBatch("legacy-format", period, period.end, (
+        ProjectAudit(_project("P2", support_mode="B", project_status="NORMAL", commercial_date="2026-03-01"), findings, ("Bob",)),
+        ProjectAudit(_project("P3", support_mode="A", project_status="NORMAL", commercial_date="2025-03-01"), findings, ("Alice",)),
+        ProjectAudit(_project("P1", support_mode="A", project_status="NORMAL", commercial_date="2026-03-01"), findings, ("Alice",)),
+    ))
+
+    [path] = export_audit_xlsx_by_product_line(batch, tmp_path)
+
+    workbook = load_workbook(path)
+    sheet = workbook.active
+    assert [sheet.cell(1, column).value for column in range(1, 7)] == [
+        "Support Mode", "A", "Project Status", "NORMAL", "审查周期",
+        "2026-08-17 - 2026-08-24",
+    ]
+    assert [sheet.cell(2, column).value for column in range(1, 6)] == [
+        "Owner", "年份", "项目名", "项目链接", UPDATE_MATRIX_POINTS[0].label,
+    ]
+    assert [sheet.cell(row, 3).value for row in (3, 4)] == ["Project P3", "Project P1"]
+    assert sheet.cell(3, 4).hyperlink.target == "https://c/P3"
+    assert [sheet.cell(5, column).value for column in range(1, 5)] == [
+        "Support Mode", "B", "Project Status", "NORMAL",
+    ]
+    assert sheet.cell(6, 1).value == "Owner"
+    assert sheet.cell(7, 3).value == "Project P2"
+    workbook.close()
+
+
 def _body(page_id, value):
     if page_id == "11":
         return f"<table><tr><td>Category</td></tr><tr><td>{value}</td></tr></table>"
@@ -163,7 +204,7 @@ def test_confluence_exporter_preserves_specific_invalid_format_reasons(tmp_path)
 
     workbook = load_workbook(paths[0])
     rows = list(workbook.active.values)
-    row = next(row for row in rows if "P1" in row)
+    row = next(row for row in rows if "Project P1" in row)
     assert row[4:6] == ("格式有误：查询不到Phase Status", "格式有误：MissingSection")
     workbook.close()
 

@@ -366,6 +366,29 @@ def test_confluence_adapter_stops_before_version_requests_after_cancellation(tmp
     assert gateway.calls == [("current", "10")]
 
 
+def test_confluence_review_records_project_page_and_total_timings(tmp_path, monkeypatch) -> None:
+    import smarttest_web.audit.confluence_adapter as adapter_module
+
+    records = []
+    monkeypatch.setattr(adapter_module, "smart_log", lambda message, **kwargs: records.append((message, kwargs)), raising=False)
+    project = _project()
+    class Repository:
+        def get(self, _project_id, _details): return project
+    class Cache:
+        def refresh_project(self, _project_id, _details, cancellation=None): return project
+    class Gateway:
+        def get_page(self, page_id):
+            return ConfluencePage(page_id, page_id, "https://c", "<p>x</p>", "<p>x</p>", 1, datetime(2026, 8, 20, tzinfo=ZoneInfo("Asia/Shanghai")))
+
+    owner = WebConfluenceAuditOwner(Cache(), Repository(), Gateway(), access=confirmed_access(WebDatabase(tmp_path / "access.db"), ("P1",), ("10", "11", "12", "13", "14")))
+    resolved = owner.resolve({"projectIds": ["P1"], "startDate": "2026-08-17", "endDate": "2026-08-24"})
+    owner.run(resolved, type("Token", (), {"raise_if_cancelled": lambda self: None})(), lambda *_: None)
+
+    stages = {kwargs["extra"]["stage"] for _message, kwargs in records}
+    assert {"review.total", "review.project.details", "review.page.current", "review.page.versions"} <= stages
+    assert all(kwargs["extra"]["duration_ms"] >= 0 for _message, kwargs in records)
+
+
 def _body(page_id, value):
     if page_id == "11": return f"<table><tr><td>Category</td></tr><tr><td>{value}</td></tr></table>"
     labels = {"10": ("Phase Status", "Summary", "Task Arrangement", "Blocking"), "12": ("测试环境",)}

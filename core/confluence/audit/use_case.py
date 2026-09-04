@@ -4,8 +4,10 @@ from concurrent.futures import as_completed
 from datetime import datetime, timezone
 from typing import Protocol
 from uuid import uuid4
+from time import perf_counter
 
 from core.confluence.project import Project, ProjectDetails
+from core.logging import smart_log
 
 from .models import (
     AuditBatch,
@@ -90,21 +92,27 @@ class ConfluenceWeeklyAuditUseCase:
         return audits
 
     def _audit_one(self, project, period, token, progress):
+        started = perf_counter()
         token.raise_if_cancelled()
         try:
             loaded = self._source.load_project_details(
                 project.identity.project_id, ProjectDetails(roles=True, evidence=True), token,
             )
-            return self._audit_project(loaded, period, token, progress)
+            result = self._audit_project(loaded, period, token, progress)
         except Exception as error:
             token.raise_if_cancelled()
             reason = "remote_unavailable" if str(error) == "remote_unavailable" else "audit_failed"
-            return ProjectAudit(project, (AuditFinding(
+            result = ProjectAudit(project, (AuditFinding(
                 project.identity.project_id, project.name, "project.audit",
                 AuditStatus.FAILED, reason, project.catalog_page.url,
             ),), _owners(project))
+        smart_log("Confluence review project timing", domain="framework", source="confluence_review", emit_runtime_event=False,
+                  extra={"stage": "review.project_total", "duration_ms": round((perf_counter() - started) * 1000, 3),
+                         "project_id": project.identity.confluence_id, "finding_count": len(result.findings)})
+        return result
 
     def _audit_project(self, project, period, token, progress):
+        rules_started = perf_counter()
         evidence = {
             item.source: item.page for item in (project.evidence.value or ())
         }
@@ -144,7 +152,12 @@ class ConfluenceWeeklyAuditUseCase:
                 findings.append(_audit_versions(
                     project, point, material[0], material[1], period,
                 ))
-        return ProjectAudit(project, tuple(findings), _owners(project))
+        result = ProjectAudit(project, tuple(findings), _owners(project))
+        smart_log("Confluence review rules timing", domain="framework", source="confluence_review", emit_runtime_event=False,
+                  extra={"stage": "review.rules", "duration_ms": round((perf_counter() - rules_started) * 1000, 3),
+                         "project_id": project.identity.confluence_id, "finding_count": len(findings),
+                         "unique_page_count": len(page_material)})
+        return result
 
 
 def _audit_versions(project, point, current, versions, period):

@@ -91,15 +91,23 @@ describe('manual audit API contract', () => {
 })
 
 describe('Confluence project facts API contract', () => {
+  it('polls only the background job status endpoint', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ state: 'loading' }) })
+
+    await createProjectFactsApi({ fetchImpl }).getProjectFactsStatus()
+
+    expect(fetchImpl).toHaveBeenCalledWith('/api/confluence/project-facts/status', { credentials: 'same-origin' })
+  })
+
   it('sends dynamic field filters and project/person search to the read-only endpoint', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ projects: [] }) })
     await createProjectFactsApi({ fetchImpl }).getProjectFacts({
       fields: { 'unexpected owner': ['Alice', 'Bob'], 'support mode': ['B'] }, search: 'Coco'
-    }, { catalog: true })
+    })
     const url = new URL(fetchImpl.mock.calls[0][0], 'https://smarttest.local')
     expect(url.pathname).toBe('/api/confluence/project-facts')
     expect(url.searchParams.getAll('field.unexpected owner')).toEqual(['Alice', 'Bob'])
-    expect(url.searchParams.get('catalog')).toBe('1')
+    expect(url.searchParams.has('catalog')).toBe(false)
     expect(url.searchParams.get('field.support mode')).toBe('B')
     expect(url.searchParams.get('search')).toBe('Coco')
   })

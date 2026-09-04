@@ -33,6 +33,10 @@ class ReadyFactsOwner:
         self.sync_calls.append((filters, search))
         return self.result
 
+    def refresh_and_sync_details(self, username, password, **kwargs):
+        self.refresh(username, password)
+        return self.sync_details(username, password, **kwargs)
+
     def refresh(self, username, password):
         self.refresh_calls.append((username.account, password))
         return self.result
@@ -147,8 +151,17 @@ def test_login_does_not_prefetch_confluence_catalog() -> None:
     assert owner.refresh_calls == []
 
 
-def test_catalog_page_entry_starts_once_and_empty_result_is_terminal_ready() -> None:
-    owner = ReadyFactsOwner({
+def test_first_no_snapshot_request_starts_catalog_only_refresh_and_polling_gets_facets() -> None:
+    class CatalogFactsOwner(ReadyFactsOwner):
+        def refresh(self, username, password):
+            super().refresh(username, password)
+            self.result = {
+                "state": "ready", "projects": [], "ownerHierarchy": [],
+                "facets": [{"key": "support mode", "options": ["A", "B"]}],
+            }
+            return self.result
+
+    owner = CatalogFactsOwner({
         "state": "no_snapshot", "facets": [], "projects": [], "ownerHierarchy": [],
     })
     submitted = []
@@ -159,20 +172,47 @@ def test_catalog_page_entry_starts_once_and_empty_result_is_terminal_ready() -> 
         facts_refresh=lambda: refresh,
     ))
 
-    first = client.get("/api/confluence/project-facts?catalog=1")
-    second = client.get("/api/confluence/project-facts")
+    first = client.get("/api/confluence/project-facts")
+    second = client.get("/api/confluence/project-facts/status")
 
     assert first.json()["state"] == "loading"
     assert second.json()["state"] == "loading"
     assert len(submitted) == 1
     submitted.pop()()
 
+    assert client.get("/api/confluence/project-facts/status").json()["state"] == "ready"
     completed = client.get("/api/confluence/project-facts")
     repeated = client.get("/api/confluence/project-facts")
     assert completed.json()["state"] == "ready"
+    assert completed.json()["facets"] == [{"key": "support mode", "options": ["A", "B"]}]
     assert repeated.json()["state"] == "ready"
     assert owner.refresh_calls == [("coco", "secret")]
+    assert owner.sync_calls == []
     assert submitted == []
+
+
+def test_project_facts_polling_reads_only_background_status() -> None:
+    class Facts(ReadyFactsOwner):
+        def __init__(self):
+            super().__init__()
+            self.query_calls = 0
+
+        def query(self, *_args, **_kwargs):
+            self.query_calls += 1
+            return self.result
+
+    facts = Facts()
+    refresh = BackgroundFactsRefresh(submit=lambda _work: None)
+    client = _authenticated_client(create_app(
+        project_facts_owner=lambda: facts,
+        authenticator=FakeAuthenticator,
+        facts_refresh=lambda: refresh,
+    ))
+
+    response = client.get("/api/confluence/project-facts/status")
+
+    assert response.json() == {"state": "idle", "completed": 0, "total": 0}
+    assert facts.query_calls == 0
 
 
 def test_failed_catalog_page_entry_stops_without_retry() -> None:
@@ -192,7 +232,7 @@ def test_failed_catalog_page_entry_stops_without_retry() -> None:
         facts_refresh=lambda: refresh,
     ))
 
-    assert client.get("/api/confluence/project-facts?catalog=1").json()["state"] == "loading"
+    assert client.get("/api/confluence/project-facts").json()["state"] == "loading"
     submitted.pop()()
     assert client.get("/api/confluence/project-facts").json()["state"] == "failed"
     assert client.get("/api/confluence/project-facts").json()["state"] == "failed"
@@ -229,6 +269,13 @@ def test_confluence_request_logs_one_safe_request_record(monkeypatch) -> None:
     assert record["extra"]["path"] == "/api/confluence/project-facts"
     assert record["extra"]["status"] == 200
     assert any(item[1].get("source") == "session_resolve" for item in records)
+    timing = next(item for item in records if item[0] == "Confluence filter API timing")
+    assert timing[1]["extra"] == {
+        "stage": "filter.api_total", "duration_ms": timing[1]["extra"]["duration_ms"],
+        "request_state": "ready", "refresh_state": "idle", "credential_present": True,
+        "details_requested": False,
+        "background_scheduled": False, "project_count": 0,
+    }
     assert "Private Person" not in str(records) and "SECRET-PROJECT" not in str(records)
 
 

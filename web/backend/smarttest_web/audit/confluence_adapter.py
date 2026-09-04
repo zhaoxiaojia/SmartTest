@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from time import perf_counter
 
 from core.confluence.audit import (
     AuditPeriod,
@@ -16,6 +17,7 @@ from core.confluence.project import (
     ProjectQuery,
 )
 from core.domain.detail import DetailState
+from core.logging import smart_log
 
 from ..task_manager import WEB_TASKS
 from ..project_facts_api import ProjectFactsWebOwner
@@ -70,15 +72,19 @@ class WebConfluenceAuditOwner:
         return ResolvedConfluenceAudit(projects, period)
 
     def run(self, resolved, cancellation, progress):
+        started = perf_counter()
         cancellation.raise_if_cancelled()
         progress("refreshing_projects", 0, len(resolved.projects))
-        return ConfluenceWeeklyAuditUseCase(self).run(
+        result = ConfluenceWeeklyAuditUseCase(self).run(
             resolved.projects, resolved.period,
             cancellation=cancellation, progress=progress,
             task_manager=WEB_TASKS, parent_task_id=getattr(cancellation, "task_id", ""),
         )
+        _timing("review.total", started, project_count=len(resolved.projects), finding_count=sum(len(item.findings) for item in result.projects))
+        return result
 
     def load_project_details(self, project_id, details, cancellation):
+        started = perf_counter()
         cancellation.raise_if_cancelled()
         try:
             project = self._cache.refresh_project(
@@ -95,16 +101,21 @@ class WebConfluenceAuditOwner:
             for name in details.sections()
         ):
             raise RuntimeError("remote_unavailable")
+        _timing("review.project.details", started, project_id=str(project_id), section_count=len(details.sections()))
         return project
 
     def load_current_page(self, page_id, cancellation):
+        started = perf_counter()
         cancellation.raise_if_cancelled()
         self._access.require("page", page_id, "metadata")
         page = self._read_page(page_id)
         cancellation.raise_if_cancelled()
-        return _document(page)
+        document = _document(page)
+        _timing("review.page.current", started, page_id=str(page_id), version=document.version)
+        return document
 
     def load_page_versions(self, page_id, period, current, cancellation):
+        started = perf_counter()
         cancellation.raise_if_cancelled()
         pages = [current]
         if current.updated_at is None:
@@ -117,7 +128,9 @@ class WebConfluenceAuditOwner:
                 pages.append(_document(page))
                 if page.updated_at is None or page.updated_at < period.start:
                     break
-        return tuple(reversed(pages))
+        result = tuple(reversed(pages))
+        _timing("review.page.versions", started, page_id=str(page_id), version_count=len(result))
+        return result
 
     def _read_page(self, page_id, version=None):
         self._access.require_active()
@@ -147,3 +160,8 @@ def _document(page):
         page.id, page.title, page.url, page.body, page.view_body,
         page.version, page.updated_at,
     )
+
+
+def _timing(stage, started, **extra):
+    smart_log("Confluence review timing", platform="web", domain="framework", source="confluence_review", emit_runtime_event=False,
+              extra={"stage": stage, "duration_ms": round((perf_counter() - started) * 1000, 3), **extra})

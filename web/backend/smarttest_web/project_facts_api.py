@@ -4,6 +4,7 @@ from .task_manager import WEB_TASKS
 
 import os
 from threading import Lock
+from time import perf_counter
 
 from core.confluence import ConfluenceGateway, ConfluenceGatewayConfig
 from core.confluence.project import (
@@ -20,6 +21,7 @@ from core.confluence.project_catalog import (
 )
 from core.confluence.project_discovery import PRODUCT_LINES
 from core.confluence.project_mapper import ConfluenceProjectMapper
+from core.logging import smart_log
 
 from .confluence.cache_service import ConfluenceProjectCacheService
 from .confluence.project_repository import ConfluenceProjectRepository
@@ -80,19 +82,24 @@ class ProjectFactsWebOwner:
 
     def refresh(self, access, password):
         with self._refresh_lock:
+            started = perf_counter()
             service = self._service(access, password)
             result = service.refresh_projects(
                 ProjectSyncScope(product_space_keys=PAGE_CATALOG_PRODUCT_SPACES),
             )
+            smart_log("Confluence filter preparation timing", platform="web", domain="framework", source="project_facts_owner", emit_runtime_event=False,
+                      extra={"stage": "filter.catalog_refresh", "duration_ms": round((perf_counter() - started) * 1000, 3),
+                             "product_space_count": len(PAGE_CATALOG_PRODUCT_SPACES), "project_count": len(result.get("projects") or ()),
+                             "failure_count": len(result.get("failed") or ())})
             if result['failed']:
                 raise RuntimeError('remote_unavailable')
-        return self.query(access)
+        return None
 
     def sync_details(
         self, access, password, *, filters=None, search="", cancelled=None, progress=None,
     ):
         selected = self.query(access, filters=filters, search=search)
-        project_ids = tuple(row["project_id"] for row in selected["projects"])
+        project_ids = tuple(row["identity"] for row in selected["projects"])
         progress = progress or (lambda *_: None)
         progress(0, len(project_ids))
         service = self._service(access, password)
@@ -103,9 +110,18 @@ class ProjectFactsWebOwner:
             cancelled=cancelled or (lambda: False),
             progress=progress,
         )
-        return self.query(access, filters=filters, search=search)
+
+    def refresh_and_sync_details(
+        self, access, password, *, filters=None, search="", cancelled=None, progress=None,
+    ):
+        self.refresh(access, password)
+        self.sync_details(
+            access, password, filters=filters, search=search,
+            cancelled=cancelled, progress=progress,
+        )
 
     def query(self, access, *, filters=None, search="", page=0, page_size=10000):
+        started = perf_counter()
         query_access = _QueryAccessSnapshot(access)
         ready_product_spaces = query_access.ids("catalog", "ready")
         cached = self._repository.list(
@@ -114,20 +130,16 @@ class ProjectFactsWebOwner:
         )
         if cached.total == 0:
             state = "ready" if set(PAGE_CATALOG_PRODUCT_SPACES) <= ready_product_spaces else "no_snapshot"
+            self._log_query_timing(started, state, cached.total, query_access, ready_product_spaces, 0)
             return self._state(state, ready_product_spaces)
-        reader = ConfluenceProjectCacheService(
-            None, ConfluenceProjectMapper(), self._repository, access=query_access,
-        )
-        projects = tuple(
-            reader.read_project(
-                project.identity.project_id, ProjectDetails(roles=True, facts=True),
-            )
-            for project in cached.projects
+        projects = self._repository.load_many(
+            cached.projects, ProjectDetails(roles=True, facts=True),
         )
         snapshot = {"projects": [_project_snapshot_row(project) for project in projects if project]}
         result = query_project_facts(snapshot, filters=filters, search=search)
         start = int(page) * int(page_size)
         visible = result["projects"]
+        self._log_query_timing(started, "ready", cached.total, query_access, ready_product_spaces, len(visible))
         return {
             "state": "ready",
             "accessibleProjectCount": cached.total,
@@ -143,6 +155,14 @@ class ProjectFactsWebOwner:
             "discrepancies": [],
             "counts": {"stale": 0, "failed": 0, "inactive": 0},
         }
+
+    @staticmethod
+    def _log_query_timing(started, state, cached_count, access, ready_spaces, visible_count):
+        smart_log("Confluence filter query timing", platform="web", domain="framework", source="project_facts_owner", emit_runtime_event=False,
+                  extra={"stage": "filter.query_aggregate", "duration_ms": round((perf_counter() - started) * 1000, 3),
+                         "result_state": state, "cached_count": cached_count,
+                         "visible_grant_count": len(access.ids("project", "catalog")),
+                         "ready_space_count": len(ready_spaces), "visible_count": visible_count})
 
     def facts_version(self) -> str:
         return self._repository.facts_version()

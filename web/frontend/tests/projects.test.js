@@ -315,7 +315,10 @@ describe('Projects', () => {
 
   it('renders all seven common filters from the immediate loading payload then polls to ready', async () => {
     const loading = { ...payload, state: 'loading', projects: [], ownerHierarchy: [], facets: fixedFacets }
-    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(loading).mockResolvedValueOnce(payload) }
+    const api = {
+      getProjectFacts: vi.fn().mockResolvedValueOnce(loading).mockResolvedValueOnce(payload),
+      getProjectFactsStatus: vi.fn().mockResolvedValue({ state: 'ready', completed: 0, total: 0 }),
+    }
     let releasePoll
     const pollDelay = vi.fn(() => new Promise(resolve => { releasePoll = resolve }))
     const component = createProjects({ root: document.querySelector('#app'), api, pollDelay })
@@ -373,7 +376,10 @@ describe('Projects', () => {
   it('stops polling on failed state and when the component is destroyed', async () => {
     const loading = { ...payload, state: 'loading', projects: [], ownerHierarchy: [], facets: fixedFacets }
     const failed = { ...loading, state: 'failed' }
-    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(loading).mockResolvedValueOnce(failed) }
+    const api = {
+      getProjectFacts: vi.fn().mockResolvedValueOnce(loading).mockResolvedValueOnce(failed),
+      getProjectFactsStatus: vi.fn().mockResolvedValue({ state: 'failed', completed: 0, total: 0 }),
+    }
     const component = createProjects({ root: document.querySelector('#app'), api, pollDelay: () => Promise.resolve() })
     await component.start()
     await vi.waitFor(() => expect(document.querySelector('[role="status"]').textContent).toContain('failed'))
@@ -385,16 +391,21 @@ describe('Projects', () => {
 
   it('polls catalog status without restarting catalog or requesting details', async () => {
     const partial = { ...payload, state: 'loading' }
-    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(partial).mockResolvedValueOnce(partial).mockResolvedValueOnce(payload) }
+    const api = {
+      getProjectFacts: vi.fn().mockResolvedValueOnce(partial).mockResolvedValueOnce(payload),
+      getProjectFactsStatus: vi.fn().mockResolvedValueOnce({ state: 'loading', completed: 0, total: 0 })
+        .mockResolvedValueOnce({ state: 'ready', completed: 0, total: 0 }),
+    }
     const component = createProjects({ root: document.querySelector('#app'), api, pollDelay: () => new Promise(resolve => setTimeout(resolve, 1)) })
 
     await component.start()
-    expect(document.querySelector('[name="field.__product_space__"]').disabled).toBe(false)
+    expect(document.querySelector('[name="field.__product_space__"]').disabled).toBe(true)
     expect(document.querySelector('[type="submit"]').disabled).toBe(true)
-    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(3))
+    await vi.waitFor(() => expect(api.getProjectFactsStatus).toHaveBeenCalledTimes(2))
+    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(2))
     await vi.waitFor(() => expect(document.querySelector('[type="submit"]').disabled).toBe(false))
     expect(api.getProjectFacts.mock.calls.map(call => call[1])).toEqual([
-      { details: false, snapshot: true }, { details: false }, { details: false },
+      { details: false, snapshot: true }, { details: false },
     ])
     component.destroy()
   })
@@ -520,7 +531,9 @@ describe('Projects', () => {
     const updated = { ...payload, sync: { state: 'ready', completed: 1, total: 1 },
       projects: [], ownerHierarchy: [] }
     const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(payload)
-      .mockResolvedValueOnce(syncing).mockResolvedValueOnce(updated), cancelProjectSync: vi.fn() }
+      .mockResolvedValueOnce(syncing).mockResolvedValueOnce(updated),
+      getProjectFactsStatus: vi.fn().mockResolvedValue({ state: 'ready', completed: 1, total: 1 }),
+      cancelProjectSync: vi.fn() }
     await createProjects({ root: document.querySelector('#app'), api, pollDelay: () => Promise.resolve() }).start()
     document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await vi.waitFor(() => expect(document.querySelectorAll('.project-card')).toHaveLength(0))
@@ -530,10 +543,8 @@ describe('Projects', () => {
   it('does not apply a completed job after controls change and cancel keeps local results', async () => {
     let finishPoll
     const syncing = { ...payload, sync: { state: 'loading', completed: 0, total: 1 } }
-    const updated = { ...payload, sync: { state: 'ready', completed: 1, total: 1 },
-      projects: [{ ...payload.projects[0], name: 'Old job result' }], ownerHierarchy: [] }
-    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(payload)
-      .mockResolvedValueOnce(syncing).mockImplementationOnce(() => new Promise(resolve => { finishPoll = () => resolve(updated) })),
+    const api = { getProjectFacts: vi.fn().mockResolvedValueOnce(payload).mockResolvedValueOnce(syncing),
+      getProjectFactsStatus: vi.fn().mockImplementationOnce(() => new Promise(resolve => { finishPoll = () => resolve({ state: 'ready', completed: 1, total: 1 }) })),
       cancelProjectSync: vi.fn().mockResolvedValue({ cancelled: true }) }
     await createProjects({ root: document.querySelector('#app'), api, pollDelay: () => Promise.resolve() }).start()
     document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
@@ -561,7 +572,7 @@ describe('Projects', () => {
     expect([...multi.querySelectorAll('.multi-select__option span')].map(node => node.textContent)).toEqual(productSpaces.map(item => item.label))
   })
 
-  it('reviews the last applied project set with an independent date window and no findings UI', async () => {
+  it('reviews the current controls without requiring Apply and keeps an independent date window', async () => {
     const api = {
       getProjectFacts: vi.fn().mockResolvedValue(payload),
       createConfluenceAudit: vi.fn().mockResolvedValue({ auditId: 'a1', status: 'queued', stage: '', progress: { processed: 0, total: 0 } }),
@@ -576,7 +587,10 @@ describe('Projects', () => {
     }).start()
     document.querySelector('[name="reviewStartDate"]').value = '2026-08-17'
     document.querySelector('[name="reviewEndDate"]').value = '2026-08-24'
-    document.querySelector('[name="search"]').value = 'changed after apply'
+    const supportMode = document.querySelector('[name="field.support mode"]')
+    for (const option of supportMode.options) option.selected = ['A', 'B'].includes(option.value)
+    supportMode._multiSelect?.syncFromSelect()
+    document.querySelector('[name="search"]').value = 'changed before review'
     const projectFactCalls = api.getProjectFacts.mock.calls.length
     document.querySelector('[data-audit]').click()
     await vi.waitFor(() => expect(api.createConfluenceAudit).toHaveBeenCalledOnce())
@@ -585,6 +599,7 @@ describe('Projects', () => {
       { fields: {}, search: '' }, { details: false, snapshot: true }
     ])
     expect(api.createConfluenceAudit).toHaveBeenCalledWith({
+      filters: { fields: { 'support mode': ['A', 'B'] }, search: 'changed before review' },
       startDate: '2026-08-17', endDate: '2026-08-24'
     })
     await vi.waitFor(() => expect(document.querySelector('[data-audit-download]').disabled).toBe(false))

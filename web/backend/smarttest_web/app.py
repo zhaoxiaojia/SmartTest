@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, is_dataclass
 from functools import lru_cache
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import date, datetime
 import hashlib
 import os
 from pathlib import Path
@@ -14,6 +14,7 @@ from uuid import uuid4
 from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 from core.authentication import LdapAuthenticator
+from core.confluence.audit import manual_audit_period
 from core.logging import configure_external_logging, configure_platform, smart_log
 from core.jira.domain import IssueDetails
 from core.jira.gateway import JiraGateway
@@ -546,7 +547,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         if result.get("state") in {"ready", "partial_success"}:
             snapshots.record(
                 access.session_hash, filters, search,
-                (row.get("project_id") for row in result.get("projects", ())),
+                (row.get("identity") or row.get("project_id") for row in result.get("projects", ())),
                 getattr(facts, "facts_version", lambda: "")(), expires_at=value.expires_at,
             )
 
@@ -556,9 +557,15 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         sessions.invalidate_credentials(value.username)
         return "invalid_credentials"
 
+    @app.get("/api/confluence/project-facts/status")
+    def confluence_project_facts_status(request: Request, value=Depends(authenticated_session)):
+        del value
+        return refresh.status_for(access_context(request).session_hash)
+
     @app.get("/api/confluence/project-facts")
     def confluence_project_facts(request: Request, owner=Depends(resolve_project_facts_owner),
                                  value=Depends(authenticated_session)):
+        api_started = perf_counter()
         access = access_context(request)
         filters = {
             key.removeprefix("field."): tuple(value for value in request.query_params.getlist(key) if str(value).strip())
@@ -567,7 +574,6 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         }
         search = request.query_params.get("search", "")
         load_details = request.query_params.get("details") == "1"
-        load_catalog = request.query_params.get("catalog") == "1"
         replay_snapshot = request.query_params.get("snapshot") == "1"
         reset_snapshot = request.query_params.get("reset") == "1"
         if replay_snapshot:
@@ -597,7 +603,6 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                 owner, access, value.password,
                 filters=selection.filters if selection is not None else filters,
                 search=selection.search if selection is not None else search,
-                on_complete=lambda completed: record_query_snapshot(access, value, filters, search, completed),
                 on_error=lambda error: downstream_refresh_error(value, error),
             )
         elif load_details:
@@ -607,8 +612,13 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         else:
             result = query_current()
             record_query_snapshot(access, value, filters, search, result)
-        if load_catalog and value.password:
-            refresh.start(
+        catalog_scheduled = False
+        if (
+            result.get("state") == "no_snapshot"
+            and value.password
+            and refresh.state_for(access.session_hash) == "idle"
+        ):
+            catalog_scheduled = refresh.start(
                 owner, access, value.password,
                 on_error=lambda error: downstream_refresh_error(value, error),
             )
@@ -621,9 +631,15 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             result = {**result, "state": "loading"}
         elif refresh_state == "ready" and result.get("state") == "no_snapshot":
             result = {**result, "state": "ready"}
-        elif load_catalog and not value.password:
+        elif result.get("state") == "no_snapshot" and not value.password:
             result = {**result, "state": "reauthentication_required"}
         result = {**result, "sync": refresh.status_for(access.session_hash)}
+        smart_log("Confluence filter API timing", platform="web", domain="framework", source="project_facts", emit_runtime_event=False,
+                  extra={"stage": "filter.api_total", "duration_ms": round((perf_counter() - api_started) * 1000, 3),
+                         "request_state": str(result.get("state") or ""), "refresh_state": refresh_state,
+                         "credential_present": bool(value.password),
+                         "details_requested": load_details, "background_scheduled": catalog_scheduled,
+                         "project_count": len(result.get("projects") or ())})
         return result
 
     @app.post("/api/confluence/project-facts/cancel")
@@ -700,24 +716,41 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         value=Depends(authenticated_session),
     ):
         access = access_context(request)
-        selection = snapshots.get(access.session_hash)
-        if selection is not None and selection.facts_version != getattr(facts, "facts_version", lambda: "")():
-            result = facts.query(access, filters=selection.filters, search=selection.search)
-            record_query_snapshot(access, value, selection.filters, selection.search, result)
-            selection = snapshots.get(access.session_hash)
-        if selection is None or not selection.project_ids:
-            raise HTTPException(status_code=422, detail={"state": "invalid_input"})
+        requested = payload.get("filters") or {}
+        filters = {
+            str(key): tuple(str(item) for item in values if str(item).strip())
+            for key, values in (requested.get("fields") or {}).items()
+        }
+        search = str(requested.get("search") or "")
+        snapshots.record(
+            access.session_hash, filters, search, (),
+            getattr(facts, "facts_version", lambda: "")(), expires_at=value.expires_at,
+        )
         owner = confluence_audit_owner(access, value.password)
         try:
-            resolved = owner.resolve({
-                "projectIds": list(selection.project_ids),
-                "startDate": payload.get("startDate"),
-                "endDate": payload.get("endDate"),
-            })
+            period = manual_audit_period(
+                date.fromisoformat(str(payload.get("startDate") or "")),
+                date.fromisoformat(str(payload.get("endDate") or "")),
+            )
+            def run_review(token, progress):
+                facts.refresh(access, value.password)
+                result = facts.query(access, filters=filters, search=search)
+                record_query_snapshot(access, value, filters, search, result)
+                project_ids = tuple(
+                    str(row.get("identity") or row.get("project_id"))
+                    for row in result.get("projects", ())
+                    if row.get("identity") or row.get("project_id")
+                )
+                resolved = owner.resolve({
+                    "projectIds": list(project_ids),
+                    "startDate": payload.get("startDate"),
+                    "endDate": payload.get("endDate"),
+                })
+                return owner.run(resolved, token, progress)
             task = audits.create(
                 "confluence", audit_session(request),
-                lambda token, progress: owner.run(resolved, token, progress),
-                context=resolved,
+                run_review,
+                context=period,
                 validate=access.require_active,
             )
         except ValueError as error:

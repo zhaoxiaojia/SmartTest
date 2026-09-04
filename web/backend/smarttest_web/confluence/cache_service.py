@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import time
 from core.confluence.project import (
     Project,
     ProjectDetails,
@@ -9,6 +10,7 @@ from core.confluence.project import (
     ProjectSyncScope,
 )
 from core.domain.detail import DetailSection, DetailState
+from core.logging import smart_log
 
 from .project_repository import ConfluenceProjectRepository
 from ..resource_access import remote_status
@@ -38,12 +40,16 @@ class ConfluenceProjectCacheService:
         return self._repository.list(query, page, page_size, visible_ids=self._access.ids("project", "catalog"))
 
     def read_project(self, project_id, details):
-        self._access.require("project", project_id, "catalog")
-        allowed = tuple(name for name in details.sections()
-                        if name == "facts" or self._access.allows("project", project_id, name))
-        project = self._repository.get(project_id, ProjectDetails(**{name: True for name in allowed}))
+        project = self._repository.get(project_id, ProjectDetails())
         if project is None:
             return None
+        identity = project.identity.confluence_id
+        if not self._access.allows("project", identity, "catalog"):
+            self._access.require("project", project.identity.project_id, "catalog")
+        allowed = tuple(name for name in details.sections()
+                        if name == "facts" or self._access.allows("project", identity, name)
+                        or self._access.allows("project", project.identity.project_id, name))
+        project = self._repository.get(identity, ProjectDetails(**{name: True for name in allowed}))
         evidence = project.evidence
         if evidence.value is not None:
             pages = self._access.ids("page", "metadata")
@@ -69,27 +75,48 @@ class ConfluenceProjectCacheService:
             if remote_status(error) == 401:
                 raise PermissionError("reauthentication_required") from error
             raise
+        mapping_started = time.monotonic()
         projects, failures = self._map_projects(payload.get("projects") or ())
+        smart_log("Confluence catalog mapping timing", platform="web", domain="framework", source="confluence_catalog_cache", emit_runtime_event=False,
+                  extra={"stage": "filter.catalog_mapping", "duration_ms": round((time.monotonic() - mapping_started) * 1000, 3),
+                         "input_count": len(payload.get("projects") or ()), "mapped_count": len(projects),
+                         "mapping_failure_count": len(failures), "complete_space_count": len(payload.get("complete_spaces") or ())})
         self._publish_catalog(projects, () if failures else payload.get("complete_spaces") or ())
         failures.extend(str(item) for item in payload.get("failed_product_spaces") or ())
         return {"projects": tuple(projects), "failed": tuple(failures)}
 
     def refresh_project(self, project_id: str, details: ProjectDetails, cancellation=None) -> Project:
+        started = time.monotonic()
         _raise_if_cancelled(cancellation)
-        self._access.require("project", project_id, "catalog")
-        self._gateway.get_project_catalog(project_id)  # Reset this request's extracted-detail buffer.
+        project = self._repository.get(project_id, ProjectDetails())
+        if project is None:
+            raise KeyError(project_id)
+        identity = project.identity.confluence_id
+        if self._access.allows("project", identity, "catalog"):
+            requested_id = identity
+        else:
+            requested_id = project.identity.project_id
+            self._access.require("project", requested_id, "catalog")
+        self._gateway.get_project_catalog(requested_id)  # Reset this request's extracted-detail buffer.
         _raise_if_cancelled(cancellation)
-        project = self.read_project(project_id, details)
+        project = self.read_project(requested_id, details)
         for section in details.sections():
             _raise_if_cancelled(cancellation)
-            loaded = self._refresh_section(project_id, section)
-            project = replace(project, **{section: loaded})
+            loaded = self._refresh_section(requested_id, section)
+            project = replace(self.read_project(requested_id, details), **{section: loaded})
             _raise_if_cancelled(cancellation)
+        smart_log("Confluence detail refresh timing", platform="web", domain="framework", source="confluence_catalog_cache", emit_runtime_event=False,
+                  extra={"stage": "detail.project_total", "duration_ms": round((time.monotonic() - started) * 1000, 3),
+                         "project_id": str(project.identity.confluence_id), "section_count": len(details.sections())})
         return project
 
     def invalidate_project(self, project_id: str) -> None:
-        self._access.require("project", project_id, "catalog")
-        self._access.revoke("project", project_id)
+        project = self._repository.get(project_id, ProjectDetails())
+        if project is None:
+            raise KeyError(project_id)
+        identity = project.identity.confluence_id
+        self._access.require("project", identity, "catalog")
+        self._access.revoke("project", identity)
 
     def clear(self) -> None:
         for key in self._access.ids("project", "catalog"):
@@ -128,16 +155,37 @@ class ConfluenceProjectCacheService:
             merged = {(item.source, item.page.page_id): item for item in old}
             merged.update({(item.source, item.page.page_id): item for item in section.value or ()})
             stored = replace(section, value=tuple(merged.values()))
+        persist_started = time.monotonic()
         self._access.publish(grants, lambda: getattr(self._repository, f"replace_{name}")(project_id, stored),
                              replace_scopes=(scope,))
+        smart_log("Confluence detail persistence timing", platform="web", domain="framework", source="confluence_catalog_cache", emit_runtime_event=False,
+                  extra={"stage": "detail.sqlite_section", "duration_ms": round((time.monotonic() - persist_started) * 1000, 3),
+                         "project_id": str(project_id), "section": name})
         return section
 
     def _publish_catalog(self, projects, complete_spaces):
-        self._access.publish(
-            [("project", project.identity.project_id, "catalog", project.product_space.key) for project in projects]
-            + [("catalog", space, "ready", space) for space in complete_spaces],
-            lambda: self._save_catalog_projects(projects), replace_scopes=complete_spaces,
-        )
+        grants = [
+            ("project", project.identity.confluence_id, "catalog", project.product_space.key)
+            for project in projects
+        ] + [("catalog", space, "ready", space) for space in complete_spaces]
+        started = time.monotonic()
+        smart_log("Confluence catalog publish timing", platform="web", domain="framework", source="confluence_catalog_cache", emit_runtime_event=False,
+                  extra={"stage": "filter.catalog_publish_begin", "duration_ms": 0,
+                         "project_count": len(projects), "complete_space_count": len(complete_spaces), "grant_count": len(grants)})
+        try:
+            self._access.publish(
+                grants, lambda: self._save_catalog_projects(projects),
+                replace_scopes=complete_spaces,
+            )
+        except Exception as error:
+            smart_log("Confluence catalog publish timing", platform="web", domain="framework", level="error", source="confluence_catalog_cache", emit_runtime_event=False,
+                      extra={"stage": "filter.catalog_publish", "outcome": "failure",
+                             "exception_type": type(error).__name__, "sqlite_error_name": str(getattr(error, "sqlite_errorname", "") or ""),
+                             "duration_ms": round((time.monotonic() - started) * 1000, 1)})
+            raise
+        smart_log("Confluence catalog publish timing", platform="web", domain="framework", source="confluence_catalog_cache", emit_runtime_event=False,
+                  extra={"stage": "filter.catalog_publish", "outcome": "success", "project_count": len(projects),
+                         "duration_ms": round((time.monotonic() - started) * 1000, 3)})
 
     def _map_projects(self, rows) -> tuple[list[Project], list[str]]:
         projects, failures = [], []
@@ -156,7 +204,7 @@ class ConfluenceProjectCacheService:
         self._repository.save_core(projects)
         for project in projects:
             if project.facts.state is DetailState.LOADED:
-                self._repository.replace_facts(project.identity.project_id, project.facts)
+                self._repository.replace_facts(project.identity.confluence_id, project.facts)
 
 
 def _error_code(error: Exception) -> str:
