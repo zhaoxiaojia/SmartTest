@@ -84,6 +84,11 @@ class JiraIssueCacheService:
             self._refresh_section(issue_key, section)
         return self._repository.get(issue_key, details)
 
+    def refresh_sections(self, issue_key: str, details: IssueDetails) -> Issue:
+        for section in details.sections():
+            self._refresh_section(issue_key, section)
+        return self._repository.get(issue_key, details)
+
     def invalidate_issue(self, issue_key: str) -> None:
         self._repository.delete(issue_key)
 

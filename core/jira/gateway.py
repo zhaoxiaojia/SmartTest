@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from time import monotonic
 from typing import Any
 
 try:
@@ -15,6 +16,7 @@ from core.jira.attachments import (
     JiraAttachmentMetadata,
 )
 from core.jira.commands import CreateIssueCommand, UpdateIssueCommand
+from core.logging import smart_log
 
 
 @dataclass(frozen=True)
@@ -147,10 +149,32 @@ class JiraGateway:
                 return rows
 
     def get_issue(self, issue_key: str) -> dict[str, Any]:
+        started = monotonic()
         try:
             payload = self._api.get_issue(issue_key, fields=list(self.CORE_FIELDS), expand=None)
         except Exception as exc:
+            response = getattr(exc, "response", None)
+            smart_log(
+                "Jira gateway issue request", domain="jira",
+                source="jira_gateway", level="ERROR", emit_runtime_event=False,
+                extra={
+                    "operation": "get_issue", "issue_key": issue_key,
+                    "outcome": "failed",
+                    "duration_ms": round((monotonic() - started) * 1000, 3),
+                    "http_status": getattr(response, "status_code", None),
+                    "cause_type": type(exc).__name__,
+                },
+            )
             raise JiraGatewayError("jira_issue_get_failed") from exc
+        smart_log(
+            "Jira gateway issue request", domain="jira",
+            source="jira_gateway", emit_runtime_event=False,
+            extra={
+                "operation": "get_issue", "issue_key": issue_key,
+                "outcome": "success",
+                "duration_ms": round((monotonic() - started) * 1000, 3),
+            },
+        )
         return payload if isinstance(payload, dict) else {}
 
     def load_issue_sections(self, issue_key: str, sections: tuple[str, ...]) -> dict[str, Any]:
@@ -170,10 +194,32 @@ class JiraGateway:
         if "custom_fields" in sections:
             requested_fields.append("*all")
         if requested_fields:
+            started = monotonic()
             try:
                 payload = self._api.get_issue(issue_key, fields=requested_fields, expand=None) or {}
             except Exception as exc:
+                response = getattr(exc, "response", None)
+                smart_log(
+                    "Jira gateway issue request", domain="jira",
+                    source="jira_gateway", level="ERROR", emit_runtime_event=False,
+                    extra={
+                        "operation": "load_issue_sections", "issue_key": issue_key,
+                        "sections": list(sections), "outcome": "failed",
+                        "duration_ms": round((monotonic() - started) * 1000, 3),
+                        "http_status": getattr(response, "status_code", None),
+                        "cause_type": type(exc).__name__,
+                    },
+                )
                 raise JiraGatewayError("jira_details_failed") from exc
+            smart_log(
+                "Jira gateway issue request", domain="jira",
+                source="jira_gateway", emit_runtime_event=False,
+                extra={
+                    "operation": "load_issue_sections", "issue_key": issue_key,
+                    "sections": list(sections), "outcome": "success",
+                    "duration_ms": round((monotonic() - started) * 1000, 3),
+                },
+            )
             fields = payload.get("fields") if isinstance(payload.get("fields"), dict) else {}
             for section, jira_field in field_map.items():
                 if section in sections:

@@ -171,6 +171,21 @@ export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = 
   }
 }
 
+export function createAuditEmailApi({ fetchImpl = globalThis.fetch, baseUrl = '/api/audit-email' } = {}) {
+  async function request(path, method = 'GET', body) {
+    let response
+    try { response = await fetchImpl(`${baseUrl}${path}`, { method, credentials: 'same-origin',
+      ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) }) } catch (cause) {
+      throw new ApiUnavailableError('审查报告服务不可用。', { cause })
+    }
+    if (!response.ok) throw new ApiUnavailableError(`审查报告请求失败（${response.status}）。`, { status: response.status })
+    return response.json()
+  }
+  return { list: (offset = 0) => request(`/runs?offset=${offset}`), get: id => request(`/runs/${encodeURIComponent(id)}`), trigger: () => request('/runs', 'POST'),
+    listEvents: () => request('/events'), createEvent: dueAt => request('/events', 'POST', { dueAt }),
+    attachmentUrl: (id, kind, name) => `${baseUrl}/runs/${encodeURIComponent(id)}/attachments/${encodeURIComponent(kind)}/${encodeURIComponent(name)}` }
+}
+
 export function createReleaseApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
   async function request(path, { method = 'GET', filters = {}, options = {} } = {}) {
     const query = new URLSearchParams()

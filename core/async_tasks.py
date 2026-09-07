@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from threading import Event, RLock, Thread, current_thread
 from time import monotonic
@@ -51,6 +51,7 @@ class _Task:
     progress_at: float = 0.0
     future: Future | None = None
     cancel_callback: object | None = None
+    thread: Thread | None = None
 
 
 class AsyncTaskManager:
@@ -137,6 +138,7 @@ class AsyncTaskManager:
                     target=self._run_coordinator, args=(task, runner), daemon=True,
                 )
                 self._coordinator_threads.append(thread)
+                task.thread = thread
             else:
                 task.future = self._executor.submit(self._run, task, runner)
         if thread is not None:
@@ -202,6 +204,21 @@ class AsyncTaskManager:
                     if item.future is not None:
                         item.future.cancel()
             return True
+
+    def join(self, task_id) -> None:
+        """Drain one root and its children without closing the shared manager."""
+        with self._lock:
+            root = self._tasks[self._tasks[str(task_id)].root_id]
+        if root.thread is current_thread():
+            return
+        if root.thread is not None:
+            root.thread.join()
+        elif root.future is not None:
+            wait((root.future,))
+        with self._lock:
+            children = tuple(item.future for item in self._tasks.values()
+                             if item.root_id == root.id and item.future is not None)
+        wait(children)
 
     def snapshot(self, task_id) -> AsyncTaskSnapshot:
         with self._lock:

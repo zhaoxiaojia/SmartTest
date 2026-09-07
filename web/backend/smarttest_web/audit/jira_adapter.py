@@ -12,6 +12,7 @@ from core.jira.audit import (
 from core.jira.domain import Issue, IssueDetails
 from core.jira.gateway import JiraGateway
 from core.jira.mapper import JiraIssueMapper
+from core.logging import smart_log
 
 from ..task_manager import WEB_TASKS
 from ..database import WebDatabase
@@ -66,20 +67,64 @@ class WebJiraAuditOwner:
             page += 1
 
     def load_details(self, issue: Issue, details: IssueDetails) -> Issue:
-        loaded = self._cache.get_issue(issue.identity.key, details)
-        if loaded is None:
-            raise RuntimeError("not_found")
-        if any(
-            getattr(loaded, name).state in {DetailState.STALE, DetailState.FAILED}
-            for name in details.sections()
-        ):
-            loaded = self._cache.refresh_issue(issue.identity.key, details)
-        if any(
-            getattr(loaded, name).state is DetailState.FAILED
-            for name in details.sections()
-        ):
-            raise RuntimeError("remote_unavailable")
-        return loaded
+        try:
+            loaded = self._cache.get_issue(issue.identity.key, details)
+            if loaded is None:
+                raise RuntimeError("not_found")
+            section_states = {
+                name: getattr(loaded, name).state.value
+                for name in details.sections()
+            }
+            refresh_required = any(
+                state in {DetailState.STALE.value, DetailState.FAILED.value}
+                for state in section_states.values()
+            )
+            smart_log(
+                "Jira audit issue detail decision",
+                platform="web",
+                domain="audit",
+                source="jira_review",
+                emit_runtime_event=False,
+                extra={
+                    "stage": "load_details",
+                    "issue_key": issue.identity.key,
+                    "sections": list(details.sections()),
+                    "section_states": section_states,
+                    "action": "refresh_sections" if refresh_required else "use_cached",
+                    "refreshes_core": False,
+                },
+            )
+            if refresh_required:
+                loaded = self._cache.refresh_sections(issue.identity.key, details)
+            if any(
+                getattr(loaded, name).state is DetailState.FAILED
+                for name in details.sections()
+            ):
+                raise RuntimeError("remote_unavailable")
+            return loaded
+        except Exception as error:
+            cause = error.__cause__
+            response = getattr(cause, "response", None)
+            smart_log(
+                "Jira audit issue detail failed",
+                platform="web",
+                domain="audit",
+                source="jira_review",
+                level="ERROR",
+                emit_runtime_event=False,
+                extra={
+                    "stage": "load_details",
+                    "issue_key": issue.identity.key,
+                    "sections": list(details.sections()),
+                    "error_code": str(getattr(error, "code", "") or type(error).__name__),
+                    "cause_type": type(cause).__name__ if cause is not None else "",
+                    "http_status": (
+                        getattr(cause, "status_code", None)
+                        or getattr(response, "status_code", None)
+                    ),
+                },
+            )
+            raise
 
     @staticmethod
     def export(report, output_path: Path):

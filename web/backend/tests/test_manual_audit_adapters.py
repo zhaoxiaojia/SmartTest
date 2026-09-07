@@ -20,6 +20,7 @@ from core.confluence.project import (
 )
 from core.domain.detail import DetailSection
 from core.domain.values import NamedValue, PersonRef
+from core.jira.gateway import JiraGatewayError
 from core.jira.mapper import JiraIssueMapper
 from core.jira.domain import IssueDetails
 from smarttest_web.audit.confluence_adapter import WebConfluenceAuditOwner
@@ -112,7 +113,10 @@ def test_jira_adapter_stops_before_the_next_page_after_cancellation(tmp_path) ->
     assert gateway.search_calls == [0]
 
 
-def test_jira_adapter_treats_failed_required_description_as_remote_failure() -> None:
+def test_jira_adapter_treats_failed_required_description_as_remote_failure(monkeypatch) -> None:
+    import smarttest_web.audit.jira_adapter as adapter_module
+
+    monkeypatch.setattr(adapter_module, "smart_log", lambda *_args, **_kwargs: None)
     issue = JiraIssueMapper("https://jira.example").from_search(
         _jira_payload("SH-1", "Chao Li"),
     )
@@ -121,11 +125,94 @@ def test_jira_adapter_treats_failed_required_description_as_remote_failure() -> 
     )
     class Cache:
         def get_issue(self, _key, _details): return failed
-        def refresh_issue(self, _key, _details): return failed
+        def refresh_sections(self, _key, _details): return failed
 
     owner = WebJiraAuditOwner(object(), Cache())
     with pytest.raises(RuntimeError, match="remote_unavailable"):
         owner.load_details(issue, IssueDetails(description=True))
+
+
+def test_jira_adapter_logs_safe_issue_context_when_detail_loading_raises(monkeypatch) -> None:
+    import smarttest_web.audit.jira_adapter as adapter_module
+
+    issue = JiraIssueMapper("https://jira.example").from_search(
+        _jira_payload("SH-123", "Chao Li"),
+    )
+    records = []
+    monkeypatch.setattr(
+        adapter_module,
+        "smart_log",
+        lambda message, **kwargs: records.append((message, kwargs)),
+        raising=False,
+    )
+
+    class ResponseError(RuntimeError):
+        response = type("Response", (), {"status_code": 503})()
+
+    failure = JiraGatewayError("jira_issue_get_failed")
+    failure.__cause__ = ResponseError("response body must not be logged")
+
+    class Cache:
+        def get_issue(self, _key, _details):
+            raise failure
+
+    owner = WebJiraAuditOwner(object(), Cache())
+    with pytest.raises(JiraGatewayError, match="jira_issue_get_failed"):
+        owner.load_details(issue, IssueDetails(description=True))
+
+    assert records == [("Jira audit issue detail failed", {
+        "platform": "web",
+        "domain": "audit",
+        "source": "jira_review",
+        "level": "ERROR",
+        "emit_runtime_event": False,
+        "extra": {
+            "stage": "load_details",
+            "issue_key": "SH-123",
+            "sections": ["description"],
+            "error_code": "jira_issue_get_failed",
+            "cause_type": "ResponseError",
+            "http_status": 503,
+        },
+    })]
+
+
+def test_jira_adapter_logs_stale_cache_refresh_decision(monkeypatch) -> None:
+    import smarttest_web.audit.jira_adapter as adapter_module
+
+    issue = JiraIssueMapper("https://jira.example").from_search(
+        _jira_payload("SH-124", "Chao Li"),
+    )
+    stale = replace(issue, description=DetailSection.stale(DESCRIPTION))
+    loaded = replace(issue, description=DetailSection.loaded(DESCRIPTION))
+    records = []
+    monkeypatch.setattr(
+        adapter_module,
+        "smart_log",
+        lambda message, **kwargs: records.append((message, kwargs)),
+    )
+
+    class Cache:
+        def get_issue(self, _key, _details): return stale
+        def refresh_sections(self, _key, _details): return loaded
+        def refresh_issue(self, _key, _details):
+            raise AssertionError("audit must not refetch core fields")
+
+    result = WebJiraAuditOwner(object(), Cache()).load_details(
+        issue, IssueDetails(description=True),
+    )
+
+    assert result is loaded
+    decisions = [kwargs["extra"] for message, kwargs in records
+                 if message == "Jira audit issue detail decision"]
+    assert decisions == [{
+        "stage": "load_details",
+        "issue_key": "SH-124",
+        "sections": ["description"],
+        "section_states": {"description": "stale"},
+        "action": "refresh_sections",
+        "refreshes_core": False,
+    }]
 
 
 def _project(project_id="P1"):

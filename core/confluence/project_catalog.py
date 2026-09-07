@@ -203,6 +203,20 @@ def extract_project_detail(client, original, *, now=None, resolved_names=None):
     return row
 
 
+def default_weekly_audit_filters(now):
+    """Defaults retained from the retired Client default_project_filter owner."""
+    return {"date of commercial approval": [str(now.year - 1), str(now.year)],
+            "support mode": ["A"], "project status": ["NORMAL"]}
+
+
+def weekly_audit_projects(projects):
+    """Retain the Client exclude_late_stages rule after catalog filtering."""
+    return [row for row in projects if not (
+        (stage := re.match(r"^\s*(\d+)", str(row.get("fields", {}).get("current stage", ""))))
+        and int(stage.group(1)) >= 4
+    )]
+
+
 def query_project_facts(snapshot, *, filters=None, search="", include_inactive=False):
     filters = {
         _normalize(key): tuple(dict.fromkeys(

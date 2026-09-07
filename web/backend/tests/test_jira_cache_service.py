@@ -23,6 +23,7 @@ def _payload(revision="2026-08-01T00:00:00+00:00"):
 class JiraGateway:
     def __init__(self):
         self.revision = "2026-08-01T00:00:00+00:00"
+        self.core_calls = []
         self.detail_calls = []
         self.fail_sections = set()
 
@@ -45,6 +46,7 @@ class JiraGateway:
         }
 
     def get_issue(self, issue_key):
+        self.core_calls.append(issue_key)
         return _payload(self.revision)
 
     def load_issue_sections(self, issue_key, sections):
@@ -96,6 +98,24 @@ def test_jira_revision_change_marks_only_loaded_details_stale(tmp_path) -> None:
     issue = repository.get("SH-100", IssueDetails(comments=True, attachments=True))
     assert issue.comments.state is DetailState.STALE
     assert issue.attachments.state is DetailState.UNLOADED
+
+
+def test_jira_refresh_sections_does_not_refetch_fresh_core_fields(tmp_path) -> None:
+    service, gateway, repository = _service(tmp_path)
+    service.list_issues("project=SH", 0, 100)
+    service.get_issue("SH-100", IssueDetails(description=True))
+    gateway.revision = "2026-08-02T00:00:00+00:00"
+    service.refresh_issues("project=SH")
+    assert repository.get("SH-100", IssueDetails(description=True)).description.state is DetailState.STALE
+
+    issue = service.refresh_sections("SH-100", IssueDetails(description=True))
+
+    assert issue.description.state is DetailState.LOADED
+    assert gateway.core_calls == []
+    assert gateway.detail_calls == [
+        ("SH-100", ("description",)),
+        ("SH-100", ("description",)),
+    ]
 
 
 def test_jira_remote_detail_failure_preserves_old_value_and_other_sections(tmp_path) -> None:

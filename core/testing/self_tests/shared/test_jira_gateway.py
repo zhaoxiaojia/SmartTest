@@ -95,3 +95,28 @@ def test_jira_gateway_normalizes_third_party_failure() -> None:
         gateway.search_issues("project = SH", page=0)
 
     assert error.value.code == "jira_search_failed"
+
+
+def test_jira_gateway_logs_issue_request_operations_without_response_content(monkeypatch) -> None:
+    import core.jira.gateway as gateway_module
+
+    records = []
+    monkeypatch.setattr(
+        gateway_module,
+        "smart_log",
+        lambda message, **kwargs: records.append((message, kwargs)),
+        raising=False,
+    )
+    gateway = JiraGateway("https://jira.example", "u", "p", api=RecordingApi())
+
+    gateway.get_issue("SH-1")
+    gateway.load_issue_sections("SH-1", ("description",))
+
+    requests = [kwargs["extra"] for message, kwargs in records
+                if message == "Jira gateway issue request"]
+    assert [item["operation"] for item in requests] == ["get_issue", "load_issue_sections"]
+    assert all(item["issue_key"] == "SH-1" for item in requests)
+    assert all(item["outcome"] == "success" for item in requests)
+    assert requests[1]["sections"] == ["description"]
+    assert all(item["duration_ms"] >= 0 for item in requests)
+    assert all("body" not in item for item in requests)

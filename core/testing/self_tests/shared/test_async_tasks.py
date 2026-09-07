@@ -164,3 +164,26 @@ def test_cancelled_root_rejects_late_child_without_running_it() -> None:
         assert manager.snapshot(manager.task_id(child)).state == "cancelled"
     finally:
         manager.close()
+
+
+def test_join_drains_root_children_without_closing_other_roots():
+    from threading import Thread
+    manager = AsyncTaskManager(max_workers=2)
+    release, joined = Event(), Event()
+    joiner = None
+    try:
+        root = manager.submit_coordinator('root', lambda token, progress: None)
+        root.result(timeout=1)
+        manager.submit_child(manager.task_id(root), 'child', lambda token, progress: release.wait(2))
+        joiner = Thread(target=lambda: (manager.join(manager.task_id(root)), joined.set()))
+        joiner.start()
+        assert not joined.wait(.02)
+        release.set()
+        joiner.join(1)
+        assert joined.is_set()
+        assert manager.submit('unrelated', lambda token, progress: 'ok').result(timeout=1) == 'ok'
+    finally:
+        release.set()
+        manager.close()
+        if joiner:
+            joiner.join(1)

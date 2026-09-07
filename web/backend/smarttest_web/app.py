@@ -11,7 +11,7 @@ from threading import Lock
 from time import perf_counter
 from uuid import uuid4
 
-from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
 from core.authentication import LdapAuthenticator
 from core.confluence.audit import manual_audit_period
@@ -42,6 +42,9 @@ from .audit.registry import (
     ManualAuditRegistry,
 )
 from .downloads import DownloadArtifactService, DownloadNotFoundError
+from .audit.email_history import AuditEmailHistory
+from .audit.email_job import AuditEmailJob
+from .audit.email_events import AuditEmailEvents
 
 SESSION_COOKIE = "smarttest_session"
 
@@ -83,7 +86,8 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                audit_registry=ManualAuditRegistry,
                download_service=DownloadArtifactService,
                jira_audit_owner=default_jira_audit_owner,
-               confluence_audit_owner=default_confluence_audit_owner) -> FastAPI:
+               confluence_audit_owner=default_confluence_audit_owner,
+               email_events_factory=AuditEmailEvents) -> FastAPI:
     auth = authenticator()
     sessions = session_store()
     cache_database = WebDatabase(sessions.path)
@@ -95,12 +99,40 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     test_suites = TestSuiteRepository(cache_database)
     audits = audit_registry()
     downloads = download_service()
+    email_history = AuditEmailHistory(cache_database)
+    email_job = AuditEmailJob(email_history)
+
+    def launch_email_event(event, finished):
+        token = sessions.create_from_saved(event['account'])
+
+        def complete(result):
+            try:
+                finished(result)
+            finally:
+                sessions.delete(token)
+
+        try:
+            value = sessions.get(token)
+            base = os.getenv('SMARTTEST_CONFLUENCE_BASE_URL', 'https://confluence.amlogic.com')
+            access = sessions.resource_access(token, f"confluence:{base.rstrip('/').lower()}", cache_database)
+            email_job.trigger(value.username, event['jiraInput'], access, value.password, value.expires_at,
+                              facts, jira_audit_owner, confluence_audit_owner, event_id=event['id'],
+                              on_created=lambda run: email_events.attach_run(event, run),
+                              on_delivery=lambda run: email_events.delivery(event, run), on_finished=complete)
+        except Exception:
+            sessions.delete(token)
+            raise
+
+    email_events = email_events_factory(email_history, launch_email_event)
 
     @asynccontextmanager
     async def lifespan(_app):
         try:
+            email_events.start()
             yield
         finally:
+            email_events.close()
+            email_job.close()
             audits.close()
             downloads.close()
 
@@ -882,6 +914,49 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     def cancel_confluence_project_sync(request: Request, value=Depends(authenticated_session)):
         key = audit_session(request)
         return {"cancelled": refresh.cancel(key), "sync": refresh.status_for(key)}
+
+    @app.get('/api/audit-email/events')
+    def list_audit_email_events(value=Depends(authenticated_session)):
+        return email_events.list_events(value.username)
+
+    @app.post('/api/audit-email/events')
+    async def create_audit_email_event(payload: dict = Body(...), value=Depends(authenticated_session)):
+        saved = sessions.get_preferences(value.username, 'jira.html')['items']
+        try:
+            return email_events.create(value.username, payload.get('dueAt', ''), saved.get('auditInput', ''))
+        except (ValueError, TypeError, OverflowError) as error:
+            raise HTTPException(status_code=422, detail='请选择未来的北京时间。') from error
+
+    @app.get("/api/audit-email/runs")
+    def list_audit_email_runs(offset: int = Query(0, ge=0), value=Depends(authenticated_session)):
+        return email_history.list_runs(value.username, offset)
+
+    @app.get("/api/audit-email/runs/{run_id}")
+    def get_audit_email_run(run_id: str, value=Depends(authenticated_session)):
+        try:
+            return email_history.get(value.username, run_id)
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail="Report not found") from error
+
+    @app.post("/api/audit-email/runs")
+    def create_audit_email_run(request: Request, value=Depends(authenticated_session)):
+        saved = sessions.get_preferences(value.username, 'jira.html')['items']
+        return email_job.trigger(value.username, saved.get('auditInput', ''), access_context(request),
+                                 value.password, value.expires_at, facts, jira_audit_owner, confluence_audit_owner)
+
+    @app.get("/api/audit-email/runs/{run_id}/attachments/{kind}/{filename}")
+    def audit_email_attachment(run_id: str, kind: str, filename: str, value=Depends(authenticated_session)):
+        try:
+            result = email_history.get(value.username, run_id)
+            if filename not in result['reports'].get(kind, {}).get('attachments', []):
+                raise LookupError(filename)
+            path = email_job.root / result['id'] / kind / filename
+            if not path.is_file():
+                raise LookupError(filename)
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail='Attachment not found') from error
+        return FileResponse(path, filename=filename,
+                            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
     @app.post("/api/audits/jira")
     def create_jira_audit(

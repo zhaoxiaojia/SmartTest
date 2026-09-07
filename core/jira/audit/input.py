@@ -9,6 +9,23 @@ from .models import JiraAuditScope
 
 _URL = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
 _ISSUE_KEY = re.compile(r"^[A-Z][A-Z0-9]+-\d+$")
+_QUOTED = r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*' '''.strip()
+_CREATED_BOUND = re.compile(
+    rf'''(?P<field>(?<![\w.])(?:created|"created"|'created')\s*)(?P<op>>=?|<=?)(?P<space>\s*)
+    (?P<value>{_QUOTED}|[\w]+\([^)]*\)|[^\s()]+)|{_QUOTED}''',
+    re.IGNORECASE | re.VERBOSE,
+)
+
+
+def weekly_audit_jql(jql: str, period) -> str:
+    """Roll existing created bounds only; preserve other JQL and unbounded scopes."""
+    def replace_bound(match):
+        if match.group('field') is None:
+            return match.group(0)
+        lower = match.group('op').startswith('>')
+        day = (period.start if lower else period.end).date().isoformat()
+        return f'{match.group("field")}{">=" if lower else "<"}{match.group("space")}"{day}"'
+    return _CREATED_BOUND.sub(replace_bound, jql)
 
 
 def resolve_audit_input(
