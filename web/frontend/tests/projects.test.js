@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createProjects } from '../src/projects.js'
+import { createProjects as createProjectsOwner } from '../src/projects.js'
+
+function createProjects(options) {
+  const api = options.api
+  api.applyConfluenceFilterSnapshot ??= vi.fn(filters => api.getProjectFacts(filters, { details: true }))
+  api.resetConfluenceFilterSnapshot ??= vi.fn(() => api.getProjectFacts({}, { reset: true }))
+  return createProjectsOwner(options)
+}
 
 const productSpaces = [
   { value: 'DOPL', label: 'China Operator Business' },
@@ -349,7 +356,7 @@ describe('Projects', () => {
     document.querySelector('[data-more-facets] input[value="odm"]').click()
     expect(document.querySelector('[name="field.odm"]')).toBeTruthy()
     expect(document.querySelector('[data-more-facets] input[value="odm"]').name).toBe('enabledMoreFilters')
-    expect(document.querySelector('form').hasAttribute('data-preference-region')).toBe(true)
+    expect(document.querySelector('form').hasAttribute('data-preference-region')).toBe(false)
     document.querySelector('[data-more-facets] input[value="odm"]').click()
     expect(document.querySelector('[name="field.odm"]')).toBeNull()
   })
@@ -403,7 +410,7 @@ describe('Projects', () => {
     expect([...document.querySelectorAll('[data-main-facets] .multi-select__summary')]
       .every(item => !item.textContent.includes('Loading'))).toBe(true)
     expect(api.getProjectFacts.mock.calls[0][1]).toEqual({ details: false, snapshot: true })
-    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: false })
+    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ snapshot: true })
   })
 
   it('treats an empty completed catalog as ready and does not poll again', async () => {
@@ -473,7 +480,7 @@ describe('Projects', () => {
     await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(2))
     await vi.waitFor(() => expect(document.querySelector('[type="submit"]').disabled).toBe(false))
     expect(api.getProjectFacts.mock.calls.map(call => call[1])).toEqual([
-      { details: false, snapshot: true }, { details: false },
+      { details: false, snapshot: true }, { snapshot: true },
     ])
     component.destroy()
   })
@@ -564,7 +571,7 @@ describe('Projects', () => {
     document.querySelector('[name="reviewEndDate"]').value = '2026-08-08'
     document.querySelector('[data-reset]').click()
     await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(2))
-    expect(api.getProjectFacts.mock.calls[1]).toEqual([{ fields: {}, search: '' }, { details: false, reset: true }])
+    expect(api.resetConfluenceFilterSnapshot).toHaveBeenCalledOnce()
     expect([...select.selectedOptions]).toEqual([])
     expect(document.querySelector('[name="search"]').value).toBe('')
     expect(document.querySelector('[name="reviewStartDate"]').value).toBe('2026-08-01')
@@ -640,7 +647,7 @@ describe('Projects', () => {
     expect([...multi.querySelectorAll('.multi-select__option span')].map(node => node.textContent)).toEqual(productSpaces.map(item => item.label))
   })
 
-  it('reviews the current controls without requiring Apply and keeps an independent date window', async () => {
+  it('reviews the applied singleton snapshot and keeps an independent date window', async () => {
     const api = {
       getProjectFacts: vi.fn().mockResolvedValue(payload),
       createConfluenceAudit: vi.fn().mockResolvedValue({ auditId: 'a1', status: 'queued', stage: '', progress: { processed: 0, total: 0 } }),
@@ -667,7 +674,6 @@ describe('Projects', () => {
       { fields: {}, search: '' }, { details: false, snapshot: true }
     ])
     expect(api.createConfluenceAudit).toHaveBeenCalledWith({
-      filters: { fields: { 'support mode': ['A', 'B'] }, search: 'changed before review' },
       startDate: '2026-08-17', endDate: '2026-08-24'
     })
     await vi.waitFor(() => expect(document.querySelector('[data-audit-download]').disabled).toBe(false))

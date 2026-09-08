@@ -182,3 +182,4 @@ globalThis.setDateRange = setDateRange;
 globalThis.selectMessage = selectMessage;
 globalThis.toggleMobileMenu = toggleMobileMenu;
 globalThis.closeMobileMenu = closeMobileMenu;
+globalThis.setGreeting = setGreeting;

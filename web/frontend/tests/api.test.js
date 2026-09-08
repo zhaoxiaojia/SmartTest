@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createAuthApi, createManualAuditApi, createPreferenceApi, createProjectFactsApi, createReleaseApi, createWifiDatabaseApi } from '../src/api.js'
+import { createAuthApi, createJiraFilterApi, createManualAuditApi, createPreferenceApi, createProjectFactsApi, createReleaseApi, createWifiDatabaseApi } from '../src/api.js'
 
 describe('Preference API contract', () => {
   it('reads, batch writes, and resets an encoded account scope', async () => {
@@ -87,6 +87,17 @@ describe('manual audit API contract', () => {
       '/api/audits/confluence/c1/export'
     ])
     expect(api.downloadUrl('d1')).toBe('/api/downloads/d1')
+  })
+})
+
+describe('Jira singleton filter API contract', () => {
+  it('reads, applies, and resets one server-owned snapshot', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+    const api = createJiraFilterApi({ fetchImpl })
+    const body = { filters: { project: ['SH'] }, jql: 'labels = weekly' }
+    await api.getJiraFilterSnapshot(); await api.applyJiraFilterSnapshot(body); await api.resetJiraFilterSnapshot()
+    expect(fetchImpl.mock.calls.map(([, options]) => options.method)).toEqual(['GET', 'PUT', 'DELETE'])
+    expect(fetchImpl.mock.calls[1][1].body).toBe(JSON.stringify(body))
   })
 })
 

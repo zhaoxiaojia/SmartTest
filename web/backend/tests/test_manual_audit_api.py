@@ -28,12 +28,15 @@ class _Facts:
 
 
 class JiraOwner:
-    def __init__(self): self.runs = 0; self.exports = 0
+    def __init__(self): self.runs = 0; self.exports = 0; self.last_scope = None
     def resolve(self, text):
         if not str(text).strip(): raise ValueError("invalid_input")
         return JiraAuditScope("jql", text, text)
+    def resolve_filter(self, snapshot):
+        from smarttest_web.audit.jira_adapter import jira_filter_jql
+        return self.resolve(jira_filter_jql(snapshot.filters, snapshot.jql))
     def run(self, scope, cancellation, progress):
-        self.runs += 1; progress("fetching_issues", 1, 1)
+        self.runs += 1; self.last_scope = scope; progress("fetching_issues", 1, 1)
         return AuditReport(scope, __import__("datetime").datetime.now(), (), ())
     def export(self, _report, output_path):
         self.exports += 1; Workbook().save(output_path); return output_path
@@ -85,8 +88,10 @@ def _wait(client, source, audit_id):
 
 def test_jira_audit_runs_and_exports_once_before_session_scoped_download(tmp_path) -> None:
     client, other, owner = _clients(tmp_path)
-    assert client.post("/api/audits/jira", json={"input": ""}).status_code == 422
-    created = client.post("/api/audits/jira", json={"input": "project=SH"}).json()
+    client.put("/api/jira/filter-snapshot", json={"filters": {}, "jql": ""})
+    assert client.post("/api/audits/jira", json={}).status_code == 422
+    client.put("/api/jira/filter-snapshot", json={"filters": {"project": ["SH"]}, "jql": ""})
+    created = client.post("/api/audits/jira", json={}).json()
     audit_id = created["auditId"]
     completed = _wait(client, "jira", audit_id)
 
@@ -133,7 +138,8 @@ def test_cancelled_jira_audit_never_exports_or_enables_download(tmp_path) -> Non
     )
     client = TestClient(app, base_url="https://testserver")
     client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
-    audit_id = client.post("/api/audits/jira", json={"input": "project=SH"}).json()["auditId"]
+    client.put("/api/jira/filter-snapshot", json={"filters": {"project": ["SH"]}, "jql": ""})
+    audit_id = client.post("/api/audits/jira", json={}).json()["auditId"]
     assert entered.wait(1)
 
     client.post(f"/api/audits/jira/{audit_id}/cancel")
@@ -161,7 +167,8 @@ def test_jira_export_failure_is_a_terminal_failure_without_download(tmp_path) ->
     )
     client = TestClient(app, base_url="https://testserver")
     client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
-    audit_id = client.post("/api/audits/jira", json={"input": "project=SH"}).json()["auditId"]
+    client.put("/api/jira/filter-snapshot", json={"filters": {"project": ["SH"]}, "jql": ""})
+    audit_id = client.post("/api/audits/jira", json={}).json()["auditId"]
 
     completed = _wait(client, "jira", audit_id)
 
@@ -173,7 +180,7 @@ def test_jira_export_failure_is_a_terminal_failure_without_download(tmp_path) ->
 
 def test_confluence_audit_exports_one_zip_containing_product_line_workbooks(tmp_path) -> None:
     client, _other, _owner = _clients(tmp_path)
-    client.get("/api/confluence/project-facts?details=1")
+    client.put("/api/confluence/filter-snapshot", json={"filters": {}, "search": ""})
     created = client.post("/api/audits/confluence", json={
         "projectIds": ["P1"], "startDate": "2026-08-17", "endDate": "2026-08-24",
     }).json()
@@ -239,12 +246,14 @@ def test_confluence_review_queries_current_filters_records_snapshot_and_ignores_
         "startDate": "2026-08-17", "endDate": "2026-08-24",
     }
 
-    client.get("/api/confluence/project-facts")
+    client.put("/api/confluence/filter-snapshot", json={
+        "filters": {"support mode": ["A", "B"]}, "search": "mode review",
+    })
     first = client.post("/api/audits/confluence", json=review)
     assert first.status_code == 200
     assert _wait(client, "confluence", first.json()["auditId"])["status"] == "completed"
     assert facts.query_calls[-1] == ({"support mode": ("A", "B")}, "mode review")
-    assert facts.refresh_calls == 1
+    assert facts.refresh_calls == 0
     assert owner.resolved == [{"projectIds": ["DOPL:P652"], "startDate": "2026-08-17", "endDate": "2026-08-24"}]
     with sqlite3.connect(isolate_server_credentials.database_path) as connection:
         snapshot = connection.execute(
@@ -257,7 +266,7 @@ def test_confluence_review_queries_current_filters_records_snapshot_and_ignores_
     second = client.post("/api/audits/confluence", json={**review, "projectIds": ["P156"]})
     assert second.status_code == 200
     assert _wait(client, "confluence", second.json()["auditId"])["status"] == "completed"
-    assert facts.refresh_calls == 2
+    assert facts.refresh_calls == 0
     assert owner.resolved[-1] == {"projectIds": ["DOPL:P652"], "startDate": "2026-08-17", "endDate": "2026-08-24"}
 
 
@@ -286,7 +295,7 @@ def test_confluence_query_snapshot_survives_app_restart_for_same_valid_session(t
     first = TestClient(app(), base_url="https://testserver")
     first.post("/api/auth/login", json={"username": "coco", "password": "secret"})
     token = first.cookies.get("smarttest_session")
-    first.get("/api/confluence/project-facts")
+    first.put("/api/confluence/filter-snapshot", json={"filters": {}, "search": ""})
     restarted = TestClient(app(), base_url="https://testserver")
     restarted.cookies.set("smarttest_session", token)
     response = restarted.post("/api/audits/confluence", json={

@@ -8,7 +8,7 @@ export function createAuditEmailPage({ root, api, pollDelay = () => new Promise(
   let generation = 0
   let eventTimer
   root.innerHTML = `<section class="report-workspace">
-    <header class="report-page-head"><div><div class="eyebrow">Settings · Weekly Audit Email</div><h1>定期审查邮件</h1><p>逐次保存 Jira 与 Confluence 审查报告，查看最近四期对比。</p></div></header>
+    <header class="report-page-head"><div><div class="eyebrow">Tools · Weekly Audit Email</div><h1>定期审查邮件</h1><p>逐次保存 Jira 与 Confluence 审查报告，查看最近四期对比。</p></div></header>
     <section class="card"><h2>审查与报告</h2><p>发件人：fae-qa-auto@amlogic.com</p><p>立即触发仅生成报告，供调试查看。</p>
     <button class="button button-primary" data-trigger>立即触发</button><p data-status role="status" aria-live="polite">加载执行历史…</p></section>
     <section class="card"><h2>定制管理 · 一次性事件</h2><p>到期执行 Jira 与 Confluence 审查，将两封报告邮件及当期附件发送给 chao.li@amlogic.com、ping.xiong@amlogic.com。</p><p>时间按北京时间（UTC+8）计算。事件只执行一次；固定每周任务尚未接入。</p>

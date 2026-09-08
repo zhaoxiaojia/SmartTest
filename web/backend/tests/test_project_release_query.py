@@ -127,9 +127,11 @@ def test_missing_required_release_data_is_explicit_not_substituted(tmp_path):
 
 def test_dashboard_and_jira_project_filters_apply_inside_authorized_sqlite_scope(tmp_path):
     service = _service(tmp_path)
+    with service.database.transaction() as connection:
+        connection.execute("UPDATE jira_issues SET project_key=CASE WHEN issue_id IN ('i1','i2') THEN 'SH' ELSE 'OTHER' END")
 
     dashboard = service.dashboard(visible_ids=("c1", "c2"), filters={"owner": ["Alice"], "qa": ["Bob"]})
-    issues = service.issues(visible_ids=("c1", "c2"), filters={"project": ["AN16"]})
+    issues = service.issues(visible_ids=("c1", "c2"), filters={"project": ["SH"]})
 
     assert [row["projectId"] for row in dashboard["releases"]] == ["AN16"]
     assert {row["projectId"] for row in issues["issues"]} == {"AN16"}

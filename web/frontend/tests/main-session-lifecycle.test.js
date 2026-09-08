@@ -3,7 +3,7 @@ import { expect, it, vi } from 'vitest'
 
 it('clears all disposable Projects displays on identity change from a non-Projects page', async () => {
   window.history.replaceState({}, '', '/jira.html')
-  document.body.innerHTML = '<nav class="nav-right"></nav><div class="mobile-menu-footer"></div>'
+  document.body.innerHTML = '<div data-app-shell data-page-key="jira"></div>'
   sessionStorage.setItem('smarttest:projects-display:alice', '{"projects":[]}')
   sessionStorage.setItem('smarttest:projects-display:bob', '{"projects":[]}')
   sessionStorage.setItem('unrelated', 'keep')

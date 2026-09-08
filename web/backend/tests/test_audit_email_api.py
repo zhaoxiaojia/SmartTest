@@ -1,14 +1,12 @@
 from dataclasses import replace
 from datetime import datetime
 import time
-from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 from core.confluence.audit.models import AuditBatch, AuditFinding, AuditStatus, ProjectAudit
 from core.confluence.audit import manual_audit_period
 from core.confluence.audit.exporter import export_audit_xlsx_by_product_line
 from core.confluence.project import Project, ProjectIdentity, ProductSpaceRef, ConfluencePageRef
-from core.confluence.project_catalog import default_weekly_audit_filters, weekly_audit_projects, query_project_facts
 from core.jira.audit.models import IssueAuditResult
 from smarttest_web.app import create_app
 from test_web_session import FakeAuthenticator, FakeFactsOwner
@@ -50,7 +48,8 @@ def make_app(**kwargs):
 
 def login(client):
     client.post('/api/auth/login', json={'username': 'coco', 'password': 'secret'})
-    client.put('/api/preferences/jira.html', json={'items': {'auditInput': 'project=SH'}, 'schemaVersion': 1})
+    client.put('/api/jira/filter-snapshot', json={'filters': {'project': ['SH']}, 'jql': ''})
+    client.put('/api/confluence/filter-snapshot', json={'filters': {}, 'search': ''})
 
 
 def trigger(client):
@@ -79,7 +78,7 @@ def test_real_dual_runs_keep_five_records_and_attachments_after_restart():
             assert run['summary']['confluence']['TV'] == [1, 1]
             assert run['reports']['jira']['sourceIds'][0] == run['id']
             assert len(run['reports']['jira']['sourceIds']) == 4
-            assert 'project=SH' in run['reports']['jira']['html']
+            assert 'project = &quot;SH&quot;' in run['reports']['jira']['html']
         assert len(runs[0]['reports']['confluence']['sourceIds']) == 3
         assert len(runs[-1]['reports']['confluence']['sourceIds']) == 4
         first = runs[0]
@@ -113,14 +112,12 @@ def test_seed_details_never_invent_missing_history():
         assert '49.15%' in latest['reports']['jira']['html']
 
 
-def test_missing_jira_input_keeps_confluence_actual_result_and_failed_history():
+def test_trigger_requires_both_global_filter_snapshots():
     with TestClient(make_app(), base_url='https://testserver') as client:
         client.post('/api/auth/login', json={'username': 'coco', 'password': 'secret'})
-        result = trigger(client)
-        assert result['state'] == 'partial'
-        assert result['reports']['jira']['error'] == 'saved_jira_input_missing'
-        assert result['reports']['confluence']['state'] == 'completed'
-        assert 'jira' not in result['summary']
+        assert client.post('/api/audit-email/runs').status_code == 409
+        client.put('/api/jira/filter-snapshot', json={'filters': {'project': ['SH']}, 'jql': ''})
+        assert client.post('/api/audit-email/runs').status_code == 409
 
 
 def test_another_account_cannot_read_run_or_attachment():
@@ -139,25 +136,16 @@ def test_another_account_cannot_read_run_or_attachment():
         assert client.get('/api/audit-email/runs').json()['total'] == 4
 
 
-def test_trigger_uses_same_window_for_both_reports_without_overwriting_saved_jql():
+def test_trigger_uses_singleton_snapshots_and_ignores_legacy_jira_preference():
     template = 'project=SH AND created >=2026-08-28 AND created <=2026-09-4 order by updated DESC'
     with TestClient(make_app(), base_url='https://testserver') as client:
         login(client)
-        client.put('/api/preferences/jira.html', json={'items': {'auditInput': template}, 'schemaVersion': 1})
+        client.put('/api/preferences/jira.html', json={'items': {'auditInput': 'project=WRONG'}, 'schemaVersion': 1})
+        client.put('/api/jira/filter-snapshot', json={'filters': {}, 'jql': template})
         result = trigger(client)
         assert result['state'] == 'completed'
         scope = result['scope']
-        expected = f'project=SH AND created >="{scope["startDate"]}" AND created <"{scope["endDate"]}" order by updated DESC'
+        expected = f'(project=SH AND created >="{scope["startDate"]}" AND created <"{scope["endDate"]}" order by updated DESC)'
         assert scope['jiraInput'] == result['summary']['jira']['scope'] == expected
-        assert scope['jiraTemplate'] == template
-        assert client.get('/api/preferences/jira.html').json()['items']['auditInput'] == template
-
-
-def test_restored_client_defaults_exclude_late_stages_without_new_stage_rules():
-    filters = default_weekly_audit_filters(datetime(2026, 9, 7, tzinfo=ZoneInfo('Asia/Shanghai')))
-    rows = [{'project_id': name, 'fields': {'date of commercial approval': year + '-01-01', 'support mode': support,
-            'project status': 'NORMAL', 'current stage': stage}}
-            for name, year, support, stage in [('yes', '2025', 'A', '3 DEVELOPMENT'), ('old', '2024', 'A', '2'),
-                                               ('late', '2026', 'A', '4 CLOSED'), ('b', '2026', 'B', '2')]]
-    selected = query_project_facts({'projects': rows}, filters=filters)['projects']
-    assert [row['project_id'] for row in weekly_audit_projects(selected)] == ['yes']
+        assert scope['jiraTemplate'] == f'({template})'
+        assert 'WRONG' not in scope['jiraInput']

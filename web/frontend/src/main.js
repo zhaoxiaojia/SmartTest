@@ -1,6 +1,7 @@
 import { createAuthApi, createPreferenceApi } from './api.js'
 import { createAuthShell } from './auth-shell.js'
 import { createPreferenceStore } from './preference-store.js'
+import { createAppShell } from './app-shell.js'
 
 export let preferencesReady = Promise.resolve()
 
@@ -14,14 +15,11 @@ function clearDisposableDisplayState() {
 }
 
 async function startStaticShell() {
+  const host = document.querySelector('[data-app-shell]')
+  if (!host) throw new Error('app_shell_host_missing')
+  const pageKey = window.location.pathname.startsWith('/wifi-database/') ? 'wifi' : host.dataset.pageKey
+  const { desktopHost, mobileHost } = createAppShell({ pageKey, root: host })
   let session
-  const desktop = document.querySelector('.nav-right')
-  const mobile = document.querySelector('.mobile-menu-footer')
-  if (desktop && mobile) {
-    const desktopHost = document.createElement('div'); desktopHost.className = 'user-entry'
-    const mobileHost = document.createElement('div'); mobileHost.setAttribute('data-user-mobile', '')
-    desktop.insertBefore(desktopHost, desktop.querySelector('.mobile-menu-btn'))
-    mobile.insertBefore(mobileHost, mobile.firstChild)
     const applyTheme = theme => {
       const dark = theme === 'dark'; document.documentElement.classList.toggle('dark-theme', dark); document.body.classList.toggle('dark-theme', dark)
     }
@@ -33,7 +31,7 @@ async function startStaticShell() {
     document.body.addEventListener('preference:restored', event => { if (event.target.dataset.preferenceKey === 'theme') applyTheme(event.detail.value) })
     document.body.addEventListener('click', event => { if (event.target.closest('[data-preference-key="theme"]')) applyTheme(event.target.closest('[data-preference-key="theme"]').dataset.preferenceValue) })
     let preferences
-    session = await createAuthShell({ root: document.body, desktopHost, mobileHost, api: createAuthApi(),
+  session = await createAuthShell({ root: document.body, desktopHost, mobileHost, api: createAuthApi(),
       onChanging() {
         preferences?.destroy()
         clearDisposableDisplayState()
@@ -47,15 +45,8 @@ async function startStaticShell() {
         window.dispatchEvent(new CustomEvent('session:ready', { detail: session }))
         await preferencesReady
       }
-    }).start()
-  }
+  }).start()
   if (window.location.pathname.startsWith('/wifi-database/')) {
-    for (const link of document.querySelectorAll('.nav-menu a, .mobile-menu-nav a')) {
-      link.classList.toggle('active', link.getAttribute('href')?.startsWith('/wifi-database/'))
-    }
-    const databaseNav = document.querySelector('.database-nav')
-    databaseNav.hidden = false
-    for (const link of databaseNav.querySelectorAll('a')) link.classList.toggle('active', link.pathname === window.location.pathname)
     const { startWifiData } = await import('./wifi-main.js')
     await startWifiData()
   }

@@ -9,9 +9,11 @@ from test_audit_email_api import make_app, login
 def test_create_event_requires_auth_and_future_beijing_time():
     with TestClient(make_app(), base_url='https://testserver') as client:
         assert client.get('/api/audit-email/events').status_code == 401
+        client.post('/api/auth/login', json={'username': 'coco', 'password': 'secret'})
+        due = (datetime.now(ZoneInfo('Asia/Shanghai')) + timedelta(days=1)).replace(microsecond=0).isoformat()
+        assert client.post('/api/audit-email/events', json={'dueAt': due}).status_code == 409
         login(client)
         assert client.post('/api/audit-email/events', json={'dueAt': '2000-01-01T10:00'}).status_code == 422
-        due = (datetime.now(ZoneInfo('Asia/Shanghai')) + timedelta(days=1)).replace(microsecond=0).isoformat()
         response = client.post('/api/audit-email/events', json={'dueAt': due})
         assert response.status_code == 200
         event = response.json()
@@ -159,7 +161,8 @@ def test_restore_claimed_event_does_not_send_again(tmp_path):
     history = AuditEmailHistory(WebDatabase(tmp_path / 'events.db'))
     calls = []
     owner = clock.factory(history, lambda event, done: calls.append(event))
-    event = owner.create('coco', '2026-09-07T12:01', 'project=SH')
+    event = owner.create('coco', '2026-09-07T12:01', {'jira': {'filters': {'project': ['SH']}, 'jql': ''},
+        'confluence': {'filters': {}, 'search': '', 'projectIds': ['P1']}})
     clock.value += timedelta(minutes=1)
     owner.fire(event['id'])
     owner.close()
@@ -231,7 +234,8 @@ def test_job_close_cancels_and_joins_running_coordinator(monkeypatch, tmp_path):
     monkeypatch.setattr(job, '_run', run)
     closer = None
     try:
-        job.trigger('coco', 'project=SH', None, '', 0, None, None, None)
+        job.trigger('coco', {'jira': {'filters': {'project': ['SH']}, 'jql': ''},
+            'confluence': {'filters': {}, 'search': '', 'projectIds': ['P1']}}, None, '', 0, None, None, None)
         assert entered.wait(1)
         closer = Thread(target=lambda: (job.close(), closed.set()))
         closer.start()

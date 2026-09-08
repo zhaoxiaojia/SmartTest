@@ -136,8 +136,36 @@ export function createManualAuditApi({ fetchImpl = globalThis.fetch, baseUrl = '
   }
 }
 
-export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
+export function createJiraFilterApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
+  async function request(method = 'GET', body) {
+    const response = await fetchImpl(`${baseUrl}/jira/filter-snapshot`, {
+      method, credentials: 'same-origin',
+      ...(body === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
+    })
+    if (!response.ok) throw new ApiUnavailableError(`Jira filter API unavailable (${response.status}).`, { status: response.status })
+    return response.json()
+  }
   return {
+    getJiraFilterSnapshot: () => request(),
+    applyJiraFilterSnapshot: body => request('PUT', body),
+    resetJiraFilterSnapshot: () => request('DELETE'),
+  }
+}
+
+export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
+  async function changeFilter(method, filters = {}) {
+    const response = await fetchImpl(`${baseUrl}/confluence/filter-snapshot`, {
+      method, credentials: 'same-origin',
+      ...(method === 'PUT' ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+        filters: filters.fields ?? {}, search: filters.search ?? '',
+      }) } : {}),
+    })
+    if (!response.ok) throw new ApiUnavailableError(`Project filter API unavailable (${response.status}).`, { status: response.status })
+    return response.json()
+  }
+  return {
+    applyConfluenceFilterSnapshot: filters => changeFilter('PUT', filters),
+    resetConfluenceFilterSnapshot: () => changeFilter('DELETE'),
     async getProjectFactsStatus() {
       const response = await fetchImpl(`${baseUrl}/confluence/project-facts/status`, { credentials: 'same-origin' })
       if (!response.ok) throw new ApiUnavailableError(`Project facts status unavailable (${response.status}).`, { status: response.status })

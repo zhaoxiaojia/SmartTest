@@ -17,6 +17,7 @@ export default defineConfig({
         settings: resolve(import.meta.dirname, 'settings.html'),
         auditEmail: resolve(import.meta.dirname, 'audit-email.html'),
         jira: resolve(import.meta.dirname, 'jira.html'),
+        tools: resolve(import.meta.dirname, 'tools.html'),
         login: resolve(import.meta.dirname, 'login.html')
       }
     }

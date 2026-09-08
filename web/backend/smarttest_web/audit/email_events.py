@@ -39,14 +39,14 @@ class AuditEmailEvents:
                                       (account,)).fetchall()
         return {'events': [json.loads(row[0]) for row in rows]}
 
-    def create(self, account, due_at, jira_input):
+    def create(self, account, due_at, filter_scope):
         due = datetime.fromisoformat(due_at)
         due = due.replace(tzinfo=ZoneInfo('Asia/Shanghai')) if due.tzinfo is None else due.astimezone(ZoneInfo('Asia/Shanghai'))
         if due <= self.now():
             raise ValueError('future_time_required')
         event = {'id': str(uuid4()), 'account': account, 'dueAt': due.isoformat(),
                  'createdAt': self.now().isoformat(), 'state': 'pending', 'source': 'one_time',
-                 'jiraInput': jira_input, 'runId': None, 'deliveries': {}}
+                 'filterScope': filter_scope, 'runId': None, 'deliveries': {}}
         with self.database.transaction() as connection:
             connection.execute('INSERT INTO audit_email_events(id,account,due_at,state,payload) VALUES(?,?,?,?,?)',
                                (event['id'], account, event['dueAt'], event['state'], json.dumps(event)))

@@ -8,13 +8,12 @@ from time import perf_counter
 from zoneinfo import ZoneInfo
 
 from core.confluence.audit import previous_business_week
-from core.confluence.project_catalog import default_weekly_audit_filters, weekly_audit_projects
 from core.email.audit_report import summarize_audit
 from core.jira.audit.input import weekly_audit_jql
 from core.logging import smart_log
 
-from ..query_snapshot_repository import ConfluenceQuerySnapshotRepository
 from ..task_manager import WEB_TASKS
+from .jira_adapter import jira_filter_jql
 
 
 class AuditEmailJob:
@@ -24,12 +23,12 @@ class AuditEmailJob:
         self._tasks = set()
         self._lock = Lock()
 
-    def trigger(self, account, jira_input, access, password, expires_at, facts, jira_factory, confluence_factory,
+    def trigger(self, account, filter_scope, access, password, expires_at, facts, jira_factory, confluence_factory,
                 *, event_id=None, on_created=None, on_delivery=None, on_finished=None):
         now = datetime.now(ZoneInfo('Asia/Shanghai'))
         period = previous_business_week(now)
-        scope = {'jiraInput': jira_input, 'filters': default_weekly_audit_filters(now),
-                 'startDate': period.start.date().isoformat(), 'endDate': period.end.date().isoformat()}
+        scope = {**filter_scope, 'startDate': period.start.date().isoformat(),
+                 'endDate': period.end.date().isoformat()}
         result = self.history.create(account, scope)
         if event_id:
             result.update(source='one_time', eventId=event_id, deliveries={})
@@ -86,33 +85,18 @@ class AuditEmailJob:
                 result['reports'][kind]['state'] = 'running'
                 record(kind, stage)
                 if kind == 'jira':
-                    if not scope['jiraInput']:
-                        raise ValueError('saved_jira_input_missing')
                     owner = jira_factory(account, password)
-                    resolved = owner.resolve(scope['jiraInput'])
-                    scope['jiraTemplate'] = scope['jiraInput']
+                    template = jira_filter_jql(scope['jira']['filters'], scope['jira']['jql'])
+                    resolved = owner.resolve(template)
+                    scope['jiraTemplate'] = template
                     resolved = replace(resolved, jql=weekly_audit_jql(resolved.jql, period))
                     scope['jiraInput'] = resolved.jql
                     record(kind, 'scope_resolved', jql=resolved.jql)
                 else:
-                    facts.refresh(access, password)
-                    query = facts.query(access, filters=scope['filters'], search='')
-                    if query.get('state') not in {'ready', 'partial_success'}:
-                        raise ValueError('project_catalog_unavailable')
-                    rows = weekly_audit_projects(query['projects'])
-                    ids = [str(row.get('identity') or row['project_id']) for row in rows]
-                    snapshot = ConfluenceQuerySnapshotRepository(self.history.database)
-                    snapshot.scope = f"audit-email:{result['id']}"
-                    snapshot.record(access.session_hash, scope['filters'], '', ids,
-                                    getattr(facts, 'facts_version', lambda: '')(), expires_at=expires_at)
-                    stored = snapshot.get(access.session_hash)
-                    scope['snapshotScope'] = snapshot.scope
-                    scope['projectIds'] = list(stored.project_ids)
-                    record(kind, 'scope_resolved', snapshot_scope=snapshot.scope, project_count=len(stored.project_ids))
-                    if not stored.project_ids:
-                        raise ValueError('no_projects_in_default_scope')
+                    ids = scope['confluence']['projectIds']
+                    record(kind, 'scope_resolved', snapshot_scope='confluence-project-facts', project_count=len(ids))
                     owner = confluence_factory(access, password)
-                    resolved = owner.resolve({**scope, 'projectIds': list(stored.project_ids)})
+                    resolved = owner.resolve({**scope, 'projectIds': list(ids)})
                 stage = 'auditing'
                 report = owner.run(resolved, token, lambda step, done=0, total=0: record(kind, step, processed=done, total=total))
                 token.raise_if_cancelled()
@@ -130,8 +114,7 @@ class AuditEmailJob:
                 record(kind, 'report_saved', attachments=attachments, duration_ms=round((perf_counter() - started) * 1000, 3))
             except Exception as error:
                 # External audit/export boundary: retain the other report and safe error evidence.
-                code = str(error) if str(error) in {'saved_jira_input_missing', 'project_catalog_unavailable',
-                       'no_projects_in_default_scope', 'invalid_input', 'permission_denied', 'reauthentication_required',
+                code = str(error) if str(error) in {'invalid_input', 'permission_denied', 'reauthentication_required',
                        'remote_unavailable', 'cancelled'} else type(error).__name__
                 result['reports'][kind] = {'state': 'failed', 'html': '', 'error': code, 'stage': stage, 'attachments': []}
                 result['summary'].pop(kind, None)

@@ -1,16 +1,11 @@
 import { healthClass, healthLabel } from './release-health.js'
 
-const FILTER_KEYS = ['productLine', 'stage', 'project', 'release', 'owner', 'qa', 'status']
-
 export function createReleaseDashboard({ root, api }) {
   root.innerHTML = `<section class="release-page">
     <header class="report-page-head"><div><div class="eyebrow">Delivery · Current releases</div>
       <h1>Project Release Dashboard</h1><p>See delivery risk across the current release for every accessible project.</p></div>
       <div class="filter-actions"><button class="button button-secondary" data-sync>Sync</button></div>
     </header>
-    <section class="card release-filter-card"><form data-release-filters><div class="release-filter-grid" data-filter-grid></div>
-      <div class="filter-actions"><button type="submit" class="button button-primary" data-apply>Apply</button>
-      <button type="button" class="button button-secondary" data-reset>Reset</button></div></form></section>
     <div class="release-summary" data-summary-grid></div>
     <div class="release-dashboard-grid"><section class="card release-table-card">
       <div class="card-header"><div><h2 class="card-title">Current release health</h2><p class="card-subtitle" data-freshness></p></div></div>
@@ -19,36 +14,13 @@ export function createReleaseDashboard({ root, api }) {
     </section><aside class="card release-detail" data-release-detail><h2>Release details</h2><p>Select a project release to inspect its risk reasons.</p></aside></div>
     <div class="async-feedback" data-release-feedback></div>
   </section>`
-  const form = root.querySelector('[data-release-filters]')
   const feedback = root.querySelector('[data-release-feedback]')
   let disposed = false
-  let current = null
 
   function setBusy(value, message = '') {
     for (const button of root.querySelectorAll('button')) button.disabled = value
     feedback.textContent = message
     feedback.dataset.state = value ? 'running' : (message ? 'failed' : 'idle')
-  }
-
-  function filters() {
-    return Object.fromEntries(FILTER_KEYS.map(key => {
-      const value = form.elements[key]?.value?.trim()
-      return [key, value ? [value] : []]
-    }).filter(([, values]) => values.length))
-  }
-
-  function renderFacets(facets) {
-    const definitions = new Map((facets ?? []).map(facet => [facet.key, facet]))
-    const labels = { productLine: 'Product Line', stage: 'Current Stage', project: 'Project', release: 'Current Release', owner: 'Project Owner', qa: 'Major FAE QA', status: 'Project Status' }
-    root.querySelector('[data-filter-grid]').innerHTML = FILTER_KEYS.map(key => {
-      const facet = definitions.get(key) ?? definitions.get({ stage: 'currentStage', project: 'projectId', release: 'releaseName', status: 'projectStatus' }[key])
-      const options = facet?.options ?? []
-      return `<label>${labels[key]}<select class="form-control" name="${key}"><option value="">All</option>${options.map(option => {
-        const value = typeof option === 'string' ? option : option.value
-        const label = typeof option === 'string' ? option : option.label
-        return `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`
-      }).join('')}</select></label>`
-    }).join('')
   }
 
   function renderSummary(summary = {}) {
@@ -77,8 +49,6 @@ export function createReleaseDashboard({ root, api }) {
   }
 
   function render(payload) {
-    if (!current) renderFacets(payload.facets)
-    current = payload
     renderSummary(payload.summary)
     const rows = root.querySelector('[data-release-rows]')
     rows.innerHTML = (payload.releases ?? []).map((row, index) => `<tr tabindex="0" data-release-row data-index="${index}">
@@ -98,14 +68,12 @@ export function createReleaseDashboard({ root, api }) {
     if (payload.releases?.length) renderDetail(payload.releases[0])
   }
 
-  async function load(filterValues, options) {
+  async function load() {
     setBusy(true, 'Loading cached releases…')
-    try { const payload = await api.getDashboardReleases(filterValues, options); if (!disposed) { render(payload); setBusy(false) } }
+    try { const payload = await api.getDashboardReleases(); if (!disposed) { render(payload); setBusy(false) } }
     catch { if (!disposed) setBusy(false, 'Release Dashboard unavailable.') }
   }
 
-  form.addEventListener('submit', event => { event.preventDefault(); void load(filters(), {}) })
-  root.querySelector('[data-reset]').addEventListener('click', () => { current = null; void load({}, { reset: true }) })
   root.querySelector('[data-sync]').addEventListener('click', async () => {
     setBusy(true, 'Syncing current server scope…')
     try {
@@ -120,7 +88,7 @@ export function createReleaseDashboard({ root, api }) {
     }
     catch { if (!disposed) setBusy(false, 'Release sync failed; cached data is still shown.') }
   })
-  return { start: () => load({}, { snapshot: true }), destroy() { disposed = true } }
+  return { start: () => load(), destroy() { disposed = true } }
 }
 
 function escapeHtml(value) {

@@ -12,6 +12,10 @@ describe('Vite development server', () => {
     expect(config.build.rollupOptions.input).not.toHaveProperty('confluence')
   })
 
+  it('builds the Tools page', () => {
+    expect(config.build.rollupOptions.input.tools).toMatch(/tools\.html$/)
+  })
+
   it('injects the shared Web brand into every HTML entry', () => {
     const plugin = config.plugins.find(item => item.name === 'smarttest-web-brand')
     expect(plugin.transformIndexHtml('<title>Page - __SMARTTEST_WEB_BRAND__</title>'))

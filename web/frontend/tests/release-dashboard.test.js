@@ -28,7 +28,7 @@ it('replays the SQLite snapshot on entry and renders explainable release health'
 
   await page.start()
 
-  expect(api.getDashboardReleases).toHaveBeenCalledWith({}, { snapshot: true })
+  expect(api.getDashboardReleases).toHaveBeenCalledWith()
   expect(document.querySelector('[data-summary="currentReleases"]').textContent).toBe('1')
   expect(document.querySelector('[data-release-row]').textContent).toContain('Android 16')
   document.querySelector('[data-release-row]').click()
@@ -36,19 +36,14 @@ it('replays the SQLite snapshot on entry and renders explainable release health'
   expect(document.querySelector('[data-jira-drilldown]').href).toContain('snapshot=dashboard&projectId=P100')
 })
 
-it('applies local filter state and uses explicit sync only from the Sync button', async () => {
+it('does not own a second filter and uses explicit sync only from the Sync button', async () => {
   const api = {
     getDashboardReleases: vi.fn().mockResolvedValue(payload),
     syncDashboardReleases: vi.fn().mockResolvedValue(payload),
   }
   const page = createReleaseDashboard({ root: document.querySelector('main'), api })
   await page.start()
-  const select = document.querySelector('[name="productLine"]')
-  select.value = 'DOPL'
-  document.querySelector('[data-apply]').click()
-  await vi.waitFor(() => expect(api.getDashboardReleases).toHaveBeenLastCalledWith(
-    { productLine: ['DOPL'] }, {},
-  ))
+  expect(document.querySelector('[data-release-filters]')).toBeNull()
   expect(api.syncDashboardReleases).not.toHaveBeenCalled()
   document.querySelector('[data-sync]').click()
   await vi.waitFor(() => expect(api.syncDashboardReleases).toHaveBeenCalledOnce())

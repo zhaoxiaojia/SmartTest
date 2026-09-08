@@ -47,7 +47,8 @@ class ProjectReleaseQueryService:
         }
 
     def issues(self, *, visible_ids=(), project_ids=(), filters=None, page=0, page_size=50) -> dict:
-        projects = self._projects(visible_ids, project_ids, filters or {})
+        project_scope = {"_scopeRelease": (filters or {}).get("_scopeRelease", ())}
+        projects = self._projects(visible_ids, project_ids, project_scope)
         issues = []
         by_project = {normalize_release_value(row[1]): row for row in projects}
         issue_rows = self._issue_rows(tuple(item[1] for item in projects))
@@ -147,7 +148,7 @@ class ProjectReleaseQueryService:
                 """SELECT i.issue_id,i.issue_key,i.web_url,i.summary,i.status_name,i.resolution_name,
                 i.priority_name,i.assignee_identity,i.assignee_display_name,i.created_at,i.updated_at,
                 f.software_release,f.severity,f.compare_status,f.qa_assignee_identity,f.manager_identity,
-                f.resolved_at,i.cached_at,i.source_revision,f.project_business_id
+                f.resolved_at,i.cached_at,i.source_revision,f.project_business_id,i.project_key,i.issue_type_name
                 FROM jira_issues i JOIN jira_issue_release_facts f ON f.issue_id=i.issue_id"""
             ).fetchall()
             rows = [row for row in rows if normalize_release_value(row[19]) in normalized]
@@ -231,7 +232,7 @@ class ProjectReleaseQueryService:
 
     @staticmethod
     def _issue_payload(row, release_name):
-        candidates = [row[11], *row[21]]
+        candidates = [row[11], *row[23]]
         exact = bool(release_name) and any(
             normalize_release_value(item) == normalize_release_value(release_name)
             for item in candidates if item
@@ -243,8 +244,9 @@ class ProjectReleaseQueryService:
             "softwareRelease": row[11] or "", "severity": row[12] or "",
             "compareStatus": row[13] or "", "qaAssignee": row[14] or "", "manager": row[15] or "",
             "resolvedAt": row[16] or "", "projectId": row[19] or "",
-            "components": ", ".join(row[20]), "fixVersions": ", ".join(row[21]),
-            "_componentValues": row[20], "_fixVersionValues": row[21],
+            "jiraProject": row[20] or "", "issueType": row[21] or "",
+            "components": ", ".join(row[22]), "fixVersions": ", ".join(row[23]),
+            "_componentValues": row[22], "_fixVersionValues": row[23],
             "releaseAssociation": "exact" if exact else "version_pending",
             "associationReason": "版本字段与当前交付版本一致" if exact else "Project ID 一致，但版本字段为空或不匹配",
             "sourceRevision": row[18] or "", "cachedAt": row[17] or "",
@@ -263,6 +265,7 @@ class ProjectReleaseQueryService:
             "status": "status", "resolution": "resolution", "priority": "priority",
             "severity": "severity", "component": "components", "assignee": "assignee",
             "qaAssignee": "qaAssignee", "association": "releaseAssociation",
+            "project": "jiraProject", "type": "issueType", "currentUser": "assignee",
         }
         if filters.get("_openOnly") and issue["resolution"]:
             return False

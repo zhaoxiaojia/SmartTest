@@ -619,6 +619,110 @@ Web SQLite 增加 Confluence 当前态存储，至少包含以下逻辑实体；
 - [x] 删除被数据库、同步服务和集中规则替代的 JSON 刷新、查询时详情抓取、Web 编排和兼容分支；检查净生产代码增长，拒绝并行 owner 和无必要包装。
 - [x] 完成 Core、数据库、Web API、前端状态、日志/边界测试、迁移测试、lint/build、`git diff --check` 和最高可行的实际账号验证；未得到 Coco 功能确认前不提交。
 
+### 13.6 Tools 页面与全局过滤器单例
+
+本模块把人工周审查从业务浏览页迁移到独立 `Tools` 页面，并建立两个互不混用的全局过滤器单例。Confluence 与 Jira 的字段语义、候选来源和查询 owner 不同，禁止合并成一份通用 filters 字典；“全局”表示同一账号当前会话内，所有消费页面读取各自唯一的已应用过滤状态。
+
+#### 13.6.1 页面归属
+
+- 顶部和移动端主导航固定新增 `Tools`；所有静态 Shell 同步持有该入口。
+- `Tools` 页面承载 Jira 周审查、Confluence 周审查和定期审查邮件入口。现有审查 API、任务、进度、取消、导出和邮件调度 owner 保持不变。
+- Jira 页面本阶段保留空白占位，不展示 Release Workbench 或审查控件。
+- Projects 页面只保留项目事实、责任展示和对全局 Confluence 过滤器的消费，不再拥有周审查控件。
+- Settings 删除定期审查邮件入口；现有 `audit-email.html` 继续作为定期审查邮件管理页面，由 Tools 进入。
+
+#### 13.6.2 Confluence 全局过滤器单例
+
+- 复用已经确认的全部 Confluence 动态字段、常用/更多筛选、搜索、Apply、Reset、候选加载和 SQLite 查询快照规则，不新增另一套字段模型。
+- 后端 `ConfluenceQuerySnapshotRepository` 继续作为当前 session 已应用条件和精确项目 ID 范围的唯一权威 owner；前端只保留未提交控件状态和可丢弃展示状态。
+- Projects 与 Tools 的 Confluence 周审查读取同一快照。Tools 可展示和修改同一组筛选控件；Apply 先更新该唯一快照，审查再严格按快照项目范围执行。
+- 页面切换只重放 SQLite 快照，不自动远程读取详情，不从前端 payload、URL 或本地展示缓存获取权威项目 ID。
+
+#### 13.6.3 Jira 全局过滤器单例
+
+- Jira 单例固定提供 `Project`、`Type`、`Status`、`Current User`、`Resolution` 五个下拉字段，并保留 JQL 参数输入入口；不得擅自增加字段、推断默认值或把 Confluence 字段混入 Jira。
+- 下拉候选复用 Jira gateway/cache 已有元数据和账号权限边界；浏览器不直接访问 Jira。JQL 保持原始用户输入，经现有 Jira 审查解析 owner 校验和传递。
+- 后端为当前 session 保存唯一的 Jira 已应用过滤快照；Tools 的 Jira 周审查和后续 Jira 页面只消费该快照。前端偏好仅恢复未提交控件，不成为审查范围 owner。
+- 下拉条件与 JQL 都属于 Jira 单例的输入；执行审查时由 Jira owner 在现有查询/解析边界内组合，前端不拼接 JQL。
+
+#### 13.6.4 状态与生命周期
+
+- 两个单例按认证账号和 session 隔离；账号切换、注销或 session 失效时不得复用上一账号状态。
+- 每个单例只有一个 Apply/Reset 入口和一个已应用 revision。任一页面提交后，其他消费页面下次显示或收到 revision 更新时读取同一状态。
+- Confluence 和 Jira 单例互不覆盖、互不级联；一个单例失败不得清空另一个单例最后有效快照。
+- 所有审查继续遵守账号可见范围。缺少有效快照、候选不可用、凭据失效或输入非法时明确返回失败状态，不静默回退到全量数据。
+
+#### 13.6.5 已批准实施清单
+
+- [x] 以测试先行建立两个 session 级过滤快照契约；Confluence 扩展现有 owner，Jira 新增与现有查询快照表一致的唯一 scope，不建立平行存储。
+- [x] 以测试先行抽取可被 Projects/Tools 消费的 Confluence 单例前端控制器，保留现有动态 facets、Apply/Reset、缓存优先和审查快照边界。
+- [x] 以测试先行实现 Jira 单例的五个下拉候选、JQL 输入、Apply/Reset 与审查参数传递，候选和执行均复用现有 Jira owner。
+- [x] 新建 Tools 页面并迁移两项周审查；迁移定期审查邮件入口，清理 Settings、Projects 和 Jira 的旧入口及重复状态。
+- [x] Jira 页面改为空白占位；所有静态 Shell、Vite 多页入口、导航激活态和相关说明同步更新。
+- [x] 运行前端聚焦/全量测试、lint、build，后端过滤快照与审查聚焦测试，执行源代码实际页面验证和 `git diff --check`；清理探索性测试、临时诊断和废弃实现。
+
+### 13.7 可装配 Web AppShell
+
+当前多页 HTML 分别复制顶部导航、移动菜单、主题控件、账号挂载点、二级导航和 Footer。新增页面只要漏掉任一隐含挂载点，`main.js` 就会跳过整个认证 Shell；Tools 首版同时缺少右侧主题/账号结构与移动端 Footer，导致账号信息不显示且业务页错误进入 `Please sign in.`。本模块从重复源头修复，不在 Tools 单页补 HTML。
+
+#### 13.7.1 唯一 owner 与装配规则
+
+- `AppShell` 是业务页 Brand、主导航、主题控件、账号菜单、移动菜单、可选二级导航、页面内容 slot 和 Footer 的唯一前端 owner。
+- 主导航使用一份声明式清单维护稳定 `pageKey`、标题、URL 和图标；激活态只由入口声明的 `pageKey` 决定。`audit-email.html` 归属 `tools`，全部 Wi-Fi 子路由归属 `wifi`。
+- 普通业务 HTML 只保留文档元数据、公共样式、Shell 根节点和页面入口脚本，不得复制 `.top-nav`、`.mobile-menu`、`.nav-menu`、主题、账号或 Footer 结构。
+- 页面入口先同步装配 AppShell，再启动认证/偏好与业务组件。`authenticated-page` 只管理内容 slot 的账号生命周期，不创建或修补 Shell。
+- Wi-Fi 二级导航通过 AppShell 的可选 slot 显示；Login 保持独立认证布局，不强行使用业务 Shell。
+- Shell 缺少必要根节点时明确失败；不得因为某个可选页面组件缺失而跳过认证、主题或账号初始化。
+
+#### 13.7.2 隔离与变更边界
+
+- 页面业务模块只接收自己的 mount root、API 和 session，不查询或改写 Shell 内部 DOM。
+- Shell 不导入 Jira、Confluence、Projects、邮件或 Wi-Fi 业务模块；页面入口负责组合，保持 `web/frontend -> web/backend -> core` 依赖方向。
+- 账号切换只销毁并重挂当前业务组件；Shell 实例、导航定义和公共视觉结构保持唯一。
+- 新增页面只新增入口和注册 `pageKey`，不得复制公共结构；新增导航项只修改导航清单和对应路由测试。
+
+#### 13.7.3 已批准实施清单
+
+- [x] 以 Tools 缺少账号挂载点导致认证 Shell 未启动为 RED，建立所有业务入口共享完整 Shell 的行为测试。
+- [x] 建立唯一 AppShell 和导航清单，装配桌面/移动导航、主题、账号挂载点、内容 slot、可选 Wi-Fi 二级导航及 Footer。
+- [x] 将 Dashboard、Projects、Jira、Tools、Settings、Inbox、Analytics、Audit Email 和 Wi-Fi 入口迁移为轻量页面宿主；Login 保持独立。
+- [x] 删除业务 HTML 中重复 Shell 标记和手写激活态，保持现有页面入口、业务模块、认证、偏好和过滤器单例行为不变。
+- [x] 运行 Shell/认证/页面入口聚焦测试、前端全量测试、lint、build、源代码浏览器验证与 `git diff --check`；确认 Tools 显示与其他页面一致的账号信息。
+
+### 13.8 两个过滤器的物理唯一性
+
+全仓只允许两处过滤器业务实现及两套对应持久状态：Confluence Filter 与 Jira Filter。前端可以在任意页面引用同一过滤器组件，页面可以在已应用边界内分页、排序、选择记录或打开 drilldown，但不得再定义第三套过滤字段、缓存、数据库 snapshot、页面偏好或参数拼装 owner。
+
+#### 13.8.1 Confluence Filter
+
+- `ConfluenceQuerySnapshotRepository` 是唯一持久 owner，保存 canonical filters、search、精确 `project_ids` 和 revision。
+- Projects、Tools、Dashboard 引用同一前端组件、字段 schema、候选、Apply/Reset 和恢复逻辑；不得复制或适配另一套项目过滤器。
+- 只有 Apply/Reset 修改单例。GET、页面进入、轮询、缓存刷新、分页和后台同步只能在当前快照边界内读取，不得创建或覆盖过滤快照。
+- Dashboard 删除独立项目过滤器和 `release-dashboard` 过滤 snapshot；其列表、详情、分页及 drilldown 均受 Confluence 快照 `project_ids` 约束。
+- Confluence 手动审查与邮件直接消费快照中的精确 IDs，不重新按前端条件求范围，也不写回过滤器。
+
+#### 13.8.2 Jira Filter
+
+- `JiraFilterSnapshotRepository` 是唯一持久 owner，保存 Project、Type、Status、Current User、Resolution、JQL 和 revision。
+- Tools 及所有 Jira 数据消费者引用同一组件/schema；下拉为多选，JQL 只在后端唯一 owner 组合。
+- 删除 `jira-release-workbench` 的过滤 snapshot 与独立过滤字段实现。Dashboard Jira 聚合、审查、邮件和后续 Jira 页面只消费 Jira 单例；drilldown 只携带稳定记录身份/分页游标，不保存过滤状态。
+- Jira 候选复用既有 Jira cache/repository，空数据库也必须先完成 schema 初始化并返回完整五字段结构；候选读取不访问远端。
+
+#### 13.8.3 前端引用与查询边界
+
+- 过滤器组件可以多实例渲染，但共享同一后端 snapshot/revision；任一引用 Apply 后，其他引用重新显示时必须呈现相同已应用值。
+- 页面 preference 不保存业务过滤值。纯展示偏好可使用过滤器级全局 UI scope，且不得覆盖 snapshot。
+- 页面分页、排序、选中项、展开项和详情定位是瞬时视图状态，只能缩小或浏览单例边界内的数据，不能扩张范围或持久化为过滤器。
+- Jira 与 Confluence 独立加载与报错；任一失败不得阻止另一过滤器显示已缓存候选和状态。
+
+#### 13.8.4 已批准清理清单
+
+- [x] 以跨 Projects/Tools/Dashboard 的状态不一致和 GET 覆盖 snapshot 为 RED，锁定只有 Apply/Reset 改 revision。
+- [x] 收口 Confluence 唯一组件与 API，删除 route-scoped 业务 preference、GET 写 snapshot、Dashboard 项目过滤器和 `release-dashboard` 过滤持久化。
+- [x] 收口 Jira 唯一组件与 API，删除 `jira-release-workbench` 过滤持久化和独立字段实现，修复多选、schema/candidate owner 与独立加载。
+- [x] 让 Dashboard、两项审查、邮件及分页/drilldown 严格消费两个单例边界；删除重复字段映射、参数拼装和兼容路径。
+- [x] 检查数据库与生产代码只剩两个过滤 scope/owner；完成前后端聚焦与全量测试、lint、build、实际浏览器跨页验证和 `git diff --check`。
+
 采用“基础模块先行、业务模块逐个交付、Home 后聚合、最后统一整合”的顺序：
 
 1. **Web 基础壳与设计体系**：模块化路由、布局、导航、状态组件和 API 基础；

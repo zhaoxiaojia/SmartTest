@@ -18,5 +18,6 @@ startAuthenticatedPage({
       await preferencesReady
       await new Promise(resolve => setTimeout(resolve, 0))
     },
+    enableReview: false,
   }),
 })

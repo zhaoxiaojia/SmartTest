@@ -31,8 +31,8 @@ from .project_facts_api import ProjectFactsWebOwner
 from .session import PersistentSessionStore, default_web_database_path
 from .background_refresh import BackgroundFactsRefresh
 from .query_snapshot_repository import ConfluenceQuerySnapshotRepository
+from .jira_filter_snapshot_repository import JIRA_FILTER_FIELDS, JiraFilterSnapshotRepository
 from .release_query import ProjectReleaseQueryService
-from .release_snapshot_repository import ReleaseQuerySnapshotRepository
 from .test_suite_repository import NameConflictError, RevisionConflictError, TestSuiteRepository
 from .credentials import CredentialMissingError, CredentialStoreError
 from .resource_access import remote_credentials_rejected
@@ -94,7 +94,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     facts = project_facts_owner()
     refresh = facts_refresh()
     snapshots = ConfluenceQuerySnapshotRepository(cache_database)
-    release_snapshots = ReleaseQuerySnapshotRepository(cache_database)
+    jira_filters = JiraFilterSnapshotRepository(cache_database)
     releases = release_query_owner(cache_database)
     test_suites = TestSuiteRepository(cache_database)
     audits = audit_registry()
@@ -115,7 +115,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             value = sessions.get(token)
             base = os.getenv('SMARTTEST_CONFLUENCE_BASE_URL', 'https://confluence.amlogic.com')
             access = sessions.resource_access(token, f"confluence:{base.rstrip('/').lower()}", cache_database)
-            email_job.trigger(value.username, event['jiraInput'], access, value.password, value.expires_at,
+            email_job.trigger(value.username, event['filterScope'], access, value.password, value.expires_at,
                               facts, jira_audit_owner, confluence_audit_owner, event_id=event['id'],
                               on_created=lambda run: email_events.attach_run(event, run),
                               on_delivery=lambda run: email_events.delivery(event, run), on_finished=complete)
@@ -448,65 +448,16 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         access.require_active()
         return access
 
-    def release_filters(request, names):
-        return {
-            name: tuple(value for value in request.query_params.getlist(name) if str(value).strip())
-            for name in names if request.query_params.getlist(name)
-        }
-
-    def release_snapshot_payload(snapshot):
-        return {
-            "scope": snapshot.scope,
-            "updatedAt": snapshot.updated_at,
-            "confluenceFactsVersion": snapshot.confluence_facts_version,
-            "jiraCacheVersion": snapshot.jira_cache_version,
-        }
-
-    def record_release_snapshot(value, access, scope, filters, search, result, project_ids=()):
-        release_rows = tuple(row for row in result.get("releases", ()) if row.get("projectId"))
-        selected = result.get("selectedRelease") or {}
-        if release_rows:
-            selected_ids = tuple(row["projectId"] for row in release_rows)
-            release_names = tuple(
-                "" if row.get("releaseName") == "版本未填写" else str(row.get("releaseName") or "")
-                for row in release_rows
-            )
-        elif selected.get("projectId"):
-            selected_ids = (selected["projectId"],)
-            release_names = (
-                "" if selected.get("releaseName") == "版本未填写" else str(selected.get("releaseName") or ""),
-            )
-        else:
-            selected_ids = tuple(project_ids) or tuple(dict.fromkeys(
-                row.get("projectId") for row in result.get("issues", ()) if row.get("projectId")
-            ))
-            release_names = ()
-        freshness = result.get("sourceFreshness") or {}
-        release_snapshots.record(
-            access.session_hash, scope, filters, search, selected_ids, release_names,
-            freshness.get("confluence", ""), freshness.get("jira", ""), expires_at=value.expires_at,
-        )
-        return release_snapshots.get(access.session_hash, scope)
-
     @app.get("/api/dashboard/releases")
     def dashboard_releases(request: Request, value=Depends(authenticated_session)):
         access = release_access(request)
-        filters = release_filters(request, ("productLine", "stage", "project", "release", "owner", "qa", "status"))
-        search = request.query_params.get("search", "")
-        project_ids = ()
-        if request.query_params.get("snapshot") == "1":
-            selection = release_snapshots.get(access.session_hash, "release-dashboard")
-            if selection is not None:
-                filters, search, project_ids = selection.filters, selection.search, selection.project_ids
-        elif request.query_params.get("reset") == "1":
-            filters, search = {}, ""
+        selection = snapshots.get(access.session_hash)
+        if selection is None:
+            raise HTTPException(status_code=409, detail={"state": "no_snapshot"})
         result = releases.dashboard(
-            visible_ids=access.ids("project", "catalog"), project_ids=project_ids, filters=filters,
+            visible_ids=access.ids("project", "catalog"), project_ids=selection.project_ids, filters={},
         )
-        selection = record_release_snapshot(
-            value, access, "release-dashboard", filters, search, result, project_ids,
-        )
-        return {**result, "querySnapshot": release_snapshot_payload(selection), "syncState": "idle"}
+        return {**result, "querySnapshot": {"scope": selection.scope, "updatedAt": selection.updated_at}, "syncState": "idle"}
 
     def refresh_jira_release_scope(value, project_ids):
         if not project_ids:
@@ -522,10 +473,16 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                 break
             page += 1
 
+    def applied_jira_filters(selection, username):
+        result = {key: tuple(values) for key, values in selection.filters.items()}
+        if result.get("currentUser"):
+            result["currentUser"] = (username,)
+        return result
+
     @app.post("/api/dashboard/releases/sync")
     def sync_dashboard_releases(request: Request, value=Depends(authenticated_session)):
         access = release_access(request)
-        selection = release_snapshots.get(access.session_hash, "release-dashboard")
+        selection = snapshots.get(access.session_hash)
         if selection is None:
             raise HTTPException(status_code=409, detail={"state": "no_snapshot"})
         try:
@@ -538,19 +495,15 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             sync_state = downstream_refresh_error(value, error)
         result = releases.dashboard(
             visible_ids=access.ids("project", "catalog"), project_ids=selection.project_ids,
-            filters=selection.filters,
+            filters={},
         )
-        updated = record_release_snapshot(
-            value, access, "release-dashboard", selection.filters, selection.search,
-            result, selection.project_ids,
-        )
-        return {**result, "querySnapshot": release_snapshot_payload(updated), "syncState": sync_state}
+        return {**result, "querySnapshot": {"scope": selection.scope, "updatedAt": selection.updated_at}, "syncState": sync_state}
 
     @app.get("/api/dashboard/releases/{project_id}")
     def dashboard_release(project_id: str, request: Request, value=Depends(authenticated_session)):
         del value
         access = release_access(request)
-        selection = release_snapshots.get(access.session_hash, "release-dashboard")
+        selection = snapshots.get(access.session_hash)
         if selection is None or project_id not in selection.project_ids:
             raise HTTPException(status_code=404, detail={"state": "not_found"})
         result = releases.dashboard(
@@ -570,93 +523,63 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                 raise ValueError
         except ValueError as error:
             raise HTTPException(status_code=422, detail={"state": "invalid_pagination"}) from error
-        filters = release_filters(request, (
-            "productLine", "project", "release", "fixVersion", "softwareRelease", "status", "resolution", "priority", "severity",
-            "component", "assignee", "qaAssignee", "association",
-        ))
-        search = request.query_params.get("search", "")
-        project_ids = ()
+        confluence = snapshots.get(access.session_hash)
+        jira = jira_filters.get(access.session_hash)
+        if confluence is None or jira is None:
+            raise HTTPException(status_code=409, detail={"state": "no_snapshot"})
+        filters = applied_jira_filters(jira, value.username)
+        project_ids = confluence.project_ids
         snapshot_mode = request.query_params.get("snapshot", "")
-        selection = None
         if snapshot_mode == "dashboard":
-            selection = release_snapshots.get(access.session_hash, "release-dashboard")
             requested_project = request.query_params.get("projectId", "")
-            if selection is None:
-                raise HTTPException(status_code=409, detail={"state": "no_snapshot"})
-            if not requested_project and len(selection.project_ids) == 1:
-                requested_project = selection.project_ids[0]
-            if requested_project not in selection.project_ids:
+            if not requested_project and len(project_ids) == 1:
+                requested_project = project_ids[0]
+            if requested_project not in project_ids:
                 raise HTTPException(status_code=404, detail={"state": "not_found"})
-            release_index = selection.project_ids.index(requested_project)
-            if release_index >= len(selection.release_names):
+            dashboard = releases.dashboard(visible_ids=access.ids("project", "catalog"),
+                                           project_ids=(requested_project,), filters={})
+            rows = dashboard.get("releases") or []
+            if not rows:
                 raise HTTPException(status_code=409, detail={"state": "stale_snapshot"})
             project_ids = (requested_project,)
             filters.update({
-                "_scopeRelease": (selection.release_names[release_index],),
+                "_scopeRelease": ("" if rows[0].get("releaseName") == "版本未填写" else rows[0].get("releaseName", ""),),
                 "_openOnly": True,
-                "_drilldownScope": True,
             })
-        elif snapshot_mode == "1":
-            selection = release_snapshots.get(access.session_hash, "jira-release-workbench")
-            if selection is not None:
-                project_ids = selection.project_ids
-                filters, search = selection.filters, selection.search
-        elif request.query_params.get("reset") == "1":
-            selection = release_snapshots.get(access.session_hash, "jira-release-workbench")
-            if selection is not None and selection.filters.get("_drilldownScope"):
-                project_ids = selection.project_ids
-                filters = {
-                    key: value for key, value in selection.filters.items() if key.startswith("_")
-                }
-            else:
-                filters, search = {}, ""
-        else:
-            selection = release_snapshots.get(access.session_hash, "jira-release-workbench")
-            if selection is not None and selection.filters.get("_drilldownScope"):
-                project_ids = selection.project_ids
-                constraints = {
-                    key: value for key, value in selection.filters.items() if key.startswith("_")
-                }
-                filters.update(constraints)
         result = releases.issues(
             visible_ids=access.ids("project", "catalog"), project_ids=project_ids,
             filters=filters, page=page, page_size=page_size,
         )
-        selection = record_release_snapshot(
-            value, access, "jira-release-workbench", filters, search, result, project_ids,
-        )
-        return {**result, "querySnapshot": release_snapshot_payload(selection), "syncState": "idle"}
+        return {**result, "querySnapshot": {"scope": jira.scope, "updatedAt": jira.revision}, "syncState": "idle"}
 
     @app.post("/api/jira/release-issues/sync")
     def sync_jira_release_issues(request: Request, value=Depends(authenticated_session)):
         access = release_access(request)
-        selection = release_snapshots.get(access.session_hash, "jira-release-workbench")
-        if selection is None:
+        confluence = snapshots.get(access.session_hash)
+        jira = jira_filters.get(access.session_hash)
+        if confluence is None or jira is None:
             raise HTTPException(status_code=409, detail={"state": "no_snapshot"})
         try:
-            refresh_jira_release_scope(value, selection.project_ids)
+            refresh_jira_release_scope(value, confluence.project_ids)
             sync_state = "ready"
         except Exception as error:
             sync_state = downstream_refresh_error(value, error)
         result = releases.issues(
-            visible_ids=access.ids("project", "catalog"), project_ids=selection.project_ids,
-            filters=selection.filters, page=0, page_size=50,
+            visible_ids=access.ids("project", "catalog"), project_ids=confluence.project_ids,
+            filters=applied_jira_filters(jira, value.username), page=0, page_size=50,
         )
-        updated = record_release_snapshot(
-            value, access, "jira-release-workbench", selection.filters, selection.search,
-            result, selection.project_ids,
-        )
-        return {**result, "querySnapshot": release_snapshot_payload(updated), "syncState": sync_state}
+        return {**result, "querySnapshot": {"scope": jira.scope, "updatedAt": jira.revision}, "syncState": sync_state}
 
     @app.get("/api/jira/release-issues/{issue_key}")
     def jira_release_issue(issue_key: str, request: Request, value=Depends(authenticated_session)):
         access = release_access(request)
-        selection = release_snapshots.get(access.session_hash, "jira-release-workbench")
-        if selection is None:
+        confluence = snapshots.get(access.session_hash)
+        jira = jira_filters.get(access.session_hash)
+        if confluence is None or jira is None:
             raise HTTPException(status_code=404, detail={"state": "not_found"})
         release_detail = releases.issue_detail(
-            issue_key, visible_ids=access.ids("project", "catalog"), project_ids=selection.project_ids,
-            filters=selection.filters,
+            issue_key, visible_ids=access.ids("project", "catalog"), project_ids=confluence.project_ids,
+            filters=applied_jira_filters(jira, value.username),
         )
         if release_detail is None:
             raise HTTPException(status_code=404, detail={"state": "not_found"})
@@ -865,7 +788,6 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             )
         if load_details and value.password:
             result = query_current()
-            record_query_snapshot(access, value, filters, search, result)
             selection = snapshots.get(access.session_hash)
             refresh.start_details(
                 owner, access, value.password,
@@ -876,10 +798,8 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         elif load_details:
             result = {**query_current(),
                       "detailState": "reauthentication_required"}
-            record_query_snapshot(access, value, filters, search, result)
         else:
             result = query_current()
-            record_query_snapshot(access, value, filters, search, result)
         catalog_scheduled = False
         if (
             result.get("state") == "no_snapshot"
@@ -901,7 +821,12 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             result = {**result, "state": "ready"}
         elif result.get("state") == "no_snapshot" and not value.password:
             result = {**result, "state": "reauthentication_required"}
-        result = {**result, "sync": refresh.status_for(access.session_hash)}
+        selection = snapshots.get(access.session_hash)
+        result = {**result, "sync": refresh.status_for(access.session_hash),
+                  "querySnapshot": None if selection is None else {
+                      "filters": selection.filters, "search": selection.search,
+                      "revision": selection.updated_at,
+                  }}
         smart_log("Confluence filter API timing", platform="web", domain="framework", source="project_facts", emit_runtime_event=False,
                   extra={"stage": "filter.api_total", "duration_ms": round((perf_counter() - api_started) * 1000, 3),
                          "request_state": str(result.get("state") or ""), "refresh_state": refresh_state,
@@ -909,6 +834,43 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                          "details_requested": load_details, "background_scheduled": catalog_scheduled,
                          "project_count": len(result.get("projects") or ())})
         return result
+
+    @app.put("/api/confluence/filter-snapshot")
+    def apply_confluence_filter_snapshot(request: Request, payload: dict = Body(...),
+                                         owner=Depends(resolve_project_facts_owner),
+                                         value=Depends(authenticated_session)):
+        access = access_context(request)
+        requested = payload.get("filters") or {}
+        search = payload.get("search") or ""
+        if (not isinstance(requested, dict) or not isinstance(search, str)
+                or any(not isinstance(values, list) or any(not isinstance(item, str) for item in values)
+                       for values in requested.values())):
+            raise HTTPException(status_code=422, detail={"state": "invalid_filters"})
+        filters = {str(key): tuple(item for item in values if item.strip()) for key, values in requested.items()}
+        result = owner.query(access, filters=filters, search=search)
+        record_query_snapshot(access, value, filters, search, result)
+        selection = snapshots.get(access.session_hash)
+        if selection is not None and value.password:
+            refresh.start_details(
+                owner, access, value.password, filters=selection.filters, search=selection.search,
+                on_error=lambda error: downstream_refresh_error(value, error),
+            )
+        return {**result, "querySnapshot": None if selection is None else {
+            "filters": selection.filters, "search": selection.search, "revision": selection.updated_at,
+            "projectIds": list(selection.project_ids),
+        }, "sync": refresh.status_for(access.session_hash)}
+
+    @app.delete("/api/confluence/filter-snapshot")
+    def reset_confluence_filter_snapshot(request: Request, owner=Depends(resolve_project_facts_owner),
+                                         value=Depends(authenticated_session)):
+        access = access_context(request)
+        result = owner.query(access, filters={}, search="")
+        record_query_snapshot(access, value, {}, "", result)
+        selection = snapshots.get(access.session_hash)
+        return {**result, "querySnapshot": {
+            "filters": selection.filters, "search": selection.search, "revision": selection.updated_at,
+            "projectIds": list(selection.project_ids),
+        }, "sync": refresh.status_for(access.session_hash)}
 
     @app.post("/api/confluence/project-facts/cancel")
     def cancel_confluence_project_sync(request: Request, value=Depends(authenticated_session)):
@@ -919,11 +881,25 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     def list_audit_email_events(value=Depends(authenticated_session)):
         return email_events.list_events(value.username)
 
+    def audit_email_filter_scope(request):
+        access = access_context(request)
+        jira = jira_filters.get(access.session_hash)
+        confluence = snapshots.get(access.session_hash)
+        if jira is None or confluence is None:
+            raise HTTPException(status_code=409, detail={"state": "no_snapshot"})
+        if not confluence.project_ids:
+            raise HTTPException(status_code=409, detail={"state": "no_projects_in_snapshot"})
+        return {
+            "jira": {"filters": jira.filters, "jql": jira.jql, "revision": jira.revision},
+            "confluence": {"filters": confluence.filters, "search": confluence.search,
+                            "projectIds": list(confluence.project_ids), "revision": confluence.updated_at},
+        }
+
     @app.post('/api/audit-email/events')
-    async def create_audit_email_event(payload: dict = Body(...), value=Depends(authenticated_session)):
-        saved = sessions.get_preferences(value.username, 'jira.html')['items']
+    async def create_audit_email_event(request: Request, payload: dict = Body(...),
+                                       value=Depends(authenticated_session)):
         try:
-            return email_events.create(value.username, payload.get('dueAt', ''), saved.get('auditInput', ''))
+            return email_events.create(value.username, payload.get('dueAt', ''), audit_email_filter_scope(request))
         except (ValueError, TypeError, OverflowError) as error:
             raise HTTPException(status_code=422, detail='请选择未来的北京时间。') from error
 
@@ -940,8 +916,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
 
     @app.post("/api/audit-email/runs")
     def create_audit_email_run(request: Request, value=Depends(authenticated_session)):
-        saved = sessions.get_preferences(value.username, 'jira.html')['items']
-        return email_job.trigger(value.username, saved.get('auditInput', ''), access_context(request),
+        return email_job.trigger(value.username, audit_email_filter_scope(request), access_context(request),
                                  value.password, value.expires_at, facts, jira_audit_owner, confluence_audit_owner)
 
     @app.get("/api/audit-email/runs/{run_id}/attachments/{kind}/{filename}")
@@ -958,6 +933,39 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         return FileResponse(path, filename=filename,
                             media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
+    def jira_filter_payload(session_id):
+        selection = jira_filters.get(session_id)
+        return {
+            "facets": jira_filters.facets(),
+            "snapshot": None if selection is None else {
+                "filters": selection.filters, "jql": selection.jql,
+                "revision": selection.revision,
+            },
+        }
+
+    @app.get("/api/jira/filter-snapshot")
+    def get_jira_filter_snapshot(request: Request, value=Depends(authenticated_session)):
+        del value
+        return jira_filter_payload(audit_session(request))
+
+    @app.put("/api/jira/filter-snapshot")
+    def put_jira_filter_snapshot(request: Request, payload: dict = Body(...),
+                                 value=Depends(authenticated_session)):
+        requested = payload.get("filters") or {}
+        if (not isinstance(requested, dict) or not isinstance(payload.get("jql", ""), str)
+                or any(key not in JIRA_FILTER_FIELDS or not isinstance(values, list)
+                       or any(not isinstance(value, str) for value in values)
+                       for key, values in requested.items())):
+            raise HTTPException(status_code=422, detail={"state": "invalid_filters"})
+        jira_filters.record(audit_session(request), requested, payload.get("jql", ""),
+                            expires_at=value.expires_at)
+        return jira_filter_payload(audit_session(request))
+
+    @app.delete("/api/jira/filter-snapshot")
+    def delete_jira_filter_snapshot(request: Request, value=Depends(authenticated_session)):
+        jira_filters.record(audit_session(request), {}, "", expires_at=value.expires_at)
+        return jira_filter_payload(audit_session(request))
+
     @app.post("/api/audits/jira")
     def create_jira_audit(
         request: Request, payload: dict = Body(...),
@@ -966,7 +974,10 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         owner = jira_audit_owner(value.username, value.password)
         session_id = audit_session(request)
         try:
-            scope = owner.resolve(payload.get("input"))
+            selection = jira_filters.get(session_id)
+            if selection is None:
+                raise HTTPException(status_code=409, detail={"state": "no_snapshot"})
+            scope = owner.resolve_filter(selection)
             def finalize(task, report):
                 directory = downloads.task_dir(task.id)
                 try:
@@ -1027,16 +1038,10 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         value=Depends(authenticated_session),
     ):
         access = access_context(request)
-        requested = payload.get("filters") or {}
-        filters = {
-            str(key): tuple(str(item) for item in values if str(item).strip())
-            for key, values in (requested.get("fields") or {}).items()
-        }
-        search = str(requested.get("search") or "")
-        snapshots.record(
-            access.session_hash, filters, search, (),
-            getattr(facts, "facts_version", lambda: "")(), expires_at=value.expires_at,
-        )
+        selection = snapshots.get(access.session_hash)
+        if selection is None:
+            raise HTTPException(status_code=409, detail={"state": "no_snapshot"})
+        filters, search = selection.filters, selection.search
         owner = confluence_audit_owner(access, value.password)
         try:
             period = manual_audit_period(
@@ -1044,16 +1049,8 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                 date.fromisoformat(str(payload.get("endDate") or "")),
             )
             def run_review(token, progress):
-                facts.refresh(access, value.password)
-                result = facts.query(access, filters=filters, search=search)
-                record_query_snapshot(access, value, filters, search, result)
-                project_ids = tuple(
-                    str(row.get("identity") or row.get("project_id"))
-                    for row in result.get("projects", ())
-                    if row.get("identity") or row.get("project_id")
-                )
                 resolved = owner.resolve({
-                    "projectIds": list(project_ids),
+                    "projectIds": list(selection.project_ids),
                     "startDate": payload.get("startDate"),
                     "endDate": payload.get("endDate"),
                 })

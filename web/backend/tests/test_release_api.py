@@ -13,7 +13,9 @@ from test_web_session import FakeAuthenticator
 class _Facts:
     synced = []
     def query(self, _access, **_kwargs):
-        return {"state": "ready", "facets": [], "projects": [], "ownerHierarchy": []}
+        return {"state": "ready", "facets": [], "projects": [
+            {"identity": "P100"}, {"identity": "P200"},
+        ], "ownerHierarchy": []}
     def facts_version(self): return "c-v1"
     def sync_details(self, _access, _password, **kwargs): self.synced.append(kwargs)
 
@@ -81,6 +83,8 @@ def _client(releases):
     )
     client = TestClient(app, base_url="https://testserver")
     client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
+    assert client.put("/api/confluence/filter-snapshot", json={"filters": {}, "search": ""}).status_code == 200
+    assert client.put("/api/jira/filter-snapshot", json={"filters": {}, "jql": ""}).status_code == 200
     return client
 
 
@@ -91,8 +95,8 @@ def test_dashboard_entry_reads_release_sqlite_owner_and_records_server_scope():
     response = client.get("/api/dashboard/releases")
 
     assert response.status_code == 200
-    assert response.json()["querySnapshot"]["scope"] == "release-dashboard"
-    assert releases.dashboard_calls[0]["project_ids"] == ()
+    assert response.json()["querySnapshot"]["scope"] == "confluence-project-facts"
+    assert releases.dashboard_calls[0]["project_ids"] == ("P100", "P200")
 
 
 def test_dashboard_drilldown_derives_one_project_release_scope_and_rejects_forged_selection():
@@ -110,7 +114,7 @@ def test_dashboard_drilldown_derives_one_project_release_scope_and_rejects_forge
     assert releases.issue_calls[-1]["filters"]["_scopeRelease"] == ("Android 16",)
     assert releases.issue_calls[-1]["filters"]["_openOnly"] is True
     assert dashboard["releases"][0]["issueCounts"]["open"] == response.json()["pagination"]["total"]
-    assert response.json()["querySnapshot"]["scope"] == "jira-release-workbench"
+    assert response.json()["querySnapshot"]["scope"] == "jira-global-filter"
 
     calls_before_forgery = len(releases.issue_calls)
     forged = client.get(
@@ -132,14 +136,11 @@ def test_jira_apply_and_detail_keep_the_derived_server_scope():
     detail = client.get("/api/jira/release-issues/SH-1")
 
     assert response.status_code == 200
-    assert releases.issue_calls[-1]["project_ids"] == ("P100",)
-    assert releases.issue_calls[-1]["filters"] == {
-        "priority": ("P0",), "_scopeRelease": ["Android 16"], "_openOnly": True,
-        "_drilldownScope": True,
-    }
+    assert releases.issue_calls[-1]["project_ids"] == ("P100", "P200")
+    assert releases.issue_calls[-1]["filters"] == {}
     assert detail.status_code == 200
-    assert releases.detail_calls[-1]["project_ids"] == ("P100",)
-    assert releases.detail_calls[-1]["filters"]["_scopeRelease"] == ["Android 16"]
+    assert releases.detail_calls[-1]["project_ids"] == ("P100", "P200")
+    assert releases.detail_calls[-1]["filters"] == {}
 
 
 def test_release_api_rejects_invalid_pagination_without_querying_sqlite():

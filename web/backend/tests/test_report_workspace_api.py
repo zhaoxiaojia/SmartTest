@@ -69,7 +69,9 @@ def test_confluence_details_are_loaded_only_for_explicit_apply() -> None:
 
     client.get("/api/confluence/project-facts?field.support%20mode=A")
     assert owner.sync_calls == []
-    response = client.get("/api/confluence/project-facts?field.support%20mode=A&details=1")
+    response = client.put("/api/confluence/filter-snapshot", json={
+        "filters": {"support mode": ["A"]}, "search": "",
+    })
 
     assert response.status_code == 200
     assert owner.sync_calls == [({"support mode": ["A"]}, "")]
@@ -99,8 +101,8 @@ def test_project_page_entry_replays_the_current_session_query_snapshot(tmp_path)
         authenticator=FakeAuthenticator,
     ))
 
-    client.get("/api/confluence/project-facts", params={
-        "field.current stage": "EVT", "search": "Apollo", "details": "1",
+    client.put("/api/confluence/filter-snapshot", json={
+        "filters": {"current stage": ["EVT"]}, "search": "Apollo",
     })
     facts.query_calls.clear()
     response = client.get("/api/confluence/project-facts", params={"snapshot": "1"})
