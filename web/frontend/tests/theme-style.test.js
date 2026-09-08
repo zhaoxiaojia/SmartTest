@@ -10,3 +10,15 @@ it('uses the document root as the conditional page-scroll owner', () => {
 
   expect(getComputedStyle(document.documentElement).overflowY).toBe('auto')
 })
+
+it('keeps hidden customer groups visually collapsed', () => {
+  const style = document.createElement('style')
+  style.textContent = readFileSync(resolve(import.meta.dirname, '../src/smarttest-theme.css'), 'utf8')
+  document.head.append(style)
+  const customerGroups = document.createElement('div')
+  customerGroups.className = 'customer-groups'
+  customerGroups.hidden = true
+  document.body.append(customerGroups)
+
+  expect(getComputedStyle(customerGroups).display).toBe('none')
+})

@@ -43,9 +43,9 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
         <button class="button button-secondary" type="button" data-audit>Review Filters</button><button class="button button-secondary" type="button" data-audit-cancel disabled>Cancel Review</button><button class="button button-primary" type="button" data-audit-download disabled>Download</button></div></section>` : ''}</form>
     <div class="async-feedback" data-async-feedback></div><div class="inline-status" data-audit-status aria-live="polite"></div>
     <section class="projects-summary" data-summary ${filterOnly ? 'hidden' : ''}></section>
-    <section class="card workload-card" ${filterOnly ? 'hidden' : ''}><header class="report-preview-toolbar"><div><strong>Role workload</strong><div class="report-preview-meta">Project assignments per QA member</div></div><div class="role-segments" data-role-segments></div></header>
-      <div class="workload-chart-scroll"><div class="workload-chart-surface"><canvas data-workload-chart></canvas></div></div></section>
-    <section class="card report-preview" ${filterOnly ? 'hidden' : ''}><header class="report-preview-toolbar"><strong>Projects by Product Space</strong><span class="count-badge" data-count>0 projects</span></header>
+    <section class="card workload-card" ${filterOnly ? 'hidden' : ''}><header class="report-preview-toolbar"><div class="workload-heading"><div><strong>Role workload</strong><div class="report-preview-meta">Project assignments per QA member</div></div><div class="product-line-segments" data-product-line-segments></div></div><div class="role-segments" data-role-segments></div></header>
+      <div class="workload-chart-scroll"><div class="workload-chart-surface"><canvas data-workload-chart></canvas><div class="product-space-empty" data-workload-empty hidden>No assignments in this product line.</div></div></div></section>
+    <section class="card report-preview" ${filterOnly ? 'hidden' : ''}><header class="report-preview-toolbar"><strong>Projects by Product Lines</strong><span class="count-badge" data-count>0 projects</span></header>
       <div class="report-preview-body product-space-groups" data-projects></div></section></section>`
   const form = root.querySelector('form')
   const facetRoot = root.querySelector('[data-main-facets]')
@@ -63,6 +63,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
   let enabledMore = new Set()
   let workloadChart
   let activeRole = ''
+  let activeProductLine = ''
   let activeSync = null
   let activeAuditId = ''
   let productSpaceDefinitions = []
@@ -221,6 +222,16 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
   function renderWorkload(hierarchy) {
     const roles = hierarchy.filter(role => role.people?.length)
     if (!roles.some(role => role.role === activeRole)) activeRole = roles[0]?.role ?? ''
+    if (!productSpaceDefinitions.some(option => option.value === activeProductLine)) {
+      activeProductLine = productSpaceDefinitions[0]?.value ?? ''
+    }
+    const productLineSegments = root.querySelector('[data-product-line-segments]'); productLineSegments.replaceChildren()
+    for (const productLine of productSpaceDefinitions) {
+      const button = node('button', `product-line-segment${productLine.value === activeProductLine ? ' active' : ''}`, productLine.label); button.type = 'button'
+      button.setAttribute('aria-pressed', String(productLine.value === activeProductLine))
+      button.addEventListener('click', () => { activeProductLine = productLine.value; renderWorkload(hierarchy) })
+      productLineSegments.append(button)
+    }
     const segments = root.querySelector('[data-role-segments]'); segments.replaceChildren()
     for (const role of roles) {
       const button = node('button', `role-segment${role.role === activeRole ? ' active' : ''}`, role.role); button.type = 'button'
@@ -230,10 +241,16 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     workloadChart?.destroy(); workloadChart = null
     const role = roles.find(item => item.role === activeRole)
     const surface = root.querySelector('.workload-chart-surface')
-    surface.style.height = `${Math.max(240, (role?.people?.length ?? 0) * 36)}px`
-    if (!role || !chartFactory) return
-    const rows = role.people.map(person => ({ name: readableName(person), count: person.projects?.length ?? 0 }))
+    const rows = (role?.people ?? []).map(person => ({
+      name: readableName(person),
+      count: (person.projects ?? []).filter(project => project.space_key === activeProductLine).length,
+    })).filter(person => person.count)
       .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+    surface.style.height = `${rows.length * 36}px`
+    const empty = root.querySelector('[data-workload-empty]')
+    empty.hidden = Boolean(rows.length)
+    root.querySelector('[data-workload-chart]').hidden = !rows.length
+    if (!rows.length || !chartFactory) return
     workloadChart = chartFactory(root.querySelector('[data-workload-chart]'), {
       type: 'bar', data: { labels: rows.map(row => row.name), datasets: [{ label: 'Projects', data: rows.map(row => row.count) }] },
       options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { display: false } } }
@@ -265,21 +282,22 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     const addFact = (rootNode, label, value) => {
       const text = displayValue(value)
       if (!text) return
-      const row = node('div', 'project-card-fact')
+      const row = node('div', 'project-card-fact project-detail-item')
       row.append(node('span', 'project-card-label', label), node('span', 'project-card-value', text))
       rootNode.append(row)
     }
     const createProjectCard = (project, productSpaceLabel) => {
-      const card = node('article', 'kanban-card project-card')
+      const card = node('article', 'kanban-card project-card project-list-row')
       card.dataset.projectId = projectKey(project)
       const summary = node('div', 'project-card-summary')
+      const primary = node('div', 'project-list-primary')
       const heading = node('div', 'kanban-card-title', projectDisplayName(project))
       const identifier = node('div', 'kanban-card-desc', project.project_id)
-      const badges = node('div', 'project-card-badges')
+      const badges = node('div', 'project-card-badges project-list-meta')
       for (const value of [productSpaceLabel, project.status, projectStage(project) || 'Unspecified', project.support_mode]) {
         if (value) badges.append(node('span', 'badge badge-blue', value))
       }
-      const facts = node('div', 'project-card-details project-card-facts')
+      const facts = node('div', 'project-card-details project-card-facts project-detail-strip')
       addFact(facts, 'Customer', project.customer_summary)
       for (const [role, people] of Object.entries(project.roles ?? {})) {
         addFact(facts, role, (people ?? []).map(readableName))
@@ -287,45 +305,68 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       for (const [label, value] of Object.entries(project.fields ?? {})) {
         if (!coreFields.has(label.toLocaleLowerCase())) addFact(facts, label, value)
       }
-      summary.append(heading, identifier, badges)
+      primary.append(heading, identifier)
+      summary.append(primary, badges)
       card.append(summary)
       if (facts.childElementCount) card.append(facts)
       return card
     }
 
-    const groupByMajorFaeQa = projects => {
+    const groupByCustomer = projects => {
       const groups = new Map()
       for (const project of projects) {
-        const people = (project.roles?.['Major FAE QA'] ?? []).filter(person => readableName(person))
-        for (const person of people.length ? people : [{ identity: '__unassigned__', name: 'Unassigned' }]) {
-          const name = readableName(person)
-          const key = person.identity || name
-          if (!groups.has(key)) groups.set(key, { name, projects: [] })
-          groups.get(key).projects.push(project)
-        }
+        const customer = String(project.customer_summary ?? '').trim() || 'Unassigned'
+        if (!groups.has(customer)) groups.set(customer, { name: customer, projects: [] })
+        groups.get(customer).projects.push(project)
       }
       return [...groups.values()].sort((left, right) => right.projects.length - left.projects.length)
     }
 
+    const createStageSummary = projects => {
+      const distribution = node('span', 'current-stage-distribution'); distribution.dataset.currentStageSummary = ''
+      const counts = new Map()
+      for (const project of projects) {
+        const stage = projectStage(project) || 'Unspecified'
+        counts.set(stage, (counts.get(stage) ?? 0) + 1)
+      }
+      for (const [stage, count] of counts) {
+        const item = node('span', 'current-stage-label'); item.dataset.stageCount = ''
+        const project = projects.find(candidate => (projectStage(candidate) || 'Unspecified') === stage)
+        const color = project?.stageColor
+        if (color) {
+          item.style.backgroundColor = color.background
+          item.style.color = color.foreground
+        }
+        item.append(node('span', '', stage), node('strong', 'current-stage-count', count))
+        distribution.append(item)
+      }
+      return distribution
+    }
+
     for (const { value: productSpaceKey, label: productSpaceLabel } of productSpaceDefinitions) {
       const spaceProjects = uniqueProjects.filter(project => project.space_key === productSpaceKey)
-      const group = node('details', 'product-space-group'); group.dataset.productSpaceGroup = ''; group.open = true
-      const summary = node('summary', 'product-space-summary')
+      const group = node('section', 'product-space-group'); group.dataset.productSpaceGroup = ''
+      const summary = node('button', 'product-space-summary'); summary.type = 'button'; summary.dataset.productSpaceToggle = ''
+      summary.setAttribute('aria-expanded', 'true')
       const count = node('span', 'kanban-count', spaceProjects.length); count.dataset.productCount = ''
-      summary.append(node('strong', 'kanban-title', productSpaceLabel), count)
-      const qaGroups = node('div', 'major-fae-qa-groups'); qaGroups.dataset.productGrid = ''
+      summary.append(node('strong', 'kanban-title', productSpaceLabel), createStageSummary(spaceProjects), count)
+      const customerGroups = node('div', 'customer-groups'); customerGroups.dataset.productGrid = ''
       if (spaceProjects.length) {
-        for (const qa of groupByMajorFaeQa(spaceProjects)) {
-          const qaGroup = node('details', 'major-fae-qa-group'); qaGroup.dataset.majorFaeQaGroup = ''
-          const qaSummary = node('summary', 'major-fae-qa-summary')
-          const qaCount = node('span', 'kanban-count', qa.projects.length); qaCount.dataset.qaProjectCount = ''
-          qaSummary.append(node('strong', '', qa.name), qaCount)
-          const cards = node('div', 'product-card-grid')
-          qa.projects.forEach(project => cards.append(createProjectCard(project, productSpaceLabels.get(productSpaceKey))))
-          qaGroup.append(qaSummary, cards); qaGroups.append(qaGroup)
+        for (const customer of groupByCustomer(spaceProjects)) {
+          const customerGroup = node('details', 'customer-group'); customerGroup.dataset.customerGroup = ''
+          const customerSummary = node('summary', 'customer-summary')
+          const customerCount = node('span', 'kanban-count', customer.projects.length); customerCount.dataset.customerProjectCount = ''
+          customerSummary.append(node('strong', '', customer.name), customerCount)
+          const cards = node('div', 'project-list')
+          customer.projects.forEach(project => cards.append(createProjectCard(project, productSpaceLabels.get(productSpaceKey))))
+          customerGroup.append(customerSummary, cards); customerGroups.append(customerGroup)
         }
-      } else qaGroups.append(node('div', 'product-space-empty', 'No projects.'))
-      group.append(summary, qaGroups); projectsRoot.append(group)
+      } else customerGroups.append(node('div', 'product-space-empty', 'No projects.'))
+      summary.addEventListener('click', () => {
+        const expanded = summary.getAttribute('aria-expanded') === 'true'
+        summary.setAttribute('aria-expanded', String(!expanded)); customerGroups.hidden = expanded
+      })
+      group.append(summary, customerGroups); projectsRoot.append(group)
     }
   }
 

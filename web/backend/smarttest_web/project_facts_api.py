@@ -11,6 +11,7 @@ from core.confluence.project import (
     ProjectDetails,
     ProjectQuery,
     ProjectSyncScope,
+    project_stage_color,
 )
 from core.confluence.project_catalog import (
     PRODUCT_SPACE_FACET,
@@ -311,6 +312,7 @@ def _project_snapshot_row(project):
         ]
         for role in (project.roles.value or ())
     }
+    stage_color = project_stage_color(project.stage.name if project.stage else None)
     return {
         "identity": project.identity.confluence_id,
         "project_id": project.identity.project_id,
@@ -318,6 +320,7 @@ def _project_snapshot_row(project):
         "space_key": project.product_space.key,
         "status": project.status.name if project.status else "",
         "stage": project.stage.name if project.stage else "",
+        "stageColor": {"background": stage_color.background, "foreground": stage_color.foreground},
         "support_mode": project.support_mode.name if project.support_mode else "",
         "customer_summary": project.customer_summary,
         "page_id": project.catalog_page.page_id,

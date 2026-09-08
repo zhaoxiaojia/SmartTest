@@ -8,6 +8,30 @@ from core.domain.values import FieldBag, NamedValue, PersonRef, SourceRevision
 
 
 @dataclass(frozen=True)
+class ProjectStageColor:
+    background: str
+    foreground: str
+
+
+_NEUTRAL_STAGE_COLOR = ProjectStageColor("#ECECEE", "#49494D")
+_PROJECT_STAGE_COLORS = {
+    "1 evaluation": ProjectStageColor("#E9E6EF", "#514A63"),
+    "2 in development": ProjectStageColor("#DFEAF5", "#35536E"),
+    "4 mp maintenance": ProjectStageColor("#E8E8E8", "#4E4E4E"),
+    "5 mp close": ProjectStageColor("#E1EEE5", "#365B43"),
+    "6 poc close": ProjectStageColor("#DCEEEE", "#315D5D"),
+    "7 pending": ProjectStageColor("#F3EDCF", "#665B25"),
+    "8 cancel kickoff": ProjectStageColor("#F3E3D4", "#704B2E"),
+    "9 cancel close": ProjectStageColor("#EEDDD8", "#713F35"),
+    "": _NEUTRAL_STAGE_COLOR,
+}
+
+
+def project_stage_color(stage: str | None) -> ProjectStageColor:
+    return _PROJECT_STAGE_COLORS.get(str(stage or "").strip().casefold(), _NEUTRAL_STAGE_COLOR)
+
+
+@dataclass(frozen=True)
 class ProjectIdentity:
     confluence_id: str
     project_id: str

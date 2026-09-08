@@ -513,7 +513,10 @@ Confluence Web 接入清单：
 
 Confluence 页面在既有账号隔离、筛选、Apply、缓存与权限结果之上呈现 SmartTest QA 责任汇总，不建立第二份人员或项目数据模型。页面仅使用筛选 API 返回的 `projects` 与 `ownerHierarchy` 计算匹配项目数、唯一 QA 人数、产品线数、平均每人项目分配数，并用口径说明卡明确平均值按“角色人员的项目分配总数 / 唯一人员数”计算。
 
-- 按角色分段切换横向 Chart.js 条形图；Y 轴为可读人员名，X 轴为项目数，按项目数降序，图表区域内部有界滚动。
+- `Role workload` 使用单一横向 Chart.js 条形图；标题右侧固定提供四个产品线 Switch，并保留角色切换。图表只统计当前产品线与当前角色的人员项目数，Y 轴为可读人员名，X 轴为项目数，按项目数降序，图表区域内部有界滚动；不得再将不同产品线人员混合排行。
+- `Projects by Product Lines` 固定展示四个完整产品线容器；每个产品线内按项目 `Customer` 属性形成二级分组并按项目数降序，Customer 为空时归入 `Unassigned`。该层不再使用 `Major FAE QA` 分组。
+- 每个产品线标题栏内固定展示 Stage Labels，不显示 `Current Stage` 标题，也不拆出独立背景行；按当前过滤结果统计该产品线内各 Stage 的项目数，每个实际出现的 Stage 使用一个同时包含状态名与项目数的独立 Label，Stage 为空时归入 `Unspecified`。产品线标题栏和 Labels 始终保留，折叠只影响 Customer 与项目内容。Stage 的低饱和度背景色和前景色由 Core 项目封装统一定义，Web 只消费后端返回的颜色，不维护第二套阶段色板。
+- Customer 分组内的项目使用单列横向 ListView；默认行横向展示项目名称、Project ID、产品线、状态、阶段和 Support Mode，悬停后在行内追加横向详情带展示 Customer、QA 角色及其他项目属性，窄屏允许自动换行。
 - 责任明细使用自定义卡片折叠：角色层显示角色、人数、分配数；人员层显示可读名称、项目数和产品线标签；展开后显示紧凑项目列表。不得使用原生 `details/summary` 或浏览器 disclosure triangle。
 - presentation 不显示 Confluence identity。名称缺失或仅等于 identity 时显示 `Unknown member`；源数据中本身可读的自由文本（包括 NA/TBD）保持原样。
 - 每个项目、每个责任角色属性按一对多展开：以 `<br>` 分隔逻辑段；段内 `ri:user` 或带稳定身份的用户链接各自形成一条人员—项目关系，无列表分隔符的尾随文字仅为职责说明，逗号、分号、`、`、`，` 明确引出的纯文本则继续作为额外人员。无结构化用户的段沿用可读纯文本人员回退（包括 NA/TBD）。同一 identity 在该项目角色内只计一次，纯文本人员按规范化名称去重。

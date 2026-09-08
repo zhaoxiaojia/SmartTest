@@ -139,7 +139,7 @@ describe('Projects', () => {
     expect(document.querySelector('[data-download]')).toBeNull()
   })
 
-  it('groups projects under collapsed Major FAE QA rows inside expanded product spaces', async () => {
+  it('groups projects under collapsed Customer rows inside expanded product lines', async () => {
     const grouped = {
       ...payload,
       state: 'ready',
@@ -147,7 +147,7 @@ describe('Projects', () => {
         { key: '__product_space__', label: 'Product Space', options: productSpaces },
       ],
       projects: [
-        { identity: 'p-first', project_id: 'P-1', name: 'First China Project', space_key: 'DOPL', status: 'ACTIVE', stage: 'Validation', roles: { 'Major FAE QA': [{ name: 'Coco' }, { name: 'Bob' }] }, fields: { tags: ['one', 'two'] } },
+        { identity: 'p-first', project_id: 'P-1', name: 'First China Project', space_key: 'DOPL', status: 'ACTIVE', stage: 'Validation', customer_summary: 'Customer A', roles: { 'Major FAE QA': [{ name: 'Coco' }, { name: 'Bob' }] }, fields: { tags: ['one', 'two'] } },
         { identity: 'p-tv', project_id: 'P-2', name: 'TV Project', space_key: 'TV', status: 'ACTIVE', stage: 'Development', support_mode: 'A', customer_summary: 'Customer B', roles: { 'FAE QA': [{ name: 'Alice' }] }, fields: { odm: 'ODM B' } },
         { identity: 'p-second', project_id: 'P-3', name: 'Second China Project', space_key: 'DOPL', stage: 'Pilot', roles: {} },
         { identity: 'p-none', project_id: 'P-4', name: 'No Owner Project', space_key: 'SDPL', stage: '', roles: {} },
@@ -158,20 +158,36 @@ describe('Projects', () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(grouped) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
 
+    expect(document.body.textContent).toContain('Projects by Product Lines')
     const groups = [...document.querySelectorAll('[data-product-space-group]')]
-    expect(groups.map(group => group.querySelector('summary strong').textContent)).toEqual([
+    expect(groups.map(group => group.querySelector('[data-product-space-toggle] strong').textContent)).toEqual([
       'China Operator Business', 'Smart Device Business', 'TV Business', 'Global Operator & STB Business',
     ])
-    expect(groups.every(group => group.open)).toBe(true)
+    const toggles = groups.map(group => group.querySelector('[data-product-space-toggle]'))
+    expect(toggles.every(toggle => toggle.getAttribute('aria-expanded') === 'true')).toBe(true)
     expect(groups.map(group => group.querySelector('[data-product-count]').textContent)).toEqual(['2', '1', '1', '0'])
-    const qaGroups = [...groups[0].querySelectorAll('[data-major-fae-qa-group]')]
-    expect(qaGroups.map(group => group.querySelector('summary strong').textContent)).toEqual(['Coco', 'Bob', 'Unassigned'])
-    expect(qaGroups.map(group => group.querySelector('[data-qa-project-count]').textContent)).toEqual(['1', '1', '1'])
-    expect(qaGroups.every(group => !group.open)).toBe(true)
-    expect([...qaGroups[0].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-first'])
-    expect([...qaGroups[1].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-first'])
-    expect([...qaGroups[2].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-second'])
-    expect(document.querySelectorAll('[data-project-id="p-first"]')).toHaveLength(2)
+    const stageSummary = groups[0].querySelector('[data-current-stage-summary]')
+    expect(stageSummary.textContent).not.toContain('Current Stage')
+    const customerContainer = groups[0].querySelector('.customer-groups')
+    expect(stageSummary.parentElement).toBe(toggles[0])
+    expect([...groups[0].children]).toEqual([toggles[0], customerContainer])
+    expect([...stageSummary.querySelectorAll('[data-stage-count]')].map(item => item.textContent)).toEqual([
+      'Validation1', 'Pilot1',
+    ])
+    expect([...stageSummary.querySelectorAll('[data-stage-count]')].every(item => item.classList.contains('current-stage-label'))).toBe(true)
+    expect([...stageSummary.querySelectorAll('[data-stage-count] strong')].map(item => item.textContent)).toEqual(['1', '1'])
+    toggles[0].click()
+    expect(toggles[0].getAttribute('aria-expanded')).toBe('false')
+    expect(customerContainer.hidden).toBe(true)
+    expect(stageSummary.closest('[data-product-space-toggle]')).toBe(toggles[0])
+    expect([...groups[1].querySelectorAll('[data-stage-count]')].map(item => item.textContent)).toEqual(['Unspecified1'])
+    const customerGroups = [...groups[0].querySelectorAll('[data-customer-group]')]
+    expect(customerGroups.map(group => group.querySelector('summary strong').textContent)).toEqual(['Customer A', 'Unassigned'])
+    expect(customerGroups.map(group => group.querySelector('[data-customer-project-count]').textContent)).toEqual(['1', '1'])
+    expect(customerGroups.every(group => !group.open)).toBe(true)
+    expect([...customerGroups[0].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-first'])
+    expect([...customerGroups[1].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-second'])
+    expect(document.querySelectorAll('[data-project-id="p-first"]')).toHaveLength(1)
     expect(document.querySelector('[data-project-id="p-none"]').textContent).toContain('No Owner Project')
     expect(document.querySelector('[data-project-id="p-first"]').textContent).toContain('Coco, Bob')
     expect(document.querySelector('[data-project-id="p-first"]').textContent).toContain('one, two')
@@ -181,10 +197,10 @@ describe('Projects', () => {
       .not.toEqual(expect.arrayContaining(['DOPL', 'SDPL', 'TV', 'OOPL']))
   })
 
-  it('orders Major FAE QA groups by project count from high to low', async () => {
-    const project = (identity, owner) => ({
+  it('orders Customer groups by project count from high to low', async () => {
+    const project = (identity, customer) => ({
       identity, project_id: identity, name: identity, space_key: 'DOPL', status: 'ACTIVE', stage: 'Development',
-      roles: { 'Major FAE QA': [{ name: owner, identity: `id-${owner}` }] }, fields: {}
+      customer_summary: customer, roles: {}, fields: {}
     })
     const sorted = { ...payload, state: 'ready', projects: [
       project('small-1', 'Small'),
@@ -195,9 +211,9 @@ describe('Projects', () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(sorted) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
 
-    const groups = [...document.querySelector('[data-product-space-group]').querySelectorAll('[data-major-fae-qa-group]')]
+    const groups = [...document.querySelector('[data-product-space-group]').querySelectorAll('[data-customer-group]')]
     expect(groups.map(group => group.querySelector('summary strong').textContent)).toEqual(['High', 'Equal A', 'Equal B', 'Small'])
-    expect(groups.map(group => group.querySelector('[data-qa-project-count]').textContent)).toEqual(['3', '2', '2', '1'])
+    expect(groups.map(group => group.querySelector('[data-customer-project-count]').textContent)).toEqual(['3', '2', '2', '1'])
   })
 
   it('renders the persisted snapshot while preferences restore unapplied controls', async () => {
@@ -265,6 +281,21 @@ describe('Projects', () => {
     expect(card.querySelector('.project-card-details').textContent).toContain('Coco')
   })
 
+  it('renders projects as horizontal list rows with a horizontal hover detail strip', async () => {
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+
+    const list = document.querySelector('.project-list')
+    const row = list.querySelector('.project-list-row')
+    expect(list).not.toBeNull()
+    expect(row.querySelector('.project-list-primary').textContent).toContain('Apollo')
+    expect(row.querySelector('.project-list-primary').textContent).toContain('A-1')
+    expect(row.querySelector('.project-list-meta').textContent).toContain('China Operator Business')
+    expect(row.querySelector('.project-list-meta').textContent).toContain('stale')
+    expect(row.querySelector('.project-detail-strip').textContent).toContain('Major FAE QA')
+    expect(row.querySelectorAll('.project-detail-item').length).toBeGreaterThan(0)
+  })
+
   it('shows only the project name in the card title', async () => {
     const titled = { ...payload, projects: [{
       ...payload.projects[0], name: '1.* Apollo - Project Status Report'
@@ -318,9 +349,35 @@ describe('Projects', () => {
     await createProjects({ root: document.querySelector('#app'), api, chartFactory }).start()
     const config = chartFactory.mock.calls[0][1]
     expect(config.options.indexAxis).toBe('y')
-    expect(config.data.labels).toEqual(['Alice', 'Unknown member'])
-    expect(config.data.datasets[0].data).toEqual([2, 1])
+    expect(config.data.labels).toEqual(['Alice'])
+    expect(config.data.datasets[0].data).toEqual([1])
+    expect(document.querySelector('.workload-chart-surface').style.height).toBe('36px')
     expect(document.body.textContent).not.toContain('2c93-user-key')
+  })
+
+  it('switches workload ranking between the four product lines', async () => {
+    const chartInstances = []
+    const chartFactory = vi.fn((canvas, config) => {
+      const instance = { destroy: vi.fn(), config }; chartInstances.push(instance); return instance
+    })
+    const hierarchy = [{ role: 'Major FAE QA', people: [
+      { name: 'Alice', identity: 'u-alice', projects: [{ name: 'DOPL One', space_key: 'DOPL' }, { name: 'TV One', space_key: 'TV' }] },
+      { name: 'Bob', identity: 'u-bob', projects: [{ name: 'TV Two', space_key: 'TV' }, { name: 'TV Three', space_key: 'TV' }] },
+    ] }]
+    const api = { getProjectFacts: vi.fn().mockResolvedValue({ ...payload, ownerHierarchy: hierarchy }) }
+    await createProjects({ root: document.querySelector('#app'), api, chartFactory }).start()
+
+    const switches = [...document.querySelectorAll('[data-product-line-segments] button')]
+    expect(document.querySelector('[data-product-line-segments]').parentElement.classList.contains('workload-heading')).toBe(true)
+    expect(switches.map(button => button.textContent)).toEqual([
+      'China Operator Business', 'Smart Device Business', 'TV Business', 'Global Operator & STB Business',
+    ])
+    expect(chartInstances.at(-1).config.data.labels).toEqual(['Alice'])
+    expect(chartInstances.at(-1).config.data.datasets[0].data).toEqual([1])
+
+    switches[2].click()
+    expect(chartInstances.at(-1).config.data.labels).toEqual(['Bob', 'Alice'])
+    expect(chartInstances.at(-1).config.data.datasets[0].data).toEqual([2, 1])
   })
 
   it('grows the workload chart surface for a long people list inside its bounded viewport', async () => {
@@ -331,9 +388,12 @@ describe('Projects', () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue({ ...payload, ownerHierarchy: [{ role: 'FAE QA', people }] }) }
     const chartFactory = vi.fn(() => ({ destroy: vi.fn() }))
     await createProjects({ root: document.querySelector('#app'), api, chartFactory }).start()
+    const tvSwitch = [...document.querySelectorAll('[data-product-line-segments] button')]
+      .find(button => button.textContent === 'TV Business')
+    tvSwitch.click()
     const viewport = document.querySelector('.workload-chart-scroll')
     const surface = viewport.querySelector('.workload-chart-surface')
-    expect(Number.parseFloat(getComputedStyle(surface).height)).toBeGreaterThan(600)
+    expect(Number.parseFloat(getComputedStyle(surface).height)).toBe(720)
     expect(surface.parentElement).toBe(viewport)
   })
 
@@ -588,7 +648,7 @@ describe('Projects', () => {
     await createProjects({ root: document.querySelector('#app'), api }).start()
     expect([...document.querySelector('[name="field.__product_space__"]').options].map(option => option.value)).toEqual(['DOPL'])
     expect([...document.querySelectorAll('[data-product-space-group]')]
-      .map(group => group.querySelector(':scope > summary strong').textContent)).toEqual(productSpaces.map(item => item.label))
+      .map(group => group.querySelector('[data-product-space-toggle] strong').textContent)).toEqual(productSpaces.map(item => item.label))
 
     document.querySelector('[name="field.__product_space__"] option').selected = true
     document.querySelector('[name="search"]').value = 'filtered'
