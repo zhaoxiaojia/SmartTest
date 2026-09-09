@@ -149,8 +149,8 @@ describe('Projects', () => {
         { key: '__product_space__', label: 'Product Space', options: productSpaces },
       ],
       projects: [
-        { identity: 'p-first', project_id: 'P-1', name: 'First China Project', space_key: 'DOPL', status: 'WARNING', stage: 'Validation', customer_summary: 'Customer A', roles: { 'Major FAE QA': [{ name: 'Coco' }, { name: 'Bob' }] }, fields: { 'mp time': '2026-10-18', tags: ['one', 'two'] } },
-        { identity: 'p-tv', project_id: 'P-2', name: 'TV Project', space_key: 'TV', status: 'ACTIVE', stage: 'Development', support_mode: 'A', customer_summary: 'Customer B', roles: { 'FAE QA': [{ name: 'Alice' }] }, fields: { odm: 'ODM B' } },
+        { identity: 'p-first', project_id: 'P-1', name: 'First China Project', space_key: 'DOPL', status: 'NORMAL', stage: 'Validation', customer_summary: 'Customer A', roles: { 'Major FAE QA': [{ name: 'Coco' }, { name: 'Bob' }] }, fields: { 'mp time': '2026-10-18', tags: ['one', 'two'] } },
+        { identity: 'p-tv', project_id: 'P-2', name: 'TV Project', space_key: 'TV', status: 'NORMAL', stage: 'Development', support_mode: 'A', customer_summary: 'Customer B', roles: { 'FAE QA': [{ name: 'Alice' }] }, fields: { odm: 'ODM B' } },
         { identity: 'p-second', project_id: 'P-3', name: 'Second China Project', space_key: 'DOPL', status: 'BLOCK', stage: 'Pilot', roles: {} },
         { identity: 'p-none', project_id: 'P-4', name: 'No Owner Project', space_key: 'SDPL', stage: '', roles: {} },
         { identity: 'p-first', project_id: 'P-1', name: 'Duplicate First Project', space_key: 'DOPL', stage: 'Development', roles: {} },
@@ -174,7 +174,7 @@ describe('Projects', () => {
     expect(statusSummary.parentElement).toBe(toggles[0])
     expect([...groups[0].children]).toEqual([toggles[0], stageContainer])
     expect([...statusSummary.querySelectorAll('[data-project-status-count]')].map(item => item.textContent)).toEqual([
-      'BLOCK1', 'WARNING1',
+      'BLOCK1', 'NORMAL1',
     ])
     expect([...statusSummary.querySelectorAll('[data-project-status-count]')].every(item => item.classList.contains('distribution-label'))).toBe(true)
     expect([...statusSummary.querySelectorAll('[data-project-status-count] strong')].map(item => item.textContent)).toEqual(['1', '1'])
@@ -183,6 +183,12 @@ describe('Projects', () => {
     expect(stageContainer.hidden).toBe(true)
     expect(statusSummary.closest('[data-product-space-toggle]')).toBe(toggles[0])
     expect([...groups[1].querySelectorAll('[data-project-status-count]')].map(item => item.textContent)).toEqual(['Unspecified1'])
+    const statusLabels = [...document.querySelectorAll('[data-project-status-count]')]
+    const normalSlots = statusLabels.filter(label => label.firstElementChild.textContent === 'NORMAL')
+      .map(label => label.dataset.colorSlot)
+    expect(normalSlots).toEqual([normalSlots[0], normalSlots[0]])
+    expect(normalSlots[0]).toMatch(/^\d+$/)
+    expect(new Set(statusLabels.map(label => label.dataset.colorSlot))).toHaveLength(3)
     const stageGroups = [...groups[0].querySelectorAll('[data-stage-group]')]
     expect(stageGroups.map(group => group.querySelector('summary strong').textContent)).toEqual(['Pilot', 'Validation'])
     expect(stageGroups.map(group => group.querySelector('[data-stage-project-count]').textContent)).toEqual(['1', '1'])

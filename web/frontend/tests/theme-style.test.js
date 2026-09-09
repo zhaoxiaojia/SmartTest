@@ -39,16 +39,17 @@ it('makes product line names larger than Current Stage headings', () => {
   expect(getComputedStyle(stageHeading).fontSize).toBe('0.8125rem')
 })
 
-it('cycles project status label colors every eight labels without reading their values', () => {
+it('colors distribution labels by their reusable presentation slots', () => {
   const style = document.createElement('style')
   style.textContent = readFileSync(resolve(import.meta.dirname, '../src/smarttest-theme.css'), 'utf8')
   document.head.append(style)
   const distribution = document.createElement('div')
   distribution.className = 'label-distribution'
-  for (let index = 0; index < 9; index += 1) {
+  for (const slot of [0, 1, 0, 2, 3, 4, 5, 6, 7]) {
     const label = document.createElement('span')
     label.className = 'distribution-label'
-    label.textContent = index % 2 ? 'same' : 'different'
+    label.dataset.colorSlot = String(slot)
+    label.textContent = slot % 2 ? 'same' : 'different'
     distribution.append(label)
   }
   document.body.append(distribution)
@@ -57,6 +58,6 @@ it('cycles project status label colors every eight labels without reading their 
     const computed = getComputedStyle(label)
     return `${computed.color}|${computed.backgroundColor}`
   })
-  expect(new Set(colors.slice(0, 8))).toHaveLength(8)
-  expect(colors[8]).toBe(colors[0])
+  expect(colors[2]).toBe(colors[0])
+  expect(new Set(colors.filter((_, index) => index !== 2))).toHaveLength(8)
 })

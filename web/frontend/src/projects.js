@@ -322,6 +322,9 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       return [...groups.values()].sort((left, right) => comparePresentAsc(left.name, right.name))
     }
 
+    const statusColorSlots = new Map([...new Set(uniqueProjects.map(project => displayValue(project.status) || 'Unspecified'))]
+      .sort(comparePresentAsc).map((status, index) => [status, index % 8]))
+
     const createProjectStatusSummary = projects => {
       const distribution = node('span', 'label-distribution'); distribution.dataset.projectStatusSummary = ''
       const counts = new Map()
@@ -331,6 +334,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       }
       for (const [status, count] of [...counts].sort(([left], [right]) => comparePresentAsc(left, right))) {
         const item = node('span', 'distribution-label'); item.dataset.projectStatusCount = ''
+        item.dataset.colorSlot = String(statusColorSlots.get(status))
         item.append(node('span', '', status), node('strong', 'distribution-label-count', count))
         distribution.append(item)
       }
