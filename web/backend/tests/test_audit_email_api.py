@@ -29,7 +29,10 @@ class Facts(FakeFactsOwner):
 
 class Confluence:
     def resolve(self, payload):
-        assert payload['projectIds'] == ['P1']
+        assert 'projectIds' not in payload
+        assert payload['filters']['support mode'] == ['A', 'B']
+        assert payload['excludeCurrentStageAtOrAbove'] == 4
+        assert payload['excludeSupportModeBProductLines'] == ['SDPL']
         return manual_audit_period(datetime.fromisoformat(payload['startDate']).date(), datetime.fromisoformat(payload['endDate']).date())
 
     def run(self, period, cancellation, progress):
@@ -78,7 +81,7 @@ def test_real_dual_runs_keep_five_records_and_attachments_after_restart():
             assert run['summary']['confluence']['TV'] == [1, 1]
             assert run['reports']['jira']['sourceIds'][0] == run['id']
             assert len(run['reports']['jira']['sourceIds']) == 4
-            assert 'project = &quot;SH&quot;' in run['reports']['jira']['html']
+            assert 'project in (SH, TV, IPTV, OTT,RK)' in run['reports']['jira']['html']
         assert len(runs[0]['reports']['confluence']['sourceIds']) == 3
         assert len(runs[-1]['reports']['confluence']['sourceIds']) == 4
         first = runs[0]
@@ -112,12 +115,13 @@ def test_seed_details_never_invent_missing_history():
         assert '49.15%' in latest['reports']['jira']['html']
 
 
-def test_trigger_requires_both_global_filter_snapshots():
+def test_trigger_uses_fixed_scope_without_creating_global_filter_snapshots():
     with TestClient(make_app(), base_url='https://testserver') as client:
         client.post('/api/auth/login', json={'username': 'coco', 'password': 'secret'})
-        assert client.post('/api/audit-email/runs').status_code == 409
-        client.put('/api/jira/filter-snapshot', json={'filters': {'project': ['SH']}, 'jql': ''})
-        assert client.post('/api/audit-email/runs').status_code == 409
+        result = trigger(client)
+        assert result['state'] == 'completed'
+        assert client.get('/api/jira/filter-snapshot').json()['snapshot'] is None
+        assert client.get('/api/confluence/project-facts').json()['querySnapshot'] is None
 
 
 def test_another_account_cannot_read_run_or_attachment():
@@ -136,7 +140,7 @@ def test_another_account_cannot_read_run_or_attachment():
         assert client.get('/api/audit-email/runs').json()['total'] == 4
 
 
-def test_trigger_uses_singleton_snapshots_and_ignores_legacy_jira_preference():
+def test_trigger_ignores_singleton_snapshots_and_legacy_jira_preference():
     template = 'project=SH AND created >=2026-08-28 AND created <=2026-09-4 order by updated DESC'
     with TestClient(make_app(), base_url='https://testserver') as client:
         login(client)
@@ -145,7 +149,35 @@ def test_trigger_uses_singleton_snapshots_and_ignores_legacy_jira_preference():
         result = trigger(client)
         assert result['state'] == 'completed'
         scope = result['scope']
-        expected = f'(project=SH AND created >="{scope["startDate"]}" AND created <"{scope["endDate"]}" order by updated DESC)'
+        jira_start = datetime.fromisoformat(scope['startDate']).date().isoformat()
+        jira_end = datetime.fromisoformat(scope['endDate']).date().isoformat()
+        expected = (
+            'project in (SH, TV, IPTV, OTT,RK) AND issuetype in (Bug, Sub-bug) '
+            f'AND created >= {jira_start} AND created <= {jira_end} order by updated DESC'
+        )
         assert scope['jiraInput'] == result['summary']['jira']['scope'] == expected
-        assert scope['jiraTemplate'] == f'({template})'
+        assert scope['jiraTemplate'] == expected
         assert 'WRONG' not in scope['jiraInput']
+        assert 'project=SH' not in scope['jiraInput']
+
+
+def test_weekly_schedule_api_is_authenticated_and_persistent():
+    with TestClient(make_app(), base_url='https://testserver') as client:
+        assert client.get('/api/audit-email/schedule').status_code == 401
+        login(client)
+        default = client.get('/api/audit-email/schedule').json()['schedule']
+        assert default['weekday'] == 4 and default['time'] == '15:00' and default['enabled'] is True
+        response = client.put('/api/audit-email/schedule', json={
+            'weekday': 4, 'time': '15:00', 'enabled': True,
+        })
+        assert response.status_code == 200
+        schedule = response.json()['schedule']
+        assert schedule['weekday'] == 4
+        assert schedule['time'] == '15:00'
+        assert schedule['timezone'] == 'Asia/Shanghai'
+        assert schedule['nextRunAt']
+        assert client.put('/api/audit-email/schedule', json={
+            'weekday': 7, 'time': '15:00', 'enabled': True,
+        }).status_code == 422
+        assert client.delete('/api/audit-email/schedule').json() == {'deleted': True}
+        assert client.get('/api/audit-email/schedule').json() == {'schedule': None}

@@ -19,7 +19,7 @@ from core.confluence.project import (
     SourceEvidence,
 )
 from core.domain.detail import DetailSection
-from core.domain.values import NamedValue, PersonRef
+from core.domain.values import FieldBag, NamedValue, PersonRef
 from core.jira.gateway import JiraGatewayError
 from core.jira.mapper import JiraIssueMapper
 from core.jira.domain import IssueDetails
@@ -32,6 +32,63 @@ from smarttest_web.confluence.project_repository import ConfluenceProjectReposit
 from smarttest_web.project_facts_api import _ProjectFactsGateway
 from smarttest_web.jira.cache_service import JiraIssueCacheService
 from smarttest_web.jira.issue_repository import JiraIssueRepository
+
+
+def test_fixed_confluence_scope_excludes_stage_four_and_out_of_year(tmp_path):
+    base = Project(ProjectIdentity('1', 'P1'), 'Project', ProductSpaceRef('TV'), ConfluencePageRef('1'))
+    def candidate(identity, stage, year):
+        return replace(
+            base,
+            identity=ProjectIdentity(identity, identity),
+            stage=NamedValue(stage, stage),
+            facts=DetailSection.loaded(FieldBag.from_mapping({'date of commercial approval': f'{year}-06-01'})),
+        )
+    projects = (candidate('P1', '3 EVT', 2026), candidate('P2', '4 MP', 2026), candidate('P3', '5 CLOSED', 2026),
+                candidate('P4', '2 DEV', 2024))
+    class Repository:
+        def list(self, query, page, size, *, visible_ids=None):
+            return type('Page', (), {'projects': projects})()
+        def load_many(self, rows, details):
+            return rows
+    owner = WebConfluenceAuditOwner(None, Repository(), None, access=confirmed_access(
+        WebDatabase(tmp_path / 'access.db'), tuple(project.identity.project_id for project in projects), (),
+    ))
+    resolved = owner.resolve({
+        'startDate': '2026-09-04T00:00:00+08:00', 'endDate': '2026-09-08T10:00:00+08:00',
+        'filters': {'date of commercial approval': ['2025', '2026'], 'support mode': ['A', 'B'],
+                    'project status': ['NORMAL']},
+        'excludeCurrentStageAtOrAbove': 4,
+    })
+    assert [project.identity.project_id for project in resolved.projects] == ['P1']
+
+
+def test_fixed_confluence_scope_excludes_support_mode_b_only_from_sdpl(tmp_path):
+    base = Project(ProjectIdentity('1', 'P1'), 'Project', ProductSpaceRef('TV'), ConfluencePageRef('1'),
+                   status=NamedValue('NORMAL', 'NORMAL'), stage=NamedValue('3', '3 EVT'),
+                   facts=DetailSection.loaded(FieldBag.from_mapping({'date of commercial approval': '2026-06-01'})))
+    projects = (
+        replace(base, identity=ProjectIdentity('tv-b', 'TV-B'), support_mode=NamedValue('B', 'B')),
+        replace(base, identity=ProjectIdentity('sdpl-a', 'SDPL-A'), product_space=ProductSpaceRef('SDPL'),
+                support_mode=NamedValue('A', 'A')),
+        replace(base, identity=ProjectIdentity('sdpl-b', 'SDPL-B'), product_space=ProductSpaceRef('SDPL'),
+                support_mode=NamedValue('B', 'B')),
+    )
+    class Repository:
+        def list(self, query, page, size, *, visible_ids=None):
+            return type('Page', (), {'projects': projects})()
+        def load_many(self, rows, details):
+            return rows
+    owner = WebConfluenceAuditOwner(None, Repository(), None, access=confirmed_access(
+        WebDatabase(tmp_path / 'access.db'), tuple(project.identity.project_id for project in projects), (),
+    ))
+    resolved = owner.resolve({
+        'startDate': '2026-09-04T00:00:00+08:00', 'endDate': '2026-09-08T10:00:00+08:00',
+        'filters': {'date of commercial approval': ['2025', '2026'], 'support mode': ['A', 'B'],
+                    'project status': ['NORMAL']},
+        'excludeCurrentStageAtOrAbove': 4,
+        'excludeSupportModeBProductLines': ['SDPL'],
+    })
+    assert [project.identity.project_id for project in resolved.projects] == ['TV-B', 'SDPL-A']
 
 
 DESCRIPTION = """Steps to reproduce: open

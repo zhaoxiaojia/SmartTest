@@ -19,6 +19,7 @@ from core.logging import configure_external_logging, configure_platform, smart_l
 from core.jira.domain import IssueDetails
 from core.jira.gateway import JiraGateway
 from core.jira.mapper import JiraIssueMapper
+from core.weekly_audit import fixed_weekly_audit_scope
 
 from .config import DatabaseSettings
 from .database import ReadonlyDatabase, WebDatabase
@@ -117,6 +118,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             access = sessions.resource_access(token, f"confluence:{base.rstrip('/').lower()}", cache_database)
             email_job.trigger(value.username, event['filterScope'], access, value.password, value.expires_at,
                               facts, jira_audit_owner, confluence_audit_owner, event_id=event['id'],
+                              trigger_source=event.get('source'),
                               on_created=lambda run: email_events.attach_run(event, run),
                               on_delivery=lambda run: email_events.delivery(event, run), on_finished=complete)
         except Exception:
@@ -881,27 +883,30 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     def list_audit_email_events(value=Depends(authenticated_session)):
         return email_events.list_events(value.username)
 
-    def audit_email_filter_scope(request):
-        access = access_context(request)
-        jira = jira_filters.get(access.session_hash)
-        confluence = snapshots.get(access.session_hash)
-        if jira is None or confluence is None:
-            raise HTTPException(status_code=409, detail={"state": "no_snapshot"})
-        if not confluence.project_ids:
-            raise HTTPException(status_code=409, detail={"state": "no_projects_in_snapshot"})
-        return {
-            "jira": {"filters": jira.filters, "jql": jira.jql, "revision": jira.revision},
-            "confluence": {"filters": confluence.filters, "search": confluence.search,
-                            "projectIds": list(confluence.project_ids), "revision": confluence.updated_at},
-        }
-
     @app.post('/api/audit-email/events')
     async def create_audit_email_event(request: Request, payload: dict = Body(...),
                                        value=Depends(authenticated_session)):
         try:
-            return email_events.create(value.username, payload.get('dueAt', ''), audit_email_filter_scope(request))
+            due_at = payload.get('dueAt', '')
+            due = datetime.fromisoformat(due_at)
+            return email_events.create(value.username, due_at, fixed_weekly_audit_scope(due))
         except (ValueError, TypeError, OverflowError) as error:
             raise HTTPException(status_code=422, detail='请选择未来的北京时间。') from error
+
+    @app.get('/api/audit-email/schedule')
+    async def get_audit_email_schedule(value=Depends(authenticated_session)):
+        return {'schedule': email_events.get_or_create_default_schedule(value.username)}
+
+    @app.put('/api/audit-email/schedule')
+    async def save_audit_email_schedule(payload: dict = Body(...), value=Depends(authenticated_session)):
+        try:
+            return {'schedule': email_events.save_schedule(value.username, payload)}
+        except (ValueError, TypeError) as error:
+            raise HTTPException(status_code=422, detail={'state': 'invalid_schedule'}) from error
+
+    @app.delete('/api/audit-email/schedule')
+    async def delete_audit_email_schedule(value=Depends(authenticated_session)):
+        return {'deleted': email_events.delete_schedule(value.username)}
 
     @app.get("/api/audit-email/runs")
     def list_audit_email_runs(offset: int = Query(0, ge=0), value=Depends(authenticated_session)):
@@ -916,7 +921,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
 
     @app.post("/api/audit-email/runs")
     def create_audit_email_run(request: Request, value=Depends(authenticated_session)):
-        return email_job.trigger(value.username, audit_email_filter_scope(request), access_context(request),
+        return email_job.trigger(value.username, fixed_weekly_audit_scope(datetime.now().astimezone()), access_context(request),
                                  value.password, value.expires_at, facts, jira_audit_owner, confluence_audit_owner)
 
     @app.get("/api/audit-email/runs/{run_id}/attachments/{kind}/{filename}")

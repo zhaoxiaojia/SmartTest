@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from time import perf_counter
 
@@ -10,7 +11,6 @@ from core.confluence.audit import (
     ConfluencePageDocument,
     ConfluenceWeeklyAuditUseCase,
     export_audit_xlsx_by_product_line,
-    manual_audit_period,
 )
 from core.confluence.project import (
     ProjectDetails,
@@ -18,6 +18,7 @@ from core.confluence.project import (
 )
 from core.domain.detail import DetailState
 from core.logging import smart_log
+from core.weekly_audit import weekly_audit_project_in_scope
 
 from ..task_manager import WEB_TASKS
 from ..project_facts_api import ProjectFactsWebOwner
@@ -44,10 +45,7 @@ class WebConfluenceAuditOwner:
 
     def resolve(self, payload: dict) -> ResolvedConfluenceAudit:
         try:
-            period = manual_audit_period(
-                date.fromisoformat(str(payload.get("startDate") or "")),
-                date.fromisoformat(str(payload.get("endDate") or "")),
-            )
+            period = AuditPeriod(_period_bound(payload.get("startDate")), _period_bound(payload.get("endDate")))
         except (TypeError, ValueError) as error:
             raise ValueError("invalid_input") from error
         project_ids = tuple(
@@ -62,11 +60,18 @@ class WebConfluenceAuditOwner:
                 is not None
             )
         else:
+            filters = dict(payload.get("filters") or {})
+            commercial_years = set(filters.pop("date of commercial approval", ()))
             projects = self._repository.list(
-                ProjectQuery.from_filters(payload.get("filters") or {}),
+                ProjectQuery.from_filters(filters),
                 0, 10000,
                 visible_ids=self._access.ids("project", "catalog"),
             ).projects
+            projects = self._repository.load_many(projects, ProjectDetails(facts=True))
+            projects = tuple(project for project in projects if weekly_audit_project_in_scope(
+                project, commercial_years, payload.get("excludeCurrentStageAtOrAbove"),
+                payload.get("excludeSupportModeBProductLines") or (),
+            ))
         if not projects:
             raise ValueError("invalid_input")
         return ResolvedConfluenceAudit(projects, period)
@@ -165,3 +170,10 @@ def _document(page):
 def _timing(stage, started, **extra):
     smart_log("Confluence review timing", platform="web", domain="framework", source="confluence_review", emit_runtime_event=False,
               extra={"stage": stage, "duration_ms": round((perf_counter() - started) * 1000, 3), **extra})
+
+
+def _period_bound(value):
+    parsed = datetime.fromisoformat(str(value or ""))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=ZoneInfo("Asia/Shanghai"))
+    return parsed

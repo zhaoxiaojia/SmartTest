@@ -145,7 +145,10 @@ def test_confluence_exporter_writes_one_workbook_per_product_line(tmp_path) -> N
     batch = ConfluenceWeeklyAuditUseCase(Source()).run(projects, period)
     paths = export_audit_xlsx_by_product_line(batch, tmp_path)
 
-    assert [path.name for path in paths] == [f"DOPL_{batch.id}.xlsx", f"TV_{batch.id}.xlsx"]
+    assert [path.name for path in paths] == [
+        f"China Operator Business_{batch.id}.xlsx",
+        f"TV Business_{batch.id}.xlsx",
+    ]
     assert load_workbook(paths[0]).sheetnames == ["Project Weekly Audit"]
 
 

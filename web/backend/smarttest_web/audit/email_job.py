@@ -1,21 +1,15 @@
 """Shared audit/report orchestration for manual runs and one-time events."""
 
 from datetime import datetime, timezone
-from dataclasses import replace
 from pathlib import Path
 from threading import Lock
 from time import perf_counter
-from zoneinfo import ZoneInfo
 
-from core.confluence.audit import previous_business_week
+from core.confluence.audit.models import AuditPeriod
 from core.email.audit_report import summarize_audit
-from core.jira.audit.input import weekly_audit_jql
 from core.logging import smart_log
 
 from ..task_manager import WEB_TASKS
-from .jira_adapter import jira_filter_jql
-
-
 class AuditEmailJob:
     def __init__(self, history):
         self.history = history
@@ -24,14 +18,12 @@ class AuditEmailJob:
         self._lock = Lock()
 
     def trigger(self, account, filter_scope, access, password, expires_at, facts, jira_factory, confluence_factory,
-                *, event_id=None, on_created=None, on_delivery=None, on_finished=None):
-        now = datetime.now(ZoneInfo('Asia/Shanghai'))
-        period = previous_business_week(now)
-        scope = {**filter_scope, 'startDate': period.start.date().isoformat(),
-                 'endDate': period.end.date().isoformat()}
+                *, event_id=None, trigger_source=None, on_created=None, on_delivery=None, on_finished=None):
+        scope = filter_scope
+        period = AuditPeriod(datetime.fromisoformat(scope['startDate']), datetime.fromisoformat(scope['endDate']))
         result = self.history.create(account, scope)
         if event_id:
-            result.update(source='one_time', eventId=event_id, deliveries={})
+            result.update(source=trigger_source or 'one_time', eventId=event_id, deliveries={})
             self.history.save(account, result)
         if on_created:
             on_created(result)
@@ -86,17 +78,14 @@ class AuditEmailJob:
                 record(kind, stage)
                 if kind == 'jira':
                     owner = jira_factory(account, password)
-                    template = jira_filter_jql(scope['jira']['filters'], scope['jira']['jql'])
-                    resolved = owner.resolve(template)
-                    scope['jiraTemplate'] = template
-                    resolved = replace(resolved, jql=weekly_audit_jql(resolved.jql, period))
+                    resolved = owner.resolve(scope['jira']['jql'])
+                    scope['jiraTemplate'] = scope['jira']['jql']
                     scope['jiraInput'] = resolved.jql
                     record(kind, 'scope_resolved', jql=resolved.jql)
                 else:
-                    ids = scope['confluence']['projectIds']
-                    record(kind, 'scope_resolved', snapshot_scope='confluence-project-facts', project_count=len(ids))
                     owner = confluence_factory(access, password)
-                    resolved = owner.resolve({**scope, 'projectIds': list(ids)})
+                    resolved = owner.resolve({**scope, **scope['confluence']})
+                    record(kind, 'scope_resolved', project_count=len(getattr(resolved, 'projects', ())))
                 stage = 'auditing'
                 report = owner.run(resolved, token, lambda step, done=0, total=0: record(kind, step, processed=done, total=total))
                 token.raise_if_cancelled()

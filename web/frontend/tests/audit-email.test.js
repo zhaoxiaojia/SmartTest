@@ -116,6 +116,33 @@ it('refreshes pending events and displays creation errors without fake success',
   } finally { page.destroy(); vi.useRealTimers() }
 })
 
+it('keeps polling after a transient event fetch failure and refreshes terminal run state', async () => {
+  document.body.innerHTML = '<div id="page"></div>'
+  const pending = { id: 'event-1', dueAt: '2099-09-07T15:30+08:00', state: 'pending', deliveries: {} }
+  const completed = { ...pending, state: 'completed', runId: 'run-1', deliveries: {
+    jira: { state: 'accepted' }, confluence: { state: 'accepted' }
+  } }
+  const api = {
+    list: vi.fn(async () => ({ runs: [{ id: 'run-1', label: '2099-09-07T15:30:00+08:00', state: 'completed', source: 'one_time' }], total: 1 })),
+    listEvents: vi.fn().mockResolvedValueOnce({ events: [pending] })
+      .mockRejectedValueOnce(Error('temporary network failure'))
+      .mockResolvedValueOnce({ events: [completed] }),
+    get: vi.fn(async () => ({ id: 'run-1', state: 'completed', reports: {}, evidence: 'finished' })),
+  }
+  vi.useFakeTimers()
+  const page = createAuditEmailPage({ root: document.querySelector('#page'), api })
+  try {
+    await page.start()
+    await vi.advanceTimersByTimeAsync(1000)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(api.listEvents).toHaveBeenCalledTimes(3)
+    expect(api.list).toHaveBeenCalledTimes(2)
+    expect(api.get).toHaveBeenCalledWith('run-1')
+    expect(document.querySelector('[data-evidence]').value).toBe('finished')
+    expect(document.querySelector('[data-events]').textContent).toContain('已完成')
+  } finally { page.destroy(); vi.useRealTimers() }
+})
+
 it('posts only the selected due time through the authenticated event API', async () => {
   const { createAuditEmailApi } = await import('../src/api.js')
   const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 'event' }) })
@@ -127,4 +154,62 @@ it('posts only the selected due time through the authenticated event API', async
   })
   await api.listEvents()
   expect(fetchImpl).toHaveBeenLastCalledWith('/api/audit-email/events', { method: 'GET', credentials: 'same-origin' })
+})
+
+it('creates updates disables and deletes the persisted weekly schedule', async () => {
+  document.body.innerHTML = '<div id="page"></div>'
+  let schedule = null
+  const api = {
+    list: async () => ({ runs: [], total: 0 }), listEvents: async () => ({ events: [] }),
+    getSchedule: vi.fn(async () => ({ schedule })),
+    saveSchedule: vi.fn(async payload => ({ schedule: schedule = {
+      id: 'weekly-coco', timezone: 'Asia/Shanghai', nextRunAt: payload.enabled ? '2026-09-11T15:00:00+08:00' : null,
+      lastRunId: null, lastState: null, ...payload
+    } })),
+    deleteSchedule: vi.fn(async () => { schedule = null; return { deleted: true } })
+  }
+  const page = createAuditEmailPage({ root: document.querySelector('#page'), api })
+  await page.start()
+  expect(document.querySelector('[data-schedule-status]').textContent).toContain('尚未配置')
+  expect(document.querySelector('[data-schedule-weekday]').value).toBe('4')
+  expect(document.querySelector('[data-schedule-time]').value).toBe('15:00')
+
+  document.querySelector('[data-schedule-form]').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+  await vi.waitFor(() => expect(api.saveSchedule).toHaveBeenCalledWith({ weekday: 4, time: '15:00', enabled: true }))
+  expect(document.querySelector('[data-schedule-status]').textContent).toContain('2026')
+  document.querySelector('[data-schedule-enabled]').checked = false
+  document.querySelector('[data-schedule-form]').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+  await vi.waitFor(() => expect(api.saveSchedule).toHaveBeenLastCalledWith({ weekday: 4, time: '15:00', enabled: false }))
+  document.querySelector('[data-schedule-delete]').click()
+  await vi.waitFor(() => expect(api.deleteSchedule).toHaveBeenCalledTimes(1))
+  expect(document.querySelector('[data-schedule-status]').textContent).toContain('尚未配置')
+  page.destroy()
+})
+
+it('opens the latest scheduled result from the schedule card', async () => {
+  document.body.innerHTML = '<div id="page"></div>'
+  const api = {
+    list: async () => ({ runs: [], total: 0 }), listEvents: async () => ({ events: [] }),
+    getSchedule: async () => ({ schedule: { id: 'weekly-coco', weekday: 4, time: '15:00', enabled: true,
+      timezone: 'Asia/Shanghai', nextRunAt: '2026-09-18T15:00:00+08:00', lastRunId: 'run-weekly', lastState: 'completed' } }),
+    get: vi.fn(async () => ({ id: 'run-weekly', state: 'completed', reports: {}, evidence: 'scheduled' }))
+  }
+  const page = createAuditEmailPage({ root: document.querySelector('#page'), api })
+  await page.start()
+  document.querySelector('[data-schedule-view]').click()
+  await vi.waitFor(() => expect(api.get).toHaveBeenCalledWith('run-weekly'))
+  expect(document.querySelector('[data-evidence]').value).toBe('scheduled')
+  page.destroy()
+})
+
+it('uses the weekly schedule CRUD API contract', async () => {
+  const { createAuditEmailApi } = await import('../src/api.js')
+  const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ schedule: null }) })
+  const api = createAuditEmailApi({ fetchImpl })
+  await api.getSchedule()
+  await api.saveSchedule({ weekday: 4, time: '15:00', enabled: true })
+  await api.deleteSchedule()
+  expect(fetchImpl.mock.calls.map(call => [call[0], call[1].method])).toEqual([
+    ['/api/audit-email/schedule', 'GET'], ['/api/audit-email/schedule', 'PUT'], ['/api/audit-email/schedule', 'DELETE']
+  ])
 })

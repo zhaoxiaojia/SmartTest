@@ -211,6 +211,8 @@ export function createAuditEmailApi({ fetchImpl = globalThis.fetch, baseUrl = '/
   }
   return { list: (offset = 0) => request(`/runs?offset=${offset}`), get: id => request(`/runs/${encodeURIComponent(id)}`), trigger: () => request('/runs', 'POST'),
     listEvents: () => request('/events'), createEvent: dueAt => request('/events', 'POST', { dueAt }),
+    getSchedule: () => request('/schedule'), saveSchedule: value => request('/schedule', 'PUT', value),
+    deleteSchedule: () => request('/schedule', 'DELETE'),
     attachmentUrl: (id, kind, name) => `${baseUrl}/runs/${encodeURIComponent(id)}/attachments/${encodeURIComponent(kind)}/${encodeURIComponent(name)}` }
 }
 

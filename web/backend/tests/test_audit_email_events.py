@@ -11,8 +11,9 @@ def test_create_event_requires_auth_and_future_beijing_time():
         assert client.get('/api/audit-email/events').status_code == 401
         client.post('/api/auth/login', json={'username': 'coco', 'password': 'secret'})
         due = (datetime.now(ZoneInfo('Asia/Shanghai')) + timedelta(days=1)).replace(microsecond=0).isoformat()
-        assert client.post('/api/audit-email/events', json={'dueAt': due}).status_code == 409
-        login(client)
+        response = client.post('/api/audit-email/events', json={'dueAt': due})
+        assert response.status_code == 200
+        assert response.json()['filterScope']['endDate'] == due
         assert client.post('/api/audit-email/events', json={'dueAt': '2000-01-01T10:00'}).status_code == 422
         response = client.post('/api/audit-email/events', json={'dueAt': due})
         assert response.status_code == 200
@@ -36,6 +37,111 @@ class Clock:
         owner = AuditEmailEvents(history, launch, now=lambda: self.value, schedule=schedule)
         self.owners.append(owner)
         return owner
+
+
+def test_weekly_schedule_persists_updates_deletes_and_exposes_next_run(tmp_path):
+    from smarttest_web.database import WebDatabase
+    from smarttest_web.audit.email_history import AuditEmailHistory
+    clock = Clock()
+    history = AuditEmailHistory(WebDatabase(tmp_path / 'schedule.db'))
+    owner = clock.factory(history, lambda event, done: None)
+
+    assert owner.get_schedule('coco') is None
+    created = owner.save_schedule('coco', {'weekday': 4, 'time': '15:00', 'enabled': True})
+    assert created['timezone'] == 'Asia/Shanghai'
+    assert created['nextRunAt'] == '2026-09-11T15:00:00+08:00'
+
+    restored = clock.factory(history, lambda event, done: None)
+    restored.start()
+    assert restored.get_schedule('coco')['time'] == '15:00'
+    changed = restored.save_schedule('coco', {'weekday': 2, 'time': '09:30', 'enabled': False})
+    assert changed['nextRunAt'] is None
+    assert restored.delete_schedule('coco') is True
+    assert restored.get_schedule('coco') is None
+    assert clock.factory(history, lambda event, done: None).get_schedule('coco') is None
+
+
+def test_screenshot_only_history_creates_default_for_authenticated_account_once(tmp_path):
+    from smarttest_web.database import WebDatabase
+    from smarttest_web.audit.email_history import AuditEmailHistory
+    database = WebDatabase(tmp_path / 'upgrade.db')
+    history = AuditEmailHistory(database)
+    clock = Clock()
+
+    first = clock.factory(history, lambda event, done: None)
+    schedule = first.get_or_create_default_schedule('coco')
+    same = first.get_or_create_default_schedule('coco')
+
+    assert schedule['weekday'] == 4
+    assert schedule['time'] == '15:00'
+    assert schedule['enabled'] is True
+    assert same['id'] == schedule['id']
+    with database.connect() as connection:
+        assert connection.execute('SELECT COUNT(*) FROM audit_email_schedules').fetchone()[0] == 1
+
+
+def test_deleted_default_is_not_recreated_by_later_authenticated_get(tmp_path):
+    from smarttest_web.database import WebDatabase
+    from smarttest_web.audit.email_history import AuditEmailHistory
+    history = AuditEmailHistory(WebDatabase(tmp_path / 'deleted.db'))
+    clock = Clock()
+    owner = clock.factory(history, lambda event, done: None)
+    owner.get_or_create_default_schedule('coco')
+
+    assert owner.delete_schedule('coco') is True
+    assert owner.get_or_create_default_schedule('coco') is None
+    restored = clock.factory(history, lambda event, done: None)
+    assert restored.get_or_create_default_schedule('coco') is None
+
+
+def test_weekly_schedule_claims_each_occurrence_once_across_restart(tmp_path):
+    from smarttest_web.database import WebDatabase
+    from smarttest_web.audit.email_history import AuditEmailHistory
+    clock = Clock()
+    clock.value = datetime(2026, 9, 11, 14, 59, tzinfo=ZoneInfo('Asia/Shanghai'))
+    history = AuditEmailHistory(WebDatabase(tmp_path / 'schedule.db'))
+    launched = []
+    owner = clock.factory(history, lambda event, done: launched.append(event))
+    schedule = owner.save_schedule('coco', {'weekday': 4, 'time': '15:00', 'enabled': True})
+
+    clock.value = datetime(2026, 9, 11, 15, 0, tzinfo=ZoneInfo('Asia/Shanghai'))
+    owner.fire_schedule(schedule['id'], '2026-09-11T15:00:00+08:00')
+    owner.fire_schedule(schedule['id'], '2026-09-11T15:00:00+08:00')
+    restored = clock.factory(history, lambda event, done: launched.append(event))
+    restored.start()
+    restored.fire_schedule(schedule['id'], '2026-09-11T15:00:00+08:00')
+
+    assert len(launched) == 1
+    assert launched[0]['source'] == 'weekly'
+    assert launched[0]['filterScope']['endDate'] == '2026-09-11T15:00:00+08:00'
+    saved = restored.get_schedule('coco')
+    assert saved['lastRunId'] is None
+    assert saved['lastState'] == 'running'
+    assert saved['nextRunAt'] == '2026-09-18T15:00:00+08:00'
+
+
+def test_weekly_occurrence_uses_shared_email_job_and_records_latest_result(monkeypatch):
+    import core.email.outlook as outlook
+    monkeypatch.setattr(outlook, 'send_email', lambda **kwargs: None)
+    clock = Clock()
+    clock.value = datetime(2026, 9, 11, 14, 59, tzinfo=ZoneInfo('Asia/Shanghai'))
+    with TestClient(make_app(email_events_factory=clock.factory), base_url='https://testserver') as client:
+        login(client)
+        schedule = client.put('/api/audit-email/schedule', json={
+            'weekday': 4, 'time': '15:00', 'enabled': True,
+        }).json()['schedule']
+        clock.value = datetime(2026, 9, 11, 15, 0, tzinfo=ZoneInfo('Asia/Shanghai'))
+        clock.owners[-1].fire_schedule(schedule['id'], schedule['nextRunAt'])
+        event = wait_event(client)
+        run = client.get(f"/api/audit-email/runs/{event['runId']}").json()
+        latest = client.get('/api/audit-email/schedule').json()['schedule']
+
+        assert run['source'] == 'weekly'
+        assert event['source'] == 'weekly'
+        assert latest['lastRunId'] == run['id']
+        assert latest['lastState'] == 'completed'
+        assert client.delete('/api/audit-email/schedule').json() == {'deleted': True}
+        assert client.get(f"/api/audit-email/runs/{run['id']}").status_code == 200
 
 
 def wait_event(client):
@@ -174,6 +280,40 @@ def test_restore_claimed_event_does_not_send_again(tmp_path):
     assert restored.list_events('other')['events'] == []
 
 
+def test_timer_firing_within_clock_resolution_claims_event_once(tmp_path):
+    from smarttest_web.database import WebDatabase
+    from smarttest_web.audit.email_history import AuditEmailHistory
+    clock = Clock()
+    history = AuditEmailHistory(WebDatabase(tmp_path / 'events.db'))
+    launched = []
+    owner = clock.factory(history, lambda event, done: launched.append(event['id']))
+    event = owner.create('coco', '2026-09-07T12:01:00', {})
+
+    clock.value = datetime(2026, 9, 7, 12, 0, 59, 985000, tzinfo=ZoneInfo('Asia/Shanghai'))
+    clock.calls[-1][1]()
+    clock.calls[-1][1]()
+
+    assert launched == [event['id']]
+    assert owner.list_events('coco')['events'][0]['state'] == 'running'
+
+
+def test_scheduled_callback_failure_marks_pending_event_failed(tmp_path, monkeypatch):
+    from smarttest_web.database import WebDatabase
+    from smarttest_web.audit.email_history import AuditEmailHistory
+    clock = Clock()
+    history = AuditEmailHistory(WebDatabase(tmp_path / 'events.db'))
+    owner = clock.factory(history, lambda event, done: None)
+    event = owner.create('coco', '2026-09-07T12:01:00', {})
+    monkeypatch.setattr(owner, 'fire', lambda _event_id: (_ for _ in ()).throw(RuntimeError('boom')))
+
+    clock.calls[-1][1]()
+
+    saved = owner.list_events('coco')['events'][0]
+    assert saved['id'] == event['id']
+    assert saved['state'] == 'failed'
+    assert saved['error'] == 'RuntimeError'
+
+
 def test_live_timer_executes_without_browser_request(monkeypatch):
     from threading import Event
     import core.email.outlook as outlook
@@ -234,8 +374,10 @@ def test_job_close_cancels_and_joins_running_coordinator(monkeypatch, tmp_path):
     monkeypatch.setattr(job, '_run', run)
     closer = None
     try:
-        job.trigger('coco', {'jira': {'filters': {'project': ['SH']}, 'jql': ''},
-            'confluence': {'filters': {}, 'search': '', 'projectIds': ['P1']}}, None, '', 0, None, None, None)
+        from core.weekly_audit import fixed_weekly_audit_scope
+        job.trigger('coco', fixed_weekly_audit_scope(
+            datetime(2026, 9, 7, 12, tzinfo=ZoneInfo('Asia/Shanghai')),
+        ), None, '', 0, None, None, None)
         assert entered.wait(1)
         closer = Thread(target=lambda: (job.close(), closed.set()))
         closer.start()
