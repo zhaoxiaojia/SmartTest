@@ -67,17 +67,17 @@ def test_confluence_details_are_loaded_only_for_explicit_apply() -> None:
         facts_refresh=lambda: BackgroundFactsRefresh(submit=lambda work: work()),
     ))
 
-    client.get("/api/confluence/project-facts?field.support%20mode=A")
+    client.get("/api/confluence/project-facts?field.project%20id=P100")
     assert owner.sync_calls == []
     response = client.put("/api/confluence/filter-snapshot", json={
-        "filters": {"support mode": ["A"]}, "search": "",
+        "filters": {"project id": ["P100"]}, "search": "",
     })
 
     assert response.status_code == 200
-    assert owner.sync_calls == [({"support mode": ["A"]}, "")]
+    assert owner.sync_calls == [({"project id": ["P100"]}, "")]
 
-    client.get("/api/confluence/project-facts?field.support%20mode=A")
-    assert owner.sync_calls == [({"support mode": ["A"]}, "")]
+    client.get("/api/confluence/project-facts?field.project%20id=P100")
+    assert owner.sync_calls == [({"project id": ["P100"]}, "")]
 
 
 def test_project_page_entry_replays_the_current_session_query_snapshot(tmp_path) -> None:
@@ -102,13 +102,42 @@ def test_project_page_entry_replays_the_current_session_query_snapshot(tmp_path)
     ))
 
     client.put("/api/confluence/filter-snapshot", json={
-        "filters": {"current stage": ["EVT"]}, "search": "Apollo",
+        "filters": {"project id": ["P100"], "current stage": ["EVT"]}, "search": "Apollo",
     })
     facts.query_calls.clear()
     response = client.get("/api/confluence/project-facts", params={"snapshot": "1"})
 
     assert response.json()["projects"] == [{"project_id": "FILTERED"}]
-    assert facts.query_calls == [({"current stage": ["EVT"]}, "Apollo")]
+    assert facts.query_calls == [({"project id": ["P100"]}, "Apollo")]
+
+
+def test_removed_project_filters_are_ignored_on_apply_and_direct_reads(tmp_path) -> None:
+    class Facts(ReadyFactsOwner):
+        def __init__(self):
+            super().__init__()
+            self.query_calls = []
+
+        def query(self, _access, *, filters=None, search="", **_kwargs):
+            self.query_calls.append((filters, search))
+            return {"state": "ready", "facets": [], "projects": [], "ownerHierarchy": []}
+
+    facts = Facts()
+    client = _authenticated_client(create_app(
+        session_store=lambda: PersistentSessionStore(tmp_path / "web.db"),
+        project_facts_owner=lambda: facts,
+        authenticator=FakeAuthenticator,
+    ))
+
+    response = client.put("/api/confluence/filter-snapshot", json={"filters": {
+        "project id": ["P100"], "project status": ["WARNING"], "current stage": ["EVT"],
+        "project owner": ["Alice"], "support mode": ["A"], "odm": ["ODM-X"],
+    }, "search": "Apollo"})
+    assert response.status_code == 200
+    assert response.json()["querySnapshot"]["filters"] == {"project id": ["P100"]}
+    assert facts.query_calls[-1] == ({"project id": ("P100",)}, "Apollo")
+
+    client.get("/api/confluence/project-facts?field.project%20id=P200&field.support%20mode=B&field.odm=ODM-Y")
+    assert facts.query_calls[-1] == ({"project id": ("P200",)}, "")
 
 
 def test_project_reset_replaces_session_snapshot_with_authorized_catalog_scope(tmp_path) -> None:

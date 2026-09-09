@@ -1,4 +1,5 @@
 import { Chart, registerables } from 'chart.js'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { createManualAuditApi, createProjectFactsApi } from './api.js'
 import { startAuthenticatedPage } from './authenticated-page.js'
 import { preferencesReady } from './main.js'
@@ -6,7 +7,7 @@ import { createProjects } from './projects.js'
 
 const projectFactsApi = createProjectFactsApi()
 const manualAuditApi = createManualAuditApi()
-Chart.register(...registerables)
+Chart.register(...registerables, ChartDataLabels)
 
 startAuthenticatedPage({
   mount: (root, session) => createProjects({

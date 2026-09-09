@@ -8,8 +8,7 @@ const STATE_COPY = {
   reauthentication_required: 'Please verify your account again before refreshing project data.'
 }
 const COMMON_FILTERS = [
-  '__product_space__', 'date of commercial approval', 'project id',
-  'project status', 'current stage', 'project owner', 'support mode'
+  '__product_space__', 'date of commercial approval', 'project id'
 ]
 import { createAsyncFeedback } from './async-feedback.js'
 import { createDownloadButton } from './download-button.js'
@@ -36,7 +35,6 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
   root.innerHTML = `<section class="report-workspace projects-workspace">
     <header class="report-page-head"><div><div class="eyebrow">${filterOnly ? 'Confluence · Global Filter' : 'Projects · Current Facts'}</div><h1>${filterOnly ? 'Confluence Filter' : 'Projects'}</h1><p>${filterOnly ? 'Apply the shared project scope before starting the weekly review.' : '查看本地只读项目事实与 QA 责任信息。'}</p></div></header>
     <form class="card report-filter-card"><div class="report-state report-state-loading" role="status">Loading project catalog…</div><div class="report-filter-grid" data-main-facets></div>
-      <details class="more-filter-panel"><summary>更多筛选</summary><div class="more-filter-options" data-more-facets></div></details>
       <div class="report-filter-grid"><label>Project / Person / Field Search<input class="form-control" name="search" type="search" placeholder="Project, person or field"></label>
       <div class="filter-actions"><button class="button button-primary" type="submit">Apply Filters</button><button class="button button-secondary" type="button" data-cancel hidden>Cancel Sync</button><button class="button button-secondary" type="button" data-reset>Reset</button></div></div>
       ${enableReview ? `<section class="weekly-review" data-confluence-review><strong class="weekly-review-title">Weekly Review</strong><div class="weekly-review-controls"><label>Start<input class="form-control" name="reviewStartDate" type="date"></label><label>End<input class="form-control" name="reviewEndDate" type="date"></label>
@@ -49,7 +47,6 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       <div class="report-preview-body product-space-groups" data-projects></div></section></section>`
   const form = root.querySelector('form')
   const facetRoot = root.querySelector('[data-main-facets]')
-  const moreRoot = root.querySelector('[data-more-facets]')
   const status = root.querySelector('[role="status"]')
   const projectsRoot = root.querySelector('[data-projects]')
   const auditButton = root.querySelector('[data-audit]')
@@ -60,7 +57,6 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
   let cacheReady = false
   let destroyed = false
   let pollGeneration = 0
-  let enabledMore = new Set()
   let workloadChart
   let activeRole = ''
   let activeProductLine = ''
@@ -142,7 +138,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     form.querySelector('[type="submit"]').disabled = !applyEnabled
     form.querySelector('[data-reset]').disabled = !enabled
     form.elements.search.disabled = !enabled
-    for (const control of form.querySelectorAll('select, [data-more-facets] input')) {
+    for (const control of form.querySelectorAll('select')) {
       control.disabled = !enabled
       control._multiSelect?.setDisabled(!enabled)
     }
@@ -153,7 +149,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     facets = nextFacets ?? []
     facetRoot.replaceChildren()
     const byKey = new Map(facets.map(facet => [facet.key, facet]))
-    for (const key of [...COMMON_FILTERS, ...enabledMore]) {
+    for (const key of COMMON_FILTERS) {
       const facet = byKey.get(key)
       if (!facet) continue
       const label = node('label', '', facet.labels?.length > 1 ? `${facet.label} (${facet.labels.join(' / ')})` : facet.label)
@@ -163,16 +159,6 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       for (const option of select.options) option.selected = (selected[facet.key] ?? []).includes(option.value)
       label.append(select); facetRoot.append(label)
       enhanceMultiSelect(select, { emptyLabel: loading ? 'Loading…' : `All ${facet.label}`, compact: true, searchable: false })
-    }
-    moreRoot.replaceChildren()
-    for (const facet of facets.filter(item => !COMMON_FILTERS.includes(item.key))) {
-      const label = node('label', 'more-filter-option')
-      const checkbox = node('input', 'form-check-input'); checkbox.type = 'checkbox'; checkbox.name = 'enabledMoreFilters'; checkbox.value = facet.key; checkbox.checked = enabledMore.has(facet.key)
-      checkbox.addEventListener('change', () => {
-        if (checkbox.checked) enabledMore.add(facet.key); else enabledMore.delete(facet.key)
-        renderFacets(facets)
-      })
-      label.append(checkbox, document.createTextNode(facet.label)); moreRoot.append(label)
     }
     setBusinessControlsEnabled(cacheReady || (loading && facets.some(facet => facet.options?.length)),
       { applyEnabled: cacheReady })
@@ -206,15 +192,15 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     return !name || (identity && name.toLocaleLowerCase() === identity.toLocaleLowerCase()) ? 'Unknown member' : name
   }
 
-  function renderSummary(hierarchy, projects, accessibleProjectCount) {
+  function renderSummary(hierarchy, projects, blockWarningProjectCount) {
     const people = new Set(); let assignments = 0
     for (const role of hierarchy) for (const person of role.people ?? []) {
       people.add(person.identity || readableName(person)); assignments += person.projects?.length ?? 0
     }
-    const values = [accessibleProjectCount ?? projects.length, projects.length, people.size,
+    const values = [blockWarningProjectCount, projects.length, people.size,
       new Set(projects.map(project => project.space_key).filter(Boolean)).size,
       people.size ? (assignments / people.size).toFixed(1) : '0.0']
-    const labels = ['Accessible projects', 'Matched projects', 'Unique QA people', 'Product lines', 'Avg assignments / person']
+    const labels = ['Block / Warning projects', 'Matched projects', 'Unique QA people', 'Product lines', 'Avg assignments / person']
     const summary = root.querySelector('[data-summary]'); summary.replaceChildren()
     labels.forEach((label, index) => { const card = node('article', 'card summary-metric'); card.dataset.metric = ''; card.append(node('span', '', label), node('strong', '', values[index])); summary.append(card) })
   }
@@ -253,11 +239,16 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     if (!rows.length || !chartFactory) return
     workloadChart = chartFactory(root.querySelector('[data-workload-chart]'), {
       type: 'bar', data: { labels: rows.map(row => row.name), datasets: [{ label: 'Projects', data: rows.map(row => row.count) }] },
-      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { display: false } } }
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        layout: { padding: { right: 28 } },
+        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
+        plugins: { legend: { display: false }, datalabels: {
+          anchor: 'end', align: 'right', clip: false, formatter: value => value,
+        } } }
     })
   }
 
-  function renderProjects(hierarchy, projects = [], accessibleProjectCount) {
+  function renderProjects(hierarchy, projects = [], blockWarningProjectCount) {
     projectsRoot.replaceChildren()
     const seenProjects = new Set()
     const uniqueProjects = projects.filter(project => {
@@ -267,18 +258,25 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       return true
     })
     root.querySelector('[data-count]').textContent = `${uniqueProjects.length} projects`
-    renderSummary(hierarchy ?? [], uniqueProjects, accessibleProjectCount)
+    renderSummary(hierarchy ?? [], uniqueProjects, blockWarningProjectCount)
     renderWorkload(hierarchy ?? [])
     const projectStage = project => String(project.stage || project.fields?.['current stage'] || '').trim()
-    const productSpaceLabels = new Map(productSpaceDefinitions.map(option => [
-      String(option?.value ?? option).trim(),
-      typeof option === 'object' ? String(option?.label ?? '').trim() : '',
-    ]))
-
     const displayValue = value => Array.isArray(value) ? value.filter(item => item != null && String(item).trim()).join(', ') : String(value ?? '').trim()
+    const comparePresentAsc = (left, right) => {
+      const leftText = displayValue(left), rightText = displayValue(right)
+      if (!leftText) return rightText ? 1 : 0
+      if (!rightText) return -1
+      return leftText.localeCompare(rightText, undefined, { numeric: true, sensitivity: 'base' })
+    }
+    const comparePresentDesc = (left, right) => {
+      const leftText = displayValue(left), rightText = displayValue(right)
+      if (!leftText) return rightText ? 1 : 0
+      if (!rightText) return -1
+      return rightText.localeCompare(leftText, undefined, { numeric: true, sensitivity: 'base' })
+    }
     const projectDisplayName = project => String(project.name || project.project_id || '').trim()
       .replace(/^\d+\.\*?\s*/, '').replace(/\s*-\s*Project Status Report\s*$/i, '').trim()
-    const coreFields = new Set(['__product_space__', 'project id', 'project status', 'current stage', 'support mode'])
+    const coreFields = new Set(['__product_space__', 'project id', 'project status', 'current stage', 'support mode', 'mp time'])
     const addFact = (rootNode, label, value) => {
       const text = displayValue(value)
       if (!text) return
@@ -286,19 +284,21 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       row.append(node('span', 'project-card-label', label), node('span', 'project-card-value', text))
       rootNode.append(row)
     }
-    const createProjectCard = (project, productSpaceLabel) => {
+    const createProjectCard = project => {
       const card = node('article', 'kanban-card project-card project-list-row')
       card.dataset.projectId = projectKey(project)
       const summary = node('div', 'project-card-summary')
       const primary = node('div', 'project-list-primary')
       const heading = node('div', 'kanban-card-title', projectDisplayName(project))
       const identifier = node('div', 'kanban-card-desc', project.project_id)
+      const customer = node('div', 'project-card-customer', project.customer_summary)
       const badges = node('div', 'project-card-badges project-list-meta')
-      for (const value of [productSpaceLabel, project.status, projectStage(project) || 'Unspecified', project.support_mode]) {
+      for (const value of [project.status, project.support_mode]) {
         if (value) badges.append(node('span', 'badge badge-blue', value))
       }
+      const summaryFacts = node('div', 'project-card-summary-facts')
+      addFact(summaryFacts, 'MP Time', project.fields?.['mp time'])
       const facts = node('div', 'project-card-details project-card-facts project-detail-strip')
-      addFact(facts, 'Customer', project.customer_summary)
       for (const [role, people] of Object.entries(project.roles ?? {})) {
         addFact(facts, role, (people ?? []).map(readableName))
       }
@@ -306,38 +306,32 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
         if (!coreFields.has(label.toLocaleLowerCase())) addFact(facts, label, value)
       }
       primary.append(heading, identifier)
-      summary.append(primary, badges)
+      summary.append(customer, primary, summaryFacts, badges)
       card.append(summary)
       if (facts.childElementCount) card.append(facts)
       return card
     }
 
-    const groupByCustomer = projects => {
+    const groupByStage = projects => {
       const groups = new Map()
       for (const project of projects) {
-        const customer = String(project.customer_summary ?? '').trim() || 'Unassigned'
-        if (!groups.has(customer)) groups.set(customer, { name: customer, projects: [] })
-        groups.get(customer).projects.push(project)
+        const stage = projectStage(project) || 'Unspecified'
+        if (!groups.has(stage)) groups.set(stage, { name: stage, projects: [] })
+        groups.get(stage).projects.push(project)
       }
-      return [...groups.values()].sort((left, right) => right.projects.length - left.projects.length)
+      return [...groups.values()].sort((left, right) => comparePresentAsc(left.name, right.name))
     }
 
-    const createStageSummary = projects => {
-      const distribution = node('span', 'current-stage-distribution'); distribution.dataset.currentStageSummary = ''
+    const createProjectStatusSummary = projects => {
+      const distribution = node('span', 'project-status-distribution'); distribution.dataset.projectStatusSummary = ''
       const counts = new Map()
       for (const project of projects) {
-        const stage = projectStage(project) || 'Unspecified'
-        counts.set(stage, (counts.get(stage) ?? 0) + 1)
+        const status = displayValue(project.status) || 'Unspecified'
+        counts.set(status, (counts.get(status) ?? 0) + 1)
       }
-      for (const [stage, count] of counts) {
-        const item = node('span', 'current-stage-label'); item.dataset.stageCount = ''
-        const project = projects.find(candidate => (projectStage(candidate) || 'Unspecified') === stage)
-        const color = project?.stageColor
-        if (color) {
-          item.style.backgroundColor = color.background
-          item.style.color = color.foreground
-        }
-        item.append(node('span', '', stage), node('strong', 'current-stage-count', count))
+      for (const [status, count] of [...counts].sort(([left], [right]) => comparePresentAsc(left, right))) {
+        const item = node('span', 'project-status-label'); item.dataset.projectStatusCount = ''
+        item.append(node('span', '', status), node('strong', 'project-status-count', count))
         distribution.append(item)
       }
       return distribution
@@ -349,24 +343,26 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       const summary = node('button', 'product-space-summary'); summary.type = 'button'; summary.dataset.productSpaceToggle = ''
       summary.setAttribute('aria-expanded', 'true')
       const count = node('span', 'kanban-count', spaceProjects.length); count.dataset.productCount = ''
-      summary.append(node('strong', 'kanban-title', productSpaceLabel), createStageSummary(spaceProjects), count)
-      const customerGroups = node('div', 'customer-groups'); customerGroups.dataset.productGrid = ''
+      summary.append(node('strong', 'kanban-title', productSpaceLabel), createProjectStatusSummary(spaceProjects), count)
+      const stageGroups = node('div', 'stage-groups'); stageGroups.dataset.productGrid = ''
       if (spaceProjects.length) {
-        for (const customer of groupByCustomer(spaceProjects)) {
-          const customerGroup = node('details', 'customer-group'); customerGroup.dataset.customerGroup = ''
-          const customerSummary = node('summary', 'customer-summary')
-          const customerCount = node('span', 'kanban-count', customer.projects.length); customerCount.dataset.customerProjectCount = ''
-          customerSummary.append(node('strong', '', customer.name), customerCount)
+        for (const stage of groupByStage(spaceProjects)) {
+          const stageGroup = node('details', 'stage-group'); stageGroup.dataset.stageGroup = ''
+          const stageSummary = node('summary', 'stage-summary')
+          const stageCount = node('span', 'kanban-count', stage.projects.length); stageCount.dataset.stageProjectCount = ''
+          stageSummary.append(node('strong', '', stage.name), stageCount)
           const cards = node('div', 'project-list')
-          customer.projects.forEach(project => cards.append(createProjectCard(project, productSpaceLabels.get(productSpaceKey))))
-          customerGroup.append(customerSummary, cards); customerGroups.append(customerGroup)
+          stage.projects.sort((left, right) => comparePresentAsc(left.support_mode, right.support_mode)
+            || comparePresentDesc(left.status, right.status))
+            .forEach(project => cards.append(createProjectCard(project)))
+          stageGroup.append(stageSummary, cards); stageGroups.append(stageGroup)
         }
-      } else customerGroups.append(node('div', 'product-space-empty', 'No projects.'))
+      } else stageGroups.append(node('div', 'product-space-empty', 'No projects.'))
       summary.addEventListener('click', () => {
         const expanded = summary.getAttribute('aria-expanded') === 'true'
-        summary.setAttribute('aria-expanded', String(!expanded)); customerGroups.hidden = expanded
+        summary.setAttribute('aria-expanded', String(!expanded)); stageGroups.hidden = expanded
       })
-      group.append(summary, customerGroups); projectsRoot.append(group)
+      group.append(summary, stageGroups); projectsRoot.append(group)
     }
   }
 
@@ -387,7 +383,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     if (!facets.length) renderFacets(payload.facets, { loading: payload.state === 'loading' || !hasCache })
     else if (updateFacets && hasCache) updateFacetOptions(payload.facets)
     if (updateHierarchy) {
-      renderProjects(payload.ownerHierarchy ?? [], payload.projects ?? [], payload.accessibleProjectCount)
+      renderProjects(payload.ownerHierarchy ?? [], payload.projects ?? [], payload.blockWarningProjectCount)
     }
     status.className = `report-state report-state-${payload.state}`
     status.textContent = STATE_COPY[payload.state] ?? ''
@@ -474,7 +470,6 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       for (const option of select.options) option.selected = false
       select._multiSelect?.syncFromSelect()
     }
-    enabledMore.clear()
     renderFacets(facets)
     void api.resetConfluenceFilterSnapshot().then(payload => { if (!destroyed) present(payload) })
       .catch(() => { if (!destroyed) status.textContent = 'Project catalog API is unavailable.' })

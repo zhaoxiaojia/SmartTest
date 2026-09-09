@@ -33,7 +33,11 @@ def test_project_facts_owner_reads_and_invalidates_new_project_repository(tmp_pa
     assert empty_filter["state"] == "ready"
     assert empty_filter["projects"] == []
     owner.invalidate_project("P100", access)
-    assert owner.query(access)["state"] == "no_snapshot"
+    empty = owner.query(access)
+    assert empty["state"] == "no_snapshot"
+    assert [facet["key"] for facet in empty["facets"]] == [
+        "__product_space__", "date of commercial approval", "project id",
+    ]
 
 
 def test_project_facts_exposes_core_product_labels_and_only_catalog_ready_filter_candidates(tmp_path) -> None:
@@ -64,6 +68,29 @@ def test_project_facts_exposes_core_product_labels_and_only_catalog_ready_filter
         {"value": "DOPL", "label": "China Operator Business"},
         {"value": "TV", "label": "TV Business"},
     ]
+    assert [facet["key"] for facet in result["facets"]] == [
+        "__product_space__", "date of commercial approval", "project id",
+    ]
+
+
+def test_block_warning_count_uses_the_accessible_catalog_before_filters_and_search(tmp_path) -> None:
+    repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
+    projects = tuple(Project(
+        ProjectIdentity(f"90{index}", project_id), project_id,
+        ProductSpaceRef("DOPL", "China Operator Business"), ConfluencePageRef(f"10{index}", "Catalog"),
+        status=NamedValue(status.casefold(), status),
+    ) for index, (project_id, status) in enumerate((
+        ("P100", "BLOCK"), ("P200", "WARNING"), ("P300", "NORMAL"), ("P400", "warning"),
+    )))
+    repository.save_core(projects)
+    access = confirmed_access(repository.database, tuple(project.identity.project_id for project in projects))
+
+    result = ProjectFactsWebOwner(repository=repository).query(
+        access, filters={"project id": ("P300",)}, search="P300",
+    )
+
+    assert [project["project_id"] for project in result["projects"]] == ["P300"]
+    assert result["blockWarningProjectCount"] == 2
 
 
 def test_project_facts_query_keeps_its_access_snapshot_during_catalog_replacement(tmp_path) -> None:
@@ -166,11 +193,9 @@ def test_project_facts_owner_queries_persisted_dynamic_fields_and_owner_clusters
     )
 
     assert [row["project_id"] for row in result["projects"]] == ["P100"]
-    assert next(facet for facet in result["facets"] if facet["key"] == "odm")["options"] == ["ODM-X"]
-    assert next(facet for facet in result["facets"] if facet["key"] == "unexpected owner") == {
-        "key": "unexpected owner", "label": "Unexpected Owner",
-        "labels": ["Unexpected Owner"], "options": ["Alice"],
-    }
+    assert [facet["key"] for facet in result["facets"]] == [
+        "__product_space__", "date of commercial approval", "project id",
+    ]
     fae = next(group for group in result["ownerHierarchy"] if group["role"] == "FAE QA")
     assert fae["people"][0]["name"] == "Alice"
 
@@ -203,8 +228,8 @@ def test_page_entry_persists_recent_client_catalog_contract_for_all_four_spaces(
 
     assert result["accessibleProjectCount"] == 4
     assert {row["space_key"] for row in result["projects"]} == {"TV", "SDPL", "DOPL", "OOPL"}
-    assert next(facet for facet in result["facets"] if facet["key"] == "odm")["options"] == [
-        "ODM-DOPL", "ODM-OOPL", "ODM-SDPL", "ODM-TV",
+    assert [facet["key"] for facet in result["facets"]] == [
+        "__product_space__", "date of commercial approval", "project id",
     ]
 
 

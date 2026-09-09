@@ -28,9 +28,14 @@ from .confluence.cache_service import ConfluenceProjectCacheService
 from .confluence.project_repository import ConfluenceProjectRepository
 from .confluence_sync import ConfluenceProjectSyncCoordinator
 from .database import WebDatabase
+from .query_snapshot_repository import PROJECT_FILTER_KEYS
 from .session import default_web_database_path
 
 PAGE_CATALOG_PRODUCT_SPACES = ("TV", "SDPL", "DOPL", "OOPL")
+PROJECT_FILTER_FACET_DEFINITIONS = tuple(
+    definition for definition in PROJECT_SPACE_FACET_DEFINITIONS
+    if definition[0] in PROJECT_FILTER_KEYS
+)
 
 
 class _QueryAccessSnapshot:
@@ -136,6 +141,10 @@ class ProjectFactsWebOwner:
         projects = self._repository.load_many(
             cached.projects, ProjectDetails(roles=True, facts=True),
         )
+        block_warning_count = sum(
+            project.status is not None and project.status.name in {"BLOCK", "WARNING"}
+            for project in projects if project is not None
+        )
         snapshot = {"projects": [_project_snapshot_row(project) for project in projects if project]}
         result = query_project_facts(snapshot, filters=filters, search=search)
         start = int(page) * int(page_size)
@@ -144,6 +153,7 @@ class ProjectFactsWebOwner:
         return {
             "state": "ready",
             "accessibleProjectCount": cached.total,
+            "blockWarningProjectCount": block_warning_count,
             "productSpaces": _product_space_rows(),
             "facets": _facet_rows(result["facets"], ready_product_spaces),
             "projects": visible[start:start + int(page_size)],
@@ -194,11 +204,12 @@ class ProjectFactsWebOwner:
     def _state(state, ready_product_spaces=()):
         return {
             "state": state, "accessibleProjectCount": 0,
+            "blockWarningProjectCount": 0,
             "productSpaces": _product_space_rows(),
             "facets": [
                 {"key": key, "label": label, "labels": [label],
                  "options": _product_space_rows(ready_product_spaces) if key == PRODUCT_SPACE_FACET else []}
-                for key, label in PROJECT_SPACE_FACET_DEFINITIONS
+                for key, label in PROJECT_FILTER_FACET_DEFINITIONS
             ],
             "projects": [], "ownerHierarchy": [], "discrepancies": [],
             "counts": {"stale": 0, "failed": 0, "inactive": 0},
@@ -341,9 +352,8 @@ def _product_space_rows(allowed=None):
 
 
 def _facet_rows(values, ready_product_spaces=()):
-    labels = dict(PROJECT_SPACE_FACET_DEFINITIONS)
-    fixed = tuple(labels)
-    keys = (*fixed, *(key for key in sorted(values, key=str.casefold) if key not in labels))
+    labels = dict(PROJECT_FILTER_FACET_DEFINITIONS)
+    keys = tuple(labels)
     return [{
         "key": key,
         "label": labels.get(key, key.title()),

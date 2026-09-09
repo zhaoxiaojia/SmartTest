@@ -31,7 +31,7 @@ from .report_workspace import ClientAuditReportOwner, ReportNotFoundError
 from .project_facts_api import ProjectFactsWebOwner
 from .session import PersistentSessionStore, default_web_database_path
 from .background_refresh import BackgroundFactsRefresh
-from .query_snapshot_repository import ConfluenceQuerySnapshotRepository
+from .query_snapshot_repository import ConfluenceQuerySnapshotRepository, normalize_project_filters
 from .jira_filter_snapshot_repository import JIRA_FILTER_FIELDS, JiraFilterSnapshotRepository
 from .release_query import ProjectReleaseQueryService
 from .test_suite_repository import NameConflictError, RevisionConflictError, TestSuiteRepository
@@ -760,11 +760,11 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                                  value=Depends(authenticated_session)):
         api_started = perf_counter()
         access = access_context(request)
-        filters = {
+        filters = normalize_project_filters({
             key.removeprefix("field."): tuple(value for value in request.query_params.getlist(key) if str(value).strip())
             for key, _value in request.query_params.multi_items()
             if key.startswith("field.")
-        }
+        })
         search = request.query_params.get("search", "")
         load_details = request.query_params.get("details") == "1"
         replay_snapshot = request.query_params.get("snapshot") == "1"
@@ -848,7 +848,9 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                 or any(not isinstance(values, list) or any(not isinstance(item, str) for item in values)
                        for values in requested.values())):
             raise HTTPException(status_code=422, detail={"state": "invalid_filters"})
-        filters = {str(key): tuple(item for item in values if item.strip()) for key, values in requested.items()}
+        filters = normalize_project_filters({
+            str(key): tuple(item for item in values if item.strip()) for key, values in requested.items()
+        })
         result = owner.query(access, filters=filters, search=search)
         record_query_snapshot(access, value, filters, search, result)
         selection = snapshots.get(access.session_hash)

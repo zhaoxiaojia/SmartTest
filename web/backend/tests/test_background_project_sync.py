@@ -119,9 +119,10 @@ def test_query_snapshot_persists_across_repository_restart_and_isolates_sessions
     database = WebDatabase(tmp_path / "web.db")
     PersistentSessionStore(database.path)
     repository = ConfluenceQuerySnapshotRepository(database)
-    repository.record("session-a", {"stage": ("DVT",)}, "", ("P156",), "facts-1", expires_at=100)
+    repository.record("session-a", {"project id": ("P156",), "support mode": ("A",)}, "", ("P156",), "facts-1", expires_at=100)
 
     restarted = ConfluenceQuerySnapshotRepository(database)
     assert restarted.get("session-a", expires_at=1).project_ids == ("P156",)
+    assert restarted.get("session-a", expires_at=1).filters == {"project id": ["P156"]}
     assert restarted.get("session-b", expires_at=1) is None
     assert restarted.get("session-a", expires_at=101) is None

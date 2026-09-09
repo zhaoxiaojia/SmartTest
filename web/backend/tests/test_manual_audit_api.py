@@ -218,7 +218,7 @@ def test_confluence_review_queries_current_filters_records_snapshot_and_ignores_
         def refresh(self, _access, _password): self.refresh_calls += 1
         def query(self, _access, *, filters=None, search="", **_kwargs):
             self.query_calls.append((filters, search))
-            project_id = "P652" if filters == {"support mode": ("A", "B")} else "P156"
+            project_id = "P652" if filters == {"project id": ("P652",)} else "P156"
             return {"state": "ready", "facets": [], "projects": [{
                 "identity": f"DOPL:{project_id}", "project_id": project_id,
             }], "ownerHierarchy": []}
@@ -242,24 +242,24 @@ def test_confluence_review_queries_current_filters_records_snapshot_and_ignores_
     client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
     review = {
         "projectIds": ["forged"],
-        "filters": {"fields": {"support mode": ["A", "B"]}, "search": "mode review"},
+        "filters": {"fields": {"project id": ["forged"]}, "search": "mode review"},
         "startDate": "2026-08-17", "endDate": "2026-08-24",
     }
 
     client.put("/api/confluence/filter-snapshot", json={
-        "filters": {"support mode": ["A", "B"]}, "search": "mode review",
+        "filters": {"project id": ["P652"]}, "search": "mode review",
     })
     first = client.post("/api/audits/confluence", json=review)
     assert first.status_code == 200
     assert _wait(client, "confluence", first.json()["auditId"])["status"] == "completed"
-    assert facts.query_calls[-1] == ({"support mode": ("A", "B")}, "mode review")
+    assert facts.query_calls[-1] == ({"project id": ("P652",)}, "mode review")
     assert facts.refresh_calls == 0
     assert owner.resolved == [{"projectIds": ["DOPL:P652"], "startDate": "2026-08-17", "endDate": "2026-08-24"}]
     with sqlite3.connect(isolate_server_credentials.database_path) as connection:
         snapshot = connection.execute(
             "SELECT filters_json, search, project_ids_json FROM web_query_snapshots",
         ).fetchone()
-    assert json.loads(snapshot[0]) == {"support mode": ["A", "B"]}
+    assert json.loads(snapshot[0]) == {"project id": ["P652"]}
     assert snapshot[1] == "mode review"
     assert json.loads(snapshot[2]) == ["DOPL:P652"]
 

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "chart.js": "^4.5.0",
+    "chartjs-plugin-datalabels": "2.2.0",
     "exceljs": "^4.4.0",
     "jspdf": "^4.2.1"
   },

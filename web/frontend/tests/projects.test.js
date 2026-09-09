@@ -19,6 +19,7 @@ const productSpaces = [
 
 const payload = {
   state: 'partial_success',
+  blockWarningProjectCount: 0,
   productSpaces,
   counts: { stale: 1, failed: 0, inactive: 2 }, discrepancies: ['Unexpected Owner'],
   facets: [
@@ -125,11 +126,12 @@ describe('Projects', () => {
     page.destroy()
   })
 
-  it('renders dynamic facets and project results without report or download UI', async () => {
+  it('renders only supported project filters and no more-filter UI', async () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
-    expect(document.body.textContent).toContain('Unexpected Owner')
     expect(document.body.textContent).toContain('Product Space')
+    expect(document.body.textContent).not.toContain('Unexpected Owner')
+    expect(document.querySelector('.more-filter-panel')).toBeNull()
     expect(document.body.textContent).toContain('Apollo')
     expect(document.body.textContent).toContain('Major FAE QA')
     expect(document.body.textContent).toContain('Coco')
@@ -139,7 +141,7 @@ describe('Projects', () => {
     expect(document.querySelector('[data-download]')).toBeNull()
   })
 
-  it('groups projects under collapsed Customer rows inside expanded product lines', async () => {
+  it('groups projects under collapsed Current Stage rows inside expanded product lines', async () => {
     const grouped = {
       ...payload,
       state: 'ready',
@@ -147,9 +149,9 @@ describe('Projects', () => {
         { key: '__product_space__', label: 'Product Space', options: productSpaces },
       ],
       projects: [
-        { identity: 'p-first', project_id: 'P-1', name: 'First China Project', space_key: 'DOPL', status: 'ACTIVE', stage: 'Validation', customer_summary: 'Customer A', roles: { 'Major FAE QA': [{ name: 'Coco' }, { name: 'Bob' }] }, fields: { tags: ['one', 'two'] } },
+        { identity: 'p-first', project_id: 'P-1', name: 'First China Project', space_key: 'DOPL', status: 'WARNING', stage: 'Validation', customer_summary: 'Customer A', roles: { 'Major FAE QA': [{ name: 'Coco' }, { name: 'Bob' }] }, fields: { 'mp time': '2026-10-18', tags: ['one', 'two'] } },
         { identity: 'p-tv', project_id: 'P-2', name: 'TV Project', space_key: 'TV', status: 'ACTIVE', stage: 'Development', support_mode: 'A', customer_summary: 'Customer B', roles: { 'FAE QA': [{ name: 'Alice' }] }, fields: { odm: 'ODM B' } },
-        { identity: 'p-second', project_id: 'P-3', name: 'Second China Project', space_key: 'DOPL', stage: 'Pilot', roles: {} },
+        { identity: 'p-second', project_id: 'P-3', name: 'Second China Project', space_key: 'DOPL', status: 'BLOCK', stage: 'Pilot', roles: {} },
         { identity: 'p-none', project_id: 'P-4', name: 'No Owner Project', space_key: 'SDPL', stage: '', roles: {} },
         { identity: 'p-first', project_id: 'P-1', name: 'Duplicate First Project', space_key: 'DOPL', stage: 'Development', roles: {} },
       ],
@@ -166,41 +168,41 @@ describe('Projects', () => {
     const toggles = groups.map(group => group.querySelector('[data-product-space-toggle]'))
     expect(toggles.every(toggle => toggle.getAttribute('aria-expanded') === 'true')).toBe(true)
     expect(groups.map(group => group.querySelector('[data-product-count]').textContent)).toEqual(['2', '1', '1', '0'])
-    const stageSummary = groups[0].querySelector('[data-current-stage-summary]')
-    expect(stageSummary.textContent).not.toContain('Current Stage')
-    const customerContainer = groups[0].querySelector('.customer-groups')
-    expect(stageSummary.parentElement).toBe(toggles[0])
-    expect([...groups[0].children]).toEqual([toggles[0], customerContainer])
-    expect([...stageSummary.querySelectorAll('[data-stage-count]')].map(item => item.textContent)).toEqual([
-      'Validation1', 'Pilot1',
+    const statusSummary = groups[0].querySelector('[data-project-status-summary]')
+    expect(statusSummary.textContent).not.toContain('Current Stage')
+    const stageContainer = groups[0].querySelector('.stage-groups')
+    expect(statusSummary.parentElement).toBe(toggles[0])
+    expect([...groups[0].children]).toEqual([toggles[0], stageContainer])
+    expect([...statusSummary.querySelectorAll('[data-project-status-count]')].map(item => item.textContent)).toEqual([
+      'BLOCK1', 'WARNING1',
     ])
-    expect([...stageSummary.querySelectorAll('[data-stage-count]')].every(item => item.classList.contains('current-stage-label'))).toBe(true)
-    expect([...stageSummary.querySelectorAll('[data-stage-count] strong')].map(item => item.textContent)).toEqual(['1', '1'])
+    expect([...statusSummary.querySelectorAll('[data-project-status-count]')].every(item => item.classList.contains('project-status-label'))).toBe(true)
+    expect([...statusSummary.querySelectorAll('[data-project-status-count] strong')].map(item => item.textContent)).toEqual(['1', '1'])
     toggles[0].click()
     expect(toggles[0].getAttribute('aria-expanded')).toBe('false')
-    expect(customerContainer.hidden).toBe(true)
-    expect(stageSummary.closest('[data-product-space-toggle]')).toBe(toggles[0])
-    expect([...groups[1].querySelectorAll('[data-stage-count]')].map(item => item.textContent)).toEqual(['Unspecified1'])
-    const customerGroups = [...groups[0].querySelectorAll('[data-customer-group]')]
-    expect(customerGroups.map(group => group.querySelector('summary strong').textContent)).toEqual(['Customer A', 'Unassigned'])
-    expect(customerGroups.map(group => group.querySelector('[data-customer-project-count]').textContent)).toEqual(['1', '1'])
-    expect(customerGroups.every(group => !group.open)).toBe(true)
-    expect([...customerGroups[0].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-first'])
-    expect([...customerGroups[1].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-second'])
+    expect(stageContainer.hidden).toBe(true)
+    expect(statusSummary.closest('[data-product-space-toggle]')).toBe(toggles[0])
+    expect([...groups[1].querySelectorAll('[data-project-status-count]')].map(item => item.textContent)).toEqual(['Unspecified1'])
+    const stageGroups = [...groups[0].querySelectorAll('[data-stage-group]')]
+    expect(stageGroups.map(group => group.querySelector('summary strong').textContent)).toEqual(['Pilot', 'Validation'])
+    expect(stageGroups.map(group => group.querySelector('[data-stage-project-count]').textContent)).toEqual(['1', '1'])
+    expect(stageGroups.every(group => !group.open)).toBe(true)
+    expect([...stageGroups[0].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-second'])
+    expect([...stageGroups[1].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-first'])
     expect(document.querySelectorAll('[data-project-id="p-first"]')).toHaveLength(1)
     expect(document.querySelector('[data-project-id="p-none"]').textContent).toContain('No Owner Project')
     expect(document.querySelector('[data-project-id="p-first"]').textContent).toContain('Coco, Bob')
     expect(document.querySelector('[data-project-id="p-first"]').textContent).toContain('one, two')
-    expect(document.querySelector('[data-project-id="p-first"]').textContent).toContain('Validation')
+    expect(document.querySelector('[data-project-id="p-first"]').textContent).not.toContain('Validation')
     expect(groups.every(group => group.querySelector('[data-product-grid]'))).toBe(true)
     expect([...document.querySelectorAll('.project-card-badges .badge')].map(item => item.textContent))
       .not.toEqual(expect.arrayContaining(['DOPL', 'SDPL', 'TV', 'OOPL']))
   })
 
-  it('orders Customer groups by project count from high to low', async () => {
-    const project = (identity, customer) => ({
-      identity, project_id: identity, name: identity, space_key: 'DOPL', status: 'ACTIVE', stage: 'Development',
-      customer_summary: customer, roles: {}, fields: {}
+  it('orders Current Stage groups in ascending natural order', async () => {
+    const project = (identity, stage) => ({
+      identity, project_id: identity, name: identity, space_key: 'DOPL', status: 'ACTIVE', stage,
+      customer_summary: 'Customer', roles: {}, fields: {}
     })
     const sorted = { ...payload, state: 'ready', projects: [
       project('small-1', 'Small'),
@@ -211,9 +213,29 @@ describe('Projects', () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(sorted) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
 
-    const groups = [...document.querySelector('[data-product-space-group]').querySelectorAll('[data-customer-group]')]
-    expect(groups.map(group => group.querySelector('summary strong').textContent)).toEqual(['High', 'Equal A', 'Equal B', 'Small'])
-    expect(groups.map(group => group.querySelector('[data-customer-project-count]').textContent)).toEqual(['3', '2', '2', '1'])
+    const groups = [...document.querySelector('[data-product-space-group]').querySelectorAll('[data-stage-group]')]
+    expect(groups.map(group => group.querySelector('summary strong').textContent)).toEqual(['Equal A', 'Equal B', 'High', 'Small'])
+    expect(groups.map(group => group.querySelector('[data-stage-project-count]').textContent)).toEqual(['2', '2', '3', '1'])
+  })
+
+  it('orders projects by Support Mode ascending then Project Status descending', async () => {
+    const project = (identity, supportMode, status) => ({
+      identity, project_id: identity, name: identity, space_key: 'DOPL', stage: '2 IN DEVELOPMENT',
+      support_mode: supportMode, status, customer_summary: 'Customer', roles: {}, fields: {}
+    })
+    const sorted = { ...payload, state: 'ready', projects: [
+      project('b-normal', 'B', 'NORMAL'), project('none-warning', '', 'WARNING'),
+      project('a-normal', 'A', 'NORMAL'), project('b-warning', 'B', 'WARNING'),
+      project('a-warning', 'A', 'WARNING'),
+    ], ownerHierarchy: [] }
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(sorted) }
+
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+
+    const cards = [...document.querySelector('[data-stage-group]').querySelectorAll('.project-card')]
+    expect(cards.map(card => card.dataset.projectId)).toEqual([
+      'a-warning', 'a-normal', 'b-warning', 'b-normal', 'none-warning',
+    ])
   })
 
   it('renders the persisted snapshot while preferences restore unapplied controls', async () => {
@@ -271,14 +293,23 @@ describe('Projects', () => {
   })
 
   it('separates each project card summary from hover-revealed details', async () => {
-    const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
+    const projectWithSummaryFacts = { ...payload, projects: [{
+      ...payload.projects[0], customer_summary: 'Customer A', fields: { ...payload.projects[0].fields, 'mp time': '2026-10-18' }
+    }] }
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(projectWithSummaryFacts) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
     const card = document.querySelector('.project-card')
+    const summary = card.querySelector('.project-card-summary')
 
-    expect(card.querySelector('.project-card-summary').textContent).toContain('Apollo')
-    expect(card.querySelector('.project-card-summary').textContent).not.toContain('Major FAE QA')
+    expect(summary.textContent).toContain('Apollo')
+    expect(summary.firstElementChild.textContent).toBe('Customer A')
+    expect(summary.textContent).not.toContain('CustomerCustomer A')
+    expect(summary.textContent).toContain('MP Time2026-10-18')
+    expect(summary.textContent).not.toContain('Major FAE QA')
     expect(card.querySelector('.project-card-details').textContent).toContain('Major FAE QA')
     expect(card.querySelector('.project-card-details').textContent).toContain('Coco')
+    expect(card.querySelector('.project-card-details').textContent).not.toContain('Customer A')
+    expect(card.querySelector('.project-card-details').textContent).not.toContain('2026-10-18')
   })
 
   it('renders projects as horizontal list rows with a horizontal hover detail strip', async () => {
@@ -290,8 +321,9 @@ describe('Projects', () => {
     expect(list).not.toBeNull()
     expect(row.querySelector('.project-list-primary').textContent).toContain('Apollo')
     expect(row.querySelector('.project-list-primary').textContent).toContain('A-1')
-    expect(row.querySelector('.project-list-meta').textContent).toContain('China Operator Business')
+    expect(row.querySelector('.project-list-meta').textContent).not.toContain('China Operator Business')
     expect(row.querySelector('.project-list-meta').textContent).toContain('stale')
+    expect(row.querySelector('.project-list-meta').textContent).not.toContain('Unspecified')
     expect(row.querySelector('.project-detail-strip').textContent).toContain('Major FAE QA')
     expect(row.querySelectorAll('.project-detail-item').length).toBeGreaterThan(0)
   })
@@ -321,20 +353,23 @@ describe('Projects', () => {
   it('renders identity-free metrics and project cards without the old owner accordion', async () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
-    expect([...document.querySelectorAll('[data-metric] strong')].map(item => item.textContent)).toEqual(['1', '1', '1', '1', '1.0'])
+    expect([...document.querySelectorAll('[data-metric] strong')].map(item => item.textContent)).toEqual(['0', '1', '1', '1', '1.0'])
     expect(document.querySelectorAll('details.owner-role, details.owner-person').length).toBe(0)
     expect(document.body.textContent).not.toContain('u-1')
     expect(document.querySelector('.project-card').textContent).toContain('Apollo')
   })
 
   it('shows canonical accessible projects separately from filtered matched projects', async () => {
-    const api = { getProjectFacts: vi.fn().mockResolvedValue({ ...payload, accessibleProjectCount: 651 }) }
+    const api = { getProjectFacts: vi.fn().mockResolvedValue({
+      ...payload, accessibleProjectCount: 651, blockWarningProjectCount: 17,
+    }) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
     const metrics = Object.fromEntries([...document.querySelectorAll('[data-metric]')].map(card => [
       card.querySelector('span').textContent, card.querySelector('strong').textContent
     ]))
-    expect(metrics['Accessible projects']).toBe('651')
+    expect(metrics['Block / Warning projects']).toBe('17')
     expect(metrics['Matched projects']).toBe('1')
+    expect(metrics['Accessible projects']).toBeUndefined()
     expect(document.querySelector('.summary-definition')).toBeNull()
     expect(document.body.textContent).not.toContain('Metric definition')
   })
@@ -351,6 +386,11 @@ describe('Projects', () => {
     expect(config.options.indexAxis).toBe('y')
     expect(config.data.labels).toEqual(['Alice'])
     expect(config.data.datasets[0].data).toEqual([1])
+    expect(config.options.plugins.datalabels).toMatchObject({
+      anchor: 'end', align: 'right', clip: false,
+    })
+    expect(config.options.plugins.datalabels.formatter(12)).toBe(12)
+    expect(config.options.layout.padding.right).toBeGreaterThan(0)
     expect(document.querySelector('.workload-chart-surface').style.height).toBe('36px')
     expect(document.body.textContent).not.toContain('2c93-user-key')
   })
@@ -397,7 +437,7 @@ describe('Projects', () => {
     expect(surface.parentElement).toBe(viewport)
   })
 
-  it('keeps seven common filters and exposes optional filters to the common preference region', async () => {
+  it('keeps only the three supported filters', async () => {
     const complete = { ...payload, facets: [
       { key: '__product_space__', label: 'Product Space', options: ['DOPL'] },
       { key: 'date of commercial approval', label: 'Date of Commercial approval', options: [2025, 2026] },
@@ -411,13 +451,12 @@ describe('Projects', () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(complete) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
     expect([...document.querySelectorAll('[data-main-facets] > label')].map(row => row.firstChild.textContent)).toEqual([
-      'Product Space', 'Date of Commercial approval', 'Project ID', 'Project Status', 'Current Stage', 'Project Owner', 'Support Mode'
+      'Product Space', 'Date of Commercial approval', 'Project ID'
     ])
-    document.querySelector('[data-more-facets] input[value="odm"]').click()
-    expect(document.querySelector('[name="field.odm"]')).toBeTruthy()
-    expect(document.querySelector('[data-more-facets] input[value="odm"]').name).toBe('enabledMoreFilters')
-    expect(document.querySelector('form').hasAttribute('data-preference-region')).toBe(false)
-    document.querySelector('[data-more-facets] input[value="odm"]').click()
+    expect(document.querySelector('[name="field.project status"]')).toBeNull()
+    expect(document.querySelector('[name="field.current stage"]')).toBeNull()
+    expect(document.querySelector('[name="field.project owner"]')).toBeNull()
+    expect(document.querySelector('[name="field.support mode"]')).toBeNull()
     expect(document.querySelector('[name="field.odm"]')).toBeNull()
   })
 
@@ -445,10 +484,9 @@ describe('Projects', () => {
     expect([...document.querySelectorAll('[data-main-facets] select')].every(item => item.disabled)).toBe(true)
     expect([...document.querySelectorAll('[data-main-facets] .multi-select__control')].every(item => item.disabled)).toBe(true)
     expect([...document.querySelectorAll('[data-main-facets] .multi-select__summary')].every(item => item.textContent === 'Loading…')).toBe(true)
-    expect([...document.querySelectorAll('[data-more-facets] input')].every(item => item.disabled)).toBe(true)
   })
 
-  it('renders all seven common filters from the immediate loading payload then polls to ready', async () => {
+  it('renders all three supported filters from the immediate loading payload then polls to ready', async () => {
     const loading = { ...payload, state: 'loading', projects: [], ownerHierarchy: [], facets: fixedFacets }
     const api = {
       getProjectFacts: vi.fn().mockResolvedValueOnce(loading).mockResolvedValueOnce(payload),
@@ -459,7 +497,7 @@ describe('Projects', () => {
     const component = createProjects({ root: document.querySelector('#app'), api, pollDelay })
     await component.start()
     expect([...document.querySelectorAll('[data-main-facets] > label')].map(row => row.firstChild.textContent)).toEqual([
-      'Product Space', 'Date of Commercial approval', 'Project ID', 'Project Status', 'Current Stage', 'Project Owner', 'Support Mode'
+      'Product Space', 'Date of Commercial approval', 'Project ID'
     ])
     expect([...document.querySelectorAll('[data-main-facets] select')].every(item => item.disabled)).toBe(true)
     expect([...document.querySelectorAll('[data-main-facets] .multi-select__summary')].every(item => item.textContent === 'Loading…')).toBe(true)
@@ -545,26 +583,17 @@ describe('Projects', () => {
     component.destroy()
   })
 
-  it('uses the shared styled checkbox class for optional filters', async () => {
-    const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
-    await createProjects({ root: document.querySelector('#app'), api }).start()
-    expect(document.querySelector('[data-more-facets] input').classList).toContain('form-check-input')
-    expect(document.querySelector('[data-more-facets]').classList).toContain('more-filter-options')
-  })
-
-  it('submits every selected field facet and project/person search', async () => {
+  it('submits selected supported facets and project/person search', async () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
     const form = document.querySelector('form')
-    document.querySelector('[data-more-facets] input[value="unexpected owner"]').click()
     const productSpaceControl = form.elements['field.__product_space__']
-    form.elements['field.unexpected owner'].value = 'Alice'
     form.elements['field.__product_space__'].value = 'DOPL'
     form.elements.search.value = 'Coco'
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(2))
     expect(form.elements['field.__product_space__']).toBe(productSpaceControl)
-    expect(api.getProjectFacts.mock.calls[1][0]).toEqual({ fields: { '__product_space__': ['DOPL'], 'unexpected owner': ['Alice'] }, search: 'Coco' })
+    expect(api.getProjectFacts.mock.calls[1][0]).toEqual({ fields: { '__product_space__': ['DOPL'] }, search: 'Coco' })
     expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: true })
     expect(document.querySelector('[type="submit"]').disabled).toBe(false)
   })
@@ -722,9 +751,6 @@ describe('Projects', () => {
     }).start()
     document.querySelector('[name="reviewStartDate"]').value = '2026-08-17'
     document.querySelector('[name="reviewEndDate"]').value = '2026-08-24'
-    const supportMode = document.querySelector('[name="field.support mode"]')
-    for (const option of supportMode.options) option.selected = ['A', 'B'].includes(option.value)
-    supportMode._multiSelect?.syncFromSelect()
     document.querySelector('[name="search"]').value = 'changed before review'
     const projectFactCalls = api.getProjectFacts.mock.calls.length
     document.querySelector('[data-audit]').click()

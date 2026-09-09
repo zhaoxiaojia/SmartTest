@@ -8,9 +8,10 @@ describe('Tools page', () => {
   it('owns both singleton filters, both reviews, and the audit email entry', async () => {
     const api = {
       getProjectFacts: vi.fn().mockResolvedValue({ state: 'ready', facets: [
+        { key: 'project id', label: 'Project ID', options: ['P100'] },
         { key: 'support mode', label: 'Support Mode', options: ['A', 'B'] },
       ], projects: [], ownerHierarchy: [], querySnapshot: {
-        filters: { 'support mode': ['B'] }, search: 'weekly', revision: 2,
+        filters: { 'project id': ['P100'], 'support mode': ['B'] }, search: 'weekly', revision: 2,
       } }),
       getProjectFactsStatus: vi.fn(), cancelProjectSync: vi.fn(),
       getJiraFilterSnapshot: vi.fn().mockResolvedValue({ facets: [
@@ -31,7 +32,8 @@ describe('Tools page', () => {
     expect(document.querySelector('[data-jira-review]')).not.toBeNull()
     expect(document.querySelector('[data-confluence-review]')).not.toBeNull()
     expect(document.querySelector('[name="search"]').value).toBe('weekly')
-    expect(document.querySelector('[name="field.support mode"] option[value="B"]').selected).toBe(true)
+    expect(document.querySelector('[name="field.project id"] option[value="P100"]').selected).toBe(true)
+    expect(document.querySelector('[name="field.support mode"]')).toBeNull()
     expect(document.querySelector('a[href="/audit-email.html"]')).not.toBeNull()
   })
 })

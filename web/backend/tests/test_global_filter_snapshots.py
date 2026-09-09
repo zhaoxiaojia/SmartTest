@@ -43,9 +43,9 @@ def test_confluence_review_requires_and_consumes_existing_snapshot(tmp_path):
     read = client.get("/api/confluence/project-facts?field.support%20mode=forged&search=forged").json()
     assert read["querySnapshot"] is None
     applied = client.put("/api/confluence/filter-snapshot", json={
-        "filters": {"support mode": ["A"]}, "search": "approved",
+        "filters": {"project id": ["P100"], "support mode": ["A"]}, "search": "approved",
     }).json()
-    assert applied["querySnapshot"]["filters"] == {"support mode": ["A"]}
+    assert applied["querySnapshot"]["filters"] == {"project id": ["P100"]}
     assert applied["querySnapshot"]["search"] == "approved"
     revision = applied["querySnapshot"]["revision"]
     assert client.get("/api/confluence/project-facts?field.support%20mode=forged").json()["querySnapshot"]["revision"] == revision
