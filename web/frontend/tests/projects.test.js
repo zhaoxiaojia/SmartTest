@@ -176,7 +176,7 @@ describe('Projects', () => {
     expect([...statusSummary.querySelectorAll('[data-project-status-count]')].map(item => item.textContent)).toEqual([
       'BLOCK1', 'WARNING1',
     ])
-    expect([...statusSummary.querySelectorAll('[data-project-status-count]')].every(item => item.classList.contains('project-status-label'))).toBe(true)
+    expect([...statusSummary.querySelectorAll('[data-project-status-count]')].every(item => item.classList.contains('distribution-label'))).toBe(true)
     expect([...statusSummary.querySelectorAll('[data-project-status-count] strong')].map(item => item.textContent)).toEqual(['1', '1'])
     toggles[0].click()
     expect(toggles[0].getAttribute('aria-expanded')).toBe('false')

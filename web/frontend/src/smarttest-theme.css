@@ -20,6 +20,14 @@
     --success: #22C55E;
     --warning: #F59E0B;
     --danger: #EF4444;
+    --distribution-label-1-bg: #E9E6EF; --distribution-label-1-fg: #514A63;
+    --distribution-label-2-bg: #DFEAF5; --distribution-label-2-fg: #35536E;
+    --distribution-label-3-bg: #E8E8E8; --distribution-label-3-fg: #4E4E4E;
+    --distribution-label-4-bg: #E1EEE5; --distribution-label-4-fg: #365B43;
+    --distribution-label-5-bg: #DCEEEE; --distribution-label-5-fg: #315D5D;
+    --distribution-label-6-bg: #F3EDCF; --distribution-label-6-fg: #665B25;
+    --distribution-label-7-bg: #F3E3D4; --distribution-label-7-fg: #704B2E;
+    --distribution-label-8-bg: #EEDDD8; --distribution-label-8-fg: #713F35;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
     --transition: all 0.2s ease;
@@ -38,6 +46,14 @@ body.dark-theme {
     --accent: #38BDF8;
     --accent-hover: #7DD3FC;
     --accent-light: rgba(56, 189, 248, 0.15);
+    --distribution-label-1-bg: #342F40; --distribution-label-1-fg: #D9D1E8;
+    --distribution-label-2-bg: #26394A; --distribution-label-2-fg: #C8DDF0;
+    --distribution-label-3-bg: #383838; --distribution-label-3-fg: #D8D8D8;
+    --distribution-label-4-bg: #263B2D; --distribution-label-4-fg: #C9E4D1;
+    --distribution-label-5-bg: #243C3C; --distribution-label-5-fg: #C7E2E2;
+    --distribution-label-6-bg: #403A22; --distribution-label-6-fg: #E9DFA8;
+    --distribution-label-7-bg: #453326; --distribution-label-7-fg: #EBCBAC;
+    --distribution-label-8-bg: #452D2A; --distribution-label-8-fg: #E8C5BE;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
@@ -190,13 +206,22 @@ input, select, textarea {
 .product-space-groups { display: grid; gap: 1rem; }
 .product-space-group { overflow: hidden; border: 1px solid var(--border-color); border-radius: .75rem; background: var(--bg-surface); }
 .product-space-summary { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: .75rem; padding: .875rem 1rem; border: 0; color: inherit; background: transparent; font: inherit; text-align: left; cursor: pointer; }
-.project-status-distribution { display: flex; flex: 1; flex-wrap: wrap; justify-content: flex-end; gap: .375rem .75rem; }
-.project-status-label { display: inline-flex; align-items: center; gap: .5rem; padding: .35rem .625rem; border: 1px solid var(--border-color); border-radius: 999px; color: var(--text-secondary); background: var(--bg-surface); font-size: .75rem; white-space: nowrap; }
-.project-status-count { min-width: 1.25rem; padding-left: .5rem; border-left: 1px solid currentColor; text-align: center; }
+.label-distribution { display: flex; flex: 1; flex-wrap: wrap; justify-content: flex-end; gap: .375rem .75rem; }
+.distribution-label { display: inline-flex; align-items: center; gap: .5rem; padding: .35rem .625rem; border: 1px solid var(--border-color); border-radius: 999px; color: var(--text-secondary); background: var(--bg-surface); font-size: .75rem; white-space: nowrap; }
+.distribution-label:nth-child(8n + 1) { color: var(--distribution-label-1-fg); background: var(--distribution-label-1-bg); }
+.distribution-label:nth-child(8n + 2) { color: var(--distribution-label-2-fg); background: var(--distribution-label-2-bg); }
+.distribution-label:nth-child(8n + 3) { color: var(--distribution-label-3-fg); background: var(--distribution-label-3-bg); }
+.distribution-label:nth-child(8n + 4) { color: var(--distribution-label-4-fg); background: var(--distribution-label-4-bg); }
+.distribution-label:nth-child(8n + 5) { color: var(--distribution-label-5-fg); background: var(--distribution-label-5-bg); }
+.distribution-label:nth-child(8n + 6) { color: var(--distribution-label-6-fg); background: var(--distribution-label-6-bg); }
+.distribution-label:nth-child(8n + 7) { color: var(--distribution-label-7-fg); background: var(--distribution-label-7-bg); }
+.distribution-label:nth-child(8n + 8) { color: var(--distribution-label-8-fg); background: var(--distribution-label-8-bg); }
+.distribution-label-count { min-width: 1.25rem; padding-left: .5rem; border-left: 1px solid currentColor; text-align: center; }
 .stage-groups { display: grid; gap: .75rem; padding: 0 .875rem .875rem; }
 .stage-groups[hidden] { display: none; }
 .stage-group { overflow: hidden; border: 1px solid var(--border-color); border-radius: .625rem; background: var(--bg-primary); }
 .stage-summary { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .75rem .875rem; cursor: pointer; list-style-position: inside; }
+.stage-summary > strong { font-size: .8125rem; }
 .stage-group > .project-list { padding-top: .75rem; border-top: 1px solid var(--border-color); }
 .project-list { display: grid; gap: .5rem; padding: 0 .875rem .75rem; }
 .project-card { cursor: default; }
@@ -1180,7 +1205,7 @@ tr:hover td {
 
 /* ===== Project Cards ===== */
 .kanban-title {
-    font-size: 0.8125rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
 }

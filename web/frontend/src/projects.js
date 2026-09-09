@@ -323,15 +323,15 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     }
 
     const createProjectStatusSummary = projects => {
-      const distribution = node('span', 'project-status-distribution'); distribution.dataset.projectStatusSummary = ''
+      const distribution = node('span', 'label-distribution'); distribution.dataset.projectStatusSummary = ''
       const counts = new Map()
       for (const project of projects) {
         const status = displayValue(project.status) || 'Unspecified'
         counts.set(status, (counts.get(status) ?? 0) + 1)
       }
       for (const [status, count] of [...counts].sort(([left], [right]) => comparePresentAsc(left, right))) {
-        const item = node('span', 'project-status-label'); item.dataset.projectStatusCount = ''
-        item.append(node('span', '', status), node('strong', 'project-status-count', count))
+        const item = node('span', 'distribution-label'); item.dataset.projectStatusCount = ''
+        item.append(node('span', '', status), node('strong', 'distribution-label-count', count))
         distribution.append(item)
       }
       return distribution

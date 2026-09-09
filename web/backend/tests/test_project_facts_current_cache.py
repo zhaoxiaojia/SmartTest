@@ -30,6 +30,7 @@ def test_project_facts_owner_reads_and_invalidates_new_project_repository(tmp_pa
     assert result["state"] == "ready"
     assert [project["project_id"] for project in result["projects"]] == ["P100"]
     assert result["projects"][0]["fields"]["current stage"] == "EVT"
+    assert all(not key.endswith("Color") for key in result["projects"][0])
     assert empty_filter["state"] == "ready"
     assert empty_filter["projects"] == []
     owner.invalidate_project("P100", access)
