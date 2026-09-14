@@ -382,18 +382,17 @@ def _description_sections(description: str) -> dict[str, str]:
     sections: dict[str, list[str]] = {}
     current = ""
     aliases = {
-        _normalize_label(alias): section
+        alias: section
         for section, section_aliases in _DESCRIPTION_SECTION_ALIASES.items()
         for alias in section_aliases
     }
     for line in description.splitlines():
-        labeled = _split_labeled_line(line)
-        section = aliases.get(labeled[0]) if labeled else None
-        if section:
-            current = section
+        matched = _match_label_text(line, aliases)
+        if matched:
+            current, inline_value = matched
             sections.setdefault(current, [])
-            if labeled and labeled[1]:
-                sections[current].append(labeled[1])
+            if inline_value:
+                sections[current].append(inline_value)
         elif current:
             sections[current].append(line)
     return {key: "\n".join(lines).strip() for key, lines in sections.items()}
@@ -401,11 +400,11 @@ def _description_sections(description: str) -> dict[str, str]:
 
 def _notes_have_info(notes: str, info_kind: str) -> bool:
     aliases = {
-        _normalize_label(alias)
+        alias: info_kind
         for alias in _NOTES_INFO_ALIASES.get(info_kind, ())
     }
     known_labels = {
-        _normalize_label(alias)
+        alias: alias
         for alias_group in (
             *_DESCRIPTION_SECTION_ALIASES.values(),
             *_NOTES_INFO_ALIASES.values(),
@@ -414,38 +413,25 @@ def _notes_have_info(notes: str, info_kind: str) -> bool:
     }
     lines = notes.splitlines()
     for index, line in enumerate(lines):
-        labeled = _split_labeled_line(line)
-        if not labeled or labeled[0] not in aliases:
+        matched = _match_label_text(line, aliases)
+        if not matched:
             continue
-        if labeled[1]:
+        if matched[1]:
             return True
         for following in lines[index + 1:]:
             if not following.strip():
                 continue
-            following_label = _split_labeled_line(following)
-            return not following_label or following_label[0] not in known_labels
+            return _match_label_text(following, known_labels) is None
     return False
 
 
-def _split_labeled_line(line: str) -> tuple[str, str] | None:
-    cleaned = re.sub(r"^\s*#+\s*", "", line).strip()
-    cleaned = re.sub(r"^[*_]{1,3}\s*", "", cleaned)
-    cleaned = cleaned.translate(str.maketrans("【】：；", "[]:;"))
-    cleaned = re.sub(r"(?<=\])[*_]{1,3}(?=:)", "", cleaned)
-    bracket = re.fullmatch(
-        r"\[([^]]+)\]\s*(?:[:;]\s*[*_]{0,3}\s*(.*))?",
-        cleaned,
-    )
-    if bracket:
-        return (
-            _normalize_label(bracket.group(1)),
-            (bracket.group(2) or "").strip("*_ "),
-        )
-    labeled = re.fullmatch(r"([^:;]+?)\s*[:;]\s*[*_]{0,3}\s*(.*)", cleaned)
-    if labeled:
-        return _normalize_label(labeled.group(1)), labeled.group(2).strip("*_ ")
-    standalone = _normalize_label(cleaned)
-    return (standalone, "") if standalone else None
+def _match_label_text(line: str, aliases: dict[str, str]) -> tuple[str, str] | None:
+    for alias in sorted(aliases, key=len, reverse=True):
+        match = re.search(re.escape(alias), line, re.IGNORECASE)
+        if match:
+            value = re.sub(r"^[\s\[\]():;：；*_.#-]+", "", line[match.end():])
+            return aliases[alias], value.strip("*_ ")
+    return None
 
 
 def _normalize_label(value: str) -> str:

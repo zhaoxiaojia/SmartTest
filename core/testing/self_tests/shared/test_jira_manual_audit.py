@@ -92,6 +92,27 @@ def test_jira_deterministic_rules_keep_old_table_and_standard_behaviour() -> Non
     }
 
 
+def test_description_rules_match_field_text_without_markup_requirements() -> None:
+    description = """h2. [Steps to reproduce]
+Open the application.
+h2. [Actual results]:
+The first screen takes more than 5 seconds.
+h2. [Expected results]:
+The first screen should load within 5 seconds.
+h2. [Reproducibility rate]:
+100%
+h2. [Comparison]:
+No comparison build.
+h2. [Notes]
+_HW info: board A_
+SW info：[build 1]
+"""
+
+    result = audit_issue(_issue("IPTV-43297", "Chao Li", description))
+
+    assert result.passed, {item.rule_id for item in result.violations}
+
+
 def test_jira_use_case_loads_description_only_for_eligible_creator() -> None:
     eligible = replace(_issue("SH-1", "Chao Li"), description=DetailSection())
     ignored = replace(_issue("SH-2", "Outside User"), description=DetailSection())
