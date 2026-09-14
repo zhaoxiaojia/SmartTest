@@ -8,7 +8,7 @@ const STATE_COPY = {
   reauthentication_required: 'Please verify your account again before refreshing project data.'
 }
 const COMMON_FILTERS = [
-  '__product_space__', 'date of commercial approval', 'project id'
+  '__product_space__', 'date of commercial approval', 'project id', 'project owner'
 ]
 import { createAsyncFeedback } from './async-feedback.js'
 import { createDownloadButton } from './download-button.js'
@@ -166,7 +166,6 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
   }
 
   function updateFacetOptions(nextFacets) {
-    const invalid = []
     facets = nextFacets ?? facets
     for (const select of form.querySelectorAll('select[name^="field."]')) {
       select._multiSelect?.setEmptyLabel(select.dataset.readyLabel)
@@ -176,12 +175,11 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       if (!select) continue
       const selectedValues = selected(select)
       const validValues = new Set((facet.options ?? []).map(option => String(option?.value ?? option)))
-      fillSelect(select, facet.options ?? [])
+      const missingSelected = selectedValues.filter(value => !validValues.has(value))
+      fillSelect(select, [...(facet.options ?? []), ...missingSelected])
       for (const option of select.options) option.selected = selectedValues.includes(option.value)
-      if (selectedValues.some(value => !validValues.has(value))) invalid.push(facet.label)
       select._multiSelect?.syncFromSelect()
     }
-    if (invalid.length) root.querySelector('[data-audit-status]').textContent = `已清除失效筛选：${invalid.join('、')}`
   }
 
   function projectKey(project) { return project.identity || `${project.space_key || ''}:${project.project_id || ''}` }
@@ -322,8 +320,41 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       return [...groups.values()].sort((left, right) => comparePresentAsc(left.name, right.name))
     }
 
+    const appendStageGroups = (container, projects) => {
+      for (const stage of groupByStage(projects)) {
+        const stageGroup = node('details', 'stage-group'); stageGroup.dataset.stageGroup = ''
+        const stageSummary = node('summary', 'stage-summary')
+        const stageCount = node('span', 'kanban-count', stage.projects.length); stageCount.dataset.stageProjectCount = ''
+        stageSummary.append(node('strong', '', stage.name), stageCount)
+        const cards = node('div', 'project-list')
+        stage.projects.sort((left, right) => comparePresentAsc(left.support_mode, right.support_mode)
+          || comparePresentDesc(left.status, right.status))
+          .forEach(project => cards.append(createProjectCard(project)))
+        stageGroup.append(stageSummary, cards); container.append(stageGroup)
+      }
+    }
+
+    const groupByLaunchOs = projects => {
+      const groups = new Map()
+      for (const project of projects) {
+        const launchOs = displayValue(project.fields?.['launch os']) || 'Unspecified'
+        if (!groups.has(launchOs)) groups.set(launchOs, { name: launchOs, projects: [] })
+        groups.get(launchOs).projects.push(project)
+      }
+      return [...groups.values()].sort((left, right) => comparePresentAsc(left.name, right.name))
+    }
+
     const statusColorSlots = new Map([...new Set(uniqueProjects.map(project => displayValue(project.status) || 'Unspecified'))]
       .sort(comparePresentAsc).map((status, index) => [status, index % 8]))
+    const statusPriority = ['block', 'warning', 'pending', 'normal', 'cancel']
+    const statusKind = status => statusPriority.find(keyword => status.toLocaleLowerCase().includes(keyword)) || ''
+    const compareProjectStatus = (left, right) => {
+      const priority = status => {
+        const index = statusPriority.indexOf(statusKind(status))
+        return index < 0 ? statusPriority.length : index
+      }
+      return priority(left) - priority(right) || comparePresentAsc(left, right)
+    }
 
     const createProjectStatusSummary = projects => {
       const distribution = node('span', 'label-distribution'); distribution.dataset.projectStatusSummary = ''
@@ -332,9 +363,11 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
         const status = displayValue(project.status) || 'Unspecified'
         counts.set(status, (counts.get(status) ?? 0) + 1)
       }
-      for (const [status, count] of [...counts].sort(([left], [right]) => comparePresentAsc(left, right))) {
+      for (const [status, count] of [...counts].sort(([left], [right]) => compareProjectStatus(left, right))) {
         const item = node('span', 'distribution-label'); item.dataset.projectStatusCount = ''
         item.dataset.colorSlot = String(statusColorSlots.get(status))
+        const tone = statusKind(status)
+        if (['block', 'warning', 'pending'].includes(tone)) item.dataset.statusTone = tone
         item.append(node('span', '', status), node('strong', 'distribution-label-count', count))
         distribution.append(item)
       }
@@ -350,16 +383,18 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       summary.append(node('strong', 'kanban-title', productSpaceLabel), createProjectStatusSummary(spaceProjects), count)
       const stageGroups = node('div', 'stage-groups'); stageGroups.dataset.productGrid = ''
       if (spaceProjects.length) {
-        for (const stage of groupByStage(spaceProjects)) {
-          const stageGroup = node('details', 'stage-group'); stageGroup.dataset.stageGroup = ''
-          const stageSummary = node('summary', 'stage-summary')
-          const stageCount = node('span', 'kanban-count', stage.projects.length); stageCount.dataset.stageProjectCount = ''
-          stageSummary.append(node('strong', '', stage.name), stageCount)
-          const cards = node('div', 'project-list')
-          stage.projects.sort((left, right) => comparePresentAsc(left.support_mode, right.support_mode)
-            || comparePresentDesc(left.status, right.status))
-            .forEach(project => cards.append(createProjectCard(project)))
-          stageGroup.append(stageSummary, cards); stageGroups.append(stageGroup)
+        if (productSpaceKey === 'TV') {
+          for (const launchOs of groupByLaunchOs(spaceProjects)) {
+            const launchGroup = node('details', 'launch-os-group'); launchGroup.dataset.launchOsGroup = ''; launchGroup.open = true
+            const launchSummary = node('summary', 'launch-os-summary')
+            const launchCount = node('span', 'kanban-count', launchOs.projects.length); launchCount.dataset.launchOsProjectCount = ''
+            launchSummary.append(node('strong', '', launchOs.name), launchCount)
+            const launchStages = node('div', 'launch-os-stage-groups')
+            appendStageGroups(launchStages, launchOs.projects)
+            launchGroup.append(launchSummary, launchStages); stageGroups.append(launchGroup)
+          }
+        } else {
+          appendStageGroups(stageGroups, spaceProjects)
         }
       } else stageGroups.append(node('div', 'product-space-empty', 'No projects.'))
       summary.addEventListener('click', () => {

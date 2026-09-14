@@ -140,12 +140,12 @@ class ProjectFactsWebOwner:
         projects = self._repository.load_many(
             cached.projects, ProjectDetails(roles=True, facts=True),
         )
-        block_warning_count = sum(
-            project.status is not None and project.status.name in {"BLOCK", "WARNING"}
-            for project in projects if project is not None
-        )
         snapshot = {"projects": [_project_snapshot_row(project) for project in projects if project]}
         result = query_project_facts(snapshot, filters=filters, search=search)
+        block_warning_count = sum(
+            project.get("status") in {"BLOCK", "WARNING"}
+            for project in result["projects"]
+        )
         start = int(page) * int(page_size)
         visible = result["projects"]
         self._log_query_timing(started, "ready", cached.total, query_access, ready_product_spaces, len(visible))

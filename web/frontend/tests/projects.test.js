@@ -224,6 +224,65 @@ describe('Projects', () => {
     expect(groups.map(group => group.querySelector('[data-stage-project-count]').textContent)).toEqual(['2', '2', '3', '1'])
   })
 
+  it('groups only TV projects by Launch OS before Current Stage', async () => {
+    const project = (identity, spaceKey, launchOs, stage) => ({
+      identity, project_id: identity, name: identity, space_key: spaceKey, status: 'NORMAL', stage,
+      customer_summary: 'Customer', roles: {}, fields: { 'launch os': launchOs },
+    })
+    const grouped = { ...payload, state: 'ready', ownerHierarchy: [], projects: [
+      project('tv-android-evt', 'TV', 'Android 16', 'EVT'),
+      project('tv-android-dvt', 'TV', 'Android 16', 'DVT'),
+      project('tv-linux-evt', 'TV', 'Linux', 'EVT'),
+      project('tv-missing', 'TV', undefined, 'EVT'),
+      project('tv-blank', 'TV', '  ', 'DVT'),
+      project('dopl-android', 'DOPL', 'Android 16', 'Pilot'),
+    ] }
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(grouped) }
+
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+
+    const productGroups = [...document.querySelectorAll('[data-product-space-group]')]
+    const tv = productGroups.find(group => group.querySelector('[data-product-space-toggle] strong').textContent === 'TV Business')
+    const launchGroups = [...tv.querySelectorAll(':scope > [data-product-grid] > [data-launch-os-group]')]
+    expect(launchGroups.map(group => group.querySelector(':scope > summary strong').textContent)).toEqual([
+      'Android 16', 'Linux', 'Unspecified',
+    ])
+    expect(launchGroups.map(group => group.querySelector(':scope > summary [data-launch-os-project-count]').textContent)).toEqual([
+      '2', '1', '2',
+    ])
+    expect([...launchGroups[0].querySelectorAll('[data-stage-group]')].map(group => [
+      group.querySelector('summary strong').textContent,
+      group.querySelector('[data-stage-project-count]').textContent,
+    ])).toEqual([['DVT', '1'], ['EVT', '1']])
+    expect([...tv.querySelectorAll('.project-card')]).toHaveLength(5)
+    expect(new Set([...tv.querySelectorAll('.project-card')].map(card => card.dataset.projectId)).size).toBe(5)
+
+    const dopl = productGroups.find(group => group.querySelector('[data-product-space-toggle] strong').textContent === 'China Operator Business')
+    expect(dopl.querySelector('[data-launch-os-group]')).toBeNull()
+    expect([...dopl.querySelectorAll(':scope > [data-product-grid] > [data-stage-group]')]
+      .map(group => group.querySelector('summary strong').textContent)).toEqual(['Pilot'])
+  })
+
+  it('prioritizes Project Status labels and marks only their semantic warning tones', async () => {
+    const statuses = ['9 CANCEL CLOSE', 'NORMAL 09/05', '7 PENDING', 'WARNING', 'BLOCK', 'ACTIVE']
+    const api = { getProjectFacts: vi.fn().mockResolvedValue({
+      ...payload, state: 'ready', ownerHierarchy: [], projects: statuses.map((status, index) => ({
+        identity: `status-${index}`, project_id: `P-${index}`, name: status, space_key: 'DOPL',
+        status, stage: 'Development', roles: {}, fields: {},
+      })),
+    }) }
+
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+
+    const labels = [...document.querySelector('[data-project-status-summary]').children]
+    expect(labels.map(label => label.firstElementChild.textContent)).toEqual([
+      'BLOCK', 'WARNING', '7 PENDING', 'NORMAL 09/05', '9 CANCEL CLOSE', 'ACTIVE',
+    ])
+    expect(labels.map(label => label.dataset.statusTone || '')).toEqual([
+      'block', 'warning', 'pending', '', '', '',
+    ])
+  })
+
   it('orders projects by Support Mode ascending then Project Status descending', async () => {
     const project = (identity, supportMode, status) => ({
       identity, project_id: identity, name: identity, space_key: 'DOPL', stage: '2 IN DEVELOPMENT',
@@ -380,6 +439,18 @@ describe('Projects', () => {
     expect(document.body.textContent).not.toContain('Metric definition')
   })
 
+  it('renders every summary metric from an empty matched collection as zero', async () => {
+    const api = { getProjectFacts: vi.fn().mockResolvedValue({
+      ...payload, state: 'ready', blockWarningProjectCount: 0, projects: [], ownerHierarchy: [],
+    }) }
+
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+
+    expect([...document.querySelectorAll('[data-metric] strong')].map(item => item.textContent)).toEqual([
+      '0', '0', '0', '0', '0.0',
+    ])
+  })
+
   it('builds a sorted horizontal workload chart and hides identity-only names', async () => {
     const chartFactory = vi.fn(() => ({ destroy: vi.fn() }))
     const identityOnly = { ...payload, ownerHierarchy: [{ role: 'FAE QA', people: [
@@ -443,7 +514,7 @@ describe('Projects', () => {
     expect(surface.parentElement).toBe(viewport)
   })
 
-  it('keeps only the three supported filters', async () => {
+  it('keeps only the four supported filters', async () => {
     const complete = { ...payload, facets: [
       { key: '__product_space__', label: 'Product Space', options: ['DOPL'] },
       { key: 'date of commercial approval', label: 'Date of Commercial approval', options: [2025, 2026] },
@@ -457,11 +528,11 @@ describe('Projects', () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(complete) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
     expect([...document.querySelectorAll('[data-main-facets] > label')].map(row => row.firstChild.textContent)).toEqual([
-      'Product Space', 'Date of Commercial approval', 'Project ID'
+      'Product Space', 'Date of Commercial approval', 'Project ID', 'Project Owner'
     ])
     expect(document.querySelector('[name="field.project status"]')).toBeNull()
     expect(document.querySelector('[name="field.current stage"]')).toBeNull()
-    expect(document.querySelector('[name="field.project owner"]')).toBeNull()
+    expect(document.querySelector('[name="field.project owner"]')).not.toBeNull()
     expect(document.querySelector('[name="field.support mode"]')).toBeNull()
     expect(document.querySelector('[name="field.odm"]')).toBeNull()
   })
@@ -492,7 +563,7 @@ describe('Projects', () => {
     expect([...document.querySelectorAll('[data-main-facets] .multi-select__summary')].every(item => item.textContent === 'Loading…')).toBe(true)
   })
 
-  it('renders all three supported filters from the immediate loading payload then polls to ready', async () => {
+  it('renders all four supported filters from the immediate loading payload then polls to ready', async () => {
     const loading = { ...payload, state: 'loading', projects: [], ownerHierarchy: [], facets: fixedFacets }
     const api = {
       getProjectFacts: vi.fn().mockResolvedValueOnce(loading).mockResolvedValueOnce(payload),
@@ -503,7 +574,7 @@ describe('Projects', () => {
     const component = createProjects({ root: document.querySelector('#app'), api, pollDelay })
     await component.start()
     expect([...document.querySelectorAll('[data-main-facets] > label')].map(row => row.firstChild.textContent)).toEqual([
-      'Product Space', 'Date of Commercial approval', 'Project ID'
+      'Product Space', 'Date of Commercial approval', 'Project ID', 'Project Owner'
     ])
     expect([...document.querySelectorAll('[data-main-facets] select')].every(item => item.disabled)).toBe(true)
     expect([...document.querySelectorAll('[data-main-facets] .multi-select__summary')].every(item => item.textContent === 'Loading…')).toBe(true)
@@ -654,6 +725,31 @@ describe('Projects', () => {
     await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(2))
     expect([...select.options].map(option => option.value)).toEqual(['DOPL', 'TV'])
     expect(document.querySelectorAll('.project-card')).toHaveLength(0)
+  })
+
+  it('preserves a valid applied date when a no-match response has no facet options', async () => {
+    const dateFacet = { key: 'date of commercial approval', label: 'Date of Commercial approval', options: [2025] }
+    const initial = { ...payload, state: 'ready', facets: [dateFacet] }
+    const noMatch = {
+      ...initial, facets: [{ ...dateFacet, options: [] }], projects: [], ownerHierarchy: [],
+      blockWarningProjectCount: 0, sync: { state: 'ready', completed: 0, total: 0 },
+    }
+    const api = {
+      getProjectFacts: vi.fn().mockResolvedValueOnce(initial)
+        .mockResolvedValueOnce({ ...noMatch, sync: { state: 'loading', completed: 0, total: 0 } })
+        .mockResolvedValueOnce(noMatch),
+      getProjectFactsStatus: vi.fn().mockResolvedValue({ state: 'ready', completed: 0, total: 0 }),
+    }
+    await createProjects({ root: document.querySelector('#app'), api, pollDelay: () => Promise.resolve() }).start()
+    const select = document.querySelector('[name="field.date of commercial approval"]')
+    expect(document.querySelector('[data-audit-status]').textContent).not.toContain('已清除失效筛选')
+    select.options[0].selected = true
+
+    document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(3))
+
+    expect([...select.selectedOptions].map(option => option.value)).toEqual(['2025'])
+    expect(document.querySelector('[data-audit-status]').textContent).not.toContain('已清除失效筛选')
   })
 
   it('Reset clears local values and restores the authorized catalog scope without details', async () => {

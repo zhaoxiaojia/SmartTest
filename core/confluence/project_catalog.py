@@ -11,13 +11,13 @@ from time import perf_counter
 
 from core.logging import smart_log
 from .project_discovery import PRODUCT_LINES, ProjectLocation, _commercial_year, canonical_project_name, discover_project_pages, locate_basic_information
-from .html import html_tables, links, text
+from .html import html_tables, links, table_fields, text
 from .role_parser import extract_project_roles, extract_role_people, resolve_role_display_names
 from .project_rules import CANONICAL_PROJECT_FIELDS, ROLE_LABELS, normalize_project_field
 
 
 SCHEMA_VERSION = 2
-ROLE_PARSER_VERSION = 2
+ROLE_PARSER_VERSION = 3
 PRODUCT_SPACE_FACET = "__product_space__"
 PROJECT_SPACE_FACET_DEFINITIONS = (
     (PRODUCT_SPACE_FACET, "Product Space"),
@@ -183,7 +183,10 @@ def extract_project_detail(client, original, *, now=None, resolved_names=None):
     pages, _errors, _context = discovered
     pages["basic"] = detail
     parse_started = perf_counter()
-    roles = extract_project_roles(detail.body or detail.view_body)
+    basic_body = detail.body or detail.view_body
+    roles = extract_project_roles(basic_body)
+    fields = dict(row.get("fields", {}))
+    fields["launch os"] = table_fields(basic_body).get("launch os", "")
     parse_ms = round((perf_counter() - parse_started) * 1000, 3)
     user_started = perf_counter()
     attempted, resolved = resolve_role_display_names(client, roles, names)
@@ -192,7 +195,7 @@ def extract_project_detail(client, original, *, now=None, resolved_names=None):
                      "parse_duration_ms": parse_ms, "user_lookup_duration_ms": round((perf_counter() - user_started) * 1000, 3),
                      "user_lookup_count": attempted, "user_resolved_count": resolved})
     row.update(entry_page_id=context["entry_page_id"], root_page_id=context["root_page_id"],
-               detail_path=context.get("page_paths", {}).get("basic", []), roles=roles,
+               detail_path=context.get("page_paths", {}).get("basic", []), roles=roles, fields=fields,
                status="current", error=None,
                evidence=[{"source": kind, **_page_evidence(page, row["space_key"])}
                          for kind, page in pages.items()],
@@ -220,10 +223,14 @@ def query_project_facts(snapshot, *, filters=None, search="", include_inactive=F
         if not _matches_filters(row, fields, filters):
             continue
         people = " ".join(
-            f"{person.get('name', '')} {person.get('identity', '')}"
+            f"{person.get('name', '')} {person.get('account', '')} {person.get('identity', '')}"
             for role in row.get("roles", {}).values() for person in role
         )
-        haystack = " ".join((row.get("project_id", ""), row.get("name", ""), row.get("space_key", ""), people, *fields.values()))
+        field_text = " ".join(f"{key} {value}" for key, value in fields.items())
+        haystack = " ".join((
+            row.get("project_id", ""), row.get("name", ""), row.get("space_key", ""),
+            row.get("customer_summary", ""), people, field_text,
+        ))
         if needle and needle not in _normalize(haystack):
             continue
         visible = deepcopy(row)
@@ -232,13 +239,13 @@ def query_project_facts(snapshot, *, filters=None, search="", include_inactive=F
             visible.get("roles", {}).get(role) for role in ROLE_LABELS
         )
         rows.append(visible)
-    facet_keys = sorted({key for row in rows for key in row.get("fields", {})})
-    facets = {key: sorted({row["fields"][key] for row in rows if row.get("fields", {}).get(key)}, key=str.casefold)
+    facet_keys = sorted({key for row in candidates for key in row.get("fields", {})})
+    facets = {key: sorted({row["fields"][key] for row in candidates if row.get("fields", {}).get(key)}, key=str.casefold)
               for key in facet_keys}
     for key in PROJECT_SPACE_FILTER_FIELDS:
         facets.setdefault(key, [])
     facets["date of commercial approval"] = sorted({
-        year for row in rows
+        year for row in candidates
         if (year := _commercial_year(row.get("fields", {}).get("date of commercial approval", "")))
     })
     selected_spaces = filters.get(PRODUCT_SPACE_FACET, ())
@@ -260,7 +267,7 @@ def query_project_facts(snapshot, *, filters=None, search="", include_inactive=F
                    if source.get("space_key") and source.get("display_name")})
     facets[PRODUCT_SPACE_FACET] = [
         {"value": value, "label": labels.get(value) or value}
-        for value in sorted({row.get("space_key", "") for row in rows if row.get("space_key")}, key=str.casefold)
+        for value in sorted({row.get("space_key", "") for row in candidates if row.get("space_key")}, key=str.casefold)
     ]
     hierarchy = _owner_hierarchy(rows)
     return {"projects": rows, "facets": facets, "ownerHierarchy": hierarchy}

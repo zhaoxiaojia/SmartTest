@@ -37,7 +37,7 @@ def test_project_facts_owner_reads_and_invalidates_new_project_repository(tmp_pa
     empty = owner.query(access)
     assert empty["state"] == "no_snapshot"
     assert [facet["key"] for facet in empty["facets"]] == [
-        "__product_space__", "date of commercial approval", "project id",
+        "__product_space__", "date of commercial approval", "project id", "project owner",
     ]
 
 
@@ -70,11 +70,11 @@ def test_project_facts_exposes_core_product_labels_and_only_catalog_ready_filter
         {"value": "TV", "label": "TV Business"},
     ]
     assert [facet["key"] for facet in result["facets"]] == [
-        "__product_space__", "date of commercial approval", "project id",
+        "__product_space__", "date of commercial approval", "project id", "project owner",
     ]
 
 
-def test_block_warning_count_uses_the_accessible_catalog_before_filters_and_search(tmp_path) -> None:
+def test_block_warning_count_uses_the_final_matched_collection(tmp_path) -> None:
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     projects = tuple(Project(
         ProjectIdentity(f"90{index}", project_id), project_id,
@@ -86,12 +86,17 @@ def test_block_warning_count_uses_the_accessible_catalog_before_filters_and_sear
     repository.save_core(projects)
     access = confirmed_access(repository.database, tuple(project.identity.project_id for project in projects))
 
-    result = ProjectFactsWebOwner(repository=repository).query(
+    owner = ProjectFactsWebOwner(repository=repository)
+    result = owner.query(
         access, filters={"project id": ("P300",)}, search="P300",
     )
+    blocked = owner.query(access, search="P100")
+    lowercase_warning = owner.query(access, search="P400")
 
     assert [project["project_id"] for project in result["projects"]] == ["P300"]
-    assert result["blockWarningProjectCount"] == 2
+    assert result["blockWarningProjectCount"] == 0
+    assert blocked["blockWarningProjectCount"] == 1
+    assert lowercase_warning["blockWarningProjectCount"] == 0
 
 
 def test_project_facts_query_keeps_its_access_snapshot_during_catalog_replacement(tmp_path) -> None:
@@ -181,7 +186,7 @@ def test_project_facts_owner_queries_persisted_dynamic_fields_and_owner_clusters
             NamedValue(name="FAE QA"), (PersonRef("u1", display_name="Alice"),),
         ),)),
         facts=DetailSection.loaded(FieldBag.from_mapping({
-            "project id": "P100", "project owner": "Alice", "odm": "ODM-X",
+            "project id": "P100", "project owner": "Alice", "odm": "ODM-X", "launch os": "Android 16",
             "unexpected owner": "Alice",
         })),
     )
@@ -189,14 +194,17 @@ def test_project_facts_owner_queries_persisted_dynamic_fields_and_owner_clusters
     repository.replace_roles("P100", project.roles)
     repository.replace_facts("P100", project.facts)
 
-    result = ProjectFactsWebOwner(repository=repository).query(
-        confirmed_access(repository.database, ('P100',)), filters={"odm": ("ODM-X",)}, search="Alice",
-    )
+    owner = ProjectFactsWebOwner(repository=repository)
+    access = confirmed_access(repository.database, ('P100',))
+    result = owner.query(access, filters={"project owner": ("Alice",)}, search="Alice")
+    unmatched = owner.query(access, filters={"project owner": ("Bob",)})
 
     assert [row["project_id"] for row in result["projects"]] == ["P100"]
     assert [facet["key"] for facet in result["facets"]] == [
-        "__product_space__", "date of commercial approval", "project id",
+        "__product_space__", "date of commercial approval", "project id", "project owner",
     ]
+    assert unmatched["projects"] == []
+    assert result["projects"][0]["fields"]["launch os"] == "Android 16"
     fae = next(group for group in result["ownerHierarchy"] if group["role"] == "FAE QA")
     assert fae["people"][0]["name"] == "Alice"
 
@@ -230,7 +238,7 @@ def test_page_entry_persists_recent_client_catalog_contract_for_all_four_spaces(
     assert result["accessibleProjectCount"] == 4
     assert {row["space_key"] for row in result["projects"]} == {"TV", "SDPL", "DOPL", "OOPL"}
     assert [facet["key"] for facet in result["facets"]] == [
-        "__product_space__", "date of commercial approval", "project id",
+        "__product_space__", "date of commercial approval", "project id", "project owner",
     ]
 
 

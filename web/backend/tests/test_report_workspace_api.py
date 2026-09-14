@@ -111,7 +111,7 @@ def test_project_page_entry_replays_the_current_session_query_snapshot(tmp_path)
     assert facts.query_calls == [({"project id": ["P100"]}, "Apollo")]
 
 
-def test_removed_project_filters_are_ignored_on_apply_and_direct_reads(tmp_path) -> None:
+def test_project_owner_is_kept_while_unsupported_filters_are_ignored(tmp_path) -> None:
     class Facts(ReadyFactsOwner):
         def __init__(self):
             super().__init__()
@@ -133,11 +133,13 @@ def test_removed_project_filters_are_ignored_on_apply_and_direct_reads(tmp_path)
         "project owner": ["Alice"], "support mode": ["A"], "odm": ["ODM-X"],
     }, "search": "Apollo"})
     assert response.status_code == 200
-    assert response.json()["querySnapshot"]["filters"] == {"project id": ["P100"]}
-    assert facts.query_calls[-1] == ({"project id": ("P100",)}, "Apollo")
+    assert response.json()["querySnapshot"]["filters"] == {
+        "project id": ["P100"], "project owner": ["Alice"],
+    }
+    assert facts.query_calls[-1] == ({"project id": ("P100",), "project owner": ("Alice",)}, "Apollo")
 
-    client.get("/api/confluence/project-facts?field.project%20id=P200&field.support%20mode=B&field.odm=ODM-Y")
-    assert facts.query_calls[-1] == ({"project id": ("P200",)}, "")
+    client.get("/api/confluence/project-facts?field.project%20id=P200&field.project%20owner=Bob&field.support%20mode=B&field.odm=ODM-Y")
+    assert facts.query_calls[-1] == ({"project id": ("P200",), "project owner": ("Bob",)}, "")
 
 
 def test_project_reset_replaces_session_snapshot_with_authorized_catalog_scope(tmp_path) -> None:

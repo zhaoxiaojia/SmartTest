@@ -61,3 +61,20 @@ it('colors distribution labels by their reusable presentation slots', () => {
   expect(colors[2]).toBe(colors[0])
   expect(new Set(colors.filter((_, index) => index !== 2))).toHaveLength(8)
 })
+
+it('lets Project Status semantic tones override reusable color slots', () => {
+  const style = document.createElement('style')
+  style.textContent = readFileSync(resolve(import.meta.dirname, '../src/smarttest-theme.css'), 'utf8')
+  document.head.append(style)
+  const colors = ['block', 'warning', 'pending'].map(tone => {
+    const label = document.createElement('span')
+    label.className = 'distribution-label'
+    label.dataset.colorSlot = '0'
+    label.dataset.statusTone = tone
+    document.body.append(label)
+    const computed = getComputedStyle(label)
+    return `${computed.color}|${computed.backgroundColor}`
+  })
+
+  expect(new Set(colors)).toHaveLength(3)
+})

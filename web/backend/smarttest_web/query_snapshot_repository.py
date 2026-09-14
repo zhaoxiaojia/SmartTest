@@ -6,7 +6,9 @@ import time
 
 from .database import WebDatabase
 
-PROJECT_FILTER_KEYS = frozenset({"__product_space__", "date of commercial approval", "project id"})
+PROJECT_FILTER_KEYS = frozenset({
+    "__product_space__", "date of commercial approval", "project id", "project owner",
+})
 
 
 def normalize_project_filters(filters):

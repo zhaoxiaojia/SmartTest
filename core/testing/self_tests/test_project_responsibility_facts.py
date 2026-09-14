@@ -185,6 +185,36 @@ def test_single_project_extraction_expands_structured_and_delimited_people():
     assert result["detail_source"]["version"] == 2
 
 
+def test_single_project_extraction_reads_launch_os_from_basic_information():
+    catalog = refresh_project_catalogs(
+        CatalogClient({"https://c/display/TV/Project+Space": _space(key="TV")}), MemoryStore(),
+        (ProductLine("TV", "https://c/display/TV/Project+Space", "TV Business"),),
+    )["projects"][0]
+    catalog["fields"]["launch os"] = "Catalog value"
+    catalog.update(status="current", detail_source={"role_parser_version": 2})
+
+    class DetailClient:
+        def get_page_by_url(self, url, *, prefer_export=False):
+            return ConfluencePage("101", "Alpha Project", url)
+
+        def get_page_children(self, page_id):
+            return ([ConfluencePage("basic", "Alpha-Basic Information", "https://c/basic", version=2)]
+                    if page_id == "101" else [])
+
+        def get_page(self, page_id):
+            return ConfluencePage(page_id, "Alpha-Basic Information", "https://c/basic", body=(
+                "<table><tr><th>Lunch OS</th><td>Wrong label</td></tr>"
+                "<tr><th>Launch OS</th><td>Android 16</td></tr></table>"
+            ), version=2)
+
+        def get_user_display_name(self, identity):
+            raise AssertionError(identity)
+
+    result = extract_project_detail(DetailClient(), catalog)
+
+    assert result["fields"]["launch os"] == "Android 16"
+
+
 def test_realistic_role_cell_expands_eleven_people_without_turning_notes_into_people():
     catalog = refresh_project_catalogs(
         CatalogClient({"https://c/display/X/Project+Space": _space()}), MemoryStore(),
@@ -258,17 +288,51 @@ def test_cached_root_id_avoids_url_resolution_and_still_locates_basic_sibling():
     assert result["detail_source"]["page_id"] == "basic"
 
 
-def test_local_query_filters_full_text_and_builds_role_hierarchy():
+@pytest.mark.parametrize(
+    "search",
+    (
+        "alpha-id", "alpha", "x", "customer north", "fae one",
+        "alice.account", "user-identity", "custom field", "secret value",
+    ),
+)
+def test_local_query_searches_all_local_project_person_and_field_text(search):
     snapshot = {"projects": [{
         "identity": "X:101", "page_id": "101", "project_id": "Alpha-ID", "name": "Alpha",
         "space_key": "X", "page_url": "https://c/101", "active": True,
-        "fields": {"support mode": "A", "current stage": "Stage 1"},
-        "roles": {"FAE QA": [{"identity": "u1", "name": "Fae One"}]},
+        "customer_summary": "Customer North",
+        "fields": {"support mode": "A", "current stage": "Stage 1", "Custom Field": "Secret Value"},
+        "roles": {"FAE QA": [{"identity": "user-identity", "account": "alice.account", "name": "Fae One"}]},
     }], "stage_domains": {"X": ["Stage 1"]}}
-    result = query_project_facts(snapshot, filters={PRODUCT_SPACE_FACET: "X"}, search="Fae One")
+    result = query_project_facts(snapshot, filters={PRODUCT_SPACE_FACET: "X"}, search=search)
     assert [row["project_id"] for row in result["projects"]] == ["Alpha-ID"]
     assert result["facets"]["current stage"] == ["Stage 1"]
     assert len(result["ownerHierarchy"][1]["people"][0]["projects"]) == 1
+
+
+def test_local_query_keeps_authorized_facet_options_when_filters_match_no_projects():
+    snapshot = {"projects": [
+        {
+            "identity": "X:101", "project_id": "P-2025", "name": "Alpha", "space_key": "X", "active": True,
+            "fields": {"date of commercial approval": "18 Aug 2025", "project owner": "Alice"}, "roles": {},
+        },
+        {
+            "identity": "Y:102", "project_id": "P-2026", "name": "Beta", "space_key": "Y", "active": True,
+            "fields": {"date of commercial approval": "19 Aug 2026", "project owner": "Bob"}, "roles": {},
+        },
+    ]}
+
+    result = query_project_facts(
+        snapshot,
+        filters={"date of commercial approval": "2025"},
+        search="no project matches",
+    )
+
+    assert result["projects"] == []
+    assert result["facets"]["date of commercial approval"] == [2025, 2026]
+    assert result["facets"]["project owner"] == ["Alice", "Bob"]
+    assert result["facets"][PRODUCT_SPACE_FACET] == [
+        {"value": "X", "label": "X"}, {"value": "Y", "label": "Y"},
+    ]
 
 
 def test_catalog_uses_injected_task_manager_for_each_product_space():
