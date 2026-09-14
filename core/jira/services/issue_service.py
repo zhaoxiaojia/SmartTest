@@ -16,14 +16,9 @@ class JiraIssueService:
     def search_records(
         self,
         jql: str,
-        *,
-        page_size: int | None = None,
-        max_total_results: int | None = None,
     ) -> list[Issue]:
         payloads = self._gateway.search_all_payloads(
             jql,
             fields=list(self._gateway.CORE_FIELDS),
-            page_size=page_size,
-            max_total_results=max_total_results,
         )
         return [self._mapper.from_search(payload) for payload in payloads]

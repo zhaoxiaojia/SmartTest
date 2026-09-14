@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock, get_ident
+from time import sleep as pause
+
 import pytest
 
 from core.jira.commands import CreateIssueCommand
@@ -95,6 +99,142 @@ def test_jira_gateway_normalizes_third_party_failure() -> None:
         gateway.search_issues("project = SH", page=0)
 
     assert error.value.code == "jira_search_failed"
+
+
+def test_full_search_uses_1000_item_pages_with_bounded_independent_clients_and_stable_deduplication() -> None:
+    lock = Lock()
+    active = 0
+    peak = 0
+    clients = []
+    calls = []
+
+    class PagedApi:
+        def __init__(self):
+            clients.append(self)
+
+        def jql(self, query, *, fields, start, limit, **_kwargs):
+            nonlocal active, peak
+            with lock:
+                active += 1
+                peak = max(peak, active)
+                calls.append((self, get_ident(), query, tuple(fields), start, limit))
+            try:
+                if start:
+                    pause(0.01)
+                pages = {
+                    0: ({"key": "SH-2"}, {"key": "SH-1"}),
+                    1000: ({"key": "SH-3"}, {"key": "SH-2"}),
+                    2000: ({"key": "SH-4"},),
+                    3000: ({"key": "SH-5"},),
+                    4000: ({"key": "SH-6"},),
+                }
+                # The first page reports 2500; a later page observes growth to 4500.
+                total = 4500 if start >= 1000 else 2500
+                return {"issues": list(pages.get(start, ())), "startAt": start, "total": total, "maxResults": limit}
+            finally:
+                with lock:
+                    active -= 1
+
+    gateway = JiraGateway(
+        "https://jira.example", "u", "p", api=PagedApi(), api_factory=PagedApi,
+    )
+    rows = gateway.search_all_payloads("project = SH")
+
+    assert [row["key"] for row in rows] == ["SH-2", "SH-1", "SH-3", "SH-4", "SH-5", "SH-6"]
+    assert sorted(start for _, _, _, _, start, _ in calls) == [0, 1000, 2000, 3000, 4000]
+    assert all(limit == 1000 for *_, limit in calls)
+    assert 1 < peak <= 4
+    clients_by_thread = {}
+    for client, thread_id, *_ in calls:
+        clients_by_thread.setdefault(thread_id, set()).add(id(client))
+    assert all(len(thread_clients) == 1 for thread_clients in clients_by_thread.values())
+    assert len({next(iter(thread_clients)) for thread_clients in clients_by_thread.values()}) == len(clients_by_thread)
+
+
+def test_concurrent_full_searches_share_one_four_request_gateway_limit() -> None:
+    lock = Lock()
+    active = 0
+    peak = 0
+
+    class SlowApi:
+        def jql(self, query, *, start, limit, **_kwargs):
+            nonlocal active, peak
+            with lock:
+                active += 1
+                peak = max(peak, active)
+            try:
+                pause(0.03)
+                return {
+                    "issues": [{"key": f"{query}-{start}"}],
+                    "startAt": start,
+                    "total": 5000,
+                    "maxResults": limit,
+                }
+            finally:
+                with lock:
+                    active -= 1
+
+    gateway = JiraGateway("https://jira.example", "u", "p", api=SlowApi(), api_factory=SlowApi)
+    with ThreadPoolExecutor(max_workers=2) as callers:
+        results = list(callers.map(gateway.search_all_payloads, ("A", "B")))
+
+    assert all(len(rows) == 5 for rows in results)
+    assert 1 < peak <= 4
+
+
+def test_full_search_retries_only_502_with_fixed_backoff(monkeypatch) -> None:
+    import core.jira.gateway as gateway_module
+
+    delays = []
+    monkeypatch.setattr(gateway_module, "sleep", delays.append)
+
+    class Response:
+        status_code = 502
+
+    class Failure(Exception):
+        response = Response()
+
+    class RetryingApi:
+        attempts = 0
+
+        def jql(self, _query, **_kwargs):
+            type(self).attempts += 1
+            if type(self).attempts <= 3:
+                raise Failure("temporary")
+            return {"issues": [], "startAt": 0, "total": 0, "maxResults": 1000}
+
+    gateway = JiraGateway("https://jira.example", "u", "p", api=RetryingApi(), api_factory=RetryingApi)
+
+    assert gateway.search_all_payloads("project = SH") == []
+    assert RetryingApi.attempts == 4
+    assert delays == [0.25, 0.5, 1.0]
+
+
+def test_full_search_does_not_retry_non_502(monkeypatch) -> None:
+    import core.jira.gateway as gateway_module
+
+    delays = []
+    monkeypatch.setattr(gateway_module, "sleep", delays.append)
+
+    class Response:
+        status_code = 503
+
+    class Failure(Exception):
+        response = Response()
+
+    class BrokenApi:
+        attempts = 0
+
+        def jql(self, _query, **_kwargs):
+            type(self).attempts += 1
+            raise Failure("unavailable")
+
+    gateway = JiraGateway("https://jira.example", "u", "p", api=BrokenApi(), api_factory=BrokenApi)
+    with pytest.raises(JiraGatewayError) as error:
+        gateway.search_all_payloads("project = SH")
+    assert error.value.code == "jira_search_failed"
+    assert BrokenApi.attempts == 1
+    assert delays == []
 
 
 def test_jira_gateway_logs_issue_request_operations_without_response_content(monkeypatch) -> None:

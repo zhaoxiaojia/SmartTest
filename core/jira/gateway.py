@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass
-from time import monotonic
-from typing import Any
+from threading import local
+from time import monotonic, sleep
+from typing import Any, Callable
 
 try:
     from atlassian import Jira
@@ -32,6 +34,9 @@ class JiraGatewayError(RuntimeError):
 
 
 class JiraGateway:
+    FULL_SEARCH_PAGE_SIZE = 1000
+    FULL_SEARCH_WORKERS = 4
+    _RETRY_DELAYS = (0.25, 0.5, 1.0)
     CORE_FIELDS = (
         "summary",
         "project",
@@ -58,19 +63,27 @@ class JiraGateway:
         password: str,
         *,
         api: Any = None,
+        api_factory: Callable[[], Any] | None = None,
         page_size: int = 100,
     ) -> None:
         clean_url = str(base_url or "").rstrip("/")
         if not clean_url:
             raise JiraGatewayError("jira_base_url_required")
         self.config = JiraGatewayConfig(clean_url, page_size)
+        self._client_state = local()
+        self._full_search_executor = ThreadPoolExecutor(
+            max_workers=self.FULL_SEARCH_WORKERS,
+            thread_name_prefix="jira-full-search",
+        )
         if api is not None:
             self._api = api
+            self._api_factory = api_factory or (lambda: api)
             return
         if Jira is None:
             raise JiraGatewayError("jira_dependency_unavailable")
         try:
             self._api = Jira(url=clean_url, username=username, password=password)
+            self._api_factory = lambda: Jira(url=clean_url, username=username, password=password)
         except Exception as exc:
             raise JiraGatewayError("jira_initialization_failed") from exc
 
@@ -131,22 +144,81 @@ class JiraGateway:
         *,
         fields: list[str] | None = None,
         expand: list[str] | None = None,
-        page_size: int | None = None,
-        max_total_results: int | None = None,
     ) -> list[dict[str, Any]]:
-        limit = page_size or self.config.page_size
+        requested_fields = fields or list(self.CORE_FIELDS)
+        pages = {0: self._full_search_executor.submit(
+            self._search_full_page, query, 0, requested_fields, expand,
+        ).result()}
+        observed_total = int(pages[0].get("total") or 0)
+        scheduled = {0}
+        pending = {}
+
+        def schedule(total: int) -> None:
+            for start in range(self.FULL_SEARCH_PAGE_SIZE, total, self.FULL_SEARCH_PAGE_SIZE):
+                if start not in scheduled:
+                    scheduled.add(start)
+                    future = self._full_search_executor.submit(
+                        self._search_full_page, query, start, requested_fields, expand,
+                    )
+                    pending[future] = start
+
+        schedule(observed_total)
+        while pending:
+            completed, _ = wait(tuple(pending), return_when=FIRST_COMPLETED)
+            for future in completed:
+                start = pending.pop(future)
+                page = future.result()
+                pages[start] = page
+                observed_total = max(observed_total, int(page.get("total") or 0))
+            schedule(observed_total)
+
         rows: list[dict[str, Any]] = []
-        start = 0
-        while True:
-            remaining = None if max_total_results is None else max_total_results - len(rows)
-            if remaining is not None and remaining <= 0:
-                return rows
-            page = self.search_payload(query, start_at=start, max_results=min(limit, remaining) if remaining is not None else limit, fields=fields, expand=expand)
-            issues = [item for item in page.get("issues") or () if isinstance(item, dict)]
-            rows.extend(issues)
-            start += len(issues)
-            if not issues or start >= int(page.get("total") or start):
-                return rows
+        seen_keys: set[str] = set()
+        for start in sorted(pages):
+            for issue in pages[start].get("issues") or ():
+                if not isinstance(issue, dict):
+                    continue
+                key = str(issue.get("key") or "")
+                if key and key in seen_keys:
+                    continue
+                if key:
+                    seen_keys.add(key)
+                rows.append(issue)
+        return rows
+
+    def _search_full_page(
+        self,
+        query: str,
+        start: int,
+        fields: list[str],
+        expand: list[str] | None,
+    ) -> dict[str, Any]:
+        api = self._thread_api()
+        for attempt in range(len(self._RETRY_DELAYS) + 1):
+            try:
+                payload = api.jql(
+                    query,
+                    fields=fields,
+                    start=start,
+                    limit=self.FULL_SEARCH_PAGE_SIZE,
+                    expand=",".join(expand) if expand else None,
+                    validate_query="strict",
+                )
+                return payload if isinstance(payload, dict) else {}
+            except Exception as exc:
+                status = getattr(getattr(exc, "response", None), "status_code", None)
+                if status != 502 or attempt >= len(self._RETRY_DELAYS):
+                    raise JiraGatewayError("jira_search_failed") from exc
+                sleep(self._RETRY_DELAYS[attempt])
+        raise JiraGatewayError("jira_search_failed")  # pragma: no cover
+
+    def _thread_api(self) -> Any:
+        if not hasattr(self._client_state, "api"):
+            try:
+                self._client_state.api = self._api_factory()
+            except Exception as exc:
+                raise JiraGatewayError("jira_initialization_failed") from exc
+        return self._client_state.api
 
     def get_issue(self, issue_key: str) -> dict[str, Any]:
         started = monotonic()
