@@ -287,7 +287,19 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
       card.dataset.projectId = projectKey(project)
       const summary = node('div', 'project-card-summary')
       const primary = node('div', 'project-list-primary')
-      const heading = node('div', 'kanban-card-title', projectDisplayName(project))
+      const pageUrl = String(project.page_url ?? '').trim()
+      const projectName = projectDisplayName(project)
+      const heading = node(pageUrl ? 'a' : 'div', `kanban-card-title${pageUrl ? ' project-card-link' : ''}`, pageUrl ? null : projectName)
+      if (pageUrl) {
+        heading.href = pageUrl
+        heading.target = '_blank'
+        heading.rel = 'noopener noreferrer'
+        const icon = node('img', 'project-card-link-icon')
+        icon.src = '/icons/external-link.svg'
+        icon.alt = ''
+        icon.setAttribute('aria-hidden', 'true')
+        heading.append(icon, document.createTextNode(projectName))
+      }
       const identifier = node('div', 'kanban-card-desc', project.project_id)
       const customer = node('div', 'project-card-customer', project.customer_summary)
       const badges = node('div', 'project-card-badges project-list-meta')
@@ -317,7 +329,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
         if (!groups.has(stage)) groups.set(stage, { name: stage, projects: [] })
         groups.get(stage).projects.push(project)
       }
-      return [...groups.values()].sort((left, right) => comparePresentAsc(left.name, right.name))
+      return [...groups.values()].sort((left, right) => right.projects.length - left.projects.length)
     }
 
     const appendStageGroups = (container, projects) => {
@@ -341,7 +353,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
         if (!groups.has(launchOs)) groups.set(launchOs, { name: launchOs, projects: [] })
         groups.get(launchOs).projects.push(project)
       }
-      return [...groups.values()].sort((left, right) => comparePresentAsc(left.name, right.name))
+      return [...groups.values()].sort((left, right) => right.projects.length - left.projects.length)
     }
 
     const statusColorSlots = new Map([...new Set(uniqueProjects.map(project => displayValue(project.status) || 'Unspecified'))]

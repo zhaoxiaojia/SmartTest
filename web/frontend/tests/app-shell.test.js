@@ -6,6 +6,15 @@ import { createAppShell, navigation } from '../src/app-shell.js'
 describe('AppShell', () => {
   beforeEach(() => { document.body.innerHTML = '<div data-app-shell></div>' })
 
+  it('places Test Management between Projects and Jira', () => {
+    expect(navigation.map(item => item.title)).toEqual([
+      'Dashboard', 'Projects', 'Test Management', 'Jira', 'Tools', 'Wi-Fi Data', 'Settings',
+    ])
+    const shell = createAppShell({ pageKey: 'test-management' })
+    expect(shell.contentRoot.closest('[data-app-shell]').querySelector('.nav-link.active').textContent)
+      .toContain('Test Management')
+  })
+
   it('owns the complete Tools shell including account hosts', () => {
     const shell = createAppShell({ pageKey: 'tools' })
     expect([...document.querySelectorAll('.nav-menu a')].map(link => link.textContent.trim()))

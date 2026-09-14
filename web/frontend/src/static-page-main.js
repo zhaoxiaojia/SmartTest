@@ -2,6 +2,7 @@ import { startAuthenticatedPage } from './authenticated-page.js'
 
 const pageKey = document.querySelector('[data-app-shell]').dataset.pageKey
 const loaders = {
+  'test-management': () => import('./pages/test-management.js'),
   settings: () => import('./pages/settings.js'),
   inbox: () => import('./pages/inbox.js'),
   analytics: () => import('./pages/analytics.js'),

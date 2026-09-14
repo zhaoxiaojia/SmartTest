@@ -190,11 +190,11 @@ describe('Projects', () => {
     expect(normalSlots[0]).toMatch(/^\d+$/)
     expect(new Set(statusLabels.map(label => label.dataset.colorSlot))).toHaveLength(3)
     const stageGroups = [...groups[0].querySelectorAll('[data-stage-group]')]
-    expect(stageGroups.map(group => group.querySelector('summary strong').textContent)).toEqual(['Pilot', 'Validation'])
+    expect(stageGroups.map(group => group.querySelector('summary strong').textContent)).toEqual(['Validation', 'Pilot'])
     expect(stageGroups.map(group => group.querySelector('[data-stage-project-count]').textContent)).toEqual(['1', '1'])
     expect(stageGroups.every(group => !group.open)).toBe(true)
-    expect([...stageGroups[0].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-second'])
-    expect([...stageGroups[1].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-first'])
+    expect([...stageGroups[0].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-first'])
+    expect([...stageGroups[1].querySelectorAll('.project-card')].map(card => card.dataset.projectId)).toEqual(['p-second'])
     expect(document.querySelectorAll('[data-project-id="p-first"]')).toHaveLength(1)
     expect(document.querySelector('[data-project-id="p-none"]').textContent).toContain('No Owner Project')
     expect(document.querySelector('[data-project-id="p-first"]').textContent).toContain('Coco, Bob')
@@ -205,7 +205,7 @@ describe('Projects', () => {
       .not.toEqual(expect.arrayContaining(['DOPL', 'SDPL', 'TV', 'OOPL']))
   })
 
-  it('orders Current Stage groups in ascending natural order', async () => {
+  it('orders Current Stage groups by project count descending', async () => {
     const project = (identity, stage) => ({
       identity, project_id: identity, name: identity, space_key: 'DOPL', status: 'ACTIVE', stage,
       customer_summary: 'Customer', roles: {}, fields: {}
@@ -220,8 +220,8 @@ describe('Projects', () => {
     await createProjects({ root: document.querySelector('#app'), api }).start()
 
     const groups = [...document.querySelector('[data-product-space-group]').querySelectorAll('[data-stage-group]')]
-    expect(groups.map(group => group.querySelector('summary strong').textContent)).toEqual(['Equal A', 'Equal B', 'High', 'Small'])
-    expect(groups.map(group => group.querySelector('[data-stage-project-count]').textContent)).toEqual(['2', '2', '3', '1'])
+    expect(groups.map(group => group.querySelector('summary strong').textContent)).toEqual(['High', 'Equal A', 'Equal B', 'Small'])
+    expect(groups.map(group => group.querySelector('[data-stage-project-count]').textContent)).toEqual(['3', '2', '2', '1'])
   })
 
   it('groups only TV projects by Launch OS before Current Stage', async () => {
@@ -245,15 +245,15 @@ describe('Projects', () => {
     const tv = productGroups.find(group => group.querySelector('[data-product-space-toggle] strong').textContent === 'TV Business')
     const launchGroups = [...tv.querySelectorAll(':scope > [data-product-grid] > [data-launch-os-group]')]
     expect(launchGroups.map(group => group.querySelector(':scope > summary strong').textContent)).toEqual([
-      'Android 16', 'Linux', 'Unspecified',
+      'Android 16', 'Unspecified', 'Linux',
     ])
     expect(launchGroups.map(group => group.querySelector(':scope > summary [data-launch-os-project-count]').textContent)).toEqual([
-      '2', '1', '2',
+      '2', '2', '1',
     ])
     expect([...launchGroups[0].querySelectorAll('[data-stage-group]')].map(group => [
       group.querySelector('summary strong').textContent,
       group.querySelector('[data-stage-project-count]').textContent,
-    ])).toEqual([['DVT', '1'], ['EVT', '1']])
+    ])).toEqual([['EVT', '1'], ['DVT', '1']])
     expect([...tv.querySelectorAll('.project-card')]).toHaveLength(5)
     expect(new Set([...tv.querySelectorAll('.project-card')].map(card => card.dataset.projectId)).size).toBe(5)
 
@@ -401,6 +401,27 @@ describe('Projects', () => {
     await createProjects({ root: document.querySelector('#app'), api }).start()
 
     expect(document.querySelector('.project-card .kanban-card-title').textContent).toBe('Apollo')
+  })
+
+  it('links only project names that have a catalog page URL', async () => {
+    const linked = { ...payload, projects: [
+      { ...payload.projects[0], project_id: 'A-1', name: 'Apollo', page_url: 'https://confluence.example/pages/1' },
+      { ...payload.projects[0], project_id: 'B-2', name: 'Blank URL', page_url: '' },
+    ] }
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(linked) }
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+
+    const cards = [...document.querySelectorAll('.project-card')]
+    const link = cards[0].querySelector('.project-card-link')
+    expect(link.href).toBe('https://confluence.example/pages/1')
+    expect(link.target).toBe('_blank')
+    expect(link.rel).toBe('noopener noreferrer')
+    const icon = link.querySelector('img[aria-hidden="true"]')
+    expect(icon.getAttribute('src')).toBe('/icons/external-link.svg')
+    expect(link.firstElementChild).toBe(icon)
+    expect(link.textContent).toBe('Apollo')
+    expect(cards[1].querySelector('.kanban-card-title').textContent).toBe('Blank URL')
+    expect(cards[1].querySelector('a')).toBeNull()
   })
 
   it('keeps matched projects visible when responsibility data is unavailable', async () => {

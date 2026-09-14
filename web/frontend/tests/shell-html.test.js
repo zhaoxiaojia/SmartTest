@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { JSDOM } from 'jsdom'
 import { describe, expect, it } from 'vitest'
 
-const entries = ['index.html', 'projects.html', 'jira.html', 'tools.html', 'settings.html', 'inbox.html', 'analytics.html', 'audit-email.html']
+const entries = ['index.html', 'projects.html', 'test-management.html', 'jira.html', 'tools.html', 'settings.html', 'inbox.html', 'analytics.html', 'audit-email.html']
 const brandedEntries = [...entries, 'login.html']
 
 describe('static FAE QA Data Center shell entries', () => {
@@ -37,7 +37,7 @@ describe('static FAE QA Data Center shell entries', () => {
   })
 
   it.each([
-    ['index.html', 'dashboard'], ['projects.html', 'projects'], ['jira.html', 'jira'],
+    ['index.html', 'dashboard'], ['projects.html', 'projects'], ['test-management.html', 'test-management'], ['jira.html', 'jira'],
     ['tools.html', 'tools'], ['settings.html', 'settings'], ['audit-email.html', 'audit-email'],
   ])('%s declares its owning page key', (file, pageKey) => {
     const document = new JSDOM(readFileSync(resolve(import.meta.dirname, '..', file), 'utf8')).window.document

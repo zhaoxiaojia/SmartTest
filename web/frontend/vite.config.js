@@ -12,6 +12,7 @@ export default defineConfig({
       input: {
         dashboard: resolve(import.meta.dirname, 'index.html'),
         projects: resolve(import.meta.dirname, 'projects.html'),
+        testManagement: resolve(import.meta.dirname, 'test-management.html'),
         inbox: resolve(import.meta.dirname, 'inbox.html'),
         analytics: resolve(import.meta.dirname, 'analytics.html'),
         settings: resolve(import.meta.dirname, 'settings.html'),
