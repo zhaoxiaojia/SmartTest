@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 SMTP_HOST = "10.18.11.55"
 SMTP_PORT = 25
 FROM_ADDRESS = "fae-qa-auto@amlogic.com"
-DEFAULT_SENDER_NAME = "SmartTest 自动化平台"
+DEFAULT_SENDER_NAME = ""
 
 
 class OutlookSendError(RuntimeError):

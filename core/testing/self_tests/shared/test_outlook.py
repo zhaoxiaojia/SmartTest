@@ -176,9 +176,8 @@ def test_sender_uses_only_fixed_server_and_envelope_addresses():
 
     send_built_email(built, smtp_factory=FakeSmtp)
 
-    assert str(built.message["From"]) == (
-        "SmartTest 自动化平台 <fae-qa-auto@amlogic.com>"
-    )
+    assert str(built.message["From"]) == "fae-qa-auto@amlogic.com"
+    assert "SmartTest" not in str(built.message)
     assert calls["connect"] == ("10.18.11.55", 25, 20)
     assert calls["send"] == (
         built.message,

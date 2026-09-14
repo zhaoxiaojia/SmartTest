@@ -60,7 +60,7 @@ def build_email(
     template: str | None = "technology",
     base_dir: str | Path | None = None,
 ) -> BuiltEmail:
-    """Build an email using the fixed SmartTest sender identity."""
+    """Build an email using the fixed corporate sender identity."""
 
     to_addresses = _validated_addresses(to, "To")
     cc_addresses = _validated_addresses(cc, "Cc")
