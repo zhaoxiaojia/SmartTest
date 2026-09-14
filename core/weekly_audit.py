@@ -13,10 +13,13 @@ def fixed_weekly_audit_scope(trigger_at: datetime) -> dict:
     """Return the fixed weekly-email scope frozen for one actual trigger."""
     trigger = (trigger_at.replace(tzinfo=_SHANGHAI) if trigger_at.tzinfo is None
                else trigger_at.astimezone(_SHANGHAI))
-    days_since_friday = (trigger.weekday() - 4) % 7 or 7
-    start = datetime.combine(trigger.date() - timedelta(days=days_since_friday), time.min, _SHANGHAI)
-    start_text, end_text = start.isoformat(), trigger.isoformat()
-    jira_start, jira_end = start.date().isoformat(), trigger.date().isoformat()
+    this_monday = trigger.date() - timedelta(days=trigger.weekday())
+    previous_monday = this_monday - timedelta(days=7)
+    start = datetime.combine(previous_monday, time.min, _SHANGHAI)
+    end = start + timedelta(days=5)
+    start_text, end_text = start.isoformat(), end.isoformat()
+    jira_start = start.date().isoformat()
+    jira_end = (end.date() - timedelta(days=1)).isoformat()
     return {
         "startDate": start_text,
         "endDate": end_text,

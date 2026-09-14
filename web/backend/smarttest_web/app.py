@@ -45,7 +45,6 @@ from .audit.registry import (
 from .downloads import DownloadArtifactService, DownloadNotFoundError
 from .audit.email_history import AuditEmailHistory
 from .audit.email_job import AuditEmailJob
-from .audit.email_events import AuditEmailEvents
 
 SESSION_COOKIE = "smarttest_session"
 
@@ -87,8 +86,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                audit_registry=ManualAuditRegistry,
                download_service=DownloadArtifactService,
                jira_audit_owner=default_jira_audit_owner,
-               confluence_audit_owner=default_confluence_audit_owner,
-               email_events_factory=AuditEmailEvents) -> FastAPI:
+               confluence_audit_owner=default_confluence_audit_owner) -> FastAPI:
     auth = authenticator()
     sessions = session_store()
     cache_database = WebDatabase(sessions.path)
@@ -103,37 +101,11 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     email_history = AuditEmailHistory(cache_database)
     email_job = AuditEmailJob(email_history)
 
-    def launch_email_event(event, finished):
-        token = sessions.create_from_saved(event['account'])
-
-        def complete(result):
-            try:
-                finished(result)
-            finally:
-                sessions.delete(token)
-
-        try:
-            value = sessions.get(token)
-            base = os.getenv('SMARTTEST_CONFLUENCE_BASE_URL', 'https://confluence.amlogic.com')
-            access = sessions.resource_access(token, f"confluence:{base.rstrip('/').lower()}", cache_database)
-            email_job.trigger(value.username, event['filterScope'], access, value.password, value.expires_at,
-                              facts, jira_audit_owner, confluence_audit_owner, event_id=event['id'],
-                              trigger_source=event.get('source'),
-                              on_created=lambda run: email_events.attach_run(event, run),
-                              on_delivery=lambda run: email_events.delivery(event, run), on_finished=complete)
-        except Exception:
-            sessions.delete(token)
-            raise
-
-    email_events = email_events_factory(email_history, launch_email_event)
-
     @asynccontextmanager
     async def lifespan(_app):
         try:
-            email_events.start()
             yield
         finally:
-            email_events.close()
             email_job.close()
             audits.close()
             downloads.close()
@@ -881,35 +853,6 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         key = audit_session(request)
         return {"cancelled": refresh.cancel(key), "sync": refresh.status_for(key)}
 
-    @app.get('/api/audit-email/events')
-    def list_audit_email_events(value=Depends(authenticated_session)):
-        return email_events.list_events(value.username)
-
-    @app.post('/api/audit-email/events')
-    async def create_audit_email_event(request: Request, payload: dict = Body(...),
-                                       value=Depends(authenticated_session)):
-        try:
-            due_at = payload.get('dueAt', '')
-            due = datetime.fromisoformat(due_at)
-            return email_events.create(value.username, due_at, fixed_weekly_audit_scope(due))
-        except (ValueError, TypeError, OverflowError) as error:
-            raise HTTPException(status_code=422, detail='请选择未来的北京时间。') from error
-
-    @app.get('/api/audit-email/schedule')
-    async def get_audit_email_schedule(value=Depends(authenticated_session)):
-        return {'schedule': email_events.get_or_create_default_schedule(value.username)}
-
-    @app.put('/api/audit-email/schedule')
-    async def save_audit_email_schedule(payload: dict = Body(...), value=Depends(authenticated_session)):
-        try:
-            return {'schedule': email_events.save_schedule(value.username, payload)}
-        except (ValueError, TypeError) as error:
-            raise HTTPException(status_code=422, detail={'state': 'invalid_schedule'}) from error
-
-    @app.delete('/api/audit-email/schedule')
-    async def delete_audit_email_schedule(value=Depends(authenticated_session)):
-        return {'deleted': email_events.delete_schedule(value.username)}
-
     @app.get("/api/audit-email/runs")
     def list_audit_email_runs(offset: int = Query(0, ge=0), value=Depends(authenticated_session)):
         return email_history.list_runs(value.username, offset)
@@ -924,7 +867,8 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     @app.post("/api/audit-email/runs")
     def create_audit_email_run(request: Request, value=Depends(authenticated_session)):
         return email_job.trigger(value.username, fixed_weekly_audit_scope(datetime.now().astimezone()), access_context(request),
-                                 value.password, value.expires_at, facts, jira_audit_owner, confluence_audit_owner)
+                                 value.password, value.expires_at, facts, jira_audit_owner, confluence_audit_owner,
+                                 trigger_source='manual')
 
     @app.get("/api/audit-email/runs/{run_id}/attachments/{kind}/{filename}")
     def audit_email_attachment(run_id: str, kind: str, filename: str, value=Depends(authenticated_session)):

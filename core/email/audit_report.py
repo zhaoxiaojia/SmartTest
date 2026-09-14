@@ -169,17 +169,18 @@ def render_history_report(kind: str, records: list[dict], *, current=False) -> d
     subject = f"{title} {labels[0]}" + ("" if current else "（历史预览）")
     introduction = (
         (
-            "下面是本周confluence信息更新检查结果，请未更新的项目owner尽快去补充未完成的部分。"
+            "下面是上周confluence信息更新检查结果，请未更新的项目owner尽快去补充未完成的部分。"
             if kind == "confluence"
             else "下面是针对大家上周创建的bug进行的规范检查，针对还不满足规范的部分，大家需要尽快改善。"
         )
         if current
         else "历史预览：以下数据来自已提供的截图汇总，本次未重新执行审查，未发送邮件。"
     )
+    body_title = title if current else subject
     body = (
         '<!doctype html><html lang="zh-CN"><meta charset="utf-8">'
         '<body style="font-family:Arial,Microsoft YaHei,sans-serif;color:#172b4d;background:white;padding:20px">'
-        f"<h2>{escape(subject)}</h2><p>Hi all,</p>"
+        f"<h2>{escape(body_title)}</h2><p>Hi all,</p>"
         f"<p>{introduction}</p>{table}<p>{escape(note)}</p>{details}</body></html>"
     )
     return {

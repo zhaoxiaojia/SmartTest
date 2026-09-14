@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 
 from fastapi.testclient import TestClient
@@ -11,6 +11,14 @@ from core.jira.audit.models import IssueAuditResult
 from smarttest_web.app import create_app
 from test_web_session import FakeAuthenticator, FakeFactsOwner
 from test_manual_audit_api import JiraOwner
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def no_real_weekly_email(monkeypatch):
+    sent = []
+    monkeypatch.setattr('core.email.outlook.send_email', lambda **message: sent.append(message))
+    return sent
 
 
 class ActualJira(JiraOwner):
@@ -115,13 +123,40 @@ def test_seed_details_never_invent_missing_history():
         assert '49.15%' in latest['reports']['jira']['html']
 
 
-def test_trigger_uses_fixed_scope_without_creating_global_filter_snapshots():
+def test_trigger_uses_fixed_scope_sends_two_emails_without_creating_global_filter_snapshots(no_real_weekly_email):
     with TestClient(make_app(), base_url='https://testserver') as client:
         client.post('/api/auth/login', json={'username': 'coco', 'password': 'secret'})
         result = trigger(client)
         assert result['state'] == 'completed'
         assert client.get('/api/jira/filter-snapshot').json()['snapshot'] is None
         assert client.get('/api/confluence/project-facts').json()['querySnapshot'] is None
+        assert [message['to'] for message in no_real_weekly_email] == [
+            ['fae.qa@amlogic.com'], ['fae.qa@amlogic.com'],
+        ]
+        assert result['deliveries']['jira']['state'] == 'accepted'
+        assert result['deliveries']['confluence']['state'] == 'accepted'
+        assert 'report_type=jira stage=scope_resolved duration_ms=' in result['evidence']
+        assert 'report_type=jira stage=audit_completed duration_ms=' in result['evidence']
+        assert 'report_type=jira stage=export_completed duration_ms=' in result['evidence']
+        assert 'report_type=jira stage=smtp_accepted error_code= duration_ms=' in result['evidence']
+
+
+def test_one_mail_failure_does_not_prevent_the_other_delivery(monkeypatch):
+    sent = []
+    def send(**message):
+        sent.append(message)
+        if len(sent) == 1:
+            raise RuntimeError('private transport detail')
+    monkeypatch.setattr('core.email.outlook.send_email', send)
+    with TestClient(make_app(), base_url='https://testserver') as client:
+        login(client)
+        result = trigger(client)
+    assert result['state'] == 'partial'
+    assert result['deliveries']['jira']['state'] == 'failed'
+    assert result['deliveries']['jira']['error'] == 'RuntimeError'
+    assert result['deliveries']['confluence']['state'] == 'accepted'
+    assert len(sent) == 2
+    assert 'private transport detail' not in result['evidence']
 
 
 def test_another_account_cannot_read_run_or_attachment():
@@ -150,7 +185,7 @@ def test_trigger_ignores_singleton_snapshots_and_legacy_jira_preference():
         assert result['state'] == 'completed'
         scope = result['scope']
         jira_start = datetime.fromisoformat(scope['startDate']).date().isoformat()
-        jira_end = datetime.fromisoformat(scope['endDate']).date().isoformat()
+        jira_end = (datetime.fromisoformat(scope['endDate']).date() - timedelta(days=1)).isoformat()
         expected = (
             'project in (SH, TV, IPTV, OTT,RK) AND issuetype in (Bug, Sub-bug) '
             f'AND created >= {jira_start} AND created <= {jira_end} order by updated DESC'
@@ -161,23 +196,10 @@ def test_trigger_ignores_singleton_snapshots_and_legacy_jira_preference():
         assert 'project=SH' not in scope['jiraInput']
 
 
-def test_weekly_schedule_api_is_authenticated_and_persistent():
+def test_obsolete_event_and_editable_schedule_routes_are_removed():
     with TestClient(make_app(), base_url='https://testserver') as client:
-        assert client.get('/api/audit-email/schedule').status_code == 401
         login(client)
-        default = client.get('/api/audit-email/schedule').json()['schedule']
-        assert default['weekday'] == 4 and default['time'] == '15:00' and default['enabled'] is True
-        response = client.put('/api/audit-email/schedule', json={
-            'weekday': 4, 'time': '15:00', 'enabled': True,
-        })
-        assert response.status_code == 200
-        schedule = response.json()['schedule']
-        assert schedule['weekday'] == 4
-        assert schedule['time'] == '15:00'
-        assert schedule['timezone'] == 'Asia/Shanghai'
-        assert schedule['nextRunAt']
-        assert client.put('/api/audit-email/schedule', json={
-            'weekday': 7, 'time': '15:00', 'enabled': True,
-        }).status_code == 422
-        assert client.delete('/api/audit-email/schedule').json() == {'deleted': True}
-        assert client.get('/api/audit-email/schedule').json() == {'schedule': None}
+        for method, path in [('get', '/api/audit-email/events'), ('post', '/api/audit-email/events'),
+                             ('get', '/api/audit-email/schedule'), ('put', '/api/audit-email/schedule'),
+                             ('delete', '/api/audit-email/schedule')]:
+            assert getattr(client, method)(path).status_code == 404

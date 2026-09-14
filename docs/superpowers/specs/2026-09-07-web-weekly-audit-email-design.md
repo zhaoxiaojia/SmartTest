@@ -4,6 +4,10 @@
 
 ## 最新实施指令（优先于下文原拟议顺序）
 
+- 2026-09-14 最终只保留两个周审查入口：已认证 Web“立即触发”和 Windows Task Scheduler 调用 `web/scripts/weekly_audit.py`。两者复用 `AuditEmailJob`，均生成并发送 Jira、Confluence 两封邮件至 `fae.qa@amlogic.com`。
+- Windows 产品任务固定为 `SmartTest.WeeklyAuditEmail`、北京时间每周一 15:00；执行 `python web/scripts/weekly_audit.py --install` 可安全创建或更新，不由 Web 启动自动修改系统任务。命令使用 `ping.xiong` 已保存凭据，无需浏览器，同一周一 occurrence 由 SQLite 原子领取且只执行一次。
+- 审查范围固定为完整上一工作周：上周一 00:00（含）至上周六 00:00（不含）；Jira JQL 使用 `created >= 上周一 AND created <= 上周五`。Jira 与 Confluence 当前邮件正文均使用“上周”。
+- 删除 Web 进程定时器、一次性事件、可编辑定时配置及相应 UI/API；旧表不再作为业务 owner，既有审查历史不删除。Tools 过滤器和人工审查行为不变。
 - 2026-09-09 Coco 确认正式接入一个 SQLite 持久化的每周任务：北京时间每周五 15:00 触发，调用现有固定周审查入口，Jira/Confluence 独立生成并发送；服务重启后配置仍存在，同一期不得重复执行。Web 管理区提供查看、新增/保存、修改、删除、启用/停用、下次执行时间和最近结果入口，前端不持有权威配置。
 - 2026-09-09 已完成上述每周任务实现与自动化验证：沿用一次性事件的 SQLite 领取、执行和邮件编排链路，以“配置 ID + 计划触发时刻”的唯一事件 ID 保证同一期只执行一次；删除配置保留执行历史。生产数据库调试历史及附件清理由 Atlas 在精确核对 ID 后执行。
 - Jira 当前邮件开头固定改为“下面是针对大家上周创建的bug进行的规范检查，针对还不满足规范的部分，大家需要尽快改善。”；Confluence 当前邮件文案保持已确认版本。

@@ -24,6 +24,8 @@ def test_report_counts_issues_once_and_escapes_content_and_unsafe_links():
     assert 'SH-1' in rendered
     assert '下面是针对大家上周创建的bug进行的规范检查，针对还不满足规范的部分，大家需要尽快改善。' in rendered
     assert '本次已执行审查，报告已保存。' not in rendered
+    assert '<h2>FAE QA JIRA描写不符合规范反馈</h2>' in rendered
+    assert '<h2>FAE QA JIRA描写不符合规范反馈 today</h2>' not in rendered
 
 
 def test_zero_issue_report_has_no_invented_pass_rate():
@@ -46,18 +48,18 @@ def test_jql_without_created_comparisons_is_unchanged_including_quoted_text():
     assert jira_input.weekly_audit_jql(query, previous_business_week()) == query
 
 
-@pytest.mark.parametrize('trigger,start', [
-    (datetime(2026, 9, 11, 15, 0, tzinfo=ZoneInfo('Asia/Shanghai')), '2026-09-04T00:00:00+08:00'),
-    (datetime(2026, 9, 8, 9, 30, tzinfo=ZoneInfo('Asia/Shanghai')), '2026-09-04T00:00:00+08:00'),
+@pytest.mark.parametrize('trigger,start,end,jira_end', [
+    (datetime(2026, 9, 14, 15, 0, tzinfo=ZoneInfo('Asia/Shanghai')), '2026-09-07T00:00:00+08:00', '2026-09-12T00:00:00+08:00', '2026-09-11'),
+    (datetime(2026, 9, 16, 9, 30, tzinfo=ZoneInfo('Asia/Shanghai')), '2026-09-07T00:00:00+08:00', '2026-09-12T00:00:00+08:00', '2026-09-11'),
 ])
-def test_fixed_weekly_scope_runs_from_previous_friday_to_actual_trigger(trigger, start):
+def test_fixed_weekly_scope_is_complete_previous_monday_through_friday(trigger, start, end, jira_end):
     scope = fixed_weekly_audit_scope(trigger)
     assert scope['startDate'] == start
-    assert scope['endDate'] == trigger.isoformat()
+    assert scope['endDate'] == end
     assert scope['jira']['jql'] == (
         'project in (SH, TV, IPTV, OTT,RK) AND issuetype in (Bug, Sub-bug) '
         f'AND created >= {datetime.fromisoformat(start):%Y-%m-%d} '
-        f'AND created <= {trigger:%Y-%m-%d} order by updated DESC'
+        f'AND created <= {jira_end} order by updated DESC'
     )
     assert f'{trigger.date().isoformat()}T' not in scope['jira']['jql']
     assert '+08:00' not in scope['jira']['jql']
@@ -83,7 +85,10 @@ def test_confluence_denominator_counts_all_actual_update_point_statuses_by_produ
     assert summary['DOPL'] == [0, 0]
     html = render_history_report('confluence', [{'id': 'run', 'label': 'today', 'summary': summary}], current=True)['html']
     assert '2 / 8' in html
-    assert '下面是本周confluence信息更新检查结果，请未更新的项目owner尽快去补充未完成的部分。' in html
+    assert '下面是上周confluence信息更新检查结果，请未更新的项目owner尽快去补充未完成的部分。' in html
+    assert '本周confluence信息更新检查结果' not in html
+    assert '<h2>Confluence信息更新检查结果</h2>' in html
+    assert '<h2>Confluence信息更新检查结果 today</h2>' not in html
     assert '<th style="border:1px solid #bcc9da;padding:10px;text-align:left;background:#dbeafe">格式有误</th>' not in html
     assert '>失败</th>' in html and '>未知</th>' in html
     assert '待确认' not in html and '尚未确认' not in html

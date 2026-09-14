@@ -17,6 +17,10 @@ class AuditEmailHistory:
                 id TEXT NOT NULL UNIQUE, account TEXT NOT NULL,
                 label TEXT NOT NULL, state TEXT NOT NULL, payload TEXT NOT NULL
             )''')
+            connection.execute('''CREATE TABLE IF NOT EXISTS audit_email_occurrences (
+                account TEXT NOT NULL, occurrence TEXT NOT NULL,
+                claimed_at TEXT NOT NULL, PRIMARY KEY(account, occurrence)
+            )''')
             summaries = []
             for label, total, passed, rate, confluence in (
                 ('0807', 261, 58, '22.22%', None),
@@ -39,6 +43,13 @@ class AuditEmailHistory:
                     'INSERT OR IGNORE INTO audit_email_runs(id,account,label,state,payload) VALUES(?,?,?,?,?)',
                     (run_id, '', label, 'historical_seed', json.dumps(payload, ensure_ascii=False)),
                 )
+
+    def claim_scheduled_occurrence(self, account, occurrence):
+        with self.database.transaction() as connection:
+            return bool(connection.execute(
+                'INSERT OR IGNORE INTO audit_email_occurrences(account,occurrence,claimed_at) VALUES(?,?,?)',
+                (account, occurrence, datetime.now(timezone.utc).isoformat()),
+            ).rowcount)
 
     @staticmethod
     def _render(summaries):

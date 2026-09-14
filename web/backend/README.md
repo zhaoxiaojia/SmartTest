@@ -1,5 +1,13 @@
 # SmartTest Wi-Fi Database Backend
 
+周审查 Windows 任务固定为北京时间每周一 15:00。使用当前虚拟环境安装或更新：
+
+```powershell
+.\.venv\Scripts\python.exe web\scripts\weekly_audit.py --install
+```
+
+任务复用 `ping.xiong` 已保存凭据；同一周计划 occurrence 重复启动不会重复发送。
+
 独立安装与启动：
 
 ```powershell
