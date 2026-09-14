@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import as_completed
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Protocol
 
@@ -8,6 +9,7 @@ from core.jira.domain import Issue, IssueDetails
 
 from .models import AuditReport, JiraAuditScope
 from .rules import active_rules, audit_issue, is_audit_eligible
+from .ai_review import review_failed_issues
 
 
 class JiraAuditIssueSource(Protocol):
@@ -29,8 +31,9 @@ class _CombinedCancellation:
 
 
 class JiraAuditUseCase:
-    def __init__(self, source: JiraAuditIssueSource):
+    def __init__(self, source: JiraAuditIssueSource, *, ai_client_factory=None):
         self._source = source
+        self._ai_client_factory = ai_client_factory
 
     def run(
         self,
@@ -51,6 +54,11 @@ class JiraAuditUseCase:
             eligible, token, progress,
             task_manager=task_manager, parent_task_id=parent_task_id,
         )
+        results = review_failed_issues(
+            results, client_factory=self._ai_client_factory,
+            cancellation=token, progress=progress,
+        )
+        results = [replace(result, description="") for result in results]
         progress("finalizing", len(results), len(results))
         return AuditReport(
             scope, datetime.now(timezone.utc), active_rules(), tuple(results),

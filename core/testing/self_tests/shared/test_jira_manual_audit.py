@@ -15,6 +15,15 @@ from core.jira.audit import (
     resolve_audit_input,
 )
 from core.jira.domain import Issue, IssueIdentity, JiraProjectRef, RichText
+from core.ai import AIConfigurationError
+
+
+@pytest.fixture(autouse=True)
+def no_external_ai(monkeypatch):
+    monkeypatch.setattr(
+        "core.jira.audit.ai_review.create_chat_client",
+        lambda _model: (_ for _ in ()).throw(AIConfigurationError("not configured")),
+    )
 
 
 GOOD_DESCRIPTION = """Steps to reproduce: Open video

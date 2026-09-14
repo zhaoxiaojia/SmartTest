@@ -209,6 +209,7 @@ def audit_issue(issue: Issue) -> IssueAuditResult:
         creator=normalized.creator,
         passed=not violations,
         violations=tuple(violations),
+        description=normalized.description,
     )
 
 
