@@ -1,4 +1,4 @@
-"""Persistent one-time events; claimed events are never replayed."""
+"""Persistent one-time and weekly audit email events."""
 
 import asyncio
 import json
@@ -33,9 +33,12 @@ class AuditEmailEvents:
             connection.execute("DELETE FROM audit_email_schedule_meta WHERE key='default_created'")
 
     def _log(self, event, stage, **fields):
+        source = event.get('source', 'one_time')
+        label = 'Weekly' if source == 'weekly' else 'One-time'
         entry = {'event_id': event['id'], 'run_id': event.get('runId', ''),
-                 'stage': stage, 'trigger_source': 'one_time', **fields}
-        smart_log('One-time audit email ' + ' '.join(f'{key}={value}' for key, value in entry.items()),
+                 'stage': stage, 'trigger_source': source, **fields}
+        smart_log(f'{label} audit email '
+                  + ' '.join(f'{key}={value}' for key, value in entry.items()),
                   platform='web', domain='audit', source='audit_email', emit_runtime_event=False, extra=entry)
 
     def _save(self, event):
@@ -162,7 +165,8 @@ class AuditEmailEvents:
 
     def fire_schedule(self, schedule_id, occurrence):
         due = datetime.fromisoformat(occurrence).astimezone(ZoneInfo('Asia/Shanghai'))
-        event_id = f'weekly:{schedule_id}:{due.isoformat()}'
+        event = None
+        early = False
         with self.database.transaction() as connection:
             row = connection.execute(
                 'SELECT payload FROM audit_email_schedules WHERE id=? AND enabled=1', (schedule_id,),
@@ -172,27 +176,44 @@ class AuditEmailEvents:
             schedule = json.loads(row[0])
             if schedule.get('nextRunAt') != due.isoformat():
                 return
-            event = {
-                'id': event_id, 'account': schedule['account'], 'dueAt': due.isoformat(),
-                'createdAt': self.now().isoformat(), 'state': 'pending', 'source': 'weekly',
-                'scheduleId': schedule_id, 'filterScope': fixed_weekly_audit_scope(due),
-                'runId': None, 'deliveries': {},
-            }
-            inserted = connection.execute(
-                '''INSERT OR IGNORE INTO audit_email_events(id,account,due_at,state,payload)
-                   VALUES(?,?,?,?,?)''',
-                (event_id, event['account'], event['dueAt'], 'pending', json.dumps(event, ensure_ascii=False)),
-            ).rowcount
-            if not inserted:
-                return
-            schedule.update(lastOccurrence=due.isoformat(), lastState='running')
-            schedule['nextRunAt'] = self._next_occurrence(schedule, after=due).isoformat()
-            connection.execute(
-                'UPDATE audit_email_schedules SET payload=? WHERE id=?',
-                (json.dumps(schedule, ensure_ascii=False), schedule_id),
-            )
+            if (due - self.now()).total_seconds() > _TIMER_EARLY_TOLERANCE_SECONDS:
+                early = True
+            else:
+                event_id = f'weekly:{schedule_id}:{due.isoformat()}'
+                event = {
+                    'id': event_id, 'account': schedule['account'], 'dueAt': due.isoformat(),
+                    'createdAt': self.now().isoformat(), 'state': 'running', 'source': 'weekly',
+                    'scheduleId': schedule_id, 'filterScope': fixed_weekly_audit_scope(due),
+                    'runId': None, 'deliveries': {}, 'startedAt': self.now().isoformat(),
+                }
+                inserted = connection.execute(
+                    '''INSERT OR IGNORE INTO audit_email_events(id,account,due_at,state,payload)
+                       VALUES(?,?,?,?,?)''',
+                    (event_id, event['account'], event['dueAt'], 'running', json.dumps(event, ensure_ascii=False)),
+                ).rowcount
+                if not inserted:
+                    claimed = connection.execute(
+                        'SELECT payload FROM audit_email_events WHERE id=?', (event_id,),
+                    ).fetchone()
+                    event = None
+                    claimed = json.loads(claimed[0])
+                    schedule.update(lastRunId=claimed.get('runId'), lastState=claimed['state'])
+                else:
+                    schedule.update(lastRunId=None, lastState='running')
+                schedule['lastOccurrence'] = due.isoformat()
+                schedule['nextRunAt'] = self._next_occurrence(schedule, after=due).isoformat()
+                connection.execute(
+                    'UPDATE audit_email_schedules SET payload=? WHERE id=?',
+                    (json.dumps(schedule, ensure_ascii=False), schedule_id),
+                )
         self._arm_schedule(schedule)
-        self.fire(event_id)
+        if early or event is None:
+            return
+        self._log(event, 'due')
+        try:
+            self.launch(event, lambda result: self.finish(event, result))
+        except Exception as error:
+            self.finish(event, {'state': 'failed', 'error': type(error).__name__})
 
     def create(self, account, due_at, filter_scope):
         due = datetime.fromisoformat(due_at)
@@ -252,13 +273,11 @@ class AuditEmailEvents:
             ).fetchall()
         for row in schedules:
             schedule = json.loads(row[0])
-            schedule['nextRunAt'] = self._next_occurrence(schedule).isoformat()
-            with self.database.transaction() as connection:
-                connection.execute(
-                    'UPDATE audit_email_schedules SET payload=? WHERE id=?',
-                    (json.dumps(schedule, ensure_ascii=False), schedule['id']),
-                )
-            self._arm_schedule(schedule)
+            due = datetime.fromisoformat(schedule['nextRunAt'])
+            if (due - self.now()).total_seconds() <= _TIMER_EARLY_TOLERANCE_SECONDS:
+                self.fire_schedule(schedule['id'], schedule['nextRunAt'])
+            else:
+                self._arm_schedule(schedule)
 
     def fire(self, event_id):
         handle = self.handles.pop(event_id, None)
@@ -295,8 +314,8 @@ class AuditEmailEvents:
                      finishedAt=self.now().isoformat())
         if result.get('error'):
             event['error'] = result['error']
-        self._save(event)
         self._update_schedule_result(event, run_id=event.get('runId'), state=event['state'])
+        self._save(event)
         self._log(event, 'finished', state=event['state'], error_code=event.get('error', ''),
                   duration_ms=round((self.now() - datetime.fromisoformat(event['startedAt'])).total_seconds() * 1000, 3))
 

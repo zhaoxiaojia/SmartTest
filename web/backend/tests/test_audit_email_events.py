@@ -1,6 +1,7 @@
+import json
+import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-import time
 
 from fastapi.testclient import TestClient
 from test_audit_email_api import make_app, login
@@ -117,6 +118,79 @@ def test_weekly_schedule_claims_each_occurrence_once_across_restart(tmp_path):
     saved = restored.get_schedule('coco')
     assert saved['lastRunId'] is None
     assert saved['lastState'] == 'running'
+    assert saved['nextRunAt'] == '2026-09-18T15:00:00+08:00'
+
+
+def test_early_weekly_callback_rearms_without_claiming_or_advancing(tmp_path):
+    from smarttest_web.database import WebDatabase
+    from smarttest_web.audit.email_history import AuditEmailHistory
+    clock = Clock()
+    clock.value = datetime(2026, 9, 11, 14, 59, tzinfo=ZoneInfo('Asia/Shanghai'))
+    history = AuditEmailHistory(WebDatabase(tmp_path / 'early.db'))
+    launched = []
+    owner = clock.factory(history, lambda event, done: launched.append(event))
+    schedule = owner.save_schedule('coco', {'weekday': 4, 'time': '15:00', 'enabled': True})
+    clock.value = datetime(2026, 9, 11, 14, 59, 59, 855000, tzinfo=ZoneInfo('Asia/Shanghai'))
+
+    owner.fire_schedule(schedule['id'], schedule['nextRunAt'])
+
+    saved = owner.get_schedule('coco')
+    assert launched == []
+    assert owner.list_events('coco')['events'] == []
+    assert saved['lastOccurrence'] is None
+    assert saved['nextRunAt'] == '2026-09-11T15:00:00+08:00'
+    assert 0.14 <= clock.calls[-1][0] <= 0.15
+
+
+def test_restart_starts_one_overdue_unclaimed_weekly_occurrence(tmp_path):
+    from smarttest_web.database import WebDatabase
+    from smarttest_web.audit.email_history import AuditEmailHistory
+    clock = Clock()
+    clock.value = datetime(2026, 9, 11, 14, 59, tzinfo=ZoneInfo('Asia/Shanghai'))
+    history = AuditEmailHistory(WebDatabase(tmp_path / 'overdue.db'))
+    schedule = clock.factory(history, lambda event, done: None).save_schedule(
+        'coco', {'weekday': 4, 'time': '15:00', 'enabled': True},
+    )
+    launched = []
+    clock.value = datetime(2026, 9, 11, 15, 1, tzinfo=ZoneInfo('Asia/Shanghai'))
+    restored = clock.factory(history, lambda event, done: launched.append(event))
+
+    restored.start()
+
+    assert [event['dueAt'] for event in launched] == [schedule['nextRunAt']]
+    assert restored.get_schedule('coco')['lastOccurrence'] == schedule['nextRunAt']
+    assert restored.get_schedule('coco')['nextRunAt'] == '2026-09-18T15:00:00+08:00'
+
+
+def test_restart_advances_without_replaying_a_cancelled_weekly_occurrence(tmp_path):
+    from smarttest_web.database import WebDatabase
+    from smarttest_web.audit.email_history import AuditEmailHistory
+    clock = Clock()
+    clock.value = datetime(2026, 9, 11, 14, 59, tzinfo=ZoneInfo('Asia/Shanghai'))
+    database = WebDatabase(tmp_path / 'cancelled.db')
+    history = AuditEmailHistory(database)
+    owner = clock.factory(history, lambda event, done: None)
+    schedule = owner.save_schedule('coco', {'weekday': 4, 'time': '15:00', 'enabled': True})
+    occurrence = schedule['nextRunAt']
+    event = {
+        'id': f"weekly:{schedule['id']}:{occurrence}", 'account': 'coco', 'dueAt': occurrence,
+        'createdAt': occurrence, 'state': 'cancelled', 'source': 'weekly', 'scheduleId': schedule['id'],
+        'filterScope': {}, 'runId': None, 'deliveries': {},
+    }
+    with database.transaction() as connection:
+        connection.execute(
+            'INSERT INTO audit_email_events(id,account,due_at,state,payload) VALUES(?,?,?,?,?)',
+            (event['id'], 'coco', occurrence, 'cancelled', json.dumps(event)),
+        )
+    launched = []
+    clock.value = datetime(2026, 9, 11, 15, 1, tzinfo=ZoneInfo('Asia/Shanghai'))
+    restored = clock.factory(history, lambda event, done: launched.append(event))
+
+    restored.start()
+
+    assert launched == []
+    saved = restored.get_schedule('coco')
+    assert saved['lastOccurrence'] == occurrence
     assert saved['nextRunAt'] == '2026-09-18T15:00:00+08:00'
 
 
