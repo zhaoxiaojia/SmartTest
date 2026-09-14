@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import smtplib
 from pathlib import Path
+from time import perf_counter
 from typing import TYPE_CHECKING, Callable, Iterable, Literal
 
 from core.logging import smart_log
@@ -29,6 +30,7 @@ def send_built_email(
     smtp_factory: Callable[..., smtplib.SMTP] = smtplib.SMTP,
 ) -> None:
     timeout = 20
+    smtp_started = perf_counter()
     smart_log(
         "Outlook SMTP connect start",
         domain="tool",
@@ -42,7 +44,13 @@ def send_built_email(
     )
     try:
         with smtp_factory(SMTP_HOST, SMTP_PORT, timeout=timeout) as smtp:
-            smart_log("Outlook SMTP connected", domain="tool", source="core.email.outlook")
+            connected_at = perf_counter()
+            smart_log(
+                "Outlook SMTP connected",
+                domain="tool",
+                source="core.email.outlook",
+                extra={"connect_duration_ms": round((connected_at - smtp_started) * 1000, 3)},
+            )
             smart_log(
                 "Outlook SMTP send started",
                 domain="tool",
@@ -67,8 +75,17 @@ def send_built_email(
                 "Outlook SMTP relay accepted",
                 domain="tool",
                 source="core.email.outlook",
-                extra={"refused_count": 0},
+                extra={
+                    "refused_count": 0,
+                    "send_duration_ms": round((perf_counter() - connected_at) * 1000, 3),
+                },
             )
+        smart_log(
+            "Outlook SMTP session closed",
+            domain="tool",
+            source="core.email.outlook",
+            extra={"total_duration_ms": round((perf_counter() - smtp_started) * 1000, 3)},
+        )
     except (OSError, smtplib.SMTPException) as exc:
         smart_log(
             "Outlook SMTP failure",

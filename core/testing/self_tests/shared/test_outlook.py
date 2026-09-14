@@ -217,6 +217,30 @@ def test_sender_logs_safe_stages_and_rejects_partial_delivery(monkeypatch):
     assert "private@example.com" not in rendered and "secret" not in rendered
 
 
+def test_sender_logs_transport_stage_durations_without_message_data(monkeypatch):
+    built = build_email(subject="secret subject", body="secret body", to=["private@example.com"])
+    records = []
+    monkeypatch.setattr(
+        "core.email.outlook.sender.smart_log",
+        lambda message, **kwargs: records.append((message, kwargs.get("extra", {}))),
+    )
+
+    class FakeSmtp:
+        def __init__(self, *_args, **_kwargs): pass
+        def __enter__(self): return self
+        def __exit__(self, *_args): return None
+        def send_message(self, *_args, **_kwargs): return {}
+
+    send_built_email(built, smtp_factory=FakeSmtp)
+
+    by_message = dict(records)
+    assert by_message["Outlook SMTP connected"]["connect_duration_ms"] >= 0
+    assert by_message["Outlook SMTP relay accepted"]["send_duration_ms"] >= 0
+    assert by_message["Outlook SMTP session closed"]["total_duration_ms"] >= 0
+    assert "private@example.com" not in repr(records)
+    assert "secret" not in repr(records)
+
+
 @pytest.mark.parametrize("failure", [TimeoutError("timed out"), __import__("smtplib").SMTPDataError(554, b"relay rejected")])
 def test_sender_failure_logs_safe_type_code_and_message(monkeypatch, failure):
     built = build_email(subject="sensitive", body="body", to=["hidden@example.com"])
