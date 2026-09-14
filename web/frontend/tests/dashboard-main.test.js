@@ -2,26 +2,47 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const authenticatedPage = vi.hoisted(() => ({ options: null }))
+const state = vi.hoisted(() => ({ authenticated: null, dashboard: null }))
 
 vi.mock('../src/authenticated-page.js', () => ({
-  startAuthenticatedPage: vi.fn(options => { authenticatedPage.options = options }),
+  startAuthenticatedPage: vi.fn(options => { state.authenticated = options }),
 }))
+vi.mock('../src/dashboard/dashboard-grid.js', () => ({
+  createDashboardGrid: vi.fn(options => { state.dashboard = options; return { start() {}, destroy() {} } }),
+}))
+vi.mock('gridstack', () => ({ GridStack: { init: vi.fn() } }))
+vi.mock('chart.js', () => ({ Chart: Object.assign(vi.fn(), { register: vi.fn() }), registerables: [] }))
+vi.mock('chartjs-plugin-datalabels', () => ({ default: {} }))
 
 describe('Dashboard page', () => {
   beforeEach(() => {
+    vi.resetModules()
     document.body.innerHTML = '<main></main>'
-    authenticatedPage.options = null
+    state.authenticated = null
+    state.dashboard = null
   })
 
-  it('leaves the authenticated Dashboard content empty', async () => {
+  it('mounts the account dashboard with shared widget and existing APIs', async () => {
     await import('../src/dashboard-main.js')
+    state.authenticated.mount(document.querySelector('main'), { username: 'coco' })
+    expect(state.dashboard.registry.get('role-workload').title).toBe('Role workload')
+    expect(state.dashboard.preferenceApi).toMatchObject({ get: expect.any(Function), put: expect.any(Function), reset: expect.any(Function) })
+    expect(state.dashboard.gridFactory).toBeTypeOf('function')
+    expect(state.dashboard.widgetConfig).toBeTypeOf('function')
+  })
 
-    const root = document.querySelector('main')
-    const page = authenticatedPage.options.mount(root, { username: 'coco' })
-    await page.start()
-
-    expect(root.childElementCount).toBe(0)
-    expect(root.textContent).toBe('')
+  it('loads Role workload from the complete account-visible catalog instead of the Projects filter snapshot', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ownerHierarchy: [], productSpaces: [] }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await import('../src/dashboard-main.js')
+    state.authenticated.mount(document.querySelector('main'), { username: 'coco' })
+    await state.dashboard.widgetConfig('role-workload')
+    const url = new URL(fetchMock.mock.calls[0][0], 'http://localhost')
+    expect(url.pathname).toBe('/api/confluence/project-facts')
+    expect(url.search).toBe('')
+    vi.unstubAllGlobals()
   })
 })

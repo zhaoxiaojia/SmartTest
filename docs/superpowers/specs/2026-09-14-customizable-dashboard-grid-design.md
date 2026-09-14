@@ -224,3 +224,13 @@ destroy()
 - 图表：复用 Chart.js。
 - 业务组件：从 Projects 抽取 Role workload，共享而不复制。
 - 新增生产代码只覆盖 DashboardGrid、组件注册/生命周期和统一卡片外壳；如实现中出现第二套布局、偏好、图表或项目事实机制，视为质量失败。
+
+## 13. 最终确认调整
+
+本节记录联调后的最终产品决定，并覆盖前文中关于组件缩放和 Projects 复用的对应描述：
+
+- Dashboard 卡片不支持用户缩放，不显示 resize handle；编辑模式只允许添加、删除和拖动位置。
+- 每种组件由注册表登记固定 `defaultW/defaultH`。加载和保存布局时，尺寸始终取组件注册值，只持久化用户调整后的位置、组件增删结果与组件配置。
+- `Role workload` 固定为 24×21。统一卡片外壳禁止外层滚动，只保留组件原有图表区域的一层滚动。
+- `Role workload` 从 Projects 页面移除，只在 Dashboard 中作为独立组件提供。
+- Dashboard 的 `Role workload` 使用空过滤条件读取当前账号授权 catalog 范围内的全部本地项目事实，不重放或修改 Projects 查询快照，也不触发远端详情任务。

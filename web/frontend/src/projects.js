@@ -20,7 +20,7 @@ function node(tag, className, text) {
   return item
 }
 
-export function createProjects({ root, api, chartFactory, waitForPreferences, account,
+export function createProjects({ root, api, waitForPreferences, account,
   pollDelay = ms => new Promise(resolve => setTimeout(resolve, ms)), downloadNavigate,
   enableReview = true, filterOnly = false }) {
   const displayKey = account ? `smarttest:projects-display:${encodeURIComponent(String(account).trim().toLocaleLowerCase())}` : ''
@@ -41,8 +41,6 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
         <button class="button button-secondary" type="button" data-audit>Review Filters</button><button class="button button-secondary" type="button" data-audit-cancel disabled>Cancel Review</button><button class="button button-primary" type="button" data-audit-download disabled>Download</button></div></section>` : ''}</form>
     <div class="async-feedback" data-async-feedback></div><div class="inline-status" data-audit-status aria-live="polite"></div>
     <section class="projects-summary" data-summary ${filterOnly ? 'hidden' : ''}></section>
-    <section class="card workload-card" ${filterOnly ? 'hidden' : ''}><header class="report-preview-toolbar"><div class="workload-heading"><div><strong>Role workload</strong><div class="report-preview-meta">Project assignments per QA member</div></div><div class="product-line-segments" data-product-line-segments></div></div><div class="role-segments" data-role-segments></div></header>
-      <div class="workload-chart-scroll"><div class="workload-chart-surface"><canvas data-workload-chart></canvas><div class="product-space-empty" data-workload-empty hidden>No assignments in this product line.</div></div></div></section>
     <section class="card report-preview" ${filterOnly ? 'hidden' : ''}><header class="report-preview-toolbar"><strong>Projects by Product Lines</strong><span class="count-badge" data-count>0 projects</span></header>
       <div class="report-preview-body product-space-groups" data-projects></div></section></section>`
   const form = root.querySelector('form')
@@ -57,9 +55,6 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
   let cacheReady = false
   let destroyed = false
   let pollGeneration = 0
-  let workloadChart
-  let activeRole = ''
-  let activeProductLine = ''
   let activeSync = null
   let activeAuditId = ''
   let productSpaceDefinitions = []
@@ -203,49 +198,6 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     labels.forEach((label, index) => { const card = node('article', 'card summary-metric'); card.dataset.metric = ''; card.append(node('span', '', label), node('strong', '', values[index])); summary.append(card) })
   }
 
-  function renderWorkload(hierarchy) {
-    const roles = hierarchy.filter(role => role.people?.length)
-    if (!roles.some(role => role.role === activeRole)) activeRole = roles[0]?.role ?? ''
-    if (!productSpaceDefinitions.some(option => option.value === activeProductLine)) {
-      activeProductLine = productSpaceDefinitions[0]?.value ?? ''
-    }
-    const productLineSegments = root.querySelector('[data-product-line-segments]'); productLineSegments.replaceChildren()
-    for (const productLine of productSpaceDefinitions) {
-      const button = node('button', `product-line-segment${productLine.value === activeProductLine ? ' active' : ''}`, productLine.label); button.type = 'button'
-      button.setAttribute('aria-pressed', String(productLine.value === activeProductLine))
-      button.addEventListener('click', () => { activeProductLine = productLine.value; renderWorkload(hierarchy) })
-      productLineSegments.append(button)
-    }
-    const segments = root.querySelector('[data-role-segments]'); segments.replaceChildren()
-    for (const role of roles) {
-      const button = node('button', `role-segment${role.role === activeRole ? ' active' : ''}`, role.role); button.type = 'button'
-      button.setAttribute('aria-pressed', String(role.role === activeRole))
-      button.addEventListener('click', () => { activeRole = role.role; renderWorkload(hierarchy) }); segments.append(button)
-    }
-    workloadChart?.destroy(); workloadChart = null
-    const role = roles.find(item => item.role === activeRole)
-    const surface = root.querySelector('.workload-chart-surface')
-    const rows = (role?.people ?? []).map(person => ({
-      name: readableName(person),
-      count: (person.projects ?? []).filter(project => project.space_key === activeProductLine).length,
-    })).filter(person => person.count)
-      .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
-    surface.style.height = `${rows.length * 36}px`
-    const empty = root.querySelector('[data-workload-empty]')
-    empty.hidden = Boolean(rows.length)
-    root.querySelector('[data-workload-chart]').hidden = !rows.length
-    if (!rows.length || !chartFactory) return
-    workloadChart = chartFactory(root.querySelector('[data-workload-chart]'), {
-      type: 'bar', data: { labels: rows.map(row => row.name), datasets: [{ label: 'Projects', data: rows.map(row => row.count) }] },
-      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        layout: { padding: { right: 28 } },
-        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
-        plugins: { legend: { display: false }, datalabels: {
-          anchor: 'end', align: 'right', clip: false, formatter: value => value,
-        } } }
-    })
-  }
-
   function renderProjects(hierarchy, projects = [], blockWarningProjectCount) {
     projectsRoot.replaceChildren()
     const seenProjects = new Set()
@@ -257,7 +209,6 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
     })
     root.querySelector('[data-count]').textContent = `${uniqueProjects.length} projects`
     renderSummary(hierarchy ?? [], uniqueProjects, blockWarningProjectCount)
-    renderWorkload(hierarchy ?? [])
     const projectStage = project => String(project.stage || project.fields?.['current stage'] || '').trim()
     const displayValue = value => Array.isArray(value) ? value.filter(item => item != null && String(item).trim()).join(', ') : String(value ?? '').trim()
     const comparePresentAsc = (left, right) => {
@@ -577,7 +528,7 @@ export function createProjects({ root, api, chartFactory, waitForPreferences, ac
   }
   return {
     start,
-    destroy() { destroyed = true; pollGeneration += 1; auditDownload?.destroy(); workloadChart?.destroy() },
+    destroy() { destroyed = true; pollGeneration += 1; auditDownload?.destroy() },
   }
 }
 import { enhanceMultiSelect, fillSelect, selected } from './wifi-database.js'

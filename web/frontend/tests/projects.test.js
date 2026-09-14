@@ -45,6 +45,13 @@ const fixedFacets = [
 describe('Projects', () => {
   beforeEach(() => { document.body.innerHTML = '<div id="app"></div>'; localStorage.clear(); sessionStorage.clear() })
 
+  it('does not render Role workload on the Projects page', async () => {
+    await createProjects({ root: document.querySelector('#app'), api: {
+      getProjectFacts: vi.fn().mockResolvedValue(payload),
+    } }).start()
+    expect(document.querySelector('[data-workload-widget]')).toBeNull()
+  })
+
   it('renders the previous account display before snapshot calibration completes', async () => {
     const first = createProjects({ root: document.querySelector('#app'), account: 'alice',
       api: { getProjectFacts: vi.fn().mockResolvedValue(payload) } })
@@ -470,69 +477,6 @@ describe('Projects', () => {
     expect([...document.querySelectorAll('[data-metric] strong')].map(item => item.textContent)).toEqual([
       '0', '0', '0', '0', '0.0',
     ])
-  })
-
-  it('builds a sorted horizontal workload chart and hides identity-only names', async () => {
-    const chartFactory = vi.fn(() => ({ destroy: vi.fn() }))
-    const identityOnly = { ...payload, ownerHierarchy: [{ role: 'FAE QA', people: [
-      { name: '2c93-user-key', identity: '2c93-user-key', projects: [{ name: 'Beta', space_key: 'TV' }] },
-      { name: 'Alice', identity: 'alice-key', projects: [{ name: 'One', space_key: 'DOPL' }, { name: 'Two', space_key: 'TV' }] }
-    ] }] }
-    const api = { getProjectFacts: vi.fn().mockResolvedValue(identityOnly) }
-    await createProjects({ root: document.querySelector('#app'), api, chartFactory }).start()
-    const config = chartFactory.mock.calls[0][1]
-    expect(config.options.indexAxis).toBe('y')
-    expect(config.data.labels).toEqual(['Alice'])
-    expect(config.data.datasets[0].data).toEqual([1])
-    expect(config.options.plugins.datalabels).toMatchObject({
-      anchor: 'end', align: 'right', clip: false,
-    })
-    expect(config.options.plugins.datalabels.formatter(12)).toBe(12)
-    expect(config.options.layout.padding.right).toBeGreaterThan(0)
-    expect(document.querySelector('.workload-chart-surface').style.height).toBe('36px')
-    expect(document.body.textContent).not.toContain('2c93-user-key')
-  })
-
-  it('switches workload ranking between the four product lines', async () => {
-    const chartInstances = []
-    const chartFactory = vi.fn((canvas, config) => {
-      const instance = { destroy: vi.fn(), config }; chartInstances.push(instance); return instance
-    })
-    const hierarchy = [{ role: 'Major FAE QA', people: [
-      { name: 'Alice', identity: 'u-alice', projects: [{ name: 'DOPL One', space_key: 'DOPL' }, { name: 'TV One', space_key: 'TV' }] },
-      { name: 'Bob', identity: 'u-bob', projects: [{ name: 'TV Two', space_key: 'TV' }, { name: 'TV Three', space_key: 'TV' }] },
-    ] }]
-    const api = { getProjectFacts: vi.fn().mockResolvedValue({ ...payload, ownerHierarchy: hierarchy }) }
-    await createProjects({ root: document.querySelector('#app'), api, chartFactory }).start()
-
-    const switches = [...document.querySelectorAll('[data-product-line-segments] button')]
-    expect(document.querySelector('[data-product-line-segments]').parentElement.classList.contains('workload-heading')).toBe(true)
-    expect(switches.map(button => button.textContent)).toEqual([
-      'China Operator Business', 'Smart Device Business', 'TV Business', 'Global Operator & STB Business',
-    ])
-    expect(chartInstances.at(-1).config.data.labels).toEqual(['Alice'])
-    expect(chartInstances.at(-1).config.data.datasets[0].data).toEqual([1])
-
-    switches[2].click()
-    expect(chartInstances.at(-1).config.data.labels).toEqual(['Bob', 'Alice'])
-    expect(chartInstances.at(-1).config.data.datasets[0].data).toEqual([2, 1])
-  })
-
-  it('grows the workload chart surface for a long people list inside its bounded viewport', async () => {
-    const people = Array.from({ length: 20 }, (_, index) => ({
-      name: `Member ${index + 1}`, identity: `member-${index + 1}`,
-      projects: Array.from({ length: index % 3 + 1 }, (__, projectIndex) => ({ name: `Project ${index}-${projectIndex}`, space_key: 'TV' }))
-    }))
-    const api = { getProjectFacts: vi.fn().mockResolvedValue({ ...payload, ownerHierarchy: [{ role: 'FAE QA', people }] }) }
-    const chartFactory = vi.fn(() => ({ destroy: vi.fn() }))
-    await createProjects({ root: document.querySelector('#app'), api, chartFactory }).start()
-    const tvSwitch = [...document.querySelectorAll('[data-product-line-segments] button')]
-      .find(button => button.textContent === 'TV Business')
-    tvSwitch.click()
-    const viewport = document.querySelector('.workload-chart-scroll')
-    const surface = viewport.querySelector('.workload-chart-surface')
-    expect(Number.parseFloat(getComputedStyle(surface).height)).toBe(720)
-    expect(surface.parentElement).toBe(viewport)
   })
 
   it('keeps only the four supported filters', async () => {
