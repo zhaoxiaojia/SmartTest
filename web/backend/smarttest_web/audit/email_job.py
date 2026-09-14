@@ -117,7 +117,7 @@ class AuditEmailJob:
                 delivery = {'state': 'skipped', 'error': 'report_unavailable'}
                 if report['state'] == 'completed':
                     delivery = {'state': 'sending', 'startedAt': datetime.now(timezone.utc).isoformat(),
-                                'recipients': ['chao.li@amlogic.com', 'ping.xiong@amlogic.com']}
+                                'recipients': ['fae.qa@amlogic.com']}
                     result['deliveries'][kind] = delivery
                     record(kind, 'smtp_started')
                     if on_delivery:

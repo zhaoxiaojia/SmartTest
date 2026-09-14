@@ -191,7 +191,7 @@ def test_due_once_restart_and_real_mime(monkeypatch):
         assert run['state'] == 'completed'
         assert len(messages) == 2
         for (message, envelope), kind in zip(messages, ('jira', 'confluence')):
-            assert envelope == {'from_addr': 'fae-qa-auto@amlogic.com', 'to_addrs': ['chao.li@amlogic.com', 'ping.xiong@amlogic.com']}
+            assert envelope == {'from_addr': 'fae-qa-auto@amlogic.com', 'to_addrs': ['fae.qa@amlogic.com']}
             assert message['Subject'] == run['reports'][kind]['subject']
             attachments = list(message.iter_attachments())
             assert [part.get_filename() for part in attachments] == run['reports'][kind]['attachments']
