@@ -18,11 +18,12 @@ describe('static FAE QA Data Center shell entries', () => {
     expect(html).not.toContain('FAE QA Data Center')
   })
 
-  it('keeps Jira as an empty placeholder and removes migrated entries from old pages', () => {
+  it('loads the Jira filter entry and removes migrated entries from old pages', () => {
     const jira = new JSDOM(readFileSync(resolve(import.meta.dirname, '../jira.html'), 'utf8')).window.document
     const projects = new JSDOM(readFileSync(resolve(import.meta.dirname, '../projects.html'), 'utf8')).window.document
     const settings = new JSDOM(readFileSync(resolve(import.meta.dirname, '../settings.html'), 'utf8')).window.document
     expect(jira.querySelector('[data-app-shell]').textContent.trim()).toBe('')
+    expect(jira.querySelector('script[type="module"]')?.getAttribute('src')).toBe('/src/jira-main.js')
     expect(projects.body.textContent).not.toContain('Weekly Review')
     expect(settings.querySelector('a[href="/audit-email.html"]')).toBeNull()
   })

@@ -79,7 +79,9 @@ Project、Issue Type、Status 和 Resolution 支持多选。同字段多个值�
 
 无法可靠构建 Basic 条件的复杂字段仍出现在字段清单中，但标记为仅支持 Advanced JQL，不生成不完整或猜测性的条件。
 
-字段名称、字段 ID、schema 和可选值由后端 Jira 过滤器服务统一返回。前端只根据声明的控件类型渲染，不理解 Jira 自定义字段业务。
+字段名称、字段 ID、schema 和可选值由 `core/jira` 的 Jira 过滤器服务统一返回。Core 使用当前登录账号的 Jira 凭据调用 `/rest/api/2/jql/autocompletedata` 获取字段，并调用 `/rest/api/2/jql/autocompletedata/suggestions` 获取指定字段的候选值。Jira 返回哪些候选，前端就展示哪些；不得在 Web 后端或前端补充固定候选、跨账号共享候选或从本地 Issue distinct 值推断候选。前端只根据 Core 声明的控件类型渲染，不理解 Jira 自定义字段业务。
+
+固定条件与 More 使用同一候选机制。候选按下拉展开和搜索词按需请求，Web 后端只负责当前认证会话到 Core 的薄转发；浏览器只保存本次未提交控件状态，不持久化候选集合。Jira 响应中的 `value` 是提交值，`displayName` 是展示值。接口不可用、无权限或没有结果时如实返回对应状态，不静默回退到 `/project`、`/issuetype`、`/status`、`/resolution` 拼装的第二套候选来源。
 
 ## Advanced 模式
 
@@ -189,6 +191,7 @@ SmartTest 不复制 Jira Filter 的共享、订阅、收藏和权限模型。保
 - 图表类型、统计维度和 Dashboard 卡片设计；
 - 任意 JQL 的自研完整解析器；
 - 在浏览器中按 Jira 分页请求并拼装全量结果。
+- 依据 Jira 页面截图硬编码 Current User、Unassigned、Suggested Users/Groups、Recent Criteria 或其他候选与分组。
 
 ## 验收标准
 
@@ -202,6 +205,7 @@ SmartTest 不复制 Jira Filter 的共享、订阅、收藏和权限模型。保
 8. Jira Analytics 与 Tools 周审查过滤器互不影响。
 9. 账号切换不会显示或复用其他账号的草稿、快照或结果。
 10. 单元测试覆盖 JQL 构建、模式切换合同、字段 schema、Saved Filter 只读、账号隔离、任务竞态与错误保留；前端测试覆盖核心交互和无障碍名称。
+11. 不同账号的字段与候选请求分别使用各自 Jira 凭据；前端展示与提交值严格来自该账号的 Jira autocomplete/suggestions 响应。
 
 ## 实施检查表
 

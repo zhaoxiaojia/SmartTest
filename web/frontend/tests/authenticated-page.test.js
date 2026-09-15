@@ -14,19 +14,19 @@ it.each(['changing', 'ready'])('shared authenticated page ignores old bootstrap 
     window.dispatchEvent(new CustomEvent(`session:${eventName}`, {
       detail: { authenticated: true, username: 'bob' }
     }))
-    const currentForm = document.querySelector('form')
+    const currentPage = document.querySelector('[aria-label="Jira issue filter"]')
     if (eventName === 'ready') {
-      expect(currentForm).not.toBeNull()
-      currentForm.elements.auditInput.value = 'Bob current edit'
-    } else expect(currentForm).toBeNull()
+      expect(currentPage).not.toBeNull()
+      currentPage.querySelector('[name="containsText"]').value = 'Bob current edit'
+    } else expect(currentPage).toBeNull()
     finishBootstrap({ authenticated: true, username: 'alice' })
     await shellReady
     await Promise.resolve()
-    expect(document.querySelector('form')).toBe(currentForm)
-    if (currentForm) expect(currentForm.elements.auditInput.value).toBe('Bob current edit')
+    expect(document.querySelector('[aria-label="Jira issue filter"]')).toBe(currentPage)
+    if (currentPage) expect(currentPage.querySelector('[name="containsText"]').value).toBe('Bob current edit')
     else {
       window.dispatchEvent(new CustomEvent('session:ready', { detail: { authenticated: true, username: 'bob' } }))
-      expect(document.querySelector('form')).not.toBeNull()
+      expect(document.querySelector('[aria-label="Jira issue filter"]')).not.toBeNull()
     }
   } finally {
     window.dispatchEvent(new Event('session:changing'))

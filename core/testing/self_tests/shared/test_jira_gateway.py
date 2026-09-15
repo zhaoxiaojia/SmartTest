@@ -38,6 +38,20 @@ class RecordingApi:
             {"id": "customfield_103", "name": "Severity"},
         ]
 
+    def get(self, path, params=None):
+        self.calls.append(("get", path, params))
+        if path == "rest/api/2/jql/autocompletedata":
+            return {"visibleFieldNames": [{"value": "status", "displayName": "Status", "types": ["com.atlassian.jira.issue.status.Status"], "operators": ["=", "IN"]}]}
+        if path == "rest/api/2/jql/autocompletedata/suggestions":
+            return {"results": [{"value": "Open", "displayName": "Open status"}]}
+        if path == "rest/api/2/filter/favourite":
+            return [{"id": "7", "name": "Mine", "jql": "project = SH"}]
+        return {}
+
+    def get_filter(self, filter_id):
+        self.calls.append(("filter", filter_id))
+        return {"id": str(filter_id), "name": "Mine", "jql": "project = SH"}
+
 
 def test_jira_gateway_search_requests_only_lightweight_core_fields() -> None:
     api = RecordingApi()
@@ -99,6 +113,50 @@ def test_jira_gateway_normalizes_third_party_failure() -> None:
         gateway.search_issues("project = SH", page=0)
 
     assert error.value.code == "jira_search_failed"
+
+
+def test_filter_read_apis_and_strict_validation_are_read_only() -> None:
+    api = RecordingApi()
+    gateway = JiraGateway("https://jira.example", "u", "p", api=api)
+
+    assert gateway.fetch_query_fields()["visibleFieldNames"][0]["value"] == "status"
+    assert gateway.fetch_saved_filters()[0]["id"] == "7"
+    assert gateway.fetch_filter("7")["jql"] == "project = SH"
+    assert gateway.validate_jql("project = SH") == {"valid": True, "errors": []}
+
+    assert api.calls[-1] == ("jql", "project = SH", [], 0, 0, None, "strict")
+
+
+def test_strict_validation_preserves_jira_error_messages() -> None:
+    class Response:
+        status_code = 400
+
+        @staticmethod
+        def json():
+            return {"errorMessages": ["Field 'wat' does not exist"], "errors": {"jql": "Invalid JQL"}}
+
+    class Failure(Exception):
+        response = Response()
+
+    class InvalidApi(RecordingApi):
+        def jql(self, *_args, **_kwargs):
+            raise Failure("private transport detail")
+
+    result = JiraGateway("https://jira.example", "u", "p", api=InvalidApi()).validate_jql("wat = 1")
+
+    assert result == {"valid": False, "errors": ["Field 'wat' does not exist", "Invalid JQL"]}
+
+
+def test_filter_suggestions_come_from_jql_autocomplete_with_the_requested_field_and_query() -> None:
+    gateway = JiraGateway("https://jira.example", "u", "p", api=RecordingApi())
+
+    candidates = gateway.fetch_query_suggestions("status", "op")
+
+    assert candidates == {"results": [{"value": "Open", "displayName": "Open status"}]}
+    assert gateway._api.calls[-1] == (
+        "get", "rest/api/2/jql/autocompletedata/suggestions",
+        {"fieldName": "status", "fieldValue": "op"},
+    )
 
 
 def test_full_search_uses_1000_item_pages_with_bounded_independent_clients_and_stable_deduplication() -> None:

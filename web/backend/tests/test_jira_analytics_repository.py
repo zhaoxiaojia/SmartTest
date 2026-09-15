@@ -1,0 +1,60 @@
+from core.domain.values import NamedValue
+from core.jira.domain import Issue, IssueIdentity, JiraProjectRef
+from smarttest_web.database import WebDatabase
+from smarttest_web.jira.analytics_repository import JiraAnalyticsRepository
+
+
+def issue(key):
+    return Issue(identity=IssueIdentity(key, key, ""), summary=key,
+                 project=JiraProjectRef("P", "p", "Project"),
+                 status=NamedValue("1", "Open"), issue_type=NamedValue("2", "Bug"))
+
+
+def test_snapshots_are_isolated_by_session_and_account(tmp_path):
+    repo = JiraAnalyticsRepository(WebDatabase(tmp_path / "web.db"), now=lambda: 10)
+    first = repo.begin("session-a", "alice", "project = A", {}, "", expires_at=100)
+    second = repo.begin("session-b", "bob", "project = B", {}, "", expires_at=100)
+    repo.write_batch(first, [issue("A-1")]); repo.activate(first)
+    repo.write_batch(second, [issue("B-1")]); repo.activate(second)
+
+    assert repo.state("session-a", "alice")["activeJql"] == "project = A"
+    assert repo.issue_keys("session-a", "alice") == ["A-1"]
+    assert repo.issue_keys("session-b", "bob") == ["B-1"]
+
+
+def test_stale_generation_cannot_replace_active_snapshot(tmp_path):
+    repo = JiraAnalyticsRepository(WebDatabase(tmp_path / "web.db"), now=lambda: 10)
+    old = repo.begin("s", "alice", "old", {}, "", expires_at=100)
+    new = repo.begin("s", "alice", "new", {}, "", expires_at=100)
+    repo.write_batch(old, [issue("OLD-1")]); repo.write_batch(new, [issue("NEW-1")])
+
+    assert repo.activate(old) is False
+    assert repo.activate(new) is True
+    assert repo.issue_keys("s", "alice") == ["NEW-1"]
+
+
+def test_failed_or_cancelled_pending_query_preserves_active_snapshot(tmp_path):
+    repo = JiraAnalyticsRepository(WebDatabase(tmp_path / "web.db"), now=lambda: 10)
+    active = repo.begin("s", "alice", "good", {}, "", expires_at=100)
+    repo.write_batch(active, [issue("GOOD-1")]); repo.activate(active)
+
+    failed = repo.begin("s", "alice", "bad", {}, "", expires_at=100)
+    repo.finish(failed, "failed", "offline")
+    cancelled = repo.begin("s", "alice", "cancel", {}, "", expires_at=100)
+    repo.finish(cancelled, "cancelled")
+
+    assert repo.state("s", "alice")["activeJql"] == "good"
+    assert repo.issue_keys("s", "alice") == ["GOOD-1"]
+
+
+def test_delete_session_and_expiry_remove_analytics_snapshots(tmp_path):
+    clock = [10]
+    repo = JiraAnalyticsRepository(WebDatabase(tmp_path / "web.db"), now=lambda: clock[0])
+    repo.begin("expired", "alice", "x", {}, "", expires_at=11)
+    repo.begin("deleted", "alice", "y", {}, "", expires_at=100)
+    clock[0] = 12
+    repo.cleanup()
+    repo.delete_session("deleted")
+
+    assert repo.state("expired", "alice")["pendingSnapshotId"] == ""
+    assert repo.state("deleted", "alice")["pendingSnapshotId"] == ""

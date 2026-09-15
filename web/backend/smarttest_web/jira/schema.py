@@ -5,6 +5,9 @@ from ..schema import ensure_component_schema
 
 
 JIRA_TABLES = (
+    "jira_analytics_snapshot_issues",
+    "jira_analytics_snapshots",
+    "jira_analytics_queries",
     "jira_issue_fix_versions",
     "jira_issue_release_facts",
     "jira_release_field_metadata",
@@ -21,6 +24,22 @@ JIRA_TABLES = (
 )
 
 JIRA_STATEMENTS = (
+    """CREATE TABLE IF NOT EXISTS jira_analytics_queries (
+        session_hash TEXT PRIMARY KEY, account TEXT NOT NULL,
+        active_snapshot_id TEXT NOT NULL DEFAULT '', pending_snapshot_id TEXT NOT NULL DEFAULT '',
+        task_id TEXT NOT NULL DEFAULT '', expires_at REAL NOT NULL
+    )""",
+    """CREATE TABLE IF NOT EXISTS jira_analytics_snapshots (
+        snapshot_id TEXT PRIMARY KEY, session_hash TEXT NOT NULL, account TEXT NOT NULL,
+        jql TEXT NOT NULL, basic_json TEXT NOT NULL, source_filter_id TEXT NOT NULL DEFAULT '',
+        state TEXT NOT NULL, error TEXT NOT NULL DEFAULT '', created_at REAL NOT NULL,
+        FOREIGN KEY(session_hash) REFERENCES jira_analytics_queries(session_hash) ON DELETE CASCADE
+    )""",
+    """CREATE TABLE IF NOT EXISTS jira_analytics_snapshot_issues (
+        snapshot_id TEXT NOT NULL REFERENCES jira_analytics_snapshots(snapshot_id) ON DELETE CASCADE,
+        issue_id TEXT NOT NULL REFERENCES jira_issues(issue_id) ON DELETE CASCADE,
+        ordinal INTEGER NOT NULL, PRIMARY KEY(snapshot_id,issue_id)
+    )""",
     """CREATE TABLE IF NOT EXISTS jira_issues (
         issue_id TEXT PRIMARY KEY, issue_key TEXT NOT NULL UNIQUE,
         web_url TEXT NOT NULL DEFAULT '', summary TEXT NOT NULL DEFAULT '',

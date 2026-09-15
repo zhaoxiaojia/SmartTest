@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createAuthApi, createJiraFilterApi, createManualAuditApi, createPreferenceApi, createProjectFactsApi, createReleaseApi, createWifiDatabaseApi } from '../src/api.js'
+import { createAuthApi, createJiraAnalyticsApi, createJiraFilterApi, createManualAuditApi, createPreferenceApi, createProjectFactsApi, createReleaseApi, createWifiDatabaseApi } from '../src/api.js'
 
 describe('Preference API contract', () => {
   it('reads, batch writes, and resets an encoded account scope', async () => {
@@ -98,6 +98,20 @@ describe('Jira singleton filter API contract', () => {
     await api.getJiraFilterSnapshot(); await api.applyJiraFilterSnapshot(body); await api.resetJiraFilterSnapshot()
     expect(fetchImpl.mock.calls.map(([, options]) => options.method)).toEqual(['GET', 'PUT', 'DELETE'])
     expect(fetchImpl.mock.calls[1][1].body).toBe(JSON.stringify(body))
+  })
+})
+
+describe('Jira Analytics filter API contract', () => {
+  it('uses one search request and task status resource without issue pagination', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+    const api = createJiraAnalyticsApi({ fetchImpl })
+    await api.getJiraAnalyticsFields(); await api.getJiraAnalyticsSuggestions('assignee', 'co'); await api.getJiraAnalyticsSavedFilters()
+    await api.searchJiraAnalytics({ mode: 'advanced', jql: 'project = SH' }); await api.getJiraAnalyticsTask('t1')
+    expect(fetchImpl.mock.calls.map(call => call[0])).toEqual([
+      '/api/jira/analytics/fields', '/api/jira/analytics/suggestions?fieldName=assignee&query=co', '/api/jira/analytics/saved-filters',
+      '/api/jira/analytics/search', '/api/jira/analytics/tasks/t1',
+    ])
+    expect(fetchImpl.mock.calls[3][1].body).toBe(JSON.stringify({ mode: 'advanced', jql: 'project = SH' }))
   })
 })
 

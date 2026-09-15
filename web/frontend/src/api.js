@@ -152,6 +152,15 @@ export function createJiraFilterApi({ fetchImpl = globalThis.fetch, baseUrl = '/
   }
 }
 
+export function createJiraAnalyticsApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
+  async function request(path, method = 'GET', body) {
+    const response = await fetchImpl(`${baseUrl}/jira/analytics${path}`, { method, credentials: 'same-origin', ...(body === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }) })
+    if (!response.ok) throw new ApiUnavailableError(`Jira Analytics API unavailable (${response.status}).`, { status: response.status })
+    return response.json()
+  }
+  return { getJiraAnalyticsState: () => request('/state'), getJiraAnalyticsFields: () => request('/fields'), getJiraAnalyticsSuggestions: (fieldName, query = '') => request(`/suggestions?fieldName=${encodeURIComponent(fieldName)}&query=${encodeURIComponent(query)}`), getJiraAnalyticsSavedFilters: () => request('/saved-filters'), getJiraAnalyticsSavedFilter: id => request(`/saved-filters/${encodeURIComponent(id)}`), validateJiraAnalytics: body => request('/validate', 'POST', body), searchJiraAnalytics: body => request('/search', 'POST', body), getJiraAnalyticsTask: id => request(`/tasks/${encodeURIComponent(id)}`), cancelJiraAnalyticsTask: id => request(`/tasks/${encodeURIComponent(id)}`, 'DELETE') }
+}
+
 export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
   async function changeFilter(method, filters = {}) {
     const response = await fetchImpl(`${baseUrl}/confluence/filter-snapshot`, {

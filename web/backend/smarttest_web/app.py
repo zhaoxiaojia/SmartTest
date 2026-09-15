@@ -25,6 +25,10 @@ from .config import DatabaseSettings
 from .database import ReadonlyDatabase, WebDatabase
 from .jira.cache_service import JiraIssueCacheService
 from .jira.issue_repository import JiraIssueRepository
+from .jira.analytics_repository import JiraAnalyticsRepository
+from .jira.analytics_service import JiraAnalyticsService
+from .jira.analytics_tasks import JIRA_ANALYTICS_TASKS
+from core.jira.services.filter_service import JiraFilterService
 from .filters import WifiFilters
 from .service import WifiDatabaseQueries
 from .report_workspace import ClientAuditReportOwner, ReportNotFoundError
@@ -73,6 +77,12 @@ def default_jira_audit_owner(username: str, password: str):
     return WebJiraAuditOwner.from_credentials(username, password)
 
 
+def default_jira_filter_owner(username: str, password: str):
+    base_url = os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")
+    gateway = JiraGateway(base_url, username, password)
+    return JiraFilterService(gateway), gateway
+
+
 def default_confluence_audit_owner(username: str, password: str):
     from .audit.confluence_adapter import WebConfluenceAuditOwner
     return WebConfluenceAuditOwner.from_credentials(username, password)
@@ -86,7 +96,8 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                audit_registry=ManualAuditRegistry,
                download_service=DownloadArtifactService,
                jira_audit_owner=default_jira_audit_owner,
-               confluence_audit_owner=default_confluence_audit_owner) -> FastAPI:
+               confluence_audit_owner=default_confluence_audit_owner,
+               jira_filter_owner=default_jira_filter_owner) -> FastAPI:
     auth = authenticator()
     sessions = session_store()
     cache_database = WebDatabase(sessions.path)
@@ -94,6 +105,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     refresh = facts_refresh()
     snapshots = ConfluenceQuerySnapshotRepository(cache_database)
     jira_filters = JiraFilterSnapshotRepository(cache_database)
+    jira_analytics = JiraAnalyticsRepository(cache_database)
     releases = release_query_owner(cache_database)
     test_suites = TestSuiteRepository(cache_database)
     audits = audit_registry()
@@ -296,7 +308,10 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     @app.post("/api/auth/logout")
     def logout(request: Request, response: Response):
         token = request.cookies.get(SESSION_COOKIE, "")
-        downloads.clear_session(_session_owner(token))
+        session_id = _session_owner(token)
+        downloads.clear_session(session_id)
+        jira_analytics.delete_session(session_id)
+        JIRA_ANALYTICS_TASKS.clear_session(session_id)
         sessions.delete(token)
         audits.cancel_session(_session_owner(token))
         clear_session_cookie(request, response)
@@ -308,6 +323,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         if value is None:
             raise HTTPException(status_code=401, detail={"state": "unauthenticated"})
         downloads.clear_session(audit_session(request))
+        jira_analytics.delete_account(value.username)
         sessions.delete_all(value.username)
         request.state.renew_session_cookie = False
         clear_session_cookie(request, response)
@@ -662,6 +678,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
 
     def raise_downstream_error(value, error):
         if remote_credentials_rejected(error):
+            jira_analytics.delete_account(value.username)
             sessions.invalidate_credentials(value.username)
             raise HTTPException(
                 status_code=401, detail={"state": "invalid_credentials"},
@@ -702,6 +719,86 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     def invalidate_jira_issue(issue_key: str, value=Depends(authenticated_session)):
         resolve_jira_cache(value).invalidate_issue(issue_key)
         return {"invalidated": issue_key}
+
+    def resolve_jira_analytics(value):
+        try:
+            filters, gateway = jira_filter_owner(value.username, value.password)
+            return JiraAnalyticsService(
+                filters, gateway, JiraIssueMapper(gateway.config.base_url if hasattr(gateway, "config") else ""),
+                jira_analytics, JIRA_ANALYTICS_TASKS,
+                on_error=lambda error: invalidate_analytics_credentials(value, error),
+            )
+        except Exception as error:
+            raise HTTPException(status_code=503, detail={"state": "analytics_unavailable"}) from error
+
+    def invalidate_analytics_credentials(value, error):
+        if remote_credentials_rejected(error):
+            jira_analytics.delete_account(value.username)
+            sessions.invalidate_credentials(value.username)
+
+    @app.get("/api/jira/analytics/state")
+    def jira_analytics_state(request: Request, value=Depends(authenticated_session)):
+        return jira_analytics.state(audit_session(request), value.username)
+
+    @app.get("/api/jira/analytics/fields")
+    def jira_analytics_fields(value=Depends(authenticated_session)):
+        try:
+            return resolve_jira_analytics(value).schema()
+        except Exception as error:
+            raise_downstream_error(value, error)
+
+    @app.get("/api/jira/analytics/suggestions")
+    def jira_analytics_suggestions(fieldName: str, query: str = "", value=Depends(authenticated_session)):
+        try:
+            return resolve_jira_analytics(value).suggestions(fieldName, query)
+        except Exception as error:
+            raise_downstream_error(value, error)
+
+    @app.get("/api/jira/analytics/saved-filters")
+    def jira_analytics_saved_filters(value=Depends(authenticated_session)):
+        try:
+            return resolve_jira_analytics(value).filters.saved_filters()
+        except Exception as error:
+            raise_downstream_error(value, error)
+
+    @app.get("/api/jira/analytics/saved-filters/{filter_id}")
+    def jira_analytics_saved_filter(filter_id: str, value=Depends(authenticated_session)):
+        try:
+            return resolve_jira_analytics(value).filters.saved_filter(filter_id)
+        except Exception as error:
+            raise_downstream_error(value, error)
+
+    @app.post("/api/jira/analytics/validate")
+    def jira_analytics_validate(payload: dict = Body(...), value=Depends(authenticated_session)):
+        try:
+            return resolve_jira_analytics(value).preview(payload)
+        except Exception as error:
+            raise_downstream_error(value, error)
+
+    @app.post("/api/jira/analytics/search")
+    def jira_analytics_search(request: Request, payload: dict = Body(...), value=Depends(authenticated_session)):
+        try:
+            return resolve_jira_analytics(value).search(
+                audit_session(request), value.username, value.expires_at, payload,
+            )
+        except (TypeError, ValueError) as error:
+            raise HTTPException(status_code=422, detail={"state": str(error)}) from error
+        except Exception as error:
+            raise_downstream_error(value, error)
+
+    @app.get("/api/jira/analytics/tasks/{task_id}")
+    def jira_analytics_task(task_id: str, request: Request, value=Depends(authenticated_session)):
+        task = JIRA_ANALYTICS_TASKS.status(audit_session(request), task_id)
+        if task is None:
+            raise HTTPException(status_code=404, detail={"state": "not_found"})
+        return {**task, "query": jira_analytics.state(audit_session(request), value.username)}
+
+    @app.delete("/api/jira/analytics/tasks/{task_id}")
+    def cancel_jira_analytics_task(task_id: str, request: Request, value=Depends(authenticated_session)):
+        del value
+        if not JIRA_ANALYTICS_TASKS.cancel(audit_session(request), task_id):
+            raise HTTPException(status_code=404, detail={"state": "not_found"})
+        return {"cancelled": True}
 
     @app.delete("/api/confluence/projects/{project_id}")
     def invalidate_confluence_project(project_id: str, request: Request, value=Depends(authenticated_session)):

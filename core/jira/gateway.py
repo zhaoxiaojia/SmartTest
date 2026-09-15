@@ -28,9 +28,10 @@ class JiraGatewayConfig:
 
 
 class JiraGatewayError(RuntimeError):
-    def __init__(self, code: str) -> None:
+    def __init__(self, code: str, *, messages: list[str] | None = None) -> None:
         super().__init__(code)
         self.code = code
+        self.messages = tuple(messages or ())
 
 
 class JiraGateway:
@@ -368,6 +369,50 @@ class JiraGateway:
         except Exception as exc:
             raise JiraGatewayError("jira_filter_failed") from exc
         return payload if isinstance(payload, dict) else {}
+
+    def fetch_query_fields(self) -> dict[str, Any]:
+        try:
+            payload = self._api.get("rest/api/2/jql/autocompletedata") or {}
+        except Exception as exc:
+            raise JiraGatewayError("jira_field_metadata_failed") from exc
+        return payload if isinstance(payload, dict) else {}
+
+    def fetch_query_suggestions(self, field_name: str, query: str = "") -> dict[str, Any]:
+        try:
+            payload = self._api.get(
+                "rest/api/2/jql/autocompletedata/suggestions",
+                params={"fieldName": str(field_name), "fieldValue": str(query)},
+            ) or {}
+        except Exception as exc:
+            raise JiraGatewayError("jira_field_suggestions_failed") from exc
+        return payload if isinstance(payload, dict) else {}
+
+    def fetch_saved_filters(self) -> list[dict[str, Any]]:
+        """Return the filters Jira exposes through its read-only favourite endpoint."""
+        try:
+            payload = self._api.get("rest/api/2/filter/favourite") or []
+        except Exception as exc:
+            raise JiraGatewayError("jira_filter_list_failed") from exc
+        return [item for item in payload if isinstance(item, dict)]
+
+    def validate_jql(self, jql: str) -> dict[str, Any]:
+        try:
+            self._api.jql(
+                str(jql), fields=[], start=0, limit=0, expand=None,
+                validate_query="strict",
+            )
+        except Exception as exc:
+            response = getattr(exc, "response", None)
+            if getattr(response, "status_code", None) == 400:
+                try:
+                    payload = response.json() or {}
+                except Exception:
+                    payload = {}
+                messages = [str(item) for item in payload.get("errorMessages") or () if str(item)]
+                messages.extend(str(item) for item in (payload.get("errors") or {}).values() if str(item))
+                return {"valid": False, "errors": messages or ["Invalid JQL"]}
+            raise JiraGatewayError("jira_jql_validation_failed") from exc
+        return {"valid": True, "errors": []}
 
     def fetch_create_metadata(self, project_key: str, issue_type: str) -> dict[str, Any]:
         try:

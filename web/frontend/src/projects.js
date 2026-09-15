@@ -531,4 +531,4 @@ export function createProjects({ root, api, waitForPreferences, account,
     destroy() { destroyed = true; pollGeneration += 1; auditDownload?.destroy() },
   }
 }
-import { enhanceMultiSelect, fillSelect, selected } from './wifi-database.js'
+import { enhanceMultiSelect, fillSelect, selected } from './multi-select.js'
