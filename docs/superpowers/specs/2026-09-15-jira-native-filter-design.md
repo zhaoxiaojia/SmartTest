@@ -8,12 +8,15 @@
 
 ## 业务边界
 
+- 本次交付只复刻可复用的 Jira 原生过滤器组件及其 Search 查询闭环，不重做整个 Jira 页面。
+- 现有 `Release Issues`、Dashboard 深链和 Release Workbench 展示保持原样，不加入本组件，也不由本组件驱动。
 - Jira Analytics 查询过滤器与 Tools 周审查过滤器是两个独立业务 owner，互不读取或覆盖对方的条件与快照。
 - Jira Analytics 过滤器只确定 Issue 数据范围，不决定图表类型、统计维度、Top N 或周期对比方式。
 - Browser 只提交一次已应用查询，不通过 Web 分页收集 Jira Issue。
 - 后端通过 `core/jira` 统一入口访问 Jira REST API；全量查询沿用 `atlassian-python-api`、每页 1000 条、同一 Gateway 全局最多 4 个在途请求。
 - SQLite 是账号查询条件、有效查询快照和 Issue 数据的持久 owner；前端只保存未提交控件状态和可丢弃的同步首帧展示。
 - 第一版只读取 Jira Saved Filter，不在 Jira 中创建、覆盖、收藏、共享或删除 Filter。
+- 点击 Search 必须在 JQL 校验成功后立即创建快照并启动全量 Jira 查询；不存在只生成 JQL、等待后续阶段再查询的中间业务状态。
 
 ## 页面结构
 
@@ -178,6 +181,8 @@ SmartTest 不复制 Jira Filter 的共享、订阅、收藏和权限模型。保
 
 ## 首版明确不包含
 
+- 复刻或改造 `Release Issues`、Release Workbench、Dashboard 到 Release 的深链；
+- Jira 页面双视图、页签或整体信息架构调整；
 - 向 Jira 创建、覆盖、删除、共享、收藏或订阅 Saved Filter；
 - 搬迁旧项目的图表级过滤器、浏览器全量 Issue 缓存或 `window.allIssueData`；
 - 周期对比过滤器；
@@ -198,3 +203,48 @@ SmartTest 不复制 Jira Filter 的共享、订阅、收藏和权限模型。保
 9. 账号切换不会显示或复用其他账号的草稿、快照或结果。
 10. 单元测试覆盖 JQL 构建、模式切换合同、字段 schema、Saved Filter 只读、账号隔离、任务竞态与错误保留；前端测试覆盖核心交互和无障碍名称。
 
+## 实施检查表
+
+实施采用 TDD，每项先写失败测试并确认失败原因，再添加最小生产实现。Mason 负责目标代码实现与自测，Atlas 按 scoped diff、测试结果和 `git diff --check` 验收。
+
+### 任务一：Core Jira 只读过滤能力
+
+- [ ] 在 `core/testing/self_tests/shared/test_jira_gateway.py` 和新建的 `test_jira_filter_service.py` 中先覆盖字段元数据、Saved Filter 列表/详情、严格 JQL 校验和错误原文保留。
+- [ ] 扩展 `core/jira/gateway.py`，提供字段元数据、只读 Saved Filter 列表/详情和不取业务 Issue 的 JQL 校验入口；不增加任何 Filter 写操作。
+- [ ] 新建 `core/jira/services/filter_service.py`，把第三方客户端 payload 规范为前端无关的字段、候选、Filter 和校验结果模型。
+- [ ] 对目标 Jira Server/Data Center 实例只读探测 Saved Filter 与字段候选端点；无法由正式 REST 能力证明的候选类型标记为 Advanced-only，不以本地缓存 distinct 值替代。
+
+### 任务二：账号隔离查询快照
+
+- [ ] 新建 `web/backend/tests/test_jira_analytics_repository.py`，先覆盖账号/会话隔离、pending generation、active snapshot 原子切换、旧任务防覆盖及失败/取消保留旧快照。
+- [ ] 新建 `web/backend/smarttest_web/jira/analytics_repository.py`，维护查询状态、不可变 snapshot 和 snapshot-Issue membership；所有 Analytics 读取必须经过 membership。
+- [ ] 将新表纳入 session 删除、账号失效和过期清理生命周期，不影响 Tools 的 `jira-global-filter` snapshot。
+
+### 任务三：Basic JQL Builder 与立即查询
+
+- [ ] 新建 `web/backend/tests/test_jira_analytics_service.py`，先覆盖固定字段、多选 `IN`、跨字段 `AND`、Current User、Contains text、动态字段类型、严格校验顺序和 Search 立即启动。
+- [ ] 新建 `web/backend/smarttest_web/jira/analytics_service.py`，作为 Basic schema、确定性 JQL Builder、校验和查询 generation 的唯一业务 owner。
+- [ ] Search 校验成功后立即提交后台任务，调用现有 `search_all_payloads()`；按 mapper 结果批量写入 SQLite，并在 generation 仍为当前值时切换 active snapshot。
+- [ ] 新建 `web/backend/smarttest_web/jira/analytics_tasks.py`，只保存任务、进度、取消和会话到任务的运行时关系；不保存可复用筛选结果。
+
+### 任务四：独立 Analytics Filter API
+
+- [ ] 新建 `web/backend/tests/test_jira_analytics_api.py`，先覆盖 state、fields、Saved Filter、validate、search、task status/cancel，以及与 Tools/Release API 互不影响。
+- [ ] 在 `web/backend/smarttest_web/app.py` 注册独立 `/api/jira/analytics/*` 路由，复用现有认证和 `invalid_credentials` 生命周期。
+- [ ] Search 返回任务标识和已保留的 active snapshot 状态；页面通过单任务状态请求恢复进度，不通过 Web 分页获取 Jira Issue。
+
+### 任务五：可复用 Jira Native Filter 前端组件
+
+- [ ] 新建 `web/frontend/tests/jira-filter-builder.test.js`，先覆盖 Basic/Advanced、More、Resolution 条件块、Saved Filter 只载入草稿、Search 立即调用、Reset、无损回切和手改 JQL 后禁止回切。
+- [ ] 新建 `web/frontend/src/jira-filter-builder.js`，只负责组件交互和草稿；不解析任意 JQL、不保存 Issue、不读取 Tools snapshot。
+- [ ] 在 `web/frontend/src/api.js` 中增加独立 Analytics Filter API 方法，并补充 `web/frontend/tests/api.test.js` 合同。
+- [ ] 将组件挂载到现有 Jira 页面过滤区域，保持 `Release Issues` 的查询、结果、深链和其他展示代码不变。
+- [ ] 在 `web/frontend/src/smarttest-theme.css` 中复用现有主题变量实现 Jira 风格的紧凑横向布局，并验证窄屏换行和键盘可访问性。
+
+### 任务六：集成与验收
+
+- [ ] 验证 Basic Search：校验成功后立即出现后台查询进度，刷新页面可以恢复同一账号任务或最后有效快照。
+- [ ] 验证 Advanced Search：无效 JQL 保留旧结果；有效 JQL 立即启动全量查询；不可回切时原文不丢失。
+- [ ] 验证 Saved Filter：只读取并填入草稿，不自动 Search、不修改 Jira 资源。
+- [ ] 回归 Tools Jira Filter、周审查、Release Workbench 和 Dashboard 深链，确认业务状态互不污染。
+- [ ] 运行 scoped Python/Vitest、Web backend、frontend lint/build、源码浏览器 smoke 和 `git diff --check`；清理临时探测、调试输出和废弃实现。
