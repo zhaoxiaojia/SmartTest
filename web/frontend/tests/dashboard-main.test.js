@@ -26,9 +26,16 @@ describe('Dashboard page', () => {
     await import('../src/dashboard-main.js')
     state.authenticated.mount(document.querySelector('main'), { username: 'coco' })
     expect(state.dashboard.registry.get('role-workload').title).toBe('Role workload')
+    expect(state.dashboard.registry.get('jira-team-bugs').title).toBe('Team Jira bugs')
     expect(state.dashboard.preferenceApi).toMatchObject({ get: expect.any(Function), put: expect.any(Function), reset: expect.any(Function) })
     expect(state.dashboard.gridFactory).toBeTypeOf('function')
     expect(state.dashboard.widgetConfig).toBeTypeOf('function')
+  })
+
+  it('provides the account Jira overview API to its independent widget', async () => {
+    await import('../src/dashboard-main.js')
+    state.authenticated.mount(document.querySelector('main'), { username: 'coco' })
+    expect((await state.dashboard.widgetConfig('jira-team-bugs')).api.getTeamBugOverview).toBeTypeOf('function')
   })
 
   it('loads Role workload from the complete account-visible catalog instead of the Projects filter snapshot', async () => {

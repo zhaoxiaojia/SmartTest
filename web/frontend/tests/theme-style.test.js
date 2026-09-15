@@ -78,3 +78,15 @@ it('lets Project Status semantic tones override reusable color slots', () => {
 
   expect(new Set(colors)).toHaveLength(3)
 })
+
+it('preserves GridStack content insets instead of forcing widget content to item height', () => {
+  const style = document.createElement('style')
+  style.textContent = readFileSync(resolve(import.meta.dirname, '../src/smarttest-theme.css'), 'utf8')
+  document.head.append(style)
+  const workspace = document.createElement('div')
+  workspace.className = 'dashboard-workspace'
+  workspace.innerHTML = '<div class="grid-stack"><div class="grid-stack-item"><div class="grid-stack-item-content dashboard-widget-card"></div></div></div>'
+  document.body.append(workspace)
+
+  expect(getComputedStyle(workspace.querySelector('.dashboard-widget-card')).height).not.toBe('100%')
+})

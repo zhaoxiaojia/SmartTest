@@ -196,12 +196,14 @@ def test_full_search_uses_1000_item_pages_with_bounded_independent_clients_and_s
     gateway = JiraGateway(
         "https://jira.example", "u", "p", api=PagedApi(), api_factory=PagedApi,
     )
-    rows = gateway.search_all_payloads("project = SH")
+    progress = []
+    rows = gateway.search_all_payloads("project = SH", progress=lambda completed, total: progress.append((completed, total)))
 
     assert [row["key"] for row in rows] == ["SH-2", "SH-1", "SH-3", "SH-4", "SH-5", "SH-6"]
     assert sorted(start for _, _, _, _, start, _ in calls) == [0, 1000, 2000, 3000, 4000]
     assert all(limit == 1000 for *_, limit in calls)
     assert 1 < peak <= 4
+    assert progress[-1] == (6, 4500)
     clients_by_thread = {}
     for client, thread_id, *_ in calls:
         clients_by_thread.setdefault(thread_id, set()).add(id(client))

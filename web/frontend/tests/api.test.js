@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createAuthApi, createJiraAnalyticsApi, createJiraFilterApi, createManualAuditApi, createPreferenceApi, createProjectFactsApi, createReleaseApi, createWifiDatabaseApi } from '../src/api.js'
+import { createAuthApi, createJiraAnalyticsApi, createJiraFilterApi, createJiraTeamBugApi, createManualAuditApi, createPreferenceApi, createProjectFactsApi, createReleaseApi, createWifiDatabaseApi } from '../src/api.js'
+
+describe('Jira team bug API contract', () => {
+  it('reads the account overview without sending filter state', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ state: 'ready' }) })
+    await createJiraTeamBugApi({ fetchImpl }).getTeamBugOverview()
+    expect(fetchImpl).toHaveBeenCalledWith('/api/dashboard/jira-team-bugs', { credentials: 'same-origin' })
+  })
+})
 
 describe('Preference API contract', () => {
   it('reads, batch writes, and resets an encoded account scope', async () => {

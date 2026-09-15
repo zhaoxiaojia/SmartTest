@@ -17,6 +17,8 @@ function harness({ preference = { items: {} } } = {}) {
   const registry = createWidgetRegistry()
   registry.register({ type: 'role-workload', title: 'Role workload', defaultW: 24, defaultH: 21,
     create: () => { const instance = { mount: vi.fn(), update: vi.fn(), destroy: vi.fn() }; instances.push(instance); return instance } })
+  registry.register({ type: 'jira-team-bugs', title: 'Team Jira bugs', defaultW: 24, defaultH: 16,
+    create: () => { const instance = { mount: vi.fn(), update: vi.fn(), destroy: vi.fn() }; instances.push(instance); return instance } })
   const preferenceApi = { get: vi.fn().mockResolvedValue(preference), put: vi.fn().mockResolvedValue({}), reset: vi.fn().mockResolvedValue({}) }
   const page = createDashboardGrid({ root: document.querySelector('#root'), registry, preferenceApi, gridFactory })
   return { page, grid, gridFactory, instances, preferenceApi }
@@ -41,6 +43,7 @@ describe('DashboardGrid', () => {
     const { page, grid, preferenceApi } = harness()
     await page.start()
     expect(document.querySelector('[data-widget-type="role-workload"]')).not.toBeNull()
+    expect(document.querySelector('[data-widget-type="jira-team-bugs"]')).not.toBeNull()
     expect(grid.enableMove).toHaveBeenLastCalledWith(false)
     document.querySelector('[data-edit-dashboard]').click()
     expect(grid.enableMove).toHaveBeenLastCalledWith(true)
@@ -50,7 +53,7 @@ describe('DashboardGrid', () => {
     expect(grid.save).toHaveBeenCalledWith(false)
     expect(preferenceApi.put.mock.calls[0]).toEqual(['dashboard/layout', { layout: [{
       id: 'role-workload-default', type: 'role-workload', x: 0, y: 0, w: 24, h: 21, config: {},
-    }] }])
+    }, { id: 'jira-team-bugs-default', type: 'jira-team-bugs', x: 0, y: 21, w: 24, h: 16, config: {} }] }])
     page.destroy()
     expect(grid.destroy).toHaveBeenCalledOnce()
   })
@@ -89,7 +92,7 @@ describe('DashboardGrid', () => {
     const picker = document.querySelector('[data-widget-picker]')
     expect(addButton.getAttribute('aria-expanded')).toBe('true')
     expect(picker.hidden).toBe(false)
-    expect([...picker.querySelectorAll('[data-add-widget-type]')].map(button => button.textContent)).toEqual(['Role workload'])
+    expect([...picker.querySelectorAll('[data-add-widget-type]')].map(button => button.textContent)).toEqual(['Role workload', 'Team Jira bugs'])
     picker.querySelector('[data-add-widget-type="role-workload"]').click()
     expect(picker.hidden).toBe(true)
     expect(grid.makeWidget.mock.calls.at(-1)[1]).toMatchObject({ type: 'role-workload', w: 24, h: 21, noResize: true })

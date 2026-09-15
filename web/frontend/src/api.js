@@ -161,6 +161,16 @@ export function createJiraAnalyticsApi({ fetchImpl = globalThis.fetch, baseUrl =
   return { getJiraAnalyticsState: () => request('/state'), getJiraAnalyticsFields: () => request('/fields'), getJiraAnalyticsSuggestions: (fieldName, query = '') => request(`/suggestions?fieldName=${encodeURIComponent(fieldName)}&query=${encodeURIComponent(query)}`), getJiraAnalyticsSavedFilters: () => request('/saved-filters'), getJiraAnalyticsSavedFilter: id => request(`/saved-filters/${encodeURIComponent(id)}`), validateJiraAnalytics: body => request('/validate', 'POST', body), searchJiraAnalytics: body => request('/search', 'POST', body), getJiraAnalyticsTask: id => request(`/tasks/${encodeURIComponent(id)}`), cancelJiraAnalyticsTask: id => request(`/tasks/${encodeURIComponent(id)}`, 'DELETE') }
 }
 
+export function createJiraTeamBugApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
+  return {
+    async getTeamBugOverview() {
+      const response = await fetchImpl(`${baseUrl}/dashboard/jira-team-bugs`, { credentials: 'same-origin' })
+      if (!response.ok) throw new ApiUnavailableError(`Jira team bug overview unavailable (${response.status}).`, { status: response.status })
+      return response.json()
+    },
+  }
+}
+
 export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
   async function changeFilter(method, filters = {}) {
     const response = await fetchImpl(`${baseUrl}/confluence/filter-snapshot`, {

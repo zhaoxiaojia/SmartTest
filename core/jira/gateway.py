@@ -145,12 +145,16 @@ class JiraGateway:
         *,
         fields: list[str] | None = None,
         expand: list[str] | None = None,
+        progress: Callable[[int, int], None] | None = None,
     ) -> list[dict[str, Any]]:
         requested_fields = fields or list(self.CORE_FIELDS)
         pages = {0: self._full_search_executor.submit(
             self._search_full_page, query, 0, requested_fields, expand,
         ).result()}
         observed_total = int(pages[0].get("total") or 0)
+        completed_count = len(pages[0].get("issues") or ())
+        if progress:
+            progress(completed_count, observed_total)
         scheduled = {0}
         pending = {}
 
@@ -170,7 +174,10 @@ class JiraGateway:
                 start = pending.pop(future)
                 page = future.result()
                 pages[start] = page
+                completed_count += len(page.get("issues") or ())
                 observed_total = max(observed_total, int(page.get("total") or 0))
+                if progress:
+                    progress(completed_count, observed_total)
             schedule(observed_total)
 
         rows: list[dict[str, Any]] = []
@@ -185,6 +192,8 @@ class JiraGateway:
                 if key:
                     seen_keys.add(key)
                 rows.append(issue)
+        if progress:
+            progress(len(rows), observed_total)
         return rows
 
     def _search_full_page(
