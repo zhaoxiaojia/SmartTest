@@ -17,6 +17,9 @@ it.each(['changing', 'ready'])('shared authenticated page ignores old bootstrap 
     const currentPage = document.querySelector('[aria-label="Jira issue filter"]')
     if (eventName === 'ready') {
       expect(currentPage).not.toBeNull()
+      const widget = document.querySelector('[data-page-widget="jira-team-bugs"]')
+      expect(widget).not.toBeNull()
+      expect(widget.compareDocumentPosition(currentPage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
       currentPage.querySelector('[name="containsText"]').value = 'Bob current edit'
     } else expect(currentPage).toBeNull()
     finishBootstrap({ authenticated: true, username: 'alice' })

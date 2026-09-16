@@ -56,6 +56,7 @@ def test_catalog_sync_preserves_dynamic_fields_and_publishes_ready_snapshot():
         (ProductLine("X", page.url, "Line X"),),
     )
     assert snapshot["phase"] == "catalog_ready"
+    assert snapshot["projects"][0]["space_key"] == "X"
     assert snapshot["projects"][0]["fields"]["unexpected owner"] == "Owner-X"
     assert snapshot["field_discrepancies"] == ["Unexpected Owner"]
     assert store.saved[-1] == snapshot
@@ -138,8 +139,8 @@ def test_forbidden_catalog_space_is_silently_absent_without_removing_other_space
         ProductLine("X", allowed.url, "Line X"),
         ProductLine("Y", "https://c/display/Y/Project+Space", "Line Y"),
     ))
-    assert [row["space_key"] for row in snapshot["projects"]] == ["Line X"]
-    assert [source["space_key"] for source in snapshot["sources"]] == ["Line X"]
+    assert [row["space_key"] for row in snapshot["projects"]] == ["X"]
+    assert [source["space_key"] for source in snapshot["sources"]] == ["X"]
 
 
 def test_catalog_authentication_failure_is_not_published_as_empty_ready_snapshot():

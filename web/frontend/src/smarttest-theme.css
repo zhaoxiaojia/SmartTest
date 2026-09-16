@@ -226,6 +226,8 @@ input, select, textarea {
 .dashboard-widget-body { height: calc(100% - 46px); min-height: 0; overflow: hidden; }
 .dashboard-widget-body .segmented-ranking { height: 100%; display: flex; flex-direction: column; }
 .dashboard-widget-body .workload-chart-scroll { flex: 1; min-height: 0; }
+.page-ranking-widget { margin-bottom: 1rem; padding: 0; overflow: hidden; }
+.page-ranking-widget > [data-widget-body] { min-height: 12rem; }
 .team-bug-state { display: grid; height: 100%; place-items: center; padding: 1rem; color: var(--text-secondary); }
 .dashboard-workspace.is-editing .dashboard-widget-card { outline: 1px dashed color-mix(in srgb,var(--accent) 55%,var(--border-color)); }
 .product-space-groups { display: grid; gap: 1rem; }

@@ -30,7 +30,7 @@ from .database import WebDatabase
 from .query_snapshot_repository import PROJECT_FILTER_KEYS
 from .session import default_web_database_path
 
-PAGE_CATALOG_PRODUCT_SPACES = tuple(line.name for line in PRODUCT_LINES)
+PAGE_CATALOG_PRODUCT_SPACES = tuple(line.confluence_space_key for line in PRODUCT_LINES)
 PROJECT_FILTER_FACET_DEFINITIONS = tuple(
     definition for definition in PROJECT_SPACE_FACET_DEFINITIONS
     if definition[0] in PROJECT_FILTER_KEYS
@@ -343,12 +343,12 @@ def _product_space_rows(allowed=None):
     allowed = None if allowed is None else set(allowed)
     return [
         {
-            "value": line.name,
+            "value": line.confluence_space_key,
             "label": line.name,
             "projectGrouping": line.project_grouping or None,
         }
         for line in PRODUCT_LINES
-        if allowed is None or line.name in allowed
+        if allowed is None or line.confluence_space_key in allowed
     ]
 
 

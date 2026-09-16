@@ -20,8 +20,8 @@ from core.domain.detail import DetailSection, DetailState
 from core.domain.values import FieldBag, NamedValue, PersonRef, SourceRevision
 from core.confluence.models import ConfluencePage
 from core.confluence.project_catalog import refresh_project_catalogs
-from core.confluence.project_discovery import ProductLine
 from core.confluence.project_mapper import ConfluenceProjectMapper
+from core.product_lines import PRODUCT_LINES
 from smarttest_web.release_query import ProjectReleaseQueryService
 from smarttest_web.confluence.project_repository import ConfluenceProjectRepository
 from smarttest_web.database import WebDatabase
@@ -186,7 +186,7 @@ def test_canonical_catalog_name_is_unchanged_through_sqlite_and_dashboard_query(
     store = type("Store", (), {"load": lambda self: None, "save": lambda self, value: setattr(self, "value", value)})()
     client = type("Client", (), {"get_page_by_url": lambda self, _url: page})()
     row = refresh_project_catalogs(
-        client, store, (ProductLine("DOPL", page.url, "DOPL"),),
+        client, store, (PRODUCT_LINES[0],),
     )["projects"][0]
     repository = _repository(tmp_path)
     project = ConfluenceProjectMapper().from_catalog(row)

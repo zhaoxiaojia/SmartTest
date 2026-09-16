@@ -50,8 +50,8 @@ def test_project_facts_exposes_core_product_labels_and_only_catalog_ready_filter
     ),))
     access = confirmed_access(repository.database, ("P100",))
     access.publish([
-        ("catalog", "China Operator Business", "ready", "China Operator Business"),
-        ("catalog", "TV Business", "ready", "TV Business"),
+        ("catalog", "DOPL", "ready", "DOPL"),
+        ("catalog", "TV", "ready", "TV"),
     ], lambda: None)
 
     result = ProjectFactsWebOwner(repository=repository).query(
@@ -59,15 +59,15 @@ def test_project_facts_exposes_core_product_labels_and_only_catalog_ready_filter
     )
 
     assert result["productSpaces"] == [
-        {"value": "China Operator Business", "label": "China Operator Business", "projectGrouping": None},
-        {"value": "Smart Device Business", "label": "Smart Device Business", "projectGrouping": None},
-        {"value": "TV Business", "label": "TV Business", "projectGrouping": "launch_os"},
-        {"value": "Global Operator & STB Business", "label": "Global Operator & STB Business", "projectGrouping": None},
+        {"value": "DOPL", "label": "China Operator Business", "projectGrouping": None},
+        {"value": "SDPL", "label": "Smart Device Business", "projectGrouping": None},
+        {"value": "TV", "label": "TV Business", "projectGrouping": "launch_os"},
+        {"value": "OOPL", "label": "Global Operator & STB Business", "projectGrouping": None},
     ]
     product_space = next(facet for facet in result["facets"] if facet["key"] == "__product_space__")
     assert product_space["options"] == [
-        {"value": "China Operator Business", "label": "China Operator Business", "projectGrouping": None},
-        {"value": "TV Business", "label": "TV Business", "projectGrouping": "launch_os"},
+        {"value": "DOPL", "label": "China Operator Business", "projectGrouping": None},
+        {"value": "TV", "label": "TV Business", "projectGrouping": "launch_os"},
     ]
     assert [facet["key"] for facet in result["facets"]] == [
         "__product_space__", "date of commercial approval", "project id", "project owner",
@@ -174,7 +174,7 @@ def test_page_entry_catalog_refresh_is_limited_to_four_product_spaces(tmp_path) 
 
     assert len(service.scopes) == 1
     assert service.scopes[0].product_space_keys == (
-        "China Operator Business", "Smart Device Business", "TV Business", "Global Operator & STB Business",
+        "DOPL", "SDPL", "TV", "OOPL",
     )
 
 
@@ -238,7 +238,7 @@ def test_page_entry_persists_recent_client_catalog_contract_for_all_four_spaces(
     result = owner.query(access)
 
     assert result["accessibleProjectCount"] == 4
-    assert {row["space_key"] for row in result["projects"]} == {"TV Business", "Smart Device Business", "China Operator Business", "Global Operator & STB Business"}
+    assert {row["space_key"] for row in result["projects"]} == {"TV", "SDPL", "DOPL", "OOPL"}
     assert [facet["key"] for facet in result["facets"]] == [
         "__product_space__", "date of commercial approval", "project id", "project owner",
     ]

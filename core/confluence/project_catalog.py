@@ -60,14 +60,14 @@ def refresh_project_catalogs(client, store, product_lines=PRODUCT_LINES, *, now=
             source = client.get_page_by_url(line.confluence_url)
             request_ms = round((perf_counter() - request_started) * 1000, 3)
             parse_started = perf_counter()
-            rows = _catalog_rows(source, line.name)
+            rows = _catalog_rows(source, line.confluence_space_key)
             smart_log("Confluence catalog stage timing", domain="framework", source="confluence_catalog", emit_runtime_event=False,
-                      extra={"stage": "catalog.line", "space_key": line.name, "duration_ms": request_ms,
+                      extra={"stage": "catalog.line", "space_key": line.confluence_space_key, "duration_ms": request_ms,
                              "parse_duration_ms": round((perf_counter() - parse_started) * 1000, 3), "project_count": len(rows), "outcome": "success"})
             return index, line, source, rows, None
         except Exception as exc:
             smart_log("Confluence catalog stage timing", domain="framework", source="confluence_catalog", emit_runtime_event=False,
-                      extra={"stage": "catalog.line", "space_key": line.name,
+                      extra={"stage": "catalog.line", "space_key": line.confluence_space_key,
                              "duration_ms": round((perf_counter() - request_started) * 1000, 3),
                              "project_count": 0, "outcome": "failure", "exception_type": type(exc).__name__})
             return index, line, None, [], exc
@@ -83,13 +83,13 @@ def refresh_project_catalogs(client, store, product_lines=PRODUCT_LINES, *, now=
         inaccessible_spaces = set()
         completed_spaces = set()
         for index, line, source, rows, error in sorted(fetched.values()):
-            completed_spaces.add(line.name)
+            completed_spaces.add(line.confluence_space_key)
             if error:
                 if not _is_access_denied(error):
                     raise error
-                inaccessible_spaces.add(line.name)
+                inaccessible_spaces.add(line.confluence_space_key)
                 continue
-            evidence = _page_evidence(source, line.name)
+            evidence = _page_evidence(source, line.confluence_space_key)
             evidence["display_name"] = line.name
             sources.append(evidence)
             for source_catalog in rows:
@@ -98,8 +98,8 @@ def refresh_project_catalogs(client, store, product_lines=PRODUCT_LINES, *, now=
                 discrepancies.update(catalog.pop("discrepancies", ()))
                 seen.add(catalog["identity"])
                 stage = catalog.get("fields", {}).get("current stage", "")
-                if stage and stage not in stage_domains.setdefault(line.name, []):
-                    stage_domains[line.name].append(stage)
+                if stage and stage not in stage_domains.setdefault(line.confluence_space_key, []):
+                    stage_domains[line.confluence_space_key].append(stage)
                 old = old_by_id.get(catalog["identity"])
                 if old and old.get("catalog_fingerprint") == catalog["catalog_fingerprint"]:
                     row = deepcopy(old); row.update(catalog); row.update(active=True)
@@ -128,7 +128,7 @@ def refresh_project_catalogs(client, store, product_lines=PRODUCT_LINES, *, now=
 
     def submit(item):
         if manager is not None:
-            return manager.submit(f"confluence-catalog:{item[1].name}", lambda _token, _progress: fetch(item))
+            return manager.submit(f"confluence-catalog:{item[1].confluence_space_key}", lambda _token, _progress: fetch(item))
         future = Future()
         try:
             future.set_result(fetch(item))
@@ -262,7 +262,7 @@ def query_project_facts(snapshot, *, filters=None, search="", include_inactive=F
         for stage in stage_domains.get(space.upper(), ())
         if stage
     }, key=str.casefold)
-    labels = {line.name: line.name for line in PRODUCT_LINES}
+    labels = {line.confluence_space_key: line.name for line in PRODUCT_LINES}
     labels.update({source.get("space_key"): source.get("display_name")
                    for source in (snapshot or {}).get("sources", [])
                    if source.get("space_key") and source.get("display_name")})

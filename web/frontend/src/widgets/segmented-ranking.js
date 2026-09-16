@@ -33,6 +33,7 @@ export function createSegmentedRanking({ chartFactory } = {}) {
     const rows = (config.rowsFor?.(activeProductLine, activeMode) ?? [])
       .filter(row => row.count)
       .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+    const total = rows.reduce((sum, row) => sum + row.count, 0)
     const surface = root.querySelector('.workload-chart-surface')
     surface.style.height = `${rows.length * 36}px`
     const empty = root.querySelector('[data-ranked-empty]')
@@ -45,7 +46,10 @@ export function createSegmentedRanking({ chartFactory } = {}) {
       type: 'bar', data: { labels: rows.map(row => row.name), datasets: [{ label: config.datasetLabel || '', data: rows.map(row => row.count) }] },
       options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
         layout: { padding: { right: 28 } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
-        plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'right', clip: false, formatter: value => value } } },
+        plugins: { legend: { display: false }, datalabels: { labels: {
+          percentage: { anchor: 'end', align: 'left', offset: 4, color: '#fff', formatter: value => `${Math.round(value / total * 100)}%` },
+          value: { anchor: 'end', align: 'right', offset: 4, clip: false, formatter: value => value },
+        } } } },
     })
   }
 

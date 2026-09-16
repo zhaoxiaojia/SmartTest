@@ -30,17 +30,23 @@ it('mounts the persisted Projects snapshot, preserves filters, and has no migrat
   vi.stubGlobal('fetch', fetchImpl)
   await import('../src/projects-main.js')
   try {
-    await vi.waitFor(() => expect(document.querySelector('main form')?.querySelector('[type="submit"]').disabled).toBe(false))
+    await vi.waitFor(() => expect(document.querySelector('main form')?.elements['field.__product_space__']).toBeDefined())
+    expect(document.querySelector('main form').querySelector('[type="submit"]').disabled).toBe(false)
     const form = document.querySelector('main form')
+    const workload = document.querySelector('[data-page-widget="role-workload"]')
+    expect(workload).not.toBeNull()
+    expect(workload.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     const select = form.elements['field.__product_space__']
     select.value = 'TV'
     form.elements.search.value = 'Project One'
     expect(form.querySelector('[data-audit]')).toBeNull()
     const entryRequests = fetchImpl.mock.calls.map(([url]) => new URL(url, window.location.origin))
       .filter(url => url.pathname === '/api/confluence/project-facts')
-    expect(entryRequests).toHaveLength(1)
-    expect(entryRequests[0].searchParams.get('snapshot')).toBe('1')
-    expect(entryRequests[0].searchParams.has('catalog')).toBe(false)
+    expect(entryRequests).toHaveLength(2)
+    const projectsRequest = entryRequests.find(url => url.searchParams.get('snapshot') === '1')
+    const workloadRequest = entryRequests.find(url => !url.search)
+    expect(projectsRequest.searchParams.has('catalog')).toBe(false)
+    expect(workloadRequest).toBeDefined()
     expect(form.elements['field.__product_space__']).toBe(select)
     expect(select.value).toBe('TV')
 
