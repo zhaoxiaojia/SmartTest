@@ -3,10 +3,13 @@ from __future__ import annotations
 from datetime import datetime, time, timedelta
 import re
 from zoneinfo import ZoneInfo
+from core.product_lines import PRODUCT_LINES
 
 
 _SHANGHAI = ZoneInfo("Asia/Shanghai")
-_JIRA_SCOPE = "project in (SH, TV, IPTV, OTT,RK) AND issuetype in (Bug, Sub-bug)"
+_JIRA_SCOPE = "project in ({},RK) AND issuetype in (Bug, Sub-bug)".format(
+    ", ".join(project for line in PRODUCT_LINES for project in line.jira_project_keys),
+)
 
 
 def fixed_weekly_audit_scope(trigger_at: datetime) -> dict:
@@ -35,7 +38,7 @@ def fixed_weekly_audit_scope(trigger_at: datetime) -> dict:
             },
             "search": "",
             "excludeCurrentStageAtOrAbove": 4,
-            "excludeSupportModeBProductLines": ["SDPL"],
+            "excludeSupportModeBProductLines": [PRODUCT_LINES[1].name],
         },
     }
 

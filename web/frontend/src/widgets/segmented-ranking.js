@@ -5,13 +5,6 @@ function element(tag, className, text) {
   return value
 }
 
-export const DASHBOARD_PRODUCT_LINES = Object.freeze([
-  Object.freeze({ value: 'DOPL', label: 'China Operator Business' }),
-  Object.freeze({ value: 'SDPL', label: 'Smart Device Business' }),
-  Object.freeze({ value: 'TV', label: 'TV Business' }),
-  Object.freeze({ value: 'OOPL', label: 'Global Operator & STB Business' }),
-])
-
 export function createSegmentedRanking({ chartFactory } = {}) {
   let root, chart, config
   let activeProductLine = ''

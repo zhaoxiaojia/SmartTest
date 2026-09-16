@@ -19,6 +19,10 @@ from core.jira.attachments import (
 )
 from core.jira.commands import CreateIssueCommand, UpdateIssueCommand
 from core.logging import smart_log
+from core.product_lines import PRODUCT_LINES
+
+
+_DEFAULT_USER_SEARCH_PROJECT = PRODUCT_LINES[1].jira_project_keys[0]
 
 
 @dataclass(frozen=True)
@@ -430,14 +434,19 @@ class JiraGateway:
             raise JiraGatewayError("jira_create_metadata_failed") from exc
         return payload if isinstance(payload, dict) else {}
 
-    def search_users(self, query: str, *, project_key: str = "SH") -> list[dict[str, Any]]:
+    def search_users(
+        self,
+        query: str,
+        *,
+        project_key: str = _DEFAULT_USER_SEARCH_PROJECT,
+    ) -> list[dict[str, Any]]:
         try:
             payload = self._api.get_all_assignable_users_for_project(project_key, start=0, limit=1000) or []
         except Exception as exc:
             raise JiraGatewayError("jira_user_search_failed") from exc
         needle = str(query or "").strip().casefold()
         return [
-            _public_user(item)
+            {**_public_user(item), "active": item.get("active") is not False}
             for item in payload
             if isinstance(item, dict)
             and (

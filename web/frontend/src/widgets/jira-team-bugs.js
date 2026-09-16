@@ -1,4 +1,4 @@
-import { createSegmentedRanking, DASHBOARD_PRODUCT_LINES } from './segmented-ranking.js'
+import { createSegmentedRanking } from './segmented-ranking.js'
 
 export const JIRA_TEAM_BUG_LAYOUT = Object.freeze({ defaultW: 24, defaultH: 16 })
 
@@ -30,7 +30,7 @@ export function createJiraTeamBugWidget({ pollDelay = 800, chartFactory } = {}) 
     }
     const byLine = new Map((payload.productLines ?? []).map(line => [line.id, line]))
     ranking.mount(root, {
-      productLines: DASHBOARD_PRODUCT_LINES,
+      productLines: (payload.productLines ?? []).map(line => ({ value: line.id, label: line.label })),
       modes: METRICS,
       emptyText: 'No bugs in this product line.',
       rowsFor: (productLine, metric) => (byLine.get(productLine)?.people ?? []).map(person => ({

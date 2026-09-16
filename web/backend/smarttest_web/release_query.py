@@ -5,7 +5,7 @@ from datetime import date, datetime
 import re
 import unicodedata
 
-from core.confluence.project_discovery import PRODUCT_LINES
+from core.product_lines import PRODUCT_LINES
 from core.confluence.project_rules import MAJOR_QA_ROLE_ID
 
 from .confluence.schema import initialize_confluence_schema
@@ -292,7 +292,7 @@ class ProjectReleaseQueryService:
         def facet(key, label):
             values = sorted({str(row.get(key) or "") for row in rows if row.get(key)}, key=str.casefold)
             return {"key": key, "label": label, "options": [{"value": value, "label": value} for value in values]}
-        product_options = [{"value": line.key, "label": line.display_name} for line in PRODUCT_LINES]
+        product_options = [{"value": line.name, "label": line.name} for line in PRODUCT_LINES]
         return [{"key": "productLine", "label": "Product Line", "options": product_options},
                 facet("currentStage", "Current Stage"), facet("projectId", "Project"),
                 facet("releaseName", "Current Release"), facet("projectOwners", "Project Owner"),

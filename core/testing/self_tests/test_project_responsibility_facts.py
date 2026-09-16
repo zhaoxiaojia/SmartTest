@@ -3,11 +3,15 @@ from datetime import datetime, timezone
 import pytest
 
 from core.confluence.models import ConfluencePage
-from core.confluence.project_discovery import ProductLine
+from core.product_lines import ProductLine as CoreProductLine
 from core.confluence.project_catalog import (
     PRODUCT_SPACE_FACET, extract_project_detail, query_project_facts,
     refresh_project_catalogs,
 )
+
+
+def ProductLine(space_key, source_url, display_name):
+    return CoreProductLine(display_name, (), display_name, space_key, source_url)
 
 
 def _space(key="X", project_id="Alpha-ID", page_id="101", stage="Stage 1"):
@@ -134,8 +138,8 @@ def test_forbidden_catalog_space_is_silently_absent_without_removing_other_space
         ProductLine("X", allowed.url, "Line X"),
         ProductLine("Y", "https://c/display/Y/Project+Space", "Line Y"),
     ))
-    assert [row["space_key"] for row in snapshot["projects"]] == ["X"]
-    assert [source["space_key"] for source in snapshot["sources"]] == ["X"]
+    assert [row["space_key"] for row in snapshot["projects"]] == ["Line X"]
+    assert [source["space_key"] for source in snapshot["sources"]] == ["Line X"]
 
 
 def test_catalog_authentication_failure_is_not_published_as_empty_ready_snapshot():
@@ -295,6 +299,8 @@ def test_cached_root_id_avoids_url_resolution_and_still_locates_basic_sibling():
         "alice.account", "user-identity", "custom field", "secret value",
     ),
 )
+
+
 def test_local_query_searches_all_local_project_person_and_field_text(search):
     snapshot = {"projects": [{
         "identity": "X:101", "page_id": "101", "project_id": "Alpha-ID", "name": "Alpha",
@@ -347,7 +353,7 @@ def test_catalog_uses_injected_task_manager_for_each_product_space():
     class Store:
         def load(self): return {"projects": []}
         def save(self, _payload): pass
-    lines = (type("Line", (), {"key":"A", "source_url":"a", "display_name":"A"})(),)
+    lines = (ProductLine("A", "a", "A"),)
     class Client:
         def get_page_by_url(self, _url): return type("Page", (), {"view_body":"", "body":"", "id":"1", "url":"a", "title":"A", "version":0, "updated_at":None})()
     import core.confluence.project_catalog as catalog

@@ -337,7 +337,7 @@ export function createProjects({ root, api, waitForPreferences, account,
       return distribution
     }
 
-    for (const { value: productSpaceKey, label: productSpaceLabel } of productSpaceDefinitions) {
+    for (const { value: productSpaceKey, label: productSpaceLabel, projectGrouping } of productSpaceDefinitions) {
       const spaceProjects = uniqueProjects.filter(project => project.space_key === productSpaceKey)
       const group = node('section', 'product-space-group'); group.dataset.productSpaceGroup = ''
       const summary = node('button', 'product-space-summary'); summary.type = 'button'; summary.dataset.productSpaceToggle = ''
@@ -346,7 +346,7 @@ export function createProjects({ root, api, waitForPreferences, account,
       summary.append(node('strong', 'kanban-title', productSpaceLabel), createProjectStatusSummary(spaceProjects), count)
       const stageGroups = node('div', 'stage-groups'); stageGroups.dataset.productGrid = ''
       if (spaceProjects.length) {
-        if (productSpaceKey === 'TV') {
+        if (projectGrouping === 'launch_os') {
           for (const launchOs of groupByLaunchOs(spaceProjects)) {
             const launchGroup = node('details', 'launch-os-group'); launchGroup.dataset.launchOsGroup = ''; launchGroup.open = true
             const launchSummary = node('summary', 'launch-os-summary')

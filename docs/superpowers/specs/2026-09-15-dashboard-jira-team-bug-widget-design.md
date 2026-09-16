@@ -20,7 +20,7 @@
 - Invalid Bug：`Resolution.name == "Invalid"`；占比为该数量 / 个人 Bug 总数。
 - 所有名称按 Jira 返回字段值匹配，不通过 Status、Status Category 或其他字段推断。
 - 人员默认按 Bug 总数倒序；数量相同时按展示名稳定排序。零 Bug 人员不展示。
-- 产品线按 Jira Project key 划分：`DOPL -> IPTV`、`SDPL -> SH`、`TV -> TV`、`OOPL -> OTT`；`FQ` 暂时排除。
+- 内部、配置、SQLite、API 与前端统一使用五个 canonical 产品线名称。Jira Project key 与 Confluence space/业务标签仅在 `core.product_lines` 映射 owner 定义；`FQ` 暂时排除。
 
 ## 3. 数据所有权与流程
 
@@ -146,8 +146,16 @@ Web 后端只负责当前登录会话解析、调用 Core owner、SQLite 快照�
 
 ### 8.7 产品线图表改造
 
-- [x] Core 定义唯一产品线到 Jira Project key 映射：`DOPL/IPTV`、`SDPL/SH`、`TV/TV`、`OOPL/OTT`；JQL 加入四个 Project 范围，`FQ` 排除。
+- [x] `core.product_lines` 单一结构定义 canonical 名称及 Jira/Confluence 外部标识，正反索引均由结构派生；JQL 使用映射中的四个 Project key，`FQ` 排除。
 - [x] Core 聚合 DTO 按产品线保存人员的 Bugs、Resolved、P0、Invalid 数量；快照版本/指纹包含 Project 映射，使旧单一总表快照自动失效。
 - [x] 从 Role workload 提取共享的产品线分段与横向人员排行图表现机制，两个业务 widget 只准备各自数据和指标，不复制 Chart.js 配置。
 - [x] Team Jira bugs 改为四个产品线和四个指标切换，删除明细表 DOM、百分比格式化及表格专用 CSS。
 - [x] 增加 Project 隔离、`FQ` 排除、指标切换、倒序、共享图表生命周期和无数据状态测试，并复跑完整验收。
+
+### 8.8 Project 与人员归属双条件分类
+
+- [x] 原四分布同时要求 Issue Project 通过映射 owner 得到的 canonical 名称与 Assignee canonical personnel assignment 匹配。
+- [x] 新增 `Wireless Connection`分布；具有该 assignment 的人员在 `IPTV/SH/TV/OTT` 中的 Issue 统一归入该分布，不再混入原四分布。
+- [x] personnel assignment 纳入名单指纹，归属变化使旧快照失效；非四 Project、无匹配 assignment 和 `Unassigned` 均排除。
+- [x] 前端复用现有分段排行 owner，顶部增加文字为 `Wireless Connection` 的分段，Bugs/Resolved/P0/Invalid 四指标不变。
+- [x] `core.product_lines` 统一定义五个产品线 key/显示名；Python 生产消费者引用该 owner，Team Jira payload 按 Core 顺序携带 label，前端不再硬编码同套产品线常量。

@@ -27,13 +27,14 @@ from core.confluence.project import (
 )
 from core.domain.detail import DetailSection
 from core.domain.values import FieldBag, NamedValue, PersonRef
+from core.product_lines import PRODUCT_LINES
 
 
 TZ = ZoneInfo("Asia/Shanghai")
 
 
 def _project(
-    project_id="P1", line="DOPL", *, support_mode="", project_status="",
+    project_id="P1", line=PRODUCT_LINES[0].name, *, support_mode="", project_status="",
     commercial_date="",
 ):
     sources = {
@@ -134,7 +135,7 @@ def test_confluence_reuses_page_material_for_points_on_the_same_page() -> None:
 
 def test_confluence_exporter_writes_one_workbook_per_product_line(tmp_path) -> None:
     period = AuditPeriod(datetime(2026, 8, 17, tzinfo=TZ), datetime(2026, 8, 24, tzinfo=TZ))
-    projects = (_project("P1", "DOPL"), _project("P2", "TV"))
+    projects = (_project("P1", PRODUCT_LINES[0].name), _project("P2", PRODUCT_LINES[2].name))
 
     class Source:
         def load_project_details(self, project_id, _details, _cancellation):

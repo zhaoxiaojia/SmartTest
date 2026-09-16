@@ -12,7 +12,7 @@ class Gateway:
         if progress: progress(1, 1)
         return [{"fields": {"issuetype": {"name": "Bug"},
                             "project": {"key": "TV"},
-                            "assignee": {"name": "junjie.li", "displayName": "Junjie Li"},
+                            "assignee": {"name": "jianfan.ai", "displayName": "Jianfan Ai"},
                             "priority": {"name": "P0"}, "resolution": None}}]
 
 
@@ -36,7 +36,7 @@ def test_dashboard_team_bugs_requires_auth_and_uses_current_credentials(tmp_path
 
     assert seen == [("coco", "secret")]
     assert ready["state"] == "ready"
-    assert ready["productLines"][2]["people"][0]["displayName"] == "Junjie Li"
+    assert ready["productLines"][2]["people"][0]["displayName"] == "Jianfan Ai"
     assert not any("Ratio" in key for key in ready["productLines"][2]["people"][0])
     assert "issues" not in ready
 

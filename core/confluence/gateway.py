@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import datetime
 from time import perf_counter
+from time import sleep
 from typing import Any
 from urllib.parse import parse_qs, unquote_plus, urlsplit
 
@@ -146,8 +147,42 @@ class ConfluenceGateway:
 
     def get_user_display_name(self, user_key: str) -> str:
         """Resolve a Confluence identity through the maintained Atlassian client API."""
-        payload = self._timed("rest.user.lookup", lambda: self._api.get_user_details_by_userkey(str(user_key)) or {})
+        payload = self._get_user_by_key(str(user_key))
         return str(payload.get("displayName") or payload.get("publicName") or payload.get("name") or "").strip()
+
+    @staticmethod
+    def _status(error):
+        response = getattr(error, "response", None)
+        return getattr(error, "status_code", None) or getattr(response, "status_code", None)
+
+    def _get_user_by_key(self, identity: str) -> dict[str, Any]:
+        for attempt in range(1, 4):
+            try:
+                return self._timed(
+                    "rest.user.lookup", lambda: self._api.get_user_details_by_userkey(identity) or {},
+                )
+            except Exception as error:
+                status = self._status(error)
+                transient = status is None or status == 429 or int(status) >= 500
+                if not transient or attempt == 3:
+                    error.sync_reason = "transient-exhausted" if transient else "non-retryable-http-status"
+                    raise
+                sleep(0.2)
+        raise RuntimeError("unreachable")
+
+    def resolve_user_keys(self, identities) -> dict[str, dict[str, Any]]:
+        resolved = {}
+        for raw_identity in identities:
+            identity = str(raw_identity or "").strip()
+            if not identity:
+                continue
+            payload = self._get_user_by_key(identity)
+            account = str(payload.get("username") or payload.get("name") or payload.get("accountId") or "").strip()
+            display_name = str(payload.get("displayName") or payload.get("publicName") or "").strip()
+            active = payload.get("active") is not False
+            if account and display_name and active:
+                resolved[identity] = {"account": account, "display_name": display_name, "active": active}
+        return resolved
 
     def get_page_children(self, page_id: str, *, limit: int = 100) -> list[ConfluencePage]:
         started = perf_counter()

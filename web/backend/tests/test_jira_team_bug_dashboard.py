@@ -3,6 +3,7 @@ from smarttest_web.jira.team_bug_dashboard import (
     JiraTeamBugDashboardRepository, JiraTeamBugDashboardService, JiraTeamBugTasks,
 )
 from core.jira.services.team_bug_service import QARoster
+from core.product_lines import DASHBOARD_PRODUCT_LINES
 
 
 class DeferredTasks:
@@ -30,8 +31,8 @@ class Gateway:
 
 def overview(total=0):
     return {"teamTotal": total, "productLines": [
-        {"id": line, "projectKey": project, "people": []}
-        for line, project in (("DOPL", "IPTV"), ("SDPL", "SH"), ("TV", "TV"), ("OOPL", "OTT"))
+        {"id": line.name, "label": line.name, "people": []}
+        for line in DASHBOARD_PRODUCT_LINES
     ]}
 
 

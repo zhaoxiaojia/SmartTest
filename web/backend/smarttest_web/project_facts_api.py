@@ -19,7 +19,7 @@ from core.confluence.project_catalog import (
     query_project_facts,
     refresh_project_catalogs,
 )
-from core.confluence.project_discovery import PRODUCT_LINES
+from core.product_lines import PRODUCT_LINES
 from core.confluence.project_mapper import ConfluenceProjectMapper
 from core.logging import smart_log
 
@@ -30,7 +30,7 @@ from .database import WebDatabase
 from .query_snapshot_repository import PROJECT_FILTER_KEYS
 from .session import default_web_database_path
 
-PAGE_CATALOG_PRODUCT_SPACES = ("TV", "SDPL", "DOPL", "OOPL")
+PAGE_CATALOG_PRODUCT_SPACES = tuple(line.name for line in PRODUCT_LINES)
 PROJECT_FILTER_FACET_DEFINITIONS = tuple(
     definition for definition in PROJECT_SPACE_FACET_DEFINITIONS
     if definition[0] in PROJECT_FILTER_KEYS
@@ -342,9 +342,13 @@ def _project_snapshot_row(project):
 def _product_space_rows(allowed=None):
     allowed = None if allowed is None else set(allowed)
     return [
-        {"value": line.key, "label": line.display_name}
+        {
+            "value": line.name,
+            "label": line.name,
+            "projectGrouping": line.project_grouping or None,
+        }
         for line in PRODUCT_LINES
-        if allowed is None or line.key in allowed
+        if allowed is None or line.name in allowed
     ]
 
 

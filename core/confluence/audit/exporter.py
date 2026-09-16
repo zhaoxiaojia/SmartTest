@@ -4,7 +4,8 @@ from pathlib import Path
 import re
 
 from core.reporting.excel import write_xlsx_sections
-from core.confluence.project_discovery import PRODUCT_LINES, _commercial_year
+from core.confluence.project_discovery import _commercial_year
+from core.product_lines import PRODUCT_LINES
 
 from .models import AuditStatus
 from .rules import UPDATE_MATRIX_POINTS
@@ -28,7 +29,7 @@ def export_audit_xlsx_by_product_line(batch, output_dir: Path):
     directory = Path(output_dir)
     directory.mkdir(parents=True, exist_ok=True)
     paths = []
-    product_line_names = {line.key: line.display_name for line in PRODUCT_LINES}
+    product_line_names = {line.name: line.name for line in PRODUCT_LINES}
     keys = sorted({
         audit.project.product_space.key for audit in batch.projects
         if audit.project.product_space.key

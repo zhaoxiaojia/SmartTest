@@ -10,7 +10,8 @@ import re
 from time import perf_counter
 
 from core.logging import smart_log
-from .project_discovery import PRODUCT_LINES, ProjectLocation, _commercial_year, canonical_project_name, discover_project_pages, locate_basic_information
+from core.product_lines import PRODUCT_LINES
+from .project_discovery import ProjectLocation, _commercial_year, canonical_project_name, discover_project_pages, locate_basic_information
 from .html import html_tables, links, table_fields, text
 from .role_parser import extract_project_roles, extract_role_people, resolve_role_display_names
 from .project_rules import CANONICAL_PROJECT_FIELDS, ROLE_LABELS, normalize_project_field
@@ -56,17 +57,17 @@ def refresh_project_catalogs(client, store, product_lines=PRODUCT_LINES, *, now=
         index, line = index_line
         request_started = perf_counter()
         try:
-            source = client.get_page_by_url(line.source_url)
+            source = client.get_page_by_url(line.confluence_url)
             request_ms = round((perf_counter() - request_started) * 1000, 3)
             parse_started = perf_counter()
-            rows = _catalog_rows(source, line.key)
+            rows = _catalog_rows(source, line.name)
             smart_log("Confluence catalog stage timing", domain="framework", source="confluence_catalog", emit_runtime_event=False,
-                      extra={"stage": "catalog.line", "space_key": line.key, "duration_ms": request_ms,
+                      extra={"stage": "catalog.line", "space_key": line.name, "duration_ms": request_ms,
                              "parse_duration_ms": round((perf_counter() - parse_started) * 1000, 3), "project_count": len(rows), "outcome": "success"})
             return index, line, source, rows, None
         except Exception as exc:
             smart_log("Confluence catalog stage timing", domain="framework", source="confluence_catalog", emit_runtime_event=False,
-                      extra={"stage": "catalog.line", "space_key": line.key,
+                      extra={"stage": "catalog.line", "space_key": line.name,
                              "duration_ms": round((perf_counter() - request_started) * 1000, 3),
                              "project_count": 0, "outcome": "failure", "exception_type": type(exc).__name__})
             return index, line, None, [], exc
@@ -82,14 +83,14 @@ def refresh_project_catalogs(client, store, product_lines=PRODUCT_LINES, *, now=
         inaccessible_spaces = set()
         completed_spaces = set()
         for index, line, source, rows, error in sorted(fetched.values()):
-            completed_spaces.add(line.key)
+            completed_spaces.add(line.name)
             if error:
                 if not _is_access_denied(error):
                     raise error
-                inaccessible_spaces.add(line.key)
+                inaccessible_spaces.add(line.name)
                 continue
-            evidence = _page_evidence(source, line.key)
-            evidence["display_name"] = line.display_name
+            evidence = _page_evidence(source, line.name)
+            evidence["display_name"] = line.name
             sources.append(evidence)
             for source_catalog in rows:
                 catalog = deepcopy(source_catalog)
@@ -97,8 +98,8 @@ def refresh_project_catalogs(client, store, product_lines=PRODUCT_LINES, *, now=
                 discrepancies.update(catalog.pop("discrepancies", ()))
                 seen.add(catalog["identity"])
                 stage = catalog.get("fields", {}).get("current stage", "")
-                if stage and stage not in stage_domains.setdefault(line.key, []):
-                    stage_domains[line.key].append(stage)
+                if stage and stage not in stage_domains.setdefault(line.name, []):
+                    stage_domains[line.name].append(stage)
                 old = old_by_id.get(catalog["identity"])
                 if old and old.get("catalog_fingerprint") == catalog["catalog_fingerprint"]:
                     row = deepcopy(old); row.update(catalog); row.update(active=True)
@@ -127,7 +128,7 @@ def refresh_project_catalogs(client, store, product_lines=PRODUCT_LINES, *, now=
 
     def submit(item):
         if manager is not None:
-            return manager.submit(f"confluence-catalog:{item[1].key}", lambda _token, _progress: fetch(item))
+            return manager.submit(f"confluence-catalog:{item[1].name}", lambda _token, _progress: fetch(item))
         future = Future()
         try:
             future.set_result(fetch(item))
@@ -261,7 +262,7 @@ def query_project_facts(snapshot, *, filters=None, search="", include_inactive=F
         for stage in stage_domains.get(space.upper(), ())
         if stage
     }, key=str.casefold)
-    labels = {line.key: line.display_name for line in PRODUCT_LINES}
+    labels = {line.name: line.name for line in PRODUCT_LINES}
     labels.update({source.get("space_key"): source.get("display_name")
                    for source in (snapshot or {}).get("sources", [])
                    if source.get("space_key") and source.get("display_name")})

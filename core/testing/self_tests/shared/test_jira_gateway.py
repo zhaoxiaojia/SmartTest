@@ -102,6 +102,20 @@ def test_jira_gateway_maps_create_command_to_atlassian_create_issue() -> None:
     assert api.calls == [("create", {"project": {"key": "SH"}, "issuetype": {"name": "Bug"}, "summary": "Broken", "description": "", "labels": ["one"]})]
 
 
+def test_jira_gateway_user_search_exposes_active_identity_for_reconciliation() -> None:
+    class UserApi(RecordingApi):
+        def get_all_assignable_users_for_project(self, project_key, *, start, limit):
+            self.calls.append(("users", project_key, start, limit))
+            return [{"name": "new.user", "displayName": "New User", "active": True}]
+
+    api = UserApi()
+    users = JiraGateway("https://jira.example", "u", "p", api=api).search_users("new.user")
+
+    assert users == [{
+        "account": "new.user", "display_name": "New User", "avatar_url": "", "active": True,
+    }]
+
+
 def test_jira_gateway_normalizes_third_party_failure() -> None:
     class BrokenApi(RecordingApi):
         def jql(self, *args, **kwargs):

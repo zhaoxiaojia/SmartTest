@@ -40,11 +40,11 @@ class Confluence:
         assert 'projectIds' not in payload
         assert payload['filters']['support mode'] == ['A', 'B']
         assert payload['excludeCurrentStageAtOrAbove'] == 4
-        assert payload['excludeSupportModeBProductLines'] == ['SDPL']
+        assert payload['excludeSupportModeBProductLines'] == ['Smart Device Business']
         return manual_audit_period(datetime.fromisoformat(payload['startDate']).date(), datetime.fromisoformat(payload['endDate']).date())
 
     def run(self, period, cancellation, progress):
-        project = Project(ProjectIdentity('1', 'P1'), 'Project', ProductSpaceRef('TV'), ConfluencePageRef('1'))
+        project = Project(ProjectIdentity('1', 'P1'), 'Project', ProductSpaceRef('TV Business'), ConfluencePageRef('1'))
         finding = AuditFinding('P1', 'Test', 'test.weekly', AuditStatus.UPDATED, 'changed')
         return AuditBatch('batch', period, datetime.now(), (ProjectAudit(project, (finding,)),))
 
@@ -86,10 +86,10 @@ def test_real_dual_runs_keep_five_records_and_attachments_after_restart():
         for run in runs:
             assert run['state'] == 'completed', run['evidence']
             assert run['summary']['jira']['total'] == 1
-            assert run['summary']['confluence']['TV'] == [1, 1]
+            assert run['summary']['confluence']['TV Business'] == [1, 1]
             assert run['reports']['jira']['sourceIds'][0] == run['id']
             assert len(run['reports']['jira']['sourceIds']) == 4
-            assert 'project in (SH, TV, IPTV, OTT,RK)' in run['reports']['jira']['html']
+            assert 'project in (IPTV, SH, TV, OTT,RK)' in run['reports']['jira']['html']
         assert len(runs[0]['reports']['confluence']['sourceIds']) == 3
         assert len(runs[-1]['reports']['confluence']['sourceIds']) == 4
         first = runs[0]
@@ -187,7 +187,7 @@ def test_trigger_ignores_singleton_snapshots_and_legacy_jira_preference():
         jira_start = datetime.fromisoformat(scope['startDate']).date().isoformat()
         jira_end = (datetime.fromisoformat(scope['endDate']).date() - timedelta(days=1)).isoformat()
         expected = (
-            'project in (SH, TV, IPTV, OTT,RK) AND issuetype in (Bug, Sub-bug) '
+            'project in (IPTV, SH, TV, OTT,RK) AND issuetype in (Bug, Sub-bug) '
             f'AND created >= {jira_start} AND created <= {jira_end} order by updated DESC'
         )
         assert scope['jiraInput'] == result['summary']['jira']['scope'] == expected

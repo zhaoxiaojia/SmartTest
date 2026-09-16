@@ -1,0 +1,58 @@
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class ProductLine:
+    name: str
+    jira_project_keys: tuple[str, ...]
+    confluence_business_label: str
+    confluence_space_key: str = ""
+    confluence_url: str = ""
+    project_grouping: str = ""
+
+
+PRODUCT_LINES = (
+    ProductLine(
+        "China Operator Business",
+        ("IPTV",),
+        "国内运营商",
+        "DOPL",
+        "https://confluence.amlogic.com/display/DOPL/Project+Space",
+    ),
+    ProductLine(
+        "Smart Device Business",
+        ("SH",),
+        "智能设备",
+        "SDPL",
+        "https://confluence.amlogic.com/display/SDPL/Project+Space",
+    ),
+    ProductLine(
+        "TV Business",
+        ("TV",),
+        "TV",
+        "TV",
+        "https://confluence.amlogic.com/display/TV/Project+Space",
+        "launch_os",
+    ),
+    ProductLine(
+        "Global Operator & STB Business",
+        ("OTT",),
+        "海外运营商",
+        "OOPL",
+        "https://confluence.amlogic.com/display/OOPL/Project+Space",
+    ),
+)
+WIRELESS_CONNECTION = ProductLine(
+    "Wireless Connection",
+    tuple(key for line in PRODUCT_LINES for key in line.jira_project_keys),
+    "互联",
+)
+DASHBOARD_PRODUCT_LINES = (*PRODUCT_LINES, WIRELESS_CONNECTION)
+PERSONNEL_PRODUCT_LINES = tuple(line.name for line in DASHBOARD_PRODUCT_LINES)
+PRODUCT_LINE_BY_NAME = {line.name: line for line in DASHBOARD_PRODUCT_LINES}
+PRODUCT_LINE_BY_JIRA_PROJECT = {
+    project_key: line for line in PRODUCT_LINES for project_key in line.jira_project_keys
+}
+PRODUCT_LINE_BY_CONFLUENCE_LABEL = {
+    line.confluence_business_label: line for line in DASHBOARD_PRODUCT_LINES
+}

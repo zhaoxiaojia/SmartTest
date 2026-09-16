@@ -2,13 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import re
 from .project_rules import BASIC_INFORMATION_RULE
-
-
-@dataclass(frozen=True)
-class ProductLine:
-    key: str
-    source_url: str
-    display_name: str
+from core.product_lines import PRODUCT_LINES, ProductLine
 
 
 @dataclass(frozen=True)
@@ -49,24 +43,6 @@ def _page_kind_and_prefix(title):
             return kind, separated.group(1).strip()
     return None, ""
 
-PRODUCT_LINES = (
-    ProductLine(
-        "DOPL", "https://confluence.amlogic.com/display/DOPL/Project+Space",
-        "China Operator Business",
-    ),
-    ProductLine(
-        "SDPL", "https://confluence.amlogic.com/display/SDPL/Project+Space",
-        "Smart Device Business",
-    ),
-    ProductLine(
-        "TV", "https://confluence.amlogic.com/display/TV/Project+Space",
-        "TV Business",
-    ),
-    ProductLine(
-        "OOPL", "https://confluence.amlogic.com/display/OOPL/Project+Space",
-        "Global Operator & STB Business",
-    ),
-)
 def _commercial_year(value):
     clean = re.sub(r"\s+", " ", str(value or "")).strip()
     day_first = re.fullmatch(

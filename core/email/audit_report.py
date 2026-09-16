@@ -2,7 +2,7 @@
 
 from html import escape
 
-from core.confluence.project_discovery import PRODUCT_LINES
+from core.product_lines import PRODUCT_LINES
 from core.confluence.audit.rules import UPDATE_MATRIX_POINTS
 
 
@@ -27,9 +27,9 @@ def summarize_audit(kind, report):
             "scope": report.resolved.jql,
         }
     points = {point.rule_id for point in UPDATE_MATRIX_POINTS}
-    result = {line.key: [0, 0] for line in PRODUCT_LINES}
+    result = {line.name: [0, 0] for line in PRODUCT_LINES}
     counts = {
-        line.key: {
+        line.name: {
             status: 0
             for status in (
                 "updated",
@@ -79,16 +79,27 @@ def render_history_report(kind: str, records: list[dict], *, current=False) -> d
             "Jira 年份未确认，保留截图月日标签。历史违规人员、Jira 明细及附件未提供。"
         )
     else:
+        canonical_names = tuple(line.name for line in PRODUCT_LINES)
+        historical_names = tuple(
+            key
+            for key in records[0]["summary"]
+            if key not in {"counts", "scope"}
+        )
+        product_names = (
+            canonical_names
+            if any(name in records[0]["summary"] for name in canonical_names)
+            else historical_names
+        )
         rows = [
             (
-                line.display_name,
+                product_name,
                 [
-                    f"{row['summary'][line.key][0]} / "
-                    f"{sum(row['summary']['counts'][line.key].values()) if 'counts' in row['summary'] else row['summary'][line.key][1]}"
+                    f"{row['summary'].get(product_name, [0, 0])[0]} / "
+                    f"{sum(row['summary'].get('counts', {}).get(product_name, {}).values()) if 'counts' in row['summary'] else row['summary'].get(product_name, [0, 0])[1]}"
                     for row in records
                 ],
             )
-            for line in PRODUCT_LINES
+            for product_name in product_names
         ]
         note = "表内为截图原值：已更新点 / 需要更新点。历史明细及附件未提供。"
     border = "border:1px solid #bcc9da;padding:10px;text-align:left;"
@@ -152,7 +163,7 @@ def render_history_report(kind: str, records: list[dict], *, current=False) -> d
                 + "</tr>"
             )
             for line in PRODUCT_LINES:
-                values = summary["counts"][line.key]
+                values = summary["counts"][line.name]
                 displayed = [
                     values[key]
                     for key in ("updated", "not_updated", "failed", "unknown")
@@ -161,7 +172,7 @@ def render_history_report(kind: str, records: list[dict], *, current=False) -> d
                     "<tr>"
                     + "".join(
                         f'<td style="{border}">{escape(str(value))}</td>'
-                        for value in [line.display_name, *displayed]
+                        for value in [line.name, *displayed]
                     )
                     + "</tr>"
                 )

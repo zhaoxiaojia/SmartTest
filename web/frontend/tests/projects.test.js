@@ -232,24 +232,28 @@ describe('Projects', () => {
   })
 
   it('groups only TV projects by Launch OS before Current Stage', async () => {
+    const behaviorSpaces = [
+      { value: 'plain-space', label: 'Plain Space', projectGrouping: null },
+      { value: 'grouped-space', label: 'Grouped Space', projectGrouping: 'launch_os' },
+    ]
     const project = (identity, spaceKey, launchOs, stage) => ({
       identity, project_id: identity, name: identity, space_key: spaceKey, status: 'NORMAL', stage,
       customer_summary: 'Customer', roles: {}, fields: { 'launch os': launchOs },
     })
-    const grouped = { ...payload, state: 'ready', ownerHierarchy: [], projects: [
-      project('tv-android-evt', 'TV', 'Android 16', 'EVT'),
-      project('tv-android-dvt', 'TV', 'Android 16', 'DVT'),
-      project('tv-linux-evt', 'TV', 'Linux', 'EVT'),
-      project('tv-missing', 'TV', undefined, 'EVT'),
-      project('tv-blank', 'TV', '  ', 'DVT'),
-      project('dopl-android', 'DOPL', 'Android 16', 'Pilot'),
+    const grouped = { ...payload, productSpaces: behaviorSpaces, state: 'ready', ownerHierarchy: [], projects: [
+      project('tv-android-evt', 'grouped-space', 'Android 16', 'EVT'),
+      project('tv-android-dvt', 'grouped-space', 'Android 16', 'DVT'),
+      project('tv-linux-evt', 'grouped-space', 'Linux', 'EVT'),
+      project('tv-missing', 'grouped-space', undefined, 'EVT'),
+      project('tv-blank', 'grouped-space', '  ', 'DVT'),
+      project('dopl-android', 'plain-space', 'Android 16', 'Pilot'),
     ] }
     const api = { getProjectFacts: vi.fn().mockResolvedValue(grouped) }
 
     await createProjects({ root: document.querySelector('#app'), api }).start()
 
     const productGroups = [...document.querySelectorAll('[data-product-space-group]')]
-    const tv = productGroups.find(group => group.querySelector('[data-product-space-toggle] strong').textContent === 'TV Business')
+    const tv = productGroups.find(group => group.querySelector('[data-product-space-toggle] strong').textContent === 'Grouped Space')
     const launchGroups = [...tv.querySelectorAll(':scope > [data-product-grid] > [data-launch-os-group]')]
     expect(launchGroups.map(group => group.querySelector(':scope > summary strong').textContent)).toEqual([
       'Android 16', 'Unspecified', 'Linux',
@@ -264,7 +268,7 @@ describe('Projects', () => {
     expect([...tv.querySelectorAll('.project-card')]).toHaveLength(5)
     expect(new Set([...tv.querySelectorAll('.project-card')].map(card => card.dataset.projectId)).size).toBe(5)
 
-    const dopl = productGroups.find(group => group.querySelector('[data-product-space-toggle] strong').textContent === 'China Operator Business')
+    const dopl = productGroups.find(group => group.querySelector('[data-product-space-toggle] strong').textContent === 'Plain Space')
     expect(dopl.querySelector('[data-launch-os-group]')).toBeNull()
     expect([...dopl.querySelectorAll(':scope > [data-product-grid] > [data-stage-group]')]
       .map(group => group.querySelector('summary strong').textContent)).toEqual(['Pilot'])

@@ -3,13 +3,16 @@ import { describe, expect, it, vi } from 'vitest'
 import { createJiraTeamBugWidget } from '../src/widgets/jira-team-bugs.js'
 
 const productLines = [
-  { id: 'DOPL', projectKey: 'IPTV', people: [
+  { id: 'China Operator Business', label: 'China Operator Business', people: [
     { identity: 'a', displayName: 'Alice', bugCount: 2, resolvedCount: 1, p0Count: 0, invalidCount: 1 },
     { identity: 'b', displayName: 'Bob', bugCount: 3, resolvedCount: 0, p0Count: 2, invalidCount: 0 },
   ] },
-  { id: 'SDPL', projectKey: 'SH', people: [] },
-  { id: 'TV', projectKey: 'TV', people: [] },
-  { id: 'OOPL', projectKey: 'OTT', people: [] },
+  { id: 'Smart Device Business', label: 'Smart Device Business', people: [] },
+  { id: 'TV Business', label: 'TV Business', people: [] },
+  { id: 'Global Operator & STB Business', label: 'Global Operator & STB Business', people: [] },
+  { id: 'Wireless Connection', label: 'Wireless Connection', people: [
+    { identity: 'w', displayName: 'WiFi Owner', bugCount: 4, resolvedCount: 2, p0Count: 1, invalidCount: 0 },
+  ] },
 ]
 
 function mount(api, chartFactory = vi.fn(() => ({ destroy: vi.fn() }))) {
@@ -24,6 +27,7 @@ describe('Jira team bug widget', () => {
     const api = { getTeamBugOverview: vi.fn().mockResolvedValue({ state: 'ready', teamTotal: 5, productLines }) }
     const { widget, chartFactory } = mount(api)
     await vi.waitFor(() => expect(chartFactory).toHaveBeenCalled())
+    expect(document.querySelector('[data-product-line-segments] button').textContent).toBe('China Operator Business')
     expect(chartFactory.mock.calls.at(-1)[1].data.labels).toEqual(['Bob', 'Alice'])
     expect(chartFactory.mock.calls.at(-1)[1].data.datasets[0].data).toEqual([3, 2])
     ;[...document.querySelectorAll('[data-mode-segments] button')].find(button => button.textContent === 'P0').click()
@@ -34,6 +38,8 @@ describe('Jira team bug widget', () => {
     expect(document.querySelector('[data-ranked-empty]').hidden).toBe(false)
     expect(document.body.textContent).not.toContain('%')
     expect(document.querySelector('table')).toBeNull()
+    ;[...document.querySelectorAll('[data-product-line-segments] button')].find(button => button.textContent === 'Wireless Connection').click()
+    expect(chartFactory.mock.calls.at(-1)[1].data.labels).toEqual(['WiFi Owner'])
     widget.destroy()
     expect(chartFactory.mock.results[1].value.destroy).toHaveBeenCalledOnce()
   })

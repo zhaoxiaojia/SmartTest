@@ -15,6 +15,9 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request, Respo
 from fastapi.responses import FileResponse
 from core.authentication import LdapAuthenticator
 from core.confluence.audit import manual_audit_period
+from core.confluence.gateway import ConfluenceGateway
+from core.confluence.models import ConfluenceGatewayConfig
+from core.confluence.personnel_sync import PersonnelAssignmentSync
 from core.logging import configure_external_logging, configure_platform, smart_log
 from core.jira.domain import IssueDetails
 from core.jira.gateway import JiraGateway
@@ -38,6 +41,7 @@ from .report_workspace import ClientAuditReportOwner, ReportNotFoundError
 from .project_facts_api import ProjectFactsWebOwner
 from .session import PersistentSessionStore, default_web_database_path
 from .background_refresh import BackgroundFactsRefresh
+from .confluence_personnel_refresh import ConfluencePersonnelRefreshScheduler
 from .query_snapshot_repository import ConfluenceQuerySnapshotRepository, normalize_project_filters
 from .jira_filter_snapshot_repository import JIRA_FILTER_FIELDS, JiraFilterSnapshotRepository
 from .release_query import ProjectReleaseQueryService
@@ -96,6 +100,23 @@ def default_confluence_audit_owner(username: str, password: str):
     return WebConfluenceAuditOwner.from_credentials(username, password)
 
 
+def default_confluence_personnel_owner(username: str, password: str):
+    base_url = os.getenv("SMARTTEST_CONFLUENCE_BASE_URL", "https://confluence.amlogic.com")
+    personnel_path = Path(__file__).resolve().parents[3] / "core" / "config" / "personnel.json"
+    gateway = ConfluenceGateway(ConfluenceGatewayConfig(base_url), username, password)
+    jira_base_url = os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")
+    jira_gateway = JiraGateway(jira_base_url, username, password)
+    return PersonnelAssignmentSync(
+        gateway,
+        personnel_path,
+        jira_user_resolver=jira_gateway.search_users,
+    )
+
+
+def default_confluence_personnel_refresh():
+    return ConfluencePersonnelRefreshScheduler()
+
+
 def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOwner.from_environment,
                project_facts_owner=ProjectFactsWebOwner, authenticator=default_authenticator,
                session_store=PersistentSessionStore, facts_refresh=BackgroundFactsRefresh,
@@ -105,6 +126,8 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                download_service=DownloadArtifactService,
                jira_audit_owner=default_jira_audit_owner,
                confluence_audit_owner=default_confluence_audit_owner,
+               confluence_personnel_owner=default_confluence_personnel_owner,
+               confluence_personnel_refresh=None,
                jira_filter_owner=default_jira_filter_owner,
                jira_team_bug_gateway=default_jira_team_bug_gateway) -> FastAPI:
     auth = authenticator()
@@ -112,6 +135,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     cache_database = WebDatabase(sessions.path)
     facts = project_facts_owner()
     refresh = facts_refresh()
+    personnel_refresh = (confluence_personnel_refresh or default_confluence_personnel_refresh)()
     snapshots = ConfluenceQuerySnapshotRepository(cache_database)
     jira_filters = JiraFilterSnapshotRepository(cache_database)
     jira_analytics = JiraAnalyticsRepository(cache_database)
@@ -237,6 +261,21 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                 "displayName": value.display_name,
                 "avatarUrl": "/api/auth/avatar" if value.avatar_bytes else ""}
 
+    def schedule_personnel_refresh(value):
+        if value is not None:
+            try:
+                personnel_refresh.schedule(
+                    value.username, value.password, confluence_personnel_owner,
+                )
+            except Exception as error:
+                smart_log(
+                    "Confluence personnel refresh could not be scheduled",
+                    platform="web", domain="framework",
+                    source="confluence_personnel_refresh", level="error",
+                    extra={"exception_type": type(error).__name__},
+                    emit_runtime_event=False,
+                )
+
     def establish_session(request: Request, response: Response, *, username: str,
                           password: str | None, display_name: str = "",
                           avatar_bytes: bytes = b""):
@@ -258,7 +297,9 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             sessions.delete(old_token)
             audits.cancel_session(_session_owner(old_token))
         set_session_cookie(request, response, session_id)
-        return public_session(sessions.get(session_id))
+        value = sessions.get(session_id)
+        schedule_personnel_refresh(value)
+        return public_session(value)
 
     @app.post("/api/auth/login")
     def login(request: Request, response: Response, payload: dict = Body(...)):
@@ -311,7 +352,9 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
 
     @app.get("/api/auth/session")
     def session(request: Request):
-        return public_session(current_session(request))
+        value = current_session(request)
+        schedule_personnel_refresh(value)
+        return public_session(value)
 
     @app.get("/api/auth/avatar")
     def avatar(request: Request):
@@ -494,7 +537,8 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                     jira_team_bug_tasks.clear_account(value.username)
                     jira_team_bugs.delete_account(value.username)
                     sessions.invalidate_credentials(value.username)
-            return jira_team_bug_service.state(value.username, value.password, on_error=on_error)
+            result = jira_team_bug_service.state(value.username, value.password, on_error=on_error)
+            return result
         except Exception as error:
             raise_downstream_error(value, error)
 

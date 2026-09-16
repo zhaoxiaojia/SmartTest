@@ -23,25 +23,29 @@ class JiraTeamBugDashboardRepository:
                 "SELECT active_snapshot_id,last_error FROM jira_team_bug_accounts WHERE account=?",
                 (self._account(account),),
             ).fetchone()
-            if not head or not head[0]: return None
+            if not head or not head[0]:
+                return None
             total = connection.execute(
                 "SELECT team_total FROM jira_team_bug_snapshots WHERE snapshot_id=? AND roster_fingerprint=?",
                 (head[0], str(roster_fingerprint)),
             ).fetchone()
-            if not total: return None
-            lines = connection.execute("""SELECT product_line,project_key FROM jira_team_bug_lines
+            if not total:
+                return None
+            lines = connection.execute("""SELECT product_line FROM jira_team_bug_lines
                 WHERE snapshot_id=? ORDER BY ordinal""", (head[0],)).fetchall()
             rows = connection.execute("""SELECT product_line,identity,display_name,bug_count,
                 resolved_count,p0_count,invalid_count FROM jira_team_bug_rows
                 WHERE snapshot_id=? ORDER BY product_line,ordinal""", (head[0],)).fetchall()
         keys = ("identity", "displayName", "bugCount", "resolvedCount", "p0Count", "invalidCount")
-        by_line = {line: [] for line, _project in lines}
+        line_names = [row[0] for row in lines]
+        by_line = {line: [] for line in line_names}
         for line, *values in rows:
             by_line.setdefault(line, []).append(dict(zip(keys, values)))
-        return {"teamTotal": int(total[0]), "productLines": [
-            {"id": line, "projectKey": project, "people": by_line.get(line, [])}
-            for line, project in lines
+        result = {"teamTotal": int(total[0]), "productLines": [
+            {"id": line, "label": line, "people": by_line.get(line, [])}
+            for line in line_names
         ]}
+        return result
 
     def replace(self, account, roster_fingerprint, result):
         account, snapshot_id = self._account(account), uuid4().hex
@@ -52,8 +56,9 @@ class JiraTeamBugDashboardRepository:
             connection.execute("""INSERT INTO jira_team_bug_snapshots
                 (snapshot_id,account,roster_fingerprint,team_total,created_at) VALUES(?,?,?,?,?)""",
                 (snapshot_id, account, str(roster_fingerprint), int(result["teamTotal"]), self._now()))
-            connection.executemany("INSERT INTO jira_team_bug_lines VALUES(?,?,?,?)", [
-                (snapshot_id, index, line["id"], line["projectKey"])
+            connection.executemany("""INSERT INTO jira_team_bug_lines
+                (snapshot_id,ordinal,product_line,project_key) VALUES(?,?,?,?)""", [
+                (snapshot_id, index, line["id"], line["id"])
                 for index, line in enumerate(result["productLines"])
             ])
             connection.executemany("""INSERT INTO jira_team_bug_rows VALUES(
@@ -158,7 +163,7 @@ class JiraTeamBugDashboardService:
                     team_bug_jql(roster.accounts), fields=self.FIELDS, progress=progress,
                 )
                 if token: token.raise_if_cancelled()
-                result = aggregate_team_bugs(rows, roster.accounts).to_payload()
+                result = aggregate_team_bugs(rows, roster).to_payload()
                 self.tasks.publish_if_current(
                     account, roster.fingerprint,
                     lambda: self.repository.replace(account, roster.fingerprint, result),
