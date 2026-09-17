@@ -20,6 +20,10 @@ def test_snapshots_are_isolated_by_session_and_account(tmp_path):
     assert repo.state("session-a", "alice")["activeJql"] == "project = A"
     assert repo.issue_keys("session-a", "alice") == ["A-1"]
     assert repo.issue_keys("session-b", "bob") == ["B-1"]
+    assert len(repo.statistics_issues("session-a", "alice")) == 1
+    assert repo.statistics_issues("session-a", "bob") == []
+    assert repo.statistics_issues("unknown", "alice") == []
+    assert repo.state("session-a", "alice")["userJql"] is None
 
 
 def test_stale_generation_cannot_replace_active_snapshot(tmp_path):
@@ -45,6 +49,7 @@ def test_failed_or_cancelled_pending_query_preserves_active_snapshot(tmp_path):
 
     assert repo.state("s", "alice")["activeJql"] == "good"
     assert repo.issue_keys("s", "alice") == ["GOOD-1"]
+    assert len(repo.statistics_issues("s", "alice")) == 1
 
 
 def test_delete_session_and_expiry_remove_analytics_snapshots(tmp_path):
@@ -58,3 +63,42 @@ def test_delete_session_and_expiry_remove_analytics_snapshots(tmp_path):
 
     assert repo.state("expired", "alice")["pendingSnapshotId"] == ""
     assert repo.state("deleted", "alice")["pendingSnapshotId"] == ""
+    assert repo.statistics_issues("expired", "alice") == []
+    assert repo.statistics_issues("deleted", "alice") == []
+
+
+def test_effective_jql_and_empty_user_draft_remain_distinct_after_reopening_database(tmp_path):
+    database = WebDatabase(tmp_path / "web.db")
+    repo = JiraAnalyticsRepository(database, now=lambda: 10)
+    snapshot = repo.begin("s", "alice", 'channel = "Self-Test"', {}, "", expires_at=100, user_jql="")
+    repo.activate(snapshot)
+    restored = JiraAnalyticsRepository(database, now=lambda: 10).state("s", "alice")
+    assert restored["activeJql"] == 'channel = "Self-Test"'
+    assert restored["userJql"] == ""
+    failed = repo.begin("s", "alice", "bad", {}, "", expires_at=100, user_jql="bad")
+    repo.finish(failed, "failed", "offline")
+    state = repo.state("s", "alice")
+    assert state["latestState"] == "failed"
+    assert state["error"] == "offline"
+    assert state["activeJql"] == 'channel = "Self-Test"'
+
+
+def test_card_scopes_do_not_replace_each_others_sqlite_results_or_published_conditions(tmp_path):
+    repo = JiraAnalyticsRepository(WebDatabase(tmp_path / "web.db"), now=lambda: 10)
+    conditions = {"mode": "basic", "basic": {"project": ["A"]}}
+    repo.publish_conditions("s", "alice", conditions, expires_at=100)
+    first = repo.begin("s", "alice", "scope A", {}, "", expires_at=100, card_key="first")
+    second = repo.begin("s", "alice", "scope B", {}, "", expires_at=100, card_key="second")
+    repo.write_batch(first, [issue("A-1")]); repo.activate(first)
+    repo.write_batch(second, [issue("B-1")]); repo.activate(second)
+    assert repo.issue_keys("s", "alice", card_key="first") == ["A-1"]
+    assert repo.issue_keys("s", "alice", card_key="second") == ["B-1"]
+    assert repo.issue_keys("s", "bob", card_key="first") == []
+    assert repo.published_conditions("s", "alice") == conditions
+    old = repo.begin("s", "alice", "old A", {}, "", expires_at=100, card_key="first")
+    new = repo.begin("s", "alice", "new A", {}, "", expires_at=100, card_key="first")
+    assert repo.activate(old) is False
+    assert repo.state("s", "alice", card_key="first")["pendingSnapshotId"] == new
+    assert repo.issue_keys("s", "alice", card_key="second") == ["B-1"]
+    repo.delete_session("s")
+    assert repo.state("s", "alice", card_key="first")["activeSnapshotId"] == ""

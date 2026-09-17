@@ -13,6 +13,7 @@ startAuthenticatedPage({
   mount: (root, session) => {
     root.innerHTML = `<section class="card page-ranking-widget" data-page-widget="role-workload"><header class="dashboard-widget-head"><strong>Role workload</strong></header><div data-widget-body></div></section><div data-page-primary></div>`
     const workload = createRoleWorkloadWidget({ chartFactory: (canvas, config) => new Chart(canvas, config) })
+    workload.mount(root.querySelector('[data-widget-body]'), { shellTitle: true })
     const projects = createProjects({
       root: root.querySelector('[data-page-primary]'),
       account: session.username,
@@ -22,15 +23,9 @@ startAuthenticatedPage({
         await new Promise(resolve => setTimeout(resolve, 0))
       },
       enableReview: false,
+      onSnapshot: payload => workload.update({ ownerHierarchy: payload.ownerHierarchy ?? [], productSpaces: payload.productSpaces ?? [], shellTitle: true }),
     })
-    let disposed = false
-    void projectFactsApi.getProjectFacts().then(payload => {
-      if (!disposed) workload.mount(root.querySelector('[data-widget-body]'), {
-        ownerHierarchy: payload.ownerHierarchy ?? [], productSpaces: payload.productSpaces ?? [], shellTitle: true,
-      })
-    }).catch(() => {
-      if (!disposed) workload.mount(root.querySelector('[data-widget-body]'), { error: 'Local project facts API is unavailable.', shellTitle: true })
-    })
-    return { start: () => projects.start(), destroy() { disposed = true; workload.destroy(); projects.destroy() } }
+    root.querySelector('form').after(root.querySelector('[data-page-widget="role-workload"]'))
+    return { start: () => projects.start(), destroy() { workload.destroy(); projects.destroy() } }
   },
 })

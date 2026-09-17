@@ -158,17 +158,17 @@ export function createJiraAnalyticsApi({ fetchImpl = globalThis.fetch, baseUrl =
     if (!response.ok) throw new ApiUnavailableError(`Jira Analytics API unavailable (${response.status}).`, { status: response.status })
     return response.json()
   }
-  return { getJiraAnalyticsState: () => request('/state'), getJiraAnalyticsFields: () => request('/fields'), getJiraAnalyticsSuggestions: (fieldName, query = '') => request(`/suggestions?fieldName=${encodeURIComponent(fieldName)}&query=${encodeURIComponent(query)}`), getJiraAnalyticsSavedFilters: () => request('/saved-filters'), getJiraAnalyticsSavedFilter: id => request(`/saved-filters/${encodeURIComponent(id)}`), validateJiraAnalytics: body => request('/validate', 'POST', body), searchJiraAnalytics: body => request('/search', 'POST', body), getJiraAnalyticsTask: id => request(`/tasks/${encodeURIComponent(id)}`), cancelJiraAnalyticsTask: id => request(`/tasks/${encodeURIComponent(id)}`, 'DELETE') }
+  return { getJiraAnalyticsState: () => request('/state'), getJiraAnalyticsFields: () => request('/fields'), getJiraAnalyticsSuggestions: (fieldName, query = '') => request(`/suggestions?fieldName=${encodeURIComponent(fieldName)}&query=${encodeURIComponent(query)}`), getJiraAnalyticsSavedFilters: () => request('/saved-filters'), getJiraAnalyticsSavedFilter: id => request(`/saved-filters/${encodeURIComponent(id)}`), validateJiraAnalytics: body => request('/validate', 'POST', body), searchJiraAnalytics: body => request('/search', 'POST', body) }
 }
 
-export function createJiraTeamBugApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {
-  return {
-    async getTeamBugOverview() {
-      const response = await fetchImpl(`${baseUrl}/dashboard/jira-team-bugs`, { credentials: 'same-origin' })
-      if (!response.ok) throw new ApiUnavailableError(`Jira team bug overview unavailable (${response.status}).`, { status: response.status })
-      return response.json()
-    },
+export function createJiraTeamBugApi({ fetchImpl = globalThis.fetch, baseUrl = '/api', cardKey = '' } = {}) {
+  async function request(query = false) {
+    const path = cardKey ? `/jira/cards/${encodeURIComponent(cardKey)}/${query ? 'query' : 'statistics'}` : '/dashboard/jira-team-bugs'
+    const response = await fetchImpl(`${baseUrl}${path}`, { credentials: 'same-origin', ...(query ? { method: 'POST' } : {}) })
+    if (!response.ok) throw new ApiUnavailableError(`Jira team bug overview unavailable (${response.status}).`, { status: response.status })
+    return response.json()
   }
+  return { getTeamBugOverview: () => request(), ...(cardKey ? { queryTeamBugOverview: () => request(true) } : {}) }
 }
 
 export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {

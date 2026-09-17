@@ -4,9 +4,34 @@ import { createJiraFilterBuilder } from '../src/jira-filter-builder.js'
 
 beforeEach(() => { document.body.innerHTML = '<div id="root"></div>'; localStorage.clear() })
 
+it('keeps the Advanced draft separate from server effective card conditions', async () => {
+  const client = api()
+  client.validateJiraAnalytics.mockResolvedValue({ valid: true, errors: [], userJql: 'project = A', jql: '(project = A) AND (channel = "Self-Test")' })
+  const component = createJiraFilterBuilder({ root: document.querySelector('#root'), api: client, account: 'alice' })
+  await component.start()
+  document.querySelector('[data-advanced]').click()
+  await vi.waitFor(() => expect(document.querySelector('[name="jql"]').value).toBe('project = A'))
+  component.destroy()
+})
+
+it('publishes conditions once on Search, never queries on restoration, draft edits or Reset', async () => {
+  const client = api(); const onApplied = vi.fn()
+  const component = createJiraFilterBuilder({ root: document.querySelector('#root'), api: client, account: 'alice', onApplied })
+  await component.start()
+  expect(onApplied).not.toHaveBeenCalled()
+  document.querySelector('[name="containsText"]').value = 'draft'
+  document.querySelector('[name="containsText"]').dispatchEvent(new Event('input'))
+  document.querySelector('[data-reset]').click()
+  expect(onApplied).not.toHaveBeenCalled()
+  document.querySelector('[data-search]').click()
+  await vi.waitFor(() => expect(onApplied).toHaveBeenCalledTimes(1))
+  expect(client.getJiraAnalyticsTask).not.toHaveBeenCalled()
+  component.destroy()
+})
+
 function api() {
   return {
-    getJiraAnalyticsState: vi.fn().mockResolvedValue({ activeJql: 'status = "Open"', taskId: '' }),
+    getJiraAnalyticsState: vi.fn().mockResolvedValue({ conditions: { mode: 'advanced', jql: 'status = "Open"' }, userJql: 'status = "Open"' }),
     getJiraAnalyticsFields: vi.fn().mockResolvedValue({ fixed: [
       { id: 'project', name: 'Project', control: 'multi', queryable: true },
       { id: 'issuetype', name: 'Type', control: 'multi', queryable: true },
@@ -23,7 +48,7 @@ function api() {
       { value: `${field}:value`, displayName: query ? `${field}:${query}` : `${field}:display` },
     ])),
     validateJiraAnalytics: vi.fn().mockResolvedValue({ valid: true, errors: [], jql: 'project IN ("SH")' }),
-    searchJiraAnalytics: vi.fn().mockResolvedValue({ validation: { valid: true, errors: [] }, taskId: 'task-1', state: {} }),
+    searchJiraAnalytics: vi.fn().mockResolvedValue({ applied: true, validation: { valid: true, errors: [] }, userJql: 'project IN ("SH")' }),
     getJiraAnalyticsTask: vi.fn().mockResolvedValue({ state: 'completed', progress: { processed: 1, total: 1 }, query: { activeJql: 'project IN ("SH")' } }),
     cancelJiraAnalyticsTask: vi.fn(),
   }
@@ -96,7 +121,7 @@ it('switches builder jql back losslessly until advanced text is edited', async (
   expect(jql.value).toContain(' OR status')
 })
 
-it('loads saved filter as advanced draft without searching and Search starts task', async () => {
+it('loads saved filter as advanced draft without searching and Search publishes conditions', async () => {
   const client = api(); const component = createJiraFilterBuilder({ root: document.querySelector('#root'), api: client, account: 'alice' })
   await component.start()
   const saved = document.querySelector('[name="savedFilter"]'); saved.value = '7'; saved.dispatchEvent(new Event('change'))
@@ -104,7 +129,7 @@ it('loads saved filter as advanced draft without searching and Search starts tas
   expect(client.searchJiraAnalytics).not.toHaveBeenCalled()
   document.querySelector('[data-search]').click()
   await vi.waitFor(() => expect(client.searchJiraAnalytics).toHaveBeenCalledWith({ mode: 'advanced', jql: 'project = SH', sourceFilterId: '7' }))
-  await vi.waitFor(() => expect(document.querySelector('[data-progress]').textContent).toContain('completed'))
+  await vi.waitFor(() => expect(document.querySelector('[data-feedback]').textContent).toBe('Conditions applied.'))
 })
 
 it('More is searchable, anchored, and contains only fields returned by Jira', async () => {

@@ -30,7 +30,6 @@ def confirmed_access(database, projects=(), pages=(), account="coco"):
 @pytest.fixture(autouse=True)
 def isolate_server_credentials(monkeypatch, tmp_path):
     import smarttest_web.session as session_module
-    import smarttest_web.app as app_module
     database_path = tmp_path / "isolated-smarttest-web.db"
     stores = {}
     monkeypatch.setattr(session_module, "default_web_database_path", lambda: database_path)
@@ -38,8 +37,4 @@ def isolate_server_credentials(monkeypatch, tmp_path):
         session_module, "create_credential_store",
         lambda path: stores.setdefault(str(path), MemoryCredentialStore()),
     )
-    class NoopPersonnelRefresh:
-        def schedule(self, account, password, owner_factory, **_context):
-            return False
-    monkeypatch.setattr(app_module, "default_confluence_personnel_refresh", NoopPersonnelRefresh)
     return SimpleNamespace(root=tmp_path, database_path=database_path, credential_stores=stores)

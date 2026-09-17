@@ -207,17 +207,23 @@ def extract_project_detail(client, original, *, now=None, resolved_names=None):
     return row
 
 
-def query_project_facts(snapshot, *, filters=None, search="", include_inactive=False):
-    filters = {
+def _query_filters(filters):
+    normalized = {
         _normalize(key): tuple(dict.fromkeys(
             _normalize(item) for item in (value if isinstance(value, (list, tuple, set)) else (value,))
             if _normalize(item)
         ))
         for key, value in (filters or {}).items()
     }
-    filters = {key: values for key, values in filters.items() if values}
+    return {key: values for key, values in normalized.items() if values}
+
+
+def query_project_facts(snapshot, *, filters=None, fixed_filters=None, search="", include_inactive=False):
+    filters, fixed = _query_filters(filters), _query_filters(fixed_filters)
     needle = _normalize(search)
-    candidates = [row for row in (snapshot or {}).get("projects", []) if include_inactive or row.get("active", True)]
+    candidates = [row for row in (snapshot or {}).get("projects", [])
+                  if (include_inactive or row.get("active", True))
+                  and _matches_filters(row, row.get("fields", {}), fixed)]
     rows = []
     for row in candidates:
         fields = dict(row.get("fields", {}))

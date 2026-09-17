@@ -192,10 +192,9 @@ describe('Projects', () => {
     expect([...groups[1].querySelectorAll('[data-project-status-count]')].map(item => item.textContent)).toEqual(['Unspecified1'])
     const statusLabels = [...document.querySelectorAll('[data-project-status-count]')]
     const normalSlots = statusLabels.filter(label => label.firstElementChild.textContent === 'NORMAL')
-      .map(label => label.dataset.colorSlot)
+      .map(label => label.dataset.statusTone)
     expect(normalSlots).toEqual([normalSlots[0], normalSlots[0]])
-    expect(normalSlots[0]).toMatch(/^\d+$/)
-    expect(new Set(statusLabels.map(label => label.dataset.colorSlot))).toHaveLength(3)
+    expect(normalSlots[0]).toBe('normal')
     const stageGroups = [...groups[0].querySelectorAll('[data-stage-group]')]
     expect(stageGroups.map(group => group.querySelector('summary strong').textContent)).toEqual(['Validation', 'Pilot'])
     expect(stageGroups.map(group => group.querySelector('[data-stage-project-count]').textContent)).toEqual(['1', '1'])
@@ -279,7 +278,7 @@ describe('Projects', () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue({
       ...payload, state: 'ready', ownerHierarchy: [], projects: statuses.map((status, index) => ({
         identity: `status-${index}`, project_id: `P-${index}`, name: status, space_key: 'DOPL',
-        status, stage: 'Development', roles: {}, fields: {},
+        status, stage: `${index + 1} stage`, roles: {}, fields: {},
       })),
     }) }
 
@@ -290,8 +289,9 @@ describe('Projects', () => {
       'BLOCK', 'WARNING', '7 PENDING', 'NORMAL 09/05', '9 CANCEL CLOSE', 'ACTIVE',
     ])
     expect(labels.map(label => label.dataset.statusTone || '')).toEqual([
-      'block', 'warning', 'pending', '', '', '',
+      'block', 'warning', '', 'normal', '', '',
     ])
+    expect([...document.querySelectorAll('.stage-summary')].map(item => item.dataset.projectStage).sort()).toEqual(['1', '2', '3', '4', '5', '6'])
   })
 
   it('orders projects by Support Mode ascending then Project Status descending', async () => {

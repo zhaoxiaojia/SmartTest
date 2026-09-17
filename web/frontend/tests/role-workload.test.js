@@ -50,8 +50,27 @@ describe('RoleWorkloadWidget', () => {
         name: `Member ${index}`, identity: `member-${index}`, projects: [{ space_key: 'DOPL' }],
       })) }],
     })
-    expect(document.querySelector('.workload-chart-surface').style.height).toBe('720px')
+    expect(document.querySelector('.workload-chart-surface').style.height).toBe('756px')
     expect(document.querySelector('.workload-chart-scroll')).not.toBeNull()
+  })
+
+  it('keeps every person label visible in a two-person ranking', () => {
+    let options
+    const widget = createRoleWorkloadWidget({ chartFactory: (_canvas, config) => {
+      options = config.options
+      expect(config.data.labels).toEqual(['Lingling Yu', 'Fan Xu'])
+      return { destroy() {} }
+    } })
+    widget.mount(document.querySelector('#root'), {
+      productSpaces,
+      ownerHierarchy: [{ role: 'FAE QA', people: [
+        { name: 'Lingling Yu', identity: 'lingling.yu', projects: Array(3).fill({ space_key: 'DOPL' }) },
+        { name: 'Fan Xu', identity: 'fan.xu', projects: [{ space_key: 'DOPL' }] },
+      ] }],
+    })
+    expect(options.scales.y.ticks.autoSkip).toBe(false)
+    expect(document.querySelector('.workload-chart-surface').style.height).toBe('108px')
+    widget.destroy()
   })
 
   it('shows the existing empty surface when project facts are unavailable', () => {

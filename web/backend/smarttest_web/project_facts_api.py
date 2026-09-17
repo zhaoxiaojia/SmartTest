@@ -125,7 +125,7 @@ class ProjectFactsWebOwner:
             cancelled=cancelled, progress=progress,
         )
 
-    def query(self, access, *, filters=None, search="", page=0, page_size=10000):
+    def query(self, access, *, filters=None, fixed_filters=None, search="", page=0, page_size=10000):
         started = perf_counter()
         query_access = _QueryAccessSnapshot(access)
         ready_product_spaces = query_access.ids("catalog", "ready")
@@ -141,7 +141,7 @@ class ProjectFactsWebOwner:
             cached.projects, ProjectDetails(roles=True, facts=True),
         )
         snapshot = {"projects": [_project_snapshot_row(project) for project in projects if project]}
-        result = query_project_facts(snapshot, filters=filters, search=search)
+        result = query_project_facts(snapshot, filters=filters, fixed_filters=fixed_filters, search=search)
         block_warning_count = sum(
             project.get("status") in {"BLOCK", "WARNING"}
             for project in result["projects"]

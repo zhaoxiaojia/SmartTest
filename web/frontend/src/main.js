@@ -2,17 +2,9 @@ import { createAuthApi, createPreferenceApi } from './api.js'
 import { createAuthShell } from './auth-shell.js'
 import { createPreferenceStore } from './preference-store.js'
 import { createAppShell } from './app-shell.js'
+import { clearDisposableDisplayState } from './disposable-display.js'
 
 export let preferencesReady = Promise.resolve()
-
-const DISPOSABLE_DISPLAY_PREFIX = 'smarttest:projects-display:'
-
-function clearDisposableDisplayState() {
-  for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
-    const key = sessionStorage.key(index)
-    if (key?.startsWith(DISPOSABLE_DISPLAY_PREFIX)) sessionStorage.removeItem(key)
-  }
-}
 
 async function startStaticShell() {
   const host = document.querySelector('[data-app-shell]')

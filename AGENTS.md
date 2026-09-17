@@ -64,6 +64,8 @@ Skill `MUST`/prohibitions, ownership boundaries, and acceptance gates are mandat
 
 ## Web Cache And Database Boundaries
 
+- 页面过滤器与卡片独立查询、固定边界及异步快照隔离必须遵循 `docs/superpowers/specs/2026-08-31-global-async-task-manager-design.md` 的“页面过滤器与卡片查询边界”；共享过滤器只发布用户条件，不先查询公共大集合。
+
 - Web 页面只保存展示和未提交控件状态；不得保存审查、导出或批量动作的权威资源 ID。
 - Web 进程内存只保存异步任务、进度、订阅和取消；服务重启后允许这些运行时状态消失，禁止在其中保存可复用的筛选结果或业务选择集。
 - SQLite 是项目事实、用户偏好和查询快照的唯一持久 owner。需要精确复用筛选范围的业务动作必须使用当前会话的数据库查询快照，不能信任前端 ID，也不能静默回退到全量数据。

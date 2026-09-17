@@ -6,6 +6,8 @@ from time import sleep as pause
 
 import pytest
 
+
+
 from core.jira.commands import CreateIssueCommand
 from core.jira.gateway import JiraGateway, JiraGatewayError
 

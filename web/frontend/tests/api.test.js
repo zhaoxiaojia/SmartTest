@@ -110,14 +110,16 @@ describe('Jira singleton filter API contract', () => {
 })
 
 describe('Jira Analytics filter API contract', () => {
-  it('uses one search request and task status resource without issue pagination', async () => {
+  it('publishes conditions before independently querying the card without issue pagination', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
     const api = createJiraAnalyticsApi({ fetchImpl })
     await api.getJiraAnalyticsFields(); await api.getJiraAnalyticsSuggestions('assignee', 'co'); await api.getJiraAnalyticsSavedFilters()
-    await api.searchJiraAnalytics({ mode: 'advanced', jql: 'project = SH' }); await api.getJiraAnalyticsTask('t1')
+    await api.searchJiraAnalytics({ mode: 'advanced', jql: 'project = SH' })
+    const card = createJiraTeamBugApi({ fetchImpl, cardKey: 'self-test' })
+    await card.queryTeamBugOverview(); await card.getTeamBugOverview()
     expect(fetchImpl.mock.calls.map(call => call[0])).toEqual([
       '/api/jira/analytics/fields', '/api/jira/analytics/suggestions?fieldName=assignee&query=co', '/api/jira/analytics/saved-filters',
-      '/api/jira/analytics/search', '/api/jira/analytics/tasks/t1',
+      '/api/jira/analytics/search', '/api/jira/cards/self-test/query', '/api/jira/cards/self-test/statistics',
     ])
     expect(fetchImpl.mock.calls[3][1].body).toBe(JSON.stringify({ mode: 'advanced', jql: 'project = SH' }))
   })

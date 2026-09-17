@@ -39,16 +39,16 @@ it('makes product line names larger than Current Stage headings', () => {
   expect(getComputedStyle(stageHeading).fontSize).toBe('0.8125rem')
 })
 
-it('colors distribution labels by their reusable presentation slots', () => {
+it('colors stages independently from project statuses', () => {
   const style = document.createElement('style')
   style.textContent = readFileSync(resolve(import.meta.dirname, '../src/smarttest-theme.css'), 'utf8')
   document.head.append(style)
   const distribution = document.createElement('div')
   distribution.className = 'label-distribution'
-  for (const slot of [0, 1, 0, 2, 3, 4, 5, 6, 7]) {
+  for (const slot of [1, 2, 1, 3, 4, 5, 6, 7, 8, 9]) {
     const label = document.createElement('span')
-    label.className = 'distribution-label'
-    label.dataset.colorSlot = String(slot)
+    label.className = 'stage-summary'
+    label.dataset.projectStage = String(slot)
     label.textContent = slot % 2 ? 'same' : 'different'
     distribution.append(label)
   }
@@ -56,27 +56,39 @@ it('colors distribution labels by their reusable presentation slots', () => {
 
   const colors = [...distribution.children].map(label => {
     const computed = getComputedStyle(label)
-    return `${computed.color}|${computed.backgroundColor}`
+    const theme = getComputedStyle(document.documentElement)
+    const resolveColor = value => theme.getPropertyValue(value.slice(4, -1)).trim()
+    expect(computed.borderLeftWidth).toBe('3px')
+    expect(computed.borderLeftStyle).toBe('solid')
+    expect(resolveColor(computed.borderLeftColor)).toBe(resolveColor(computed.color))
+    return `${resolveColor(computed.color)}|${resolveColor(computed.background)}`
   })
   expect(colors[2]).toBe(colors[0])
   expect(new Set(colors.filter((_, index) => index !== 2))).toHaveLength(8)
+  expect(colors).toEqual([
+    '#2457A7|#F0F5FF', '#237A52|#EFFAF4', '#2457A7|#F0F5FF',
+    '#A85C00|#FFF5E8', '#806600|#FFFBE8', '#0052CC|#EDF3FF',
+    '#00875A|#EDF8F3', '#A54832|#FFF2EF', '#42526E|#F1F3F6', '#42526E|#F1F3F6',
+  ])
 })
 
-it('lets Project Status semantic tones override reusable color slots', () => {
+it('colors project statuses by their semantic meaning', () => {
   const style = document.createElement('style')
   style.textContent = readFileSync(resolve(import.meta.dirname, '../src/smarttest-theme.css'), 'utf8')
   document.head.append(style)
-  const colors = ['block', 'warning', 'pending'].map(tone => {
+  const colors = ['block', 'warning', 'normal'].map(tone => {
     const label = document.createElement('span')
     label.className = 'distribution-label'
-    label.dataset.colorSlot = '0'
     label.dataset.statusTone = tone
     document.body.append(label)
     const computed = getComputedStyle(label)
-    return `${computed.color}|${computed.backgroundColor}`
+    const theme = getComputedStyle(document.documentElement)
+    const resolveColor = value => theme.getPropertyValue(value.slice(4, -1)).trim()
+    return `${resolveColor(computed.color)}|${resolveColor(computed.background)}`
   })
 
   expect(new Set(colors)).toHaveLength(3)
+  expect(colors).toEqual(['#FFFFFF|#BF2600', '#172B4D|#FF991F', '#FFFFFF|#00875A'])
 })
 
 it('preserves GridStack content insets instead of forcing widget content to item height', () => {

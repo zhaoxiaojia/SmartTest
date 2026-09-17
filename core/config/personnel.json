@@ -180,7 +180,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "Global Operator & STB Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -225,7 +230,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -290,7 +300,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -310,7 +325,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -330,7 +350,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -375,7 +400,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -407,8 +437,8 @@
             ]
           },
           {
-            "display_name": "Lingguo Bu",
-            "account": "lingguo.bu",
+            "display_name": "Linguo Bu",
+            "account": "linguo.bu",
             "reports_to": "",
             "active": true,
             "organization": {
@@ -420,7 +450,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -440,7 +475,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -485,7 +525,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -505,7 +550,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -525,7 +575,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -545,7 +600,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -565,7 +625,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -585,7 +650,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -675,7 +745,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -695,7 +770,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -715,7 +795,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -735,7 +820,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -780,7 +870,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "China Operator Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -897,7 +992,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "Global Operator & STB Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -1007,7 +1107,12 @@
               "job_title_override": "Product Line Lead",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "Smart Device Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -1052,7 +1157,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "China Operator Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -1148,7 +1258,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "Global Operator & STB Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -1193,7 +1308,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "Smart Device Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -1238,7 +1358,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -1493,7 +1618,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -1513,7 +1643,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -1522,6 +1657,26 @@
           {
             "display_name": "Zongwu Ma",
             "account": "zongwu.ma",
+            "reports_to": "",
+            "active": true,
+            "organization": {
+              "team": "",
+              "division": ""
+            },
+            "employment": {
+              "grade": "",
+              "job_title_override": "",
+              "employee_type": ""
+            },
+            "assignments": [],
+            "expertise_domains": [],
+            "system_roles": [
+              "user"
+            ]
+          },
+          {
+            "display_name": "Zonghao Ma",
+            "account": "zonghao.ma",
             "reports_to": "",
             "active": true,
             "organization": {
@@ -1553,7 +1708,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -1573,15 +1733,20 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
             ]
           },
           {
-            "display_name": "Tianwei Xie",
-            "account": "tianwei.xie",
+            "display_name": "Tianxiang Xie",
+            "account": "tianxiang.xie",
             "reports_to": "",
             "active": true,
             "organization": {
@@ -1593,7 +1758,12 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": [
               "user"
@@ -1865,7 +2035,7 @@
           },
           {
             "display_name": "Xiaoshuang Ni",
-            "account": "",
+            "account": "xiaoshuang.ni",
             "reports_to": "",
             "active": true,
             "organization": {
@@ -1877,9 +2047,114 @@
               "job_title_override": "",
               "employee_type": ""
             },
-            "assignments": [],
+            "assignments": [
+              {
+                "product_line_id": "TV Business",
+                "responsibilities": []
+              }
+            ],
             "expertise_domains": [],
             "system_roles": []
+          },
+          {
+            "display_name": "Yuxiang Song",
+            "account": "yuxiang.song",
+            "reports_to": "",
+            "active": true,
+            "organization": {
+              "team": "",
+              "division": ""
+            },
+            "employment": {
+              "grade": "",
+              "job_title_override": "",
+              "employee_type": ""
+            },
+            "assignments": [
+              {
+                "product_line_id": "Wireless Connection",
+                "responsibilities": []
+              }
+            ],
+            "expertise_domains": [],
+            "system_roles": [
+              "user"
+            ]
+          },
+          {
+            "display_name": "Meng Wang1",
+            "account": "meng.wang1",
+            "reports_to": "",
+            "active": true,
+            "organization": {
+              "team": "",
+              "division": ""
+            },
+            "employment": {
+              "grade": "",
+              "job_title_override": "",
+              "employee_type": ""
+            },
+            "assignments": [
+              {
+                "product_line_id": "Wireless Connection",
+                "responsibilities": []
+              }
+            ],
+            "expertise_domains": [],
+            "system_roles": [
+              "user"
+            ]
+          },
+          {
+            "display_name": "Junbin Lin",
+            "account": "junbin.lin",
+            "reports_to": "",
+            "active": true,
+            "organization": {
+              "team": "",
+              "division": ""
+            },
+            "employment": {
+              "grade": "",
+              "job_title_override": "",
+              "employee_type": ""
+            },
+            "assignments": [
+              {
+                "product_line_id": "Wireless Connection",
+                "responsibilities": []
+              }
+            ],
+            "expertise_domains": [],
+            "system_roles": [
+              "user"
+            ]
+          },
+          {
+            "display_name": "Mengnan Hu",
+            "account": "mengnan.hu",
+            "reports_to": "",
+            "active": true,
+            "organization": {
+              "team": "",
+              "division": ""
+            },
+            "employment": {
+              "grade": "",
+              "job_title_override": "",
+              "employee_type": ""
+            },
+            "assignments": [
+              {
+                "product_line_id": "Wireless Connection",
+                "responsibilities": []
+              }
+            ],
+            "expertise_domains": [],
+            "system_roles": [
+              "user"
+            ]
           }
         ]
       },
@@ -2748,8 +3023,8 @@
           "department": "amlogic-qa"
         },
         {
-          "display_name": "Lingguo Bu",
-          "ldap_account": "lingguo.bu",
+          "display_name": "Linguo Bu",
+          "ldap_account": "linguo.bu",
           "department": "amlogic-qa"
         },
         {
@@ -2993,8 +3268,8 @@
           "department": "amlogic-qa"
         },
         {
-          "display_name": "Tianwei Xie",
-          "ldap_account": "tianwei.xie",
+          "display_name": "Tianxiang Xie",
+          "ldap_account": "tianxiang.xie",
           "department": "amlogic-qa"
         },
         {

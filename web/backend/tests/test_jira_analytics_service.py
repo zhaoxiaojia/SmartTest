@@ -1,6 +1,11 @@
 from concurrent.futures import Future
+from threading import Event
+import time
 
-from smarttest_web.jira.analytics_service import JiraAnalyticsService, build_basic_jql
+from smarttest_web.jira.analytics_service import JiraAnalyticsService
+from core.jira.services.filter_service import build_basic_jql
+from core.async_tasks import AsyncTaskManager
+from smarttest_web.jira.analytics_tasks import JiraAnalyticsTasks
 
 
 def test_builds_fixed_basic_jql_deterministically():
@@ -38,11 +43,11 @@ class Repo:
     def write_batch(self, *args): self.calls.append(("write", args))
     def activate(self, *args): self.calls.append(("activate", args)); return True
     def finish(self, *args): self.calls.append(("finish", args))
-    def state(self, *_args): return {"activeSnapshotId": "old", "activeJql": "old", "pendingSnapshotId": "", "taskId": ""}
+    def state(self, *_args, **_kwargs): return {"activeSnapshotId": "old", "activeJql": "old", "pendingSnapshotId": "", "taskId": ""}
 
 
 class Tasks:
-    def submit(self, session, runner):
+    def submit(self, session, runner, *, card_key=""):
         self.runner = runner; return "task-1"
 
 
@@ -52,12 +57,42 @@ class Filter:
 
 
 class Gateway:
-    def search_all_payloads(self, _jql):
+    def search_all_payloads(self, _jql, *, progress=None):
         return [{"id": "1", "key": "SH-1", "fields": {"summary": "One", "project": {}, "status": {}, "issuetype": {}}}]
 
 
 class Mapper:
     def from_search(self, payload): return payload
+
+
+def test_card_tasks_are_independent_with_the_same_session_and_user_conditions():
+    manager = AsyncTaskManager(max_workers=2)
+    tasks = JiraAnalyticsTasks(manager)
+    entered = [Event(), Event()]
+    release = Event()
+    try:
+        def runner(index):
+            def run(token, report):
+                entered[index].set()
+                assert release.wait(2)
+                token.raise_if_cancelled()
+            return run
+        first = tasks.submit("session", runner(0), card_key="first")
+        second = tasks.submit("session", runner(1), card_key="second")
+        assert all(event.wait(2) for event in entered)
+        assert tasks.status("session", first, card_key="second") is None
+        assert tasks.cancel("session", second, card_key="first") is False
+        release.set()
+        for _ in range(100):
+            states = [tasks.status("session", first, card_key="first")["state"],
+                      tasks.status("session", second, card_key="second")["state"]]
+            if states == ["completed", "completed"]:
+                break
+            time.sleep(0.01)
+        assert states == ["completed", "completed"]
+    finally:
+        release.set()
+        manager.close()
 
 
 def test_search_validates_before_snapshot_and_immediately_submits_task():
@@ -80,13 +115,13 @@ def test_preview_returns_server_built_jql_without_creating_snapshot():
 
     result = service.preview({"mode": "basic", "basic": {"project": ["SH"]}})
 
-    assert result == {"valid": True, "errors": [], "jql": 'project IN ("SH")'}
+    assert result == {"valid": True, "errors": [], "jql": 'project IN ("SH")', "userJql": 'project IN ("SH")'}
     assert repo.calls == []
 
 
 def test_background_failure_is_recorded_and_forwarded_to_auth_lifecycle():
     class BrokenGateway:
-        def search_all_payloads(self, _jql): raise RuntimeError("offline")
+        def search_all_payloads(self, _jql, *, progress=None): raise RuntimeError("offline")
     failures = []; repo, tasks = Repo(), Tasks()
     service = JiraAnalyticsService(Filter(), BrokenGateway(), Mapper(), repo, tasks, on_error=failures.append)
     service.search("s", "alice", 100, {"mode": "advanced", "jql": "project = SH"})
@@ -96,3 +131,38 @@ def test_background_failure_is_recorded_and_forwarded_to_auth_lifecycle():
 
     assert repo.calls[-1][0] == "finish"
     assert len(failures) == 1
+
+
+def test_card_conditions_are_applied_once_for_preview_search_and_sqlite_effective_scope():
+    repo, tasks = Repo(), Tasks()
+    class RecordingFilter(Filter):
+        def validate(self, jql):
+            assert jql == '(project = A OR project = B) AND (channel = "Self-Test") ORDER BY created DESC'
+            return {"valid": True, "errors": []}
+    service = JiraAnalyticsService(RecordingFilter(), Gateway(), Mapper(), repo, tasks,
+                                   fixed_conditions='channel = "Self-Test"')
+    draft = 'project = A OR project = B ORDER BY created DESC'
+    preview = service.preview({"mode": "advanced", "jql": draft})
+    service.search("s", "alice", 100, {"mode": "advanced", "jql": draft})
+    assert preview["userJql"] == draft
+    assert repo.calls[0][1][2] == preview["jql"]
+    assert repo.calls[0][2]["user_jql"] == draft
+
+
+def test_unselected_basic_conditions_add_only_card_fixed_conditions():
+    service = JiraAnalyticsService(Filter(), Gateway(), Mapper(), Repo(), Tasks(),
+                                   fixed_conditions='channel = "Self-Test"')
+    assert service.preview({"mode": "basic", "basic": {}})["jql"] == 'channel = "Self-Test"'
+
+
+def test_remote_pagination_progress_is_published_before_sqlite_writes():
+    repo, tasks = Repo(), Tasks(); events = []
+    class PagedGateway:
+        def search_all_payloads(self, _jql, *, progress):
+            progress(1, 2)
+            assert repo.calls[-1][0] == "task"
+            return []
+    service = JiraAnalyticsService(Filter(), PagedGateway(), Mapper(), repo, tasks)
+    service.search("s", "alice", 100, {"mode": "advanced", "jql": "project = A"})
+    tasks.runner(type("Token", (), {"raise_if_cancelled": lambda self: None})(), lambda *args: events.append(args))
+    assert events == [(1, 2)]

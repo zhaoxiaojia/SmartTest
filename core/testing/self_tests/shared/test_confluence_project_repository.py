@@ -81,3 +81,13 @@ def test_project_repository_loads_only_declared_section() -> None:
     assert loaded.roles.value[0].role.name == "Major FAE QA"
     assert loaded.milestones.state is DetailState.UNLOADED
     assert loaded.evidence.state is DetailState.UNLOADED
+def test_card_fixed_project_parameters_intersect_user_conditions_without_empty_selection_bypass():
+    from core.confluence.project_catalog import query_project_facts
+    snapshot = {"projects": [
+        {"project_id": "A", "name": "A", "space_key": "one", "fields": {"customer": "Alpha"}},
+        {"project_id": "B", "name": "B", "space_key": "two", "fields": {"customer": "Alpha"}},
+    ]}
+    fixed = {"__product_space__": ["one"]}
+    assert [row["project_id"] for row in query_project_facts(snapshot, filters={}, fixed_filters=fixed)["projects"]] == ["A"]
+    assert query_project_facts(snapshot, filters={"__product_space__": ["two"]}, fixed_filters=fixed)["projects"] == []
+    assert [row["project_id"] for row in query_project_facts(snapshot, filters={"customer": ["Alpha"]}, fixed_filters=fixed)["projects"]] == ["A"]

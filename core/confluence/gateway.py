@@ -170,20 +170,6 @@ class ConfluenceGateway:
                 sleep(0.2)
         raise RuntimeError("unreachable")
 
-    def resolve_user_keys(self, identities) -> dict[str, dict[str, Any]]:
-        resolved = {}
-        for raw_identity in identities:
-            identity = str(raw_identity or "").strip()
-            if not identity:
-                continue
-            payload = self._get_user_by_key(identity)
-            account = str(payload.get("username") or payload.get("name") or payload.get("accountId") or "").strip()
-            display_name = str(payload.get("displayName") or payload.get("publicName") or "").strip()
-            active = payload.get("active") is not False
-            if account and display_name and active:
-                resolved[identity] = {"account": account, "display_name": display_name, "active": active}
-        return resolved
-
     def get_page_children(self, page_id: str, *, limit: int = 100) -> list[ConfluencePage]:
         started = perf_counter()
         pages, start, seen_pages = [], 0, set()

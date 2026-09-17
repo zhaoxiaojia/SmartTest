@@ -2,6 +2,7 @@ const SCOPE = 'dashboard/layout'
 export const DEFAULT_DASHBOARD_LAYOUT = Object.freeze([
   Object.freeze({ id: 'role-workload-default', type: 'role-workload', x: 0, y: 0, w: 24, h: 21, config: Object.freeze({}) }),
   Object.freeze({ id: 'jira-team-bugs-default', type: 'jira-team-bugs', x: 0, y: 21, w: 24, h: 16, config: Object.freeze({}) }),
+  Object.freeze({ id: 'jira-customer-statistics-default', type: 'jira-customer-statistics', x: 0, y: 37, w: 24, h: 16, config: Object.freeze({}) }),
 ])
 
 function cloneLayout(layout) { return layout.map(item => ({ ...item, config: { ...(item.config ?? {}) } })) }

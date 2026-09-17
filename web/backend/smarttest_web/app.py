@@ -15,9 +15,6 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request, Respo
 from fastapi.responses import FileResponse
 from core.authentication import LdapAuthenticator
 from core.confluence.audit import manual_audit_period
-from core.confluence.gateway import ConfluenceGateway
-from core.confluence.models import ConfluenceGatewayConfig
-from core.confluence.personnel_sync import PersonnelAssignmentSync
 from core.logging import configure_external_logging, configure_platform, smart_log
 from core.jira.domain import IssueDetails
 from core.jira.gateway import JiraGateway
@@ -41,7 +38,6 @@ from .report_workspace import ClientAuditReportOwner, ReportNotFoundError
 from .project_facts_api import ProjectFactsWebOwner
 from .session import PersistentSessionStore, default_web_database_path
 from .background_refresh import BackgroundFactsRefresh
-from .confluence_personnel_refresh import ConfluencePersonnelRefreshScheduler
 from .query_snapshot_repository import ConfluenceQuerySnapshotRepository, normalize_project_filters
 from .jira_filter_snapshot_repository import JIRA_FILTER_FIELDS, JiraFilterSnapshotRepository
 from .release_query import ProjectReleaseQueryService
@@ -100,23 +96,6 @@ def default_confluence_audit_owner(username: str, password: str):
     return WebConfluenceAuditOwner.from_credentials(username, password)
 
 
-def default_confluence_personnel_owner(username: str, password: str):
-    base_url = os.getenv("SMARTTEST_CONFLUENCE_BASE_URL", "https://confluence.amlogic.com")
-    personnel_path = Path(__file__).resolve().parents[3] / "core" / "config" / "personnel.json"
-    gateway = ConfluenceGateway(ConfluenceGatewayConfig(base_url), username, password)
-    jira_base_url = os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")
-    jira_gateway = JiraGateway(jira_base_url, username, password)
-    return PersonnelAssignmentSync(
-        gateway,
-        personnel_path,
-        jira_user_resolver=jira_gateway.search_users,
-    )
-
-
-def default_confluence_personnel_refresh():
-    return ConfluencePersonnelRefreshScheduler()
-
-
 def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOwner.from_environment,
                project_facts_owner=ProjectFactsWebOwner, authenticator=default_authenticator,
                session_store=PersistentSessionStore, facts_refresh=BackgroundFactsRefresh,
@@ -126,8 +105,6 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                download_service=DownloadArtifactService,
                jira_audit_owner=default_jira_audit_owner,
                confluence_audit_owner=default_confluence_audit_owner,
-               confluence_personnel_owner=default_confluence_personnel_owner,
-               confluence_personnel_refresh=None,
                jira_filter_owner=default_jira_filter_owner,
                jira_team_bug_gateway=default_jira_team_bug_gateway) -> FastAPI:
     auth = authenticator()
@@ -135,10 +112,10 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     cache_database = WebDatabase(sessions.path)
     facts = project_facts_owner()
     refresh = facts_refresh()
-    personnel_refresh = (confluence_personnel_refresh or default_confluence_personnel_refresh)()
     snapshots = ConfluenceQuerySnapshotRepository(cache_database)
     jira_filters = JiraFilterSnapshotRepository(cache_database)
     jira_analytics = JiraAnalyticsRepository(cache_database)
+    jira_analytics.interrupt_pending()
     jira_team_bugs = JiraTeamBugDashboardRepository(cache_database)
     jira_team_bug_tasks = JiraTeamBugTasks()
     jira_team_bug_service = JiraTeamBugDashboardService(
@@ -261,21 +238,6 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                 "displayName": value.display_name,
                 "avatarUrl": "/api/auth/avatar" if value.avatar_bytes else ""}
 
-    def schedule_personnel_refresh(value):
-        if value is not None:
-            try:
-                personnel_refresh.schedule(
-                    value.username, value.password, confluence_personnel_owner,
-                )
-            except Exception as error:
-                smart_log(
-                    "Confluence personnel refresh could not be scheduled",
-                    platform="web", domain="framework",
-                    source="confluence_personnel_refresh", level="error",
-                    extra={"exception_type": type(error).__name__},
-                    emit_runtime_event=False,
-                )
-
     def establish_session(request: Request, response: Response, *, username: str,
                           password: str | None, display_name: str = "",
                           avatar_bytes: bytes = b""):
@@ -298,7 +260,6 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             audits.cancel_session(_session_owner(old_token))
         set_session_cookie(request, response, session_id)
         value = sessions.get(session_id)
-        schedule_personnel_refresh(value)
         return public_session(value)
 
     @app.post("/api/auth/login")
@@ -353,7 +314,6 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     @app.get("/api/auth/session")
     def session(request: Request):
         value = current_session(request)
-        schedule_personnel_refresh(value)
         return public_session(value)
 
     @app.get("/api/auth/avatar")
@@ -793,12 +753,16 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         resolve_jira_cache(value).invalidate_issue(issue_key)
         return {"invalidated": issue_key}
 
-    def resolve_jira_analytics(value):
+    def resolve_jira_analytics(value, *, card_key=""):
+        from core.jira.services.team_bug_service import load_fae_qa_roster, self_test_jira_conditions
+        fixed_conditions = self_test_jira_conditions(load_fae_qa_roster().accounts) if card_key == "self-test" else ""
         try:
             filters, gateway = jira_filter_owner(value.username, value.password)
             return JiraAnalyticsService(
                 filters, gateway, JiraIssueMapper(gateway.config.base_url if hasattr(gateway, "config") else ""),
                 jira_analytics, JIRA_ANALYTICS_TASKS,
+                fixed_conditions=fixed_conditions,
+                card_key=card_key,
                 on_error=lambda error: invalidate_analytics_credentials(value, error),
             )
         except Exception as error:
@@ -809,9 +773,53 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             jira_analytics.delete_account(value.username)
             sessions.invalidate_credentials(value.username)
 
+    def require_jira_card(card_key):
+        if card_key != "self-test":
+            raise HTTPException(status_code=404, detail={"state": "card_not_found"})
+
+    def analytics_query_state(session_hash, account, card_key):
+        query = jira_analytics.state(session_hash, account, card_key=card_key)
+        task = JIRA_ANALYTICS_TASKS.status(session_hash, query["taskId"], card_key=card_key) if query["taskId"] else None
+        if query["pendingSnapshotId"] and query["taskId"]:
+            terminal = "failed" if task is None else task["state"]
+            if terminal in {"failed", "cancelled"}:
+                error = "query_interrupted" if task is None else ("query_cancelled" if terminal == "cancelled" else "query_failed")
+                jira_analytics.finish(query["pendingSnapshotId"], terminal, error)
+                query = jira_analytics.state(session_hash, account, card_key=card_key)
+        return query, task
+
     @app.get("/api/jira/analytics/state")
     def jira_analytics_state(request: Request, value=Depends(authenticated_session)):
-        return jira_analytics.state(audit_session(request), value.username)
+        conditions = jira_analytics.published_conditions(audit_session(request), value.username)
+        return {"conditions": conditions, "userJql": conditions.get("userJql", "") if conditions else ""}
+
+    @app.get("/api/jira/cards/{card_key}/statistics")
+    def jira_analytics_statistics(card_key: str, request: Request, value=Depends(authenticated_session)):
+        require_jira_card(card_key)
+        from core.jira.services.team_bug_service import aggregate_team_bugs, load_fae_qa_roster, self_test_jira_conditions
+        from core.jira.services.filter_service import compose_jql
+
+        session_hash = audit_session(request)
+        query, task = analytics_query_state(session_hash, value.username, card_key)
+        roster = load_fae_qa_roster()
+        active_matches = bool(query["activeSnapshotId"] and query["userJql"] is not None and roster.accounts
+                              and query["activeJql"] == compose_jql(query["userJql"], self_test_jira_conditions(roster.accounts)))
+        state = ("loading" if query["pendingSnapshotId"] else query["latestState"]
+                 if query["latestState"] in {"failed", "cancelled"} else "ready"
+                 if active_matches else "no_snapshot")
+        payload = {"state": state}
+        if query["activeSnapshotId"] or query["pendingSnapshotId"] or query["latestState"]:
+            payload["query"] = query
+        if state == "loading":
+            payload["task"] = task
+        if state in {"failed", "cancelled"}:
+            payload["error"] = query["error"] or ("query_cancelled" if state == "cancelled" else "query_failed")
+        if active_matches:
+            payload.update(aggregate_team_bugs(jira_analytics.statistics_issues(session_hash, value.username, card_key=card_key),
+                                              roster).to_payload())
+        elif query["activeSnapshotId"] and state != "no_snapshot":
+            payload.update(aggregate_team_bugs([], roster).to_payload())
+        return payload
 
     @app.get("/api/jira/analytics/fields")
     def jira_analytics_fields(value=Depends(authenticated_session)):
@@ -851,25 +859,49 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     @app.post("/api/jira/analytics/search")
     def jira_analytics_search(request: Request, payload: dict = Body(...), value=Depends(authenticated_session)):
         try:
-            return resolve_jira_analytics(value).search(
-                audit_session(request), value.username, value.expires_at, payload,
-            )
+            preview = resolve_jira_analytics(value).preview(payload)
+            validation = {key: item for key, item in preview.items() if key not in {"jql", "userJql"}}
+            if validation.get("valid"):
+                jira_analytics.publish_conditions(audit_session(request), value.username,
+                                                  {**payload, "userJql": preview["userJql"]},
+                                                  expires_at=value.expires_at)
+            return {"applied": bool(validation.get("valid")), "validation": validation, "userJql": preview["userJql"]}
         except (TypeError, ValueError) as error:
             raise HTTPException(status_code=422, detail={"state": str(error)}) from error
         except Exception as error:
             raise_downstream_error(value, error)
 
-    @app.get("/api/jira/analytics/tasks/{task_id}")
-    def jira_analytics_task(task_id: str, request: Request, value=Depends(authenticated_session)):
-        task = JIRA_ANALYTICS_TASKS.status(audit_session(request), task_id)
+    @app.post("/api/jira/cards/{card_key}/query")
+    def query_jira_card(card_key: str, request: Request, value=Depends(authenticated_session)):
+        require_jira_card(card_key)
+        conditions = jira_analytics.published_conditions(audit_session(request), value.username)
+        if conditions is None:
+            return {"state": "no_snapshot"}
+        try:
+            started = resolve_jira_analytics(value, card_key=card_key).search(
+                audit_session(request), value.username, value.expires_at, conditions)
+        except (TypeError, ValueError) as error:
+            raise HTTPException(status_code=422, detail={"state": str(error)}) from error
+        except Exception as error:
+            raise_downstream_error(value, error)
+        if not started["validation"].get("valid"):
+            return {**jira_analytics_statistics(card_key, request, value), **started,
+                    "state": "failed", "error": " · ".join(started["validation"].get("errors") or ["invalid_jql"])}
+        return {**started, **jira_analytics_statistics(card_key, request, value)}
+
+    @app.get("/api/jira/cards/{card_key}/tasks/{task_id}")
+    def jira_analytics_task(card_key: str, task_id: str, request: Request, value=Depends(authenticated_session)):
+        require_jira_card(card_key)
+        task = JIRA_ANALYTICS_TASKS.status(audit_session(request), task_id, card_key=card_key)
         if task is None:
             raise HTTPException(status_code=404, detail={"state": "not_found"})
-        return {**task, "query": jira_analytics.state(audit_session(request), value.username)}
+        return {**task, "query": analytics_query_state(audit_session(request), value.username, card_key)[0]}
 
-    @app.delete("/api/jira/analytics/tasks/{task_id}")
-    def cancel_jira_analytics_task(task_id: str, request: Request, value=Depends(authenticated_session)):
+    @app.delete("/api/jira/cards/{card_key}/tasks/{task_id}")
+    def cancel_jira_analytics_task(card_key: str, task_id: str, request: Request, value=Depends(authenticated_session)):
+        require_jira_card(card_key)
         del value
-        if not JIRA_ANALYTICS_TASKS.cancel(audit_session(request), task_id):
+        if not JIRA_ANALYTICS_TASKS.cancel(audit_session(request), task_id, card_key=card_key):
             raise HTTPException(status_code=404, detail={"state": "not_found"})
         return {"cancelled": True}
 

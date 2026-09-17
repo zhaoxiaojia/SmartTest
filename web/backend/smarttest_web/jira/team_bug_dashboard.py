@@ -4,7 +4,8 @@ import time
 from threading import RLock
 from uuid import uuid4
 
-from core.jira.services.team_bug_service import aggregate_team_bugs, load_fae_qa_roster, team_bug_jql
+from core.jira.services.team_bug_service import aggregate_team_bugs, load_fae_qa_roster, self_test_jira_conditions
+from core.jira.services.filter_service import compose_jql
 from ..task_manager import WEB_TASKS, snapshot_payload
 from .schema import initialize_jira_schema
 
@@ -26,8 +27,9 @@ class JiraTeamBugDashboardRepository:
             if not head or not head[0]:
                 return None
             total = connection.execute(
-                "SELECT team_total FROM jira_team_bug_snapshots WHERE snapshot_id=? AND roster_fingerprint=?",
-                (head[0], str(roster_fingerprint)),
+                "SELECT team_total,effective_jql,unmapped_count,unassigned_count FROM jira_team_bug_snapshots WHERE snapshot_id=? "
+                "AND (? IS NULL OR roster_fingerprint=?)",
+                (head[0], roster_fingerprint, str(roster_fingerprint)),
             ).fetchone()
             if not total:
                 return None
@@ -41,7 +43,8 @@ class JiraTeamBugDashboardRepository:
         by_line = {line: [] for line in line_names}
         for line, *values in rows:
             by_line.setdefault(line, []).append(dict(zip(keys, values)))
-        result = {"teamTotal": int(total[0]), "productLines": [
+        result = {"teamTotal": int(total[0]), "effectiveJql": total[1],
+                  "unmappedCount": int(total[2]), "unassignedCount": int(total[3]), "productLines": [
             {"id": line, "label": line, "people": by_line.get(line, [])}
             for line in line_names
         ]}
@@ -54,8 +57,11 @@ class JiraTeamBugDashboardRepository:
                 "SELECT active_snapshot_id FROM jira_team_bug_accounts WHERE account=?", (account,),
             ).fetchone()
             connection.execute("""INSERT INTO jira_team_bug_snapshots
-                (snapshot_id,account,roster_fingerprint,team_total,created_at) VALUES(?,?,?,?,?)""",
-                (snapshot_id, account, str(roster_fingerprint), int(result["teamTotal"]), self._now()))
+                (snapshot_id,account,roster_fingerprint,team_total,created_at,effective_jql,unmapped_count,unassigned_count)
+                VALUES(?,?,?,?,?,?,?,?)""",
+                (snapshot_id, account, str(roster_fingerprint), int(result["teamTotal"]), self._now(),
+                 str(result.get("effectiveJql") or ""), int(result.get("unmappedCount") or 0),
+                 int(result.get("unassignedCount") or 0)))
             connection.executemany("""INSERT INTO jira_team_bug_lines
                 (snapshot_id,ordinal,product_line,project_key) VALUES(?,?,?,?)""", [
                 (snapshot_id, index, line["id"], line["id"])
@@ -137,7 +143,7 @@ class JiraTeamBugTasks:
 
 
 class JiraTeamBugDashboardService:
-    FIELDS = ["project", "issuetype", "assignee", "priority", "resolution"]
+    FIELDS = ["project", "reporter", "priority", "resolution"]
 
     def __init__(self, repository, gateway_factory, tasks, roster_owner=load_fae_qa_roster):
         self.repository, self.gateway_factory, self.tasks = repository, gateway_factory, tasks
@@ -145,25 +151,33 @@ class JiraTeamBugDashboardService:
 
     def state(self, account, password, *, on_error=lambda _error: None):
         roster = self.roster_owner()
+        if not roster.accounts:
+            return {"state": "failed", "task": None, "error": "empty_fae_qa_roster",
+                    **aggregate_team_bugs([], roster).to_payload()}
         snapshot = self.repository.read(account, roster.fingerprint)
         if snapshot is not None: return {"state": "ready", **snapshot}
+        display = self.repository.read(account, None) or {}
         existing = self.tasks.status(account, roster.fingerprint)
         if existing is not None:
             error = self.repository.error(account, roster.fingerprint)
             return {"state": "failed" if existing["state"] == "failed" else "loading",
-                    "task": existing, "error": error}
+                    "task": existing, "error": error, **display}
         error = self.repository.error(account, roster.fingerprint)
         if error:
-            return {"state": "failed", "task": None, "error": error}
+            return {"state": "failed", "task": None, "error": error, **display}
 
         def run(token, progress):
             try:
                 if token: token.raise_if_cancelled()
-                rows = self.gateway_factory(account, password).search_all_payloads(
-                    team_bug_jql(roster.accounts), fields=self.FIELDS, progress=progress,
-                )
+                gateway = self.gateway_factory(account, password)
+                effective_jql = compose_jql("", self_test_jira_conditions(roster.accounts))
+                validation = gateway.validate_jql(effective_jql)
+                if not validation.get("valid"):
+                    raise ValueError(" · ".join(validation.get("errors") or ["invalid_jql"]))
+                rows = gateway.search_all_payloads(effective_jql, fields=self.FIELDS, progress=progress)
                 if token: token.raise_if_cancelled()
                 result = aggregate_team_bugs(rows, roster).to_payload()
+                result["effectiveJql"] = effective_jql
                 self.tasks.publish_if_current(
                     account, roster.fingerprint,
                     lambda: self.repository.replace(account, roster.fingerprint, result),
@@ -178,4 +192,4 @@ class JiraTeamBugDashboardService:
         task_id = self.tasks.submit_once(account, roster.fingerprint, run)
         task = self.tasks.status(account, roster.fingerprint) or {"id": task_id, "state": "queued", "progress": {"processed": 0, "total": 0}}
         return {"state": "failed" if task["state"] == "failed" else "loading",
-                "task": task, "error": self.repository.error(account, roster.fingerprint)}
+                "task": task, "error": self.repository.error(account, roster.fingerprint), **display}

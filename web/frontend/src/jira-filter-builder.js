@@ -1,8 +1,8 @@
 import { enhanceMultiSelect, fillSelect } from './multi-select.js'
 
-export function createJiraFilterBuilder({ root, api, account }) {
+export function createJiraFilterBuilder({ root, api, account, onApplied = () => {} }) {
   let mode = 'basic'; let fields = []; let generatedJql = ''; let advancedDirty = false
-  let sourceFilterId = ''; let disposed = false; let pollTimer
+  let sourceFilterId = ''; let disposed = false
   root.innerHTML = `<section class="card jira-native-filter" aria-label="Jira issue filter">
     <div class="jira-native-query-row">
       <div class="jira-native-toolbar" data-basic-panel>
@@ -18,7 +18,7 @@ export function createJiraFilterBuilder({ root, api, account }) {
     <div class="jira-condition-row" data-conditions></div>
     <div class="jira-native-actions"><select class="form-control jira-saved-filter" name="savedFilter" aria-label="Saved Filter"><option value="">Saved Filter</option></select>
       <button class="button button-secondary" type="button" data-reset>Reset</button><span data-mode>Basic draft</span></div>
-    <p class="card-subtitle" data-applied></p><p class="async-feedback" data-feedback role="status"></p><p data-progress role="status"></p></section>`
+    <p class="card-subtitle" data-applied></p><p class="async-feedback" data-feedback role="status"></p></section>`
   const q = selector => root.querySelector(selector)
   const values = name => [...(q(`[name="${name}"]`)?.selectedOptions || [])].map(option => option.value).filter(Boolean)
   function configureSelect(field, host, emptyLabel = `${field.name}: All`) {
@@ -65,15 +65,8 @@ export function createJiraFilterBuilder({ root, api, account }) {
     const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×'; remove.setAttribute('aria-label', `Remove ${field.name}`); remove.onclick = () => block.remove()
     block.append(remove); q('[data-conditions]').append(block)
   }
-  async function poll(taskId) {
-    if (disposed) return
-    const task = await api.getJiraAnalyticsTask(taskId); if (disposed) return
-    q('[data-progress]').textContent = `${task.state} · ${task.progress?.processed ?? 0}/${task.progress?.total ?? 0}`
-    if (['queued', 'running'].includes(task.state)) pollTimer = setTimeout(() => void poll(taskId), 250)
-    else if (task.query?.activeJql) q('[data-applied]').textContent = `Applied: ${task.query.activeJql}`
-  }
   q('[name="jql"]').addEventListener('input', () => { advancedDirty = q('[name="jql"]').value !== generatedJql })
-  q('[data-advanced]').addEventListener('click', async () => { showMode('advanced'); const result = await api.validateJiraAnalytics({ mode: 'basic', basic: basicPayload() }); generatedJql = result.jql || ''; advancedDirty = false; q('[name="jql"]').value = generatedJql })
+  q('[data-advanced]').addEventListener('click', async () => { showMode('advanced'); const result = await api.validateJiraAnalytics({ mode: 'basic', basic: basicPayload() }); generatedJql = result.userJql ?? result.jql ?? ''; advancedDirty = false; q('[name="jql"]').value = generatedJql })
   q('[data-basic]').addEventListener('click', () => { if (advancedDirty || q('[name="jql"]').value !== generatedJql) { q('[data-feedback]').textContent = 'This JQL cannot be converted to Basic without loss.'; return } showMode('basic'); q('[data-feedback]').textContent = '' })
   q('[data-more]').addEventListener('click', () => { const menu = q('[data-more-menu]'); menu.hidden = !menu.hidden; q('[data-more]').setAttribute('aria-expanded', String(!menu.hidden)) })
   q('[name="savedFilter"]').addEventListener('change', async event => {
@@ -93,7 +86,9 @@ export function createJiraFilterBuilder({ root, api, account }) {
       const result = await api.searchJiraAnalytics(payload)
       if (disposed) return
       if (!result.validation?.valid) { q('[data-feedback]').textContent = result.validation?.errors?.join(' · ') || 'Invalid JQL'; return }
-      q('[data-feedback]').textContent = 'Query started.'; void poll(result.taskId)
+      q('[data-feedback]').textContent = 'Conditions applied.'
+      q('[data-applied]').textContent = `Applied user conditions: ${result.userJql || '(none)'}`
+      onApplied()
     } catch {
       if (!disposed) q('[data-feedback]').textContent = 'Jira query failed; the current draft and last valid snapshot were preserved.'
     }
@@ -114,13 +109,12 @@ export function createJiraFilterBuilder({ root, api, account }) {
         q('[data-more-search]').addEventListener('input', event => { const term = event.target.value.trim().toLowerCase(); for (const button of q('[data-more-options]').children) button.hidden = !button.textContent.toLowerCase().includes(term) })
         for (const button of q('[data-more-menu]').querySelectorAll('[data-add-field]')) button.onclick = () => addField(fields.find(field => field.id === button.dataset.addField))
         q('[name="savedFilter"]').innerHTML += saved.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('')
-        q('[data-applied]').textContent = state.activeJql ? `Applied: ${state.activeJql}` : ''
-        if (state.taskId) void poll(state.taskId)
+        q('[data-applied]').textContent = state.conditions ? `Applied user conditions: ${state.userJql || '(none)'}` : ''
       } catch {
         if (!disposed) q('[data-feedback]').textContent = 'Jira Analytics filter unavailable.'
       }
     },
-    destroy() { disposed = true; clearTimeout(pollTimer); localStorage.removeItem(`smarttest:jira-filter:${account}`); root.replaceChildren() },
+    destroy() { disposed = true; localStorage.removeItem(`smarttest:jira-filter:${account}`); root.replaceChildren() },
   }
 }
 function escapeHtml(value) { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML }

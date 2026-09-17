@@ -1,4 +1,18 @@
 from core.jira.services.filter_service import JiraFilterService
+import pytest
+
+
+@pytest.mark.parametrize(("draft", "expected"), [
+    ("", 'channel = "Self-Test"'),
+    ('project = A OR project = B ORDER BY created DESC',
+     '(project = A OR project = B) AND (channel = "Self-Test") ORDER BY created DESC'),
+    ('text ~ "ORDER BY \\"quoted\\"" order by priority ASC',
+     '(text ~ "ORDER BY \\"quoted\\"") AND (channel = "Self-Test") order by priority ASC'),
+    ("ORDER BY created DESC", 'channel = "Self-Test" ORDER BY created DESC'),
+])
+def test_fixed_conditions_intersect_user_predicate_without_corrupting_order_or_literals(draft, expected):
+    from core.jira.services.filter_service import compose_jql
+    assert compose_jql(draft, 'channel = "Self-Test"') == expected
 
 
 class Gateway:

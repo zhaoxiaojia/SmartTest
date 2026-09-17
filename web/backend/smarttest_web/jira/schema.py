@@ -35,7 +35,8 @@ JIRA_STATEMENTS = (
     """CREATE TABLE IF NOT EXISTS jira_team_bug_snapshots (
         snapshot_id TEXT PRIMARY KEY, account TEXT NOT NULL, roster_fingerprint TEXT NOT NULL,
         team_total INTEGER NOT NULL,
-        created_at REAL NOT NULL
+        created_at REAL NOT NULL, effective_jql TEXT NOT NULL DEFAULT '',
+        unmapped_count INTEGER NOT NULL DEFAULT 0, unassigned_count INTEGER NOT NULL DEFAULT 0
     )""",
     """CREATE TABLE IF NOT EXISTS jira_team_bug_rows (
         snapshot_id TEXT NOT NULL REFERENCES jira_team_bug_snapshots(snapshot_id) ON DELETE CASCADE,
@@ -53,12 +54,14 @@ JIRA_STATEMENTS = (
     """CREATE TABLE IF NOT EXISTS jira_analytics_queries (
         session_hash TEXT PRIMARY KEY, account TEXT NOT NULL,
         active_snapshot_id TEXT NOT NULL DEFAULT '', pending_snapshot_id TEXT NOT NULL DEFAULT '',
-        task_id TEXT NOT NULL DEFAULT '', expires_at REAL NOT NULL
+        task_id TEXT NOT NULL DEFAULT '', expires_at REAL NOT NULL,
+        card_key TEXT NOT NULL DEFAULT '', user_conditions_json TEXT
     )""",
     """CREATE TABLE IF NOT EXISTS jira_analytics_snapshots (
         snapshot_id TEXT PRIMARY KEY, session_hash TEXT NOT NULL, account TEXT NOT NULL,
         jql TEXT NOT NULL, basic_json TEXT NOT NULL, source_filter_id TEXT NOT NULL DEFAULT '',
-        state TEXT NOT NULL, error TEXT NOT NULL DEFAULT '', created_at REAL NOT NULL,
+        state TEXT NOT NULL, error TEXT NOT NULL DEFAULT '', created_at REAL NOT NULL, user_jql TEXT,
+        card_key TEXT NOT NULL DEFAULT '',
         FOREIGN KEY(session_hash) REFERENCES jira_analytics_queries(session_hash) ON DELETE CASCADE
     )""",
     """CREATE TABLE IF NOT EXISTS jira_analytics_snapshot_issues (
@@ -167,7 +170,22 @@ def initialize_jira_schema(database: WebDatabase) -> None:
         snapshot_columns = {row[1] for row in connection.execute("PRAGMA table_info(jira_team_bug_snapshots)")}
         if "roster_fingerprint" not in snapshot_columns:
             connection.execute("ALTER TABLE jira_team_bug_snapshots ADD COLUMN roster_fingerprint TEXT NOT NULL DEFAULT ''")
+        for column, definition in (("effective_jql", "TEXT NOT NULL DEFAULT ''"),
+                                   ("unmapped_count", "INTEGER NOT NULL DEFAULT 0"),
+                                   ("unassigned_count", "INTEGER NOT NULL DEFAULT 0")):
+            if column not in snapshot_columns:
+                connection.execute(f"ALTER TABLE jira_team_bug_snapshots ADD COLUMN {column} {definition}")
         row_columns = {row[1] for row in connection.execute("PRAGMA table_info(jira_team_bug_rows)")}
+        analytics_columns = {row[1] for row in connection.execute("PRAGMA table_info(jira_analytics_snapshots)")}
+        if "user_jql" not in analytics_columns:
+            connection.execute("ALTER TABLE jira_analytics_snapshots ADD COLUMN user_jql TEXT")
+        if "card_key" not in analytics_columns:
+            connection.execute("ALTER TABLE jira_analytics_snapshots ADD COLUMN card_key TEXT NOT NULL DEFAULT ''")
+        query_columns = {row[1] for row in connection.execute("PRAGMA table_info(jira_analytics_queries)")}
+        if "card_key" not in query_columns:
+            connection.execute("ALTER TABLE jira_analytics_queries ADD COLUMN card_key TEXT NOT NULL DEFAULT ''")
+        if "user_conditions_json" not in query_columns:
+            connection.execute("ALTER TABLE jira_analytics_queries ADD COLUMN user_conditions_json TEXT")
         if "product_line" not in row_columns:
             connection.execute("DROP TABLE jira_team_bug_rows")
             connection.execute("""CREATE TABLE jira_team_bug_rows (

@@ -44,7 +44,7 @@ PRODUCT_LINES = (
 )
 WIRELESS_CONNECTION = ProductLine(
     "Wireless Connection",
-    tuple(key for line in PRODUCT_LINES for key in line.jira_project_keys),
+    (),
     "互联",
 )
 DASHBOARD_PRODUCT_LINES = (*PRODUCT_LINES, WIRELESS_CONNECTION)

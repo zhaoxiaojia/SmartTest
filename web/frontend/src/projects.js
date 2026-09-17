@@ -12,6 +12,7 @@ const COMMON_FILTERS = [
 ]
 import { createAsyncFeedback } from './async-feedback.js'
 import { createDownloadButton } from './download-button.js'
+import { createDisposableDisplayCache } from './disposable-display.js'
 
 function node(tag, className, text) {
   const item = document.createElement(tag)
@@ -22,15 +23,10 @@ function node(tag, className, text) {
 
 export function createProjects({ root, api, waitForPreferences, account,
   pollDelay = ms => new Promise(resolve => setTimeout(resolve, ms)), downloadNavigate,
-  enableReview = true, filterOnly = false }) {
-  const displayKey = account ? `smarttest:projects-display:${encodeURIComponent(String(account).trim().toLocaleLowerCase())}` : ''
-  const readDisplay = () => {
-    if (!displayKey) return null
-    try { return JSON.parse(sessionStorage.getItem(displayKey)) } catch { return null }
-  }
+  enableReview = true, filterOnly = false, onSnapshot = () => {} }) {
+  const display = createDisposableDisplayCache('projects', account)
   const saveDisplay = payload => {
-    if (!displayKey || !['ready', 'partial_success'].includes(payload?.state)) return
-    try { sessionStorage.setItem(displayKey, JSON.stringify(payload)) } catch { /* optional display acceleration */ }
+    if (['ready', 'partial_success'].includes(payload?.state)) display.write(payload)
   }
   root.innerHTML = `<section class="report-workspace projects-workspace">
     <header class="report-page-head"><div><div class="eyebrow">${filterOnly ? 'Confluence · Global Filter' : 'Projects · Current Facts'}</div><h1>${filterOnly ? 'Confluence Filter' : 'Projects'}</h1><p>${filterOnly ? 'Apply the shared project scope before starting the weekly review.' : '查看本地只读项目事实与 QA 责任信息。'}</p></div></header>
@@ -287,6 +283,8 @@ export function createProjects({ root, api, waitForPreferences, account,
       for (const stage of groupByStage(projects)) {
         const stageGroup = node('details', 'stage-group'); stageGroup.dataset.stageGroup = ''
         const stageSummary = node('summary', 'stage-summary')
+        const stageNumber = stage.name.match(/^([1-9])\s/)
+        if (stageNumber) stageSummary.dataset.projectStage = stageNumber[1]
         const stageCount = node('span', 'kanban-count', stage.projects.length); stageCount.dataset.stageProjectCount = ''
         stageSummary.append(node('strong', '', stage.name), stageCount)
         const cards = node('div', 'project-list')
@@ -307,8 +305,6 @@ export function createProjects({ root, api, waitForPreferences, account,
       return [...groups.values()].sort((left, right) => right.projects.length - left.projects.length)
     }
 
-    const statusColorSlots = new Map([...new Set(uniqueProjects.map(project => displayValue(project.status) || 'Unspecified'))]
-      .sort(comparePresentAsc).map((status, index) => [status, index % 8]))
     const statusPriority = ['block', 'warning', 'pending', 'normal', 'cancel']
     const statusKind = status => statusPriority.find(keyword => status.toLocaleLowerCase().includes(keyword)) || ''
     const compareProjectStatus = (left, right) => {
@@ -328,9 +324,8 @@ export function createProjects({ root, api, waitForPreferences, account,
       }
       for (const [status, count] of [...counts].sort(([left], [right]) => compareProjectStatus(left, right))) {
         const item = node('span', 'distribution-label'); item.dataset.projectStatusCount = ''
-        item.dataset.colorSlot = String(statusColorSlots.get(status))
         const tone = statusKind(status)
-        if (['block', 'warning', 'pending'].includes(tone)) item.dataset.statusTone = tone
+        if (['block', 'warning', 'normal'].includes(tone)) item.dataset.statusTone = tone
         item.append(node('span', '', status), node('strong', 'distribution-label-count', count))
         distribution.append(item)
       }
@@ -396,6 +391,7 @@ export function createProjects({ root, api, waitForPreferences, account,
     setBusinessControlsEnabled(hasCache, { applyEnabled: hasCache && !syncing })
     if (auditButton) auditButton.disabled = !hasCache || syncing
     saveDisplay(payload)
+    if (hasCache) onSnapshot(payload)
   }
 
   async function poll(generation) {
@@ -519,7 +515,7 @@ export function createProjects({ root, api, waitForPreferences, account,
     setBusinessControlsEnabled(cacheReady, { applyEnabled: cacheReady })
   }
   async function start() {
-    const previousDisplay = readDisplay()
+    const previousDisplay = display.read()
     if (previousDisplay) present(previousDisplay)
     const loaded = await load({ snapshot: true })
     await waitForPreferences?.()

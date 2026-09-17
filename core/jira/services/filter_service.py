@@ -1,6 +1,59 @@
 from __future__ import annotations
 
 from typing import Any
+import re
+
+
+_ORDER_BY = re.compile(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?P<order>\border\s+by\b)''', re.IGNORECASE)
+
+
+def compose_jql(user_jql: str, fixed_conditions: str) -> str:
+    """Intersect predicates before ordering; Jira's validator owns JQL validity."""
+    draft, fixed = str(user_jql or "").strip(), str(fixed_conditions or "").strip()
+    if not fixed:
+        return draft
+    order = next((match for match in _ORDER_BY.finditer(draft) if match.group("order")), None)
+    predicate = draft[:order.start()].rstrip() if order else draft
+    suffix = " " + draft[order.start():] if order else ""
+    return (f"({predicate}) AND ({fixed})" if predicate else fixed) + suffix
+
+
+def _quote(value):
+    return '"' + str(value).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _multi(field, values):
+    clean = [value for value in values or () if str(value).strip()]
+    return f"{field} IN ({', '.join(_quote(value) for value in clean)})" if clean else ""
+
+
+def build_basic_jql(conditions, fields):
+    clauses = []
+    for key, field in (("project", "project"), ("issueType", "issuetype"), ("status", "status"), ("assignee", "assignee")):
+        clause = _multi(field, conditions.get(key))
+        if clause: clauses.append(clause)
+    if str(conditions.get("containsText") or "").strip():
+        clauses.append(f"text ~ {_quote(str(conditions['containsText']).strip())}")
+    resolutions = conditions.get("resolution") or ()
+    if resolutions:
+        clauses.append(_multi("resolution", resolutions))
+    for field_id, value in (conditions.get("more") or {}).items():
+        metadata = fields.get(field_id) or {}
+        if not metadata.get("queryable"):
+            raise ValueError(f"advanced_only:{field_id}")
+        control = metadata.get("control")
+        if value in (None, "", [], {}): continue
+        if control in {"multi", "user"}:
+            clauses.append(_multi(field_id, value if isinstance(value, list) else [value]))
+        elif control == "number":
+            clauses.append(f"{field_id} = {float(value):g}")
+        elif control == "date" and isinstance(value, dict):
+            if value.get("from"): clauses.append(f"{field_id} >= {_quote(value['from'])}")
+            if value.get("to"): clauses.append(f"{field_id} <= {_quote(value['to'])}")
+        elif control == "text": clauses.append(f"{field_id} ~ {_quote(value)}")
+        else: clauses.append(f"{field_id} = {_quote(value)}")
+    return " AND ".join(filter(None, clauses))
+
 
 
 class JiraFilterService:

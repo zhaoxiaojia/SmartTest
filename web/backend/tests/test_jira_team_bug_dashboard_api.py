@@ -5,14 +5,28 @@ from smarttest_web.session import PersistentSessionStore
 from test_web_session import FakeAuthenticator
 
 
+def test_login_and_session_restore_do_not_fetch_organization_architecture(tmp_path, monkeypatch):
+    def reject_page(*_args, **_kwargs):
+        raise AssertionError('organization architecture must not be fetched')
+    monkeypatch.setattr('core.confluence.gateway.ConfluenceGateway.get_page', reject_page)
+    app = create_app(authenticator=FakeAuthenticator,
+        session_store=lambda: PersistentSessionStore(tmp_path / 'web.db'))
+    api = TestClient(app, base_url='https://testserver')
+    assert api.post('/api/auth/login', json={'username': 'coco', 'password': 'secret'}).status_code == 200
+    assert api.get('/api/auth/session').json()['authenticated'] is True
+
+
+
+
 class Gateway:
     def __init__(self): self.calls = []
+    def validate_jql(self, jql): return {"valid": True, "errors": []}
     def search_all_payloads(self, jql, *, fields=None, progress=None):
         self.calls.append((jql, fields))
         if progress: progress(1, 1)
         return [{"fields": {"issuetype": {"name": "Bug"},
                             "project": {"key": "TV"},
-                            "assignee": {"name": "jianfan.ai", "displayName": "Jianfan Ai"},
+                            "reporter": {"name": "jianfan.ai", "displayName": "Jianfan Ai"},
                             "priority": {"name": "P0"}, "resolution": None}}]
 
 

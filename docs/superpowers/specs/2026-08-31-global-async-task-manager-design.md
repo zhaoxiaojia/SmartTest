@@ -77,6 +77,34 @@ qasync coroutine 仍由主事件循环执行，Bridge 将其登记为 manager �
 
 验收条件：同一进程内所有首批迁移任务只由一个 manager 调度；默认总并发最多 16；业务模块不再为这些任务创建独立线程池；根进度不被子进度覆盖；快速子任务不显示，慢子任务仅显示文字状态；取消、失败和授权边界可复现并有测试；既有 Confluence 缓存、Reset、Apply、Review 行为不回归。
 
+## 页面过滤器与卡片查询边界
+
+共享页面过滤器只将已提交的用户条件发布到当前授权会话的 SQLite；Search 不查询公共大集合。各卡片从该 owner 读取条件，按“用户条件 AND 卡片固定边界”独立查询，复用 Core 查询、全局任务 manager、SQLite 快照和可丢弃展示缓存。未勾选条件不额外限制，也不能取消卡片固定边界。Jira 统一使用 Core `compose_jql` 保留 OR 与 ORDER BY，远端验证最终 effective JQL；用户草稿与 effective JQL 分开保存。服务端生成卡片 scope，不信任前端范围、资源 ID 或固定条件。任务、结果和进度按真实会话及卡片隔离；旧任务不能覆盖新快照。GET 只重放 SQLite，不发起远端查询。
+
+Self-Test 固定声明为 `issuetype = Bug AND reporter IN(...) AND "Channel of Reporter" = "Self-Test" AND created >= startOfYear() AND created <= endOfYear()`，账号集合来自人工维护 personnel 中有效 FAE-QA；不增加 assignee、project 或 labels 排除。用户过滤器仅声明用户条件；Core `compose_jql` 是唯一组合入口。校验、执行、SQLite 保存使用同一 effective_jql，其他层不得再次追加或改写。Dashboard 传空用户条件使用同一组合入口。空 QA 名单明确失败，不查询全量。统计只按 reporter/产品线分组计数，不过滤 issue 类型；先按 reporter 的 personnel 归属判断 Wireless，命中直接计入，不限制 Jira 项目；仅非 Wireless 按既有项目映射，未知项目明确分类。WIRELESS_CONNECTION 的 jira_project_keys 为空，不绑定四线项目；JQL 不添加 project 条件。完整返回条数=快照条数=各线条数+明确未映射项目数+缺 reporter 数，卡片显示总数与两项未归类计数。Dashboard 在既有快照表增量保存 effective_jql 与分类计数；旧数据保留，默认空字段不代表新边界已校准，仍由已有 fingerprint 失效机制判断。旧 effective JQL 与当前名单/年度不匹配时不作为有效快照，不自动重新查询。Customer 仍为空占位且不注册查询。Dashboard 只挂载同组件，不增加页面过滤处理。组织架构自动同步已撤销，不在登录或会话恢复时访问其页面或账号查询。
+
+Confluence 通过既有 Core 参数查询 owner 对用户条件和固定参数分别匹配求交集；不先全量再前端过滤。Role workload 当前没有额外固定参数，空边界合法；有效范围与 Projects 列表相同时可精确复用当前会话 SQLite 快照。保留列表、Apply 详情和 Reset 语义，不另建状态 owner。
+
+分页进度复用 gateway 回调；failed、cancelled、重启 interrupted 均为明确终态，保留旧展示。仅无历史结果首次显示 loading，成功零条为 ready 空图。定期刷新机制后续设计，本轮不新增 timer。
+
+### 本轮执行清单
+
+- [x] 发布用户条件与卡片执行解耦，删除公共轮询与公共统计入口。
+- [x] 服务端卡片 allowlist、SQLite/任务 scope 隔离、共享展示缓存按卡片隔离。
+- [x] Core Confluence 参数交集，保持现有 Projects 业务语义。
+- [x] 独立范围、授权重放、终态、分页、旧展示及全层回归验证。
+
+### 本轮 JQL 收敛执行清单
+
+- [x] 固定 Bug/QA reporter/Channel/年度声明，Dashboard 空用户条件复用 Core 唯一组合入口。
+- [x] 同一 effective_jql 校验、执行、快照持久化；既有 Dashboard 快照三字段增量迁移保留旧数据。
+- [x] reporter 纯聚合，不过滤类型；未知项目与缺 reporter 明确计数，卡片与展示缓存同步显示。
+- [x] 同字符串/Task-Epic 边界/查询返回集合与快照计数守恒、迁移回归通过；后端265、前端200、相关 Core/边界检测器单测55通过，lint/build、diff check 通过。计数守恒使用模拟 Jira 与真实 SQLite 集成验证，未重复远端大查询。
+
+## Projects 展示配色
+
+Projects by Product Lines 展示配色由现有共享主题 CSS 独立维护状态、阶段语义变量；移除动态八色槽及旧状态覆盖。状态 NORMAL/WARNING/BLOCK 使用绿/橙/红；阶段1至9使用 Coco 确认颜色，深底白字、浅底深字，两主题一致。现有 Projects 控件仅映射语义，未知值保留中性样式，不改变数据、过滤、排序。
+
 ## 非目标
 
 本次不引入 LLM，不建立跨进程共享任务服务，不修改浏览器端执行模型，不把长期硬件/子进程流强制改为普通 Future，也不更改 Confluence 审查规则或模糊匹配业务逻辑。

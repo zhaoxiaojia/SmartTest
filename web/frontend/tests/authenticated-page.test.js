@@ -19,7 +19,12 @@ it.each(['changing', 'ready'])('shared authenticated page ignores old bootstrap 
       expect(currentPage).not.toBeNull()
       const widget = document.querySelector('[data-page-widget="jira-team-bugs"]')
       expect(widget).not.toBeNull()
-      expect(widget.compareDocumentPosition(currentPage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(widget.querySelector('strong').textContent).toBe('Product Lines Self Test Jiras Statistics')
+      const customer = document.querySelector('[data-page-widget="jira-customer-statistics"]')
+      expect(customer.querySelector('strong').textContent).toBe('Product Lines Customer Jiras Statistics')
+      expect(customer.querySelector('[data-customer-body]').textContent).toBe('')
+      expect(customer.compareDocumentPosition(currentPage) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+      expect(widget.compareDocumentPosition(currentPage) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
       currentPage.querySelector('[name="containsText"]').value = 'Bob current edit'
     } else expect(currentPage).toBeNull()
     finishBootstrap({ authenticated: true, username: 'alice' })
