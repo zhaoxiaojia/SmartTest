@@ -1,3 +1,5 @@
+import { themeToggle } from '../app-shell.js'
+
 export function mount(root) {
   root.innerHTML = `
             <div class="page-header">
@@ -28,10 +30,7 @@ export function mount(root) {
                             <p class="settings-desc">Customize how the dashboard looks</p>
                             <div class="settings-row">
                                 <div class="settings-row-info"><div class="settings-row-label">Theme Mode</div><div class="settings-row-desc">Snow (light) or Carbon (dark)</div></div>
-                                <div class="theme-toggle">
-                                    <button class="theme-btn theme-btn-light active" onclick="setTheme('light')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg></button>
-                                    <button class="theme-btn theme-btn-dark" onclick="setTheme('dark')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
-                                </div>
+                                ${themeToggle()}
                             </div>
                             <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Compact Mode</div><div class="settings-row-desc">Reduce spacing throughout</div></div><label class="toggle"><input type="checkbox" id="compact-mode"><span class="toggle-slider"></span></label></div>
                             <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Show Animations</div><div class="settings-row-desc">Enable smooth transitions</div></div><label class="toggle"><input type="checkbox" id="animations" checked=""><span class="toggle-slider"></span></label></div>
