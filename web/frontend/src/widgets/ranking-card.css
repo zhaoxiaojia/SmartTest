@@ -1,0 +1,284 @@
+.workload-card { margin-bottom: 1.125rem; overflow: hidden; }
+.workload-heading { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem 1rem; }
+.product-line-segments { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .375rem; }
+.product-line-segment { padding: .4rem .7rem; border: 1px solid var(--border-color); border-radius: .45rem; color: var(--text-secondary); background: var(--bg-primary); font-size: .75rem; font-weight: 600; }
+.product-line-segment:hover,.product-line-segment.active { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+.role-segments { display: flex; flex-wrap: wrap; gap: .375rem; }
+.role-segment { padding: .4rem .7rem; border: 1px solid var(--border-color); border-radius: 999px; color: var(--text-secondary); background: var(--bg-primary); font-size: .75rem; font-weight: 600; }
+.role-segment:hover,.role-segment.active { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+/* 排名卡片选项保持单行；放不下时开发人员应缩短文案，不以换行兜底。 */
+.ranking-card-summary { padding: .6875rem 1.125rem; margin: 0; white-space: nowrap; flex-shrink: 0; }
+.segmented-ranking .workload-heading,
+.segmented-ranking .product-line-segments,
+.segmented-ranking .role-segments { flex-wrap: nowrap; }
+.segmented-ranking .role-segments { flex-shrink: 0; }
+.segmented-ranking .product-line-segment,
+.segmented-ranking .role-segment { white-space: nowrap; flex-shrink: 0; }
+.workload-chart-scroll { max-height: min(32rem,60vh); padding: 1rem; overflow-y: auto; }
+.workload-chart-surface { position: relative; width: 100%; }
+.dashboard-widget-body .segmented-ranking { height: 100%; display: flex; flex-direction: column; }
+.dashboard-widget-body .workload-chart-scroll { flex: 1; min-height: 0; }
+/* From Uiverse.io by 00Kubi; scoped to ranking-card product dimensions. */ 
+.segmented-ranking .product-line-segments {
+  position: relative;
+  display: flex;
+  flex-wrap: nowrap;
+  border-radius: 1rem;
+  background: linear-gradient(145deg, var(--bg-surface), var(--bg-primary));
+  box-sizing: border-box;
+  box-shadow:
+    5px 5px 15px rgba(0, 0, 0, 0.15),
+    -5px -5px 15px rgba(255, 255, 255, 0.8);
+  padding: 0.5rem;
+  width: auto;
+  font-size: 14px;
+  gap: 0.5rem;
+}
+
+
+
+
+
+.segmented-ranking .product-line-segment {
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.7rem;
+  border: none;
+  padding: 0.7rem 0.8rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-family: inherit;
+  background: linear-gradient(145deg, var(--bg-primary), var(--bg-surface));
+  box-shadow:
+    3px 3px 6px rgba(0, 0, 0, 0.1),
+    -3px -3px 6px rgba(255, 255, 255, 0.7);
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.segmented-ranking .product-line-segment.active {
+  background: linear-gradient(145deg, var(--accent), var(--accent-hover));
+  color: white;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    inset 2px 2px 5px rgba(0, 0, 0, 0.2),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.1),
+    3px 3px 8px color-mix(in srgb, var(--accent) 30%, transparent);
+  transform: translateY(2px);
+}
+
+/* Hover effect */
+.segmented-ranking .product-line-segment:hover {
+  background: linear-gradient(145deg, var(--bg-surface), var(--bg-primary));
+  transform: translateY(-1px);
+  box-shadow:
+    4px 4px 8px rgba(0, 0, 0, 0.1),
+    -4px -4px 8px rgba(255, 255, 255, 0.8);
+}
+
+.segmented-ranking .product-line-segment.active:hover {
+  transform: translateY(1px);
+}
+
+/* Animation */
+.segmented-ranking .product-line-segment.active {
+  animation: ranking-select 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Particles */
+.segmented-ranking .product-line-segment::before,
+.segmented-ranking .product-line-segment::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segmented-ranking .product-line-segment.active::before,
+.segmented-ranking .product-line-segment.active::after {
+  animation: ranking-particles 0.8s ease-out forwards;
+}
+
+.segmented-ranking .product-line-segment::before {
+  box-shadow: 0 0 6px var(--accent);
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.segmented-ranking .product-line-segment::after {
+  box-shadow: 0 0 8px var(--accent);
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Sparkles */
+.segmented-ranking .product-line-segment::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(
+    circle at var(--x, 50%) var(--y, 50%),
+    color-mix(in srgb, var(--accent) 30%, transparent) 0%,
+    transparent 50%
+  );
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.segmented-ranking .product-line-segment.active::after {
+  opacity: 1;
+}
+
+/* Multiple ranking-particles */
+.segmented-ranking .product-line-segment.active {
+  overflow: visible;
+}
+
+.segmented-ranking .product-line-segment.active::before {
+  box-shadow:
+    0 0 6px var(--accent),
+    10px -10px 0 var(--accent),
+    -10px -10px 0 var(--accent);
+}
+
+.segmented-ranking .product-line-segment.active::after {
+  box-shadow:
+    0 0 8px var(--accent),
+    10px 10px 0 var(--accent),
+    -10px 10px 0 var(--accent);
+}
+
+@keyframes ranking-select {
+  0% {
+    transform: scale(0.95) translateY(2px);
+  }
+  50% {
+    transform: scale(1.05) translateY(-1px);
+  }
+  100% {
+    transform: scale(1) translateY(2px);
+  }
+}
+
+/* Ripple effect */
+.segmented-ranking .product-line-segment::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at var(--x, 50%) var(--y, 50%),
+    rgba(255, 255, 255, 0.5) 0%,
+    transparent 50%
+  );
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.segmented-ranking .product-line-segment.active::before {
+  animation: ranking-ripple 0.8s ease-out;
+}
+
+@keyframes ranking-ripple {
+  0% {
+    opacity: 1;
+    transform: scale(0.2);
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.5);
+  }
+}
+
+/* Glowing border */
+.segmented-ranking .product-line-segment.active {
+  position: relative;
+}
+
+.segmented-ranking .product-line-segment.active::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--accent) 50%, transparent),
+    color-mix(in srgb, var(--accent-hover) 50%, transparent)
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: ranking-border-glow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes ranking-border-glow {
+  0% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+/* From Uiverse.io by Xtenso; option-count independent sliding pill. */
+.segmented-ranking .role-segments {
+  border: 2px solid var(--accent);
+  border-radius: 30px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 50px;
+  gap: 0;
+  padding: 4px;
+  overflow: hidden;
+}
+.segmented-ranking .role-segments::before {
+  content: "";
+  position: absolute;
+  width: var(--segment-width, 0px);
+  height: 38px;
+  background-color: var(--accent);
+  top: 4px;
+  left: var(--segment-left, 4px);
+  border-radius: 30px;
+  transition: left .4s cubic-bezier(.175,.885,.32,1.275), width .4s cubic-bezier(.175,.885,.32,1.275);
+}
+.segmented-ranking .role-segment {
+  flex: 0 0 auto;
+  width: max-content;
+  text-align: center;
+  cursor: pointer;
+  border: none;
+  border-radius: 30px;
+  position: relative;
+  overflow: visible;
+  z-index: 1;
+  transition: color .5s;
+  font-weight: 500;
+  font-size: .75rem;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.segmented-ranking .role-segment:hover { background: transparent; }
+.segmented-ranking .role-segment.active { background: transparent; color: #FFFFFF; font-weight: bold; }
+
+@media (prefers-reduced-motion: reduce) {
+  .segmented-ranking .role-segments::before,
+  .segmented-ranking .role-segment { transition: none; }
+  .segmented-ranking .product-line-segment,
+  .segmented-ranking .product-line-segment::before,
+  .segmented-ranking .product-line-segment::after { animation: none !important; transition: none; }
+}

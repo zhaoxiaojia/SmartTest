@@ -5,6 +5,8 @@ https://uiverse.io/EddyBel/slimy-penguin-36
 
 MIT License
 
+排名卡片的产品线选项外观与动画改编自 Uiverse.io by 00Kubi；模式切换底板改编自 Uiverse.io by Xtenso。原作者署名保留在 `ranking-card.css` 中，采用本站 UI 元素的 MIT 许可。
+
 Copyright - 2026 EddyBel (Eduardo Rangel)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:

@@ -1,3 +1,5 @@
+import './ranking-card.css'
+
 function element(tag, className, text) {
   const value = document.createElement(tag)
   if (className) value.className = className
@@ -5,20 +7,48 @@ function element(tag, className, text) {
   return value
 }
 
-export function createSegmentedRanking({ chartFactory } = {}) {
+export function createRankingCard({ chartFactory } = {}) {
   let root, chart, config
   let activeProductLine = ''
   let activeMode = ''
+  const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
+    if (root) positionModeBackground(root.querySelector('[data-mode-segments]'))
+  }) : null
 
   function segments(target, options, active, setActive, className) {
-    target.replaceChildren()
-    for (const option of options) {
-      const button = element('button', `${className}${option.value === active ? ' active' : ''}`, option.label)
-      button.type = 'button'
-      button.setAttribute('aria-pressed', String(option.value === active))
-      button.addEventListener('click', () => { setActive(option.value); render() })
-      target.append(button)
+    const buttons = [...target.children]
+    if (buttons.length !== options.length || buttons.some((button, index) => button.dataset.value !== String(options[index].value))) {
+      target.replaceChildren()
+      for (const option of options) {
+        const button = element('button', className, option.label)
+        button.type = 'button'
+        button.dataset.value = String(option.value)
+        button.addEventListener('click', () => {
+          setActive(option.value)
+          selectSegment(target, option.value)
+          renderChart()
+        })
+        target.append(button)
+      }
     }
+    ;[...target.children].forEach((button, index) => { button.textContent = options[index].label })
+    selectSegment(target, active)
+  }
+
+  function selectSegment(target, active) {
+    for (const button of target.children) {
+      const selected = button.dataset.value === String(active)
+      button.classList.toggle('active', selected)
+      button.setAttribute('aria-pressed', String(selected))
+    }
+    if (target.matches('[data-mode-segments]')) positionModeBackground(target)
+  }
+
+  function positionModeBackground(target) {
+    const selected = target.querySelector('.active')
+    if (!selected) return
+    target.style.setProperty('--segment-left', `${selected.offsetLeft}px`)
+    target.style.setProperty('--segment-width', `${selected.offsetWidth}px`)
   }
 
   function render() {
@@ -28,6 +58,10 @@ export function createSegmentedRanking({ chartFactory } = {}) {
     if (!modes.some(item => item.value === activeMode)) activeMode = modes[0]?.value ?? ''
     segments(root.querySelector('[data-product-line-segments]'), products, activeProductLine, value => { activeProductLine = value }, 'product-line-segment')
     segments(root.querySelector('[data-mode-segments]'), modes, activeMode, value => { activeMode = value }, 'role-segment')
+    renderChart()
+  }
+
+  function renderChart() {
     chart?.destroy()
     chart = null
     const rows = (config.rowsFor?.(activeProductLine, activeMode) ?? [])
@@ -61,8 +95,9 @@ export function createSegmentedRanking({ chartFactory } = {}) {
       root = target; config = value
       root.innerHTML = `<div class="segmented-ranking"><header class="report-preview-toolbar"><div class="workload-heading">${config.headingHtml || ''}<div class="product-line-segments" data-product-line-segments></div></div><div class="role-segments" data-mode-segments></div></header><div class="workload-chart-scroll"><div class="workload-chart-surface"><canvas data-ranked-chart></canvas><div class="product-space-empty" data-ranked-empty data-workload-empty hidden></div></div></div></div>`
       render()
+      resizeObserver?.observe(root.querySelector('[data-mode-segments]'))
     },
     update(value) { config = value; if (root) render() },
-    destroy() { chart?.destroy(); chart = null; root?.replaceChildren(); root = null },
+    destroy() { resizeObserver?.disconnect(); chart?.destroy(); chart = null; root?.replaceChildren(); root = null },
   }
 }

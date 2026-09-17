@@ -1,4 +1,4 @@
-import { createSegmentedRanking } from './segmented-ranking.js'
+import { createRankingCard } from './ranking-card.js'
 
 function readableName(person) {
   const name = String(person?.name ?? '').trim()
@@ -9,7 +9,7 @@ function readableName(person) {
 export const ROLE_WORKLOAD_LAYOUT = Object.freeze({ defaultW: 24, defaultH: 21 })
 
 export function createRoleWorkloadWidget({ chartFactory } = {}) {
-  const ranking = createSegmentedRanking({ chartFactory })
+  const ranking = createRankingCard({ chartFactory })
   let data = { ownerHierarchy: [], productSpaces: [] }
 
   function presentation(config) {

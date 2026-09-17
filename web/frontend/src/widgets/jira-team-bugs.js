@@ -1,4 +1,4 @@
-import { createSegmentedRanking } from './segmented-ranking.js'
+import { createRankingCard } from './ranking-card.js'
 import { createDisposableDisplayCache } from '../disposable-display.js'
 
 export const JIRA_TEAM_BUG_LAYOUT = Object.freeze({ defaultW: 24, defaultH: 16 })
@@ -21,7 +21,7 @@ export function createJiraTeamBugWidget({ pollDelay = 800, chartFactory } = {}) 
   let displayCache
   let api
   let generation = 0
-  const ranking = createSegmentedRanking({ chartFactory })
+  const ranking = createRankingCard({ chartFactory })
 
   function message(text, kind = '') {
     if (!displayed) root.replaceChildren()
@@ -79,9 +79,9 @@ export function createJiraTeamBugWidget({ pollDelay = 800, chartFactory } = {}) 
     let summary = root.querySelector('[data-team-bug-summary]')
     if (!summary) {
       summary = document.createElement('p')
-      summary.className = 'card-subtitle'
+      summary.className = 'card-subtitle ranking-card-summary'
       summary.dataset.teamBugSummary = ''
-      root.querySelector('.workload-heading').prepend(summary)
+      root.querySelector('.report-preview-toolbar').before(summary)
     }
     summary.textContent = `Total: ${Number(payload.teamTotal || 0)} · Unmapped project: ${display.unmappedCount} · Missing reporter: ${display.unassignedCount}`
     displayed = true
