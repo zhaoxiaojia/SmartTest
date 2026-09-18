@@ -21,8 +21,11 @@ export function createAuthShell({ root = document, desktopHost, mobileHost, api,
       avatar.textContent = (label.trim()[0] || '?').toUpperCase()
     }
     const name = document.createElement('span'); name.dataset.userName = ''; name.textContent = label
-    const logout = document.createElement('button'); logout.className = 'user-logout'; logout.dataset.logout = ''; logout.type = 'button'; logout.hidden = true; logout.textContent = 'Sign out'
-    trigger.append(avatar, name); menu.append(trigger, logout)
+    const dropdown = document.createElement('div'); dropdown.className = 'user-dropdown'; dropdown.dataset.userDropdown = ''; dropdown.hidden = true
+    const settings = document.createElement('a'); settings.href = '/settings.html'; settings.textContent = 'Settings'
+    const logout = document.createElement('button'); logout.className = 'user-logout'; logout.dataset.logout = ''; logout.type = 'button'; logout.textContent = 'Sign out'
+    dropdown.append(settings, logout)
+    trigger.append(avatar, name); menu.append(trigger, dropdown)
     return menu
   }
   const render = () => {
@@ -36,7 +39,7 @@ export function createAuthShell({ root = document, desktopHost, mobileHost, api,
   }
   root.addEventListener('click', async event => {
     const trigger = event.target.closest('[data-user-trigger]')
-    if (trigger) { const logout = trigger.parentElement.querySelector('[data-logout]'); logout.hidden = !logout.hidden }
+    if (trigger) { const dropdown = trigger.parentElement.querySelector('[data-user-dropdown]'); dropdown.hidden = !dropdown.hidden }
     if (event.target.closest('[data-logout]') && api) { await api.logout(); state = { authenticated: false }; render() }
   })
   async function start() {

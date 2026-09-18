@@ -357,6 +357,10 @@ input, select, textarea {
 }
 
 .nav-link {
+    /* From Uiverse.io by gustavofusco; adapted to the shared navigation. */
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
     display: flex;
     align-items: center;
     gap: 0.375rem;
@@ -365,12 +369,14 @@ input, select, textarea {
     font-size: 0.9375rem;
     font-weight: 500;
     border-radius: 6px;
-    transition: var(--transition);
+    letter-spacing: 2px;
+    white-space: nowrap;
+    transition: color .3s ease, letter-spacing .3s ease;
 }
 
 .nav-link:hover {
     color: var(--text-primary);
-    background: var(--bg-surface);
+    letter-spacing: 6px;
 }
 
 .nav-link.active {
@@ -382,6 +388,47 @@ input, select, textarea {
     width: 18px;
     height: 18px;
     opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.nav-link .nav-link-text { display: flex; align-items: center; gap: .375rem; }
+.nav-link::before, .nav-link::after {
+    content: ''; position: absolute; height: 2px; border-radius: 2px;
+    background: var(--accent); transition: width .5s ease;
+}
+.nav-link::before { top: 0; left: 14px; width: calc(100% - 38px); }
+.nav-link::after { top: 0; right: 14px; width: 8px; }
+.nav-link:hover::before { width: 8px; }
+.nav-link:hover::after { width: calc(100% - 38px); }
+.nav-link .nav-link-drow {
+    position: absolute; z-index: -1; width: 2rem; height: 0;
+    transform-origin: 1rem 1rem; background: var(--accent);
+    border-radius: 1rem; opacity: .22;
+}
+.nav-link .nav-link-drow1 { top: -1rem; left: 20%; transform: scale(.45) rotate(30deg); }
+.nav-link .nav-link-drow2 { top: 75%; left: 45%; transform: scale(.45) rotate(-127deg); }
+.nav-link .nav-link-drow::before, .nav-link .nav-link-drow::after {
+    content: ''; position: absolute; width: 0; height: 2rem;
+    border-radius: 1rem; transform-origin: 1rem 1rem; background: var(--accent);
+}
+.nav-link .nav-link-drow1::before { bottom: 0; left: 0; transform: rotate(-60deg); }
+.nav-link .nav-link-drow1::after { top: -10px; bottom: 26px; left: -40px; transform: rotate(-262deg); }
+.nav-link .nav-link-drow2::before { bottom: 0; left: 0; transform: rotate(-146deg); }
+.nav-link:hover .nav-link-drow1 { animation: nav-drow1 .06s ease-in forwards; }
+.nav-link:hover .nav-link-drow1::before { animation: nav-drow2 .08s linear .06s forwards; }
+.nav-link:hover .nav-link-drow1::after { animation: nav-drow3 .03s linear .14s forwards; }
+.nav-link:hover .nav-link-drow2 { animation: nav-drow4 .06s linear .2s forwards; }
+.nav-link:hover .nav-link-drow2::before { animation: nav-drow3 .03s linear .26s forwards; }
+.nav-link:hover .nav-link-drow2::after { animation: nav-drow5 .06s linear .32s forwards; }
+@keyframes nav-drow1 { from { height: 0; } to { height: 100px; } }
+@keyframes nav-drow2 { 0% { width: 0; opacity: 0; } 10% { opacity: 0; } 11% { opacity: 1; } 100% { height: 120px; } }
+@keyframes nav-drow3 { from { height: 0; } to { height: 80px; } }
+@keyframes nav-drow4 { from { height: 0; } to { height: 120px; } }
+@keyframes nav-drow5 { from { height: 0; } to { height: 124px; } }
+@media (prefers-reduced-motion: reduce) {
+    .nav-link, .nav-link::before, .nav-link::after { transition: none; }
+    .nav-link:hover .nav-link-drow, .nav-link:hover .nav-link-drow::before,
+    .nav-link:hover .nav-link-drow::after { animation: none; }
 }
 
 .dropdown-arrow {
@@ -1700,6 +1747,46 @@ tr:hover td {
     padding: 0.875rem;
 }
 
+/* From Uiverse.io by Gaurav-WebDev; scoped to the login submit button. */
+.login-form .login-sign-in {
+    height: 50px;
+    position: relative;
+    isolation: isolate;
+    background-color: transparent;
+    cursor: pointer;
+    border: 2px solid var(--accent);
+    overflow: hidden;
+    border-radius: 30px;
+    color: var(--accent);
+    transition: all .5s ease-in-out;
+}
+.login-sign-in-text { position: relative; z-index: 1; font-weight: 800; letter-spacing: 4px; }
+.login-sign-in::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    transition: all .5s ease-in-out;
+    background-color: var(--accent);
+    border-radius: 30px;
+    visibility: hidden;
+    height: 10px;
+    width: 10px;
+    z-index: -1;
+}
+.login-form .login-sign-in:hover,
+.login-form .login-sign-in:focus-visible {
+    box-shadow: 1px 1px 200px var(--accent);
+    color: #FFFFFF;
+    background-color: transparent;
+    border-color: transparent;
+}
+.login-sign-in:hover::after,
+.login-sign-in:focus-visible::after { visibility: visible; transform: scale(100) translateX(2px); }
+@media (prefers-reduced-motion: reduce) {
+    .login-form .login-sign-in, .login-sign-in::after { transition: none; }
+}
+
 .login-divider {
     display: flex;
     align-items: center;
@@ -2497,5 +2584,7 @@ tr:hover td {
 .user-avatar { width: 34px; height: 34px; border-radius: 999px; display: inline-grid; place-items: center; overflow: hidden; background: var(--primary); color: white; font-weight: 700; }
 .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .user-menu { position: relative; }
-.user-logout { position: absolute; right: 0; top: calc(100% + .4rem); z-index: 30; min-width: 110px; padding: .65rem .85rem; border: 1px solid var(--border-color); border-radius: .65rem; background: var(--card-bg); color: var(--text-primary); box-shadow: var(--shadow-lg); cursor: pointer; }
+.user-dropdown { position: absolute; right: 0; top: calc(100% + .4rem); z-index: 30; min-width: 110px; padding: .25rem; border: 1px solid var(--border-color); border-radius: .65rem; background: var(--bg-primary); box-shadow: var(--shadow-lg); }
+.user-dropdown > a, .user-dropdown > button { display: block; width: 100%; padding: .65rem .85rem; border: 0; border-radius: .4rem; background: transparent; color: var(--text-primary); font: inherit; text-align: left; white-space: nowrap; cursor: pointer; }
+.user-dropdown > a:hover, .user-dropdown > button:hover { background: var(--bg-surface); }
 @media (max-width: 900px) { .user-entry { display: none; } [data-user-mobile] { margin-bottom: 1rem; } }

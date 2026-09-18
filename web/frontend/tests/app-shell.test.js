@@ -8,7 +8,7 @@ describe('AppShell', () => {
 
   it('places Test Management between Projects and Jira', () => {
     expect(navigation.map(item => item.title)).toEqual([
-      'Dashboard', 'Projects', 'Test Management', 'Jira', 'Tools', 'Wi-Fi Data', 'Settings',
+      'Dashboard', 'Projects', 'Test Management', 'Jira', 'Tools', 'Wi-Fi Data',
     ])
     const shell = createAppShell({ pageKey: 'test-management' })
     expect(shell.contentRoot.closest('[data-app-shell]').querySelector('.nav-link.active').textContent)
@@ -24,6 +24,21 @@ describe('AppShell', () => {
     expect(shell.desktopHost).not.toBeNull()
     expect(shell.mobileHost).not.toBeNull()
     expect(shell.contentRoot.matches('main.main-content')).toBe(true)
+  })
+
+  it('keeps animated navigation routes and labels accessible without exposing decoration', () => {
+    createAppShell({ pageKey: 'jira' })
+    for (const item of navigation) {
+      const link = document.querySelector(`.nav-menu a[data-page-key="${item.pageKey}"]`)
+      expect(link.getAttribute('href')).toBe(item.url)
+      expect(link.textContent.trim()).toBe(item.title)
+      expect(link.querySelector('svg').getAttribute('aria-hidden')).toBe('true')
+      expect(link.querySelector('.nav-link-text').textContent.trim()).toBe(item.title)
+      const decorations = link.querySelectorAll('.nav-link-drow')
+      expect(decorations).toHaveLength(2)
+      expect([...decorations].every(node => node.getAttribute('aria-hidden') === 'true' && !node.textContent)).toBe(true)
+    }
+    expect(document.querySelectorAll('.mobile-menu-nav .nav-link-drow')).toHaveLength(0)
   })
 
   it.each([
