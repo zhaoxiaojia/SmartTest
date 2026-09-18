@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 import json
 import urllib.error
 import urllib.request
-from collections.abc import Mapping
+from urllib.parse import urlsplit, urlunsplit
 
 from .core import (
     AIChatMessage,
@@ -23,6 +24,15 @@ class AIChatClient:
     def __init__(self, config: AIClientConfig, *, opener=None):
         self._config = config
         self._opener = opener or urllib.request.urlopen
+
+    @property
+    def request_diagnostics(self):
+        parsed = urlsplit(self._config.base_url)
+        host = parsed.hostname or ''
+        if parsed.port:
+            host += ':' + str(parsed.port)
+        return {'model': self._config.model, 'timeout_seconds': self._config.timeout,
+                'endpoint': urlunsplit((parsed.scheme, host, parsed.path.rstrip('/') + '/chat/completions', '', ''))}
 
     def chat_completion(
         self,

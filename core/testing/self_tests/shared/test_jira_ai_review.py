@@ -24,6 +24,41 @@ SW info: build 1
 """
 
 
+def test_prompt_preserves_natural_semantics_and_explicit_json_contract():
+    from core.jira.audit.ai_review import _prompt
+    from core.jira.audit.rules import audit_issue
+    result = audit_issue(issue(components=False))
+    prompt = _prompt(result)
+    assert '不要求信息必须出现在初筛指定位置' in prompt
+    assert 'issue_key 必须与输入相同' in prompt
+    example = json.loads(prompt.split('JSON 输出示例：\n')[1].split('\n输入：\n')[0])
+    assert example['issue_key'] == result.key
+    assert {item['rule_id'] for item in example['decisions']} == {item.rule_id for item in result.violations}
+    assert all(set(item) == {'rule_id', 'result', 'reason', 'guidance'} for item in example['decisions'])
+
+
+def test_ai_phase_logs_http_failure_without_credentials_or_description(monkeypatch):
+    import urllib.error
+    from core.ai.client import AIChatClient
+    from core.ai.core import AIClientConfig
+    from core.jira.audit.rules import audit_issue
+    from core.jira.audit.ai_review import review_issue
+    events = []
+    monkeypatch.setattr('core.jira.audit.ai_review.smart_log', lambda message, **fields: events.append(fields))
+    def fail(request, **kwargs):
+        raise urllib.error.HTTPError(request.full_url, 401, 'secret-http-message', {}, None)
+    client = AIChatClient(AIClientConfig('https://api.deepseek.com', 'deepseek-chat', 'secret-api-key'), opener=fail)
+    reviewed = review_issue(audit_issue(issue(components=False)), client)
+    assert reviewed.ai_review_status is AIReviewStatus.FAILED
+    assert [event['extra']['stage'] for event in events] == ['request_started', 'request_finished']
+    end = events[-1]['extra']
+    assert end['issue_key'] == 'SH-1' and end['http_status'] == 401
+    assert end['model'] == 'deepseek-chat' and end['category'] == 'transport'
+    assert end['duration_ms'] >= 0
+    assert 'secret-api-key' not in str(events) and 'secret-http-message' not in str(events)
+    assert GOOD_DESCRIPTION not in str(events)
+
+
 def issue(key='SH-1', *, description=GOOD_DESCRIPTION, summary='[ACME][T7][V1][Video]: freezes', components=True):
     return Issue(
         IssueIdentity(key, key, f'https://jira.example/browse/{key}'), summary,
@@ -70,7 +105,7 @@ class ConcurrentAIClient:
         self.completed = []
 
     def chat_completion(self, messages, **_options):
-        payload = json.loads(messages[-1].content.split('\n', 1)[1])
+        payload = json.loads(messages[-1].content.split('\n输入：\n')[1])
         with self.lock:
             self.active += 1
             self.calls += 1
@@ -92,7 +127,7 @@ def test_every_initial_violation_and_complete_description_are_sent_for_review():
     }
     client = AIClient([response('SH-1', [(rule_id, 'FAIL', 'still invalid', '') for rule_id in initial_ids])])
     result = run([issue(description=description, summary='bad', components=False)], lambda: client).issues[0]
-    payload = json.loads(client.prompts[0].split('\n', 1)[1])
+    payload = json.loads(client.prompts[0].split('\n输入：\n')[1])
     assert {item['rule_id'] for item in payload['violations']} == initial_ids
     assert payload['description'] == description
     assert {item.rule_id for item in result.violations} == initial_ids

@@ -5,11 +5,13 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
 import json
+from time import perf_counter
 
 from core.ai import (
     AIChatMessage, AIConfigurationError, AIResponseError, AITransportError,
     create_chat_client,
 )
+from core.logging import current_platform, smart_log
 
 from .models import AIReviewStatus, AuditViolation, IssueAuditResult
 from .rules import active_rules
@@ -50,6 +52,13 @@ def review_failed_issues(results, *, client_factory=None, cancellation, progress
 
 
 def review_issue(result: IssueAuditResult, client) -> IssueAuditResult:
+    started = perf_counter()
+    diagnostics = getattr(client, 'request_diagnostics', {})
+    fields = {'issue_key': result.key, **diagnostics}
+    smart_log('Jira AI review request', platform=current_platform(), domain='audit',
+              source='jira_ai_review', emit_runtime_event=False,
+              extra={**fields, 'stage': 'request_started'})
+    http_status, detail = None, ''
     try:
         response = client.chat_completion(
             [
@@ -58,24 +67,46 @@ def review_issue(result: IssueAuditResult, client) -> IssueAuditResult:
             ],
             response_format={"type": "json_object"}, temperature=0, max_tokens=2400,
         )
+        try:
+            returned = json.loads(response.content)
+            key_present = isinstance(returned, dict) and 'issue_key' in returned
+            key_matches = key_present and returned['issue_key'] == result.key
+        except (TypeError, ValueError):
+            key_present, key_matches = False, False
+        fields.update(returned_issue_key_present=key_present, returned_issue_key_matches=bool(key_matches))
         decisions = _parse_response(
             response.content, issue_key=result.key,
             requested_rule_ids={item.rule_id for item in result.violations},
         )
+        reviewed = _merge(result, decisions)
     except AIConfigurationError:
-        return _review_failure(result, AIReviewStatus.UNCONFIGURED, "configuration")
+        reviewed = _review_failure(result, AIReviewStatus.UNCONFIGURED, "configuration")
     except TimeoutError:
-        return _review_failure(result, AIReviewStatus.FAILED, "timeout")
+        reviewed = _review_failure(result, AIReviewStatus.FAILED, "timeout")
     except AITransportError as error:
         category = "timeout" if error.category == "timeout" else "transport"
-        return _review_failure(result, AIReviewStatus.FAILED, category)
+        http_status = error.status_code
+        detail = error.category
+        reviewed = _review_failure(result, AIReviewStatus.FAILED, category)
     except AIResponseError:
-        return _review_failure(result, AIReviewStatus.FAILED, "invalid_response")
-    except (TypeError, ValueError):
-        return _review_failure(result, AIReviewStatus.FAILED, "invalid_response")
+        detail = 'response_structure'
+        reviewed = _review_failure(result, AIReviewStatus.FAILED, "invalid_response")
+    except (TypeError, ValueError) as error:
+        detail = {'invalid AI issue key': 'issue_key_mismatch',
+                  'invalid AI rule decision': 'rule_id_mismatch',
+                  'incomplete AI decisions': 'missing_rule_decisions',
+                  'invalid AI JSON': 'invalid_json'}.get(str(error), 'response_structure')
+        reviewed = _review_failure(result, AIReviewStatus.FAILED, "invalid_response")
     except Exception:
-        return _review_failure(result, AIReviewStatus.FAILED, "unexpected")
-    return _merge(result, decisions)
+        reviewed = _review_failure(result, AIReviewStatus.FAILED, "unexpected")
+    smart_log('Jira AI review request finished', platform=current_platform(), domain='audit',
+              source='jira_ai_review', emit_runtime_event=False,
+              extra={**fields, 'stage': 'request_finished',
+                     'duration_ms': round((perf_counter() - started) * 1000, 3),
+                     'status': reviewed.ai_review_status.value, 'category': reviewed.ai_failure_category or '',
+                     'failure_detail': detail, 'http_status': http_status,
+                     'passed_rule_count': reviewed.ai_passed_count, 'failed_rule_count': reviewed.ai_failed_count})
+    return reviewed
 
 
 def _prompt(result):
@@ -96,9 +127,17 @@ def _prompt(result):
         ],
     }
     return (
-        "复核脚本判定的全部 Jira 违规。只根据完整原文判断对应规则是否实际满足；"
-        "不得新增规则。decisions 必须为每条输入违规各返回一次，result 只能是 PASS 或 FAIL；"
-        "FAIL 必须给出非空 reason，guidance 可为空。\n"
+        "复核输入的全部 Jira 违规，按完整自然语义判断，不新增任何规则。"
+        "人类能够清楚理解且语义满足规范时判定 PASS；确实缺少必需信息时判定 FAIL。"
+        "应结合全部自然语言判断，不要求信息必须出现在初筛指定位置；"
+        "只要 Jira 整体已经明确表达所需信息就判定 PASS。"
+        "返回一个 JSON 对象，issue_key 必须与输入相同；decisions 必须为每个输入规则"
+        "返回且只返回一次。每项包含 rule_id、result（PASS 或 FAIL）、reason 和 guidance；"
+        "FAIL 必须提供非空 reason，guidance 可为空。\nJSON 输出示例：\n"
+        + json.dumps({'issue_key': result.key, 'decisions': [
+            {'rule_id': item.rule_id, 'result': 'PASS', 'reason': '', 'guidance': ''}
+            for item in result.violations]}, ensure_ascii=False)
+        + '\n输入：\n'
         + json.dumps(payload, ensure_ascii=False)
     )
 
