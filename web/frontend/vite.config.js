@@ -1,11 +1,17 @@
 import { defineConfig } from 'vite'
 import { resolve } from 'node:path'
 import { WEB_BRAND_NAME, WEB_BRAND_TOKEN } from './src/brand.js'
+import { initializeTheme } from './src/theme.js'
 
 export default defineConfig({
   plugins: [{
     name: 'smarttest-web-brand',
     transformIndexHtml: html => html.replaceAll(WEB_BRAND_TOKEN, WEB_BRAND_NAME)
+  }, {
+    name: 'smarttest-theme-first-paint',
+    transformIndexHtml: { order: 'pre', handler: () => [{
+      tag: 'script', children: `(${initializeTheme.toString()})()`, injectTo: 'head-pre',
+    }] },
   }],
   build: {
     rollupOptions: {

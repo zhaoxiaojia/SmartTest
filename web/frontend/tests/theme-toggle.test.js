@@ -3,6 +3,21 @@ import { expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { mount } from '../src/pages/settings.js'
+import { createAuthApi } from '../src/api.js'
+import { initializeTheme } from '../src/theme.js'
+
+it('clears the first-paint marker only after successful login or logout, not session reads', async () => {
+  initializeTheme()
+  const api = createAuthApi({ fetchImpl: async () => ({ ok: true, json: async () => ({}) }) })
+  globalThis.SmartTestTheme.apply('dark')
+  await api.session()
+  expect(localStorage.getItem('smarttest:theme')).toBe('dark')
+  await api.login('bob', 'secret')
+  expect(localStorage.getItem('smarttest:theme')).toBeNull()
+  globalThis.SmartTestTheme.apply('dark')
+  await api.logout()
+  expect(localStorage.getItem('smarttest:theme')).toBeNull()
+})
 
 it('replays dark mode and synchronizes shell and settings switches through the existing theme preference', async () => {
   document.body.innerHTML = '<div data-app-shell data-page-key="settings"></div>'
@@ -22,8 +37,12 @@ it('replays dark mode and synchronizes shell and settings switches through the e
   await vi.waitFor(() => expect([...document.querySelectorAll('.theme-toggle input')].every(input => input.checked)).toBe(true))
   expect(document.querySelector('.theme-toggle input').getAttribute('aria-label')).toBe('Dark theme')
   document.querySelector('.theme-toggle input').click()
+  expect(localStorage.getItem('smarttest:theme')).toBe('light')
   await vi.waitFor(() => expect(writes).toContainEqual({ items: { theme: 'light' }, schemaVersion: 1 }))
   expect([...document.querySelectorAll('.theme-toggle input')].every(input => !input.checked)).toBe(true)
   expect(document.documentElement.classList.contains('dark-theme')).toBe(false)
+  window.dispatchEvent(new Event('auth:changed'))
+  expect(localStorage.getItem('smarttest:theme')).toBeNull()
+  await vi.waitFor(() => expect(localStorage.getItem('smarttest:theme')).toBe('dark'))
   vi.unstubAllGlobals()
 })

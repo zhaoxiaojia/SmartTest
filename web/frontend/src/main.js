@@ -3,6 +3,9 @@ import { createAuthShell } from './auth-shell.js'
 import { createPreferenceStore } from './preference-store.js'
 import { createAppShell } from './app-shell.js'
 import { clearDisposableDisplayState } from './disposable-display.js'
+import { initializeTheme } from './theme.js'
+
+initializeTheme()
 
 export let preferencesReady = Promise.resolve()
 
@@ -13,8 +16,7 @@ async function startStaticShell() {
   const { desktopHost, mobileHost } = createAppShell({ pageKey, root: host })
   let session
     const applyTheme = theme => {
-      const dark = theme === 'dark'; document.documentElement.classList.toggle('dark-theme', dark); document.body.classList.toggle('dark-theme', dark)
-      for (const input of document.querySelectorAll('.theme-toggle input')) input.checked = dark
+      globalThis.SmartTestTheme.apply(theme)
     }
     document.body.addEventListener('preference:restored', event => { if (event.target.dataset.preferenceKey === 'theme') applyTheme(event.detail.value) })
     document.body.addEventListener('click', event => {
@@ -28,6 +30,7 @@ async function startStaticShell() {
       onChanging() {
         preferences?.destroy()
         clearDisposableDisplayState()
+        globalThis.SmartTestTheme.clear()
         window.dispatchEvent(new Event('session:changing'))
       },
       async onSession(session) {

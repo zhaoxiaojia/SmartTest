@@ -6,13 +6,7 @@ function initTheme() {
 }
 
 function setTheme(theme) {
-    if (theme === 'dark') {
-        document.documentElement.classList.add('dark-theme');
-        document.body.classList.add('dark-theme');
-    } else {
-        document.documentElement.classList.remove('dark-theme');
-        document.body.classList.remove('dark-theme');
-    }
+    globalThis.SmartTestTheme.apply(theme);
     updateThemeButtons(theme);
 }
 

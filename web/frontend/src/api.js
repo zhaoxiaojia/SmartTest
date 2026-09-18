@@ -15,6 +15,7 @@ export function createAuthApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' }
   async function change(path, options) {
     const result = await request(path, options)
     if (globalThis.window) {
+      globalThis.SmartTestTheme?.clear()
       window.localStorage.setItem('smarttest:identity-change', identityChangeMarker())
       window.dispatchEvent(new Event('auth:changed'))
     }
