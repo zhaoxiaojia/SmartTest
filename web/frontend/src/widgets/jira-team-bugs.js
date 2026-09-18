@@ -105,7 +105,7 @@ export function createJiraTeamBugWidget({ pollDelay = 800, chartFactory } = {}) 
     mount(target, config = {}) {
       root = target; stopped = false
       displayed = false
-      displayCache = createDisposableDisplayCache(config.displayScope || 'jiraSelfTest', config.account, config.cardKey)
+      displayCache = createDisposableDisplayCache('jiraSelfTest', config.account)
       const cached = displayCache.read()
       if (cached?.productLines) draw(cached)
       else message('Loading Jira bugs…')

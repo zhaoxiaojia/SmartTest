@@ -28,9 +28,6 @@ from .jira.issue_repository import JiraIssueRepository
 from .jira.analytics_repository import JiraAnalyticsRepository
 from .jira.analytics_service import JiraAnalyticsService
 from .jira.analytics_tasks import JIRA_ANALYTICS_TASKS
-from .jira.team_bug_dashboard import (
-    JiraTeamBugDashboardRepository, JiraTeamBugDashboardService, JiraTeamBugTasks,
-)
 from core.jira.services.filter_service import JiraFilterService
 from .filters import WifiFilters
 from .service import WifiDatabaseQueries
@@ -86,11 +83,6 @@ def default_jira_filter_owner(username: str, password: str):
     return JiraFilterService(gateway), gateway
 
 
-def default_jira_team_bug_gateway(username: str, password: str):
-    base_url = os.getenv("SMARTTEST_JIRA_BASE_URL", "https://jira.amlogic.com")
-    return JiraGateway(base_url, username, password)
-
-
 def default_confluence_audit_owner(username: str, password: str):
     from .audit.confluence_adapter import WebConfluenceAuditOwner
     return WebConfluenceAuditOwner.from_credentials(username, password)
@@ -105,8 +97,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                download_service=DownloadArtifactService,
                jira_audit_owner=default_jira_audit_owner,
                confluence_audit_owner=default_confluence_audit_owner,
-               jira_filter_owner=default_jira_filter_owner,
-               jira_team_bug_gateway=default_jira_team_bug_gateway) -> FastAPI:
+               jira_filter_owner=default_jira_filter_owner) -> FastAPI:
     auth = authenticator()
     sessions = session_store()
     cache_database = WebDatabase(sessions.path)
@@ -116,11 +107,8 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     jira_filters = JiraFilterSnapshotRepository(cache_database)
     jira_analytics = JiraAnalyticsRepository(cache_database)
     jira_analytics.interrupt_pending()
-    jira_team_bugs = JiraTeamBugDashboardRepository(cache_database)
-    jira_team_bug_tasks = JiraTeamBugTasks()
-    jira_team_bug_service = JiraTeamBugDashboardService(
-        jira_team_bugs, jira_team_bug_gateway, jira_team_bug_tasks,
-    )
+    from core.jira.services.team_bug_service import load_fae_qa_roster
+    jira_analytics.migrate_self_test(load_fae_qa_roster())
     releases = release_query_owner(cache_database)
     test_suites = TestSuiteRepository(cache_database)
     audits = audit_registry()
@@ -139,7 +127,6 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
 
     app = FastAPI(title="SmartTest Wi-Fi Database", docs_url=None, redoc_url=None,
                   openapi_url=None, lifespan=lifespan)
-    app.state.jira_team_bug_tasks = jira_team_bug_tasks
 
     def set_session_cookie(request: Request, response: Response, token: str) -> None:
         secure = request.url.scheme.lower() == "https"
@@ -343,8 +330,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         downloads.clear_session(audit_session(request))
         jira_analytics.delete_account(value.username)
         sessions.delete_all(value.username)
-        jira_team_bug_tasks.clear_account(value.username)
-        jira_team_bugs.delete_account(value.username)
+        JIRA_ANALYTICS_TASKS.clear_session(audit_session(request))
         request.state.renew_session_cookie = False
         clear_session_cookie(request, response)
         return {"authenticated": False}
@@ -488,19 +474,6 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         if result.get("currentUser"):
             result["currentUser"] = (username,)
         return result
-
-    @app.get("/api/dashboard/jira-team-bugs")
-    def dashboard_jira_team_bugs(value=Depends(authenticated_session)):
-        try:
-            def on_error(error):
-                if remote_credentials_rejected(error):
-                    jira_team_bug_tasks.clear_account(value.username)
-                    jira_team_bugs.delete_account(value.username)
-                    sessions.invalidate_credentials(value.username)
-            result = jira_team_bug_service.state(value.username, value.password, on_error=on_error)
-            return result
-        except Exception as error:
-            raise_downstream_error(value, error)
 
     @app.post("/api/dashboard/releases/sync")
     def sync_dashboard_releases(request: Request, value=Depends(authenticated_session)):
@@ -755,7 +728,8 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
 
     def resolve_jira_analytics(value, *, card_key=""):
         from core.jira.services.team_bug_service import load_fae_qa_roster, self_test_jira_conditions
-        fixed_conditions = self_test_jira_conditions(load_fae_qa_roster().accounts) if card_key == "self-test" else ""
+        roster = load_fae_qa_roster()
+        fixed_conditions = self_test_jira_conditions(roster.accounts) if card_key == "self-test" else ""
         try:
             filters, gateway = jira_filter_owner(value.username, value.password)
             return JiraAnalyticsService(
@@ -763,6 +737,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                 jira_analytics, JIRA_ANALYTICS_TASKS,
                 fixed_conditions=fixed_conditions,
                 card_key=card_key,
+                roster_fingerprint=roster.fingerprint if card_key == "self-test" else "",
                 on_error=lambda error: invalidate_analytics_credentials(value, error),
             )
         except Exception as error:
@@ -803,6 +778,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         query, task = analytics_query_state(session_hash, value.username, card_key)
         roster = load_fae_qa_roster()
         active_matches = bool(query["activeSnapshotId"] and query["userJql"] is not None and roster.accounts
+                              and query['rosterFingerprint'] == roster.fingerprint
                               and query["activeJql"] == compose_jql(query["userJql"], self_test_jira_conditions(roster.accounts)))
         state = ("loading" if query["pendingSnapshotId"] else query["latestState"]
                  if query["latestState"] in {"failed", "cancelled"} else "ready"
@@ -815,8 +791,8 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         if state in {"failed", "cancelled"}:
             payload["error"] = query["error"] or ("query_cancelled" if state == "cancelled" else "query_failed")
         if active_matches:
-            payload.update(aggregate_team_bugs(jira_analytics.statistics_issues(session_hash, value.username, card_key=card_key),
-                                              roster).to_payload())
+            payload.update(jira_analytics.statistics_summary(session_hash, value.username, card_key=card_key)
+                           or aggregate_team_bugs(jira_analytics.statistics_issues(session_hash, value.username, card_key=card_key), roster).to_payload())
         elif query["activeSnapshotId"] and state != "no_snapshot":
             payload.update(aggregate_team_bugs([], roster).to_payload())
         return payload

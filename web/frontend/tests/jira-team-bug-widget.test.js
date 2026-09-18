@@ -15,7 +15,15 @@ const productLines = [
   ] },
 ]
 
-function mount(api, chartFactory = vi.fn(() => ({ destroy: vi.fn() })), account = 'coco') {
+function chartMock(_canvas, config) {
+  return {
+    get data() { return config.data }, set data(value) { config.data = value },
+    get options() { return config.options }, set options(value) { config.options = value },
+    update: vi.fn(), reset: vi.fn(), stop: vi.fn(), destroy: vi.fn(),
+  }
+}
+
+function mount(api, chartFactory = vi.fn(chartMock), account = 'coco') {
   document.body.innerHTML = '<div id="root"></div>'
   const widget = createJiraTeamBugWidget({ pollDelay: 0, chartFactory })
   widget.mount(document.querySelector('#root'), { api, account })
@@ -49,19 +57,19 @@ describe('Jira team bug widget', () => {
     widget.destroy()
   })
 
-  it('isolates filtered display from Dashboard and updates only through the page API', async () => {
+  it('reuses the same card display on any page and calibrates it from SQLite', async () => {
     sessionStorage.setItem('smarttest:jira-self-test-display:coco', JSON.stringify({ state: 'ready', productLines }))
     document.body.innerHTML = '<div id="root"></div>'
-    const chartFactory = vi.fn(() => ({ destroy: vi.fn() }))
+    const chartFactory = vi.fn(chartMock)
     const api = { getTeamBugOverview: vi.fn().mockResolvedValue({ state: 'no_snapshot' }) }
     const widget = createJiraTeamBugWidget({ chartFactory })
-    widget.mount(document.querySelector('#root'), { api, account: 'coco', displayScope: 'jiraAnalytics' })
-    expect(chartFactory).not.toHaveBeenCalled()
+    widget.mount(document.querySelector('#root'), { api, account: 'coco' })
+    expect(chartFactory).toHaveBeenCalledOnce()
     await vi.waitFor(() => expect(document.body.textContent).toContain('Apply a Jira query'))
     api.getTeamBugOverview.mockResolvedValue({ state: 'ready', productLines })
     widget.update()
-    await vi.waitFor(() => expect(chartFactory).toHaveBeenCalledTimes(1))
-    expect(sessionStorage.getItem('smarttest:jira-analytics-display:coco')).not.toBeNull()
+    await vi.waitFor(() => expect(chartFactory).toHaveBeenCalledTimes(2))
+    expect(sessionStorage.getItem('smarttest:jira-self-test-display:coco')).not.toBeNull()
     widget.destroy()
   })
 
@@ -124,7 +132,8 @@ describe('Jira team bug widget', () => {
     expect(bugsChart.options.plugins.datalabels.labels.value.formatter(3)).toBe(3)
     expect(bugsChart.options.plugins.datalabels.labels.value.align).toBe('right')
     ;[...document.querySelectorAll('[data-mode-segments] button')].find(button => button.textContent === 'P0').click()
-    expect(chartFactory.mock.results[0].value.destroy).toHaveBeenCalledOnce()
+    expect(chartFactory.mock.results[0].value.destroy).not.toHaveBeenCalled()
+    expect(chartFactory.mock.results[0].value.reset).toHaveBeenCalledOnce()
     expect(chartFactory.mock.calls.at(-1)[1].data.labels).toEqual(['Bob'])
     expect(chartFactory.mock.calls.at(-1)[1].data.datasets[0].data).toEqual([2])
     ;[...document.querySelectorAll('[data-product-line-segments] button')].find(button => button.textContent === 'Smart Device Business').click()

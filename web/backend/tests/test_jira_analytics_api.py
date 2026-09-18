@@ -30,8 +30,11 @@ class Gateway:
 
 
 def client(tmp_path):
+    class AccountAuthenticator(FakeAuthenticator):
+        def authenticate(self, username, password):
+            return {**super().authenticate(username, password), 'username': username}
     app = create_app(
-        authenticator=FakeAuthenticator,
+        authenticator=AccountAuthenticator,
         session_store=lambda: PersistentSessionStore(tmp_path / "web.db"),
         jira_filter_owner=lambda _u, _p: (FilterOwner(), Gateway()),
     )
@@ -195,7 +198,8 @@ def test_lost_task_is_interrupted_without_requery_and_previous_progress_does_not
             "SELECT session_hash,account,expires_at FROM jira_analytics_queries WHERE card_key=\'\'").fetchone()
     repo = JiraAnalyticsRepository(database)
     snapshot = repo.begin(session_hash, account, "scope", {}, "", expires_at=expires, user_jql="", card_key="self-test")
-    repo.set_task(snapshot, "lost-process-task")
+    from smarttest_web.app import _session_owner
+    repo.set_task(snapshot, "lost-process-task", session_hash=_session_owner(api.cookies.get('smarttest_session')))
     payload = api.get("/api/jira/cards/self-test/statistics").json()
     assert payload["state"] == "failed"
     assert payload["error"] == "query_interrupted"

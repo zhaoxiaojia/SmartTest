@@ -2,6 +2,17 @@ from core.domain.values import NamedValue
 from core.jira.domain import Issue, IssueIdentity, JiraProjectRef
 from smarttest_web.database import WebDatabase
 from smarttest_web.jira.analytics_repository import JiraAnalyticsRepository
+from core.jira.services.team_bug_service import QARoster, self_test_jira_conditions
+
+
+def seed_dashboard(database, account, *, fingerprint, jql, total=5370):
+    with database.transaction() as connection:
+        connection.execute("INSERT INTO jira_team_bug_accounts(account,active_snapshot_id) VALUES(?,?)", (account, account))
+        connection.execute("""INSERT INTO jira_team_bug_snapshots
+            (snapshot_id,account,roster_fingerprint,team_total,created_at,effective_jql,unmapped_count)
+            VALUES(?,?,?,?,10,?,360)""", (account, account, fingerprint, total, jql))
+        connection.execute("INSERT INTO jira_team_bug_lines VALUES(?,0,'Wireless Connection','')", (account,))
+        connection.execute("INSERT INTO jira_team_bug_rows VALUES(?,'Wireless Connection',0,'qa','QA',5010,5,2,0)", (account,))
 
 
 def issue(key):
@@ -101,4 +112,80 @@ def test_card_scopes_do_not_replace_each_others_sqlite_results_or_published_cond
     assert repo.state("s", "alice", card_key="first")["pendingSnapshotId"] == new
     assert repo.issue_keys("s", "alice", card_key="second") == ["B-1"]
     repo.delete_session("s")
-    assert repo.state("s", "alice", card_key="first")["activeSnapshotId"] == ""
+    assert repo.state("relogin", "alice", card_key="first")["activeSnapshotId"] == first
+    assert repo.published_conditions("relogin", "alice") == conditions
+
+
+def test_account_card_replay_survives_session_expiry_but_does_not_expose_other_session_task(tmp_path):
+    clock = [10]
+    repo = JiraAnalyticsRepository(WebDatabase(tmp_path / "web.db"), now=lambda: clock[0])
+    snapshot = repo.begin("old-session", "alice", "scope", {}, "", expires_at=11,
+                          user_jql="user", card_key="self-test")
+    repo.write_batch(snapshot, [issue("A-1")]); repo.activate(snapshot)
+    pending = repo.begin("old-session", "alice", "new", {}, "", expires_at=11, card_key="self-test")
+    repo.set_task(pending, "secret-task", session_hash="old-session")
+    clock[0] = 12; repo.cleanup()
+    replay = repo.state("new-session", "alice", card_key="self-test")
+    assert replay["activeJql"] == "scope"
+    assert replay["pendingSnapshotId"] == pending
+    assert replay["taskId"] == ""
+    assert repo.state("old-session", "alice", card_key="self-test")["taskId"] == "secret-task"
+    assert repo.issue_keys("new-session", "alice", card_key="self-test") == ["A-1"]
+    assert repo.issue_keys("new-session", "bob", card_key="self-test") == []
+
+
+def test_legacy_dashboard_migrates_exact_valid_counts_once_without_fabricating_issue_ids(tmp_path):
+    database = WebDatabase(tmp_path / 'web.db')
+    repo = JiraAnalyticsRepository(database, now=lambda: 10)
+    roster = QARoster(('qa',), 'current')
+    fixed = self_test_jira_conditions(roster.accounts)
+    seed_dashboard(database, 'alice', fingerprint='current', jql=fixed)
+    seed_dashboard(database, 'old-roster', fingerprint='old', jql=fixed)
+    seed_dashboard(database, 'old-query', fingerprint='current', jql='issuetype = Bug')
+    repo.migrate_self_test(roster)
+    state = repo.state('relogin', 'alice', card_key='self-test')
+    assert state['activeJql'] == fixed
+    assert state['userJql'] == ''
+    assert state['rosterFingerprint'] == 'current'
+    summary = repo.statistics_summary('relogin', 'alice', card_key='self-test')
+    assert summary['teamTotal'] == 5370
+    assert summary['unmappedCount'] == 360
+    assert summary['productLines'][0]['people'][0]['bugCount'] == 5010
+    assert repo.issue_keys('relogin', 'alice', card_key='self-test') == []
+    assert repo.published_conditions('relogin', 'alice')['userJql'] == ''
+    assert repo.state('s', 'old-roster', card_key='self-test')['activeSnapshotId'] == ''
+    assert repo.state('s', 'old-query', card_key='self-test')['activeSnapshotId'] == ''
+    repo.migrate_self_test(roster)
+    assert repo.state('another', 'alice', card_key='self-test')['activeSnapshotId'] == state['activeSnapshotId']
+    repo.delete_account('alice'); repo.migrate_self_test(roster)
+    assert repo.state('s', 'alice', card_key='self-test')['activeSnapshotId'] == ''
+    with database.connect() as connection:
+        assert connection.execute("SELECT team_total FROM jira_team_bug_snapshots WHERE account='alice'").fetchone()[0] == 5370
+
+
+def test_valid_legacy_analytics_collection_takes_precedence_and_new_query_replaces_summary(tmp_path):
+    database = WebDatabase(tmp_path / 'web.db')
+    repo = JiraAnalyticsRepository(database, now=lambda: 10)
+    roster = QARoster(('qa',), 'current')
+    fixed = self_test_jira_conditions(roster.accounts)
+    seed_dashboard(database, 'alice', fingerprint='current', jql=fixed)
+    snapshot = repo.begin('old', 'alice', fixed, {}, '', expires_at=11, user_jql='', card_key='self-test')
+    repo.write_batch(snapshot, [issue('A-1')]); repo.activate(snapshot)
+    with database.transaction() as connection:
+        scope = 'old:card:self-test'
+        connection.execute("INSERT INTO jira_analytics_queries(session_hash,account,active_snapshot_id,expires_at,card_key) VALUES(?,'alice',?,11,'self-test')", (scope, snapshot))
+        connection.execute('UPDATE jira_analytics_snapshots SET session_hash=? WHERE snapshot_id=?', (scope, snapshot))
+        connection.execute("DELETE FROM jira_analytics_queries WHERE session_hash='account:alice:card:self-test'")
+    repo.migrate_self_test(roster)
+    assert repo.issue_keys('new', 'alice', card_key='self-test') == ['A-1']
+    assert repo.statistics_summary('new', 'alice', card_key='self-test') is None
+    assert repo.state('new', 'alice', card_key='self-test')['rosterFingerprint'] == 'current'
+    repo.delete_account('alice'); repo.migrate_self_test(roster)
+    assert repo.state('new', 'alice', card_key='self-test')['activeSnapshotId'] == ''
+
+    seed_dashboard(database, 'bob', fingerprint='current', jql=fixed)
+    repo.migrate_self_test(roster)
+    new = repo.begin('s', 'bob', fixed, {}, '', expires_at=11, user_jql='', card_key='self-test', roster_fingerprint='current')
+    repo.write_batch(new, [issue('B-1')]); repo.activate(new)
+    assert repo.statistics_summary('s', 'bob', card_key='self-test') is None
+    assert repo.issue_keys('new-login', 'bob', card_key='self-test') == ['B-1']

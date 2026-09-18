@@ -1,7 +1,6 @@
 const PREFIXES = Object.freeze({
   projects: 'smarttest:projects-display:',
   jiraSelfTest: 'smarttest:jira-self-test-display:',
-  jiraAnalytics: 'smarttest:jira-analytics-display:',
 })
 
 export function createDisposableDisplayCache(scope, account, cardKey = '') {

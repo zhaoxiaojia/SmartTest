@@ -65,6 +65,7 @@ Skill `MUST`/prohibitions, ownership boundaries, and acceptance gates are mandat
 ## Web Cache And Database Boundaries
 
 - 页面过滤器与卡片独立查询、固定边界及异步快照隔离必须遵循 `docs/superpowers/specs/2026-08-31-global-async-task-manager-design.md` 的“页面过滤器与卡片查询边界”；共享过滤器只发布用户条件，不先查询公共大集合。
+- Self-Test Jira 卡片的已应用条件与有效结果按认证账号+卡片持久恢复，Dashboard/Jira 共用一个接口与 SQLite owner；执行任务仍按真实会话隔离。普通登出不删除该账号有效结果，GET 不启动远端查询。其他页面既有会话快照边界不变。
 
 - Web 页面只保存展示和未提交控件状态；不得保存审查、导出或批量动作的权威资源 ID。
 - Web 进程内存只保存异步任务、进度、订阅和取消；服务重启后允许这些运行时状态消失，禁止在其中保存可复用的筛选结果或业务选择集。

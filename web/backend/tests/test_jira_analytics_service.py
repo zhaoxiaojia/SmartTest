@@ -39,7 +39,7 @@ def test_builds_dynamic_user_values_returned_by_jira_as_a_multi_value_clause():
 class Repo:
     def __init__(self): self.calls = []
     def begin(self, *args, **kwargs): self.calls.append(("begin", args, kwargs)); return "snapshot"
-    def set_task(self, *args): self.calls.append(("task", args))
+    def set_task(self, *args, **_kwargs): self.calls.append(("task", args))
     def write_batch(self, *args): self.calls.append(("write", args))
     def activate(self, *args): self.calls.append(("activate", args)); return True
     def finish(self, *args): self.calls.append(("finish", args))

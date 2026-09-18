@@ -16,7 +16,7 @@ Self-Test 页面与 Dashboard 复用同一 Core 固定 JQL 声明：issuetype=Bu
 
 统计按 reporter 分组，而不是 assignee；先按 personnel 判断 Wireless 归属，命中则直接计入，不限制 Jira 项目；其他人员按既有 project 映射。已应用集合是统计总数权威，非 Wireless 的未知项目保留在总数和既有诊断计数，不捏造归属。WIRELESS_CONNECTION 的 jira_project_keys 为空，不绑定其他四线项目。
 
-SQLite 旧卡片快照只有 effective JQL 与当前名单/年度固定边界一致才有效；不匹配返回既有 no_snapshot，不自动发远端请求。新任务运行期间保持轮询，但不把过期范围当作有效图。Dashboard 既有 roster fingerprint 随查询及名单变化失效。
+SQLite 旧卡片快照只有 effective JQL 与当前名单/年度固定边界一致才有效；不匹配返回既有 no_snapshot，不自动发远端请求。新任务运行期间保持轮询，但不把过期范围当作有效图。Dashboard 与 Jira 统一读取账号+Self-Test 卡片的 analytics 快照，使用同一 roster fingerprint 失效边界，普通重新登录恢复最后有效条件和结果，不保留独立 Dashboard 数据路径。
 
 共享过滤器、独立卡片查询、快照与任务隔离、展示缓存规则统一遵循 [全局异步任务规则](2026-08-31-global-async-task-manager-design.md)，此处不再保留已撤销的同步实现描述。
 

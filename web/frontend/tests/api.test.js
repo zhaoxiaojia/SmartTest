@@ -6,7 +6,7 @@ describe('Jira team bug API contract', () => {
   it('reads the account overview without sending filter state', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ state: 'ready' }) })
     await createJiraTeamBugApi({ fetchImpl }).getTeamBugOverview()
-    expect(fetchImpl).toHaveBeenCalledWith('/api/dashboard/jira-team-bugs', { credentials: 'same-origin' })
+    expect(fetchImpl).toHaveBeenCalledWith('/api/jira/cards/self-test/statistics', { credentials: 'same-origin' })
   })
 })
 

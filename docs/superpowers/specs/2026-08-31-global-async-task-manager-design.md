@@ -79,9 +79,11 @@ qasync coroutine 仍由主事件循环执行，Bridge 将其登记为 manager �
 
 ## 页面过滤器与卡片查询边界
 
-共享页面过滤器只将已提交的用户条件发布到当前授权会话的 SQLite；Search 不查询公共大集合。各卡片从该 owner 读取条件，按“用户条件 AND 卡片固定边界”独立查询，复用 Core 查询、全局任务 manager、SQLite 快照和可丢弃展示缓存。未勾选条件不额外限制，也不能取消卡片固定边界。Jira 统一使用 Core `compose_jql` 保留 OR 与 ORDER BY，远端验证最终 effective JQL；用户草稿与 effective JQL 分开保存。服务端生成卡片 scope，不信任前端范围、资源 ID 或固定条件。任务、结果和进度按真实会话及卡片隔离；旧任务不能覆盖新快照。GET 只重放 SQLite，不发起远端查询。
+共享页面过滤器只将已提交的用户条件发布到当前授权账号的 SQLite；Search 不查询公共大集合。各卡片从该 owner 读取条件，按“用户条件 AND 卡片固定边界”独立查询，复用 Core 查询、全局任务 manager、SQLite 快照和可丢弃展示缓存。未勾选条件不额外限制，也不能取消卡片固定边界。Jira 统一使用 Core `compose_jql` 保留 OR 与 ORDER BY，远端验证最终 effective JQL；用户草稿与 effective JQL 分开保存。服务端生成账号+卡片持久 scope，不信任前端范围、资源 ID 或固定条件；认证只允许读取本账号。执行任务、取消和任务接口仍按真实会话及卡片隔离；另一会话读取卡片时不能获取任务 ID、结束或取消原会话任务。旧任务不能覆盖新快照。GET 只重放 SQLite，不发起远端查询。普通登出或会话过期保留账号最后有效条件与结果，重新登录恢复；撤销全部会话及明确无效凭据仍遵循既有失效边界。
 
-Self-Test 固定声明为 `issuetype = Bug AND reporter IN(...) AND "Channel of Reporter" = "Self-Test" AND created >= startOfYear() AND created <= endOfYear()`，账号集合来自人工维护 personnel 中有效 FAE-QA；不增加 assignee、project 或 labels 排除。用户过滤器仅声明用户条件；Core `compose_jql` 是唯一组合入口。校验、执行、SQLite 保存使用同一 effective_jql，其他层不得再次追加或改写。Dashboard 传空用户条件使用同一组合入口。空 QA 名单明确失败，不查询全量。统计只按 reporter/产品线分组计数，不过滤 issue 类型；先按 reporter 的 personnel 归属判断 Wireless，命中直接计入，不限制 Jira 项目；仅非 Wireless 按既有项目映射，未知项目明确分类。WIRELESS_CONNECTION 的 jira_project_keys 为空，不绑定四线项目；JQL 不添加 project 条件。完整返回条数=快照条数=各线条数+明确未映射项目数+缺 reporter 数，卡片显示总数与两项未归类计数。Dashboard 在既有快照表增量保存 effective_jql 与分类计数；旧数据保留，默认空字段不代表新边界已校准，仍由已有 fingerprint 失效机制判断。旧 effective JQL 与当前名单/年度不匹配时不作为有效快照，不自动重新查询。Customer 仍为空占位且不注册查询。Dashboard 只挂载同组件，不增加页面过滤处理。组织架构自动同步已撤销，不在登录或会话恢复时访问其页面或账号查询。
+Self-Test 固定声明为 `issuetype = Bug AND reporter IN(...) AND "Channel of Reporter" = "Self-Test" AND created >= startOfYear() AND created <= endOfYear()`，账号集合来自人工维护 personnel 中有效 FAE-QA；不增加 assignee、project 或 labels 排除。用户过滤器仅声明用户条件；Core `compose_jql` 是唯一组合入口。校验、执行、SQLite 保存使用同一 effective_jql，其他层不得再次追加或改写。空 QA 名单明确失败，不查询全量。统计只按 reporter/产品线分组计数，不过滤 issue 类型；先按 reporter 的 personnel 归属判断 Wireless，命中直接计入，不限制 Jira 项目；仅非 Wireless 按既有项目映射，未知项目明确分类。WIRELESS_CONNECTION 的 jira_project_keys 为空，不绑定四线项目；JQL 不添加 project 条件。完整返回条数=快照条数=各线条数+明确未映射项目数+缺 reporter 数，卡片显示总数与两项未归类计数。Dashboard 和 Jira 页面只挂载同组件、读取同一个卡片接口、账号+卡片查询快照及可丢弃展示 scope；Dashboard 展示 Jira 最后已应用条件的结果，不再用空条件独立查询，没有 Dashboard 专用统计表 owner、任务或远端启动入口。首次无结果提示 Apply。旧 effective JQL 或 roster/年度 fingerprint 不匹配不作为有效快照，不自动重新查询。Customer 仍为空占位且不注册查询。组织架构自动同步已撤销，不在登录或会话恢复时访问其页面或账号查询。
+
+兼容迁移仅由既有 analytics SQLite owner 在启动时执行：有效旧会话 Self-Test 原始集合迁到账号+卡片范围，优先保留已有有效已应用结果；有效旧 Dashboard 聚合缓存按 exact effective JQL 和 roster fingerprint 校验，一次性迁入同一快照的 statistics_json。旧来源数据保留但不再业务读写，迁移后清除旧 Dashboard 活动指针防止撤销账号结果后再次导入。摘要仅含计数，不是权威资源集合，不能伪造 Jira ID 或供精确业务动作使用；下一次成功查询保存真实 issue 集合并替换摘要。缺失有效性字段或旧年度范围不迁入有效结果，不发远端补查。
 
 Confluence 通过既有 Core 参数查询 owner 对用户条件和固定参数分别匹配求交集；不先全量再前端过滤。Role workload 当前没有额外固定参数，空边界合法；有效范围与 Projects 列表相同时可精确复用当前会话 SQLite 快照。保留列表、Apply 详情和 Reset 语义，不另建状态 owner。
 
@@ -93,6 +95,9 @@ Confluence 通过既有 Core 参数查询 owner 对用户条件和固定参数�
 - [x] 服务端卡片 allowlist、SQLite/任务 scope 隔离、共享展示缓存按卡片隔离。
 - [x] Core Confluence 参数交集，保持现有 Projects 业务语义。
 - [x] 独立范围、授权重放、终态、分页、旧展示及全层回归验证。
+- [x] Self-Test 统一卡片接口、账号+卡片 SQLite 条件/结果与展示 scope；删除 Dashboard 独立统计和任务入口，普通重登录恢复。
+- [x] 有效旧原始集合优先、旧 Dashboard 计数摘要一次迁移、不伪造 IDs、撤销后不重复导入；新查询原始集合替换摘要。
+- [x] 同账号跨会话恢复、跨账号隔离、任务原会话权限、GET 不查询、终态/分页/旧展示回归；后端258、前端202通过，lint/build/diff check 通过。
 
 ### 本轮 JQL 收敛执行清单
 

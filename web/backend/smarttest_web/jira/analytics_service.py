@@ -5,12 +5,13 @@ from core.jira.services.filter_service import build_basic_jql, compose_jql
 
 
 class JiraAnalyticsService:
-    def __init__(self, filters, gateway, mapper, repository, tasks, *, fixed_conditions="", card_key="", on_error=lambda _error: None):
+    def __init__(self, filters, gateway, mapper, repository, tasks, *, fixed_conditions="", card_key="", roster_fingerprint="", on_error=lambda _error: None):
         self.filters, self.gateway, self.mapper = filters, gateway, mapper
         self.repository, self.tasks = repository, tasks
         self.on_error = on_error
         self.fixed_conditions = fixed_conditions
         self.card_key = card_key
+        self.roster_fingerprint = roster_fingerprint
 
     def schema(self):
         fields = self.filters.fields()
@@ -47,6 +48,7 @@ class JiraAnalyticsService:
         snapshot_id = self.repository.begin(
             session_hash, account, jql, basic if mode == "basic" else {},
             payload.get("sourceFilterId", ""), expires_at=expires_at, user_jql=user_jql, card_key=self.card_key,
+            roster_fingerprint=self.roster_fingerprint,
         )
 
         def run(token, progress):
@@ -71,6 +73,6 @@ class JiraAnalyticsService:
                 raise
 
         task_id = self.tasks.submit(session_hash, run, card_key=self.card_key)
-        self.repository.set_task(snapshot_id, task_id)
+        self.repository.set_task(snapshot_id, task_id, session_hash=session_hash)
         return {"validation": validation, "taskId": task_id, "snapshotId": snapshot_id,
                 "state": self.repository.state(session_hash, account, card_key=self.card_key)}
