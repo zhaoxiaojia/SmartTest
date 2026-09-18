@@ -6,6 +6,12 @@ import re
 
 _ORDER_BY = re.compile(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?P<order>\border\s+by\b)''', re.IGNORECASE)
 
+JIRA_PERIOD_CONDITIONS = {
+    "week": 'created >= "-7d" AND created <= now()',
+    "month": 'created >= "-30d" AND created <= now()',
+    "quarter": 'created >= startOfDay("-3M") AND created <= now()',
+}
+
 
 def compose_jql(user_jql: str, fixed_conditions: str) -> str:
     """Intersect predicates before ordering; Jira's validator owns JQL validity."""

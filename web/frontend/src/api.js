@@ -162,13 +162,14 @@ export function createJiraAnalyticsApi({ fetchImpl = globalThis.fetch, baseUrl =
 }
 
 export function createJiraTeamBugApi({ fetchImpl = globalThis.fetch, baseUrl = '/api', cardKey = 'self-test' } = {}) {
-  async function request(query = false) {
+  async function request(query = false, period, intent = 'refresh') {
     const path = `/jira/cards/${encodeURIComponent(cardKey)}/${query ? 'query' : 'statistics'}`
-    const response = await fetchImpl(`${baseUrl}${path}`, { credentials: 'same-origin', ...(query ? { method: 'POST' } : {}) })
+    const response = await fetchImpl(`${baseUrl}${path}`, { credentials: 'same-origin', ...(query ? { method: 'POST',
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent, ...(period ? { period } : {}) }) } : {}) })
     if (!response.ok) throw new ApiUnavailableError(`Jira team bug overview unavailable (${response.status}).`, { status: response.status })
     return response.json()
   }
-  return { getTeamBugOverview: () => request(), queryTeamBugOverview: () => request(true) }
+  return { getTeamBugOverview: () => request(), queryTeamBugOverview: (period, intent) => request(true, period, intent) }
 }
 
 export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {

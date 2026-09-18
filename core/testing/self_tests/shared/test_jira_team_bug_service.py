@@ -9,7 +9,7 @@ def test_self_test_card_fixed_boundary_uses_active_qa_reporters_and_rejects_empt
     import pytest
     assert service.self_test_jira_conditions(("qa.two", "qa.one")) == (
         'issuetype = Bug AND reporter IN ("qa.two", "qa.one") AND "Channel of Reporter" = "Self-Test"'
-        ' AND created >= startOfYear() AND created <= endOfYear()'
+        ' AND created >= "-30d" AND created <= now()'
     )
     with pytest.raises(ValueError, match="empty_fae_qa_roster"):
         service.self_test_jira_conditions(())
@@ -52,19 +52,12 @@ def test_applied_collection_preserves_page_scope_and_reporter_grouping():
     assert by_line[WIRELESS_CONNECTION.name][0].identity == "wifi"
 
 
-def test_query_or_calendar_year_change_invalidates_roster_snapshot_identity(tmp_path, monkeypatch):
+def test_query_change_invalidates_roster_snapshot_identity(tmp_path, monkeypatch):
     path = tmp_path / "personnel.json"
     path.write_text(json.dumps({"amlogic": {"departments": {"FAE-QA": {"employees": [{"account": "amy"}]}}}}), encoding="utf-8")
     first = load_fae_qa_roster(path)
     monkeypatch.setattr(service, "self_test_jira_conditions", lambda _accounts: "different query")
     assert load_fae_qa_roster(path).fingerprint != first.fingerprint
-    second = load_fae_qa_roster(path)
-    class NextYear:
-        @staticmethod
-        def today():
-            return type("Day", (), {"year": 2099})()
-    monkeypatch.setattr(service, "date", NextYear)
-    assert load_fae_qa_roster(path).fingerprint != second.fingerprint
 
 
 CHINA, SMART, TV_LINE, GLOBAL = PRODUCT_LINES

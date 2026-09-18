@@ -253,7 +253,7 @@ def test_analytics_state_is_not_visible_to_another_account(tmp_path):
     first.post("/api/auth/login", json={"username": "other", "password": "secret"})
 
     assert first.get("/api/jira/analytics/state").json()["conditions"] is None
-    assert first.get("/api/jira/cards/self-test/statistics").json() == {"state": "no_snapshot"}
+    assert first.get("/api/jira/cards/self-test/statistics").json() == {"state": "no_snapshot", "period": "month"}
 
 
 def test_statistics_replays_only_the_applied_jql_collection_without_extra_scope(tmp_path, monkeypatch):
@@ -270,7 +270,7 @@ def test_statistics_replays_only_the_applied_jql_collection_without_extra_scope(
         }}] if jql.startswith("(first)") else []
     monkeypatch.setattr(Gateway, "search_all_payloads", search)
     api = client(tmp_path)
-    assert api.get("/api/jira/cards/self-test/statistics").json() == {"state": "no_snapshot"}
+    assert api.get("/api/jira/cards/self-test/statistics").json() == {"state": "no_snapshot", "period": "month"}
     def apply(jql):
         task_id = query_card(api, {"mode": "advanced", "jql": jql}).json()["taskId"]
         assert wait_terminal(api, task_id) == "completed"

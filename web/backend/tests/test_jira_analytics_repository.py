@@ -5,6 +5,28 @@ from smarttest_web.jira.analytics_repository import JiraAnalyticsRepository
 from core.jira.services.team_bug_service import QARoster, self_test_jira_conditions
 
 
+def test_reuse_selects_exact_valid_history_after_failure_and_old_task_cannot_override(tmp_path):
+    repo = JiraAnalyticsRepository(WebDatabase(tmp_path / 'web.db'))
+    cached = repo.begin('first', 'alice', 'month effective', {}, '', expires_at=100,
+                        user_jql='', card_key='self-test', roster_fingerprint='roster')
+    repo.write_batch(cached, [issue('A-1')]); repo.activate(cached)
+    failed = repo.begin('first', 'alice', 'month effective', {}, '', expires_at=100,
+                        user_jql='', card_key='self-test', roster_fingerprint='roster')
+    repo.finish(failed, 'failed', 'query_failed')
+    assert repo.state('second', 'alice', card_key='self-test')['latestState'] == 'failed'
+    assert repo.reuse('second', 'alice', 'month effective', card_key='self-test', roster_fingerprint='roster')
+    assert repo.state('second', 'alice', card_key='self-test')['latestState'] == 'active'
+    assert repo.issue_keys('second', 'alice', card_key='self-test') == ['A-1']
+    assert not repo.reuse('second', 'alice', 'month effective', card_key='self-test', roster_fingerprint='changed')
+    assert not repo.reuse('second', 'bob', 'month effective', card_key='self-test', roster_fingerprint='roster')
+    assert not repo.reuse('second', 'alice', 'different condition', card_key='self-test', roster_fingerprint='roster')
+    old = repo.begin('first', 'alice', 'week effective', {}, '', expires_at=100, card_key='self-test')
+    assert repo.reuse('second', 'alice', 'month effective', card_key='self-test', roster_fingerprint='roster')
+    assert not repo.activate(old)
+    assert repo.state('second', 'alice', card_key='self-test')['activeSnapshotId'] == cached
+    assert repo.state('second', 'alice', card_key='self-test')['latestState'] == 'active'
+
+
 def seed_dashboard(database, account, *, fingerprint, jql, total=5370):
     with database.transaction() as connection:
         connection.execute("INSERT INTO jira_team_bug_accounts(account,active_snapshot_id) VALUES(?,?)", (account, account))

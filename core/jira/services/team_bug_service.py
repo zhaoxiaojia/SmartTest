@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import asdict, dataclass
-from datetime import date
 import hashlib
 import json
 from pathlib import Path
 from typing import Any, Iterable
 
 from core.product_lines import DASHBOARD_PRODUCT_LINES, PRODUCT_LINE_BY_JIRA_PROJECT, WIRELESS_CONNECTION
-from core.jira.services.filter_service import compose_jql
+from core.jira.services.filter_service import compose_jql, JIRA_PERIOD_CONDITIONS
 
 
 def _name(value: Any) -> str:
@@ -18,8 +17,7 @@ def _name(value: Any) -> str:
 
 _PERSONNEL_PATH = Path(__file__).resolve().parents[2] / "config" / "personnel.json"
 TEAM_BUG_LINES = DASHBOARD_PRODUCT_LINES
-SELF_TEST_JIRA_CONDITIONS = ('"Channel of Reporter" = "Self-Test"'
-                            ' AND created >= startOfYear() AND created <= endOfYear()')
+SELF_TEST_JIRA_CONDITIONS = '"Channel of Reporter" = "Self-Test"'
 
 
 @dataclass(frozen=True)
@@ -47,19 +45,19 @@ def load_fae_qa_roster(path: str | Path = _PERSONNEL_PATH) -> QARoster:
     encoded = json.dumps(
         {"accounts": accounts, "assignments": assignments,
          "lines": [(line.name, line.jira_project_keys) for line in TEAM_BUG_LINES],
-         "jql": compose_jql("", self_test_jira_conditions(accounts)) if accounts else "", "year": date.today().year},
+         "jql": compose_jql("", self_test_jira_conditions(accounts)) if accounts else ""},
         ensure_ascii=False, separators=(",", ":"), sort_keys=True,
     ).encode("utf-8")
     fingerprint = hashlib.sha256(encoded).hexdigest()
     return QARoster(accounts, fingerprint, assignments)
 
 
-def self_test_jira_conditions(accounts: Iterable[str]) -> str:
+def self_test_jira_conditions(accounts: Iterable[str], period: str = "month") -> str:
     quoted = [f'"{str(account).replace(chr(92), chr(92) * 2).replace(chr(34), chr(92) + chr(34))}"'
               for account in accounts]
     if not quoted:
         raise ValueError("empty_fae_qa_roster")
-    return f"issuetype = Bug AND reporter IN ({', '.join(quoted)}) AND {SELF_TEST_JIRA_CONDITIONS}"
+    return f"issuetype = Bug AND reporter IN ({', '.join(quoted)}) AND {SELF_TEST_JIRA_CONDITIONS} AND {JIRA_PERIOD_CONDITIONS[period]}"
 
 
 @dataclass(frozen=True)

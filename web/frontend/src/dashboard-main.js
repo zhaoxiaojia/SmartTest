@@ -7,7 +7,7 @@ import { startAuthenticatedPage } from './authenticated-page.js'
 import { createDashboardGrid } from './dashboard/dashboard-grid.js'
 import { createWidgetRegistry } from './dashboard/widget-registry.js'
 import { createRoleWorkloadWidget, ROLE_WORKLOAD_LAYOUT } from './widgets/role-workload.js'
-import { createJiraTeamBugWidget, JIRA_TEAM_BUG_LAYOUT, JIRA_SELF_TEST_TITLE, JIRA_CUSTOMER_TITLE } from './widgets/jira-team-bugs.js'
+import { createJiraTeamBugWidget, createJiraCustomerPlaceholder, JIRA_TEAM_BUG_LAYOUT, JIRA_SELF_TEST_TITLE, JIRA_CUSTOMER_TITLE } from './widgets/jira-team-bugs.js'
 
 if (!window.location.pathname.startsWith('/wifi-database/')) {
   Chart.register(...registerables, ChartDataLabels)
@@ -26,7 +26,7 @@ if (!window.location.pathname.startsWith('/wifi-database/')) {
     })
     registry.register({
       type: 'jira-customer-statistics', title: JIRA_CUSTOMER_TITLE, ...JIRA_TEAM_BUG_LAYOUT,
-      create: () => ({ mount(target) { target.replaceChildren() }, update() {}, destroy() {} }),
+      create: createJiraCustomerPlaceholder,
     })
     return createDashboardGrid({
       root, registry, preferenceApi,

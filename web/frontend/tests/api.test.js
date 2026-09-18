@@ -117,6 +117,7 @@ describe('Jira Analytics filter API contract', () => {
     await api.searchJiraAnalytics({ mode: 'advanced', jql: 'project = SH' })
     const card = createJiraTeamBugApi({ fetchImpl, cardKey: 'self-test' })
     await card.queryTeamBugOverview(); await card.getTeamBugOverview()
+    expect(JSON.parse(fetchImpl.mock.calls[4][1].body)).toEqual({ intent: 'refresh' })
     expect(fetchImpl.mock.calls.map(call => call[0])).toEqual([
       '/api/jira/analytics/fields', '/api/jira/analytics/suggestions?fieldName=assignee&query=co', '/api/jira/analytics/saved-filters',
       '/api/jira/analytics/search', '/api/jira/cards/self-test/query', '/api/jira/cards/self-test/statistics',

@@ -5,6 +5,18 @@ export const JIRA_TEAM_BUG_LAYOUT = Object.freeze({ defaultW: 24, defaultH: 16 }
 export const JIRA_SELF_TEST_TITLE = 'Product Lines Self Test Jiras Statistics'
 export const JIRA_CUSTOMER_TITLE = 'Product Lines Customer Jiras Statistics'
 
+const PERIODS = [{ value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }, { value: 'quarter', label: 'Quarter' }]
+let periodInstance = 0
+function periodMarkup(preferences = false) {
+  const name = `jira-period-${++periodInstance}`
+  return `<fieldset class="jira-period-fieldset" data-jira-periods aria-label="Statistics period" ${preferences ? 'data-preference-region data-preference-scope="jira/cards/customer"' : ''}>${PERIODS.map(item => `<div class="jira-period-button-group"><input type="radio" name="${name}" id="${name}-${item.value}" value="${item.value}" data-jira-period="${item.value}" ${item.value === 'month' ? 'checked' : ''} ${preferences ? 'data-preference-key="period"' : ''}><label for="${name}-${item.value}">${item.label}</label></div>`).join('')}</fieldset>`
+}
+
+export function createJiraCustomerPlaceholder() {
+  let root
+  return { mount(target) { root = target; root.innerHTML = periodMarkup(true) }, update() {}, destroy() { root?.replaceChildren() } }
+}
+
 const METRICS = Object.freeze([
   Object.freeze({ value: 'bugCount', label: 'Bugs' }),
   Object.freeze({ value: 'resolvedCount', label: 'Resolved' }),
@@ -21,10 +33,12 @@ export function createJiraTeamBugWidget({ pollDelay = 800, chartFactory } = {}) 
   let displayCache
   let api
   let generation = 0
+  let rankingHost, periods
+  let period = 'month'
   const ranking = createRankingCard({ chartFactory })
 
   function message(text, kind = '') {
-    if (!displayed) root.replaceChildren()
+    if (!displayed) rankingHost.replaceChildren()
     let status = root.querySelector('[data-team-bug-state]')
     if (!status) {
       status = document.createElement('div')
@@ -36,7 +50,10 @@ export function createJiraTeamBugWidget({ pollDelay = 800, chartFactory } = {}) 
   }
 
   function render(payload) {
+    if (payload.period) period = payload.period
+    selectPeriod()
     if (payload.state === 'no_snapshot') {
+      root.prepend(periods)
       ranking.destroy(); displayed = false; displaySignature = ''
       displayCache.write(null)
       message('Apply a Jira query to display statistics.')
@@ -54,7 +71,8 @@ export function createJiraTeamBugWidget({ pollDelay = 800, chartFactory } = {}) 
   }
 
   function draw(payload) {
-    const display = { state: 'ready', teamTotal: payload.teamTotal,
+    if (payload.period) period = payload.period
+    const display = { state: 'ready', period, teamTotal: payload.teamTotal,
       unmappedCount: Number(payload.unmappedCount || 0), unassignedCount: Number(payload.unassignedCount || 0),
       productLines: payload.productLines.map(line => ({ id: line.id, label: line.label,
         people: (line.people ?? []).map(person => ({ displayName: person.displayName,
@@ -75,7 +93,9 @@ export function createJiraTeamBugWidget({ pollDelay = 800, chartFactory } = {}) 
       datasetLabel: 'Issues',
     }
     if (displayed) ranking.update(presentation)
-    else ranking.mount(root, presentation)
+    else ranking.mount(rankingHost, presentation)
+    root.querySelector('.report-preview-toolbar').after(periods)
+    selectPeriod()
     let summary = root.querySelector('[data-team-bug-summary]')
     if (!summary) {
       summary = document.createElement('p')
@@ -89,10 +109,14 @@ export function createJiraTeamBugWidget({ pollDelay = 800, chartFactory } = {}) 
     displayCache.write(display)
   }
 
-  async function load(request = ++generation, query = false) {
+  function selectPeriod() {
+    for (const input of periods.querySelectorAll('input')) input.checked = input.value === period
+  }
+
+  async function load(request = ++generation, query = false, selectedPeriod) {
     clearTimeout(timer)
     try {
-      const payload = await (query ? api.queryTeamBugOverview() : api.getTeamBugOverview())
+      const payload = await (query ? api.queryTeamBugOverview(selectedPeriod, selectedPeriod ? 'reuse' : 'refresh') : api.getTeamBugOverview())
       if (stopped || request !== generation) return
       const again = render(payload)
       if (again && !stopped) timer = setTimeout(() => { void load() }, pollDelay)
@@ -104,6 +128,16 @@ export function createJiraTeamBugWidget({ pollDelay = 800, chartFactory } = {}) 
   return {
     mount(target, config = {}) {
       root = target; stopped = false
+      period = 'month'
+      root.innerHTML = `${periodMarkup()}<div data-jira-ranking></div>`
+      rankingHost = root.querySelector('[data-jira-ranking]')
+      periods = root.querySelector('[data-jira-periods]')
+      periods.addEventListener('change', event => {
+        const selected = event.target.closest('[data-jira-period]')?.dataset.jiraPeriod
+        if (selected && selected !== period && api) {
+          period = selected; selectPeriod(); void load(++generation, true, period)
+        }
+      })
       displayed = false
       displayCache = createDisposableDisplayCache('jiraSelfTest', config.account)
       const cached = displayCache.read()

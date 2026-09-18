@@ -1,5 +1,7 @@
 # 第三方许可
 
+Jira 卡片时间单选控件外观改编自 Uiverse.io by spj2401Dev，采用本站 UI 元素的 MIT 许可；作者署名保留在 `ranking-card.css`。
+
 桌面导航外观与动画改编自 Uiverse.io by gustavofusco：https://uiverse.io/gustavofusco/lazy-starfish-84 。作者署名保留在 `smarttest-theme.css`，采用本站 UI 元素的 MIT 许可。
 
 登录按钮外观与动画改编自 Uiverse.io by Gaurav-WebDev，采用本站 UI 元素的 MIT 许可；作者署名保留在 `smarttest-theme.css`。

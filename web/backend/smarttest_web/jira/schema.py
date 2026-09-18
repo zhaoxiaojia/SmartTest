@@ -56,7 +56,7 @@ JIRA_STATEMENTS = (
         active_snapshot_id TEXT NOT NULL DEFAULT '', pending_snapshot_id TEXT NOT NULL DEFAULT '',
         task_id TEXT NOT NULL DEFAULT '', expires_at REAL NOT NULL,
         card_key TEXT NOT NULL DEFAULT '', user_conditions_json TEXT,
-        task_session_hash TEXT NOT NULL DEFAULT ''
+        task_session_hash TEXT NOT NULL DEFAULT '', last_snapshot_id TEXT NOT NULL DEFAULT ''
     )""",
     """CREATE TABLE IF NOT EXISTS jira_analytics_snapshots (
         snapshot_id TEXT PRIMARY KEY, session_hash TEXT NOT NULL, account TEXT NOT NULL,
@@ -193,6 +193,8 @@ def initialize_jira_schema(database: WebDatabase) -> None:
             connection.execute("ALTER TABLE jira_analytics_queries ADD COLUMN user_conditions_json TEXT")
         if "task_session_hash" not in query_columns:
             connection.execute("ALTER TABLE jira_analytics_queries ADD COLUMN task_session_hash TEXT NOT NULL DEFAULT ''")
+        if "last_snapshot_id" not in query_columns:
+            connection.execute("ALTER TABLE jira_analytics_queries ADD COLUMN last_snapshot_id TEXT NOT NULL DEFAULT ''")
         if "product_line" not in row_columns:
             connection.execute("DROP TABLE jira_team_bug_rows")
             connection.execute("""CREATE TABLE jira_team_bug_rows (

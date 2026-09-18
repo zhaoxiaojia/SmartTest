@@ -31,7 +31,7 @@ describe('Dashboard page', () => {
     expect(customer.title).toBe('Product Lines Customer Jiras Statistics')
     const target = document.createElement('div')
     customer.create().mount(target)
-    expect(target.textContent).toBe('')
+    expect(target.textContent).toBe('WeekMonthQuarter')
     expect(await state.dashboard.widgetConfig('jira-customer-statistics')).toEqual({})
     expect(state.dashboard.preferenceApi).toMatchObject({ get: expect.any(Function), put: expect.any(Function), reset: expect.any(Function) })
     expect(state.dashboard.gridFactory).toBeTypeOf('function')

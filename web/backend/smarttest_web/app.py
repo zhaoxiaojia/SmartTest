@@ -729,7 +729,7 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     def resolve_jira_analytics(value, *, card_key=""):
         from core.jira.services.team_bug_service import load_fae_qa_roster, self_test_jira_conditions
         roster = load_fae_qa_roster()
-        fixed_conditions = self_test_jira_conditions(roster.accounts) if card_key == "self-test" else ""
+        fixed_conditions = self_test_jira_conditions(roster.accounts, jira_card_period(value, card_key)) if card_key == "self-test" else ""
         try:
             filters, gateway = jira_filter_owner(value.username, value.password)
             return JiraAnalyticsService(
@@ -751,6 +751,13 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     def require_jira_card(card_key):
         if card_key != "self-test":
             raise HTTPException(status_code=404, detail={"state": "card_not_found"})
+
+    def jira_card_period(value, card_key):
+        from core.jira.services.filter_service import JIRA_PERIOD_CONDITIONS
+        period = sessions.get_preferences(value.username, f"jira/cards/{card_key}")["items"].get("period", "month")
+        if not isinstance(period, str) or period not in JIRA_PERIOD_CONDITIONS:
+            raise HTTPException(status_code=422, detail={"state": "invalid_jira_period"})
+        return period
 
     def analytics_query_state(session_hash, account, card_key):
         query = jira_analytics.state(session_hash, account, card_key=card_key)
@@ -777,13 +784,14 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         session_hash = audit_session(request)
         query, task = analytics_query_state(session_hash, value.username, card_key)
         roster = load_fae_qa_roster()
+        period = jira_card_period(value, card_key)
         active_matches = bool(query["activeSnapshotId"] and query["userJql"] is not None and roster.accounts
                               and query['rosterFingerprint'] == roster.fingerprint
-                              and query["activeJql"] == compose_jql(query["userJql"], self_test_jira_conditions(roster.accounts)))
+                              and query["activeJql"] == compose_jql(query["userJql"], self_test_jira_conditions(roster.accounts, period)))
         state = ("loading" if query["pendingSnapshotId"] else query["latestState"]
                  if query["latestState"] in {"failed", "cancelled"} else "ready"
                  if active_matches else "no_snapshot")
-        payload = {"state": state}
+        payload = {"state": state, "period": period}
         if query["activeSnapshotId"] or query["pendingSnapshotId"] or query["latestState"]:
             payload["query"] = query
         if state == "loading":
@@ -793,8 +801,6 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         if active_matches:
             payload.update(jira_analytics.statistics_summary(session_hash, value.username, card_key=card_key)
                            or aggregate_team_bugs(jira_analytics.statistics_issues(session_hash, value.username, card_key=card_key), roster).to_payload())
-        elif query["activeSnapshotId"] and state != "no_snapshot":
-            payload.update(aggregate_team_bugs([], roster).to_payload())
         return payload
 
     @app.get("/api/jira/analytics/fields")
@@ -848,11 +854,28 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
             raise_downstream_error(value, error)
 
     @app.post("/api/jira/cards/{card_key}/query")
-    def query_jira_card(card_key: str, request: Request, value=Depends(authenticated_session)):
+    def query_jira_card(card_key: str, request: Request, payload: dict = Body(default={}), value=Depends(authenticated_session)):
         require_jira_card(card_key)
+        intent = payload.get("intent", "refresh")
+        if not isinstance(intent, str) or intent not in {"reuse", "refresh"}:
+            raise HTTPException(status_code=422, detail={"state": "invalid_jira_query_intent"})
+        from core.jira.services.filter_service import JIRA_PERIOD_CONDITIONS
+        if "period" in payload:
+            if not isinstance(payload["period"], str) or payload["period"] not in JIRA_PERIOD_CONDITIONS:
+                raise HTTPException(status_code=422, detail={"state": "invalid_jira_period"})
+            sessions.upsert_preferences(value.username, f"jira/cards/{card_key}", {"period": payload["period"]}, 1)
         conditions = jira_analytics.published_conditions(audit_session(request), value.username)
         if conditions is None:
-            return {"state": "no_snapshot"}
+            return {"state": "no_snapshot", "period": jira_card_period(value, card_key)}
+        if intent == "reuse":
+            from core.jira.services.filter_service import compose_jql
+            from core.jira.services.team_bug_service import load_fae_qa_roster, self_test_jira_conditions
+            roster = load_fae_qa_roster()
+            if roster.accounts and "userJql" in conditions:
+                effective = compose_jql(conditions["userJql"], self_test_jira_conditions(roster.accounts, jira_card_period(value, card_key)))
+                if jira_analytics.reuse(audit_session(request), value.username, effective,
+                                        card_key=card_key, roster_fingerprint=roster.fingerprint):
+                    return jira_analytics_statistics(card_key, request, value)
         try:
             started = resolve_jira_analytics(value, card_key=card_key).search(
                 audit_session(request), value.username, value.expires_at, conditions)

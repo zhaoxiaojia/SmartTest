@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createJiraTeamBugWidget } from '../src/widgets/jira-team-bugs.js'
+import { createJiraTeamBugWidget, createJiraCustomerPlaceholder } from '../src/widgets/jira-team-bugs.js'
+import { createPreferenceStore } from '../src/preference-store.js'
 
 const productLines = [
   { id: 'China Operator Business', label: 'China Operator Business', people: [
@@ -31,6 +32,48 @@ function mount(api, chartFactory = vi.fn(chartMock), account = 'coco') {
 }
 
 describe('Jira team bug widget', () => {
+  it('keeps the customer placeholder period in the existing preference owner without querying Jira', async () => {
+    document.body.innerHTML = '<div id="customer"></div>'
+    const widget = createJiraCustomerPlaceholder()
+    widget.mount(document.querySelector('#customer'))
+    const api = { get: vi.fn().mockResolvedValue({ items: { period: 'quarter' } }), put: vi.fn().mockResolvedValue({}) }
+    const preferences = createPreferenceStore({ root: document, api })
+    await preferences.start()
+    expect(document.querySelector('[data-jira-period="quarter"]').checked).toBe(true)
+    document.querySelector('[data-jira-period="week"]').click()
+    await vi.waitFor(() => expect(api.put).toHaveBeenCalledWith('jira/cards/customer', { period: 'week' }))
+    preferences.destroy(); widget.destroy()
+  })
+  it('restores a card period and queries only when its own period is changed', async () => {
+    const api = { getTeamBugOverview: vi.fn().mockResolvedValue({ state: 'ready', productLines, period: 'quarter' }),
+      queryTeamBugOverview: vi.fn().mockResolvedValue({ state: 'ready', productLines, period: 'week' }) }
+    const { widget } = mount(api)
+    await vi.waitFor(() => expect(document.querySelector('[data-jira-period="quarter"]').checked).toBe(true))
+    const periods = document.querySelector('[data-jira-periods]')
+    expect(periods.previousElementSibling.matches('.report-preview-toolbar')).toBe(true)
+    expect(periods.parentElement).not.toBe(document.querySelector('[data-product-line-segments]').parentElement)
+    document.querySelector('[data-jira-period="week"]').click()
+    await vi.waitFor(() => expect(api.queryTeamBugOverview).toHaveBeenCalledWith('week', 'reuse'))
+    expect(document.querySelector('[data-jira-period="week"]').checked).toBe(true)
+    widget.update({ query: true })
+    await vi.waitFor(() => expect(api.queryTeamBugOverview).toHaveBeenCalledWith(undefined, 'refresh'))
+    widget.destroy()
+  })
+  it('keeps radio identities independent across card instances and associates visible labels', () => {
+    document.body.innerHTML = '<div id="first"></div><div id="second"></div>'
+    const first = createJiraCustomerPlaceholder(), second = createJiraCustomerPlaceholder()
+    first.mount(document.querySelector('#first')); second.mount(document.querySelector('#second'))
+    const firstInputs = [...document.querySelectorAll('#first input')]
+    const secondInputs = [...document.querySelectorAll('#second input')]
+    expect(firstInputs).toHaveLength(3)
+    expect(new Set([...firstInputs, ...secondInputs].map(input => input.id)).size).toBe(6)
+    expect(firstInputs[0].name).not.toBe(secondInputs[0].name)
+    expect(firstInputs.map(input => input.labels[0].textContent)).toEqual(['Week', 'Month', 'Quarter'])
+    firstInputs[0].labels[0].click()
+    expect(firstInputs[0].checked).toBe(true)
+    expect(secondInputs[1].checked).toBe(true)
+    first.destroy(); second.destroy()
+  })
   it('shows unmapped project and missing reporter counts without inventing a product line', async () => {
     const api = { getTeamBugOverview: vi.fn().mockResolvedValue({
       state: 'ready', productLines, teamTotal: 12, unmappedCount: 2, unassignedCount: 1,
