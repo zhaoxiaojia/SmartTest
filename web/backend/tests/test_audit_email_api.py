@@ -27,6 +27,18 @@ class ActualJira(JiraOwner):
         return replace(report, issues=(IssueAuditResult('SH-1', 'https://jira.amlogic.com/browse/SH-1', 'test', 'QA', True, ()),))
 
 
+def test_summary_failure_is_not_labeled_export_failure(monkeypatch, no_real_weekly_email):
+    def fail_summary(*args):
+        raise KeyError('DOPL')
+    monkeypatch.setattr('smarttest_web.audit.email_job.summarize_audit', fail_summary)
+    with TestClient(make_app(), base_url='https://testserver') as client:
+        client.post('/api/auth/login', json={'username': 'coco', 'password': 'secret'})
+        result = trigger(client)
+        assert result['reports']['jira']['stage'] == 'summarizing'
+        assert result['reports']['confluence']['stage'] == 'summarizing'
+        assert no_real_weekly_email == []
+
+
 class Facts(FakeFactsOwner):
     def refresh(self, access, password):
         pass
@@ -55,6 +67,64 @@ class Confluence:
 def make_app(**kwargs):
     return create_app(authenticator=FakeAuthenticator, project_facts_owner=Facts,
                       jira_audit_owner=lambda *_: ActualJira(), confluence_audit_owner=lambda *_: Confluence(), **kwargs)
+
+
+@pytest.mark.parametrize('has_findings', [True, False])
+def test_previous_completed_audit_reuses_sqlite_filter_without_delivery_and_confluence_remediation(tmp_path, no_real_weekly_email, has_findings):
+    from core.weekly_audit import fixed_weekly_audit_scope
+    from core.jira.audit.models import AuditRule
+    from smarttest_web.audit.email_history import AuditEmailHistory
+    from smarttest_web.audit.email_job import AuditEmailJob
+    from smarttest_web.database import WebDatabase
+    from zoneinfo import ZoneInfo
+    history = AuditEmailHistory(WebDatabase(tmp_path / 'audit.db'))
+    current_scope = fixed_weekly_audit_scope(datetime(2026, 9, 18, 18, tzinfo=ZoneInfo('Asia/Shanghai')))
+    old = history.create('qa', current_scope['previousPeriod'])
+    old['createdAt'] = '2026-09-14T07:00:00+00:00'
+    saved = 'key = SH-1 AND created >= 2026-09-07 AND created <= 2026-09-11'
+    old['summary']['jira'] = {'total': 1, 'passed': 0, 'failed': 1, 'rate': '0%',
+                            'issues': [], 'scope': saved, 'findings': [
+        {'resourceId': 'SH-1', 'ruleId': 'r1', 'reason': 'old', 'url': 'https://jira/SH-1'}]}
+    old['reports']['jira']['state'] = 'completed'
+    if not has_findings:
+        del old['summary']['jira']['findings']
+    old['deliveries'] = {'jira': {'state': 'failed'}}
+    history.save('qa', old)
+    class Owner(ActualJira):
+        scopes = []
+        def run(self, scope, cancellation, progress):
+            self.scopes.append(scope.jql)
+            return replace(super().run(scope, cancellation, progress), rules=(AuditRule('r1', '', '', '', ''),))
+    class Access:
+        def require_active(self): pass
+    owner = Owner()
+    job = AuditEmailJob(history)
+    try:
+        result = job.trigger('qa', current_scope, Access(), 'secret', 0, None,
+                             lambda *_: owner, lambda *_: Confluence(), trigger_source='manual')
+        for _ in range(200):
+            result = history.get('qa', result['id'])
+            if result['state'] not in {'queued', 'running'}: break
+            time.sleep(.01)
+        assert result['state'] == 'completed'
+        assert owner.scopes == [current_scope['jira']['jql'], saved]
+        remediation = result['reports']['jira']['remediation']
+        assert remediation['currentSummary']['total'] == 1
+        if has_findings:
+            assert remediation['findings'][0]['state'] == 'fixed'
+        else:
+            assert remediation['findings'] == []
+            assert 'Previous_Audit_Current.xlsx' in result['reports']['jira']['attachments']
+        assert 'previous_comparison_completed' in result['evidence']
+        assert 'Previous_Audit_Remediation.xlsx' in result['reports']['jira']['attachments']
+        assert result['reports']['confluence']['state'] == 'completed'
+        assert 'remediation' not in result['reports']['confluence']
+        persisted = AuditEmailHistory(WebDatabase(tmp_path / 'audit.db')).get('qa', result['id'])
+        assert persisted['summary']['confluence']['projects'][0]['rules'][0]['status'] == 'updated'
+        assert persisted['summary']['jira']['issues'][0]['aiReviewStatus'] == 'not_required'
+        assert persisted['reports']['jira']['remediation']['currentSummary']['rules'][0]['ruleId'] == 'r1'
+    finally:
+        job.close()
 
 
 def login(client):
@@ -131,7 +201,8 @@ def test_trigger_uses_fixed_scope_sends_two_emails_without_creating_global_filte
         assert client.get('/api/jira/filter-snapshot').json()['snapshot'] is None
         assert client.get('/api/confluence/project-facts').json()['querySnapshot'] is None
         assert [message['to'] for message in no_real_weekly_email] == [
-            ['fae.qa@amlogic.com'], ['fae.qa@amlogic.com'],
+            ['fae.qa@amlogic.com'],
+            ['fae.qa@amlogic.com'],
         ]
         assert result['deliveries']['jira']['state'] == 'accepted'
         assert result['deliveries']['confluence']['state'] == 'accepted'

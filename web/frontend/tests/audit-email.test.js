@@ -10,8 +10,9 @@ it('offers only immediate weekly review and displays both completed reports', as
   const api = { list: vi.fn(async () => ({ runs: [], total: 0 })), trigger: vi.fn(async () => detail), get: vi.fn() }
   const page = createAuditEmailPage({ root: document.querySelector('#page'), api })
   await page.start()
-  expect(document.body.textContent).toContain('每周一 15:00')
+  expect(document.body.textContent).toContain('每周五北京时间 18:00')
   expect(document.body.textContent).toContain('fae.qa@amlogic.com')
+  expect(document.body.textContent).not.toContain('ping.xiong@amlogic.com')
   expect(document.querySelector('[data-event-form]')).toBeNull()
   expect(document.querySelector('[data-schedule-form]')).toBeNull()
   document.querySelector('[data-trigger]').click()

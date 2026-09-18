@@ -12,8 +12,8 @@ from core.logging import smart_log
 
 TASK_NAME = 'SmartTest.WeeklyAuditEmail'
 TASK_ACCOUNT = 'ping.xiong'
-TASK_WEEKDAY = 'MON'
-TASK_TIME = '15:00'
+TASK_WEEKDAY = 'FRI'
+TASK_TIME = '18:00'
 _SHANGHAI = ZoneInfo('Asia/Shanghai')
 
 

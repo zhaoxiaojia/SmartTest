@@ -29,13 +29,13 @@ def export_audit_xlsx_by_product_line(batch, output_dir: Path):
     directory = Path(output_dir)
     directory.mkdir(parents=True, exist_ok=True)
     paths = []
-    product_line_names = {line.name: line.name for line in PRODUCT_LINES}
     keys = sorted({
         audit.project.product_space.key for audit in batch.projects
         if audit.project.product_space.key
     })
     for key in keys:
-        safe = re.sub(r'[<>:"/\\|?*]+', "_", product_line_names.get(key, key)).strip(" .") or "unknown"
+        line = next(line for line in PRODUCT_LINES if key in (line.name, line.confluence_space_key))
+        safe = re.sub(r'[<>:"/\\|?*]+', "_", line.name).strip(" .")
         audits = tuple(
             audit for audit in batch.projects
             if audit.project.product_space.key == key

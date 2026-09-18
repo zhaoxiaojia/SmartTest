@@ -5,7 +5,7 @@ export function createAuditEmailPage({ root, api, pollDelay = () => new Promise(
   let generation = 0
   let offset = 0
   root.innerHTML = `<section class="page-stack">
-    <section class="card"><h2>审查与报告</h2><p>发件人：fae-qa-auto@amlogic.com</p><p>立即触发与每周一 15:00 的 Windows 任务执行相同的上周审查，并将 Jira 与 Confluence 邮件发送至 fae.qa@amlogic.com。</p>
+    <section class="card"><h2>审查与报告</h2><p>发件人：fae-qa-auto@amlogic.com</p><p>立即触发与每周五北京时间 18:00 的 Windows 任务执行相同的本周周一到周五审查，并将 Jira 与 Confluence 邮件发送至 fae.qa@amlogic.com。</p>
     <button class="button button-primary" data-trigger>立即触发</button><p data-status role="status" aria-live="polite">加载执行历史…</p></section>
     <section class="card"><h2>执行历史</h2><p>每次执行独立保存；截图记录仅供历史对比。</p><div style="overflow-x:auto"><table class="report-table" style="width:100%"><thead><tr><th>时间</th><th>来源</th><th>结果</th><th>操作</th></tr></thead><tbody data-history></tbody></table></div><div class="filter-actions"><button class="button button-secondary" data-prev>较新记录</button><span data-count></span><button class="button button-secondary" data-next>更早记录</button></div></section>
     <section class="card" data-detail hidden><h2>报告详情</h2><div data-reports></div><label>运行信息（可选择复制）<textarea class="form-control" data-evidence readonly rows="8" style="width:100%"></textarea></label></section></section>`
@@ -66,5 +66,5 @@ export function createAuditEmailPage({ root, api, pollDelay = () => new Promise(
     finally { if (!destroyed) trigger.disabled = false }
   }))
   for (const [selector, delta] of [['[data-prev]', -4], ['[data-next]', 4]]) root.querySelector(selector).addEventListener('click', () => perform(async () => { offset += delta; await listing() }))
-  return { async start() { await perform(async () => { await listing(); if (!destroyed) status.textContent = '可查看历史，或立即触发上周审查并发送邮件。' }) }, destroy() { destroyed = true; generation++; root.replaceChildren() } }
+  return { async start() { await perform(async () => { await listing(); if (!destroyed) status.textContent = '可查看历史，或立即触发本周 Jira 与 Confluence 审查并发送邮件。' }) }, destroy() { destroyed = true; generation++; root.replaceChildren() } }
 }

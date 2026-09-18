@@ -11,12 +11,12 @@ from smarttest_web.audit.weekly_command import (
 )
 
 
-def test_windows_task_definition_is_fixed_to_monday_at_1500(tmp_path):
+def test_windows_task_definition_is_fixed_to_friday_at_1800(tmp_path):
     definition = weekly_task_definition(tmp_path / 'python.exe', tmp_path / 'weekly_audit.py')
     assert definition == {
         'name': 'SmartTest.WeeklyAuditEmail',
-        'weekday': 'MON',
-        'time': '15:00',
+        'weekday': 'FRI',
+        'time': '18:00',
         'command': f'"{tmp_path / "python.exe"}" "{tmp_path / "weekly_audit.py"}"',
     }
 
@@ -27,7 +27,7 @@ def test_install_upserts_only_the_fixed_product_task(tmp_path):
                          run=lambda args, **options: calls.append((args, options)))
     assert calls == [([
         'schtasks.exe', '/Create', '/F', '/TN', 'SmartTest.WeeklyAuditEmail',
-        '/SC', 'WEEKLY', '/D', 'MON', '/ST', '15:00', '/TR',
+        '/SC', 'WEEKLY', '/D', 'FRI', '/ST', '18:00', '/TR',
         f'"{tmp_path / "python.exe"}" "{tmp_path / "weekly_audit.py"}"',
     ], {'check': True})]
 
@@ -72,7 +72,10 @@ def test_scheduled_entry_uses_shared_job_to_send_both_reports(tmp_path, monkeypa
 
     try:
         assert ScheduledAuditRunner(history, launch).run(due) == 0
-        assert [message['to'] for message in sent] == [['fae.qa@amlogic.com'], ['fae.qa@amlogic.com']]
+        assert [message['to'] for message in sent] == [
+            ['fae.qa@amlogic.com'],
+            ['fae.qa@amlogic.com'],
+        ]
         latest = history.list_runs('ping.xiong')['runs'][0]
         assert latest['source'] == 'scheduled'
     finally:

@@ -1,9 +1,58 @@
 """Weekly audit email bodies; delivery stays with the existing Outlook owner."""
 
 from html import escape
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from core.product_lines import PRODUCT_LINES
 from core.confluence.audit.rules import UPDATE_MATRIX_POINTS
+
+
+REMEDIATION_HEADERS = ('资源', '原规则', '原问题', '复查状态', '复查证据', '链接')
+
+
+def remediation_table(remediation):
+    """One explanation and row set shared by the email and XLSX report."""
+    if remediation['state'] == 'no_baseline':
+        reasons = {
+            'no_adjacent_report': '相邻上一审查周期没有已完成审查；同期报告不能替代上期。',
+            'missing_filter': '上期审查未保存有效过滤条件，无法重新执行原审查。',
+        }
+        explanation = '暂无可复核基线：' + reasons.get(remediation.get('reason'),
+                         '上期审查缺少原结果或结构化问题明细。')
+        return explanation, [(explanation, '', '', '不可比较', '', '')]
+    findings = remediation['findings']
+    if not findings:
+        explanation = ('上期未保存结构化原规则明细，无法逐项比较；本次重审明细见附件。'
+                       if remediation.get('missingOriginalFindings') else '上期无待整改问题。')
+        return explanation, [(explanation, '', '', '无法逐项比较' if remediation.get('missingOriginalFindings') else '无需整改', '', '')]
+    labels = {'fixed': '已修复', 'unfixed': '未修复', 'unverifiable': '无法核验'}
+    counts = {state: sum(item['state'] == state for item in findings) for state in labels}
+    explanation = (f"原规则问题总数：{len(findings)}；已修复：{counts['fixed']}；"
+                   f"未修复：{counts['unfixed']}；无法核验：{counts['unverifiable']}。")
+    rows = [(item['resourceId'], item['ruleId'], item.get('reason', ''),
+             labels[item['state']], item.get('currentReason') or item.get('error', ''),
+             item.get('url', '')) for item in findings]
+    return explanation, rows
+
+
+def compare_jira_audits(original, report):
+    rules = {rule.rule_id for rule in report.rules}
+    issues = {issue.key: issue for issue in report.issues}
+    results = []
+    for finding in original:
+        issue = issues.get(finding['resourceId'])
+        violation = next((item for item in issue.violations if item.rule_id == finding['ruleId']), None) if issue else None
+        if issue is None:
+            state, reason = 'unverifiable', '当前原过滤条件审查未返回原资源，无法确认是否修复。'
+        elif finding['ruleId'] not in rules:
+            state, reason = 'unverifiable', '当前审查原规则不可用。'
+        elif violation:
+            state, reason = 'unfixed', violation.reason
+        else:
+            state, reason = 'fixed', '当前完整审查原规则通过。'
+        results.append({**finding, 'state': state, 'currentReason': reason})
+    return results
 
 
 def summarize_audit(kind, report):
@@ -21,10 +70,29 @@ def summarize_audit(kind, report):
                     "url": issue.url,
                     "creator": issue.creator,
                     "passed": issue.passed,
+                    "summary": issue.summary,
+                    "aiReviewStatus": issue.ai_review_status.value,
+                    "aiFailureCategory": issue.ai_failure_category,
+                    "aiPassedCount": issue.ai_passed_count,
+                    "aiFailedCount": issue.ai_failed_count,
+                    "violations": [
+                        {"ruleId": item.rule_id, "section": item.section, "field": item.field,
+                         "reason": item.reason, "guidance": item.guidance, "observed": item.observed}
+                        for item in issue.violations
+                    ],
                 }
                 for issue in issues.values()
             ],
             "scope": report.resolved.jql,
+            "generatedAt": report.generated_at.isoformat(),
+            "rules": [{"ruleId": rule.rule_id, "section": rule.section, "field": rule.field,
+                       "requirement": rule.requirement, "guidance": rule.guidance}
+                      for rule in report.rules],
+            "findings": [
+                {"resourceId": issue.key, "ruleId": violation.rule_id,
+                 "reason": violation.reason, "url": issue.url}
+                for issue in issues.values() for violation in issue.violations
+            ],
         }
     points = {point.rule_id for point in UPDATE_MATRIX_POINTS}
     result = {line.name: [0, 0] for line in PRODUCT_LINES}
@@ -41,20 +109,54 @@ def summarize_audit(kind, report):
         }
         for line in PRODUCT_LINES
     }
+    projects = []
     for audit in report.projects:
+        line = next(line for line in PRODUCT_LINES
+                    if audit.project.product_space.key in (line.name, line.confluence_space_key))
+        projects.append({"projectId": audit.project.identity.project_id,
+                         "confluenceId": audit.project.identity.confluence_id,
+                         "name": audit.project.name, "productLine": line.name,
+                         "owners": list(audit.owners),
+                         "rules": [{"ruleId": finding.rule_id, "pageTitle": finding.page_title,
+                                    "status": finding.status.value, "reason": finding.reason,
+                                    "pageUrl": finding.page_url} for finding in audit.findings]})
         for finding in audit.findings:
             if finding.rule_id in points:
-                counts[audit.project.product_space.key][finding.status.value] += 1
+                counts[line.name][finding.status.value] += 1
     for key, values in counts.items():
         result[key] = [values["updated"], sum(values.values())]
     result["counts"] = counts
+    result["projects"] = projects
+    result["generatedAt"] = report.created_at.isoformat()
     result["scope"] = (
         f"{report.period.start.isoformat()} ≤ 更新时间 < {report.period.end.isoformat()}"
     )
     return result
 
 
-def render_history_report(kind: str, records: list[dict], *, current=False) -> dict:
+def _summary_table(labels, rows, old_background='#ffffff'):
+    border = "border:1px solid #bcc9da;padding:10px;text-align:left;"
+    table = (
+        '<table style="border-collapse:collapse;width:100%;font-size:14px"><thead><tr>'
+    )
+    table += f'<th scope="col" style="{border}background:#dbeafe">指标 / 产品线</th>'
+    for index, label in enumerate(labels):
+        color = "#fff2cc" if index == 0 else "#dbeafe"
+        table += (
+            f'<th scope="col" style="{border}background:{color}">{escape(label)}</th>'
+        )
+    table += "</tr></thead><tbody>"
+    for label, values in rows:
+        table += f'<tr><th scope="row" style="{border}">{escape(label)}</th>'
+        for index, value in enumerate(values):
+            color = "#fff2cc" if index == 0 else old_background
+            table += f'<td style="{border}background:{color}">{escape(str(value))}</td>'
+        table += "</tr>"
+    table += "</tbody></table>"
+    return table
+
+
+def render_history_report(kind: str, records: list[dict], *, current=False, remediation=None) -> dict:
     """Render only supplied, dated summaries; never promote previews to audits."""
     records = records[:4]
     if not records:
@@ -83,7 +185,7 @@ def render_history_report(kind: str, records: list[dict], *, current=False) -> d
         historical_names = tuple(
             key
             for key in records[0]["summary"]
-            if key not in {"counts", "scope"}
+            if key not in {"counts", "scope", "projects", "generatedAt"}
         )
         product_names = (
             canonical_names
@@ -103,27 +205,11 @@ def render_history_report(kind: str, records: list[dict], *, current=False) -> d
         ]
         note = "表内为截图原值：已更新点 / 需要更新点。历史明细及附件未提供。"
     border = "border:1px solid #bcc9da;padding:10px;text-align:left;"
-    table = (
-        '<table style="border-collapse:collapse;width:100%;font-size:14px"><thead><tr>'
-    )
-    table += f'<th scope="col" style="{border}background:#dbeafe">指标 / 产品线</th>'
-    for index, label in enumerate(labels):
-        color = "#fff2cc" if index == 0 else "#dbeafe"
-        table += (
-            f'<th scope="col" style="{border}background:{color}">{escape(label)}</th>'
-        )
-    table += "</tr></thead><tbody>"
-    for label, values in rows:
-        table += f'<tr><th scope="row" style="{border}">{escape(label)}</th>'
-        for index, value in enumerate(values):
-            color = "#fff2cc" if index == 0 else "#ffffff"
-            table += f'<td style="{border}background:{color}">{escape(str(value))}</td>'
-        table += "</tr>"
-    table += "</tbody></table>"
+    table = _summary_table(labels, rows)
     details = ""
     if current:
         summary = records[0]["summary"]
-        note = f"实际审查范围：{summary['scope']}。旧期列为已保存历史，截图未提供历史明细或附件。"
+        note = f"实际审查范围：{summary['scope']}。历史列采用已保存记录；仅截图来源的记录不含原审查明细。"
         if kind == "jira":
             from urllib.parse import urlsplit
 
@@ -180,9 +266,9 @@ def render_history_report(kind: str, records: list[dict], *, current=False) -> d
     subject = f"{title} {labels[0]}" + ("" if current else "（历史预览）")
     introduction = (
         (
-            "下面是上周confluence信息更新检查结果，请未更新的项目owner尽快去补充未完成的部分。"
+            "下面是本周confluence信息更新检查结果，请未更新的项目owner尽快去补充未完成的部分。"
             if kind == "confluence"
-            else "下面是针对大家上周创建的bug进行的规范检查，针对还不满足规范的部分，大家需要尽快改善。"
+            else "下面是针对大家本周创建的bug进行的规范检查，针对还不满足规范的部分，大家需要尽快改善。"
         )
         if current
         else "历史预览：以下数据来自已提供的截图汇总，本次未重新执行审查，未发送邮件。"
@@ -194,9 +280,34 @@ def render_history_report(kind: str, records: list[dict], *, current=False) -> d
         f"<h2>{escape(body_title)}</h2><p>Hi all,</p>"
         f"<p>{introduction}</p>{table}<p>{escape(note)}</p>{details}</body></html>"
     )
+    if kind == 'jira' and remediation is not None:
+        section = '<h3>上期问题整改复查</h3>'
+        if remediation.get('jql'):
+            section += '<p>复查保存的 JQL：' + escape(remediation['jql']) + '</p>'
+        if remediation.get('currentSummary') is not None:
+            section += '<p>以下为同一保存 JQL 的上次原审查与本次重新审查汇总；逐规则整改明细见 Excel 附件。</p>'
+            comparison_rows = [(label, [remediation['currentSummary'][key], remediation['originalSummary'][key]])
+                               for label, key in (('问题总数', 'total'), ('通过 Jira 数', 'passed'),
+                                                  ('不通过 Jira 数', 'failed'), ('通过率', 'rate'))]
+            section += _summary_table(['本次重审 ' + _beijing_time(remediation['reviewedAt']),
+                                       '上次原审查 ' + _beijing_time(remediation['originalAt'])],
+                                      comparison_rows, old_background='#dbeafe')
+        else:
+            explanation = (remediation_table(remediation)[0] if remediation['state'] == 'no_baseline'
+                           else '本次原过滤条件复查失败，无法生成同 JQL 汇总；无法核验明细见 Excel 附件。')
+            section += '<p>' + escape(explanation) + '</p>'
+            section += f'<table style="border-collapse:collapse;width:100%"><tr><th style="{border}background:#dbeafe">说明</th></tr>'
+            section += f'<tr><td style="{border}">' + escape(explanation) + '</td></tr></table>'
+        body = body.replace('</body>', section + '</body>')
     return {
         "state": "completed" if current else "historical_preview",
         "subject": subject,
         "html": body,
         "sourceIds": [row["id"] for row in records],
     }
+
+
+def _beijing_time(value):
+    if 'T' not in value:
+        return value
+    return datetime.fromisoformat(value).astimezone(ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d %H:%M:%S 北京时间')

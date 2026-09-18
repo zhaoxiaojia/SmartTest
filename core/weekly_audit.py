@@ -17,8 +17,7 @@ def fixed_weekly_audit_scope(trigger_at: datetime) -> dict:
     trigger = (trigger_at.replace(tzinfo=_SHANGHAI) if trigger_at.tzinfo is None
                else trigger_at.astimezone(_SHANGHAI))
     this_monday = trigger.date() - timedelta(days=trigger.weekday())
-    previous_monday = this_monday - timedelta(days=7)
-    start = datetime.combine(previous_monday, time.min, _SHANGHAI)
+    start = datetime.combine(this_monday, time.min, _SHANGHAI)
     end = start + timedelta(days=5)
     start_text, end_text = start.isoformat(), end.isoformat()
     jira_start = start.date().isoformat()
@@ -26,6 +25,10 @@ def fixed_weekly_audit_scope(trigger_at: datetime) -> dict:
     return {
         "startDate": start_text,
         "endDate": end_text,
+        "previousPeriod": {
+            "startDate": (start - timedelta(days=7)).isoformat(),
+            "endDate": (end - timedelta(days=7)).isoformat(),
+        },
         "jira": {
             "filters": {},
             "jql": f'{_JIRA_SCOPE} AND created >= {jira_start} AND created <= {jira_end} order by updated DESC',

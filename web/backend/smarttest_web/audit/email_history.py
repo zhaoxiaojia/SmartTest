@@ -98,7 +98,26 @@ class AuditEmailHistory:
             connection.execute('UPDATE audit_email_runs SET state=?,payload=? WHERE id=? AND account=?',
                                (result['state'], json.dumps(result, ensure_ascii=False), result['id'], account))
 
-    def complete_report(self, account, result, kind, summary, attachments):
+    def previous_jira_audit(self, account, previous_period):
+        expected = {key: datetime.fromisoformat(previous_period[key])
+                    for key in ('startDate', 'endDate')}
+        with self.database.connect() as connection:
+            rows = connection.execute(
+                'SELECT payload FROM audit_email_runs WHERE account=? ORDER BY sequence DESC',
+                (account,),
+            ).fetchall()
+        for row in rows:
+            old = json.loads(row[0])
+            old_scope = old.get('scope', {})
+            if any(not old_scope.get(key) or datetime.fromisoformat(old_scope[key]) != value
+                   for key, value in expected.items()):
+                continue
+            if old.get('reports', {}).get('jira', {}).get('state') == 'completed':
+                # Latest completed adjacent audit; delivery does not establish the baseline.
+                return old
+        return None
+
+    def complete_report(self, account, result, kind, summary, attachments, remediation=None):
         with self.database.transaction() as connection:
             previous = connection.execute(
                 """SELECT payload FROM audit_email_runs WHERE account IN ('',?) AND sequence <
@@ -117,7 +136,9 @@ class AuditEmailHistory:
                     records.append({'id': old['id'], 'label': old_label, 'summary': old['summary'][kind]})
                 if len(records) == 4:
                     break
-            rendered = render_history_report(kind, records, current=True)
+            rendered = render_history_report(kind, records, current=True, remediation=remediation)
             result['summary'][kind] = summary
             result['reports'][kind] = {**rendered, 'attachments': attachments}
+            if kind == 'jira':
+                result['reports'][kind]['remediation'] = remediation
             self.save(account, result)

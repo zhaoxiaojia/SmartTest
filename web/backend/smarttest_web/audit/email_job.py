@@ -6,7 +6,7 @@ from threading import Lock
 from time import perf_counter
 
 from core.confluence.audit.models import AuditPeriod
-from core.email.audit_report import summarize_audit
+from core.email.audit_report import REMEDIATION_HEADERS, compare_jira_audits, remediation_table, summarize_audit
 from core.logging import smart_log
 
 from ..task_manager import WEB_TASKS
@@ -183,10 +183,70 @@ class AuditEmailJob:
                 attachments = [Path(path).name for path in paths]
                 token.raise_if_cancelled()
                 access.require_active()
+                stage = 'summarizing'
                 summary = summarize_audit(kind, report)
-                self.history.complete_report(
-                    account, result, kind, summary, attachments
-                )
+                remediation = None
+                if kind == 'jira':
+                    stage = 'rechecking'
+                    baseline = self.history.previous_jira_audit(account, scope['previousPeriod'])
+                    remediation = {'state': 'no_baseline', 'reason': 'no_adjacent_report', 'findings': []}
+                    original = baseline.get('summary', {}).get('jira', {}) if baseline else {}
+                    if baseline:
+                        remediation['reason'] = 'missing_filter'
+                    saved_jql = original.get('scope')
+                    remediation['jql'] = saved_jql or ''
+                    record(kind, 'baseline_selected', baseline_id=baseline['id'] if baseline else '',
+                           baseline_start=baseline.get('scope', {}).get('startDate', '') if baseline else '',
+                           baseline_end=baseline.get('scope', {}).get('endDate', '') if baseline else '',
+                           reason='available' if baseline and saved_jql else remediation['reason'])
+                    if baseline and saved_jql:
+                        reviewed_summary, reviewed_at = None, ''
+                        record(kind, 'previous_scope_resolving', scope_source='sqlite_summary',
+                               scope_chars=len(saved_jql), original_rule_count=len(original['findings']) if 'findings' in original else None)
+                        try:
+                            previous_scope = owner.resolve(saved_jql)
+                            record(kind, 'previous_scope_resolved')
+                            record(kind, 'previous_audit_started')
+                            previous_report = owner.run(previous_scope, token,
+                                lambda step, done=0, total=0: record(kind, 'previous_' + step, processed=done, total=total))
+                            record(kind, 'previous_audit_completed', current_resource_count=len(previous_report.issues),
+                                   current_rule_count=len(previous_report.rules))
+                            findings = compare_jira_audits(original.get('findings', []), previous_report)
+                            reviewed_summary = summarize_audit('jira', previous_report)
+                            reviewed_at = previous_report.generated_at.isoformat()
+                            stage = 'exporting_remediation'
+                            reviewed_path = owner.export(previous_report, directory / 'Previous_Audit_Current.xlsx')
+                            attachments.append(Path(reviewed_path).name)
+                            stage = 'rechecking'
+                        except Exception as error:
+                            token.raise_if_cancelled()
+                            record(kind, 'previous_audit_failed', error_code=type(error).__name__)
+                            findings = [{**item, 'state': 'unverifiable', 'error': type(error).__name__}
+                                        for item in original.get('findings', [])]
+                        remediation = {'state': 'completed', 'baselineId': baseline['id'], 'findings': findings,
+                                       'missingOriginalFindings': 'findings' not in original,
+                                       'jql': saved_jql, 'originalSummary': original,
+                                       'currentSummary': reviewed_summary,
+                                       'originalAt': baseline['createdAt'], 'reviewedAt': reviewed_at}
+                        record(kind, 'previous_comparison_completed',
+                               original_resource_count=len({item['resourceId'] for item in findings}),
+                               original_rule_count=len(findings) if 'findings' in original else None,
+                               fixed=sum(item['state'] == 'fixed' for item in findings),
+                               unfixed=sum(item['state'] == 'unfixed' for item in findings),
+                               unverifiable=sum(item['state'] == 'unverifiable' for item in findings))
+                stage = 'rendering'
+                self.history.complete_report(account, result, kind, summary, attachments, remediation)
+                if kind == 'jira':
+                    from core.reporting.excel import write_xlsx_sections
+                    stage = 'exporting_remediation'
+                    explanation, rows = remediation_table(remediation)
+                    remediation_path = write_xlsx_sections(
+                        directory / 'Previous_Audit_Remediation.xlsx', sheet_name='上期整改复查',
+                        sections=[{'group': ('上期问题整改复查', explanation),
+                                   'headers': REMEDIATION_HEADERS, 'rows': rows}], wrap_data=True)
+                    result['reports'][kind]['attachments'].append(Path(remediation_path).name)
+                    self.history.save(account, result)
+                    record(kind, 'previous_output_completed', row_count=len(rows))
                 record(
                     kind,
                     "report_saved",
