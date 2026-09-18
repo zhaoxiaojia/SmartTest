@@ -3,7 +3,11 @@ import { expect, it, vi } from 'vitest'
 
 const charts = vi.hoisted(() => [])
 vi.mock('chart.js', () => {
-  const Chart = vi.fn(function (_canvas, config) { charts.push(config); this.destroy = vi.fn() })
+  const Chart = vi.fn(function (_canvas, config) {
+    this.data = config.data; this.options = config.options
+    this.destroy = vi.fn(); this.stop = vi.fn(); this.reset = vi.fn(); this.update = vi.fn()
+    charts.push(this)
+  })
   Chart.register = vi.fn()
   return { Chart, registerables: [] }
 })

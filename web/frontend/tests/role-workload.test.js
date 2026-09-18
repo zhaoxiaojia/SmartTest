@@ -19,7 +19,11 @@ describe('RoleWorkloadWidget', () => {
   it('keeps the Projects workload sorting, identity cleanup, switching, and chart lifecycle', () => {
     const charts = []
     const chartFactory = vi.fn((canvas, config) => {
-      const chart = { config, destroy: vi.fn() }; charts.push(chart); return chart
+      const chart = { config,
+        get data() { return config.data }, set data(value) { config.data = value },
+        get options() { return config.options }, set options(value) { config.options = value },
+        update: vi.fn(), reset: vi.fn(), stop: vi.fn(), destroy: vi.fn(),
+      }; charts.push(chart); return chart
     })
     const widget = createRoleWorkloadWidget({ chartFactory })
     widget.mount(document.querySelector('#root'), {
@@ -36,7 +40,9 @@ describe('RoleWorkloadWidget', () => {
       .find(button => button.textContent === 'TV Business').click()
     expect(charts.at(-1).config.data.labels).toEqual(['Bob', 'Alice', 'Unknown member'])
     expect(charts.at(-1).config.data.datasets[0].data).toEqual([2, 1, 1])
-    expect(charts[0].destroy).toHaveBeenCalledOnce()
+    expect(chartFactory).toHaveBeenCalledOnce()
+    expect(charts[0].destroy).not.toHaveBeenCalled()
+    expect(charts[0].reset).toHaveBeenCalledOnce()
     widget.destroy()
     expect(charts.at(-1).destroy).toHaveBeenCalledOnce()
     expect(document.querySelector('#root').childElementCount).toBe(0)

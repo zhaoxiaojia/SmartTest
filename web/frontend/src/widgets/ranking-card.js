@@ -62,8 +62,6 @@ export function createRankingCard({ chartFactory } = {}) {
   }
 
   function renderChart() {
-    chart?.destroy()
-    chart = null
     const rows = (config.rowsFor?.(activeProductLine, activeMode) ?? [])
       .filter(row => row.count)
       .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
@@ -75,10 +73,21 @@ export function createRankingCard({ chartFactory } = {}) {
     empty.textContent = config.error || config.emptyText || 'No data in this product line.'
     const canvas = root.querySelector('[data-ranked-chart]')
     canvas.hidden = !rows.length
-    if (!rows.length || !chartFactory) return
-    chart = chartFactory(canvas, {
+    if (!rows.length || !chartFactory) {
+      chart?.destroy()
+      chart = null
+      return
+    }
+    const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const next = {
       type: 'bar', data: { labels: rows.map(row => row.name), datasets: [{ label: config.datasetLabel || '', data: rows.map(row => row.count) }] },
       options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        animation: reducedMotion ? false : { duration: 500, easing: 'easeOutQuart',
+          delay: context => context.type === 'data' ? Math.min(context.dataIndex * 40, 400) : 0 },
+        transitions: { resize: { animation: { duration: reducedMotion ? 0 : 500 } } },
+        animations: { y: { duration: 0 }, width: {
+          from: context => Number.isFinite(context.element?.width) ? context.element.width : 0,
+        } },
         layout: { padding: { right: 28 } }, scales: {
           x: { beginAtZero: true, ticks: { precision: 0 } },
           y: { ticks: { autoSkip: false } },
@@ -87,7 +96,23 @@ export function createRankingCard({ chartFactory } = {}) {
           percentage: { anchor: 'end', align: 'left', offset: 4, color: '#fff', formatter: value => `${Math.round(value / total * 100)}%` },
           value: { anchor: 'end', align: 'right', offset: 4, clip: false, formatter: value => value },
         } } } },
-    })
+    }
+    if (!chart) {
+      chart = chartFactory(canvas, next)
+      return
+    }
+    const labelsChanged = chart.data.labels.length !== next.data.labels.length
+      || chart.data.labels.some((label, index) => label !== next.data.labels[index])
+    chart.stop()
+    chart.data = next.data
+    chart.options = next.options
+    if (labelsChanged && !reducedMotion) {
+      // Reordered rows must not morph one person's bar into another person's bar.
+      chart.update('none')
+      chart.reset()
+    }
+    if (reducedMotion) chart.update('none')
+    else chart.update()
   }
 
   return {
