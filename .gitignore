@@ -65,3 +65,10 @@ core/testing/self_tests/ui/*
 !core/testing/self_tests/ui/test_runtime_business_credentials.py
 core/config/avatars/*
 !core/config/avatars/.gitkeep
+
+# Local-only agent rules, skills and development design documents
+/AGENTS.md
+/web/AGENTS.md
+/.codex/skills/
+/docs/superpowers/
+/web/WEB_DEVELOPMENT_DESIGN.md
