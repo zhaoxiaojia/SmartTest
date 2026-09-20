@@ -84,6 +84,12 @@ class ProductBoundaryCheckTests(unittest.TestCase):
 
         self.assertEqual(_check_active_core_rules(self.root), [])
 
+    def test_local_only_rules_may_be_absent_from_repository_checkout(self) -> None:
+        self.assertEqual(_check_active_core_rules(self.root), [])
+        self.assertEqual(_check_active_android_rules(self.root), [])
+        self.assertEqual(_check_active_desktop_rules(self.root), [])
+        self.assertEqual(_check_active_logging_rules(self.root), [])
+
     def test_web_frontend_allows_api_and_local_imports(self) -> None:
         self._write("web/frontend/src/page.ts", "import api from './api'\nconst view = import('./view')\n")
 

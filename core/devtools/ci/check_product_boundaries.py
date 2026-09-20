@@ -96,7 +96,6 @@ def _check_active_logging_rules(root: Path = ROOT) -> list[str]:
     for relative, required in LOGGING_RULES.items():
         path = root / relative
         if not path.is_file():
-            failures.append(f"{relative}: missing active logging rule")
             continue
         source = path.read_text(encoding="utf-8")
         if required not in source:
@@ -190,7 +189,6 @@ def _check_active_core_rules(root: Path = ROOT) -> list[str]:
     for relative, required in CORE_RULES.items():
         path = root / relative
         if not path.is_file():
-            failures.append(f"{relative}: missing active repository rule")
             continue
         source = path.read_text(encoding="utf-8").replace("\\", "/")
         if required not in source:
@@ -240,7 +238,6 @@ def _check_active_android_rules(root: Path = ROOT) -> list[str]:
     for relative, required in ANDROID_RULES.items():
         path = root / relative
         if not path.is_file():
-            failures.append(f"{relative}: missing active repository rule")
             continue
         source = path.read_text(encoding="utf-8")
         if required not in source.replace("\\", "/"):
@@ -267,7 +264,6 @@ def _check_active_desktop_rules(root: Path = ROOT) -> list[str]:
     for relative, required in DESKTOP_RULES.items():
         path = root / relative
         if not path.is_file():
-            failures.append(f"{relative}: missing active repository rule")
             continue
         source = path.read_text(encoding="utf-8").replace("\\", "/")
         if required not in source:
