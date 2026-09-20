@@ -102,3 +102,19 @@ it('preserves GridStack content insets instead of forcing widget content to item
 
   expect(getComputedStyle(workspace.querySelector('.dashboard-widget-card')).height).not.toBe('100%')
 })
+
+it('lays out shared card toolbar groups on opposite sides of one row', () => {
+  const style = document.createElement('style')
+  style.textContent = readFileSync(resolve(import.meta.dirname, '../src/smarttest-theme.css'), 'utf8')
+  document.head.append(style)
+  const toolbar = document.createElement('header')
+  toolbar.className = 'report-preview-toolbar'
+  toolbar.innerHTML = '<div>Product lines</div><div>Statuses</div>'
+  document.body.append(toolbar)
+
+  const computed = getComputedStyle(toolbar)
+  expect(computed.display).toBe('flex')
+  expect(computed.alignItems).toBe('center')
+  expect(computed.justifyContent).toBe('space-between')
+  expect(computed.flexDirection).toBe('row')
+})

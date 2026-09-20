@@ -12,15 +12,6 @@ class AuditEmailHistory:
     def __init__(self, database):
         self.database = database
         with database.transaction() as connection:
-            connection.execute('''CREATE TABLE IF NOT EXISTS audit_email_runs (
-                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
-                id TEXT NOT NULL UNIQUE, account TEXT NOT NULL,
-                label TEXT NOT NULL, state TEXT NOT NULL, payload TEXT NOT NULL
-            )''')
-            connection.execute('''CREATE TABLE IF NOT EXISTS audit_email_occurrences (
-                account TEXT NOT NULL, occurrence TEXT NOT NULL,
-                claimed_at TEXT NOT NULL, PRIMARY KEY(account, occurrence)
-            )''')
             summaries = []
             for label, total, passed, rate, confluence in (
                 ('0807', 261, 58, '22.22%', None),

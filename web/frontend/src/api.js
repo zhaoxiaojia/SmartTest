@@ -260,9 +260,11 @@ export function createReleaseApi({ fetchImpl = globalThis.fetch, baseUrl = '/api
   return {
     getDashboardReleases: (filters = {}, options = {}) => request('/dashboard/releases', { filters, options }),
     syncDashboardReleases: () => request('/dashboard/releases/sync', { method: 'POST' }),
+    getDashboardReleaseSync: taskId => request(`/dashboard/releases/sync/${encodeURIComponent(taskId)}`),
     getDashboardRelease: projectId => request(`/dashboard/releases/${encodeURIComponent(projectId)}`),
     getJiraReleaseIssues: (filters = {}, options = {}) => request('/jira/release-issues', { filters, options }),
     syncJiraReleaseIssues: () => request('/jira/release-issues/sync', { method: 'POST' }),
+    getJiraReleaseSync: taskId => request(`/jira/release-issues/sync/${encodeURIComponent(taskId)}`),
     getJiraReleaseIssue: (issueKey, details = []) => request(
       `/jira/release-issues/${encodeURIComponent(issueKey)}`,
       { filters: { details } },

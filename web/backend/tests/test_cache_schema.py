@@ -38,7 +38,7 @@ def test_current_cache_schema_initializes_both_components_idempotently(tmp_path)
         ).fetchall() == [("confluence_cache", 3), ("jira_cache", 4)]
 
 
-def test_component_version_mismatch_rebuilds_only_that_cache(tmp_path) -> None:
+def test_component_version_mismatch_preserves_cached_and_persistent_data(tmp_path) -> None:
     path = tmp_path / "web.db"
     database = WebDatabase(path)
     initialize_current_cache_schema(database)
@@ -59,7 +59,7 @@ def test_component_version_mismatch_rebuilds_only_that_cache(tmp_path) -> None:
     initialize_current_cache_schema(database)
 
     with database.connect() as connection:
-        assert connection.execute("SELECT count(*) FROM jira_issues").fetchone()[0] == 0
+        assert connection.execute("SELECT count(*) FROM jira_issues").fetchone()[0] == 1
         assert connection.execute("SELECT name FROM confluence_projects").fetchone()[0] == "kept"
     assert {"web_sessions", "user_preferences", "web_credentials"} <= _tables(path)
 
@@ -82,4 +82,4 @@ def test_legacy_confluence_schema_marker_is_directly_replaced(tmp_path) -> None:
     with sqlite3.connect(path) as connection:
         columns = [row[1] for row in connection.execute("PRAGMA table_info(smarttest_schema)")]
         assert columns == ["component", "version"]
-        assert "confluence_project_attributes" not in _tables(path)
+        assert "confluence_project_attributes" in _tables(path)

@@ -64,6 +64,8 @@ def run_product_weekly_audit(trigger_at=None):
 
     sessions = PersistentSessionStore()
     database = WebDatabase(sessions.path)
+    from ..schema import initialize_web_schema
+    initialize_web_schema(database)
     history = AuditEmailHistory(database)
 
     def launch(trigger, source):

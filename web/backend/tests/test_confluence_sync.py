@@ -10,6 +10,7 @@ from smarttest_web.confluence.cache_service import ConfluenceProjectCacheService
 from smarttest_web.confluence.project_repository import ConfluenceProjectRepository
 from smarttest_web.confluence_sync import ConfluenceProjectSyncCoordinator
 from smarttest_web.database import WebDatabase
+from core.async_tasks import AsyncTaskManager
 
 
 class Gateway:
@@ -47,3 +48,23 @@ def test_sync_uses_cache_service_and_cancellation_prevents_queued_refresh(tmp_pa
     assert gateway.detail_calls == [("P1", ("facts",))]
     assert repository.get("P1", ProjectDetails(facts=True)).facts.state is DetailState.LOADED
     assert repository.get("P2", ProjectDetails()) is None
+
+
+def test_sync_submits_resource_limited_children_under_the_owned_root() -> None:
+    class Service:
+        def refresh_project(self, _project_id, _details):
+            return None
+
+    manager = AsyncTaskManager(max_workers=2, child_visibility_seconds=0)
+    root = manager.register_long_running("details")
+    snapshots = []
+    manager.subscribe(snapshots.append)
+    try:
+        coordinator = ConfluenceProjectSyncCoordinator(Service(), max_workers=1, manager=manager)
+        assert coordinator.sync(("P1", "P2"), ProjectDetails(facts=True), parent_id=root) == ["updated", "updated"]
+        children = {task.id for task in snapshots if task.parent_id == root}
+        assert len(children) == 2
+        assert all(task.root_id == root for task in snapshots if task.id in children)
+    finally:
+        manager.complete_long_running(root)
+        manager.close()

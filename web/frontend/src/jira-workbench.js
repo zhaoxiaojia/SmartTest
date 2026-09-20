@@ -1,4 +1,7 @@
 import { createJiraManualAudit } from './manual-audits.js'
+import { createTaskController } from './task-polling.js'
+import { createAsyncFeedback } from './async-feedback.js'
+import { escapeHtml } from './dom.js'
 
 const FILTERS = ['productLine', 'project', 'release', 'fixVersion', 'softwareRelease', 'status', 'resolution', 'priority', 'severity', 'component', 'assignee', 'qaAssignee', 'association']
 
@@ -22,6 +25,8 @@ export function createJiraWorkbench({ root, api, snapshot = '', projectId = '' }
   const audit = createJiraManualAudit({ root: root.querySelector('[data-review-host]'), api: auditApi })
   const form = root.querySelector('[data-jira-filters]')
   let page = 0; const pageSize = 50; let current; let disposed = false
+  const tasks = createTaskController()
+  const feedback = createAsyncFeedback({ root: root.querySelector('[data-jira-feedback]') })
 
   function renderFilters(facets) {
     const available = new Map((facets ?? []).map(facet => [facet.key, facet.options ?? []]))
@@ -73,41 +78,41 @@ export function createJiraWorkbench({ root, api, snapshot = '', projectId = '' }
   }
 
   async function load(filters = {}, options = {}) {
-    root.querySelector('[data-jira-feedback]').textContent = 'Loading cached issues…'
+    feedback.update({ state: 'running', message: 'Loading cached issues…' })
     try {
       const payload = await api.getJiraReleaseIssues(filters, { ...options, page, pageSize })
-      if (!disposed) { render(payload); root.querySelector('[data-jira-feedback]').textContent = '' }
-    } catch { if (!disposed) root.querySelector('[data-jira-feedback]').textContent = 'Jira release workbench unavailable.' }
+      if (!disposed) { render(payload); feedback.update() }
+    } catch { if (!disposed) feedback.update({ state: 'failed', message: 'Jira release workbench unavailable.' }) }
   }
   form.addEventListener('submit', event => { event.preventDefault(); page = 0; void load(selectedFilters()) })
   root.querySelector('[data-reset]').addEventListener('click', () => { current = null; page = 0; void load({}, { reset: true }) })
   root.querySelector('[data-sync]').addEventListener('click', async () => {
-    const feedback = root.querySelector('[data-jira-feedback]')
-    feedback.textContent = 'Syncing current server scope…'
+    feedback.update({ state: 'running', message: 'Syncing current server scope…' })
     try {
-      const payload = await api.syncJiraReleaseIssues()
+      let payload = await api.syncJiraReleaseIssues()
+      if (payload.taskId) {
+        const task = await tasks.run(api.getJiraReleaseSync, payload.taskId)
+        if (task) payload = { ...payload, syncState: task.syncState }
+      }
       if (!disposed) {
         render(payload)
-        feedback.textContent = payload.syncState === 'invalid_credentials'
+        const message = payload.syncState === 'invalid_credentials'
           ? 'Sync credentials were rejected; cached data is still shown.'
           : (payload.syncState === 'failed' ? 'Sync failed; cached data is still shown.' : '')
+        feedback.update(message ? { state: 'failed', message } : undefined)
       }
     } catch {
-      if (!disposed) feedback.textContent = 'Jira sync failed; cached data is still shown.'
+      if (!disposed) feedback.update({ state: 'failed', message: 'Jira sync failed; cached data is still shown.' })
     }
   })
   root.querySelector('[data-prev]').addEventListener('click', () => { page -= 1; void load(selectedFilters()) })
   root.querySelector('[data-next]').addEventListener('click', () => { page += 1; void load(selectedFilters()) })
   return {
     start: () => load({}, { snapshot: snapshot || true, ...(projectId ? { projectId } : {}) }),
-    destroy() { disposed = true; audit.destroy() },
+    destroy() { disposed = true; tasks.dispose(); audit.destroy() },
   }
 }
 
 function renderLazy(details = {}) {
   return Object.entries(details).map(([name, section]) => `<section><h3>${escapeHtml(name)}</h3><pre>${escapeHtml(JSON.stringify(section.value ?? null, null, 2))}</pre></section>`).join('')
-}
-
-function escapeHtml(value) {
-  const element = document.createElement('span'); element.textContent = String(value ?? ''); return element.innerHTML
 }

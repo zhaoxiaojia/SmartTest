@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import time
 
-from .schema import ensure_component_schema
 
 
 class ResourceAccess:
@@ -11,14 +10,6 @@ class ResourceAccess:
     def __init__(self, database, account, platform, session_hash, *, now=time.time):
         self.database, self.account, self.platform = database, account, platform
         self.session_hash, self._now = session_hash, now
-        ensure_component_schema(database, component="resource_access", version=1,
-            drop_tables=("web_resource_access",), statements=(
-                """CREATE TABLE IF NOT EXISTS web_resource_access (
-                    account TEXT NOT NULL, platform TEXT NOT NULL, kind TEXT NOT NULL,
-                    resource_id TEXT NOT NULL, capability TEXT NOT NULL, scope TEXT NOT NULL,
-                    confirmed_at REAL NOT NULL,
-                    PRIMARY KEY(account,platform,kind,resource_id,capability,scope))""",
-            ))
 
     def require_active(self):
         with self.database.connect() as connection:

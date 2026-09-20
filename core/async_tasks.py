@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections import deque
 from concurrent.futures import Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
-from threading import Event, RLock, Thread, current_thread
+from threading import Event, RLock
 from time import monotonic
 import os
 from uuid import uuid4
@@ -51,7 +52,7 @@ class _Task:
     progress_at: float = 0.0
     future: Future | None = None
     cancel_callback: object | None = None
-    thread: Thread | None = None
+    result: object | None = None
 
 
 class AsyncTaskManager:
@@ -64,11 +65,13 @@ class AsyncTaskManager:
         self.progress_coalesce_seconds = float(progress_coalesce_seconds)
         self._clock = clock
         self._executor = ThreadPoolExecutor(max_workers=self.max_workers)
+        self._coordinator_executor = ThreadPoolExecutor(max_workers=1)
         self._lock = RLock()
         self._tasks: dict[str, _Task] = {}
         self._revisions: dict[str, int] = {}
         self._subscribers = []
-        self._coordinator_threads = []
+        self._resource_limits = {}
+        self._closed = False
 
     @classmethod
     def from_environment(cls):
@@ -105,19 +108,23 @@ class AsyncTaskManager:
             task.state = "failed" if failed else "completed"
             self._publish(task)
 
-    def submit(self, label, runner) -> Future:
-        return self._submit(label, runner, parent_id="")
+    def submit(self, label, runner, *, resource_key="", resource_limit=0) -> Future:
+        return self._submit(label, runner, parent_id="", resource_key=resource_key,
+                            resource_limit=resource_limit)
 
     def submit_coordinator(self, label, runner) -> Future:
         """Run a root coordinator outside the bounded worker capacity."""
         return self._submit(label, runner, parent_id="", coordinator=True)
 
-    def submit_child(self, parent_id, label, runner) -> Future:
-        return self._submit(label, runner, parent_id=str(parent_id))
+    def submit_child(self, parent_id, label, runner, *, resource_key="", resource_limit=0) -> Future:
+        return self._submit(label, runner, parent_id=str(parent_id), resource_key=resource_key,
+                            resource_limit=resource_limit)
 
-    def _submit(self, label, runner, *, parent_id: str, coordinator=False) -> Future:
-        thread = None
+    def _submit(self, label, runner, *, parent_id: str, coordinator=False,
+                resource_key="", resource_limit=0) -> Future:
         with self._lock:
+            if self._closed:
+                raise RuntimeError("task manager is closed")
             parent = self._tasks.get(parent_id) if parent_id else None
             if parent_id and parent is None:
                 raise KeyError(parent_id)
@@ -133,29 +140,51 @@ class AsyncTaskManager:
                 task.future.cancel()
                 self._publish(task)
             elif coordinator:
+                task.future = self._coordinator_executor.submit(self._run, task, runner)
+            elif resource_key:
+                key = str(resource_key)
+                limit = max(1, int(resource_limit))
+                resource = self._resource_limits.get(key)
+                if resource is None:
+                    resource = self._resource_limits[key] = {
+                        "limit": limit, "running": 0, "pending": deque(),
+                    }
+                elif resource["limit"] != limit:
+                    raise ValueError(f"resource limit already configured: {key}")
                 task.future = Future()
-                thread = Thread(
-                    target=self._run_coordinator, args=(task, runner), daemon=True,
-                )
-                self._coordinator_threads.append(thread)
-                task.thread = thread
+                resource["pending"].append((task, runner))
+                self._dispatch_resource(key, resource)
             else:
                 task.future = self._executor.submit(self._run, task, runner)
-        if thread is not None:
-            thread.start()
         return task.future
 
-    def _run_coordinator(self, task, runner) -> None:
-        future = task.future
-        if not future.set_running_or_notify_cancel():
-            with self._lock:
+    def _dispatch_resource(self, key, resource):
+        while resource["running"] < resource["limit"] and resource["pending"]:
+            task, runner = resource["pending"].popleft()
+            if task.future.cancelled():
                 task.state = "cancelled"
                 self._publish(task)
-            return
+                continue
+            resource["running"] += 1
+            self._executor.submit(self._run_resource, key, task, runner)
+
+    def _run_resource(self, key, task, runner):
+        future = task.future
         try:
-            future.set_result(self._run(task, runner))
-        except BaseException as error:
-            future.set_exception(error)
+            if not future.set_running_or_notify_cancel():
+                with self._lock:
+                    task.state = "cancelled"
+                    self._publish(task)
+                return
+            try:
+                future.set_result(self._run(task, runner))
+            except BaseException as error:
+                future.set_exception(error)
+        finally:
+            with self._lock:
+                resource = self._resource_limits[key]
+                resource["running"] -= 1
+                self._dispatch_resource(key, resource)
 
     def _run(self, task, runner):
         with self._lock:
@@ -178,6 +207,7 @@ class AsyncTaskManager:
         else:
             with self._lock:
                 task.state = "completed"
+                task.result = result
                 if task.total:
                     task.completed = task.total
                 self._publish(task)
@@ -201,29 +231,34 @@ class AsyncTaskManager:
                     item.token.cancel()
                     if item.cancel_callback is not None:
                         item.cancel_callback()
-                    if item.future is not None:
-                        item.future.cancel()
+                    if item.future is not None and item.future.cancel() and item.state == "queued":
+                        item.state = "cancelled"
+                        self._publish(item)
             return True
 
-    def join(self, task_id) -> None:
+    def join(self, task_id, timeout=None) -> None:
         """Drain one root and its children without closing the shared manager."""
         with self._lock:
             root = self._tasks[self._tasks[str(task_id)].root_id]
-        if root.thread is current_thread():
-            return
-        if root.thread is not None:
-            root.thread.join()
-        elif root.future is not None:
-            wait((root.future,))
+        if root.future is not None:
+            _done, pending = wait((root.future,), timeout=timeout)
+            if pending:
+                raise TimeoutError
         with self._lock:
             children = tuple(item.future for item in self._tasks.values()
                              if item.root_id == root.id and item.future is not None)
-        wait(children)
+        _done, pending = wait(children, timeout=timeout)
+        if pending:
+            raise TimeoutError
 
     def snapshot(self, task_id) -> AsyncTaskSnapshot:
         with self._lock:
             task = self._tasks[str(task_id)]
             return self._snapshot(task)
+
+    def result(self, task_id):
+        with self._lock:
+            return self._tasks[str(task_id)].result
 
     def _snapshot(self, task):
         now = self._clock()
@@ -237,6 +272,9 @@ class AsyncTaskManager:
 
     def close(self):
         with self._lock:
+            if self._closed:
+                return
+            self._closed = True
             tasks = tuple(self._tasks.values())
             for task in tasks:
                 task.token.cancel()
@@ -244,6 +282,4 @@ class AsyncTaskManager:
             if task.cancel_callback is not None:
                 task.cancel_callback()
         self._executor.shutdown(wait=True, cancel_futures=True)
-        for thread in tuple(self._coordinator_threads):
-            if thread is not current_thread():
-                thread.join()
+        self._coordinator_executor.shutdown(wait=True, cancel_futures=True)

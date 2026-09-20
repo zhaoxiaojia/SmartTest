@@ -27,7 +27,7 @@ def test_audit_status_includes_its_manager_root_snapshot_without_internal_id(mon
             assert task_id == "audit-root"
             return AsyncTaskSnapshot("audit-root", "Weekly review", "running", (3, 12), "audit-root", revision=5)
 
-    monkeypatch.setattr("smarttest_web.task_manager.WEB_TASKS", Tasks())
+    task.manager = Tasks()
     data = _audit_task_payload(task)
     assert data["task"] == {
         "state": "running", "progress": {"processed": 3, "total": 12},

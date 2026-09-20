@@ -1,4 +1,5 @@
 import { enhanceMultiSelect, fillSelect } from './multi-select.js'
+import { escapeHtml } from './dom.js'
 
 export function createJiraFilterBuilder({ root, api, account, onApplied = () => {} }) {
   let mode = 'basic'; let fields = []; let generatedJql = ''; let advancedDirty = false
@@ -117,4 +118,3 @@ export function createJiraFilterBuilder({ root, api, account, onApplied = () => 
     destroy() { disposed = true; localStorage.removeItem(`smarttest:jira-filter:${account}`); root.replaceChildren() },
   }
 }
-function escapeHtml(value) { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML }

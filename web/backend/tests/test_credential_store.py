@@ -5,6 +5,8 @@ import pytest
 
 from smarttest_web.credentials import CredentialStoreError, create_credential_store
 from smarttest_web.session import PersistentSessionStore
+from smarttest_web.database import WebDatabase
+from smarttest_web.schema import initialize_web_schema
 
 
 class NativeCredentials:
@@ -29,6 +31,7 @@ def test_windows_backend_reuses_core_credential_manager_owner(tmp_path):
 
 def test_linux_backend_encrypts_credentials_without_storing_plaintext_or_master_key(tmp_path):
     database = tmp_path / "web.db"
+    initialize_web_schema(WebDatabase(database))
     master = b"k" * 32
     store = create_credential_store(database, platform_name="linux", environ={
         "SMARTTEST_WEB_CREDENTIAL_KEY": base64.urlsafe_b64encode(master).decode(),
@@ -122,7 +125,7 @@ def test_linux_backend_fails_safely_for_missing_or_invalid_master_key(tmp_path, 
     store = create_credential_store(tmp_path / "web.db", platform_name="linux", environ=environment)
     with pytest.raises(CredentialStoreError, match="credential key"):
         store.write("abc_123", "coco", "never-stored")
-    assert b"never-stored" not in (tmp_path / "web.db").read_bytes()
+    assert not (tmp_path / "web.db").exists()
 
 
 def test_restart_with_wrong_key_logs_only_safe_failure_and_keeps_session_authenticated(tmp_path, monkeypatch):

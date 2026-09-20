@@ -5,13 +5,11 @@ import time
 from uuid import uuid4
 
 from .issue_repository import JiraIssueRepository
-from .schema import initialize_jira_schema
 
 
 class JiraAnalyticsRepository:
     def __init__(self, database, *, now=time.time):
         self.database, self._now = database, now
-        initialize_jira_schema(database)
         self.issues = JiraIssueRepository(database)
 
     @staticmethod

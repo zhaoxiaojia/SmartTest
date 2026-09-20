@@ -1,11 +1,5 @@
 import './ranking-card.css'
-
-function element(tag, className, text) {
-  const value = document.createElement(tag)
-  if (className) value.className = className
-  if (text != null) value.textContent = text
-  return value
-}
+import { element } from '../dom.js'
 
 export function createRankingCard({ chartFactory } = {}) {
   let root, chart, config

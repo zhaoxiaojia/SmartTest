@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+from time import sleep
 
 from core.domain.detail import DetailSection
 from core.domain.values import NamedValue
@@ -162,9 +163,17 @@ def test_explicit_dashboard_sync_refreshes_only_server_snapshot_project_range():
     response = client.post("/api/dashboard/releases/sync")
 
     assert response.status_code == 200
+    assert response.json()["syncState"] == "loading"
+    task_id = response.json()["taskId"]
+    for _ in range(100):
+        task = client.get(f"/api/dashboard/releases/sync/{task_id}").json()
+        if task["state"] not in {"queued", "running"}:
+            break
+        sleep(.01)
+    assert task["state"] == "completed"
+    assert task["syncState"] == "ready"
     assert _Facts.synced[-1]["filters"] == {"project id": ("P100", "P200")}
     assert _NoRemoteOnRead.refreshes == [('"Project ID" in ("P100","P200")', 0)]
-    assert response.json()["syncState"] == "ready"
 
 
 def test_issue_detail_loads_only_explicitly_requested_sections_after_snapshot_scope_check():

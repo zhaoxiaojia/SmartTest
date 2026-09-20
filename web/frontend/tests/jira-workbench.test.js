@@ -44,7 +44,8 @@ it('keeps cached issues visible and reports an invalid-credentials sync result',
   }
   const api = {
     getJiraReleaseIssues: vi.fn().mockResolvedValue(cached),
-    syncJiraReleaseIssues: vi.fn().mockResolvedValue({ ...cached, syncState: 'invalid_credentials' }),
+    syncJiraReleaseIssues: vi.fn().mockResolvedValue({ ...cached, syncState: 'loading', taskId: 'task-1' }),
+    getJiraReleaseSync: vi.fn().mockResolvedValue({ state: 'completed', syncState: 'invalid_credentials' }),
     createJiraAudit: vi.fn(),
   }
   const page = createJiraWorkbench({ root: document.querySelector('main'), api })
@@ -55,4 +56,26 @@ it('keeps cached issues visible and reports an invalid-credentials sync result',
   await vi.waitFor(() => expect(document.querySelector('[data-jira-feedback]').textContent)
     .toContain('credentials'))
   expect(document.querySelector('[data-issue-row]').textContent).toContain('Cached issue')
+})
+
+it('clears and hides feedback after a successful sync', async () => {
+  const payload = {
+    state: 'ready', selectedRelease: null, facets: [], counts: { exact: 0, versionPending: 0 }, issues: [],
+    pagination: { page: 0, pageSize: 50, total: 0 }, sourceFreshness: {}, syncState: 'idle',
+  }
+  const api = {
+    getJiraReleaseIssues: vi.fn().mockResolvedValue(payload),
+    syncJiraReleaseIssues: vi.fn().mockResolvedValue({ ...payload, syncState: 'loading', taskId: 'task-1' }),
+    getJiraReleaseSync: vi.fn().mockResolvedValue({ state: 'completed', syncState: 'success' }),
+    createJiraAudit: vi.fn(),
+  }
+  const page = createJiraWorkbench({ root: document.querySelector('main'), api })
+  await page.start()
+
+  document.querySelector('[data-sync]').click()
+
+  await vi.waitFor(() => expect(api.getJiraReleaseSync).toHaveBeenCalled())
+  const feedback = document.querySelector('[data-jira-feedback]')
+  expect(feedback.hidden).toBe(true)
+  expect(feedback.querySelector('[data-async-message]').textContent).toBe('')
 })

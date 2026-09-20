@@ -4,29 +4,6 @@ from ..database import WebDatabase
 from ..schema import ensure_component_schema
 
 
-JIRA_TABLES = (
-    "jira_team_bug_rows",
-    "jira_team_bug_lines",
-    "jira_team_bug_snapshots",
-    "jira_team_bug_accounts",
-    "jira_analytics_snapshot_issues",
-    "jira_analytics_snapshots",
-    "jira_analytics_queries",
-    "jira_issue_fix_versions",
-    "jira_issue_release_facts",
-    "jira_release_field_metadata",
-    "jira_issue_components",
-    "jira_issue_custom_fields",
-    "jira_issue_links",
-    "jira_issue_attachments",
-    "jira_issue_comments",
-    "jira_issue_descriptions",
-    "jira_issue_detail_states",
-    "jira_issue_labels",
-    "jira_sync_state",
-    "jira_issues",
-)
-
 JIRA_STATEMENTS = (
     """CREATE TABLE IF NOT EXISTS jira_team_bug_accounts (
         account TEXT PRIMARY KEY, active_snapshot_id TEXT NOT NULL DEFAULT '',
@@ -159,7 +136,6 @@ def initialize_jira_schema(database: WebDatabase) -> None:
         database,
         component="jira_cache",
         version=4,
-        drop_tables=JIRA_TABLES,
         statements=JIRA_STATEMENTS,
     )
     with database.transaction() as connection:
@@ -196,7 +172,7 @@ def initialize_jira_schema(database: WebDatabase) -> None:
         if "last_snapshot_id" not in query_columns:
             connection.execute("ALTER TABLE jira_analytics_queries ADD COLUMN last_snapshot_id TEXT NOT NULL DEFAULT ''")
         if "product_line" not in row_columns:
-            connection.execute("DROP TABLE jira_team_bug_rows")
+            connection.execute("ALTER TABLE jira_team_bug_rows RENAME TO jira_team_bug_rows_legacy")
             connection.execute("""CREATE TABLE jira_team_bug_rows (
                 snapshot_id TEXT NOT NULL REFERENCES jira_team_bug_snapshots(snapshot_id) ON DELETE CASCADE,
                 product_line TEXT NOT NULL, ordinal INTEGER NOT NULL,
@@ -204,3 +180,8 @@ def initialize_jira_schema(database: WebDatabase) -> None:
                 bug_count INTEGER NOT NULL, resolved_count INTEGER NOT NULL,
                 p0_count INTEGER NOT NULL, invalid_count INTEGER NOT NULL,
                 PRIMARY KEY(snapshot_id,product_line,ordinal))""")
+            connection.execute("""INSERT INTO jira_team_bug_rows
+                (snapshot_id,product_line,ordinal,identity,display_name,bug_count,resolved_count,p0_count,invalid_count)
+                SELECT snapshot_id,'',ordinal,identity,display_name,bug_count,resolved_count,p0_count,invalid_count
+                FROM jira_team_bug_rows_legacy""")
+            connection.execute("DROP TABLE jira_team_bug_rows_legacy")

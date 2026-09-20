@@ -1,9 +1,11 @@
+import { createTaskController } from './task-polling.js'
+
 const states = { queued: '等待执行', running: '执行中', completed: '已完成', partial: '部分完成', failed: '失败', historical_seed: '历史记录', historical_preview: '历史预览' }
 
 export function createAuditEmailPage({ root, api, pollDelay = () => new Promise(resolve => setTimeout(resolve, 1000)) }) {
   let destroyed = false
-  let generation = 0
   let offset = 0
+  const tasks = createTaskController({ delay: pollDelay, interval: 0 })
   root.innerHTML = `<section class="page-stack">
     <section class="card"><h2>审查与报告</h2><p>发件人：fae-qa-auto@amlogic.com</p><p>立即触发与每周五北京时间 18:00 的 Windows 任务执行相同的本周周一到周五审查，并将 Jira 与 Confluence 邮件发送至 fae.qa@amlogic.com。</p>
     <button class="button button-primary" data-trigger>立即触发</button><p data-status role="status" aria-live="polite">加载执行历史…</p></section>
@@ -23,7 +25,7 @@ export function createAuditEmailPage({ root, api, pollDelay = () => new Promise(
       }
       const td = document.createElement('td'); const button = document.createElement('button')
       button.type = 'button'; button.className = 'button button-secondary'; button.textContent = '查看'; button.dataset.view = ''
-      button.addEventListener('click', () => { const current = ++generation; void perform(async () => follow(await api.get(row.id), current)) })
+      button.addEventListener('click', () => { void perform(async () => follow(await api.get(row.id))) })
       td.append(button); tr.append(td); body.append(tr)
     }
     root.querySelector('[data-count]').textContent = result.total ? `${offset + 1}–${offset + result.runs.length} / ${result.total}` : '暂无记录'
@@ -50,21 +52,20 @@ export function createAuditEmailPage({ root, api, pollDelay = () => new Promise(
       }
     }
   }
-  async function follow(detail, current) {
-    while (!destroyed && current === generation) {
-      show(detail)
-      if (!['queued', 'running'].includes(detail.state)) { await listing(); return }
-      await pollDelay()
-      if (destroyed || current !== generation) return
-      detail = await api.get(detail.id)
-    }
+  async function follow(detail) {
+    let initial = detail
+    const result = await tasks.run(async () => {
+      if (initial) { const value = initial; initial = null; return value }
+      return api.get(detail.id)
+    }, detail.id, show)
+    if (result && !destroyed) await listing()
   }
   async function perform(action) { try { await action() } catch (error) { if (!destroyed) status.textContent = error.message } }
   trigger.addEventListener('click', () => perform(async () => {
     trigger.disabled = true; status.textContent = '正在触发…'
-    try { const detail = await api.trigger(); if (destroyed) return; offset = 0; await listing(); await follow(detail, ++generation) }
+    try { const detail = await api.trigger(); if (destroyed) return; offset = 0; await listing(); await follow(detail) }
     finally { if (!destroyed) trigger.disabled = false }
   }))
   for (const [selector, delta] of [['[data-prev]', -4], ['[data-next]', 4]]) root.querySelector(selector).addEventListener('click', () => perform(async () => { offset += delta; await listing() }))
-  return { async start() { await perform(async () => { await listing(); if (!destroyed) status.textContent = '可查看历史，或立即触发本周 Jira 与 Confluence 审查并发送邮件。' }) }, destroy() { destroyed = true; generation++; root.replaceChildren() } }
+  return { async start() { await perform(async () => { await listing(); if (!destroyed) status.textContent = '可查看历史，或立即触发本周 Jira 与 Confluence 审查并发送邮件。' }) }, destroy() { destroyed = true; tasks.dispose(); root.replaceChildren() } }
 }

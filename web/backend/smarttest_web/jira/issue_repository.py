@@ -21,7 +21,6 @@ from core.jira.domain import (
 )
 
 from ..database import WebDatabase
-from .schema import initialize_jira_schema
 
 
 _SECTIONS = ("description", "comments", "attachments", "links", "custom_fields")
@@ -30,7 +29,6 @@ _SECTIONS = ("description", "comments", "attachments", "links", "custom_fields")
 class JiraIssueRepository:
     def __init__(self, database: WebDatabase):
         self.database = database
-        initialize_jira_schema(database)
 
     def get(self, issue_key: str, details: IssueDetails) -> Issue | None:
         with self.database.connect() as connection:

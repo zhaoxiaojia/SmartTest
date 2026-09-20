@@ -54,15 +54,6 @@ class LinuxEncryptedCredentialStore:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._environ = os.environ if environ is None else environ
-        with self._connect() as connection:
-            connection.execute("""
-                CREATE TABLE IF NOT EXISTS web_credentials (
-                    credential_ref TEXT PRIMARY KEY,
-                    nonce BLOB NOT NULL,
-                    ciphertext BLOB NOT NULL,
-                    key_version INTEGER NOT NULL
-                )
-            """)
 
     def _connect(self):
         connection = sqlite3.connect(self.path, timeout=5)

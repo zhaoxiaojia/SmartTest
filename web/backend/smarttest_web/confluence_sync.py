@@ -9,9 +9,10 @@ from .task_manager import WEB_TASKS
 class ConfluenceProjectSyncCoordinator:
     """Bounded foreground orchestration over the current-cache service."""
 
-    def __init__(self, cache_service, *, max_workers: int = 4):
+    def __init__(self, cache_service, *, max_workers: int = 4, manager=WEB_TASKS):
         self._cache_service = cache_service
         self._max_workers = max(1, int(max_workers))
+        self._manager = manager
 
     def sync(
         self,
@@ -20,6 +21,7 @@ class ConfluenceProjectSyncCoordinator:
         *,
         cancelled=lambda: False,
         progress=lambda *_: None,
+        parent_id="",
     ) -> list[str]:
         identifiers = tuple(str(project_id) for project_id in project_ids)
 
@@ -33,12 +35,14 @@ class ConfluenceProjectSyncCoordinator:
             return "updated"
 
         results = ["cancelled"] * len(identifiers)
-        pending = iter(enumerate(identifiers))
-        futures = {}
-        for _ in range(min(self._max_workers, len(identifiers))):
-            index, project_id = next(pending, (None, None))
-            if project_id is not None:
-                futures[WEB_TASKS.submit("confluence-project-detail", lambda _token, _progress, project_id=project_id: refresh(project_id))] = index
+        def submit(project_id):
+            runner = lambda token, _progress: (token.raise_if_cancelled(), refresh(project_id))[-1]
+            options = {"resource_key": "confluence-project-detail", "resource_limit": self._max_workers}
+            if parent_id:
+                return self._manager.submit_child(parent_id, "confluence-project-detail", runner, **options)
+            return self._manager.submit("confluence-project-detail", runner, **options)
+
+        futures = {submit(project_id): index for index, project_id in enumerate(identifiers)}
         completed = 0
         while futures:
             future = next(as_completed(futures))
@@ -46,7 +50,4 @@ class ConfluenceProjectSyncCoordinator:
             results[index] = future.result()
             completed += 1
             progress(completed, len(identifiers))
-            next_index, project_id = next(pending, (None, None))
-            if project_id is not None:
-                futures[WEB_TASKS.submit("confluence-project-detail", lambda _token, _progress, project_id=project_id: refresh(project_id))] = next_index
         return results

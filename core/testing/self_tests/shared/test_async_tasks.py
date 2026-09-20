@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from threading import Event
 
+import pytest
+
 from core.async_tasks import AsyncTaskManager, TaskCancelled
 
 
@@ -187,3 +189,108 @@ def test_join_drains_root_children_without_closing_other_roots():
         manager.close()
         if joiner:
             joiner.join(1)
+
+
+def test_join_keeps_a_finite_timeout_boundary() -> None:
+    release = Event()
+    manager = AsyncTaskManager(max_workers=1)
+    try:
+        task = manager.submit("slow", lambda _token, _progress: release.wait(1))
+        with pytest.raises(TimeoutError):
+            manager.join(manager.task_id(task), timeout=.01)
+    finally:
+        release.set()
+        manager.close()
+
+
+def test_manager_rejects_submissions_after_close() -> None:
+    manager = AsyncTaskManager(max_workers=1)
+    manager.close()
+
+    with pytest.raises(RuntimeError, match="closed"):
+        manager.submit("late", lambda _token, _progress: None)
+
+
+def test_resource_limit_bounds_children_without_manual_future_window() -> None:
+    entered = 0
+    peak = 0
+    lock = __import__("threading").Lock()
+    release = Event()
+    manager = AsyncTaskManager(max_workers=4)
+    try:
+        root = manager.register_long_running("root")
+
+        def run(_token, _progress):
+            nonlocal entered, peak
+            with lock:
+                entered += 1
+                peak = max(peak, entered)
+            release.wait(1)
+            with lock:
+                entered -= 1
+
+        children = [
+            manager.submit_child(root, "detail", run, resource_key="confluence", resource_limit=2)
+            for _ in range(4)
+        ]
+        while peak < 2:
+            pass
+        assert peak == 2
+        release.set()
+        for child in children:
+            child.result(timeout=1)
+    finally:
+        release.set()
+        manager.close()
+
+
+def test_resource_queue_does_not_occupy_workers_needed_by_unrelated_tasks() -> None:
+    release = Event()
+    manager = AsyncTaskManager(max_workers=4)
+    try:
+        limited = [
+            manager.submit("limited", lambda _token, _progress: release.wait(1),
+                           resource_key="resource-a", resource_limit=1)
+            for _ in range(4)
+        ]
+
+        unrelated = manager.submit("unrelated", lambda _token, _progress: "ready")
+
+        assert unrelated.result(timeout=.2) == "ready"
+        release.set()
+        for task in limited:
+            task.result(timeout=1)
+    finally:
+        release.set()
+        manager.close()
+
+
+def test_coordinator_capacity_is_small_and_does_not_block_worker_capacity() -> None:
+    first_started, second_started, release = Event(), Event(), Event()
+    manager = AsyncTaskManager(max_workers=4)
+    try:
+        first = manager.submit_coordinator(
+            "first", lambda _token, _progress: (first_started.set(), release.wait(1))[-1],
+        )
+        second = manager.submit_coordinator(
+            "second", lambda _token, _progress: (second_started.set(), release.wait(1))[-1],
+        )
+        assert first_started.wait(.2)
+        assert not second_started.wait(.05)
+        assert manager.submit("worker", lambda _token, _progress: "ready").result(timeout=.2) == "ready"
+        release.set()
+        first.result(timeout=1)
+        second.result(timeout=1)
+    finally:
+        release.set()
+        manager.close()
+
+
+def test_manager_owns_completed_task_result() -> None:
+    manager = AsyncTaskManager(max_workers=1)
+    try:
+        task = manager.submit("result", lambda _token, _progress: {"state": "ready"})
+        task.result(timeout=1)
+        assert manager.result(manager.task_id(task)) == {"state": "ready"}
+    finally:
+        manager.close()

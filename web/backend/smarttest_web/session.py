@@ -41,7 +41,6 @@ class PersistentSessionStore:
         self._now = now
         self._credentials: dict[str, str] = {}
         self._lock = RLock()
-        self._migrate()
         self._credential_store = credential_store or create_credential_store(self.path)
 
     @property
@@ -53,61 +52,6 @@ class PersistentSessionStore:
         connection.execute("PRAGMA foreign_keys=ON")
         connection.execute("PRAGMA busy_timeout=5000")
         return connection
-
-    def _migrate(self):
-        with self._connect() as connection:
-            connection.execute("PRAGMA journal_mode=WAL")
-            if connection.execute("PRAGMA user_version").fetchone()[0] > 3:
-                raise RuntimeError("Unsupported SmartTest Web database schema.")
-            connection.executescript("""
-                CREATE TABLE IF NOT EXISTS web_sessions (
-                    id INTEGER PRIMARY KEY,
-                    token_hash TEXT NOT NULL UNIQUE,
-                    username TEXT NOT NULL,
-                    display_name TEXT NOT NULL,
-                    avatar BLOB,
-                    created_at REAL NOT NULL,
-                    last_seen_at REAL NOT NULL,
-                    expires_at REAL NOT NULL,
-                    revoked_at REAL
-                );
-                CREATE INDEX IF NOT EXISTS ix_web_sessions_user ON web_sessions(username);
-                CREATE TABLE IF NOT EXISTS user_preferences (
-                    username TEXT NOT NULL,
-                    scope TEXT NOT NULL,
-                    key TEXT NOT NULL,
-                    value_json TEXT NOT NULL,
-                    schema_version INTEGER NOT NULL DEFAULT 1,
-                    updated_at REAL NOT NULL,
-                    PRIMARY KEY (username, scope, key)
-                );
-                CREATE TABLE IF NOT EXISTS web_query_snapshots (
-                    session_hash TEXT NOT NULL,
-                    scope TEXT NOT NULL,
-                    filters_json TEXT NOT NULL,
-                    search TEXT NOT NULL,
-                    project_ids_json TEXT NOT NULL,
-                    facts_version TEXT NOT NULL,
-                    release_names_json TEXT NOT NULL DEFAULT '[]',
-                    jira_cache_version TEXT NOT NULL DEFAULT '',
-                    created_at REAL NOT NULL,
-                    updated_at REAL NOT NULL,
-                    expires_at REAL NOT NULL,
-                    PRIMARY KEY (session_hash, scope)
-                );
-                CREATE INDEX IF NOT EXISTS ix_web_query_snapshots_expiry ON web_query_snapshots(expires_at);
-            """)
-            columns = {row[1] for row in connection.execute("PRAGMA table_info(web_sessions)")}
-            if "credential_ref" not in columns:
-                connection.execute("ALTER TABLE web_sessions ADD COLUMN credential_ref TEXT")
-            if "revoked_reason" not in columns:
-                connection.execute("ALTER TABLE web_sessions ADD COLUMN revoked_reason TEXT")
-            snapshot_columns = {row[1] for row in connection.execute("PRAGMA table_info(web_query_snapshots)")}
-            if "release_names_json" not in snapshot_columns:
-                connection.execute("ALTER TABLE web_query_snapshots ADD COLUMN release_names_json TEXT NOT NULL DEFAULT '[]'")
-            if "jira_cache_version" not in snapshot_columns:
-                connection.execute("ALTER TABLE web_query_snapshots ADD COLUMN jira_cache_version TEXT NOT NULL DEFAULT ''")
-            connection.execute("PRAGMA user_version=3")
 
     @property
     def journal_mode(self):

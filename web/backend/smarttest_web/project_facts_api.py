@@ -102,6 +102,7 @@ class ProjectFactsWebOwner:
 
     def sync_details(
         self, access, password, *, filters=None, search="", cancelled=None, progress=None,
+        parent_task_id="",
     ):
         selected = self.query(access, filters=filters, search=search)
         project_ids = tuple(row["identity"] for row in selected["projects"])
@@ -114,15 +115,18 @@ class ProjectFactsWebOwner:
             ProjectDetails(roles=True, facts=True, evidence=True),
             cancelled=cancelled or (lambda: False),
             progress=progress,
+            parent_id=parent_task_id,
         )
 
     def refresh_and_sync_details(
         self, access, password, *, filters=None, search="", cancelled=None, progress=None,
+        parent_task_id="",
     ):
         self.refresh(access, password)
         self.sync_details(
             access, password, filters=filters, search=search,
             cancelled=cancelled, progress=progress,
+            parent_task_id=parent_task_id,
         )
 
     def query(self, access, *, filters=None, fixed_filters=None, search="", page=0, page_size=10000):

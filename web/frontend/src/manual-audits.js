@@ -1,5 +1,6 @@
 import { createAsyncFeedback } from './async-feedback.js'
 import { createDownloadButton } from './download-button.js'
+import { createTaskController } from './task-polling.js'
 
 function updateProgress(feedback, task, message = '') {
   const running = ['queued', 'running'].includes(task?.status)
@@ -40,6 +41,7 @@ export function createJiraManualAudit({ root, api, pollDelay = () => new Promise
   const feedback = createAsyncFeedback({ root: root.querySelector('[data-audit-progress]') })
   let auditId = ''
   let disposed = false
+  const tasks = createTaskController({ delay: pollDelay, interval: 0, stateOf: task => task?.status })
 
   const download = createDownloadButton({
     element: root.querySelector('[data-audit-download]'),
@@ -50,14 +52,12 @@ export function createJiraManualAudit({ root, api, pollDelay = () => new Promise
   download.element.disabled = true
 
   async function poll(task) {
-    updateProgress(feedback, task)
-    while (['queued', 'running'].includes(task.status)) {
-      await pollDelay()
-      if (disposed) return
-      task = await api.getJiraAudit(auditId)
-      if (disposed) return
-      updateProgress(feedback, task)
-    }
+    let initial = task
+    task = await tasks.run(async () => {
+      if (initial) { const value = initial; initial = null; return value }
+      return api.getJiraAudit(auditId)
+    }, auditId, value => updateProgress(feedback, value))
+    if (!task || disposed) return
     cancel.disabled = true
     start.disabled = false
     download.element.disabled = task.status !== 'completed'
@@ -85,5 +85,5 @@ export function createJiraManualAudit({ root, api, pollDelay = () => new Promise
     await api.cancelJiraAudit(auditId)
     cancel.disabled = true
   })
-  return { root, destroy() { disposed = true; download.destroy() } }
+  return { root, destroy() { disposed = true; tasks.dispose(); download.destroy() } }
 }

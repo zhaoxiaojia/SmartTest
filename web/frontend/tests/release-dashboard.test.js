@@ -52,7 +52,8 @@ it('does not own a second filter and uses explicit sync only from the Sync butto
 it('keeps cached releases visible and reports a downstream sync failure', async () => {
   const api = {
     getDashboardReleases: vi.fn().mockResolvedValue(payload),
-    syncDashboardReleases: vi.fn().mockResolvedValue({ ...payload, syncState: 'failed' }),
+    syncDashboardReleases: vi.fn().mockResolvedValue({ ...payload, syncState: 'loading', taskId: 'task-1' }),
+    getDashboardReleaseSync: vi.fn().mockResolvedValue({ state: 'completed', syncState: 'failed' }),
   }
   const page = createReleaseDashboard({ root: document.querySelector('main'), api })
   await page.start()
@@ -62,4 +63,5 @@ it('keeps cached releases visible and reports a downstream sync failure', async 
   await vi.waitFor(() => expect(document.querySelector('[data-release-feedback]').textContent)
     .toContain('cached data'))
   expect(document.querySelector('[data-release-row]').textContent).toContain('Android 16')
+  expect(api.getDashboardReleaseSync).toHaveBeenCalledWith('task-1')
 })

@@ -1,4 +1,7 @@
 import { healthClass, healthLabel } from './release-health.js'
+import { createTaskController } from './task-polling.js'
+import { createAsyncFeedback } from './async-feedback.js'
+import { escapeHtml } from './dom.js'
 
 export function createReleaseDashboard({ root, api }) {
   root.innerHTML = `<section class="release-page">
@@ -14,13 +17,13 @@ export function createReleaseDashboard({ root, api }) {
     </section><aside class="card release-detail" data-release-detail><h2>Release details</h2><p>Select a project release to inspect its risk reasons.</p></aside></div>
     <div class="async-feedback" data-release-feedback></div>
   </section>`
-  const feedback = root.querySelector('[data-release-feedback]')
+  const feedback = createAsyncFeedback({ root: root.querySelector('[data-release-feedback]') })
   let disposed = false
+  const tasks = createTaskController()
 
   function setBusy(value, message = '') {
     for (const button of root.querySelectorAll('button')) button.disabled = value
-    feedback.textContent = message
-    feedback.dataset.state = value ? 'running' : (message ? 'failed' : 'idle')
+    feedback.update({ state: value ? 'running' : (message ? 'failed' : 'idle'), message })
   }
 
   function renderSummary(summary = {}) {
@@ -77,7 +80,11 @@ export function createReleaseDashboard({ root, api }) {
   root.querySelector('[data-sync]').addEventListener('click', async () => {
     setBusy(true, 'Syncing current server scope…')
     try {
-      const payload = await api.syncDashboardReleases()
+      let payload = await api.syncDashboardReleases()
+      if (payload.taskId) {
+        const task = await tasks.run(api.getDashboardReleaseSync, payload.taskId)
+        if (task) payload = { ...payload, syncState: task.syncState }
+      }
       if (!disposed) {
         render(payload)
         const message = payload.syncState === 'invalid_credentials'
@@ -88,9 +95,5 @@ export function createReleaseDashboard({ root, api }) {
     }
     catch { if (!disposed) setBusy(false, 'Release sync failed; cached data is still shown.') }
   })
-  return { start: () => load(), destroy() { disposed = true } }
-}
-
-function escapeHtml(value) {
-  const element = document.createElement('span'); element.textContent = String(value ?? ''); return element.innerHTML
+  return { start: () => load(), destroy() { disposed = true; tasks.dispose() } }
 }

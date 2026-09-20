@@ -13,13 +13,8 @@ const COMMON_FILTERS = [
 import { createAsyncFeedback } from './async-feedback.js'
 import { createDownloadButton } from './download-button.js'
 import { createDisposableDisplayCache } from './disposable-display.js'
-
-function node(tag, className, text) {
-  const item = document.createElement(tag)
-  if (className) item.className = className
-  if (text != null) item.textContent = text
-  return item
-}
+import { element as node } from './dom.js'
+import { createTaskController } from './task-polling.js'
 
 export function createProjects({ root, api, waitForPreferences, account,
   pollDelay = ms => new Promise(resolve => setTimeout(resolve, ms)), downloadNavigate,
@@ -51,6 +46,8 @@ export function createProjects({ root, api, waitForPreferences, account,
   let cacheReady = false
   let destroyed = false
   let pollGeneration = 0
+  const syncTasks = createTaskController({ delay: pollDelay, interval: 500,
+    stateOf: task => task?.state === 'loading' ? 'running' : task?.state })
   let activeSync = null
   let activeAuditId = ''
   let productSpaceDefinitions = []
@@ -398,21 +395,18 @@ export function createProjects({ root, api, waitForPreferences, account,
     await pollDelay(500)
     if (destroyed || generation !== pollGeneration || !root.isConnected) return
     try {
-      const sync = await api.getProjectFactsStatus()
+      const sync = await syncTasks.run(api.getProjectFactsStatus, 'project-facts', value => {
+        if (activeSync) updateFeedback(value)
+      })
       if (destroyed || generation !== pollGeneration || !root.isConnected) return
-      if (sync.state === 'loading') {
-        if (activeSync) updateFeedback(sync)
-        poll(generation)
-      }
-      else {
-        const payload = await api.getProjectFacts({}, { snapshot: true })
-        if (destroyed || generation !== pollGeneration || !root.isConnected) return
-        const contextUnchanged = !activeSync || contextToken(currentFilters()) === activeSync.token
-        if (!activeSync || contextUnchanged) present(payload)
-        updateFeedback(sync)
-        activeSync = null
-        setBusinessControlsEnabled(cacheReady, { applyEnabled: cacheReady })
-      }
+      if (!sync) return
+      const payload = await api.getProjectFacts({}, { snapshot: true })
+      if (destroyed || generation !== pollGeneration || !root.isConnected) return
+      const contextUnchanged = !activeSync || contextToken(currentFilters()) === activeSync.token
+      if (!activeSync || contextUnchanged) present(payload)
+      updateFeedback(sync)
+      activeSync = null
+      setBusinessControlsEnabled(cacheReady, { applyEnabled: cacheReady })
     } catch {
       if (destroyed || generation !== pollGeneration) return
       if (activeSync) feedback.update({ state: 'failed', message: 'Project detail sync failed.' })
@@ -524,7 +518,7 @@ export function createProjects({ root, api, waitForPreferences, account,
   }
   return {
     start,
-    destroy() { destroyed = true; pollGeneration += 1; auditDownload?.destroy() },
+    destroy() { destroyed = true; pollGeneration += 1; syncTasks.dispose(); auditDownload?.destroy() },
   }
 }
 import { enhanceMultiSelect, fillSelect, selected } from './multi-select.js'

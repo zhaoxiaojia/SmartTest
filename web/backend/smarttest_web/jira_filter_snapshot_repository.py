@@ -5,7 +5,6 @@ import json
 import time
 
 from .database import WebDatabase
-from .jira.schema import initialize_jira_schema
 
 
 JIRA_FILTER_FIELDS = ("project", "type", "status", "currentUser", "resolution")
@@ -26,7 +25,6 @@ class JiraFilterSnapshotRepository:
 
     def __init__(self, database: WebDatabase, *, now=time.time):
         self.database, self._now = database, now
-        initialize_jira_schema(database)
 
     def record(self, session_hash, filters, jql, *, expires_at):
         normalized = {

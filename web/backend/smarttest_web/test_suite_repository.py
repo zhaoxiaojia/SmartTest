@@ -37,21 +37,6 @@ class TestSuiteRepository:
     def __init__(self, database: WebDatabase, *, now=time.time):
         self.database = database
         self._now = now
-        with database.transaction() as connection:
-            connection.execute(
-                "CREATE TABLE IF NOT EXISTS test_suites ("
-                "id TEXT PRIMARY KEY, owner_username TEXT NOT NULL, "
-                "owner_display_name TEXT NOT NULL, name TEXT NOT NULL, "
-                "description TEXT NOT NULL DEFAULT '', visibility TEXT NOT NULL "
-                "CHECK (visibility IN ('private','shared')), "
-                "ordered_nodeids_json TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1, "
-                "created_at REAL NOT NULL, updated_at REAL NOT NULL, "
-                "UNIQUE(owner_username,name))"
-            )
-            connection.execute(
-                "CREATE INDEX IF NOT EXISTS ix_test_suites_visibility_updated "
-                "ON test_suites(visibility,updated_at DESC)"
-            )
 
     @staticmethod
     def _record(row) -> TestSuiteRecord:

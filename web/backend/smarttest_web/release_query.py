@@ -8,9 +8,7 @@ import unicodedata
 from core.product_lines import PRODUCT_LINES
 from core.confluence.project_rules import MAJOR_QA_ROLE_ID
 
-from .confluence.schema import initialize_confluence_schema
 from .database import WebDatabase
-from .jira.schema import initialize_jira_schema
 
 
 def normalize_release_value(value: object) -> str:
@@ -24,8 +22,6 @@ class ProjectReleaseQueryService:
     def __init__(self, database: WebDatabase, *, today=date.today):
         self.database = database
         self._today = today
-        initialize_confluence_schema(database)
-        initialize_jira_schema(database)
 
     def dashboard(self, *, visible_ids=(), project_ids=(), filters=None) -> dict:
         projects = self._projects(visible_ids, project_ids, filters or {})

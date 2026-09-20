@@ -24,7 +24,6 @@ from core.domain.values import FieldBag, NamedValue, PersonRef, SourceRevision
 from core.logging import smart_log
 
 from ..database import WebDatabase
-from .schema import initialize_confluence_schema
 
 
 _SECTIONS = ("roles", "milestones", "hardware", "software", "facts", "evidence")
@@ -35,8 +34,6 @@ _PROJECT_NAME_MIGRATION_VERSION = 1
 class ConfluenceProjectRepository:
     def __init__(self, database: WebDatabase):
         self.database = database
-        initialize_confluence_schema(database)
-        _upgrade_cached_project_names(database)
 
     def get(self, project_id: str, details: ProjectDetails) -> Project | None:
         with self.database.connect() as connection:
@@ -433,7 +430,7 @@ def _project_values(project: Project, cached_at: str) -> tuple:
     )
 
 
-def _upgrade_cached_project_names(database: WebDatabase) -> None:
+def upgrade_cached_project_names(database: WebDatabase) -> None:
     with database.transaction() as connection:
         marker = connection.execute(
             "SELECT version FROM smarttest_schema WHERE component=?",

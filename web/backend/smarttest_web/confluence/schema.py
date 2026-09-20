@@ -4,23 +4,6 @@ from ..database import WebDatabase
 from ..schema import ensure_component_schema
 
 
-CONFLUENCE_TABLES = (
-    "project_current_releases",
-    "confluence_account_project_access",
-    "confluence_project_attributes",
-    "confluence_project_people",
-    "confluence_project_pages",
-    "confluence_project_evidence",
-    "confluence_project_fields",
-    "confluence_project_milestones",
-    "confluence_project_role_people",
-    "confluence_project_roles",
-    "confluence_project_detail_states",
-    "confluence_project_owners",
-    "confluence_sync_state",
-    "confluence_projects",
-)
-
 CONFLUENCE_STATEMENTS = (
     """CREATE TABLE IF NOT EXISTS confluence_projects (
         confluence_id TEXT PRIMARY KEY, project_id TEXT NOT NULL,
@@ -91,6 +74,5 @@ def initialize_confluence_schema(database: WebDatabase) -> None:
         database,
         component="confluence_cache",
         version=3,
-        drop_tables=CONFLUENCE_TABLES,
         statements=CONFLUENCE_STATEMENTS,
     )

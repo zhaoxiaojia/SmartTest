@@ -241,7 +241,10 @@ def test_repository_initialization_upgrades_legacy_cached_names_once_without_tou
             ("legacy", "status", "status-1", dirty_title, "https://c/pages/status-1", 9),
         )
 
-    ConfluenceProjectRepository(database)
+    with database.transaction() as connection:
+        connection.execute("DELETE FROM smarttest_schema WHERE component='confluence_project_name'")
+    from smarttest_web.schema import initialize_web_schema
+    initialize_web_schema(database)
     with database.connect() as connection:
         first = tuple(connection.execute(
             """SELECT confluence_id,name,catalog_page_title,source_revision,cached_at
@@ -255,7 +258,7 @@ def test_repository_initialization_upgrades_legacy_cached_names_once_without_tou
             WHERE confluence_id='legacy'""",
         ).fetchone()
 
-    ConfluenceProjectRepository(database)
+    initialize_web_schema(database)
     with database.connect() as connection:
         second = tuple(connection.execute(
             """SELECT confluence_id,name,catalog_page_title,source_revision,cached_at
