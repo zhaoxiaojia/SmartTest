@@ -16,6 +16,12 @@ describe('RoleWorkloadWidget', () => {
     expect(ROLE_WORKLOAD_LAYOUT).toEqual({ defaultW: 24, defaultH: 21 })
   })
 
+  it('uses the project resource statistics title when it owns the heading', () => {
+    const widget = createRoleWorkloadWidget()
+    widget.mount(document.querySelector('#root'), { productSpaces, ownerHierarchy: [] })
+    expect(document.querySelector('.workload-heading').textContent).toContain('Project Resource Statistics')
+  })
+
   it('keeps the Projects workload sorting, identity cleanup, switching, and chart lifecycle', () => {
     const charts = []
     const chartFactory = vi.fn((canvas, config) => {

@@ -65,10 +65,10 @@ describe('Jira team bug widget', () => {
     first.mount(document.querySelector('#first')); second.mount(document.querySelector('#second'))
     const firstInputs = [...document.querySelectorAll('#first input')]
     const secondInputs = [...document.querySelectorAll('#second input')]
-    expect(firstInputs).toHaveLength(3)
-    expect(new Set([...firstInputs, ...secondInputs].map(input => input.id)).size).toBe(6)
+    expect(firstInputs).toHaveLength(4)
+    expect(new Set([...firstInputs, ...secondInputs].map(input => input.id)).size).toBe(8)
     expect(firstInputs[0].name).not.toBe(secondInputs[0].name)
-    expect(firstInputs.map(input => input.labels[0].textContent)).toEqual(['Week', 'Month', 'Quarter'])
+    expect(firstInputs.map(input => input.labels[0].textContent)).toEqual(['Weekly', 'Monthly', 'Quarterly', 'Yearly'])
     firstInputs[0].labels[0].click()
     expect(firstInputs[0].checked).toBe(true)
     expect(secondInputs[1].checked).toBe(true)

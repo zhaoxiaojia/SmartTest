@@ -22,7 +22,7 @@ it.each(['changing', 'ready'])('shared authenticated page ignores old bootstrap 
       expect(widget.querySelector('strong').textContent).toBe('Product Lines Self Test Jiras Statistics')
       const customer = document.querySelector('[data-page-widget="jira-customer-statistics"]')
       expect(customer.querySelector('strong').textContent).toBe('Product Lines Customer Jiras Statistics')
-      expect(customer.querySelector('[data-customer-body]').textContent).toBe('WeekMonthQuarter')
+      expect(customer.querySelector('[data-customer-body]').textContent).toBe('WeeklyMonthlyQuarterlyYearly')
       expect(customer.compareDocumentPosition(currentPage) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
       expect(widget.compareDocumentPosition(currentPage) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
       currentPage.querySelector('[name="containsText"]').value = 'Bob current edit'

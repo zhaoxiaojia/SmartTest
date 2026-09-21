@@ -19,7 +19,8 @@ const productSpaces = [
 
 const payload = {
   state: 'partial_success',
-  blockWarningProjectCount: 0,
+  blockProjectCount: 0,
+  warningProjectCount: 0,
   productSpaces,
   counts: { stale: 1, failed: 0, inactive: 2 }, discrepancies: ['Unexpected Owner'],
   facets: [
@@ -192,9 +193,9 @@ describe('Projects', () => {
     expect([...groups[1].querySelectorAll('[data-project-status-count]')].map(item => item.textContent)).toEqual(['Unspecified1'])
     const statusLabels = [...document.querySelectorAll('[data-project-status-count]')]
     const normalSlots = statusLabels.filter(label => label.firstElementChild.textContent === 'NORMAL')
-      .map(label => label.dataset.statusTone)
+      .map(label => label.dataset.projectStatus)
     expect(normalSlots).toEqual([normalSlots[0], normalSlots[0]])
-    expect(normalSlots[0]).toBe('normal')
+    expect(normalSlots[0]).toBe('NORMAL')
     const stageGroups = [...groups[0].querySelectorAll('[data-stage-group]')]
     expect(stageGroups.map(group => group.querySelector('summary strong').textContent)).toEqual(['Validation', 'Pilot'])
     expect(stageGroups.map(group => group.querySelector('[data-stage-project-count]').textContent)).toEqual(['1', '1'])
@@ -275,10 +276,11 @@ describe('Projects', () => {
 
   it('prioritizes Project Status labels and marks only their semantic warning tones', async () => {
     const statuses = ['9 CANCEL CLOSE', 'NORMAL 09/05', '7 PENDING', 'WARNING', 'BLOCK', 'ACTIVE']
+    const stages = ['1 EVALUATION', '2 IN DEVELOPMENT', '3 SYSTEM UPGRADE', '4 MP MAINTENANCE', '5 MP CLOSE', '6 POC CLOSE']
     const api = { getProjectFacts: vi.fn().mockResolvedValue({
       ...payload, state: 'ready', ownerHierarchy: [], projects: statuses.map((status, index) => ({
         identity: `status-${index}`, project_id: `P-${index}`, name: status, space_key: 'DOPL',
-        status, stage: `${index + 1} stage`, roles: {}, fields: {},
+        status, support_mode: index === 0 ? 'BLOCK' : '', stage: stages[index], roles: {}, fields: {},
       })),
     }) }
 
@@ -288,10 +290,13 @@ describe('Projects', () => {
     expect(labels.map(label => label.firstElementChild.textContent)).toEqual([
       'BLOCK', 'WARNING', '7 PENDING', 'NORMAL 09/05', '9 CANCEL CLOSE', 'ACTIVE',
     ])
-    expect(labels.map(label => label.dataset.statusTone || '')).toEqual([
-      'block', 'warning', '', 'normal', '', '',
+    expect(labels.map(label => label.dataset.projectStatus || '')).toEqual([
+      'BLOCK', 'WARNING', '', 'NORMAL', '', '',
     ])
-    expect([...document.querySelectorAll('.stage-summary')].map(item => item.dataset.projectStage).sort()).toEqual(['1', '2', '3', '4', '5', '6'])
+    const supportMode = [...document.querySelector('[data-project-id="status-0"] .project-card-badges').children]
+      .find(label => label.textContent === 'BLOCK')
+    expect(supportMode.dataset.projectStatus).toBeUndefined()
+    expect([...document.querySelectorAll('.stage-summary')].map(item => item.dataset.projectStage).sort()).toEqual(stages)
   })
 
   it('orders projects by Support Mode ascending then Project Status descending', async () => {
@@ -450,7 +455,9 @@ describe('Projects', () => {
   it('renders identity-free metrics and project cards without the old owner accordion', async () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(payload) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
-    expect([...document.querySelectorAll('[data-metric] strong')].map(item => item.textContent)).toEqual(['0', '1', '1', '1', '1.0'])
+    expect([...document.querySelectorAll('[data-metric] strong')].map(item => item.textContent)).toEqual([
+      '1', '0', '0', '1', '0', 'S 0 · A 0', 'S 0 · A 0', 'S 0 · A 0', 'S 0 · A 0', '1.0',
+    ])
     expect(document.querySelectorAll('details.owner-role, details.owner-person').length).toBe(0)
     expect(document.body.textContent).not.toContain('u-1')
     expect(document.querySelector('.project-card').textContent).toContain('Apollo')
@@ -458,14 +465,23 @@ describe('Projects', () => {
 
   it('shows canonical accessible projects separately from filtered matched projects', async () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue({
-      ...payload, accessibleProjectCount: 651, blockWarningProjectCount: 17,
+      ...payload, accessibleProjectCount: 651, blockProjectCount: 7, warningProjectCount: 10,
     }) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
-    const metrics = Object.fromEntries([...document.querySelectorAll('[data-metric]')].map(card => [
-      card.querySelector('span').textContent, card.querySelector('strong').textContent
+    const metrics = Object.fromEntries([...document.querySelectorAll('[data-metric-row]')].map(row => [
+      row.querySelector('span').textContent, row.querySelector('strong').textContent,
     ]))
-    expect(metrics['Block / Warning projects']).toBe('17')
-    expect(metrics['Matched projects']).toBe('1')
+    expect([...document.querySelectorAll('[data-metric]')][0].querySelector('span').textContent).toBe('Support Projects')
+    const blockRow = [...document.querySelectorAll('[data-metric-row]')]
+      .find(row => row.querySelector('span').textContent === 'Block Projects')
+    const warningRow = [...document.querySelectorAll('[data-metric-row]')]
+      .find(row => row.querySelector('span').textContent === 'Warning Projects')
+    expect(blockRow.closest('[data-metric]')).toBe(warningRow.closest('[data-metric]'))
+    expect(blockRow.dataset.projectStatusText).toBe('BLOCK')
+    expect(warningRow.dataset.projectStatusText).toBe('WARNING')
+    expect(metrics['Block Projects']).toBe('7')
+    expect(metrics['Warning Projects']).toBe('10')
+    expect(metrics['Support Projects']).toBe('1')
     expect(metrics['Accessible projects']).toBeUndefined()
     expect(document.querySelector('.summary-definition')).toBeNull()
     expect(document.body.textContent).not.toContain('Metric definition')
@@ -473,14 +489,81 @@ describe('Projects', () => {
 
   it('renders every summary metric from an empty matched collection as zero', async () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue({
-      ...payload, state: 'ready', blockWarningProjectCount: 0, projects: [], ownerHierarchy: [],
+      ...payload, state: 'ready', blockProjectCount: 0, warningProjectCount: 0, projects: [], ownerHierarchy: [],
     }) }
 
     await createProjects({ root: document.querySelector('#app'), api }).start()
 
     expect([...document.querySelectorAll('[data-metric] strong')].map(item => item.textContent)).toEqual([
-      '0', '0', '0', '0', '0.0',
+      '0', '0', '0', '0', '0', 'S 0 · A 0', 'S 0 · A 0', 'S 0 · A 0', 'S 0 · A 0', '0.0',
     ])
+  })
+
+  it('shows filtered S and A Support Mode counts for every product line', async () => {
+    const project = (identity, spaceKey, supportMode) => ({
+      identity, project_id: identity, name: identity, space_key: spaceKey, support_mode: supportMode,
+      status: 'NORMAL', roles: {}, fields: {},
+    })
+    const api = { getProjectFacts: vi.fn().mockResolvedValue({
+      ...payload, state: 'ready', ownerHierarchy: [], projects: [
+        project('dopl-s-1', 'DOPL', 'S'), project('dopl-s-2', 'DOPL', 's'),
+        project('dopl-a', 'DOPL', 'A'), project('tv-a', 'TV', 'A'),
+      ],
+    }) }
+
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+
+    const rows = [...document.querySelectorAll('[data-product-mode-row]')].map(row => [
+      row.querySelector('span').textContent, row.querySelector('strong').textContent,
+    ])
+    const modeCard = document.querySelector('.summary-metric-product-modes')
+    expect(modeCard.firstElementChild.textContent).toBe('Support Mode')
+    expect(modeCard.firstElementChild.dataset.metricTitle).toBe('')
+    expect(rows).toEqual([
+      ['China Operator Business', 'S 2 · A 1'],
+      ['Smart Device Business', 'S 0 · A 0'],
+      ['TV Business', 'S 0 · A 1'],
+      ['Global Operator & STB Business', 'S 0 · A 0'],
+    ])
+    expect(document.body.textContent).not.toContain('Product lines')
+  })
+
+  it('counts unique project and Major QA assignment relationships', async () => {
+    const projects = [{ project_id: 'A-1', identity: 'DOPL:A-1', space_key: 'DOPL', status: 'NORMAL',
+      roles: { 'Major FAE QA': [
+        { identity: 'alice', name: 'Alice' }, { identity: 'bob', name: 'Bob' }, { identity: 'alice', name: 'Alice' },
+      ] } }, { project_id: 'A-2', identity: 'DOPL:A-2', space_key: 'DOPL', status: 'WARNING',
+      roles: { 'Major FAE QA': [{ identity: 'alice', name: 'Alice' }] } }]
+    const api = { getProjectFacts: vi.fn().mockResolvedValue({
+      ...payload, projects, blockProjectCount: 0, warningProjectCount: 1, ownerHierarchy: [],
+    }) }
+
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+
+    const metrics = Object.fromEntries([...document.querySelectorAll('[data-metric]')].map(card => [
+      card.querySelector('span').textContent, card.querySelector('strong').textContent,
+    ]))
+    expect(metrics['Major FAE QA Resources']).toBe('3')
+  })
+
+  it('counts Major FAE QA and FAE QA project-person relationships separately', async () => {
+    const projects = [{ project_id: 'A-1', identity: 'DOPL:A-1', space_key: 'DOPL', status: 'NORMAL', roles: {
+      'Major FAE QA': [{ identity: 'alice', name: 'Alice' }, { identity: 'alice', name: 'Alice' }],
+      'FAE QA': [{ identity: 'alice', name: 'Alice' }, { identity: 'bob', name: 'Bob' }],
+    } }, { project_id: 'A-2', identity: 'DOPL:A-2', space_key: 'DOPL', status: 'NORMAL', roles: {
+      'Major FAE QA': [{ identity: 'alice', name: 'Alice' }],
+      'FAE QA': [{ identity: 'bob', name: 'Bob' }],
+    } }]
+    const api = { getProjectFacts: vi.fn().mockResolvedValue({ ...payload, projects, ownerHierarchy: [] }) }
+
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+
+    const metrics = Object.fromEntries([...document.querySelectorAll('[data-metric-row]')].map(row => [
+      row.querySelector('span').textContent, row.querySelector('strong').textContent,
+    ]))
+    expect(metrics['Major FAE QA Resources']).toBe('2')
+    expect(metrics['FAE QA Resources']).toBe('3')
+    expect(metrics['Major QA Resources']).toBeUndefined()
   })
 
   it('keeps only the four supported filters', async () => {
@@ -701,7 +784,7 @@ describe('Projects', () => {
     const initial = { ...payload, state: 'ready', facets: [dateFacet] }
     const noMatch = {
       ...initial, facets: [{ ...dateFacet, options: [] }], projects: [], ownerHierarchy: [],
-      blockWarningProjectCount: 0, sync: { state: 'ready', completed: 0, total: 0 },
+      blockProjectCount: 0, warningProjectCount: 0, sync: { state: 'ready', completed: 0, total: 0 },
     }
     const api = {
       getProjectFacts: vi.fn().mockResolvedValueOnce(initial)

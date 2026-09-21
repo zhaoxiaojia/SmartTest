@@ -1,4 +1,5 @@
 from core.jira.services.filter_service import JiraFilterService
+from datetime import date
 import pytest
 
 
@@ -68,3 +69,12 @@ def test_suggestions_preserve_only_jira_value_and_display_name():
         {"value": "1", "displayName": "Open"},
         {"value": "2", "displayName": "In Progress"},
     ]
+
+
+def test_year_period_starts_on_current_january_first_and_excludes_prior_december_31():
+    from core.jira.services.filter_service import jira_period_condition
+
+    condition = jira_period_condition("year", date(2026, 9, 21))
+
+    assert condition == 'created >= "2026-01-01" AND created <= now()'
+    assert "2025-12-31" not in condition

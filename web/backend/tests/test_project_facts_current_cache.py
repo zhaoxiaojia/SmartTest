@@ -74,14 +74,15 @@ def test_project_facts_exposes_core_product_labels_and_only_catalog_ready_filter
     ]
 
 
-def test_block_warning_count_uses_the_final_matched_collection(tmp_path) -> None:
+def test_block_and_warning_counts_use_the_final_matched_collection(tmp_path) -> None:
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     projects = tuple(Project(
         ProjectIdentity(f"90{index}", project_id), project_id,
         ProductSpaceRef("China Operator Business", "China Operator Business"), ConfluencePageRef(f"10{index}", "Catalog"),
         status=NamedValue(status.casefold(), status),
     ) for index, (project_id, status) in enumerate((
-        ("P100", "BLOCK"), ("P200", "WARNING"), ("P300", "NORMAL"), ("P400", "warning"),
+        ("P100", "BLOCK 09/12 owner note"), ("P200", "WARNING - needs attention"),
+        ("P300", "NORMAL"), ("P400", "warning 09/05"), ("P500", "BLOCKED"),
     )))
     repository.save_core(projects)
     access = confirmed_access(repository.database, tuple(project.identity.project_id for project in projects))
@@ -91,12 +92,16 @@ def test_block_warning_count_uses_the_final_matched_collection(tmp_path) -> None
         access, filters={"project id": ("P300",)}, search="P300",
     )
     blocked = owner.query(access, search="P100")
+    warning = owner.query(access, search="P200")
     lowercase_warning = owner.query(access, search="P400")
+    unrelated = owner.query(access, search="P500")
 
     assert [project["project_id"] for project in result["projects"]] == ["P300"]
-    assert result["blockWarningProjectCount"] == 0
-    assert blocked["blockWarningProjectCount"] == 1
-    assert lowercase_warning["blockWarningProjectCount"] == 0
+    assert (result["blockProjectCount"], result["warningProjectCount"]) == (0, 0)
+    assert (blocked["blockProjectCount"], blocked["warningProjectCount"]) == (1, 0)
+    assert (warning["blockProjectCount"], warning["warningProjectCount"]) == (0, 1)
+    assert (lowercase_warning["blockProjectCount"], lowercase_warning["warningProjectCount"]) == (0, 1)
+    assert (unrelated["blockProjectCount"], unrelated["warningProjectCount"]) == (0, 0)
 
 
 def test_project_facts_query_keeps_its_access_snapshot_during_catalog_replacement(tmp_path) -> None:

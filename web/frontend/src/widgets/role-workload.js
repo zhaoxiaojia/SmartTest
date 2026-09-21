@@ -15,7 +15,7 @@ export function createRoleWorkloadWidget({ chartFactory } = {}) {
   function presentation(config) {
     const roles = (config.ownerHierarchy ?? []).filter(role => role.people?.length)
     return {
-      headingHtml: config.shellTitle ? '' : '<div><strong>Role workload</strong><div class="report-preview-meta">Project assignments per QA member</div></div>',
+      headingHtml: config.shellTitle ? '' : '<div><strong>Project Resource Statistics</strong><div class="report-preview-meta">Project assignments per QA member</div></div>',
       productLines: (config.productSpaces ?? []).map(item => ({ value: item.value, label: item.label })),
       modes: roles.map(role => ({ value: role.role, label: role.role })),
       error: config.error,

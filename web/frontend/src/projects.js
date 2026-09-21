@@ -15,6 +15,7 @@ import { createDownloadButton } from './download-button.js'
 import { createDisposableDisplayCache } from './disposable-display.js'
 import { element as node } from './dom.js'
 import { createTaskController } from './task-polling.js'
+import { bindProjectStage, bindProjectStatus, bindProjectStatusText } from './project-semantics.js'
 
 export function createProjects({ root, api, waitForPreferences, account,
   pollDelay = ms => new Promise(resolve => setTimeout(resolve, ms)), downloadNavigate,
@@ -178,20 +179,54 @@ export function createProjects({ root, api, waitForPreferences, account,
     return !name || (identity && name.toLocaleLowerCase() === identity.toLocaleLowerCase()) ? 'Unknown member' : name
   }
 
-  function renderSummary(hierarchy, projects, blockWarningProjectCount) {
+  function renderSummary(hierarchy, projects, blockProjectCount, warningProjectCount) {
     const people = new Set(); let assignments = 0
     for (const role of hierarchy) for (const person of role.people ?? []) {
       people.add(person.identity || readableName(person)); assignments += person.projects?.length ?? 0
     }
-    const values = [blockWarningProjectCount, projects.length, people.size,
-      new Set(projects.map(project => project.space_key).filter(Boolean)).size,
-      people.size ? (assignments / people.size).toFixed(1) : '0.0']
-    const labels = ['Block / Warning projects', 'Matched projects', 'Unique QA people', 'Product lines', 'Avg assignments / person']
+    const roleAssignmentCount = role => {
+      const assignments = new Set()
+      for (const project of projects) for (const person of project.roles?.[role] ?? []) {
+        assignments.add(`${projectKey(project)}\u0000${person.identity || readableName(person)}`)
+      }
+      return assignments.size
+    }
     const summary = root.querySelector('[data-summary]'); summary.replaceChildren()
-    labels.forEach((label, index) => { const card = node('article', 'card summary-metric'); card.dataset.metric = ''; card.append(node('span', '', label), node('strong', '', values[index])); summary.append(card) })
+    const row = (label, value, status = '') => {
+      const item = node('div', 'summary-metric-row'); item.dataset.metricRow = ''
+      if (status) bindProjectStatusText(item, status)
+      item.append(node('span', '', label), node('strong', '', value))
+      return item
+    }
+    const card = (...rows) => {
+      const item = node('article', 'card summary-metric'); item.dataset.metric = ''; item.append(...rows)
+      summary.append(item)
+      return item
+    }
+    card(row('Support Projects', projects.length)).classList.add('summary-metric-single')
+    card(row('Block Projects', blockProjectCount, 'BLOCK'), row('Warning Projects', warningProjectCount, 'WARNING'))
+      .classList.add('summary-metric-paired')
+    card(row('Major FAE QA Resources', roleAssignmentCount('Major FAE QA')),
+      row('FAE QA Resources', roleAssignmentCount('FAE QA'))).classList.add('summary-metric-resources')
+    const modeCounts = new Map(productSpaceDefinitions.map(({ value }) => [value, { S: 0, A: 0 }]))
+    for (const project of projects) {
+      const counts = modeCounts.get(project.space_key)
+      const mode = String(project.support_mode || project.fields?.['support mode'] || '').trim().toUpperCase()
+      if (counts && (mode === 'S' || mode === 'A')) counts[mode] += 1
+    }
+    const modeRows = productSpaceDefinitions.map(({ value, label }) => {
+      const counts = modeCounts.get(value)
+      const item = row(label, `S ${counts.S} · A ${counts.A}`); item.dataset.productModeRow = ''
+      return item
+    })
+    const modeCard = card(...modeRows); modeCard.classList.add('summary-metric-product-modes')
+    const modeTitle = node('div', 'summary-metric-title', 'Support Mode'); modeTitle.dataset.metricTitle = ''
+    modeCard.prepend(modeTitle)
+    card(row('Avg assignments / person', people.size ? (assignments / people.size).toFixed(1) : '0.0'))
+      .classList.add('summary-metric-average')
   }
 
-  function renderProjects(hierarchy, projects = [], blockWarningProjectCount) {
+  function renderProjects(hierarchy, projects = [], blockProjectCount, warningProjectCount) {
     projectsRoot.replaceChildren()
     const seenProjects = new Set()
     const uniqueProjects = projects.filter(project => {
@@ -201,7 +236,7 @@ export function createProjects({ root, api, waitForPreferences, account,
       return true
     })
     root.querySelector('[data-count]').textContent = `${uniqueProjects.length} projects`
-    renderSummary(hierarchy ?? [], uniqueProjects, blockWarningProjectCount)
+    renderSummary(hierarchy ?? [], uniqueProjects, blockProjectCount, warningProjectCount)
     const projectStage = project => String(project.stage || project.fields?.['current stage'] || '').trim()
     const displayValue = value => Array.isArray(value) ? value.filter(item => item != null && String(item).trim()).join(', ') : String(value ?? '').trim()
     const comparePresentAsc = (left, right) => {
@@ -247,8 +282,12 @@ export function createProjects({ root, api, waitForPreferences, account,
       const identifier = node('div', 'kanban-card-desc', project.project_id)
       const customer = node('div', 'project-card-customer', project.customer_summary)
       const badges = node('div', 'project-card-badges project-list-meta')
-      for (const value of [project.status, project.support_mode]) {
-        if (value) badges.append(node('span', 'badge badge-blue', value))
+      for (const [value, semantic] of [[project.status, 'status'], [project.support_mode, 'support-mode']]) {
+        if (value) {
+          const badge = node('span', 'badge badge-blue', value)
+          if (semantic === 'status') bindProjectStatus(badge, value)
+          badges.append(badge)
+        }
       }
       const summaryFacts = node('div', 'project-card-summary-facts')
       addFact(summaryFacts, 'MP Time', project.fields?.['mp time'])
@@ -280,8 +319,7 @@ export function createProjects({ root, api, waitForPreferences, account,
       for (const stage of groupByStage(projects)) {
         const stageGroup = node('details', 'stage-group'); stageGroup.dataset.stageGroup = ''
         const stageSummary = node('summary', 'stage-summary')
-        const stageNumber = stage.name.match(/^([1-9])\s/)
-        if (stageNumber) stageSummary.dataset.projectStage = stageNumber[1]
+        bindProjectStage(stageSummary, stage.name)
         const stageCount = node('span', 'kanban-count', stage.projects.length); stageCount.dataset.stageProjectCount = ''
         stageSummary.append(node('strong', '', stage.name), stageCount)
         const cards = node('div', 'project-list')
@@ -321,8 +359,7 @@ export function createProjects({ root, api, waitForPreferences, account,
       }
       for (const [status, count] of [...counts].sort(([left], [right]) => compareProjectStatus(left, right))) {
         const item = node('span', 'distribution-label'); item.dataset.projectStatusCount = ''
-        const tone = statusKind(status)
-        if (['block', 'warning', 'normal'].includes(tone)) item.dataset.statusTone = tone
+        bindProjectStatus(item, status)
         item.append(node('span', '', status), node('strong', 'distribution-label-count', count))
         distribution.append(item)
       }
@@ -377,7 +414,7 @@ export function createProjects({ root, api, waitForPreferences, account,
     if (!facets.length) renderFacets(payload.facets, { loading: payload.state === 'loading' || !hasCache })
     else if (updateFacets && hasCache) updateFacetOptions(payload.facets)
     if (updateHierarchy) {
-      renderProjects(payload.ownerHierarchy ?? [], payload.projects ?? [], payload.blockWarningProjectCount)
+      renderProjects(payload.ownerHierarchy ?? [], payload.projects ?? [], payload.blockProjectCount, payload.warningProjectCount)
     }
     status.className = `report-state report-state-${payload.state}`
     status.textContent = STATE_COPY[payload.state] ?? ''

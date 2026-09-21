@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from core.product_lines import DASHBOARD_PRODUCT_LINES, PRODUCT_LINE_BY_JIRA_PROJECT, WIRELESS_CONNECTION
-from core.jira.services.filter_service import compose_jql, JIRA_PERIOD_CONDITIONS
+from core.jira.services.filter_service import compose_jql, jira_period_condition
 
 
 def _name(value: Any) -> str:
@@ -57,7 +57,7 @@ def self_test_jira_conditions(accounts: Iterable[str], period: str = "month") ->
               for account in accounts]
     if not quoted:
         raise ValueError("empty_fae_qa_roster")
-    return f"issuetype = Bug AND reporter IN ({', '.join(quoted)}) AND {SELF_TEST_JIRA_CONDITIONS} AND {JIRA_PERIOD_CONDITIONS[period]}"
+    return f"issuetype = Bug AND reporter IN ({', '.join(quoted)}) AND {SELF_TEST_JIRA_CONDITIONS} AND {jira_period_condition(period)}"
 
 
 @dataclass(frozen=True)

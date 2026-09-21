@@ -3,6 +3,7 @@ from __future__ import annotations
 from .task_manager import WEB_TASKS
 
 import os
+import re
 from threading import Lock
 from time import perf_counter
 
@@ -31,6 +32,14 @@ from .query_snapshot_repository import PROJECT_FILTER_KEYS
 from .session import default_web_database_path
 
 PAGE_CATALOG_PRODUCT_SPACES = tuple(line.confluence_space_key for line in PRODUCT_LINES)
+PROJECT_STATUS_PATTERN = re.compile(r"^\s*(NORMAL|WARNING|BLOCK)\b", re.IGNORECASE)
+
+
+def _project_status(value):
+    matched = PROJECT_STATUS_PATTERN.match(str(value or ""))
+    return matched.group(1).upper() if matched else None
+
+
 PROJECT_FILTER_FACET_DEFINITIONS = tuple(
     definition for definition in PROJECT_SPACE_FACET_DEFINITIONS
     if definition[0] in PROJECT_FILTER_KEYS
@@ -146,17 +155,17 @@ class ProjectFactsWebOwner:
         )
         snapshot = {"projects": [_project_snapshot_row(project) for project in projects if project]}
         result = query_project_facts(snapshot, filters=filters, fixed_filters=fixed_filters, search=search)
-        block_warning_count = sum(
-            project.get("status") in {"BLOCK", "WARNING"}
-            for project in result["projects"]
-        )
+        semantic_statuses = tuple(_project_status(project.get("status")) for project in result["projects"])
+        block_count = semantic_statuses.count("BLOCK")
+        warning_count = semantic_statuses.count("WARNING")
         start = int(page) * int(page_size)
         visible = result["projects"]
         self._log_query_timing(started, "ready", cached.total, query_access, ready_product_spaces, len(visible))
         return {
             "state": "ready",
             "accessibleProjectCount": cached.total,
-            "blockWarningProjectCount": block_warning_count,
+            "blockProjectCount": block_count,
+            "warningProjectCount": warning_count,
             "productSpaces": _product_space_rows(),
             "facets": _facet_rows(result["facets"], ready_product_spaces),
             "projects": visible[start:start + int(page_size)],
@@ -207,7 +216,8 @@ class ProjectFactsWebOwner:
     def _state(state, ready_product_spaces=()):
         return {
             "state": state, "accessibleProjectCount": 0,
-            "blockWarningProjectCount": 0,
+            "blockProjectCount": 0,
+            "warningProjectCount": 0,
             "productSpaces": _product_space_rows(),
             "facets": [
                 {"key": key, "label": label, "labels": [label],

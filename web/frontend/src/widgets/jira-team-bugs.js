@@ -5,7 +5,8 @@ export const JIRA_TEAM_BUG_LAYOUT = Object.freeze({ defaultW: 24, defaultH: 16 }
 export const JIRA_SELF_TEST_TITLE = 'Product Lines Self Test Jiras Statistics'
 export const JIRA_CUSTOMER_TITLE = 'Product Lines Customer Jiras Statistics'
 
-const PERIODS = [{ value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }, { value: 'quarter', label: 'Quarter' }]
+const PERIODS = [{ value: 'week', label: 'Weekly' }, { value: 'month', label: 'Monthly' },
+  { value: 'quarter', label: 'Quarterly' }, { value: 'year', label: 'Yearly' }]
 let periodInstance = 0
 function periodMarkup(preferences = false) {
   const name = `jira-period-${++periodInstance}`

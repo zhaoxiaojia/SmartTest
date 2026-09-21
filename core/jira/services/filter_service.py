@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from datetime import date
 import re
+from typing import Any
 
 
 _ORDER_BY = re.compile(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?P<order>\border\s+by\b)''', re.IGNORECASE)
@@ -11,6 +12,14 @@ JIRA_PERIOD_CONDITIONS = {
     "month": 'created >= "-30d" AND created <= now()',
     "quarter": 'created >= startOfDay("-3M") AND created <= now()',
 }
+JIRA_PERIODS = frozenset((*JIRA_PERIOD_CONDITIONS, "year"))
+
+
+def jira_period_condition(period: str, today: date | None = None) -> str:
+    if period == "year":
+        current = today or date.today()
+        return f'created >= "{current.year}-01-01" AND created <= now()'
+    return JIRA_PERIOD_CONDITIONS[period]
 
 
 def compose_jql(user_jql: str, fixed_conditions: str) -> str:

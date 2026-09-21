@@ -40,30 +40,33 @@ def test_period_cache_is_exact_and_search_refreshes_it(tmp_path, monkeypatch):
 
 
 def test_card_period_defaults_to_month_and_restores_independently_without_get_fetch(tmp_path, monkeypatch):
+    from datetime import date
     calls = []
     monkeypatch.setattr(Gateway, 'search_all_payloads', lambda _self, jql, **_kw: calls.append(jql) or [])
     api = client(tmp_path)
     api.put('/api/preferences/jira/cards/customer', json={'items': {'period': 'quarter'}})
     assert api.get('/api/jira/cards/self-test/statistics').json()['period'] == 'month'
     api.post('/api/jira/analytics/search', json={'mode': 'advanced', 'jql': 'status = Open OR status = Closed ORDER BY created DESC'})
-    for period, token in [('week', '-7d'), ('month', '-30d'), ('quarter', '-3M')]:
+    periods = [('week', 'created >= "-7d"'), ('month', 'created >= "-30d"'),
+               ('quarter', 'created >= startOfDay("-3M")'),
+               ('year', f'created >= "{date.today().year}-01-01"')]
+    for period, condition in periods:
         started = api.post('/api/jira/cards/self-test/query', json={'period': period}).json()
         assert wait_terminal(api, started['taskId']) == 'completed'
         payload = api.get('/api/jira/cards/self-test/statistics').json()
         assert payload['period'] == period
-        assert (f'created >= startOfDay("{token}")' if period == 'quarter' else f'created >= "{token}"') in payload['query']['activeJql']
+        assert condition in payload['query']['activeJql']
         assert payload['query']['activeJql'].endswith('ORDER BY created DESC')
-        assert 'startOfYear' not in payload['query']['activeJql']
     api.post('/api/auth/logout')
     api.post('/api/auth/login', json={'username': 'coco', 'password': 'secret'})
-    assert api.get('/api/jira/cards/self-test/statistics').json()['period'] == 'quarter'
-    assert len(calls) == 3
+    assert api.get('/api/jira/cards/self-test/statistics').json()['period'] == 'year'
+    assert len(calls) == 4
     assert api.post('/api/jira/cards/self-test/query', json={'period': 'invalid'}).status_code == 422
-    assert len(calls) == 3
+    assert len(calls) == 4
     api.post('/api/auth/logout')
     api.post('/api/auth/login', json={'username': 'bob', 'password': 'secret'})
     assert api.get('/api/jira/cards/self-test/statistics').json()['period'] == 'month'
-    assert len(calls) == 3
+    assert len(calls) == 4
 
 
 def test_same_account_relogin_restores_conditions_and_card_without_remote_fetch(tmp_path, monkeypatch):

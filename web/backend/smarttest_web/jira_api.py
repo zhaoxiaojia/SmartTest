@@ -109,9 +109,9 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
             raise HTTPException(status_code=404, detail={"state": "card_not_found"})
 
     def jira_card_period(value, card_key):
-        from core.jira.services.filter_service import JIRA_PERIOD_CONDITIONS
+        from core.jira.services.filter_service import JIRA_PERIODS
         period = sessions.get_preferences(value.username, f"jira/cards/{card_key}")["items"].get("period", "month")
-        if not isinstance(period, str) or period not in JIRA_PERIOD_CONDITIONS:
+        if not isinstance(period, str) or period not in JIRA_PERIODS:
             raise HTTPException(status_code=422, detail={"state": "invalid_jira_period"})
         return period
 
@@ -214,9 +214,9 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
         intent = payload.get("intent", "refresh")
         if not isinstance(intent, str) or intent not in {"reuse", "refresh"}:
             raise HTTPException(status_code=422, detail={"state": "invalid_jira_query_intent"})
-        from core.jira.services.filter_service import JIRA_PERIOD_CONDITIONS
+        from core.jira.services.filter_service import JIRA_PERIODS
         if "period" in payload:
-            if not isinstance(payload["period"], str) or payload["period"] not in JIRA_PERIOD_CONDITIONS:
+            if not isinstance(payload["period"], str) or payload["period"] not in JIRA_PERIODS:
                 raise HTTPException(status_code=422, detail={"state": "invalid_jira_period"})
             sessions.upsert_preferences(value.username, f"jira/cards/{card_key}", {"period": payload["period"]}, 1)
         conditions = jira_analytics.published_conditions(audit_session(request), value.username)
