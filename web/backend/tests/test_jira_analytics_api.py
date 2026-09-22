@@ -7,7 +7,7 @@ from smarttest_web.database import WebDatabase
 from smarttest_web.jira.analytics_repository import JiraAnalyticsRepository
 
 from core.product_lines import PRODUCT_LINES
-from core.jira.services.team_bug_service import load_fae_qa_roster, self_test_jira_conditions, QARoster
+from core.jira.services.team_bug_service import self_test_jira_conditions
 
 from smarttest_web.app import create_app
 from smarttest_web.session import PersistentSessionStore
@@ -27,6 +27,11 @@ class FilterOwner:
 
 class Gateway:
     def search_all_payloads(self, _jql, *, progress=None): return []
+    def user_groups(self, account):
+        return {
+            "meng.wang1": ("fae-wifi-qa",),
+            "fan.xu": ("fae-iptv-qa",),
+        }[account]
 
 
 def client(tmp_path):
@@ -68,8 +73,9 @@ def test_public_search_only_publishes_conditions_and_card_queries_its_own_effect
     started = api.post("/api/jira/cards/self-test/query", json={"jql": "", "fixed_conditions": ""}).json()
     assert started["validation"]["valid"] is True
     assert wait_terminal(api, started["taskId"]) == "completed"
-    assert queries == [self_test_jira_conditions(load_fae_qa_roster().accounts)]
-    assert 'reporter IN (' in queries[0]
+    assert queries == [self_test_jira_conditions()]
+    assert 'creator IN membersOf("fae-wifi-qa")' in queries[0]
+    assert 'reporter IN (' not in queries[0]
     assert 'assignee IN (' not in queries[0]
     assert api.post("/api/jira/cards/customer/query").status_code == 404
     replay = api.get("/api/jira/cards/self-test/statistics").json()
@@ -77,18 +83,24 @@ def test_public_search_only_publishes_conditions_and_card_queries_its_own_effect
     assert len(queries) == 1
 
 
-def test_empty_qa_roster_does_not_query_unbounded_self_test_data(tmp_path, monkeypatch):
-    queries = []
-    monkeypatch.setattr('core.jira.services.team_bug_service.load_fae_qa_roster', lambda: QARoster((), 'empty'))
-    monkeypatch.setattr(Gateway, 'search_all_payloads', lambda _self, jql, **_kwargs: queries.append(jql) or [])
+def test_creator_group_failure_is_explicit_and_preserves_previous_snapshot(tmp_path, monkeypatch):
     api = client(tmp_path)
-    response = query_card(api, {"mode": "basic", "basic": {}})
-    assert response.status_code == 422
-    assert response.json()["detail"]["state"] == "empty_fae_qa_roster"
-    assert queries == []
+    previous = query_card(api, {"mode": "basic", "basic": {}}).json()
+    assert wait_terminal(api, previous["taskId"]) == "completed"
+    monkeypatch.setattr(Gateway, 'user_groups', lambda _self, _account: (_ for _ in ()).throw(RuntimeError('offline')))
+    monkeypatch.setattr(Gateway, 'search_all_payloads', lambda _self, _jql, **_kwargs: [{
+        "id": "1", "key": "TV-1", "fields": {"project": {"key": "TV"}, "issuetype": {"name": "Bug"},
+        "creator": {"name": "fan.xu", "displayName": "Fan Xu"},
+    }}])
+    started = query_card(api, {"mode": "basic", "basic": {}}).json()
+    assert wait_terminal(api, started["taskId"]) == "failed"
+    response = api.get("/api/jira/cards/self-test/statistics").json()
+    assert response["state"] == "failed"
+    assert response["error"] == "RuntimeError"
+    assert response["teamTotal"] == 0
 
 
-def test_old_snapshot_without_qa_reporter_boundary_is_not_replayed_or_requeried(tmp_path, monkeypatch):
+def test_old_snapshot_without_qa_creator_group_boundary_is_not_replayed_or_requeried(tmp_path, monkeypatch):
     queries = []
     api = client(tmp_path)
     api.post('/api/jira/analytics/search', json={'mode': 'basic', 'basic': {}})
@@ -121,6 +133,7 @@ def test_effective_bug_query_validation_execution_sqlite_and_explicit_unmapped_t
         candidates.append({'id': str(index), 'key': f'ISSUE-{index}', 'fields': {
             'summary': kind, 'issuetype': {'name': kind}, 'project': {'key': project},
             'reporter': {'name': reporter, 'displayName': reporter},
+            'creator': {'name': reporter, 'displayName': reporter},
         }})
     def collect(_self, jql, *, progress=None):
         executed.append(jql)
@@ -175,7 +188,7 @@ def test_lost_task_is_interrupted_without_requery_and_previous_progress_does_not
     assert statistics["state"] == "ready"
     assert statistics["teamTotal"] == 0
     restored = api.get("/api/jira/cards/self-test/statistics").json()["query"]
-    assert restored["activeJql"] == self_test_jira_conditions(load_fae_qa_roster().accounts)
+    assert restored["activeJql"] == self_test_jira_conditions()
     assert restored["userJql"] == ""
     entered, release = Event(), Event()
     def blocked(_self, _jql, *, progress=None):
@@ -264,7 +277,8 @@ def test_statistics_replays_only_the_applied_jql_collection_without_extra_scope(
         return [{"id": "1", "key": "ONE-1", "fields": {
             "summary": "One", "project": {"id": "1", "key": project, "name": "One"},
             "issuetype": {"id": "2", "name": "Bug"}, "status": {"id": "1", "name": "Open"},
-            "reporter": {"name": "fan.xu", "displayName": "Fan Xu"},
+            "reporter": {"name": "outside", "displayName": "Outside"},
+            "creator": {"name": "fan.xu", "displayName": "Fan Xu"},
             "assignee": {"name": "outside.qa", "displayName": "Outside QA"},
             "priority": {"id": "1", "name": "P0"}, "resolution": {"id": "1", "name": "Resolved"},
         }}] if jql.startswith("(first)") else []
@@ -280,9 +294,15 @@ def test_statistics_replays_only_the_applied_jql_collection_without_extra_scope(
     assert payload["teamTotal"] == 1
     assert payload["productLines"][0]["people"] == [{"identity": "fan.xu", "displayName": "Fan Xu",
         "bugCount": 1, "resolvedCount": 1, "p0Count": 1, "invalidCount": 0}]
+    monkeypatch.setattr(Gateway, "user_groups", lambda _self, _account: (_ for _ in ()).throw(AssertionError("reuse queried Jira")))
+    reused = api.post("/api/jira/cards/self-test/query", json={"intent": "reuse"}).json()
+    assert reused["state"] == "ready"
+    monkeypatch.setattr(Gateway, "user_groups", lambda self, account: {
+        "meng.wang1": ("fae-wifi-qa",), "fan.xu": ("fae-iptv-qa",),
+    }[account])
     apply("second")
     assert api.get("/api/jira/cards/self-test/statistics").json()["teamTotal"] == 0
-    fixed = self_test_jira_conditions(load_fae_qa_roster().accounts)
+    fixed = self_test_jira_conditions()
     assert queries == [f'(first) AND ({fixed})', f'(second) AND ({fixed})']
 
 

@@ -106,8 +106,6 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
     jira_filters = JiraFilterSnapshotRepository(cache_database)
     jira_analytics = JiraAnalyticsRepository(cache_database)
     jira_analytics.interrupt_pending()
-    from core.jira.services.team_bug_service import load_fae_qa_roster
-    jira_analytics.migrate_self_test(load_fae_qa_roster())
     releases = release_query_owner(cache_database)
     test_suites = TestSuiteRepository(cache_database)
     audits = audit_registry()

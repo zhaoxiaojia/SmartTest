@@ -118,6 +118,24 @@ def test_jira_gateway_user_search_exposes_active_identity_for_reconciliation() -
     }]
 
 
+def test_jira_gateway_reads_user_group_names_from_authenticated_profile() -> None:
+    class UserGroupApi(RecordingApi):
+        def get(self, path, params=None):
+            self.calls.append(("get", path, params))
+            return {
+                "name": "qa.one",
+                "groups": {"items": [{"name": "fae-tv-qa"}, {"name": "jira-users"}]},
+            }
+
+    api = UserGroupApi()
+    groups = JiraGateway("https://jira.example", "u", "p", api=api).user_groups("qa.one")
+
+    assert groups == ("fae-tv-qa", "jira-users")
+    assert api.calls == [
+        ("get", "rest/api/2/user", {"username": "qa.one", "expand": "groups"}),
+    ]
+
+
 def test_jira_gateway_normalizes_third_party_failure() -> None:
     class BrokenApi(RecordingApi):
         def jql(self, *args, **kwargs):

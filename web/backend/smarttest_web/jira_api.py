@@ -83,21 +83,35 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
         return {"invalidated": issue_key}
 
     def resolve_jira_analytics(value, *, card_key=""):
-        from core.jira.services.team_bug_service import load_fae_qa_roster, self_test_jira_conditions
-        roster = load_fae_qa_roster()
-        fixed_conditions = self_test_jira_conditions(roster.accounts, jira_card_period(value, card_key)) if card_key == "self-test" else ""
         try:
             filters, gateway = jira_filter_owner(value.username, value.password)
-            return JiraAnalyticsService(
-                filters, gateway, JiraIssueMapper(gateway.config.base_url if hasattr(gateway, "config") else ""),
-                jira_analytics, JIRA_ANALYTICS_TASKS,
-                fixed_conditions=fixed_conditions,
-                card_key=card_key,
-                roster_fingerprint=roster.fingerprint if card_key == "self-test" else "",
-                on_error=lambda error: invalidate_analytics_credentials(value, error),
-            )
         except Exception as error:
             raise HTTPException(status_code=503, detail={"state": "analytics_unavailable"}) from error
+        fixed_conditions = ""
+        roster_fingerprint = ""
+        statistics_builder = None
+        if card_key == "self-test":
+            from core.jira.services.team_bug_service import (
+                FAE_QA_MAPPING_FINGERPRINT,
+                aggregate_team_bugs,
+                creator_accounts,
+                load_fae_qa_roster,
+                self_test_jira_conditions,
+            )
+            fixed_conditions = self_test_jira_conditions(jira_card_period(value, card_key))
+            roster_fingerprint = FAE_QA_MAPPING_FINGERPRINT
+            statistics_builder = lambda rows: aggregate_team_bugs(
+                rows, load_fae_qa_roster(gateway, creator_accounts(rows)),
+            ).to_payload()
+        return JiraAnalyticsService(
+            filters, gateway, JiraIssueMapper(gateway.config.base_url if hasattr(gateway, "config") else ""),
+            jira_analytics, JIRA_ANALYTICS_TASKS,
+            fixed_conditions=fixed_conditions,
+            card_key=card_key,
+            roster_fingerprint=roster_fingerprint,
+            statistics_builder=statistics_builder,
+            on_error=lambda error: invalidate_analytics_credentials(value, error),
+        )
 
     def invalidate_analytics_credentials(value, error):
         if remote_credentials_rejected(error):
@@ -134,15 +148,14 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
     @router.get("/api/jira/cards/{card_key}/statistics")
     def jira_analytics_statistics(card_key: str, request: Request, value=Depends(authenticated_session)):
         require_jira_card(card_key)
-        from core.jira.services.team_bug_service import aggregate_team_bugs, load_fae_qa_roster, self_test_jira_conditions
+        from core.jira.services.team_bug_service import self_test_jira_conditions
         from core.jira.services.filter_service import compose_jql
         session_hash = audit_session(request)
         query, task = analytics_query_state(session_hash, value.username, card_key)
-        roster = load_fae_qa_roster()
         period = jira_card_period(value, card_key)
-        active_matches = bool(query["activeSnapshotId"] and query["userJql"] is not None and roster.accounts
-                              and query['rosterFingerprint'] == roster.fingerprint
-                              and query["activeJql"] == compose_jql(query["userJql"], self_test_jira_conditions(roster.accounts, period)))
+        summary = jira_analytics.statistics_summary(session_hash, value.username, card_key=card_key)
+        active_matches = bool(query["activeSnapshotId"] and query["userJql"] is not None and summary is not None
+                              and query["activeJql"] == compose_jql(query["userJql"], self_test_jira_conditions(period)))
         state = ("loading" if query["pendingSnapshotId"] else query["latestState"]
                  if query["latestState"] in {"failed", "cancelled"} else "ready"
                  if active_matches else "no_snapshot")
@@ -154,8 +167,7 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
         if state in {"failed", "cancelled"}:
             payload["error"] = query["error"] or ("query_cancelled" if state == "cancelled" else "query_failed")
         if active_matches:
-            payload.update(jira_analytics.statistics_summary(session_hash, value.username, card_key=card_key)
-                           or aggregate_team_bugs(jira_analytics.statistics_issues(session_hash, value.username, card_key=card_key), roster).to_payload())
+            payload.update(summary)
         return payload
 
     @router.get("/api/jira/analytics/fields")
@@ -222,17 +234,16 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
         conditions = jira_analytics.published_conditions(audit_session(request), value.username)
         if conditions is None:
             return {"state": "no_snapshot", "period": jira_card_period(value, card_key)}
+        service = resolve_jira_analytics(value, card_key=card_key)
         if intent == "reuse":
             from core.jira.services.filter_service import compose_jql
-            from core.jira.services.team_bug_service import load_fae_qa_roster, self_test_jira_conditions
-            roster = load_fae_qa_roster()
-            if roster.accounts and "userJql" in conditions:
-                effective = compose_jql(conditions["userJql"], self_test_jira_conditions(roster.accounts, jira_card_period(value, card_key)))
+            if "userJql" in conditions:
+                effective = compose_jql(conditions["userJql"], service.fixed_conditions)
                 if jira_analytics.reuse(audit_session(request), value.username, effective,
-                                        card_key=card_key, roster_fingerprint=roster.fingerprint):
+                                        card_key=card_key, roster_fingerprint=service.roster_fingerprint):
                     return jira_analytics_statistics(card_key, request, value)
         try:
-            started = resolve_jira_analytics(value, card_key=card_key).search(
+            started = service.search(
                 audit_session(request), value.username, value.expires_at, conditions)
         except (TypeError, ValueError) as error:
             raise HTTPException(status_code=422, detail={"state": str(error)}) from error

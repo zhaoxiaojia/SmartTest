@@ -5,29 +5,6 @@ from ..schema import ensure_component_schema
 
 
 JIRA_STATEMENTS = (
-    """CREATE TABLE IF NOT EXISTS jira_team_bug_accounts (
-        account TEXT PRIMARY KEY, active_snapshot_id TEXT NOT NULL DEFAULT '',
-        last_error TEXT NOT NULL DEFAULT '', roster_fingerprint TEXT NOT NULL DEFAULT ''
-    )""",
-    """CREATE TABLE IF NOT EXISTS jira_team_bug_snapshots (
-        snapshot_id TEXT PRIMARY KEY, account TEXT NOT NULL, roster_fingerprint TEXT NOT NULL,
-        team_total INTEGER NOT NULL,
-        created_at REAL NOT NULL, effective_jql TEXT NOT NULL DEFAULT '',
-        unmapped_count INTEGER NOT NULL DEFAULT 0, unassigned_count INTEGER NOT NULL DEFAULT 0
-    )""",
-    """CREATE TABLE IF NOT EXISTS jira_team_bug_rows (
-        snapshot_id TEXT NOT NULL REFERENCES jira_team_bug_snapshots(snapshot_id) ON DELETE CASCADE,
-        product_line TEXT NOT NULL, ordinal INTEGER NOT NULL,
-        identity TEXT NOT NULL, display_name TEXT NOT NULL,
-        bug_count INTEGER NOT NULL, resolved_count INTEGER NOT NULL,
-        p0_count INTEGER NOT NULL, invalid_count INTEGER NOT NULL,
-        PRIMARY KEY(snapshot_id,product_line,ordinal)
-    )""",
-    """CREATE TABLE IF NOT EXISTS jira_team_bug_lines (
-        snapshot_id TEXT NOT NULL REFERENCES jira_team_bug_snapshots(snapshot_id) ON DELETE CASCADE,
-        ordinal INTEGER NOT NULL, product_line TEXT NOT NULL, project_key TEXT NOT NULL,
-        PRIMARY KEY(snapshot_id,product_line)
-    )""",
     """CREATE TABLE IF NOT EXISTS jira_analytics_queries (
         session_hash TEXT PRIMARY KEY, account TEXT NOT NULL,
         active_snapshot_id TEXT NOT NULL DEFAULT '', pending_snapshot_id TEXT NOT NULL DEFAULT '',
@@ -142,18 +119,6 @@ def initialize_jira_schema(database: WebDatabase) -> None:
         columns = {row[1] for row in connection.execute("PRAGMA table_info(jira_issue_release_facts)")}
         if "resolved_at" not in columns:
             connection.execute("ALTER TABLE jira_issue_release_facts ADD COLUMN resolved_at TEXT NOT NULL DEFAULT ''")
-        account_columns = {row[1] for row in connection.execute("PRAGMA table_info(jira_team_bug_accounts)")}
-        if "roster_fingerprint" not in account_columns:
-            connection.execute("ALTER TABLE jira_team_bug_accounts ADD COLUMN roster_fingerprint TEXT NOT NULL DEFAULT ''")
-        snapshot_columns = {row[1] for row in connection.execute("PRAGMA table_info(jira_team_bug_snapshots)")}
-        if "roster_fingerprint" not in snapshot_columns:
-            connection.execute("ALTER TABLE jira_team_bug_snapshots ADD COLUMN roster_fingerprint TEXT NOT NULL DEFAULT ''")
-        for column, definition in (("effective_jql", "TEXT NOT NULL DEFAULT ''"),
-                                   ("unmapped_count", "INTEGER NOT NULL DEFAULT 0"),
-                                   ("unassigned_count", "INTEGER NOT NULL DEFAULT 0")):
-            if column not in snapshot_columns:
-                connection.execute(f"ALTER TABLE jira_team_bug_snapshots ADD COLUMN {column} {definition}")
-        row_columns = {row[1] for row in connection.execute("PRAGMA table_info(jira_team_bug_rows)")}
         analytics_columns = {row[1] for row in connection.execute("PRAGMA table_info(jira_analytics_snapshots)")}
         if "user_jql" not in analytics_columns:
             connection.execute("ALTER TABLE jira_analytics_snapshots ADD COLUMN user_jql TEXT")
@@ -171,17 +136,3 @@ def initialize_jira_schema(database: WebDatabase) -> None:
             connection.execute("ALTER TABLE jira_analytics_queries ADD COLUMN task_session_hash TEXT NOT NULL DEFAULT ''")
         if "last_snapshot_id" not in query_columns:
             connection.execute("ALTER TABLE jira_analytics_queries ADD COLUMN last_snapshot_id TEXT NOT NULL DEFAULT ''")
-        if "product_line" not in row_columns:
-            connection.execute("ALTER TABLE jira_team_bug_rows RENAME TO jira_team_bug_rows_legacy")
-            connection.execute("""CREATE TABLE jira_team_bug_rows (
-                snapshot_id TEXT NOT NULL REFERENCES jira_team_bug_snapshots(snapshot_id) ON DELETE CASCADE,
-                product_line TEXT NOT NULL, ordinal INTEGER NOT NULL,
-                identity TEXT NOT NULL, display_name TEXT NOT NULL,
-                bug_count INTEGER NOT NULL, resolved_count INTEGER NOT NULL,
-                p0_count INTEGER NOT NULL, invalid_count INTEGER NOT NULL,
-                PRIMARY KEY(snapshot_id,product_line,ordinal))""")
-            connection.execute("""INSERT INTO jira_team_bug_rows
-                (snapshot_id,product_line,ordinal,identity,display_name,bug_count,resolved_count,p0_count,invalid_count)
-                SELECT snapshot_id,'',ordinal,identity,display_name,bug_count,resolved_count,p0_count,invalid_count
-                FROM jira_team_bug_rows_legacy""")
-            connection.execute("DROP TABLE jira_team_bug_rows_legacy")

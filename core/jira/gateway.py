@@ -456,6 +456,22 @@ class JiraGateway:
             )
         ]
 
+    def user_groups(self, username: str) -> tuple[str, ...]:
+        try:
+            payload = self._api.get("rest/api/2/user", params={
+                "username": str(username), "expand": "groups",
+            }) or {}
+        except Exception as exc:
+            raise JiraGatewayError("jira_user_groups_failed") from exc
+        groups = payload.get("groups") if isinstance(payload, dict) else None
+        items = groups.get("items") if isinstance(groups, dict) else None
+        if not isinstance(items, list):
+            raise JiraGatewayError("jira_user_groups_failed")
+        return tuple(sorted({
+            str(item.get("name") or "").strip()
+            for item in (items or ()) if isinstance(item, dict) and str(item.get("name") or "").strip()
+        }, key=str.casefold))
+
     def current_user(self) -> dict[str, str]:
         try:
             payload = self._api.get("rest/api/2/myself") or {}

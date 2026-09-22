@@ -5,13 +5,15 @@ from core.jira.services.filter_service import build_basic_jql, compose_jql
 
 
 class JiraAnalyticsService:
-    def __init__(self, filters, gateway, mapper, repository, tasks, *, fixed_conditions="", card_key="", roster_fingerprint="", on_error=lambda _error: None):
+    def __init__(self, filters, gateway, mapper, repository, tasks, *, fixed_conditions="", card_key="",
+                 roster_fingerprint="", statistics_builder=None, on_error=lambda _error: None):
         self.filters, self.gateway, self.mapper = filters, gateway, mapper
         self.repository, self.tasks = repository, tasks
         self.on_error = on_error
         self.fixed_conditions = fixed_conditions
         self.card_key = card_key
         self.roster_fingerprint = roster_fingerprint
+        self.statistics_builder = statistics_builder
 
     def schema(self):
         fields = self.filters.fields()
@@ -63,7 +65,10 @@ class JiraAnalyticsService:
                     token.raise_if_cancelled()
                     batch = [self.mapper.from_search(item) for item in rows[start:start + 500]]
                     self.repository.write_batch(snapshot_id, batch)
-                self.repository.activate(snapshot_id)
+                token.raise_if_cancelled()
+                statistics = self.statistics_builder(rows) if self.statistics_builder else None
+                token.raise_if_cancelled()
+                self.repository.activate(snapshot_id, statistics)
             except TaskCancelled:
                 self.repository.finish(snapshot_id, "cancelled")
                 raise

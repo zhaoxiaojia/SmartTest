@@ -4,10 +4,17 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass
 import hashlib
 import json
-from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
-from core.product_lines import DASHBOARD_PRODUCT_LINES, PRODUCT_LINE_BY_JIRA_PROJECT, WIRELESS_CONNECTION
+from core.product_lines import (
+    CHINA_OPERATOR_BUSINESS,
+    DASHBOARD_PRODUCT_LINES,
+    GLOBAL_OPERATOR_STB_BUSINESS,
+    PRODUCT_LINE_BY_JIRA_PROJECT,
+    SMART_DEVICE_BUSINESS,
+    TV_BUSINESS,
+    WIRELESS_CONNECTION,
+)
 from core.jira.services.filter_service import compose_jql, jira_period_condition
 
 
@@ -15,49 +22,65 @@ def _name(value: Any) -> str:
     return str(value.get("name") or "") if isinstance(value, dict) else ""
 
 
-_PERSONNEL_PATH = Path(__file__).resolve().parents[2] / "config" / "personnel.json"
 TEAM_BUG_LINES = DASHBOARD_PRODUCT_LINES
 SELF_TEST_JIRA_CONDITIONS = '"Channel of Reporter" = "Self-Test"'
+FAE_QA_GROUP_PRODUCT_LINES = (
+    ("fae-wifi-qa", WIRELESS_CONNECTION),
+    ("fae-SH-qa", SMART_DEVICE_BUSINESS),
+    ("fae-stb-qa", GLOBAL_OPERATOR_STB_BUSINESS),
+    ("fae-tv-qa", TV_BUSINESS),
+    ("fae-iptv-qa", CHINA_OPERATOR_BUSINESS),
+)
+FAE_QA_GROUPS = tuple(group for group, _line in FAE_QA_GROUP_PRODUCT_LINES)
 
 
 @dataclass(frozen=True)
 class QARoster:
-    accounts: tuple[str, ...]
     fingerprint: str
     assignments: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
 
-def load_fae_qa_roster(path: str | Path = _PERSONNEL_PATH) -> QARoster:
-    personnel = json.loads(Path(path).read_text(encoding="utf-8"))
-    employees = personnel["amlogic"]["departments"]["FAE-QA"]["employees"]
-    active = [employee for employee in employees
-              if employee.get("active") is not False and str(employee.get("account") or "").strip()]
+def load_fae_qa_roster(gateway, accounts) -> QARoster:
     by_account: dict[str, set[str]] = defaultdict(set)
-    for employee in active:
-        account = str(employee.get("account") or "").strip().casefold()
+    product_line_by_group = dict(FAE_QA_GROUP_PRODUCT_LINES)
+    for account in sorted({str(value or "").strip().casefold() for value in accounts if str(value or "").strip()}):
         by_account[account].update(
-            str(item.get("product_line_id") or "").strip()
-            for item in (employee.get("assignments") or []) if isinstance(item, dict)
-            and str(item.get("product_line_id") or "").strip()
+            product_line_by_group[group].name
+            for group in gateway.user_groups(account) if group in product_line_by_group
         )
     assignments = tuple((account, tuple(sorted(lines))) for account, lines in sorted(by_account.items()))
     accounts = tuple(account for account, _lines in assignments)
     encoded = json.dumps(
         {"accounts": accounts, "assignments": assignments,
          "lines": [(line.name, line.jira_project_keys) for line in TEAM_BUG_LINES],
-         "jql": compose_jql("", self_test_jira_conditions(accounts)) if accounts else ""},
+         "groups": FAE_QA_GROUPS, "jql": compose_jql("", self_test_jira_conditions())},
         ensure_ascii=False, separators=(",", ":"), sort_keys=True,
     ).encode("utf-8")
     fingerprint = hashlib.sha256(encoded).hexdigest()
-    return QARoster(accounts, fingerprint, assignments)
+    return QARoster(fingerprint, assignments)
 
 
-def self_test_jira_conditions(accounts: Iterable[str], period: str = "month") -> str:
-    quoted = [f'"{str(account).replace(chr(92), chr(92) * 2).replace(chr(34), chr(92) + chr(34))}"'
-              for account in accounts]
-    if not quoted:
-        raise ValueError("empty_fae_qa_roster")
-    return f"issuetype = Bug AND reporter IN ({', '.join(quoted)}) AND {SELF_TEST_JIRA_CONDITIONS} AND {jira_period_condition(period)}"
+def self_test_jira_conditions(period: str = "month") -> str:
+    groups = " OR ".join(f'creator IN membersOf("{group}")' for group in FAE_QA_GROUPS)
+    return f"issuetype = Bug AND ({groups}) AND {SELF_TEST_JIRA_CONDITIONS} AND {jira_period_condition(period)}"
+
+
+def creator_accounts(issues) -> tuple[str, ...]:
+    accounts = set()
+    for issue in issues:
+        fields = issue.get("fields") if isinstance(issue, dict) else None
+        creator = fields.get("creator") if isinstance(fields, dict) else None
+        if isinstance(creator, dict):
+            account = str(creator.get("name") or creator.get("accountId") or creator.get("key") or "").strip().casefold()
+            if account:
+                accounts.add(account)
+    return tuple(sorted(accounts))
+
+
+FAE_QA_MAPPING_FINGERPRINT = hashlib.sha256(json.dumps({
+    "groups": [(group, line.name) for group, line in FAE_QA_GROUP_PRODUCT_LINES],
+    "jql": self_test_jira_conditions(),
+}, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -106,12 +129,12 @@ def aggregate_team_bugs(issues: Iterable[dict[str, Any]], roster: QARoster) -> T
         if not isinstance(fields, dict):
             unassigned += 1
             continue
-        reporter = fields.get("reporter")
-        if not isinstance(reporter, dict):
+        creator = fields.get("creator")
+        if not isinstance(creator, dict):
             unassigned += 1
             continue
-        identity = str(reporter.get("name") or reporter.get("accountId") or reporter.get("key") or "").strip().casefold()
-        display_name = str(reporter.get("displayName") or identity)
+        identity = str(creator.get("name") or creator.get("accountId") or creator.get("key") or "").strip().casefold()
+        display_name = str(creator.get("displayName") or identity)
         if not identity:
             unassigned += 1
             continue
