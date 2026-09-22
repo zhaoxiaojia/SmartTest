@@ -13,7 +13,7 @@ describe('RoleWorkloadWidget', () => {
   beforeEach(() => { document.body.innerHTML = '<div id="root"></div>' })
 
   it('keeps the proven current full-width layout as its minimum width', () => {
-    expect(ROLE_WORKLOAD_LAYOUT).toEqual({ defaultW: 24, defaultH: 21 })
+    expect(ROLE_WORKLOAD_LAYOUT).toEqual({ defaultW: 24 })
   })
 
   it('uses the project resource statistics title when it owns the heading', () => {

@@ -1,7 +1,7 @@
 import { createRankingCard } from './ranking-card.js'
 import { createDisposableDisplayCache } from '../disposable-display.js'
 
-export const JIRA_TEAM_BUG_LAYOUT = Object.freeze({ defaultW: 24, defaultH: 16 })
+export const JIRA_TEAM_BUG_LAYOUT = Object.freeze({ defaultW: 24 })
 export const JIRA_SELF_TEST_TITLE = 'Product Lines Self Test Jiras Statistics'
 export const JIRA_CUSTOMER_TITLE = 'Product Lines Customer Jiras Statistics'
 

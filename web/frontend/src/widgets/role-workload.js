@@ -6,7 +6,7 @@ function readableName(person) {
   return !name || (identity && name.toLocaleLowerCase() === identity.toLocaleLowerCase()) ? 'Unknown member' : name
 }
 
-export const ROLE_WORKLOAD_LAYOUT = Object.freeze({ defaultW: 24, defaultH: 21 })
+export const ROLE_WORKLOAD_LAYOUT = Object.freeze({ defaultW: 24 })
 
 export function createRoleWorkloadWidget({ chartFactory } = {}) {
   const ranking = createRankingCard({ chartFactory })

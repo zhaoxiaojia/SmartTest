@@ -111,6 +111,32 @@ it('preserves GridStack content insets instead of forcing widget content to item
   expect(getComputedStyle(workspace.querySelector('.dashboard-widget-card')).height).not.toBe('100%')
 })
 
+it('keeps the standalone shared widget shell free of an extra card padding layer', () => {
+  const style = document.createElement('style')
+  style.textContent = readFileSync(resolve(import.meta.dirname, '../src/smarttest-theme.css'), 'utf8')
+  document.head.append(style)
+  const card = document.createElement('section')
+  card.className = 'card page-ranking-widget'
+  document.body.append(card)
+
+  expect(getComputedStyle(card).paddingTop).toBe('0px')
+  expect(getComputedStyle(card).paddingBottom).toBe('0px')
+})
+
+it('does not impose a dashboard-only height or clipping mechanism on shared widget content', () => {
+  const style = document.createElement('style')
+  style.textContent = readFileSync(resolve(import.meta.dirname, '../src/smarttest-theme.css'), 'utf8')
+  document.head.append(style)
+  const body = document.createElement('div')
+  body.className = 'dashboard-widget-body'
+  body.innerHTML = '<div class="segmented-ranking"><div class="workload-chart-scroll"></div></div>'
+  document.body.append(body)
+
+  expect(getComputedStyle(body).display).toBe('block')
+  expect(getComputedStyle(body).height).not.toBe('calc(100% - 46px)')
+  expect(getComputedStyle(body).overflow).not.toBe('hidden')
+})
+
 it('lays out shared card toolbar groups on opposite sides of one row', () => {
   const style = document.createElement('style')
   style.textContent = readFileSync(resolve(import.meta.dirname, '../src/smarttest-theme.css'), 'utf8')

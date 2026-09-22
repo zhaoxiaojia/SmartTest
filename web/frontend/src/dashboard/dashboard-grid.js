@@ -45,7 +45,10 @@ export function createDashboardGrid({ root, registry, preferenceApi, gridFactory
   }
 
   function disposeWidgets() {
-    for (const { instance } of mounted.values()) instance.destroy()
+    for (const { instance, resizeObserver } of mounted.values()) {
+      resizeObserver?.disconnect()
+      instance.destroy()
+    }
     mounted.clear()
   }
 
@@ -55,17 +58,22 @@ export function createDashboardGrid({ root, registry, preferenceApi, gridFactory
     element.className = 'grid-stack-item dashboard-widget'
     element.dataset.widgetId = item.id
     element.dataset.widgetType = item.type
-    element.innerHTML = `<div class="grid-stack-item-content card dashboard-widget-card"><header class="dashboard-widget-head"><span class="dashboard-drag-handle" title="Drag widget" aria-label="Drag widget">⋮⋮</span><strong>${definition.title}</strong><button type="button" data-remove-widget aria-label="Remove ${definition.title}">×</button></header><div class="dashboard-widget-body"></div></div>`
+    element.innerHTML = `<div class="grid-stack-item-content"><div class="card dashboard-widget-card"><header class="dashboard-widget-head"><span class="dashboard-drag-handle" title="Drag widget" aria-label="Drag widget">⋮⋮</span><strong>${definition.title}</strong><button type="button" data-remove-widget aria-label="Remove ${definition.title}">×</button></header><div class="dashboard-widget-body"></div></div></div>`
     root.querySelector('.grid-stack').append(element)
-    grid.makeWidget(element, { x: item.x, y: item.y, w: definition.defaultW, h: definition.defaultH,
-      noResize: true,
+    grid.makeWidget(element, { x: item.x, y: item.y, w: definition.defaultW, h: item.h,
+      noResize: true, sizeToContent: true,
       id: item.id, type: item.type, config: item.config })
     const instance = definition.create()
-    mounted.set(item.id, { instance, element, item })
+    const card = element.querySelector('.dashboard-widget-card')
+    const resizeObserver = typeof ResizeObserver === 'function'
+      ? new ResizeObserver(() => grid?.resizeToContent(element)) : null
+    mounted.set(item.id, { instance, element, item, resizeObserver })
     instance.mount(element.querySelector('.dashboard-widget-body'), await widgetConfig(item.type, item.config))
+    grid.resizeToContent(element)
+    resizeObserver?.observe(card)
     element.querySelector('[data-remove-widget]').addEventListener('click', () => {
       if (!editing) return
-      instance.destroy(); mounted.delete(item.id); grid.removeWidget(element)
+      resizeObserver?.disconnect(); instance.destroy(); mounted.delete(item.id); grid.removeWidget(element)
     })
   }
 
@@ -85,7 +93,7 @@ export function createDashboardGrid({ root, registry, preferenceApi, gridFactory
       return { id, type,
         x: node.x, y: node.y,
         w: definition?.defaultW,
-        h: definition?.defaultH,
+        h: node.h,
         config: { ...(known?.config ?? {}) } }
     })
   }
@@ -119,7 +127,7 @@ export function createDashboardGrid({ root, registry, preferenceApi, gridFactory
           const id = globalThis.crypto?.randomUUID?.() ?? `widget-${Date.now()}`
           picker.hidden = true
           root.querySelector('[data-add-widget]').setAttribute('aria-expanded', 'false')
-          void mountWidget({ id, type: definition.type, x: 0, y: 0, w: definition.defaultW, h: definition.defaultH, config: {} })
+          void mountWidget({ id, type: definition.type, x: 0, y: 0, w: definition.defaultW, h: 1, config: {} })
         })
         picker.querySelector('[data-widget-options]').append(button)
       }

@@ -9,17 +9,18 @@ function harness({ preference = { items: {} } } = {}) {
   const grid = {
     enableMove: vi.fn(), destroy: vi.fn(), removeAll: vi.fn(),
     makeWidget: vi.fn((element, options) => { element.gridstackNode = { ...options, el: element }; nodes.push(element); return element }),
+    resizeToContent: vi.fn(),
     removeWidget: vi.fn(element => element.remove()),
     save: vi.fn(() => nodes.filter(node => node.isConnected).map(node => ({ ...node.gridstackNode, content: '<unsafe>' }))),
   }
   const gridFactory = vi.fn(() => grid)
   const instances = []
   const registry = createWidgetRegistry()
-  registry.register({ type: 'role-workload', title: 'Role workload', defaultW: 24, defaultH: 21,
+  registry.register({ type: 'role-workload', title: 'Role workload', defaultW: 24,
     create: () => { const instance = { mount: vi.fn(), update: vi.fn(), destroy: vi.fn() }; instances.push(instance); return instance } })
-  registry.register({ type: 'jira-team-bugs', title: 'Team Jira bugs', defaultW: 24, defaultH: 16,
+  registry.register({ type: 'jira-team-bugs', title: 'Team Jira bugs', defaultW: 24,
     create: () => { const instance = { mount: vi.fn(), update: vi.fn(), destroy: vi.fn() }; instances.push(instance); return instance } })
-  registry.register({ type: 'jira-customer-statistics', title: 'Product Lines Customer Jiras Statistics', defaultW: 24, defaultH: 16,
+  registry.register({ type: 'jira-customer-statistics', title: 'Product Lines Customer Jiras Statistics', defaultW: 24,
     create: () => ({ mount() {}, update() {}, destroy() {} }) })
   const preferenceApi = { get: vi.fn().mockResolvedValue(preference), put: vi.fn().mockResolvedValue({}), reset: vi.fn().mockResolvedValue({}) }
   const page = createDashboardGrid({ root: document.querySelector('#root'), registry, preferenceApi, gridFactory })
@@ -62,7 +63,7 @@ describe('DashboardGrid', () => {
     expect(grid.destroy).toHaveBeenCalledOnce()
   })
 
-  it('saves the registered fixed size instead of a changed GridStack size', async () => {
+  it('saves the content-derived height while keeping the registered full width', async () => {
     const { page, grid, preferenceApi } = harness()
     await page.start()
     document.querySelector('[data-edit-dashboard]').click()
@@ -72,7 +73,7 @@ describe('DashboardGrid', () => {
     }])
     document.querySelector('[data-save-dashboard]').click()
     await vi.waitFor(() => expect(preferenceApi.put).toHaveBeenCalledOnce())
-    expect(preferenceApi.put.mock.calls[0][1].layout[0]).toMatchObject({ w: 24, h: 21 })
+    expect(preferenceApi.put.mock.calls[0][1].layout[0]).toMatchObject({ w: 24, h: 9 })
     expect(document.querySelector('[data-dashboard-status]').textContent).toBe('')
   })
 
@@ -87,6 +88,15 @@ describe('DashboardGrid', () => {
     })
   })
 
+  it('uses GridStack content sizing around the shared card instead of a dashboard card height', async () => {
+    const { page, grid } = harness()
+    await page.start()
+    const widget = document.querySelector('[data-widget-type="jira-team-bugs"]')
+    expect(grid.makeWidget.mock.calls.find(call => call[1].type === 'jira-team-bugs')[1]).toMatchObject({ sizeToContent: true })
+    expect(widget.querySelector(':scope > .grid-stack-item-content > .dashboard-widget-card > .dashboard-widget-body')).not.toBeNull()
+    expect(grid.resizeToContent).toHaveBeenCalledWith(widget)
+  })
+
   it('selects an addable widget from the registry before adding it at its registered size', async () => {
     const { page, grid } = harness()
     await page.start()
@@ -99,7 +109,7 @@ describe('DashboardGrid', () => {
     expect([...picker.querySelectorAll('[data-add-widget-type]')].map(button => button.textContent)).toEqual(['Role workload', 'Team Jira bugs', 'Product Lines Customer Jiras Statistics'])
     picker.querySelector('[data-add-widget-type="role-workload"]').click()
     expect(picker.hidden).toBe(true)
-    expect(grid.makeWidget.mock.calls.at(-1)[1]).toMatchObject({ type: 'role-workload', w: 24, h: 21, noResize: true })
+    expect(grid.makeWidget.mock.calls.at(-1)[1]).toMatchObject({ type: 'role-workload', w: 24, h: 1, noResize: true, sizeToContent: true })
   })
 
   it('cancels in-memory edits without writing and destroys replaced instances', async () => {
