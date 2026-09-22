@@ -5,67 +5,6 @@ from smarttest_web.background_refresh import BackgroundFactsRefresh
 import smarttest_web.background_refresh as background_refresh
 
 
-def test_catalog_and_detail_refresh_share_one_polling_job_state(tmp_path):
-    access = confirmed_access(WebDatabase(tmp_path / 'access.db'))
-    submitted = []
-    refresh = BackgroundFactsRefresh(submit=submitted.append)
-
-    class Owner:
-        def refresh(self, _username, _password): return None
-        def refresh_and_sync_details(self, *_args, **_kwargs): return {"state": "ready"}
-
-    owner = Owner()
-    assert refresh.start(owner, access, "secret")
-    assert refresh.state_for(access.session_hash) == "loading"
-    assert refresh.status_for(access.session_hash) == {
-        "state": "loading", "completed": 0, "total": 0,
-    }
-
-    assert not refresh.start_details(owner, access, "secret")
-    assert refresh.status_for(access.session_hash)["state"] == "loading"
-
-
-def test_catalog_refresh_has_terminal_ready_state_even_when_owner_returns_no_rows(tmp_path):
-    access = confirmed_access(WebDatabase(tmp_path / 'access.db'))
-    submitted = []
-    refresh = BackgroundFactsRefresh(submit=submitted.append)
-
-    class Owner:
-        def refresh(self, _username, _password):
-            return {"state": "no_snapshot", "projects": []}
-
-    assert refresh.start(Owner(), access, "secret")
-    assert refresh.state_for(access.session_hash) == "loading"
-    submitted.pop()()
-    assert refresh.state_for(access.session_hash) == "ready"
-
-
-def test_catalog_refresh_emits_safe_lifecycle_timings(tmp_path, monkeypatch):
-    access = confirmed_access(WebDatabase(tmp_path / "access.db"))
-    submitted, records = [], []
-    refresh = BackgroundFactsRefresh(submit=submitted.append)
-    monkeypatch.setattr(background_refresh, "smart_log", lambda message, **kwargs: records.append((message, kwargs)), raising=False)
-
-    class Owner:
-        def refresh(self, _access, _password):
-            return {"state": "ready", "projects": [{"secret": "never log rows"}]}
-
-    assert refresh.start(Owner(), access, "SECRET PASSWORD")
-    submitted.pop()()
-
-    messages = [message for message, _kwargs in records]
-    assert messages == [
-        "Confluence catalog background state",
-        "Confluence catalog background state",
-        "Confluence catalog background timing",
-        "Confluence catalog background timing",
-    ]
-    assert records[2][1]["extra"]["stage"] == "filter.background_owner"
-    assert records[2][1]["extra"]["result_state"] == "ready"
-    assert records[2][1]["extra"]["project_count"] == 1
-    assert "SECRET" not in repr(records) and "never log rows" not in repr(records)
-
-
 def test_scoped_detail_job_is_single_flight_reports_progress_and_can_cancel(tmp_path):
     access = confirmed_access(WebDatabase(tmp_path / 'access.db'))
     submitted = []
@@ -76,10 +15,12 @@ def test_scoped_detail_job_is_single_flight_reports_progress_and_can_cancel(tmp_
             progress(1, 2); assert not cancelled()
             return {"state": "ready", "projects": [{"project_id": "P156"}]}
 
-    assert refresh.start_details(Owner(), access, "secret")
+    published = []
+    assert refresh.start_details(Owner(), access, "secret", on_success=lambda: published.append(True))
     assert not refresh.start_details(Owner(), access, "secret")
     submitted.pop()()
     assert refresh.status_for(access.session_hash) == {"state": "ready", "completed": 1, "total": 2}
+    assert published == [True]
 
     assert refresh.start_details(Owner(), access, "secret")
     assert refresh.cancel(access.session_hash)

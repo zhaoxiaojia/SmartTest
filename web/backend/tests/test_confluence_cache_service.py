@@ -5,7 +5,8 @@ import pytest
 from conftest import confirmed_access
 from core.confluence.project import ProjectDetails, ProjectQuery, ProjectSyncScope
 from core.confluence.project_mapper import ConfluenceProjectMapper
-from core.domain.detail import DetailState
+from core.domain.detail import DetailSection, DetailState
+from core.domain.values import FieldBag
 from smarttest_web.confluence.cache_service import ConfluenceProjectCacheService
 from smarttest_web.confluence.project_repository import ConfluenceProjectRepository
 from smarttest_web.database import WebDatabase
@@ -121,7 +122,7 @@ def test_confluence_revision_change_and_remote_failure_preserve_cache(tmp_path) 
 
     stale = repository.get("P100", ProjectDetails(roles=True, facts=True, evidence=True))
     assert stale.roles.state is DetailState.STALE
-    assert stale.facts.state is DetailState.LOADED
+    assert stale.facts.state is DetailState.STALE
     assert stale.evidence.state is DetailState.UNLOADED
 
     gateway.fail_sections.add("facts")
@@ -131,6 +132,21 @@ def test_confluence_revision_change_and_remote_failure_preserve_cache(tmp_path) 
     assert dict(failed.facts.value.values)["current stage"] == "EVT"
     cached = repository.get("P100", ProjectDetails(roles=True))
     assert cached.roles.state is DetailState.STALE
+
+
+def test_catalog_refresh_merges_catalog_facts_without_erasing_provider_details(tmp_path) -> None:
+    service, _gateway, repository = _service(tmp_path)
+    service.list_projects(ProjectQuery())
+    repository.replace_facts(
+        "P100", DetailSection.loaded(FieldBag.from_mapping({"wifi module": "W2"})),
+    )
+
+    service.refresh_projects(ProjectSyncScope())
+
+    facts = repository.get("P100", ProjectDetails(facts=True)).facts
+    assert facts.state is DetailState.LOADED
+    assert dict(facts.value.values)["wifi module"] == "W2"
+    assert dict(facts.value.values)["launch os"] == "Android 16"
 
 
 def test_confluence_empty_filter_result_does_not_refetch_when_cache_exists(tmp_path) -> None:

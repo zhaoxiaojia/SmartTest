@@ -192,15 +192,12 @@ export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = 
       if (!response.ok) throw new ApiUnavailableError(`Project facts status unavailable (${response.status}).`, { status: response.status })
       return response.json()
     },
-    async getProjectFacts(filters = {}, {
-      details = false, snapshot = false, reset = false,
-    } = {}) {
+    async getProjectFacts(filters = {}, { snapshot = false, reset = false } = {}) {
       const query = new URLSearchParams()
       for (const [key, values] of Object.entries(filters.fields ?? {})) {
         for (const value of Array.isArray(values) ? values : [values]) if (`${value}`.trim()) query.append(`field.${key}`, value)
       }
       if (filters.search) query.set('search', filters.search)
-      if (details) query.set('details', '1')
       if (snapshot) query.set('snapshot', '1')
       if (reset) query.set('reset', '1')
       let response

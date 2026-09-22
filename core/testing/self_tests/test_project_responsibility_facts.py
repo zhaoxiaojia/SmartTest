@@ -220,6 +220,76 @@ def test_single_project_extraction_reads_launch_os_from_basic_information():
     assert result["fields"]["launch os"] == "Android 16"
 
 
+@pytest.mark.parametrize("wifi_module", ["W1", "module W2 pro", "w1 + bt"])
+def test_wifi_module_project_extracts_wifi_test_owner_roles(wifi_module):
+    catalog = refresh_project_catalogs(
+        CatalogClient({"https://c/display/TV/Project+Space": _space(key="TV")}), MemoryStore(),
+        (ProductLine("TV", "https://c/display/TV/Project+Space", "TV Business"),),
+    )["projects"][0]
+    root = ConfluencePage("root", "Alpha", "https://c/root")
+    basic = ConfluencePage("basic", "Alpha-Basic Information", "https://c/basic", version=2)
+    test_information = ConfluencePage("test-info", "Test Information", "https://c/test-info")
+    test_plan = ConfluencePage("test-plan", "Test Plan", "https://c/test-plan")
+    wifi_plan = ConfluencePage("wifi-plan", "WiFi Test Plan", "https://c/wifi-plan", version=3)
+
+    class DetailClient:
+        def get_page_by_url(self, _url, *, prefer_export=False):
+            return root
+
+        def get_page_children(self, page_id):
+            return {
+                "root": [basic], "basic": [test_information],
+                "test-info": [test_plan], "test-plan": [wifi_plan],
+            }.get(page_id, [])
+
+        def get_page(self, page_id):
+            if page_id == "basic":
+                return ConfluencePage(page_id, basic.title, basic.url, body=(
+                    f"<table><tr><th>WIFI Module</th><td>{wifi_module}</td></tr>"
+                    "<tr><th>FAE QA</th><td>Original QA</td></tr></table>"
+                ), version=2)
+            return ConfluencePage(page_id, wifi_plan.title, wifi_plan.url, body=(
+                '<table><tr><th>Test Owner</th><td><ri:user ri:userkey="wifi.owner"/></td></tr></table>'
+            ), version=3)
+
+        def get_user_display_name(self, identity):
+            return {"wifi.owner": "WiFi Owner"}.get(identity, identity)
+
+    result = extract_project_detail(DetailClient(), catalog)
+
+    assert result["fields"]["wifi module"] == wifi_module
+    assert result["roles"]["WiFi Major FAE QA"] == result["roles"]["WiFi FAE QA"] == [{
+        "identity": "wifi.owner", "name": "WiFi Owner", "role": "Test Owner",
+        "source_evidence": {"kind": "ri:user", "segment": 0},
+    }]
+    assert result["roles"]["WiFi QA Reviewer"][0]["identity"] == "zijie.chen"
+
+
+def test_wifi_module_project_uses_unknown_when_test_owner_is_missing():
+    catalog = refresh_project_catalogs(
+        CatalogClient({"https://c/display/TV/Project+Space": _space(key="TV")}), MemoryStore(),
+        (ProductLine("TV", "https://c/display/TV/Project+Space", "TV Business"),),
+    )["projects"][0]
+    root = ConfluencePage("root", "Alpha", "https://c/root")
+    basic = ConfluencePage("basic", "Basic Information", "https://c/basic")
+    wifi_plan = ConfluencePage("wifi", "WiFi Test Plan", "https://c/wifi")
+
+    class DetailClient:
+        def get_page_by_url(self, _url, *, prefer_export=False): return root
+        def get_page_children(self, page_id): return [basic, wifi_plan] if page_id == "root" else []
+        def get_page(self, page_id):
+            body = "<table><tr><th>WIFI Module</th><td>w2</td></tr></table>" if page_id == "basic" else "<table></table>"
+            return ConfluencePage(page_id, "Basic Information" if page_id == "basic" else "WiFi Test Plan", "", body=body)
+        def get_user_display_name(self, identity): return identity
+
+    result = extract_project_detail(DetailClient(), catalog)
+
+    assert result["roles"]["WiFi Major FAE QA"] == result["roles"]["WiFi FAE QA"] == [{
+        "identity": "", "name": "Unknown", "role": "Test Owner",
+        "source_evidence": {"kind": "missing", "segment": 0},
+    }]
+
+
 def test_realistic_role_cell_expands_eleven_people_without_turning_notes_into_people():
     catalog = refresh_project_catalogs(
         CatalogClient({"https://c/display/X/Project+Space": _space()}), MemoryStore(),

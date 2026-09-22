@@ -11,6 +11,7 @@ def ensure_component_schema(
     component: str,
     version: int,
     statements: Iterable[str],
+    upgrade_statements: Iterable[str] = (),
 ) -> None:
     with database.transaction() as connection:
         columns = {
@@ -32,6 +33,9 @@ def ensure_component_schema(
         ).fetchone()
         for statement in statements:
             connection.execute(statement)
+        if row is not None and int(row[0]) < version:
+            for statement in upgrade_statements:
+                connection.execute(statement)
         connection.execute(
             "INSERT INTO smarttest_schema(component,version) VALUES(?,?) "
             "ON CONFLICT(component) DO UPDATE SET version=excluded.version",

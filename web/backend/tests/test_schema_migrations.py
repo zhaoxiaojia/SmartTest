@@ -39,6 +39,38 @@ def test_component_version_upgrade_preserves_persistent_rows(tmp_path) -> None:
         ).fetchone()[0] == "P1"
 
 
+def test_confluence_acquisition_upgrade_marks_loaded_details_stale_once(tmp_path) -> None:
+    database = WebDatabase(tmp_path / "upgrade-details.db")
+    initialize_web_schema(database)
+    with database.transaction() as connection:
+        connection.execute(
+            "INSERT INTO confluence_projects(confluence_id,project_id,cached_at) VALUES('1','P1','now')"
+        )
+        connection.executemany(
+            """INSERT INTO confluence_project_detail_states
+            (confluence_id,section_name,state,source_revision,error_code,has_value,cached_at)
+            VALUES('1',?,'loaded','','',1,'now')""",
+            (("roles",), ("facts",)),
+        )
+        connection.execute("UPDATE smarttest_schema SET version=3 WHERE component='confluence_cache'")
+
+    initialize_web_schema(database)
+    with database.connect() as connection:
+        assert connection.execute(
+            "SELECT section_name,state FROM confluence_project_detail_states ORDER BY section_name"
+        ).fetchall() == [("facts", "stale"), ("roles", "stale")]
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE confluence_project_detail_states SET state='loaded' WHERE confluence_id='1'"
+        )
+
+    initialize_web_schema(database)
+    with database.connect() as connection:
+        assert connection.execute(
+            "SELECT DISTINCT state FROM confluence_project_detail_states WHERE confluence_id='1'"
+        ).fetchall() == [("loaded",)]
+
+
 def test_owner_construction_executes_no_schema_ddl(tmp_path) -> None:
     database = WebDatabase(tmp_path / "owners.db")
     initialize_web_schema(database)

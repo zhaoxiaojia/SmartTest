@@ -19,12 +19,13 @@ BASIC_INFORMATION_RULE = RuleEntry(
     "locate_basic_information", "Basic Information page was not found",
 )
 
+ROLE_LABELS = ("Major FAE QA", "FAE QA", "QA Reviewer")
+WIFI_ROLE_LABELS = ("WiFi Major FAE QA", "WiFi FAE QA", "WiFi QA Reviewer")
 ROLE_RULES = tuple(
     RuleEntry(f"role.{re.sub(r'[^a-z]+', '_', label.casefold()).strip('_')}",
               "basic", label, label, "extract_project_roles", "empty")
-    for label in ("Major FAE QA", "FAE QA", "QA Reviewer")
+    for label in (*ROLE_LABELS, *WIFI_ROLE_LABELS)
 )
-ROLE_LABELS = tuple(rule.source_field for rule in ROLE_RULES)
 _ROLE_IDS = {rule.source_field.casefold(): rule.stable_key for rule in ROLE_RULES}
 MAJOR_QA_ROLE_ID = _ROLE_IDS["major fae qa"]
 

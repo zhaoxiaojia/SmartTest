@@ -5,7 +5,7 @@ import { createProjects as createProjectsOwner } from '../src/projects.js'
 
 function createProjects(options) {
   const api = options.api
-  api.applyConfluenceFilterSnapshot ??= vi.fn(filters => api.getProjectFacts(filters, { details: true }))
+  api.applyConfluenceFilterSnapshot ??= vi.fn(filters => api.getProjectFacts(filters))
   api.resetConfluenceFilterSnapshot ??= vi.fn(() => api.getProjectFacts({}, { reset: true }))
   return createProjectsOwner(options)
 }
@@ -128,7 +128,7 @@ describe('Projects', () => {
     const page = createProjects({ root: document.querySelector('#app'), api, pollDelay: () => new Promise(() => {}) })
     await page.start()
     expect(api.getProjectFacts).toHaveBeenCalledOnce()
-    expect(api.getProjectFacts.mock.calls[0]).toEqual([{ fields: {}, search: '' }, { details: false, snapshot: true }])
+    expect(api.getProjectFacts.mock.calls[0]).toEqual([{ fields: {}, search: '' }, { snapshot: true }])
     expect(document.querySelector('[data-projects]').textContent).toContain('Apollo')
     expect(document.querySelector('[name="field.__product_space__"]').disabled).toBe(false)
     page.destroy()
@@ -419,6 +419,19 @@ describe('Projects', () => {
     expect(document.querySelector('.project-card .kanban-card-title').textContent).toBe('Apollo')
   })
 
+  it('shows WIFI Module in project details', async () => {
+    const withWifiModule = { ...payload, projects: [{
+      ...payload.projects[0], fields: { ...payload.projects[0].fields, 'wifi module': 'W2' },
+    }] }
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(withWifiModule) }
+
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+
+    const wifiFact = [...document.querySelectorAll('.project-detail-item')]
+      .find(item => item.querySelector('.project-card-label')?.textContent === 'WIFI Module')
+    expect(wifiFact?.querySelector('.project-card-value').textContent).toBe('W2')
+  })
+
   it('links only project names that have a catalog page URL', async () => {
     const linked = { ...payload, projects: [
       { ...payload.projects[0], project_id: 'A-1', name: 'Apollo', page_url: 'https://confluence.example/pages/1' },
@@ -598,7 +611,7 @@ describe('Projects', () => {
     expect(document.querySelector('[type="submit"]').disabled).toBe(false)
   })
 
-  it('keeps every business control disabled and shows loading options without a local cache', async () => {
+  it('keeps Apply available to acquire data when there is no local cache', async () => {
     const empty = {
       ...payload,
       state: 'no_snapshot', projects: [], ownerHierarchy: [],
@@ -607,7 +620,7 @@ describe('Projects', () => {
     const api = { getProjectFacts: vi.fn().mockResolvedValue(empty) }
     await createProjects({ root: document.querySelector('#app'), api }).start()
     expect(document.querySelector('[data-audit]').disabled).toBe(true)
-    expect(document.querySelector('[type="submit"]').disabled).toBe(true)
+    expect(document.querySelector('[type="submit"]').disabled).toBe(false)
     expect(document.querySelector('[data-reset]').disabled).toBe(true)
     expect(document.querySelector('[name="search"]').disabled).toBe(true)
     expect([...document.querySelectorAll('[data-main-facets] select')].every(item => item.disabled)).toBe(true)
@@ -636,7 +649,7 @@ describe('Projects', () => {
     await vi.waitFor(() => expect(document.querySelector('[type="submit"]').disabled).toBe(false))
     expect([...document.querySelectorAll('[data-main-facets] .multi-select__summary')]
       .every(item => !item.textContent.includes('Loading'))).toBe(true)
-    expect(api.getProjectFacts.mock.calls[0][1]).toEqual({ details: false, snapshot: true })
+    expect(api.getProjectFacts.mock.calls[0][1]).toEqual({ snapshot: true })
     expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ snapshot: true })
   })
 
@@ -651,7 +664,7 @@ describe('Projects', () => {
     await createProjects({ root: document.querySelector('#app'), api, pollDelay }).start()
 
     expect(api.getProjectFacts).toHaveBeenCalledOnce()
-    expect(api.getProjectFacts.mock.calls[0][1]).toEqual({ details: false, snapshot: true })
+    expect(api.getProjectFacts.mock.calls[0][1]).toEqual({ snapshot: true })
     expect(pollDelay).not.toHaveBeenCalled()
     expect(document.querySelector('[type="submit"]').disabled).toBe(false)
   })
@@ -692,7 +705,7 @@ describe('Projects', () => {
   })
 
   it('polls catalog status without restarting catalog or requesting details', async () => {
-    const partial = { ...payload, state: 'loading' }
+    const partial = { ...payload, state: 'loading', sync: { state: 'loading', completed: 0, total: 0 } }
     const api = {
       getProjectFacts: vi.fn().mockResolvedValueOnce(partial).mockResolvedValueOnce(payload),
       getProjectFactsStatus: vi.fn().mockResolvedValueOnce({ state: 'loading', completed: 0, total: 0 })
@@ -707,7 +720,7 @@ describe('Projects', () => {
     await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(2))
     await vi.waitFor(() => expect(document.querySelector('[type="submit"]').disabled).toBe(false))
     expect(api.getProjectFacts.mock.calls.map(call => call[1])).toEqual([
-      { details: false, snapshot: true }, { snapshot: true },
+      { snapshot: true }, { snapshot: true },
     ])
     component.destroy()
   })
@@ -723,7 +736,7 @@ describe('Projects', () => {
     await vi.waitFor(() => expect(api.getProjectFacts).toHaveBeenCalledTimes(2))
     expect(form.elements['field.__product_space__']).toBe(productSpaceControl)
     expect(api.getProjectFacts.mock.calls[1][0]).toEqual({ fields: { '__product_space__': ['DOPL'] }, search: 'Coco' })
-    expect(api.getProjectFacts.mock.calls[1][1]).toEqual({ details: true })
+    expect(api.getProjectFacts.mock.calls[1][1]).toBeUndefined()
     expect(document.querySelector('[type="submit"]').disabled).toBe(false)
   })
 
@@ -911,7 +924,7 @@ describe('Projects', () => {
     await vi.waitFor(() => expect(api.createConfluenceAudit).toHaveBeenCalledOnce())
     expect(api.getProjectFacts).toHaveBeenCalledTimes(projectFactCalls)
     expect(api.getProjectFacts.mock.calls.at(-1)).toEqual([
-      { fields: {}, search: '' }, { details: false, snapshot: true }
+      { fields: {}, search: '' }, { snapshot: true }
     ])
     expect(api.createConfluenceAudit).toHaveBeenCalledWith({
       startDate: '2026-08-17', endDate: '2026-08-24'

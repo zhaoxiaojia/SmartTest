@@ -12,13 +12,13 @@ from time import perf_counter
 from core.logging import smart_log
 from core.product_lines import PRODUCT_LINES
 from .project_discovery import ProjectLocation, _commercial_year, canonical_project_name, discover_project_pages, locate_basic_information
-from .html import html_tables, links, table_fields, text
+from .html import html_tables, links, table_field_html, table_fields, text
 from .role_parser import extract_project_roles, extract_role_people, resolve_role_display_names
-from .project_rules import CANONICAL_PROJECT_FIELDS, ROLE_LABELS, normalize_project_field
+from .project_rules import CANONICAL_PROJECT_FIELDS, ROLE_LABELS, WIFI_ROLE_LABELS, normalize_project_field
 
 
 SCHEMA_VERSION = 2
-ROLE_PARSER_VERSION = 3
+ROLE_PARSER_VERSION = 4
 PRODUCT_SPACE_FACET = "__product_space__"
 PROJECT_SPACE_FACET_DEFINITIONS = (
     (PRODUCT_SPACE_FACET, "Product Space"),
@@ -187,7 +187,28 @@ def extract_project_detail(client, original, *, now=None, resolved_names=None):
     basic_body = detail.body or detail.view_body
     roles = extract_project_roles(basic_body)
     fields = dict(row.get("fields", {}))
-    fields["launch os"] = table_fields(basic_body).get("launch os", "")
+    basic_fields = table_fields(basic_body)
+    fields["launch os"] = basic_fields.get("launch os", "")
+    fields["wifi module"] = basic_fields.get("wifi module", "")
+    if is_wireless_module(fields["wifi module"]):
+        wifi_plan = pages.get("wifi_test_plan")
+        people = []
+        if wifi_plan is not None:
+            wifi_plan = client.get_page(wifi_plan.id)
+            pages["wifi_test_plan"] = wifi_plan
+            wifi_body = wifi_plan.body or wifi_plan.view_body
+            people = extract_role_people(table_field_html(wifi_body, "Test Owner"), "Test Owner")
+        if not people:
+            people = [{
+                "identity": "", "name": "Unknown", "role": "Test Owner",
+                "source_evidence": {"kind": "missing", "segment": 0},
+            }]
+        roles[WIFI_ROLE_LABELS[0]] = deepcopy(people)
+        roles[WIFI_ROLE_LABELS[1]] = deepcopy(people)
+        roles[WIFI_ROLE_LABELS[2]] = [{
+            "identity": "zijie.chen", "name": "zijie.chen", "role": WIFI_ROLE_LABELS[2],
+            "source_evidence": {"kind": "fixed", "segment": 0},
+        }]
     parse_ms = round((perf_counter() - parse_started) * 1000, 3)
     user_started = perf_counter()
     attempted, resolved = resolve_role_display_names(client, roles, names)
@@ -205,6 +226,11 @@ def extract_project_detail(client, original, *, now=None, resolved_names=None):
               extra={"stage": "detail.total", "duration_ms": round((perf_counter() - total_started) * 1000, 3),
                      "evidence_count": len(row["evidence"])})
     return row
+
+
+def is_wireless_module(value):
+    normalized = str(value or "").casefold()
+    return "w1" in normalized or "w2" in normalized
 
 
 def _query_filters(filters):

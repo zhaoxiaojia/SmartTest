@@ -42,10 +42,17 @@ PRODUCT_LINES = (
         "https://confluence.amlogic.com/display/OOPL/Project+Space",
     ),
 )
+(
+    CHINA_OPERATOR_BUSINESS,
+    SMART_DEVICE_BUSINESS,
+    TV_BUSINESS,
+    GLOBAL_OPERATOR_STB_BUSINESS,
+) = PRODUCT_LINES
 WIRELESS_CONNECTION = ProductLine(
     "Wireless Connection",
     (),
     "互联",
+    "WIRELESS",
 )
 DASHBOARD_PRODUCT_LINES = (*PRODUCT_LINES, WIRELESS_CONNECTION)
 PERSONNEL_PRODUCT_LINES = tuple(line.name for line in DASHBOARD_PRODUCT_LINES)

@@ -61,6 +61,7 @@ def test_confluence_project_facts_requires_login() -> None:
 
 def test_confluence_details_are_loaded_only_for_explicit_apply() -> None:
     owner = ReadyFactsOwner()
+    owner.result["detailState"] = "missing"
     client = _authenticated_client(create_app(
         project_facts_owner=lambda: owner,
         authenticator=FakeAuthenticator,
@@ -74,10 +75,10 @@ def test_confluence_details_are_loaded_only_for_explicit_apply() -> None:
     })
 
     assert response.status_code == 200
-    assert owner.sync_calls == [({"project id": ["P100"]}, "")]
+    assert owner.sync_calls == [({"project id": ("P100",)}, "")]
 
     client.get("/api/confluence/project-facts?field.project%20id=P100")
-    assert owner.sync_calls == [({"project id": ["P100"]}, "")]
+    assert owner.sync_calls == [({"project id": ("P100",)}, "")]
 
 
 def test_project_page_entry_replays_the_current_session_query_snapshot(tmp_path) -> None:
@@ -184,7 +185,7 @@ def test_login_does_not_prefetch_confluence_catalog() -> None:
     assert owner.refresh_calls == []
 
 
-def test_first_no_snapshot_request_starts_catalog_only_refresh_and_polling_gets_facets() -> None:
+def test_first_apply_without_snapshot_starts_the_shared_acquisition_pipeline() -> None:
     class CatalogFactsOwner(ReadyFactsOwner):
         def refresh(self, username, password):
             super().refresh(username, password)
@@ -208,8 +209,10 @@ def test_first_no_snapshot_request_starts_catalog_only_refresh_and_polling_gets_
     first = client.get("/api/confluence/project-facts")
     second = client.get("/api/confluence/project-facts/status")
 
-    assert first.json()["state"] == "loading"
-    assert second.json()["state"] == "loading"
+    assert first.json()["state"] == "no_snapshot"
+    assert second.json()["state"] == "idle"
+    applied = client.put("/api/confluence/filter-snapshot", json={"filters": {}, "search": ""})
+    assert applied.json()["state"] == "loading"
     assert len(submitted) == 1
     submitted.pop()()
 
@@ -218,9 +221,10 @@ def test_first_no_snapshot_request_starts_catalog_only_refresh_and_polling_gets_
     repeated = client.get("/api/confluence/project-facts")
     assert completed.json()["state"] == "ready"
     assert completed.json()["facets"] == [{"key": "support mode", "options": ["A", "B"]}]
+    assert completed.json()["querySnapshot"] is not None
     assert repeated.json()["state"] == "ready"
     assert owner.refresh_calls == [("coco", "secret")]
-    assert owner.sync_calls == []
+    assert owner.sync_calls == [({}, "")]
     assert submitted == []
 
 
@@ -248,7 +252,7 @@ def test_project_facts_polling_reads_only_background_status() -> None:
     assert facts.query_calls == 0
 
 
-def test_failed_catalog_page_entry_stops_without_retry() -> None:
+def test_failed_apply_stops_without_retry() -> None:
     class FailedOwner(ReadyFactsOwner):
         def refresh(self, username, password):
             super().refresh(username, password)
@@ -265,7 +269,8 @@ def test_failed_catalog_page_entry_stops_without_retry() -> None:
         facts_refresh=lambda: refresh,
     ))
 
-    assert client.get("/api/confluence/project-facts").json()["state"] == "loading"
+    assert client.get("/api/confluence/project-facts").json()["state"] == "no_snapshot"
+    assert client.put("/api/confluence/filter-snapshot", json={"filters": {}, "search": ""}).json()["state"] == "loading"
     submitted.pop()()
     assert client.get("/api/confluence/project-facts").json()["state"] == "failed"
     assert client.get("/api/confluence/project-facts").json()["state"] == "failed"
@@ -306,8 +311,7 @@ def test_confluence_request_logs_one_safe_request_record(monkeypatch) -> None:
     assert timing[1]["extra"] == {
         "stage": "filter.api_total", "duration_ms": timing[1]["extra"]["duration_ms"],
         "request_state": "ready", "refresh_state": "idle", "credential_present": True,
-        "details_requested": False,
-        "background_scheduled": False, "project_count": 0,
+        "project_count": 0,
     }
     assert "Private Person" not in str(records) and "SECRET-PROJECT" not in str(records)
 

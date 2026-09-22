@@ -42,7 +42,10 @@ def create_router(authenticated_session, sessions, cache_database, facts, refres
         if result.get("state") in {"ready", "partial_success"}:
             snapshots.record(
                 access.session_hash, filters, search,
-                (row.get("identity") or row.get("project_id") for row in result.get("projects", ())),
+                tuple(dict.fromkeys(
+                    row.get("source_identity") or row.get("identity") or row.get("project_id")
+                    for row in result.get("projects", ())
+                )),
                 getattr(facts, "facts_version", lambda: "")(), expires_at=value.expires_at,
             )
 
@@ -68,7 +71,6 @@ def create_router(authenticated_session, sessions, cache_database, facts, refres
             if key.startswith("field.")
         })
         search = request.query_params.get("search", "")
-        load_details = request.query_params.get("details") == "1"
         replay_snapshot = request.query_params.get("snapshot") == "1"
         reset_snapshot = request.query_params.get("reset") == "1"
         if replay_snapshot:
@@ -91,40 +93,10 @@ def create_router(authenticated_session, sessions, cache_database, facts, refres
             return owner.query(
                 access, filters=filters, search=search, **pagination,
             )
-        if load_details and value.password:
-            result = query_current()
-            selection = snapshots.get(access.session_hash)
-            refresh.start_details(
-                owner, access, value.password,
-                filters=selection.filters if selection is not None else filters,
-                search=selection.search if selection is not None else search,
-                on_error=lambda error: downstream_refresh_error(value, error),
-            )
-        elif load_details:
-            result = {**query_current(),
-                      "detailState": "reauthentication_required"}
-        else:
-            result = query_current()
-        catalog_scheduled = False
-        if (
-            result.get("state") == "no_snapshot"
-            and value.password
-            and refresh.state_for(access.session_hash) == "idle"
-        ):
-            catalog_scheduled = refresh.start(
-                owner, access, value.password,
-                on_error=lambda error: downstream_refresh_error(value, error),
-            )
+        result = query_current()
         refresh_state = refresh.state_for(access.session_hash)
-        if refresh_state == "failed":
-            result = {**result, "state": "failed"}
-        elif refresh_state == "invalid_credentials":
-            result = {**result, "state": "invalid_credentials"}
-        elif refresh_state == "loading":
-            result = {**result, "state": "loading"}
-        elif refresh_state == "ready" and result.get("state") == "no_snapshot":
-            result = {**result, "state": "ready"}
-        elif result.get("state") == "no_snapshot" and not value.password:
+        result = _with_sync_state(result, refresh_state)
+        if result.get("state") == "no_snapshot" and not value.password:
             result = {**result, "state": "reauthentication_required"}
         selection = snapshots.get(access.session_hash)
         result = {**result, "sync": refresh.status_for(access.session_hash),
@@ -136,7 +108,6 @@ def create_router(authenticated_session, sessions, cache_database, facts, refres
                   extra={"stage": "filter.api_total", "duration_ms": round((perf_counter() - api_started) * 1000, 3),
                          "request_state": str(result.get("state") or ""), "refresh_state": refresh_state,
                          "credential_present": bool(value.password),
-                         "details_requested": load_details, "background_scheduled": catalog_scheduled,
                          "project_count": len(result.get("projects") or ())})
         return result
 
@@ -155,17 +126,28 @@ def create_router(authenticated_session, sessions, cache_database, facts, refres
             str(key): tuple(item for item in values if item.strip()) for key, values in requested.items()
         })
         result = owner.query(access, filters=filters, search=search)
-        record_query_snapshot(access, value, filters, search, result)
-        selection = snapshots.get(access.session_hash)
-        if selection is not None and value.password:
+        acquisition_required = (
+            result.get("state") != "ready" or result.get("detailState", "ready") != "ready"
+        )
+        if acquisition_required and value.password:
+            def publish_result():
+                completed = owner.query(access, filters=filters, search=search)
+                record_query_snapshot(access, value, filters, search, completed)
+
             refresh.start_details(
-                owner, access, value.password, filters=selection.filters, search=selection.search,
+                owner, access, value.password, filters=filters, search=search,
                 on_error=lambda error: downstream_refresh_error(value, error),
+                on_success=publish_result,
             )
+        else:
+            record_query_snapshot(access, value, filters, search, result)
+        selection = snapshots.get(access.session_hash)
+        sync = refresh.status_for(access.session_hash)
+        result = _with_sync_state(result, sync["state"])
         return {**result, "querySnapshot": None if selection is None else {
             "filters": selection.filters, "search": selection.search, "revision": selection.updated_at,
             "projectIds": list(selection.project_ids),
-        }, "sync": refresh.status_for(access.session_hash)}
+        }, "sync": sync}
 
     @router.delete("/api/confluence/filter-snapshot")
     def reset_confluence_filter_snapshot(request: Request, owner=Depends(resolve_project_facts_owner),
@@ -235,3 +217,9 @@ def create_router(authenticated_session, sessions, cache_database, facts, refres
         return _cancel_audit(audits, audit_id, audit_session(request))
 
     return router
+
+
+def _with_sync_state(result, sync_state):
+    if sync_state in {"failed", "invalid_credentials", "loading"}:
+        return {**result, "state": sync_state}
+    return result

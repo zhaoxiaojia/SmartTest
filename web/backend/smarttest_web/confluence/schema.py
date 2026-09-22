@@ -73,6 +73,10 @@ def initialize_confluence_schema(database: WebDatabase) -> None:
     ensure_component_schema(
         database,
         component="confluence_cache",
-        version=3,
+        version=4,
         statements=CONFLUENCE_STATEMENTS,
+        upgrade_statements=(
+            """UPDATE confluence_project_detail_states SET state='stale'
+            WHERE section_name IN ('roles','facts') AND state='loaded'""",
+        ),
     )

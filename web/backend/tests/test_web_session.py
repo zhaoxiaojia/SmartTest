@@ -1,5 +1,3 @@
-from time import sleep
-
 from fastapi.testclient import TestClient
 import pytest
 
@@ -163,12 +161,8 @@ def test_restored_session_recovers_server_credential_for_page_catalog_load(tmp_p
     assert restarted.get("/api/auth/session").json()["authenticated"] is True
     response = restarted.get("/api/confluence/project-facts")
     assert response.status_code == 200
-    assert response.json()["state"] in {"loading", "ready"}
-    for _ in range(50):
-        if restarted_facts.refresh_calls:
-            break
-        sleep(.01)
-    assert restarted_facts.refresh_calls == [("coco", "secret")]
+    assert response.json()["state"] == "no_snapshot"
+    assert restarted_facts.refresh_calls == []
 
 
 def test_invalid_login_returns_safe_failure(tmp_path):
@@ -202,7 +196,7 @@ def test_explicit_downstream_basic_auth_rejection_invalidates_account_and_sessio
         })()
 
     class RejectingFacts(FakeFactsOwner):
-        def refresh(self, *_args):
+        def refresh_and_sync_details(self, *_args, **_kwargs):
             raise ExplicitRejection("safe rejection")
 
     store = PersistentSessionStore(tmp_path / "explicit-rejection.db")
@@ -215,7 +209,7 @@ def test_explicit_downstream_basic_auth_rejection_invalidates_account_and_sessio
     ), base_url="https://testserver")
     client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
 
-    rejected = client.get("/api/confluence/project-facts")
+    rejected = client.put("/api/confluence/filter-snapshot", json={"filters": {}, "search": ""})
 
     assert rejected.status_code == 200
     assert rejected.json()["state"] == "invalid_credentials"
@@ -231,7 +225,7 @@ def test_general_downstream_401_does_not_invalidate_account_credentials(tmp_path
         response = type("Response", (), {"status_code": 401, "headers": {}})()
 
     class RejectingFacts(FakeFactsOwner):
-        def refresh(self, *_args):
+        def refresh_and_sync_details(self, *_args, **_kwargs):
             raise General401("not an explicit credential rejection")
 
     store = PersistentSessionStore(tmp_path / "general-401.db")
@@ -244,7 +238,7 @@ def test_general_downstream_401_does_not_invalidate_account_credentials(tmp_path
     ), base_url="https://testserver")
     client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
 
-    response = client.get("/api/confluence/project-facts")
+    response = client.put("/api/confluence/filter-snapshot", json={"filters": {}, "search": ""})
 
     assert response.json()["state"] == "failed"
     assert client.get("/api/test-suites?scope=mine").status_code == 200
@@ -288,36 +282,22 @@ def test_existing_fact_cache_is_read_after_login(tmp_path):
     assert facts.refresh_calls == []
 
 
-def test_concurrent_no_cache_refresh_is_deduplicated(tmp_path):
-    from threading import Event
-    started, release, finished = Event(), Event(), Event()
-    class SlowFacts(FakeFactsOwner):
-        def refresh(self, username, password):
-            self.refresh_calls.append((username.account, password))
-            started.set()
-            try:
-                assert release.wait(5)
-                self.snapshot = {"projects": [{"project_id": "A"}]}
-            finally:
-                finished.set()
-
-    facts = SlowFacts()
+def test_get_without_cache_does_not_start_remote_refresh(tmp_path):
+    facts = FakeFactsOwner()
     client, _ = make_client(tmp_path, facts=facts)
     client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
-    try:
-        first = client.get("/api/confluence/project-facts")
-        assert started.wait(2)
-        second = client.get("/api/confluence/project-facts")
-        assert first.json()["state"] == second.json()["state"] == "loading"
-        assert facts.refresh_calls == [("coco", "secret")]
-    finally:
-        release.set()
-        assert finished.wait(2)
+
+    response = client.get("/api/confluence/project-facts")
+
+    assert response.json()["state"] == "no_snapshot"
+    assert facts.refresh_calls == []
 
 
-def test_second_app_lifespan_can_start_confluence_detail_sync(tmp_path):
+def test_get_details_parameter_does_not_start_confluence_detail_sync(tmp_path):
     class Facts(FakeFactsOwner):
-        def sync_details(self, _access, _password, **_kwargs):
+        sync_calls = 0
+        def refresh_and_sync_details(self, _access, _password, **_kwargs):
+            self.sync_calls += 1
             return {"state": "ready", "projects": []}
 
     store = PersistentSessionStore(tmp_path / "web.db")
@@ -333,3 +313,4 @@ def test_second_app_lifespan_can_start_confluence_detail_sync(tmp_path):
         response = client.get("/api/confluence/project-facts?details=1")
 
     assert response.status_code == 200
+    assert second_facts.sync_calls == 0

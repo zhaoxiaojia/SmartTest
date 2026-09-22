@@ -246,6 +246,16 @@ class ConfluenceProjectRepository:
     def replace_facts(self, project_id: str, section: DetailSection[FieldBag]) -> None:
         self._replace_fields(project_id, "facts", section)
 
+    def merge_catalog_facts(self, project_id: str, section: DetailSection[FieldBag]) -> None:
+        current = self.get(project_id, ProjectDetails(facts=True))
+        if current is None or current.facts.value is None:
+            self.replace_facts(project_id, section)
+            return
+        values = dict(current.facts.value.values)
+        values.update(dict(section.value.values if section.value else ()))
+        merged = replace(current.facts, value=FieldBag.from_mapping(values))
+        self.replace_facts(project_id, merged)
+
     def replace_evidence(self, project_id: str, section: DetailSection[tuple[SourceEvidence, ...]]) -> None:
         def write(connection, confluence_id):
             connection.execute("DELETE FROM confluence_project_evidence WHERE confluence_id=?", (confluence_id,))

@@ -63,6 +63,7 @@ def test_project_facts_exposes_core_product_labels_and_only_catalog_ready_filter
         {"value": "SDPL", "label": "Smart Device Business", "projectGrouping": None},
         {"value": "TV", "label": "TV Business", "projectGrouping": "launch_os"},
         {"value": "OOPL", "label": "Global Operator & STB Business", "projectGrouping": None},
+        {"value": "WIRELESS", "label": "Wireless Connection", "projectGrouping": None},
     ]
     product_space = next(facet for facet in result["facets"] if facet["key"] == "__product_space__")
     assert product_space["options"] == [
@@ -214,6 +215,111 @@ def test_project_facts_owner_queries_persisted_dynamic_fields_and_owner_clusters
     assert result["projects"][0]["fields"]["launch os"] == "Android 16"
     fae = next(group for group in result["ownerHierarchy"] if group["role"] == "FAE QA")
     assert fae["people"][0]["name"] == "Alice"
+
+
+def test_wireless_module_adds_an_independent_project_resource_without_replacing_original(tmp_path) -> None:
+    repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
+    roles = DetailSection.loaded((
+        ProjectRole(NamedValue("role.major_fae_qa", "Major FAE QA"), (PersonRef("original", display_name="Original QA"),)),
+        ProjectRole(NamedValue("role.wifi_major_fae_qa", "WiFi Major FAE QA"), (PersonRef("wifi", display_name="WiFi Owner"),)),
+        ProjectRole(NamedValue("role.wifi_fae_qa", "WiFi FAE QA"), (PersonRef("wifi", display_name="WiFi Owner"),)),
+        ProjectRole(NamedValue("role.wifi_qa_reviewer", "WiFi QA Reviewer"), (PersonRef("zijie.chen", account="zijie.chen", display_name="zijie.chen"),)),
+    ))
+    project = Project(
+        ProjectIdentity("TV:P100", "P100"), "Project One", ProductSpaceRef("TV", "TV Business"),
+        ConfluencePageRef("900", "Project One", "https://c/pages/900"), roles=roles,
+        facts=DetailSection.loaded(FieldBag.from_mapping({"wifi module": "Module W2 Pro"})),
+    )
+    repository.save_core((project,))
+    repository.replace_roles("P100", roles)
+    repository.replace_facts("P100", project.facts)
+
+    result = ProjectFactsWebOwner(repository=repository).query(confirmed_access(repository.database, ("TV:P100",)))
+
+    assert [(row["space_key"], row["project_id"]) for row in result["projects"]] == [("TV", "P100"), ("WIRELESS", "P100")]
+    original, wireless = result["projects"]
+    assert original["roles"]["Major FAE QA"][0]["name"] == "Original QA"
+    assert wireless["roles"]["Major FAE QA"] == wireless["roles"]["FAE QA"] == [{
+        "identity": "wifi", "account": "", "name": "WiFi Owner",
+    }]
+    assert wireless["roles"]["QA Reviewer"][0]["identity"] == "zijie.chen"
+    assert wireless["fields"]["wifi module"] == "Module W2 Pro"
+    product_space = next(facet for facet in result["facets"] if facet["key"] == "__product_space__")
+    assert product_space["options"][-1] == {
+        "value": "WIRELESS", "label": "Wireless Connection", "projectGrouping": None,
+    }
+    assert len(next(role for role in result["ownerHierarchy"] if role["role"] == "Major FAE QA")["people"]) == 2
+
+
+def test_missing_details_acquire_authoritative_catalog_scope_when_derived_filter_is_empty(tmp_path) -> None:
+    repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
+    project = Project(
+        ProjectIdentity("TV:P100", "P100"), "Project One", ProductSpaceRef("TV", "TV Business"),
+        ConfluencePageRef("900", "Project One"),
+    )
+    repository.save_core((project,))
+    access = confirmed_access(repository.database, ("TV:P100",))
+    synced = []
+
+    class Coordinator:
+        def __init__(self, _service): pass
+        def sync(self, project_ids, _details, **_kwargs): synced.extend(project_ids)
+
+    owner = ProjectFactsWebOwner(
+        repository=repository, sync_coordinator_factory=Coordinator,
+        client_factory=lambda *_args: object(),
+    )
+
+    initial = owner.query(access, filters={"__product_space__": ("WIRELESS",)})
+    owner.sync_details(access, "secret", filters={"__product_space__": ("WIRELESS",)})
+
+    assert initial["projects"] == []
+    assert initial["detailState"] == "missing"
+    assert synced == ["TV:P100"]
+
+
+def test_synchronized_empty_result_is_complete_and_does_not_reacquire_details(tmp_path) -> None:
+    repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
+    project = Project(
+        ProjectIdentity("TV:P100", "P100"), "Project One", ProductSpaceRef("TV", "TV Business"),
+        ConfluencePageRef("900", "Project One"),
+        roles=DetailSection.loaded(()), facts=DetailSection.loaded(FieldBag()),
+    )
+    repository.save_core((project,))
+    repository.replace_roles(project.identity.confluence_id, project.roles)
+    repository.replace_facts(project.identity.confluence_id, project.facts)
+    access = confirmed_access(repository.database, ("TV:P100",))
+    coordinator_calls = []
+
+    class Coordinator:
+        def __init__(self, _service): pass
+        def sync(self, project_ids, _details, **_kwargs): coordinator_calls.append(tuple(project_ids))
+
+    owner = ProjectFactsWebOwner(
+        repository=repository, sync_coordinator_factory=Coordinator,
+        client_factory=lambda *_args: object(),
+    )
+
+    result = owner.query(access, filters={"__product_space__": ("WIRELESS",)})
+    owner.sync_details(access, "secret", filters={"__product_space__": ("WIRELESS",)})
+
+    assert result["projects"] == []
+    assert result["detailState"] == "ready"
+    assert coordinator_calls == []
+
+
+def test_non_wireless_module_project_is_not_duplicated(tmp_path) -> None:
+    repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
+    project = Project(
+        ProjectIdentity("TV:P100", "P100"), "Project One", ProductSpaceRef("TV", "TV Business"),
+        ConfluencePageRef("900", "Project One"), facts=DetailSection.loaded(FieldBag.from_mapping({"wifi module": "W3"})),
+    )
+    repository.save_core((project,))
+    repository.replace_facts("P100", project.facts)
+
+    result = ProjectFactsWebOwner(repository=repository).query(confirmed_access(repository.database, ("TV:P100",)))
+
+    assert [(row["space_key"], row["project_id"]) for row in result["projects"]] == [("TV", "P100")]
 
 
 def test_page_entry_persists_recent_client_catalog_contract_for_all_four_spaces(tmp_path) -> None:

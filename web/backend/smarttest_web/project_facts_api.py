@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from copy import deepcopy
+
 from .task_manager import WEB_TASKS
 
 import os
@@ -13,14 +15,17 @@ from core.confluence.project import (
     ProjectQuery,
     ProjectSyncScope,
 )
+from core.domain.detail import DetailState
 from core.confluence.project_catalog import (
     PRODUCT_SPACE_FACET,
     PROJECT_SPACE_FACET_DEFINITIONS,
     extract_project_detail,
+    is_wireless_module,
     query_project_facts,
     refresh_project_catalogs,
 )
-from core.product_lines import PRODUCT_LINES
+from core.confluence.project_rules import ROLE_LABELS, WIFI_ROLE_LABELS
+from core.product_lines import DASHBOARD_PRODUCT_LINES, PRODUCT_LINES, WIRELESS_CONNECTION
 from core.confluence.project_mapper import ConfluenceProjectMapper
 from core.logging import smart_log
 
@@ -113,10 +118,12 @@ class ProjectFactsWebOwner:
         self, access, password, *, filters=None, search="", cancelled=None, progress=None,
         parent_task_id="",
     ):
-        selected = self.query(access, filters=filters, search=search)
-        project_ids = tuple(row["identity"] for row in selected["projects"])
+        del search
+        project_ids = self._acquisition_scope(access, filters)
         progress = progress or (lambda *_: None)
         progress(0, len(project_ids))
+        if not project_ids:
+            return
         service = self._service(access, password)
         coordinator = self._sync_coordinator_factory(service)
         coordinator.sync(
@@ -125,6 +132,25 @@ class ProjectFactsWebOwner:
             cancelled=cancelled or (lambda: False),
             progress=progress,
             parent_id=parent_task_id,
+        )
+
+    def _acquisition_scope(self, access, filters):
+        visible_ids = access.ids("project", "catalog")
+        catalog = self._repository.list(ProjectQuery(), 0, 100000, visible_ids=visible_ids)
+        projects = catalog.projects
+        requested_spaces = tuple((filters or {}).get(PRODUCT_SPACE_FACET) or ())
+        known_spaces = {project.product_space.key for project in projects}
+        if requested_spaces and set(requested_spaces) <= known_spaces:
+            projects = tuple(
+                project for project in projects if project.product_space.key in requested_spaces
+            )
+        loaded = self._repository.load_many(
+            projects, ProjectDetails(roles=True, facts=True),
+        )
+        return tuple(
+            project.identity.confluence_id
+            for project in loaded
+            if _detail_state((project,)) != "ready"
         )
 
     def refresh_and_sync_details(
@@ -153,8 +179,16 @@ class ProjectFactsWebOwner:
         projects = self._repository.load_many(
             cached.projects, ProjectDetails(roles=True, facts=True),
         )
-        snapshot = {"projects": [_project_snapshot_row(project) for project in projects if project]}
+        snapshot = {"projects": [
+            row
+            for project in projects if project
+            for row in _project_snapshot_rows(project)
+        ]}
+        filter_product_spaces = set(ready_product_spaces)
+        if any(row["space_key"] == WIRELESS_CONNECTION.confluence_space_key for row in snapshot["projects"]):
+            filter_product_spaces.add(WIRELESS_CONNECTION.confluence_space_key)
         result = query_project_facts(snapshot, filters=filters, fixed_filters=fixed_filters, search=search)
+        detail_state = _detail_state(projects)
         semantic_statuses = tuple(_project_status(project.get("status")) for project in result["projects"])
         block_count = semantic_statuses.count("BLOCK")
         warning_count = semantic_statuses.count("WARNING")
@@ -163,11 +197,12 @@ class ProjectFactsWebOwner:
         self._log_query_timing(started, "ready", cached.total, query_access, ready_product_spaces, len(visible))
         return {
             "state": "ready",
+            "detailState": detail_state,
             "accessibleProjectCount": cached.total,
             "blockProjectCount": block_count,
             "warningProjectCount": warning_count,
             "productSpaces": _product_space_rows(),
-            "facets": _facet_rows(result["facets"], ready_product_spaces),
+            "facets": _facet_rows(result["facets"], filter_product_spaces),
             "projects": visible[start:start + int(page_size)],
             "pagination": {
                 "page": int(page),
@@ -216,6 +251,7 @@ class ProjectFactsWebOwner:
     def _state(state, ready_product_spaces=()):
         return {
             "state": state, "accessibleProjectCount": 0,
+            "detailState": "ready" if state == "ready" else "missing",
             "blockProjectCount": 0,
             "warningProjectCount": 0,
             "productSpaces": _product_space_rows(),
@@ -321,7 +357,7 @@ def _catalog_row(project):
     }
 
 
-def _project_snapshot_row(project):
+def _project_snapshot_rows(project):
     fields = dict(project.facts.value.values) if project.facts.value is not None else {}
     fields.update({
         "project id": project.identity.project_id,
@@ -329,15 +365,17 @@ def _project_snapshot_row(project):
         "current stage": project.stage.name if project.stage else "",
         "support mode": project.support_mode.name if project.support_mode else "",
     })
-    roles = {
+    all_roles = {
         role.role.name: [
             {"identity": person.identity, "account": person.account, "name": person.display_name}
             for person in role.people
         ]
         for role in (project.roles.value or ())
     }
-    return {
+    source_identity = project.identity.confluence_id
+    original = {
         "identity": project.identity.confluence_id,
+        "source_identity": source_identity,
         "project_id": project.identity.project_id,
         "name": project.name,
         "space_key": project.product_space.key,
@@ -349,8 +387,33 @@ def _project_snapshot_row(project):
         "page_url": project.catalog_page.url,
         "active": True,
         "fields": fields,
-        "roles": roles,
+        "roles": {label: all_roles.get(label, []) for label in ROLE_LABELS},
     }
+    if not is_wireless_module(fields.get("wifi module")):
+        return (original,)
+    wireless = deepcopy(original)
+    wireless.update(
+        identity=f"{source_identity}:wireless",
+        space_key=WIRELESS_CONNECTION.confluence_space_key,
+        roles={
+            label: all_roles.get(wifi_label, [])
+            for label, wifi_label in zip(ROLE_LABELS, WIFI_ROLE_LABELS)
+        },
+    )
+    return original, wireless
+
+
+def _detail_state(projects):
+    states = tuple(
+        getattr(project, section).state
+        for project in projects
+        for section in ("roles", "facts")
+    )
+    if any(state in {DetailState.STALE, DetailState.FAILED} for state in states):
+        return "stale"
+    if any(state is not DetailState.LOADED for state in states):
+        return "missing"
+    return "ready"
 
 
 def _product_space_rows(allowed=None):
@@ -361,7 +424,7 @@ def _product_space_rows(allowed=None):
             "label": line.name,
             "projectGrouping": line.project_grouping or None,
         }
-        for line in PRODUCT_LINES
+        for line in DASHBOARD_PRODUCT_LINES
         if allowed is None or line.confluence_space_key in allowed
     ]
 

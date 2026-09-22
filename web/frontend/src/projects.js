@@ -296,7 +296,9 @@ export function createProjects({ root, api, waitForPreferences, account,
         addFact(facts, role, (people ?? []).map(readableName))
       }
       for (const [label, value] of Object.entries(project.fields ?? {})) {
-        if (!coreFields.has(label.toLocaleLowerCase())) addFact(facts, label, value)
+        if (!coreFields.has(label.toLocaleLowerCase())) {
+          addFact(facts, label.toLocaleLowerCase() === 'wifi module' ? 'WIFI Module' : label, value)
+        }
       }
       primary.append(heading, identifier)
       summary.append(customer, primary, summaryFacts, badges)
@@ -402,7 +404,7 @@ export function createProjects({ root, api, waitForPreferences, account,
   } = {}) {
     const hasCache = ['ready', 'partial_success'].includes(payload.state)
     const hasDetailJob = detailRequested || Boolean(activeSync)
-    const syncing = hasDetailJob && payload.sync?.state === 'loading'
+    const syncing = payload.sync?.state === 'loading'
     if (!snapshotRestored && payload.querySnapshot) {
       snapshotRestored = true
       snapshotFields = payload.querySnapshot.filters ?? {}
@@ -422,7 +424,7 @@ export function createProjects({ root, api, waitForPreferences, account,
     if (payload.detailState === 'reauthentication_required') {
       root.querySelector('[data-audit-status]').textContent = 'Please verify your account again before loading responsibility details.'
     }
-    setBusinessControlsEnabled(hasCache, { applyEnabled: hasCache && !syncing })
+    setBusinessControlsEnabled(hasCache, { applyEnabled: !syncing })
     if (auditButton) auditButton.disabled = !hasCache || syncing
     saveDisplay(payload)
     if (hasCache) onSnapshot(payload)
@@ -452,29 +454,27 @@ export function createProjects({ root, api, waitForPreferences, account,
     }
   }
 
-  async function load({ updateHierarchy = true, updateFacets = true, details = false,
+  async function load({ updateHierarchy = true, updateFacets = true,
     snapshot = false, reset = false,
     beginPolling = true } = {}) {
     const generation = ++pollGeneration
     const requestedFilters = currentFilters()
-    if (!details && !cacheReady) {
+    if (!cacheReady) {
       setBusinessControlsEnabled(false)
       status.className = 'report-state report-state-loading'; status.hidden = false; status.textContent = STATE_COPY.loading
     }
     try {
-      const options = { details,
-        ...(snapshot ? { snapshot: true } : {}), ...(reset ? { reset: true } : {}) }
+      const options = {
+        ...(snapshot ? { snapshot: true } : {}), ...(reset ? { reset: true } : {}),
+      }
       const payload = await api.getProjectFacts(requestedFilters, options)
       if (destroyed || generation !== pollGeneration) return
-      present(payload, { updateHierarchy, updateFacets, detailRequested: details })
-      if (details && payload.sync?.state === 'loading') {
-        activeSync = { token: contextToken(requestedFilters), filters: requestedFilters }
-      }
+      present(payload, { updateHierarchy, updateFacets })
       if (beginPolling && (payload.state === 'loading' || payload.sync?.state === 'loading')) poll(generation)
       return payload
     } catch {
       if (destroyed || generation !== pollGeneration) return
-      if (details || feedback.state === 'running') feedback.update({ state: 'failed', message: 'Project detail sync failed.' })
+      if (feedback.state === 'running') feedback.update({ state: 'failed', message: 'Project detail sync failed.' })
       status.className = 'report-state report-state-schema_error'; status.textContent = 'Local project facts API is unavailable.'
       if (!cacheReady) renderProjects([])
       setBusinessControlsEnabled(false)

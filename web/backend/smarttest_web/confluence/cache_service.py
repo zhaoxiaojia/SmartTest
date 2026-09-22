@@ -203,7 +203,7 @@ class ConfluenceProjectCacheService:
         self._repository.save_core(projects)
         for project in projects:
             if project.facts.state is DetailState.LOADED:
-                self._repository.replace_facts(project.identity.confluence_id, project.facts)
+                self._repository.merge_catalog_facts(project.identity.confluence_id, project.facts)
 
 
 def _error_code(error: Exception) -> str:
