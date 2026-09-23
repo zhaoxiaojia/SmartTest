@@ -208,7 +208,7 @@ describe('Projects', () => {
     expect(document.querySelector('[data-project-id="p-first"]').textContent).toContain('one, two')
     expect(document.querySelector('[data-project-id="p-first"]').textContent).not.toContain('Validation')
     expect(groups.every(group => group.querySelector('[data-product-grid]'))).toBe(true)
-    expect([...document.querySelectorAll('.project-card-badges .badge')].map(item => item.textContent))
+    expect([...document.querySelectorAll('.project-card-summary .badge')].map(item => item.textContent))
       .not.toEqual(expect.arrayContaining(['DOPL', 'SDPL', 'TV', 'OOPL']))
   })
 
@@ -293,9 +293,12 @@ describe('Projects', () => {
     expect(labels.map(label => label.dataset.projectStatus || '')).toEqual([
       'BLOCK', 'WARNING', '', 'NORMAL', '', '',
     ])
-    const supportMode = [...document.querySelector('[data-project-id="status-0"] .project-card-badges').children]
-      .find(label => label.textContent === 'BLOCK')
+    const supportMode = document.querySelectorAll('[data-project-id="status-0"] .project-card-badges .badge')[1]
+    const blockStatus = document.querySelectorAll('[data-project-id="status-4"] .project-card-badges .badge')[0]
+    expect(supportMode.textContent).toBe('BLOCK')
     expect(supportMode.dataset.projectStatus).toBeUndefined()
+    expect(blockStatus.textContent).toBe('BLOCK')
+    expect(blockStatus.dataset.projectStatus).toBe('BLOCK')
     expect([...document.querySelectorAll('.stage-summary')].map(item => item.dataset.projectStage).sort()).toEqual(stages)
   })
 
@@ -383,8 +386,8 @@ describe('Projects', () => {
     const summary = card.querySelector('.project-card-summary')
 
     expect(summary.textContent).toContain('Apollo')
-    expect(summary.firstElementChild.textContent).toBe('Customer A')
-    expect(summary.textContent).not.toContain('CustomerCustomer A')
+    expect(summary.textContent).toContain('DescriptionCustomer A')
+    expect(summary.textContent).toContain('Project IDA-1')
     expect(summary.textContent).toContain('MP Time2026-10-18')
     expect(summary.textContent).not.toContain('Major FAE QA')
     expect(card.querySelector('.project-card-details').textContent).toContain('Major FAE QA')
@@ -401,12 +404,17 @@ describe('Projects', () => {
     const row = list.querySelector('.project-list-row')
     expect(list).not.toBeNull()
     expect(row.querySelector('.project-list-primary').textContent).toContain('Apollo')
-    expect(row.querySelector('.project-list-primary').textContent).toContain('A-1')
+    expect(row.querySelector('.project-list-primary').textContent).not.toContain('A-1')
+    expect(row.querySelector('.project-list-meta').textContent).toContain('Project IDA-1')
     expect(row.querySelector('.project-list-meta').textContent).not.toContain('China Operator Business')
-    expect(row.querySelector('.project-list-meta').textContent).toContain('stale')
     expect(row.querySelector('.project-list-meta').textContent).not.toContain('Unspecified')
+    expect(row.querySelector('.project-card-badges').textContent).toContain('stale')
     expect(row.querySelector('.project-detail-strip').textContent).toContain('Major FAE QA')
     expect(row.querySelectorAll('.project-detail-item').length).toBeGreaterThan(0)
+    expect([...row.querySelector('.project-card-summary').children].map(item => item.className)).toEqual([
+      'project-list-primary', 'project-card-fact project-detail-item',
+      'project-card-summary-facts project-list-meta', 'project-card-badges',
+    ])
   })
 
   it('shows only the project name in the card title', async () => {
@@ -419,7 +427,7 @@ describe('Projects', () => {
     expect(document.querySelector('.project-card .kanban-card-title').textContent).toBe('Apollo')
   })
 
-  it('shows WIFI Module in project details', async () => {
+  it('shows WIFI Module in the project summary', async () => {
     const withWifiModule = { ...payload, projects: [{
       ...payload.projects[0], fields: { ...payload.projects[0].fields, 'wifi module': 'W2' },
     }] }
@@ -427,9 +435,39 @@ describe('Projects', () => {
 
     await createProjects({ root: document.querySelector('#app'), api }).start()
 
-    const wifiFact = [...document.querySelectorAll('.project-detail-item')]
+    const wifiFact = [...document.querySelectorAll('.project-card-summary .project-detail-item')]
       .find(item => item.querySelector('.project-card-label')?.textContent === 'WIFI Module')
     expect(wifiFact?.querySelector('.project-card-value').textContent).toBe('W2')
+    expect(document.querySelector('.project-card-details').textContent).not.toContain('WIFI Module')
+  })
+
+  it('keeps every declared preview attribute visible as Unknown when unavailable', async () => {
+    const missing = { ...payload, projects: [{
+      identity: 'DOPL:A-1', name: 'Apollo', page_url: '', space_key: 'DOPL',
+      project_id: '', customer_summary: '', status: '', support_mode: '', fields: {}, roles: {},
+    }] }
+    const api = { getProjectFacts: vi.fn().mockResolvedValue(missing) }
+
+    await createProjects({ root: document.querySelector('#app'), api }).start()
+
+    const card = document.querySelector('.project-card')
+    const facts = Object.fromEntries([...card.querySelectorAll('.project-detail-item')].map(item => [
+      item.querySelector('.project-card-label').textContent,
+      item.querySelector('.project-card-value').textContent,
+    ]))
+    expect(facts).toMatchObject({
+      Description: 'Unknown',
+      'Project ID': 'Unknown',
+      'MP Time': 'Unknown',
+      'WIFI Module': 'Unknown',
+      'Major FAE QA': 'Unknown',
+      'FAE QA': 'Unknown',
+      'QA Reviewer': 'Unknown',
+    })
+    expect([...card.querySelectorAll('.project-card-badges .badge')].map(item => item.textContent))
+      .toEqual(['Unknown', 'Unknown'])
+    expect(card.querySelector('.project-card-summary').textContent).not.toContain('Project Status')
+    expect(card.querySelector('.project-card-summary').textContent).not.toContain('Support Mode')
   })
 
   it('links only project names that have a catalog page URL', async () => {

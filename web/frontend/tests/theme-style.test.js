@@ -261,6 +261,24 @@ it('left-aligns every project summary card', () => {
   expect(computed.justifyItems).toBe('stretch')
 })
 
+it('keeps project preview facts on one horizontal summary row', () => {
+  mountTheme()
+  const summary = document.createElement('div')
+  summary.className = 'project-card-summary'
+  summary.innerHTML = `
+    <div class="project-list-primary"></div>
+    <div class="project-card-fact project-detail-item"></div>
+    <div class="project-card-summary-facts"><div class="project-card-fact"></div></div>
+    <div class="project-card-badges"></div>`
+  document.body.append(summary)
+
+  const facts = summary.querySelector('.project-card-summary-facts')
+  const fact = facts.querySelector('.project-card-fact')
+  expect(getComputedStyle(facts).flexWrap).toBe('nowrap')
+  expect(getComputedStyle(fact).minWidth).toBe('0')
+  expect(getComputedStyle(fact).whiteSpace).toBe('nowrap')
+})
+
 it('sizes project summary cards according to content density', () => {
   mountTheme()
   const sizes = className => {

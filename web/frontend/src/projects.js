@@ -253,13 +253,16 @@ export function createProjects({ root, api, waitForPreferences, account,
     }
     const projectDisplayName = project => String(project.name || project.project_id || '').trim()
       .replace(/^\d+\.\*?\s*/, '').replace(/\s*-\s*Project Status Report\s*$/i, '').trim()
-    const coreFields = new Set(['__product_space__', 'project id', 'project status', 'current stage', 'support mode', 'mp time'])
+    const coreFields = new Set([
+      '__product_space__', 'project id', 'project status', 'current stage', 'support mode', 'mp time', 'wifi module',
+    ])
+    const previewRoles = ['Major FAE QA', 'FAE QA', 'QA Reviewer']
     const addFact = (rootNode, label, value) => {
-      const text = displayValue(value)
-      if (!text) return
+      const text = displayValue(value) || 'Unknown'
       const row = node('div', 'project-card-fact project-detail-item')
       row.append(node('span', 'project-card-label', label), node('span', 'project-card-value', text))
       rootNode.append(row)
+      return row
     }
     const createProjectCard = project => {
       const card = node('article', 'kanban-card project-card project-list-row')
@@ -279,29 +282,27 @@ export function createProjects({ root, api, waitForPreferences, account,
         icon.setAttribute('aria-hidden', 'true')
         heading.append(icon, document.createTextNode(projectName))
       }
-      const identifier = node('div', 'kanban-card-desc', project.project_id)
-      const customer = node('div', 'project-card-customer', project.customer_summary)
-      const badges = node('div', 'project-card-badges project-list-meta')
-      for (const [value, semantic] of [[project.status, 'status'], [project.support_mode, 'support-mode']]) {
-        if (value) {
-          const badge = node('span', 'badge badge-blue', value)
-          if (semantic === 'status') bindProjectStatus(badge, value)
-          badges.append(badge)
-        }
-      }
-      const summaryFacts = node('div', 'project-card-summary-facts')
+      const summaryFacts = node('div', 'project-card-summary-facts project-list-meta')
+      const descriptionFact = addFact(summaryFacts, 'Description', project.customer_summary)
+      addFact(summaryFacts, 'Project ID', project.project_id)
       addFact(summaryFacts, 'MP Time', project.fields?.['mp time'])
+      addFact(summaryFacts, 'WIFI Module', project.fields?.['wifi module'])
+      const badges = node('div', 'project-card-badges')
+      for (const [value, semantic] of [[project.status, 'status'], [project.support_mode, 'support-mode']]) {
+        const text = displayValue(value) || 'Unknown'
+        const badge = node('span', 'badge badge-blue', text)
+        if (semantic === 'status' && text !== 'Unknown') bindProjectStatus(badge, text)
+        badges.append(badge)
+      }
       const facts = node('div', 'project-card-details project-card-facts project-detail-strip')
-      for (const [role, people] of Object.entries(project.roles ?? {})) {
-        addFact(facts, role, (people ?? []).map(readableName))
+      for (const role of previewRoles) {
+        addFact(facts, role, (project.roles?.[role] ?? []).map(readableName))
       }
       for (const [label, value] of Object.entries(project.fields ?? {})) {
-        if (!coreFields.has(label.toLocaleLowerCase())) {
-          addFact(facts, label.toLocaleLowerCase() === 'wifi module' ? 'WIFI Module' : label, value)
-        }
+        if (!coreFields.has(label.toLocaleLowerCase())) addFact(facts, label, value)
       }
-      primary.append(heading, identifier)
-      summary.append(customer, primary, summaryFacts, badges)
+      primary.append(heading)
+      summary.append(primary, descriptionFact, summaryFacts, badges)
       card.append(summary)
       if (facts.childElementCount) card.append(facts)
       return card
