@@ -120,3 +120,42 @@ Dashboard 可分别引用三张卡片，引用的仍是同一组件实例类型�
 - 不修改 Jira 原生数据、创建 Issue 或写回字段。
 - 不为 Dashboard 增加独立 Apply、Refresh 或远端查询入口。
 - 不新增第三方依赖，不改变认证与凭据生命周期。
+
+## 实施检查清单
+
+> 执行者必须按 TDD 顺序完成每项：先增加会失败的行为测试，确认失败原因属于缺失能力，再实现最小通用机制并运行相关回归。不得为单张卡片保留专属旁路。
+
+### 1. Core 通用卡片定义与查询 owner
+
+- [ ] 在 `core/jira/services/` 建立声明式卡片定义和唯一统计 owner，公开按 `card_key` 解析定义、生成 fixed/effective JQL、执行查询及聚合的稳定接口；Self-Test、Task、Customer Feedback 只注册数据，不创建子类或专属 service。
+- [ ] 先在 Core 既有测试目录补充三个定义的 JQL 测试：周期与用户条件正确求交、`ORDER BY` 保留、Task 的五 Group 边界、Customer 的 Channel/labels/resolution/project 条件，以及普通产品线显式排除 Wireless labels。
+- [ ] 增加统计行为测试：Wireless 优先、Customer 重叠项只计 Wireless、人员与产品线总数守恒、未归类项保留、Self-Test 现有 payload 不变。
+- [ ] 迁移 `core/jira/services/team_bug_service.py` 的共用能力；删除被通用 owner 替代的 Self-Test 包装、重复 fingerprint/JQL/聚合实现，保留 Group 与产品线常量的单一 owner。
+- [ ] 运行 Core 相关测试并记录生产代码新增、删除和净变化；不得用薄包装抵消删除量。
+
+### 2. Web API、异步任务与 SQLite 快照统一
+
+- [ ] 扩展 `web/backend/tests/test_jira_analytics_api.py`、`test_jira_card_replay.py`、`test_jira_analytics_service.py` 和 `test_jira_analytics_repository.py`，先覆盖三个 `card_key` 共用 API、账号加卡片隔离、GET 不访问远端、Refresh/Reuse、失败取消不覆盖旧结果、definition fingerprint 失配返回 `no_snapshot`。
+- [ ] 将 `web/backend/smarttest_web/jira_api.py` 的单卡 allowlist、`card_key == "self-test"` 分支和专属 builder 注入替换为注册表解析；未知 key 继续明确拒绝。
+- [ ] 复用 `analytics_service.py`、`analytics_tasks.py`、`analytics_repository.py` 现有通用 owner，仅补齐定义驱动所需接口；禁止新增第二套任务 registry、缓存或 repository。
+- [ ] 清除迁移后的旧 import、废弃函数、兼容 fallback 和重复 snapshot scope，运行后端相关测试并验证现有 Self-Test 数据口径。
+
+### 3. Jira 页面共享前端组件
+
+- [ ] 在 `web/frontend/tests/jira-team-bug-widget.test.js` 先增加参数化组件测试：三个 key 的标题与首项指标、独立周期/展示缓存 scope、共用轮询与图表路径、Customer 不再渲染占位内容。
+- [ ] 将 `web/frontend/src/widgets/jira-team-bugs.js` 的 Self-Test 固定缓存键、标题和指标改为 `card_key` 驱动的不可变元数据；不得复制组件或引入每卡片条件分支。
+- [ ] 更新 Jira 页面入口（以现有 `jira-main.js` 实际 owner 为准）声明挂载 Self-Test、Task、Customer Feedback 三张共享组件，删除 `createJiraCustomerPlaceholder` 及其未使用样式和状态。
+- [ ] 运行前端组件与 Jira 页面测试，确认账号切换、注销、空结果、错误与滚动高度仍走既有共享机制。
+
+### 4. Dashboard 声明式引用
+
+- [ ] 在 `web/frontend/tests/dashboard.test.js`、`dashboard-main.test.js` 和 `dashboard-session-lifecycle.test.js` 先增加三种 Jira 卡片引用测试，证明 Dashboard 只传 `card_key`，不复制模板、查询或状态 owner。
+- [ ] 更新 `web/frontend/src/dashboard/widget-registry.js` 及现有 Dashboard 挂载入口，为三张卡片注册同一组件类型；保留每张卡片独立的偏好 key 和 SQLite `card_key`。
+- [ ] 删除 Dashboard 中任何 Self-Test 专属高度、缓存、轮询或数据适配分支，运行 Dashboard 相关回归测试。
+
+### 5. 完整验收与清理
+
+- [ ] 运行 Core、Web 后端和前端全部相关测试、前端 lint/build 及 `git diff --check`；不得弱化既有断言。
+- [ ] 使用源代码运行环境验证 Jira 页面三张卡片和 Dashboard 三种引用：Self-Test 行为不变，Task 可刷新并按五线展示，Customer 普通线与 Wireless 互斥，GET 重进只重放 SQLite。
+- [ ] 检查 scoped diff，删除临时诊断、废弃路径、重复测试和实现形状断言；确认无 `outputs/` 或其他用户文件进入提交。
+- [ ] 报告 Functional Acceptance、Code Quality、生产代码增删净值和仍存在的外部环境限制；只有两项均 PASS 才进入 Coco 功能确认与最终提交。
