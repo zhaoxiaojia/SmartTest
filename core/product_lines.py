@@ -13,21 +13,21 @@ class ProductLine:
 
 PRODUCT_LINES = (
     ProductLine(
-        "China Operator Business",
+        "China Operator",
         ("IPTV",),
         "国内运营商",
         "DOPL",
         "https://confluence.amlogic.com/display/DOPL/Project+Space",
     ),
     ProductLine(
-        "Smart Device Business",
+        "Smart Device",
         ("SH",),
         "智能设备",
         "SDPL",
         "https://confluence.amlogic.com/display/SDPL/Project+Space",
     ),
     ProductLine(
-        "TV Business",
+        "TV",
         ("TV",),
         "TV",
         "TV",
@@ -35,7 +35,7 @@ PRODUCT_LINES = (
         "launch_os",
     ),
     ProductLine(
-        "Global Operator & STB Business",
+        "Global Operator & STB",
         ("OTT",),
         "海外运营商",
         "OOPL",

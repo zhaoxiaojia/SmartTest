@@ -12,9 +12,9 @@ from core.email.audit_report import render_history_report, summarize_audit
 from core.jira.audit.models import AuditReport, IssueAuditResult, JiraAuditScope
 
 
-@pytest.mark.parametrize('space,name', [('DOPL', 'China Operator Business'),
-    ('SDPL', 'Smart Device Business'), ('TV', 'TV Business'),
-    ('OOPL', 'Global Operator & STB Business')])
+@pytest.mark.parametrize('space,name', [('DOPL', 'China Operator'),
+    ('SDPL', 'Smart Device'), ('TV', 'TV'),
+    ('OOPL', 'Global Operator & STB')])
 def test_confluence_real_space_keys_are_summarized_in_canonical_product_lines(space, name, tmp_path):
     period = previous_business_week()
     project = Project(ProjectIdentity('1', 'P1'), 'Project', ProductSpaceRef(space), ConfluencePageRef('1'))
@@ -188,20 +188,20 @@ def test_fixed_weekly_scope_is_complete_current_monday_through_friday(trigger, s
         'project status': ['NORMAL'],
     }
     assert scope['confluence']['excludeCurrentStageAtOrAbove'] == 4
-    assert scope['confluence']['excludeSupportModeBProductLines'] == ['Smart Device Business']
+    assert scope['confluence']['excludeSupportModeBProductLines'] == ['Smart Device']
 
 
 def test_confluence_denominator_counts_all_actual_update_point_statuses_by_product_line():
     period = previous_business_week()
-    project = Project(ProjectIdentity('1', 'P1'), 'Project', ProductSpaceRef('TV Business'), ConfluencePageRef('1'))
+    project = Project(ProjectIdentity('1', 'P1'), 'Project', ProductSpaceRef('TV'), ConfluencePageRef('1'))
     states = [AuditStatus.UPDATED, AuditStatus.NOT_UPDATED, AuditStatus.INVALID_FORMAT, AuditStatus.FAILED,
               AuditStatus.UNKNOWN, AuditStatus.UPDATED, AuditStatus.NOT_UPDATED, AuditStatus.NOT_UPDATED]
     findings = tuple(AuditFinding('P1', 'Test', point.rule_id, status, '')
                      for point, status in zip(UPDATE_MATRIX_POINTS, states))
     findings += (AuditFinding('P1', 'Test', 'role.major_fae_qa', AuditStatus.UNKNOWN, ''),)
     summary = summarize_audit('confluence', AuditBatch('batch', period, datetime.now(), (ProjectAudit(project, findings),)))
-    assert summary['TV Business'] == [2, 8]
-    assert summary['China Operator Business'] == [0, 0]
+    assert summary['TV'] == [2, 8]
+    assert summary['China Operator'] == [0, 0]
     html = render_history_report('confluence', [{'id': 'run', 'label': 'today', 'summary': summary}], current=True)['html']
     assert '2 / 8' in html
     assert '下面是本周confluence信息更新检查结果，请未更新的项目owner尽快去补充未完成的部分。' in html
@@ -211,6 +211,6 @@ def test_confluence_denominator_counts_all_actual_update_point_statuses_by_produ
     assert '>失败</th>' in html and '>未知</th>' in html
     assert '待确认' not in html and '尚未确认' not in html
     # Old real runs retain their frozen body; new comparisons use their saved actual counts.
-    summary['TV Business'][1] = None
+    summary['TV'][1] = None
     comparison = render_history_report('confluence', [{'id': 'old', 'label': 'old', 'summary': summary}])['html']
     assert '2 / 8' in comparison

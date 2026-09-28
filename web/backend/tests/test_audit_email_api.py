@@ -52,11 +52,11 @@ class Confluence:
         assert 'projectIds' not in payload
         assert payload['filters']['support mode'] == ['A', 'B']
         assert payload['excludeCurrentStageAtOrAbove'] == 4
-        assert payload['excludeSupportModeBProductLines'] == ['Smart Device Business']
+        assert payload['excludeSupportModeBProductLines'] == ['Smart Device']
         return manual_audit_period(datetime.fromisoformat(payload['startDate']).date(), datetime.fromisoformat(payload['endDate']).date())
 
     def run(self, period, cancellation, progress):
-        project = Project(ProjectIdentity('1', 'P1'), 'Project', ProductSpaceRef('TV Business'), ConfluencePageRef('1'))
+        project = Project(ProjectIdentity('1', 'P1'), 'Project', ProductSpaceRef('TV'), ConfluencePageRef('1'))
         finding = AuditFinding('P1', 'Test', 'test.weekly', AuditStatus.UPDATED, 'changed')
         return AuditBatch('batch', period, datetime.now(), (ProjectAudit(project, (finding,)),))
 
@@ -156,7 +156,7 @@ def test_real_dual_runs_keep_five_records_and_attachments_after_restart():
         for run in runs:
             assert run['state'] == 'completed', run['evidence']
             assert run['summary']['jira']['total'] == 1
-            assert run['summary']['confluence']['TV Business'] == [1, 1]
+            assert run['summary']['confluence']['TV'] == [1, 1]
             assert run['reports']['jira']['sourceIds'][0] == run['id']
             assert len(run['reports']['jira']['sourceIds']) == 4
             assert 'project in (IPTV, SH, TV, OTT,RK)' in run['reports']['jira']['html']

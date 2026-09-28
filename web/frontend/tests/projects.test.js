@@ -11,10 +11,10 @@ function createProjects(options) {
 }
 
 const productSpaces = [
-  { value: 'DOPL', label: 'China Operator Business' },
-  { value: 'SDPL', label: 'Smart Device Business' },
-  { value: 'TV', label: 'TV Business' },
-  { value: 'OOPL', label: 'Global Operator & STB Business' },
+  { value: 'DOPL', label: 'China Operator' },
+  { value: 'SDPL', label: 'Smart Device' },
+  { value: 'TV', label: 'TV' },
+  { value: 'OOPL', label: 'Global Operator & STB' },
 ]
 
 const payload = {
@@ -24,7 +24,7 @@ const payload = {
   productSpaces,
   counts: { stale: 1, failed: 0, inactive: 2 }, discrepancies: ['Unexpected Owner'],
   facets: [
-    { key: '__product_space__', label: 'Product Space', labels: ['Product Space'], options: [{ value: 'DOPL', label: 'China Operator Business' }, { value: 'TV', label: 'TV Business' }] },
+    { key: '__product_space__', label: 'Product Space', labels: ['Product Space'], options: [{ value: 'DOPL', label: 'China Operator' }, { value: 'TV', label: 'TV' }] },
     { key: 'support mode', label: 'Support Mode', labels: ['Support Mode'], options: ['A', 'B'] },
     { key: 'unexpected owner', label: 'Unexpected Owner', labels: ['Unexpected Owner'], options: ['Alice'] }
   ],
@@ -171,7 +171,7 @@ describe('Projects', () => {
     expect(document.body.textContent).toContain('Projects by Product Lines')
     const groups = [...document.querySelectorAll('[data-product-space-group]')]
     expect(groups.map(group => group.querySelector('[data-product-space-toggle] strong').textContent)).toEqual([
-      'China Operator Business', 'Smart Device Business', 'TV Business', 'Global Operator & STB Business',
+      'China Operator', 'Smart Device', 'TV', 'Global Operator & STB',
     ])
     const toggles = groups.map(group => group.querySelector('[data-product-space-toggle]'))
     expect(toggles.every(toggle => toggle.getAttribute('aria-expanded') === 'true')).toBe(true)
@@ -406,7 +406,7 @@ describe('Projects', () => {
     expect(row.querySelector('.project-list-primary').textContent).toContain('Apollo')
     expect(row.querySelector('.project-list-primary').textContent).not.toContain('A-1')
     expect(row.querySelector('.project-list-meta').textContent).toContain('Project IDA-1')
-    expect(row.querySelector('.project-list-meta').textContent).not.toContain('China Operator Business')
+    expect(row.querySelector('.project-list-meta').textContent).not.toContain('China Operator')
     expect(row.querySelector('.project-list-meta').textContent).not.toContain('Unspecified')
     expect(row.querySelector('.project-card-badges').textContent).toContain('stale')
     expect(row.querySelector('.project-detail-strip').textContent).toContain('Major FAE QA')
@@ -571,10 +571,10 @@ describe('Projects', () => {
     expect(modeCard.firstElementChild.textContent).toBe('Support Mode')
     expect(modeCard.firstElementChild.dataset.metricTitle).toBe('')
     expect(rows).toEqual([
-      ['China Operator Business', 'S 2 · A 1'],
-      ['Smart Device Business', 'S 0 · A 0'],
-      ['TV Business', 'S 0 · A 1'],
-      ['Global Operator & STB Business', 'S 0 · A 0'],
+      ['China Operator', 'S 2 · A 1'],
+      ['Smart Device', 'S 0 · A 0'],
+      ['TV', 'S 0 · A 1'],
+      ['Global Operator & STB', 'S 0 · A 0'],
     ])
     expect(document.body.textContent).not.toContain('Product lines')
   })
@@ -803,11 +803,11 @@ describe('Projects', () => {
     await createProjects({ root: document.querySelector('#app'), api }).start()
     const select = document.querySelector('[name="field.__product_space__"]')
     const multi = select.nextElementSibling
-    expect([...select.options].map(option => option.textContent)).toEqual(['China Operator Business', 'TV Business'])
+    expect([...select.options].map(option => option.textContent)).toEqual(['China Operator', 'TV'])
     multi.querySelector('.multi-select__control').click()
     multi.querySelector('[data-select-all]').click()
     expect(api.getProjectFacts).toHaveBeenCalledOnce()
-    expect(multi.querySelector('.multi-select__tags').textContent).toContain('China Operator Business+1')
+    expect(multi.querySelector('.multi-select__tags').textContent).toContain('China Operator+1')
     multi.querySelector('.multi-select__control').click()
     multi.querySelector('[data-clear]').click()
     expect(api.getProjectFacts).toHaveBeenCalledOnce()
@@ -875,7 +875,7 @@ describe('Projects', () => {
 
   it('Reset restores authorized Product Space candidates after a narrowed catalog response', async () => {
     const narrowed = { ...payload, facets: payload.facets.map(facet => facet.key === '__product_space__'
-      ? { ...facet, options: [{ value: 'DOPL', label: 'China Operator Business' }] }
+      ? { ...facet, options: [{ value: 'DOPL', label: 'China Operator' }] }
       : facet) }
     const api = { getProjectFacts: vi.fn()
       .mockResolvedValueOnce(narrowed).mockResolvedValueOnce(payload) }

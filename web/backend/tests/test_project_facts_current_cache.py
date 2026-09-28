@@ -18,7 +18,7 @@ def test_project_facts_owner_reads_and_invalidates_new_project_repository(tmp_pa
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     repository.save_core((Project(
         ProjectIdentity("900", "P100"), "Project One",
-        ProductSpaceRef("China Operator Business", "China Operator Business"), ConfluencePageRef("10", "Catalog", version=1),
+        ProductSpaceRef("China Operator", "China Operator"), ConfluencePageRef("10", "Catalog", version=1),
         status=NamedValue("normal", "Normal"), stage=NamedValue("evt", "EVT"),
     ),))
     owner = ProjectFactsWebOwner(repository=repository)
@@ -45,7 +45,7 @@ def test_project_facts_exposes_core_product_labels_and_only_catalog_ready_filter
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     repository.save_core((Project(
         ProjectIdentity("900", "P100"), "Project One",
-        ProductSpaceRef("China Operator Business", "China Operator Business"), ConfluencePageRef("10", "Catalog"),
+        ProductSpaceRef("China Operator", "China Operator"), ConfluencePageRef("10", "Catalog"),
         status=NamedValue("normal", "Normal"),
     ),))
     access = confirmed_access(repository.database, ("P100",))
@@ -59,16 +59,16 @@ def test_project_facts_exposes_core_product_labels_and_only_catalog_ready_filter
     )
 
     assert result["productSpaces"] == [
-        {"value": "DOPL", "label": "China Operator Business", "projectGrouping": None},
-        {"value": "SDPL", "label": "Smart Device Business", "projectGrouping": None},
-        {"value": "TV", "label": "TV Business", "projectGrouping": "launch_os"},
-        {"value": "OOPL", "label": "Global Operator & STB Business", "projectGrouping": None},
+        {"value": "DOPL", "label": "China Operator", "projectGrouping": None},
+        {"value": "SDPL", "label": "Smart Device", "projectGrouping": None},
+        {"value": "TV", "label": "TV", "projectGrouping": "launch_os"},
+        {"value": "OOPL", "label": "Global Operator & STB", "projectGrouping": None},
         {"value": "WIRELESS", "label": "Wireless Connection", "projectGrouping": None},
     ]
     product_space = next(facet for facet in result["facets"] if facet["key"] == "__product_space__")
     assert product_space["options"] == [
-        {"value": "DOPL", "label": "China Operator Business", "projectGrouping": None},
-        {"value": "TV", "label": "TV Business", "projectGrouping": "launch_os"},
+        {"value": "DOPL", "label": "China Operator", "projectGrouping": None},
+        {"value": "TV", "label": "TV", "projectGrouping": "launch_os"},
     ]
     assert [facet["key"] for facet in result["facets"]] == [
         "__product_space__", "date of commercial approval", "project id", "project owner",
@@ -79,7 +79,7 @@ def test_block_and_warning_counts_use_the_final_matched_collection(tmp_path) -> 
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     projects = tuple(Project(
         ProjectIdentity(f"90{index}", project_id), project_id,
-        ProductSpaceRef("China Operator Business", "China Operator Business"), ConfluencePageRef(f"10{index}", "Catalog"),
+        ProductSpaceRef("China Operator", "China Operator"), ConfluencePageRef(f"10{index}", "Catalog"),
         status=NamedValue(status.casefold(), status),
     ) for index, (project_id, status) in enumerate((
         ("P100", "BLOCK 09/12 owner note"), ("P200", "WARNING - needs attention"),
@@ -109,7 +109,7 @@ def test_project_facts_query_keeps_its_access_snapshot_during_catalog_replacemen
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     repository.save_core((Project(
         ProjectIdentity("900", "P100"), "Project One",
-        ProductSpaceRef("China Operator Business", "China Operator Business"), ConfluencePageRef("10", "Catalog", version=1),
+        ProductSpaceRef("China Operator", "China Operator"), ConfluencePageRef("10", "Catalog", version=1),
         roles=DetailSection.loaded((ProjectRole(
             NamedValue("fae", "FAE QA"), (PersonRef("alice", display_name="Alice"),),
         ),)),
@@ -142,7 +142,7 @@ def test_project_facts_web_path_pages_current_projects(tmp_path) -> None:
     repository.save_core(tuple(
         Project(
             ProjectIdentity(str(index), f"P{index}"), f"Project {index}",
-            ProductSpaceRef("China Operator Business"), ConfluencePageRef("10"),
+            ProductSpaceRef("China Operator"), ConfluencePageRef("10"),
         )
         for index in (1, 2)
     ))
@@ -188,7 +188,7 @@ def test_project_facts_owner_queries_persisted_dynamic_fields_and_owner_clusters
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     project = Project(
         ProjectIdentity("TV:P100", "P100"), "Project One",
-        ProductSpaceRef("TV Business", "TV Business"),
+        ProductSpaceRef("TV", "TV"),
         ConfluencePageRef("900", "Project One", "https://c/pages/900"),
         roles=DetailSection.loaded((ProjectRole(
             NamedValue(name="FAE QA"), (PersonRef("u1", display_name="Alice"),),
@@ -226,7 +226,7 @@ def test_wireless_module_adds_an_independent_project_resource_without_replacing_
         ProjectRole(NamedValue("role.wifi_qa_reviewer", "WiFi QA Reviewer"), (PersonRef("zijie.chen", account="zijie.chen", display_name="zijie.chen"),)),
     ))
     project = Project(
-        ProjectIdentity("TV:P100", "P100"), "Project One", ProductSpaceRef("TV", "TV Business"),
+        ProjectIdentity("TV:P100", "P100"), "Project One", ProductSpaceRef("TV", "TV"),
         ConfluencePageRef("900", "Project One", "https://c/pages/900"), roles=roles,
         facts=DetailSection.loaded(FieldBag.from_mapping({"wifi module": "Module W2 Pro"})),
     )
@@ -254,7 +254,7 @@ def test_wireless_module_adds_an_independent_project_resource_without_replacing_
 def test_missing_details_acquire_authoritative_catalog_scope_when_derived_filter_is_empty(tmp_path) -> None:
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     project = Project(
-        ProjectIdentity("TV:P100", "P100"), "Project One", ProductSpaceRef("TV", "TV Business"),
+        ProjectIdentity("TV:P100", "P100"), "Project One", ProductSpaceRef("TV", "TV"),
         ConfluencePageRef("900", "Project One"),
     )
     repository.save_core((project,))
@@ -281,7 +281,7 @@ def test_missing_details_acquire_authoritative_catalog_scope_when_derived_filter
 def test_synchronized_empty_result_is_complete_and_does_not_reacquire_details(tmp_path) -> None:
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     project = Project(
-        ProjectIdentity("TV:P100", "P100"), "Project One", ProductSpaceRef("TV", "TV Business"),
+        ProjectIdentity("TV:P100", "P100"), "Project One", ProductSpaceRef("TV", "TV"),
         ConfluencePageRef("900", "Project One"),
         roles=DetailSection.loaded(()), facts=DetailSection.loaded(FieldBag()),
     )
@@ -311,7 +311,7 @@ def test_synchronized_empty_result_is_complete_and_does_not_reacquire_details(tm
 def test_non_wireless_module_project_is_not_duplicated(tmp_path) -> None:
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     project = Project(
-        ProjectIdentity("TV:P100", "P100"), "Project One", ProductSpaceRef("TV", "TV Business"),
+        ProjectIdentity("TV:P100", "P100"), "Project One", ProductSpaceRef("TV", "TV"),
         ConfluencePageRef("900", "Project One"), facts=DetailSection.loaded(FieldBag.from_mapping({"wifi module": "W3"})),
     )
     repository.save_core((project,))
@@ -358,7 +358,7 @@ def test_page_entry_persists_recent_client_catalog_contract_for_all_four_spaces(
 def test_apply_catalog_roundtrip_keeps_dynamic_fields_for_detail_extraction(tmp_path) -> None:
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     project = Project(
-        ProjectIdentity("TV:P100", "P100"), "Project One", ProductSpaceRef("TV Business"),
+        ProjectIdentity("TV:P100", "P100"), "Project One", ProductSpaceRef("TV"),
         ConfluencePageRef("900", "Project One", "https://c/pages/900"),
         facts=DetailSection.loaded(FieldBag.from_mapping({"odm": "ODM-X"})),
     )
@@ -378,7 +378,7 @@ def test_apply_refreshes_the_matching_cross_space_identity_only(tmp_path) -> Non
             ProductSpaceRef(space), ConfluencePageRef(f"{space}-page"),
             facts=DetailSection.loaded(FieldBag.from_mapping({"support mode": "A"})),
         )
-        for space in ("China Operator Business", "TV Business")
+        for space in ("China Operator", "TV")
     )
     repository.save_core(projects)
     for project in projects:
@@ -389,15 +389,15 @@ def test_apply_refreshes_the_matching_cross_space_identity_only(tmp_path) -> Non
         def __init__(self, _service): pass
         def sync(self, project_ids, _details, **_kwargs): synced.extend(project_ids)
 
-    access = confirmed_access(repository.database, ("China Operator Business:P100", "TV Business:P100"))
+    access = confirmed_access(repository.database, ("China Operator:P100", "TV:P100"))
     owner = ProjectFactsWebOwner(
         repository=repository, sync_coordinator_factory=Coordinator,
         client_factory=lambda *_args: object(),
     )
 
-    owner.sync_details(access, "secret", filters={"__product_space__": ("TV Business",)})
+    owner.sync_details(access, "secret", filters={"__product_space__": ("TV",)})
 
-    assert synced == ["TV Business:P100"]
+    assert synced == ["TV:P100"]
 
 
 def test_catalog_refresh_does_not_requery_all_project_facts(tmp_path) -> None:
@@ -418,7 +418,7 @@ def test_project_facts_query_uses_one_repository_batch_instead_of_per_project_ge
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
     repository.save_core(tuple(
         Project(ProjectIdentity(str(index), f"P{index}"), f"Project {index}",
-                ProductSpaceRef("China Operator Business"), ConfluencePageRef(str(index)))
+                ProductSpaceRef("China Operator"), ConfluencePageRef(str(index)))
         for index in range(3)
     ))
     access = confirmed_access(repository.database, tuple(f"P{index}" for index in range(3)))
@@ -431,9 +431,9 @@ def test_project_facts_query_uses_one_repository_batch_instead_of_per_project_ge
 
 def test_apply_refreshes_catalog_before_recomputing_detail_scope(tmp_path) -> None:
     repository = ConfluenceProjectRepository(WebDatabase(tmp_path / "web.db"))
-    old = Project(ProjectIdentity("DOPL:OLD", "OLD"), "Old", ProductSpaceRef("China Operator Business"),
+    old = Project(ProjectIdentity("DOPL:OLD", "OLD"), "Old", ProductSpaceRef("China Operator"),
                   ConfluencePageRef("1"), support_mode=NamedValue(name="A"))
-    new = Project(ProjectIdentity("DOPL:NEW", "NEW"), "New", ProductSpaceRef("China Operator Business"),
+    new = Project(ProjectIdentity("DOPL:NEW", "NEW"), "New", ProductSpaceRef("China Operator"),
                   ConfluencePageRef("2"), support_mode=NamedValue(name="A"))
     repository.save_core((old,))
     access = confirmed_access(repository.database, ("DOPL:OLD",))
@@ -442,10 +442,10 @@ def test_apply_refreshes_catalog_before_recomputing_detail_scope(tmp_path) -> No
     class Service:
         def refresh_projects(self, _scope):
             repository.save_core((new,))
-            access.publish((("project", "DOPL:NEW", "catalog", "China Operator Business"),
-                            ("project", "DOPL:NEW", "roles", "China Operator Business"),
-                            ("project", "DOPL:NEW", "facts", "China Operator Business")), lambda: None,
-                           replace_scopes=("China Operator Business",))
+            access.publish((("project", "DOPL:NEW", "catalog", "China Operator"),
+                            ("project", "DOPL:NEW", "roles", "China Operator"),
+                            ("project", "DOPL:NEW", "facts", "China Operator")), lambda: None,
+                           replace_scopes=("China Operator",))
             return {"projects": (new,), "failed": ()}
 
     class Coordinator:

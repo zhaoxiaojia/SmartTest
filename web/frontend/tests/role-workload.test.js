@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createRoleWorkloadWidget, ROLE_WORKLOAD_LAYOUT } from '../src/widgets/role-workload.js'
 
 const productSpaces = [
-  { value: 'DOPL', label: 'China Operator Business' },
-  { value: 'SDPL', label: 'Smart Device Business' },
-  { value: 'TV', label: 'TV Business' },
-  { value: 'OOPL', label: 'Global Operator & STB Business' },
+  { value: 'DOPL', label: 'China Operator' },
+  { value: 'SDPL', label: 'Smart Device' },
+  { value: 'TV', label: 'TV' },
+  { value: 'OOPL', label: 'Global Operator & STB' },
 ]
 
 describe('RoleWorkloadWidget', () => {
@@ -43,7 +43,7 @@ describe('RoleWorkloadWidget', () => {
     expect(charts.at(-1).config.data.labels).toEqual(['Alice'])
     expect(document.body.textContent).not.toContain('2c93-user')
     ;[...document.querySelectorAll('[data-product-line-segments] button')]
-      .find(button => button.textContent === 'TV Business').click()
+      .find(button => button.textContent === 'TV').click()
     expect(charts.at(-1).config.data.labels).toEqual(['Bob', 'Alice', 'Unknown member'])
     expect(charts.at(-1).config.data.datasets[0].data).toEqual([2, 1, 1])
     expect(chartFactory).toHaveBeenCalledOnce()

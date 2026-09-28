@@ -81,7 +81,7 @@ def test_catalog_transaction_preserves_duplicate_owner_and_cross_space_project_i
     second = replace(
         _project(),
         identity=ProjectIdentity("TV:P100", "P100"),
-        product_space=ProductSpaceRef("TV", "TV Business"),
+        product_space=ProductSpaceRef("TV", "TV"),
         owner_summary=(),
     )
 

@@ -17,10 +17,10 @@ it('mounts the persisted Projects snapshot, preserves filters, and has no migrat
   document.body.innerHTML = '<div data-app-shell data-page-key="projects"></div>'
   const ready = { state: 'ready', accessibleProjectCount: 1,
     productSpaces: [
-      { value: 'DOPL', label: 'China Operator Business' },
-      { value: 'SDPL', label: 'Smart Device Business' },
-      { value: 'TV', label: 'TV Business' },
-      { value: 'OOPL', label: 'Global Operator & STB Business' },
+      { value: 'DOPL', label: 'China Operator' },
+      { value: 'SDPL', label: 'Smart Device' },
+      { value: 'TV', label: 'TV' },
+      { value: 'OOPL', label: 'Global Operator & STB' },
     ],
     facets: [{ key: '__product_space__', label: 'Product Space', options: ['TV'] }],
     projects: [{ project_id: 'P1', name: 'Project One', space_key: 'TV' }],
