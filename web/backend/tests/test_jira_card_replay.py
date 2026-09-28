@@ -1,4 +1,6 @@
 from threading import Event
+from datetime import date, timedelta
+from core.jira.services.filter_service import jira_period_condition
 
 from fastapi.testclient import TestClient
 from smarttest_web.database import WebDatabase
@@ -23,50 +25,53 @@ def test_period_cache_is_exact_and_search_refreshes_it(tmp_path, monkeypatch):
         payload = api.post('/api/jira/cards/self-test/query', json={'period': 'month', 'intent': 'reuse'}).json()
         assert payload['state'] == 'ready'
         assert payload['query']['activeSnapshotId'] == ids['month']
-    assert len(calls) == 2
+    assert len(calls) == 4
     refreshed = api.post('/api/jira/cards/self-test/query', json={'intent': 'refresh'}).json()
     assert wait_terminal(api, refreshed['taskId']) == 'completed'
-    assert len(calls) == 3
+    assert len(calls) == 6
     api.post('/api/auth/logout')
     api.post('/api/auth/login', json={'username': 'coco', 'password': 'secret'})
     restored = api.post('/api/jira/cards/self-test/query', json={'period': 'week', 'intent': 'reuse'}).json()
     assert restored['query']['activeSnapshotId'] == ids['week']
     assert restored['state'] == 'ready'
-    assert len(calls) == 3
+    assert len(calls) == 6
     api.post('/api/jira/analytics/search', json={'mode': 'advanced', 'jql': 'status = Open'})
     changed = api.post('/api/jira/cards/self-test/query', json={'period': 'month', 'intent': 'reuse'}).json()
     assert wait_terminal(api, changed['taskId']) == 'completed'
-    assert len(calls) == 4
+    assert len(calls) == 8
 
 
 def test_card_period_defaults_to_month_and_restores_independently_without_get_fetch(tmp_path, monkeypatch):
-    from datetime import date
     calls = []
     monkeypatch.setattr(Gateway, 'search_all_payloads', lambda _self, jql, **_kw: calls.append(jql) or [])
     api = client(tmp_path)
-    api.put('/api/preferences/jira/cards/customer', json={'items': {'period': 'quarter'}})
+    api.put('/api/preferences/jira/cards/customer-feedback', json={'items': {'period': 'quarter'}})
     assert api.get('/api/jira/cards/self-test/statistics').json()['period'] == 'month'
+    assert api.get('/api/jira/cards/customer-feedback/statistics').json()['period'] == 'quarter'
     api.post('/api/jira/analytics/search', json={'mode': 'advanced', 'jql': 'status = Open OR status = Closed ORDER BY created DESC'})
-    periods = [('week', 'created >= "-7d"'), ('month', 'created >= "-30d"'),
-               ('quarter', 'created >= startOfDay("-3M")'),
+    periods = [('week', f'created >= "{(date.today() - timedelta(days=date.today().weekday())).isoformat()}"'),
+               ('month', f'created >= "{date.today().replace(day=1).isoformat()}"'),
+               ('quarter', f'created >= "{date.today().year}-{((date.today().month - 1) // 3) * 3 + 1:02d}-01"'),
                ('year', f'created >= "{date.today().year}-01-01"')]
     for period, condition in periods:
         started = api.post('/api/jira/cards/self-test/query', json={'period': period}).json()
         assert wait_terminal(api, started['taskId']) == 'completed'
         payload = api.get('/api/jira/cards/self-test/statistics').json()
         assert payload['period'] == period
-        assert condition in payload['query']['activeJql']
-        assert payload['query']['activeJql'].endswith('ORDER BY created DESC')
+        assert condition in calls[-2]
+        assert calls[-2].endswith('ORDER BY created DESC')
+        for response in [started, payload, api.get(f"/api/jira/cards/self-test/tasks/{started['taskId']}").json()]:
+            assert not {'activeJql', 'activeComparisonJql', 'userJql'} & response['query'].keys()
     api.post('/api/auth/logout')
     api.post('/api/auth/login', json={'username': 'coco', 'password': 'secret'})
     assert api.get('/api/jira/cards/self-test/statistics').json()['period'] == 'year'
-    assert len(calls) == 4
+    assert len(calls) == 8
     assert api.post('/api/jira/cards/self-test/query', json={'period': 'invalid'}).status_code == 422
-    assert len(calls) == 4
+    assert len(calls) == 8
     api.post('/api/auth/logout')
     api.post('/api/auth/login', json={'username': 'bob', 'password': 'secret'})
     assert api.get('/api/jira/cards/self-test/statistics').json()['period'] == 'month'
-    assert len(calls) == 4
+    assert len(calls) == 8
 
 
 def test_same_account_relogin_restores_conditions_and_card_without_remote_fetch(tmp_path, monkeypatch):
@@ -82,7 +87,7 @@ def test_same_account_relogin_restores_conditions_and_card_without_remote_fetch(
     restored = api.get('/api/jira/cards/self-test/statistics').json()
     assert restored == original
     assert api.get('/api/jira/analytics/state').json()['conditions']['jql'] == draft['jql']
-    assert len(calls) == 1
+    assert len(calls) == 2
     assert api.get('/api/dashboard/jira-team-bugs').status_code == 404
     assert restored['state'] == 'ready'
     assert restored['teamTotal'] == 0
@@ -97,11 +102,11 @@ def test_annual_snapshot_is_not_replayed_as_a_rolling_result_or_queried_by_get(t
     database = WebDatabase(tmp_path / 'web.db')
     with database.transaction() as connection:
         connection.execute('UPDATE jira_analytics_snapshots SET jql=replace(jql,?,?) WHERE snapshot_id=?',
-                           ('created >= "-30d" AND created <= now()', 'created >= startOfYear() AND created <= endOfYear()', started['snapshotId']))
+                           (jira_period_condition('month'), 'created >= startOfYear() AND created <= endOfYear()', started['snapshotId']))
     payload = api.get('/api/jira/cards/self-test/statistics').json()
     assert payload['state'] == 'no_snapshot'
     assert 'productLines' not in payload
-    assert len(calls) == 1
+    assert len(calls) == 2
 
 
 def test_another_session_can_read_same_account_result_but_not_task_or_cancel(tmp_path, monkeypatch):

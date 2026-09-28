@@ -137,3 +137,21 @@ def test_account_card_replay_survives_session_expiry_but_does_not_expose_other_s
     assert repo.state("old-session", "alice", card_key="self-test")["taskId"] == "secret-task"
     assert repo.issue_keys("new-session", "alice", card_key="self-test") == ["A-1"]
     assert repo.issue_keys("new-session", "bob", card_key="self-test") == []
+
+
+def test_comparison_query_and_memberships_are_persisted_and_reused_atomically(tmp_path):
+    repo = JiraAnalyticsRepository(WebDatabase(tmp_path / "web.db"), now=lambda: 10)
+    snapshot = repo.begin("s", "alice", "current", {}, "", expires_at=100, user_jql="user",
+                          card_key="self-test", roster_fingerprint="definition", comparison_jql="previous")
+    repo.write_batch(snapshot, [issue("CUR-1")], period_kind="current")
+    repo.write_batch(snapshot, [issue("PREV-1")], period_kind="previous")
+    repo.activate(snapshot, {"current": {"teamTotal": 1}, "previous": {"teamTotal": 1}})
+
+    state = repo.state("new", "alice", card_key="self-test")
+    assert state["activeComparisonJql"] == "previous"
+    assert repo.issue_keys("new", "alice", card_key="self-test", period_kind="current") == ["CUR-1"]
+    assert repo.issue_keys("new", "alice", card_key="self-test", period_kind="previous") == ["PREV-1"]
+    assert repo.reuse("new", "alice", "current", comparison_jql="previous",
+                      card_key="self-test", roster_fingerprint="definition")
+    assert not repo.reuse("new", "alice", "current", comparison_jql="different",
+                          card_key="self-test", roster_fingerprint="definition")

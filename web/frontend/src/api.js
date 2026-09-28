@@ -162,15 +162,15 @@ export function createJiraAnalyticsApi({ fetchImpl = globalThis.fetch, baseUrl =
   return { getJiraAnalyticsState: () => request('/state'), getJiraAnalyticsFields: () => request('/fields'), getJiraAnalyticsSuggestions: (fieldName, query = '') => request(`/suggestions?fieldName=${encodeURIComponent(fieldName)}&query=${encodeURIComponent(query)}`), getJiraAnalyticsSavedFilters: () => request('/saved-filters'), getJiraAnalyticsSavedFilter: id => request(`/saved-filters/${encodeURIComponent(id)}`), validateJiraAnalytics: body => request('/validate', 'POST', body), searchJiraAnalytics: body => request('/search', 'POST', body) }
 }
 
-export function createJiraTeamBugApi({ fetchImpl = globalThis.fetch, baseUrl = '/api', cardKey = 'self-test' } = {}) {
+export function createJiraStatisticsCardApi({ fetchImpl = globalThis.fetch, baseUrl = '/api', cardKey = 'self-test' } = {}) {
   async function request(query = false, period, intent = 'refresh') {
     const path = `/jira/cards/${encodeURIComponent(cardKey)}/${query ? 'query' : 'statistics'}`
     const response = await fetchImpl(`${baseUrl}${path}`, { credentials: 'same-origin', ...(query ? { method: 'POST',
       headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent, ...(period ? { period } : {}) }) } : {}) })
-    if (!response.ok) throw new ApiUnavailableError(`Jira team bug overview unavailable (${response.status}).`, { status: response.status })
+    if (!response.ok) throw new ApiUnavailableError(`Jira statistics card unavailable (${response.status}).`, { status: response.status })
     return response.json()
   }
-  return { getTeamBugOverview: () => request(), queryTeamBugOverview: (period, intent) => request(true, period, intent) }
+  return { getStatistics: () => request(), queryStatistics: (period, intent) => request(true, period, intent) }
 }
 
 export function createProjectFactsApi({ fetchImpl = globalThis.fetch, baseUrl = '/api' } = {}) {

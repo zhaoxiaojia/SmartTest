@@ -34,7 +34,7 @@ class JiraAnalyticsRepository:
                 (str(session_hash), str(account).casefold())).fetchone()
         return json.loads(row[0]) if row and row[0] is not None else None
 
-    def begin(self, session_hash, account, jql, basic, source_filter_id, *, expires_at, user_jql=None, card_key="", roster_fingerprint=""):
+    def begin(self, session_hash, account, jql, basic, source_filter_id, *, expires_at, user_jql=None, card_key="", roster_fingerprint="", comparison_jql=""):
         snapshot_id = uuid4().hex
         now = self._now()
         task_session_hash = str(session_hash)
@@ -48,10 +48,10 @@ class JiraAnalyticsRepository:
                 task_session_hash=excluded.task_session_hash,last_snapshot_id=excluded.last_snapshot_id""",
                 (str(session_hash), str(account).casefold(), snapshot_id, float(expires_at), str(card_key), task_session_hash, snapshot_id))
             connection.execute("""INSERT INTO jira_analytics_snapshots
-                (snapshot_id,session_hash,account,jql,basic_json,source_filter_id,state,created_at,user_jql,card_key,roster_fingerprint)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?)""", (snapshot_id, str(session_hash), str(account).casefold(),
+                (snapshot_id,session_hash,account,jql,basic_json,source_filter_id,state,created_at,user_jql,card_key,roster_fingerprint,comparison_jql)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""", (snapshot_id, str(session_hash), str(account).casefold(),
                 str(jql), json.dumps(basic or {}, ensure_ascii=False, sort_keys=True),
-                str(source_filter_id or ""), "pending", now, user_jql, str(card_key), str(roster_fingerprint)))
+                str(source_filter_id or ""), "pending", now, user_jql, str(card_key), str(roster_fingerprint), str(comparison_jql)))
         return snapshot_id
 
     def set_task(self, snapshot_id, task_id, *, session_hash=None):
@@ -59,17 +59,17 @@ class JiraAnalyticsRepository:
             connection.execute("""UPDATE jira_analytics_queries SET task_id=?,task_session_hash=COALESCE(?,task_session_hash)
                 WHERE pending_snapshot_id=?""", (str(task_id), session_hash, str(snapshot_id)))
 
-    def write_batch(self, snapshot_id, issues):
+    def write_batch(self, snapshot_id, issues, period_kind="current"):
         rows = list(issues)
         self.issues.save_core(rows)
         with self.database.transaction() as connection:
             offset = int(connection.execute(
-                "SELECT count(*) FROM jira_analytics_snapshot_issues WHERE snapshot_id=?", (snapshot_id,)
+                "SELECT count(*) FROM jira_analytics_snapshot_issues WHERE snapshot_id=? AND period_kind=?", (snapshot_id, period_kind)
             ).fetchone()[0])
             for index, issue in enumerate(rows, offset):
                 connection.execute("""INSERT OR IGNORE INTO jira_analytics_snapshot_issues
-                    (snapshot_id,issue_id,ordinal) VALUES(?,?,?)""",
-                    (snapshot_id, issue.identity.id, index))
+                    (snapshot_id,issue_id,ordinal,period_kind) VALUES(?,?,?,?)""",
+                    (snapshot_id, issue.identity.id, index, str(period_kind)))
 
     def activate(self, snapshot_id, statistics=None):
         with self.database.transaction() as connection:
@@ -86,14 +86,14 @@ class JiraAnalyticsRepository:
             ))
             return True
 
-    def reuse(self, session_hash, account, jql, *, card_key, roster_fingerprint):
+    def reuse(self, session_hash, account, jql, *, card_key, roster_fingerprint, comparison_jql=""):
         scope = self._scope(session_hash, card_key, account)
         with self.database.transaction() as connection:
             row = connection.execute("""SELECT snapshot_id FROM jira_analytics_snapshots
-                WHERE session_hash=? AND account=? AND card_key=? AND jql=?
+                WHERE session_hash=? AND account=? AND card_key=? AND jql=? AND comparison_jql=?
                 AND roster_fingerprint=? AND state='active' AND user_jql IS NOT NULL
                 ORDER BY created_at DESC,rowid DESC LIMIT 1""",
-                (scope, str(account).casefold(), card_key, jql, roster_fingerprint)).fetchone()
+                (scope, str(account).casefold(), card_key, jql, comparison_jql, roster_fingerprint)).fetchone()
             if not row:
                 return False
             connection.execute("""UPDATE jira_analytics_queries SET active_snapshot_id=?,last_snapshot_id=?,
@@ -116,34 +116,36 @@ class JiraAnalyticsRepository:
                 FROM jira_analytics_queries WHERE session_hash=? AND account=? AND (card_key!='' OR expires_at>?)""",
                 (str(session_hash), str(account).casefold(), self._now())).fetchone()
             if row is None:
-                return {"activeSnapshotId": "", "pendingSnapshotId": "", "taskId": "", "activeJql": "",
+                return {"activeSnapshotId": "", "pendingSnapshotId": "", "taskId": "", "activeJql": "", "activeComparisonJql": "",
                         "userJql": None, "latestState": "", "error": "", "rosterFingerprint": ""}
-            active_jql = ""
+            active_jql = active_comparison_jql = ""
             user_jql = None
             fingerprint = ""
             if row[0]:
-                value = connection.execute("SELECT jql,user_jql,roster_fingerprint FROM jira_analytics_snapshots WHERE snapshot_id=?", (row[0],)).fetchone()
+                value = connection.execute("SELECT jql,user_jql,roster_fingerprint,comparison_jql FROM jira_analytics_snapshots WHERE snapshot_id=?", (row[0],)).fetchone()
                 active_jql = value[0] if value else ""
                 user_jql = value[1] if value else None
                 fingerprint = value[2] if value else ""
+                active_comparison_jql = value[3] if value else ""
             latest = connection.execute("""SELECT state,error FROM jira_analytics_snapshots
                 WHERE session_hash=? AND account=? AND (?='' OR snapshot_id=?)
                 ORDER BY created_at DESC,rowid DESC LIMIT 1""",
                 (str(session_hash), str(account).casefold(), row[4], row[4])).fetchone()
             return {"activeSnapshotId": row[0], "pendingSnapshotId": row[1],
                     "taskId": row[2] if not card_key or row[3] == task_session_hash else "", "activeJql": active_jql,
+                    "activeComparisonJql": active_comparison_jql,
                     "userJql": user_jql, "latestState": latest[0] if latest else "", "error": latest[1] if latest else "",
                     "rosterFingerprint": fingerprint}
 
-    def issue_keys(self, session_hash, account, *, card_key=""):
+    def issue_keys(self, session_hash, account, *, card_key="", period_kind="current"):
         session_hash = self._scope(session_hash, card_key, account)
         with self.database.connect() as connection:
             return [row[0] for row in connection.execute("""SELECT i.issue_key
                 FROM jira_analytics_queries q
                 JOIN jira_analytics_snapshot_issues m ON m.snapshot_id=q.active_snapshot_id
                 JOIN jira_issues i ON i.issue_id=m.issue_id
-                WHERE q.session_hash=? AND q.account=? AND (q.card_key!='' OR q.expires_at>?)
-                ORDER BY m.ordinal""", (str(session_hash), str(account).casefold(), self._now()))]
+                WHERE q.session_hash=? AND q.account=? AND (q.card_key!='' OR q.expires_at>?) AND m.period_kind=?
+                ORDER BY m.ordinal""", (str(session_hash), str(account).casefold(), self._now(), period_kind))]
 
     def delete_session(self, session_hash):
         with self.database.transaction() as connection:

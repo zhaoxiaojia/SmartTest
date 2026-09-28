@@ -18,10 +18,10 @@ function harness({ preference = { items: {} } } = {}) {
   const registry = createWidgetRegistry()
   registry.register({ type: 'role-workload', title: 'Role workload', defaultW: 24,
     create: () => { const instance = { mount: vi.fn(), update: vi.fn(), destroy: vi.fn() }; instances.push(instance); return instance } })
-  registry.register({ type: 'jira-team-bugs', title: 'Team Jira bugs', defaultW: 24,
-    create: () => { const instance = { mount: vi.fn(), update: vi.fn(), destroy: vi.fn() }; instances.push(instance); return instance } })
-  registry.register({ type: 'jira-customer-statistics', title: 'Product Lines Customer Jiras Statistics', defaultW: 24,
-    create: () => ({ mount() {}, update() {}, destroy() {} }) })
+  for (const [type, title] of [['jira-statistics-self-test', 'Self Test'], ['jira-statistics-task', 'Task'], ['jira-statistics-customer-feedback', 'Customer Feedback']]) {
+    registry.register({ type, title, defaultW: 24,
+      create: () => { const instance = { mount: vi.fn(), update: vi.fn(), destroy: vi.fn() }; instances.push(instance); return instance } })
+  }
   const preferenceApi = { get: vi.fn().mockResolvedValue(preference), put: vi.fn().mockResolvedValue({}), reset: vi.fn().mockResolvedValue({}) }
   const page = createDashboardGrid({ root: document.querySelector('#root'), registry, preferenceApi, gridFactory })
   return { page, grid, gridFactory, instances, preferenceApi }
@@ -46,8 +46,9 @@ describe('DashboardGrid', () => {
     const { page, grid, preferenceApi } = harness()
     await page.start()
     expect(document.querySelector('[data-widget-type="role-workload"]')).not.toBeNull()
-    expect(document.querySelector('[data-widget-type="jira-team-bugs"]')).not.toBeNull()
-    expect(document.querySelector('[data-widget-type="jira-customer-statistics"]')).not.toBeNull()
+    expect(document.querySelector('[data-widget-type="jira-statistics-self-test"]')).not.toBeNull()
+    expect(document.querySelector('[data-widget-type="jira-statistics-task"]')).not.toBeNull()
+    expect(document.querySelector('[data-widget-type="jira-statistics-customer-feedback"]')).not.toBeNull()
     expect(grid.enableMove).toHaveBeenLastCalledWith(false)
     document.querySelector('[data-edit-dashboard]').click()
     expect(grid.enableMove).toHaveBeenLastCalledWith(true)
@@ -57,8 +58,9 @@ describe('DashboardGrid', () => {
     expect(grid.save).toHaveBeenCalledWith(false)
     expect(preferenceApi.put.mock.calls[0]).toEqual(['dashboard/layout', { layout: [{
       id: 'role-workload-default', type: 'role-workload', x: 0, y: 0, w: 24, h: 21, config: {},
-    }, { id: 'jira-team-bugs-default', type: 'jira-team-bugs', x: 0, y: 21, w: 24, h: 16, config: {} },
-    { id: 'jira-customer-statistics-default', type: 'jira-customer-statistics', x: 0, y: 37, w: 24, h: 16, config: {} }] }])
+    }, { id: 'jira-self-test-default', type: 'jira-statistics-self-test', x: 0, y: 21, w: 24, h: 16, config: { cardKey: 'self-test' } },
+    { id: 'jira-task-default', type: 'jira-statistics-task', x: 0, y: 37, w: 24, h: 16, config: { cardKey: 'task' } },
+    { id: 'jira-customer-feedback-default', type: 'jira-statistics-customer-feedback', x: 0, y: 53, w: 24, h: 16, config: { cardKey: 'customer-feedback' } }] }])
     page.destroy()
     expect(grid.destroy).toHaveBeenCalledOnce()
   })
@@ -91,8 +93,8 @@ describe('DashboardGrid', () => {
   it('uses GridStack content sizing around the shared card instead of a dashboard card height', async () => {
     const { page, grid } = harness()
     await page.start()
-    const widget = document.querySelector('[data-widget-type="jira-team-bugs"]')
-    expect(grid.makeWidget.mock.calls.find(call => call[1].type === 'jira-team-bugs')[1]).toMatchObject({ sizeToContent: true })
+    const widget = document.querySelector('[data-widget-type="jira-statistics-self-test"]')
+    expect(grid.makeWidget.mock.calls.find(call => call[1].type === 'jira-statistics-self-test')[1]).toMatchObject({ sizeToContent: true })
     expect(widget.querySelector(':scope > .grid-stack-item-content > .dashboard-widget-card > .dashboard-widget-body')).not.toBeNull()
     expect(grid.resizeToContent).toHaveBeenCalledWith(widget)
   })
@@ -106,7 +108,7 @@ describe('DashboardGrid', () => {
     const picker = document.querySelector('[data-widget-picker]')
     expect(addButton.getAttribute('aria-expanded')).toBe('true')
     expect(picker.hidden).toBe(false)
-    expect([...picker.querySelectorAll('[data-add-widget-type]')].map(button => button.textContent)).toEqual(['Role workload', 'Team Jira bugs', 'Product Lines Customer Jiras Statistics'])
+    expect([...picker.querySelectorAll('[data-add-widget-type]')].map(button => button.textContent)).toEqual(['Role workload', 'Self Test', 'Task', 'Customer Feedback'])
     picker.querySelector('[data-add-widget-type="role-workload"]').click()
     expect(picker.hidden).toBe(true)
     expect(grid.makeWidget.mock.calls.at(-1)[1]).toMatchObject({ type: 'role-workload', w: 24, h: 1, noResize: true, sizeToContent: true })

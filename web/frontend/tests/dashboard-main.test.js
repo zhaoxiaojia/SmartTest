@@ -27,14 +27,9 @@ describe('Dashboard page', () => {
     state.authenticated.mount(document.querySelector('main'), { username: 'coco' })
     expect(state.dashboard.registry.get('role-workload').title).toBe('Project Resource Statistics')
     expect(state.dashboard.registry.get('role-workload')).not.toHaveProperty('defaultH')
-    expect(state.dashboard.registry.get('jira-team-bugs').title).toBe('Product Lines Self Test Jiras Statistics')
-    expect(state.dashboard.registry.get('jira-team-bugs')).not.toHaveProperty('defaultH')
-    const customer = state.dashboard.registry.get('jira-customer-statistics')
-    expect(customer.title).toBe('Product Lines Customer Jiras Statistics')
-    const target = document.createElement('div')
-    customer.create().mount(target)
-    expect(target.textContent).toBe('WeeklyMonthlyQuarterlyYearly')
-    expect(await state.dashboard.widgetConfig('jira-customer-statistics')).toEqual({})
+    expect(state.dashboard.registry.get('jira-statistics-self-test').title).toBe('Self-Test Jira Statistics by Product Line')
+    expect(state.dashboard.registry.get('jira-statistics-task').title).toBe('Task Jira Statistics by Product Line')
+    expect(state.dashboard.registry.get('jira-statistics-customer-feedback').title).toBe('Customer Feedback Jira Statistics by Product Line')
     expect(state.dashboard.preferenceApi).toMatchObject({ get: expect.any(Function), put: expect.any(Function), reset: expect.any(Function) })
     expect(state.dashboard.gridFactory).toBeTypeOf('function')
     expect(state.dashboard.widgetConfig).toBeTypeOf('function')
@@ -43,7 +38,11 @@ describe('Dashboard page', () => {
   it('provides the account Jira overview API to its independent widget', async () => {
     await import('../src/dashboard-main.js')
     state.authenticated.mount(document.querySelector('main'), { username: 'coco' })
-    expect((await state.dashboard.widgetConfig('jira-team-bugs')).api.getTeamBugOverview).toBeTypeOf('function')
+    for (const key of ['self-test', 'task', 'customer-feedback']) {
+      const config = await state.dashboard.widgetConfig(`jira-statistics-${key}`)
+      expect(config.cardKey).toBe(key)
+      expect(config.api.getStatistics).toBeTypeOf('function')
+    }
   })
 
   it('loads Role workload from the complete account-visible catalog instead of the Projects filter snapshot', async () => {

@@ -7,7 +7,11 @@ from smarttest_web.database import WebDatabase
 from smarttest_web.jira.analytics_repository import JiraAnalyticsRepository
 
 from core.product_lines import PRODUCT_LINES
-from core.jira.services.team_bug_service import self_test_jira_conditions
+from core.jira.services.jql_statistics_cards import card_definition
+
+
+def self_test_jira_conditions(period="month"):
+    return card_definition("self-test").fixed_jql(period)
 
 from smarttest_web.app import create_app
 from smarttest_web.session import PersistentSessionStore
@@ -73,14 +77,38 @@ def test_public_search_only_publishes_conditions_and_card_queries_its_own_effect
     started = api.post("/api/jira/cards/self-test/query", json={"jql": "", "fixed_conditions": ""}).json()
     assert started["validation"]["valid"] is True
     assert wait_terminal(api, started["taskId"]) == "completed"
-    assert queries == [self_test_jira_conditions()]
+    assert queries[0] == self_test_jira_conditions()
+    assert len(queries) == 2
     assert 'creator IN membersOf("fae-wifi-qa")' in queries[0]
     assert 'reporter IN (' not in queries[0]
     assert 'assignee IN (' not in queries[0]
-    assert api.post("/api/jira/cards/customer/query").status_code == 404
+    assert api.post("/api/jira/cards/unknown/query").status_code == 404
     replay = api.get("/api/jira/cards/self-test/statistics").json()
     assert replay["state"] == "ready"
-    assert len(queries) == 1
+    assert len(queries) == 2
+
+
+@pytest.mark.parametrize("card_key,expected", [
+    ("self-test", "issuetype = Bug"),
+    ("task", "issuetype = Task"),
+    ("customer-feedback", '"Channel of Reporter" = "Customer-Feedback"'),
+])
+def test_registered_cards_share_query_task_and_snapshot_flow(tmp_path, monkeypatch, card_key, expected):
+    queries = []
+    monkeypatch.setattr(Gateway, "search_all_payloads", lambda _self, jql, **_kw: queries.append(jql) or [])
+    api = client(tmp_path)
+    api.post("/api/jira/analytics/search", json={"mode": "basic", "basic": {}})
+    assert api.get(f"/api/jira/cards/{card_key}/statistics").json()["state"] == "no_snapshot"
+    started = api.post(f"/api/jira/cards/{card_key}/query").json()
+    for _ in range(100):
+        task = api.get(f"/api/jira/cards/{card_key}/tasks/{started['taskId']}").json()
+        if task["state"] not in {"queued", "running"}:
+            break
+        time.sleep(.01)
+    assert task["state"] == "completed"
+    assert expected in queries[0]
+    replay = api.get(f"/api/jira/cards/{card_key}/statistics").json()
+    assert replay["state"] == "ready"
 
 
 def test_creator_group_failure_is_explicit_and_preserves_previous_snapshot(tmp_path, monkeypatch):
@@ -137,7 +165,6 @@ def test_effective_bug_query_validation_execution_sqlite_and_explicit_unmapped_t
         }})
     def collect(_self, jql, *, progress=None):
         executed.append(jql)
-        assert jql == validated[-1]
         assert 'issuetype = Bug' in jql
         rows = [row for row in candidates if row['fields']['issuetype']['name'] == 'Bug']
         if progress: progress(len(rows), len(rows))
@@ -153,12 +180,13 @@ def test_effective_bug_query_validation_execution_sqlite_and_explicit_unmapped_t
         saved = connection.execute('SELECT count(*) FROM jira_analytics_snapshot_issues').fetchone()[0]
         effective = connection.execute("SELECT jql FROM jira_analytics_snapshots WHERE card_key='self-test'").fetchone()[0]
     displayed = sum(person['bugCount'] for line in statistics['productLines'] for person in line['people'])
-    assert saved == statistics['teamTotal'] == 2
-    assert saved == displayed + statistics['unmappedCount'] + statistics['unassignedCount']
+    assert saved == 4
+    assert statistics['teamTotal'] == 2
+    assert statistics['teamTotal'] == displayed + statistics['unmappedCount'] + statistics['unassignedCount']
     assert statistics['unmappedCount'] == 0
     assert statistics['productLines'][4]['people'][0]['identity'] == 'meng.wang1'
     assert statistics['productLines'][4]['people'][0]['bugCount'] == 1
-    assert effective == executed[0] == validated[-1]
+    assert effective == executed[0] == validated[1]
     assert effective.startswith('(reporter = "meng.wang1" OR reporter = "fan.xu") AND (issuetype = Bug')
     assert effective.endswith('ORDER BY created DESC')
 
@@ -188,23 +216,26 @@ def test_lost_task_is_interrupted_without_requery_and_previous_progress_does_not
     assert statistics["state"] == "ready"
     assert statistics["teamTotal"] == 0
     restored = api.get("/api/jira/cards/self-test/statistics").json()["query"]
-    assert restored["activeJql"] == self_test_jira_conditions()
-    assert restored["userJql"] == ""
+    assert restored["activeSnapshotId"] == first["snapshotId"]
     entered, release = Event(), Event()
     def blocked(_self, _jql, *, progress=None):
         entered.set()
         assert release.wait(3)
         return []
     monkeypatch.setattr(Gateway, "search_all_payloads", blocked)
-    current = query_card(api, {"mode": "basic", "basic": {}}).json()
+    current = query_card(api, {"mode": "advanced", "jql": "project = A"}).json()
     try:
         assert entered.wait(1)
         assert api.get(f"/api/jira/cards/self-test/tasks/{first['taskId']}").status_code == 404
         assert api.get("/api/jira/cards/self-test/statistics").json()["state"] == "loading"
-        assert api.get("/api/jira/cards/self-test/statistics").json()["query"]["pendingSnapshotId"] == current["snapshotId"]
+        loading = api.get("/api/jira/cards/self-test/statistics").json()
+        assert loading["query"]["pendingSnapshotId"] == current["snapshotId"]
+        assert loading["query"]["activeSnapshotId"] == first["snapshotId"]
     finally:
         release.set()
     assert wait_terminal(api, current["taskId"]) == "completed"
+    completed = api.get("/api/jira/cards/self-test/statistics").json()["query"]
+    assert completed["activeSnapshotId"] == current["snapshotId"]
     database = WebDatabase(tmp_path / "web.db")
     with database.connect() as connection:
         session_hash, account, expires = connection.execute(
@@ -303,7 +334,9 @@ def test_statistics_replays_only_the_applied_jql_collection_without_extra_scope(
     apply("second")
     assert api.get("/api/jira/cards/self-test/statistics").json()["teamTotal"] == 0
     fixed = self_test_jira_conditions()
-    assert queries == [f'(first) AND ({fixed})', f'(second) AND ({fixed})']
+    assert queries[0] == f'(first) AND ({fixed})'
+    assert queries[2] == f'(second) AND ({fixed})'
+    assert len(queries) == 4
 
 
 def test_suggestions_resolve_the_current_sessions_jira_credentials_on_every_request(tmp_path):

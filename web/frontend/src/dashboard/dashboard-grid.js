@@ -1,8 +1,9 @@
 const SCOPE = 'dashboard/layout'
 export const DEFAULT_DASHBOARD_LAYOUT = Object.freeze([
   Object.freeze({ id: 'role-workload-default', type: 'role-workload', x: 0, y: 0, w: 24, h: 21, config: Object.freeze({}) }),
-  Object.freeze({ id: 'jira-team-bugs-default', type: 'jira-team-bugs', x: 0, y: 21, w: 24, h: 16, config: Object.freeze({}) }),
-  Object.freeze({ id: 'jira-customer-statistics-default', type: 'jira-customer-statistics', x: 0, y: 37, w: 24, h: 16, config: Object.freeze({}) }),
+  Object.freeze({ id: 'jira-self-test-default', type: 'jira-statistics-self-test', x: 0, y: 21, w: 24, h: 16, config: Object.freeze({ cardKey: 'self-test' }) }),
+  Object.freeze({ id: 'jira-task-default', type: 'jira-statistics-task', x: 0, y: 37, w: 24, h: 16, config: Object.freeze({ cardKey: 'task' }) }),
+  Object.freeze({ id: 'jira-customer-feedback-default', type: 'jira-statistics-customer-feedback', x: 0, y: 53, w: 24, h: 16, config: Object.freeze({ cardKey: 'customer-feedback' }) }),
 ])
 
 function cloneLayout(layout) { return layout.map(item => ({ ...item, config: { ...(item.config ?? {}) } })) }

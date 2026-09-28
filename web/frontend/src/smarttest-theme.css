@@ -20,6 +20,8 @@
     --success: #22C55E;
     --warning: #F59E0B;
     --danger: #EF4444;
+    --jira-current-bar: #9DD5FA;
+    --jira-previous-bar: #FFD3AE;
     --project-status-normal-bg: #00875A; --project-status-normal-fg: #FFFFFF;
     --project-status-warning-bg: #FF991F; --project-status-warning-fg: #172B4D;
     --project-status-block-bg: #BF2600; --project-status-block-fg: #FFFFFF;
@@ -51,6 +53,8 @@ body.dark-theme {
     --accent: #38BDF8;
     --accent-hover: #7DD3FC;
     --accent-light: rgba(56, 189, 248, 0.15);
+    --jira-current-bar: #789AAF;
+    --jira-previous-bar: #B99B85;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
@@ -187,7 +191,7 @@ input, select, textarea {
 .dashboard-workspace.is-editing .dashboard-drag-handle,
 .dashboard-workspace.is-editing .dashboard-widget-head [data-remove-widget] { display: inline-grid; place-items: center; }
 .page-ranking-widget > [data-widget-body] { min-height: 12rem; }
-.team-bug-state { display: grid; height: 100%; place-items: center; padding: 1rem; color: var(--text-secondary); }
+.jira-statistics-state { display: grid; height: 100%; place-items: center; padding: 1rem; color: var(--text-secondary); }
 .dashboard-workspace.is-editing .dashboard-widget-card { outline: 1px dashed color-mix(in srgb,var(--accent) 55%,var(--border-color)); }
 .product-space-groups { display: grid; gap: 1rem; }
 .product-space-group { overflow: hidden; border: 1px solid var(--border-color); border-radius: .75rem; background: var(--bg-surface); }

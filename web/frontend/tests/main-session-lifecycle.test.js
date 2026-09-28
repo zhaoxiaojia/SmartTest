@@ -6,7 +6,7 @@ it('clears all disposable Projects displays on identity change from a non-Projec
   document.body.innerHTML = '<div data-app-shell data-page-key="jira"></div>'
   sessionStorage.setItem('smarttest:projects-display:alice', '{"projects":[]}')
   sessionStorage.setItem('smarttest:projects-display:bob', '{"projects":[]}')
-  sessionStorage.setItem('smarttest:jira-self-test-display:alice', '{"productLines":[]}')
+  sessionStorage.setItem('smarttest:jira-statistics-display:alice:self-test', '{"productLines":[]}')
   sessionStorage.setItem('unrelated', 'keep')
   const fetchImpl = vi.fn().mockResolvedValue({
     ok: true, json: async () => ({ authenticated: true, username: 'alice' }),
@@ -19,7 +19,7 @@ it('clears all disposable Projects displays on identity change from a non-Projec
 
   expect(sessionStorage.getItem('smarttest:projects-display:alice')).toBeNull()
   expect(sessionStorage.getItem('smarttest:projects-display:bob')).toBeNull()
-  expect(sessionStorage.getItem('smarttest:jira-self-test-display:alice')).toBeNull()
+  expect(sessionStorage.getItem('smarttest:jira-statistics-display:alice:self-test')).toBeNull()
   expect(sessionStorage.getItem('unrelated')).toBe('keep')
   vi.unstubAllGlobals()
 })

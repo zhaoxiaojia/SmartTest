@@ -8,6 +8,19 @@ Self-Test、Task、Customer Feedback 三张卡片本质一致：读取 Jira 页�
 
 本轮不提供用户在线编辑卡片定义，不新增数据库配置表，不改变 Jira 页面共享过滤器的发布语义，不引入 Dashboard 专用查询或统计 owner，也不改变认证、凭据失效和普通登出的生命周期。
 
+## 周期对比扩展
+
+三张卡片在既有当前周期统计之外，统一增加上一周期对比数据。用户交互、筛选条件、产品线切换、指标切换、卡片注册和 Dashboard 引用均保持不变；前端不增加对比开关或第二套控件。对比数据只改变时间范围，用户 JQL、卡片固定业务条件、creator Group、Channel、Issue Type、Wireless 优先规则和聚合算法必须与当前周期完全相同。
+
+周期改为自然时间边界，并采用左闭右开区间避免一条 issue 同时进入两个周期：
+
+- Weekly：本周一至当前时间；对比上周一至本周一。
+- Monthly：本月一日至当前时间；对比上月一日至本月一日。
+- Quarterly：本季度首日至当前时间；对比上季度首日至本季度首日。
+- Yearly：本年一月一日至当前时间；对比上一年一月一日至本年一月一日。
+
+当前周期结束条件继续使用 `created <= now()`；上一周期使用明确的结束日期和 `created < current_period_start`。不得用 `-7d`、`-30d`、`-3M` 或按天数估算自然周期。
+
 ## 唯一模型
 
 Core 提供一个通用 Jira JQL 统计卡片 owner，并以不可变定义注册卡片。定义只包含：
@@ -29,7 +42,9 @@ Core 提供一个通用 Jira JQL 统计卡片 owner，并以不可变定义注�
 effective_jql = compose_jql(applied_user_jql, card_fixed_jql(selected_period))
 ```
 
-`compose_jql` 继续负责括号隔离和 `ORDER BY` 保留。校验、执行、SQLite 保存和快照有效性判断必须使用同一个 `effective_jql`，其他层不得追加、删减或重写条件。Weekly、Monthly、Quarterly、Yearly 由现有 `jira_period_condition` 产生；Yearly 表示本自然年。
+`compose_jql` 继续负责括号隔离和 `ORDER BY` 保留。校验、执行、SQLite 保存和快照有效性判断必须使用同一个 `effective_jql`，其他层不得追加、删减或重写条件。Weekly、Monthly、Quarterly、Yearly 由公共周期 owner 同时产生 current 与 previous 两个明确范围。查询流程对同一份用户条件和卡片固定业务条件分别组合两条 effective JQL；除时间范围外，两条 JQL 必须一致。
+
+一个 Refresh 根任务顺序或受控并发执行 current 与 previous 两次 Jira 只读查询。采用两次独立查询，不查询两个周期的大集合后在本地拆分，保证每条 JQL 都能直接在 Jira 中审计和核对。任一查询、group 解析或聚合失败时，本次 generation 整体失败并保留旧有效快照，不允许只激活一半结果。
 
 固定定义可由多个声明式子句组成，但最终只能形成一个可审计的卡片固定 JQL。Wireless 优先条件同时参与固定 JQL和通用归类过程，禁止在 router 或前端增加卡片名称判断。互斥条件保证一条 issue 最多进入一个产品线；Wireless 命中后不再计入原项目产品线。
 
@@ -79,7 +94,9 @@ GET 只重放 SQLite，不访问 Jira。Refresh 才执行远端查询。Reuse �
 
 继续复用现有 Jira analytics SQLite owner。查询状态、issue membership、统计 payload、active/pending generation 和 definition fingerprint 均以 `(account, card_key)` 隔离。普通登出与会话过期保留账号有效结果；明确凭据失效才走既有统一删除入口。
 
-一个 Refresh 对应一个根任务。任务内部完成远端查询、必要的 creator group 解析、通用统计和一次原子激活；不得为每张卡片建立新的任务 registry。失败、取消、profile group 读取失败或服务重启 interrupted 均不覆盖旧有效结果。任务查询与取消继续按真实 session 加 `card_key` 授权，另一会话只能读取持久结果，不能取得或操作原任务。
+一个 Refresh 对应一个根任务。任务内部完成两套远端查询、必要的 creator group 解析、通用统计和一次原子激活；不得为对比数据或每张卡片建立新的任务 registry。进度总量是两次查询的合计，取消同时终止尚未完成的当前/上一周期工作。失败、取消、profile group 读取失败或服务重启 interrupted 均不覆盖旧有效结果。任务查询与取消继续按真实 session 加 `card_key` 授权，另一会话只能读取持久结果，不能取得或操作原任务。
+
+SQLite 的一个卡片快照同时保存 current 与 previous 的真实 issue membership、统计 payload、effective JQL 和日期范围，并作为不可分割的有效结果激活。快照 fingerprint 必须包含两套周期条件，使旧的单周期快照不被误当作对比结果；GET 仍只重放 SQLite，不补查 Jira。payload 在每个产品线人员行中提供当前四指标和对应 previous 四指标，并在顶层提供 current/previous 的可显示日期范围、总数、未归类数和缺失 creator 数。前端不得自行推断日期或用当前结果倒算上一期。
 
 浏览器 sessionStorage 只保存按账号加 `card_key` 隔离的可丢弃展示 payload，用于同步首帧。任何查询、导出或业务动作不得从中读取权威 issue ID。Jira 页面与 Dashboard 读取同一 API 和同一 SQLite 快照；Dashboard 不启动独立查询，不保存第二份结果。
 
@@ -99,19 +116,32 @@ GET 只重放 SQLite，不访问 Jira。Refresh 才执行远端查询。Reuse �
 
 Jira 页面展示三张共享卡片：Self-Test、Task、Customer Feedback。每张卡片拥有独立周期选择和结果状态，但共用页面已应用的用户 JQL。标题分别为：
 
-- `Product Lines Self Test Jiras Statistics`
-- `Product Lines Task Jiras Statistics`
-- `Product Lines Customer Feedback Jiras Statistics`
+- `Self-Test Jira Statistics by Product Line`
+- `Task Jira Statistics by Product Line`
+- `Customer Feedback Jira Statistics by Product Line`
 
-Dashboard 可分别引用三张卡片，引用的仍是同一组件实例类型与对应 `card_key` 数据，不建立 Dashboard 变体。既有卡片高度、滚动、产品线、指标切换和图表机制保持共享；本轮不重新设计视觉效果。
+Dashboard 可分别引用三张卡片，引用的仍是同一组件实例类型与对应 `card_key` 数据，不建立 Dashboard 变体。既有卡片高度、滚动、产品线、指标切换和图表机制保持共享。
+
+共享排行组件将当前值与上一周期值绘制为等宽、并列的横条，共用数值坐标：
+
+- 白主题当前/上期使用 `#9DD5FA` / `#FFD3AE`，黑主题使用 `#789AAF` / `#B99B85`；Projects 保持既有浅蓝色。
+- 每根非零柱显示完整的 `数量 · 占比%`。分母是本图该周期所有人的数量合计，两个周期分别计算，四舍五入后的总和约为 100%；零总量不生成 NaN。
+- 标签优先在柱内右端，短柱放不下时完整伸向右侧，不隐藏、不截断，也不改变数值比例或柱长。当前周期外侧差值接在完整标签之后，避免重叠。
+- 当前周期外侧只显示 `↑ 数量`、`↓ 数量` 或 `No change`；tooltip 保留日期范围、原始数量及增减数量，去除环比百分比。
+- 白主题标签使用清晰深色，黑主题使用浅色。主题切换即时更新柱色和标签，不重查、不重置筛选、布局或柱体动画；`prefers-reduced-motion` 下禁用条形过渡。
+- 只在当前或上一周期出现的人员仍保留，按当前值、上一周期值与既有姓名规则排序。
+
+颜色和图表行为由共享样式与排行组件负责，不为单张卡片增加专属绘制分支。卡片不展示动态 JQL；卡片响应不返回展示用 JQL 字段，真实执行 JQL 与 SQLite 快照匹配继续由后端 owner 保存和使用。
 
 ## 验证与验收
 
 - Core：三个定义生成确定性 fixed/effective JQL；用户 JQL、周期和 `ORDER BY` 组合正确；Customer Wireless labels、resolution、project 排除与互斥归类正确。
 - 统计：三张卡片统一按 creator 展示人员；Wireless 优先；同一 issue 不重复；总数、五线合计和明确未归类计数保持守恒。
+- 周期：四个 current/previous 自然周期边界正确且互不重叠；闰年、跨年、季度切换和周一边界有确定性测试；两条 JQL 除时间条件外完全一致。
 - Web：三个 `card_key` 共用 API、任务和 SQLite owner；账号、卡片和 session 隔离；GET 无远端；Refresh、Reuse、失败、取消、旧任务防覆盖和服务重启行为一致。
 - 兼容：现有 Self-Test 结果口径不变；旧有效快照按 fingerprint 规则恢复；Customer 占位偏好迁入正式卡片 scope，不产生第二份 owner。
 - 前端：Jira 页面三卡片与 Dashboard 三种引用均使用共享组件；周期、轮询、首帧缓存、账号切换、空结果和错误呈现一致。
+- 对比图：所有指标和卡片共用等宽并列横条；当前/上一周期数值、日期、各周期内部占比及外侧数量差一致；仅当前人员、仅上期人员、上期为零、持平和减少均正确呈现。
 - 质量：删除专属分支、占位和重复封装；无临时诊断、废弃路径和未使用样式；后端、Core、前端完整相关测试、lint、build 与 `git diff --check` 通过。
 
 ## 非目标
@@ -120,42 +150,3 @@ Dashboard 可分别引用三张卡片，引用的仍是同一组件实例类型�
 - 不修改 Jira 原生数据、创建 Issue 或写回字段。
 - 不为 Dashboard 增加独立 Apply、Refresh 或远端查询入口。
 - 不新增第三方依赖，不改变认证与凭据生命周期。
-
-## 实施检查清单
-
-> 执行者必须按 TDD 顺序完成每项：先增加会失败的行为测试，确认失败原因属于缺失能力，再实现最小通用机制并运行相关回归。不得为单张卡片保留专属旁路。
-
-### 1. Core 通用卡片定义与查询 owner
-
-- [ ] 在 `core/jira/services/` 建立声明式卡片定义和唯一统计 owner，公开按 `card_key` 解析定义、生成 fixed/effective JQL、执行查询及聚合的稳定接口；Self-Test、Task、Customer Feedback 只注册数据，不创建子类或专属 service。
-- [ ] 先在 Core 既有测试目录补充三个定义的 JQL 测试：周期与用户条件正确求交、`ORDER BY` 保留、Task 的五 Group 边界、Customer 的 Channel/labels/resolution/project 条件，以及普通产品线显式排除 Wireless labels。
-- [ ] 增加统计行为测试：Wireless 优先、Customer 重叠项只计 Wireless、人员与产品线总数守恒、未归类项保留、Self-Test 现有 payload 不变。
-- [ ] 迁移 `core/jira/services/team_bug_service.py` 的共用能力；删除被通用 owner 替代的 Self-Test 包装、重复 fingerprint/JQL/聚合实现，保留 Group 与产品线常量的单一 owner。
-- [ ] 运行 Core 相关测试并记录生产代码新增、删除和净变化；不得用薄包装抵消删除量。
-
-### 2. Web API、异步任务与 SQLite 快照统一
-
-- [ ] 扩展 `web/backend/tests/test_jira_analytics_api.py`、`test_jira_card_replay.py`、`test_jira_analytics_service.py` 和 `test_jira_analytics_repository.py`，先覆盖三个 `card_key` 共用 API、账号加卡片隔离、GET 不访问远端、Refresh/Reuse、失败取消不覆盖旧结果、definition fingerprint 失配返回 `no_snapshot`。
-- [ ] 将 `web/backend/smarttest_web/jira_api.py` 的单卡 allowlist、`card_key == "self-test"` 分支和专属 builder 注入替换为注册表解析；未知 key 继续明确拒绝。
-- [ ] 复用 `analytics_service.py`、`analytics_tasks.py`、`analytics_repository.py` 现有通用 owner，仅补齐定义驱动所需接口；禁止新增第二套任务 registry、缓存或 repository。
-- [ ] 清除迁移后的旧 import、废弃函数、兼容 fallback 和重复 snapshot scope，运行后端相关测试并验证现有 Self-Test 数据口径。
-
-### 3. Jira 页面共享前端组件
-
-- [ ] 在 `web/frontend/tests/jira-team-bug-widget.test.js` 先增加参数化组件测试：三个 key 的标题与首项指标、独立周期/展示缓存 scope、共用轮询与图表路径、Customer 不再渲染占位内容。
-- [ ] 将 `web/frontend/src/widgets/jira-team-bugs.js` 的 Self-Test 固定缓存键、标题和指标改为 `card_key` 驱动的不可变元数据；不得复制组件或引入每卡片条件分支。
-- [ ] 更新 Jira 页面入口（以现有 `jira-main.js` 实际 owner 为准）声明挂载 Self-Test、Task、Customer Feedback 三张共享组件，删除 `createJiraCustomerPlaceholder` 及其未使用样式和状态。
-- [ ] 运行前端组件与 Jira 页面测试，确认账号切换、注销、空结果、错误与滚动高度仍走既有共享机制。
-
-### 4. Dashboard 声明式引用
-
-- [ ] 在 `web/frontend/tests/dashboard.test.js`、`dashboard-main.test.js` 和 `dashboard-session-lifecycle.test.js` 先增加三种 Jira 卡片引用测试，证明 Dashboard 只传 `card_key`，不复制模板、查询或状态 owner。
-- [ ] 更新 `web/frontend/src/dashboard/widget-registry.js` 及现有 Dashboard 挂载入口，为三张卡片注册同一组件类型；保留每张卡片独立的偏好 key 和 SQLite `card_key`。
-- [ ] 删除 Dashboard 中任何 Self-Test 专属高度、缓存、轮询或数据适配分支，运行 Dashboard 相关回归测试。
-
-### 5. 完整验收与清理
-
-- [ ] 运行 Core、Web 后端和前端全部相关测试、前端 lint/build 及 `git diff --check`；不得弱化既有断言。
-- [ ] 使用源代码运行环境验证 Jira 页面三张卡片和 Dashboard 三种引用：Self-Test 行为不变，Task 可刷新并按五线展示，Customer 普通线与 Wireless 互斥，GET 重进只重放 SQLite。
-- [ ] 检查 scoped diff，删除临时诊断、废弃路径、重复测试和实现形状断言；确认无 `outputs/` 或其他用户文件进入提交。
-- [ ] 报告 Functional Acceptance、Code Quality、生产代码增删净值和仍存在的外部环境限制；只有两项均 PASS 才进入 Coco 功能确认与最终提交。

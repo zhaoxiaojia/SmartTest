@@ -17,12 +17,12 @@ it.each(['changing', 'ready'])('shared authenticated page ignores old bootstrap 
     const currentPage = document.querySelector('[aria-label="Jira issue filter"]')
     if (eventName === 'ready') {
       expect(currentPage).not.toBeNull()
-      const widget = document.querySelector('[data-page-widget="jira-team-bugs"]')
+      const widget = document.querySelector('[data-page-widget="jira-self-test"]')
       expect(widget).not.toBeNull()
-      expect(widget.querySelector('strong').textContent).toBe('Product Lines Self Test Jiras Statistics')
-      const customer = document.querySelector('[data-page-widget="jira-customer-statistics"]')
-      expect(customer.querySelector('strong').textContent).toBe('Product Lines Customer Jiras Statistics')
-      expect(customer.querySelector('[data-customer-body]').textContent).toBe('WeeklyMonthlyQuarterlyYearly')
+      expect(widget.querySelector('strong').textContent).toBe('Self-Test Jira Statistics by Product Line')
+      const customer = document.querySelector('[data-page-widget="jira-customer-feedback"]')
+      expect(customer.querySelector('strong').textContent).toBe('Customer Feedback Jira Statistics by Product Line')
+      expect(customer.querySelector('[data-widget-body]').textContent).toContain('WeeklyMonthlyQuarterlyYearly')
       expect(customer.compareDocumentPosition(currentPage) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
       expect(widget.compareDocumentPosition(currentPage) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
       currentPage.querySelector('[name="containsText"]').value = 'Bob current edit'

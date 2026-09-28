@@ -1,7 +1,8 @@
 const PREFIXES = Object.freeze({
   projects: 'smarttest:projects-display:',
-  jiraSelfTest: 'smarttest:jira-self-test-display:',
+  jiraStatistics: 'smarttest:jira-statistics-display:',
 })
+const CLEAR_PREFIXES = Object.freeze([...Object.values(PREFIXES), 'smarttest:jira-self-test-display:'])
 
 export function createDisposableDisplayCache(scope, account, cardKey = '') {
   const key = account ? `${PREFIXES[scope]}${encodeURIComponent(String(account).trim().toLocaleLowerCase())}${cardKey ? `:${encodeURIComponent(cardKey)}` : ''}` : ''
@@ -14,6 +15,6 @@ export function createDisposableDisplayCache(scope, account, cardKey = '') {
 export function clearDisposableDisplayState() {
   for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
     const key = sessionStorage.key(index)
-    if (Object.values(PREFIXES).some(prefix => key?.startsWith(prefix))) sessionStorage.removeItem(key)
+    if (CLEAR_PREFIXES.some(prefix => key?.startsWith(prefix))) sessionStorage.removeItem(key)
   }
 }

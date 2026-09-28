@@ -1,3 +1,5 @@
+import json
+
 from smarttest_web.audit.email_history import AuditEmailHistory
 from smarttest_web.confluence.project_repository import ConfluenceProjectRepository
 from smarttest_web.database import WebDatabase
@@ -85,3 +87,52 @@ def test_owner_construction_executes_no_schema_ddl(tmp_path) -> None:
     with database.connect() as connection:
         after = connection.execute("PRAGMA schema_version").fetchone()[0]
     assert after == before
+
+
+def test_customer_placeholder_period_migrates_to_the_registered_card_scope(tmp_path) -> None:
+    database = WebDatabase(tmp_path / "customer-period.db")
+    initialize_web_schema(database)
+    with database.transaction() as connection:
+        connection.execute(
+            "INSERT INTO user_preferences VALUES(?,?,?,?,?,?)",
+            ("coco", "jira/cards/customer", "period", '"quarter"', 1, 1),
+        )
+
+    initialize_web_schema(database)
+
+    with database.connect() as connection:
+        rows = connection.execute(
+            "SELECT scope,value_json FROM user_preferences WHERE username='coco'"
+        ).fetchall()
+    assert rows == [("jira/cards/customer-feedback", '"quarter"')]
+
+
+def test_legacy_dashboard_jira_cards_migrate_without_changing_layout_or_other_config(tmp_path) -> None:
+    database = WebDatabase(tmp_path / "dashboard-layout.db")
+    initialize_web_schema(database)
+    layout = [
+        {"id": "self", "type": "jira-team-bugs", "x": 1, "y": 2, "w": 20, "h": 9,
+         "config": {"color": "blue"}, "unrelated": "keep"},
+        {"id": "role", "type": "role-workload", "x": 0, "y": 11, "w": 24, "h": 8,
+         "config": {"mode": "major"}},
+        {"id": "customer", "type": "jira-customer-statistics", "x": 2, "y": 20, "w": 22, "h": 7,
+         "config": {"period": "quarter"}},
+    ]
+    with database.transaction() as connection:
+        connection.execute(
+            "INSERT INTO user_preferences VALUES(?,?,?,?,?,?)",
+            ("coco", "dashboard/layout", "layout", json.dumps(layout), 1, 1),
+        )
+
+    initialize_web_schema(database)
+
+    with database.connect() as connection:
+        migrated = json.loads(connection.execute(
+            "SELECT value_json FROM user_preferences WHERE username='coco' AND scope='dashboard/layout' AND key='layout'"
+        ).fetchone()[0])
+    assert migrated == [
+        {**layout[0], "type": "jira-statistics-self-test", "config": {"color": "blue", "cardKey": "self-test"}},
+        layout[1],
+        {**layout[2], "type": "jira-statistics-customer-feedback",
+         "config": {"period": "quarter", "cardKey": "customer-feedback"}},
+    ]

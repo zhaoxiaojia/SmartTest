@@ -1,8 +1,36 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+import json
 
 from .database import WebDatabase
+
+
+_DASHBOARD_JIRA_TYPE_MIGRATIONS = {
+    "jira-team-bugs": ("jira-statistics-self-test", "self-test"),
+    "jira-customer-statistics": ("jira-statistics-customer-feedback", "customer-feedback"),
+}
+
+
+def _migrate_dashboard_jira_cards(connection) -> None:
+    rows = connection.execute(
+        "SELECT username,value_json FROM user_preferences WHERE scope='dashboard/layout' AND key='layout'"
+    ).fetchall()
+    for username, value_json in rows:
+        layout = json.loads(value_json)
+        changed = False
+        for item in layout if isinstance(layout, list) else ():
+            replacement = _DASHBOARD_JIRA_TYPE_MIGRATIONS.get(item.get("type")) if isinstance(item, dict) else None
+            if not replacement:
+                continue
+            item["type"], card_key = replacement
+            item["config"] = {**(item.get("config") if isinstance(item.get("config"), dict) else {}), "cardKey": card_key}
+            changed = True
+        if changed:
+            connection.execute(
+                "UPDATE user_preferences SET value_json=? WHERE username=? AND scope='dashboard/layout' AND key='layout'",
+                (json.dumps(layout, ensure_ascii=False, separators=(",", ":")), username),
+            )
 
 
 def ensure_component_schema(
@@ -122,6 +150,13 @@ def initialize_web_schema(database: WebDatabase) -> None:
             connection.execute("ALTER TABLE web_query_snapshots ADD COLUMN release_names_json TEXT NOT NULL DEFAULT '[]'")
         if "jira_cache_version" not in snapshot_columns:
             connection.execute("ALTER TABLE web_query_snapshots ADD COLUMN jira_cache_version TEXT NOT NULL DEFAULT ''")
+        connection.execute("""
+            INSERT OR IGNORE INTO user_preferences(username,scope,key,value_json,schema_version,updated_at)
+            SELECT username,'jira/cards/customer-feedback',key,value_json,schema_version,updated_at
+            FROM user_preferences WHERE scope='jira/cards/customer'
+        """)
+        connection.execute("DELETE FROM user_preferences WHERE scope='jira/cards/customer'")
+        _migrate_dashboard_jira_cards(connection)
         connection.execute("PRAGMA user_version=3")
     initialize_current_cache_schema(database)
     from .confluence.project_repository import upgrade_cached_project_names

@@ -7,6 +7,13 @@ from fastapi import Body, Depends, HTTPException, Request
 
 from core.jira.domain import IssueDetails
 from core.jira.mapper import JiraIssueMapper
+from core.jira.services.jql_statistics_cards import (
+    JIRA_STATISTICS_CARDS,
+    build_comparison_statistics,
+    card_definition,
+    effective_card_jql_pair,
+)
+from core.jira.services.filter_service import compose_jql, jira_period_ranges
 
 from .audit.registry import AuditConflictError
 from .audit_http import (
@@ -87,29 +94,22 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
             filters, gateway = jira_filter_owner(value.username, value.password)
         except Exception as error:
             raise HTTPException(status_code=503, detail={"state": "analytics_unavailable"}) from error
-        fixed_conditions = ""
-        roster_fingerprint = ""
-        statistics_builder = None
-        if card_key == "self-test":
-            from core.jira.services.team_bug_service import (
-                FAE_QA_MAPPING_FINGERPRINT,
-                aggregate_team_bugs,
-                creator_accounts,
-                load_fae_qa_roster,
-                self_test_jira_conditions,
-            )
-            fixed_conditions = self_test_jira_conditions(jira_card_period(value, card_key))
-            roster_fingerprint = FAE_QA_MAPPING_FINGERPRINT
-            statistics_builder = lambda rows: aggregate_team_bugs(
-                rows, load_fae_qa_roster(gateway, creator_accounts(rows)),
-            ).to_payload()
+        definition = card_definition(card_key) if card_key else None
+        period = jira_card_period(value, card_key) if definition else None
+        ranges = jira_period_ranges(period) if period else None
+        current_fixed = definition.fixed_jql(period) if definition else ""
+        previous_fixed = (current_fixed.replace(str(ranges["current"]["condition"]),
+                                                str(ranges["previous"]["condition"])) if definition else "")
         return JiraAnalyticsService(
             filters, gateway, JiraIssueMapper(gateway.config.base_url if hasattr(gateway, "config") else ""),
             jira_analytics, JIRA_ANALYTICS_TASKS,
-            fixed_conditions=fixed_conditions,
+            fixed_conditions=current_fixed,
+            comparison_conditions=previous_fixed,
             card_key=card_key,
-            roster_fingerprint=roster_fingerprint,
-            statistics_builder=statistics_builder,
+            roster_fingerprint=f"{definition.fingerprint}:natural-period-comparison-v1" if definition else "",
+            statistics_builder=(lambda current, previous: build_comparison_statistics(
+                definition, gateway, current, previous, ranges,
+            )) if definition else None,
             on_error=lambda error: invalidate_analytics_credentials(value, error),
         )
 
@@ -119,7 +119,7 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
             sessions.invalidate_credentials(value.username)
 
     def require_jira_card(card_key):
-        if card_key != "self-test":
+        if card_key not in JIRA_STATISTICS_CARDS:
             raise HTTPException(status_code=404, detail={"state": "card_not_found"})
 
     def jira_card_period(value, card_key):
@@ -140,6 +140,10 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
                 query = jira_analytics.state(session_hash, account, card_key=card_key)
         return query, task
 
+    def card_query_payload(query):
+        return {key: value for key, value in query.items()
+                if key not in {"activeJql", "activeComparisonJql", "userJql"}}
+
     @router.get("/api/jira/analytics/state")
     def jira_analytics_state(request: Request, value=Depends(authenticated_session)):
         conditions = jira_analytics.published_conditions(audit_session(request), value.username)
@@ -148,20 +152,20 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
     @router.get("/api/jira/cards/{card_key}/statistics")
     def jira_analytics_statistics(card_key: str, request: Request, value=Depends(authenticated_session)):
         require_jira_card(card_key)
-        from core.jira.services.team_bug_service import self_test_jira_conditions
-        from core.jira.services.filter_service import compose_jql
         session_hash = audit_session(request)
         query, task = analytics_query_state(session_hash, value.username, card_key)
         period = jira_card_period(value, card_key)
         summary = jira_analytics.statistics_summary(session_hash, value.username, card_key=card_key)
+        expected = effective_card_jql_pair(card_key, query["userJql"] or "", period)
         active_matches = bool(query["activeSnapshotId"] and query["userJql"] is not None and summary is not None
-                              and query["activeJql"] == compose_jql(query["userJql"], self_test_jira_conditions(period)))
+                              and query["activeJql"] == expected["current"]["jql"]
+                              and query["activeComparisonJql"] == expected["previous"]["jql"])
         state = ("loading" if query["pendingSnapshotId"] else query["latestState"]
                  if query["latestState"] in {"failed", "cancelled"} else "ready"
                  if active_matches else "no_snapshot")
         payload = {"state": state, "period": period}
         if query["activeSnapshotId"] or query["pendingSnapshotId"] or query["latestState"]:
-            payload["query"] = query
+            payload["query"] = card_query_payload(query)
         if state == "loading":
             payload["task"] = task
         if state in {"failed", "cancelled"}:
@@ -231,15 +235,18 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
             if not isinstance(payload["period"], str) or payload["period"] not in JIRA_PERIODS:
                 raise HTTPException(status_code=422, detail={"state": "invalid_jira_period"})
             sessions.upsert_preferences(value.username, f"jira/cards/{card_key}", {"period": payload["period"]}, 1)
+        period = jira_card_period(value, card_key)
         conditions = jira_analytics.published_conditions(audit_session(request), value.username)
         if conditions is None:
-            return {"state": "no_snapshot", "period": jira_card_period(value, card_key)}
+            return {"state": "no_snapshot", "period": period}
         service = resolve_jira_analytics(value, card_key=card_key)
+        published_user_jql = str(conditions.get("userJql") or "")
+        composed_jql = compose_jql(published_user_jql, service.fixed_conditions)
+        comparison_jql = compose_jql(published_user_jql, service.comparison_conditions)
         if intent == "reuse":
-            from core.jira.services.filter_service import compose_jql
             if "userJql" in conditions:
-                effective = compose_jql(conditions["userJql"], service.fixed_conditions)
-                if jira_analytics.reuse(audit_session(request), value.username, effective,
+                if jira_analytics.reuse(audit_session(request), value.username, composed_jql,
+                                        comparison_jql=comparison_jql,
                                         card_key=card_key, roster_fingerprint=service.roster_fingerprint):
                     return jira_analytics_statistics(card_key, request, value)
         try:
@@ -260,7 +267,7 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
         task = JIRA_ANALYTICS_TASKS.status(audit_session(request), task_id, card_key=card_key)
         if task is None:
             raise HTTPException(status_code=404, detail={"state": "not_found"})
-        return {**task, "query": analytics_query_state(audit_session(request), value.username, card_key)[0]}
+        return {**task, "query": card_query_payload(analytics_query_state(audit_session(request), value.username, card_key)[0])}
 
     @router.delete("/api/jira/cards/{card_key}/tasks/{task_id}")
     def cancel_jira_analytics_task(card_key: str, task_id: str, request: Request, value=Depends(authenticated_session)):

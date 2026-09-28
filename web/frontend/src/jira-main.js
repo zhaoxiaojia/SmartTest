@@ -1,20 +1,23 @@
 import { Chart, registerables } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
-import { createJiraAnalyticsApi, createJiraTeamBugApi } from './api.js'
+import { createJiraAnalyticsApi, createJiraStatisticsCardApi } from './api.js'
 import { startAuthenticatedPage } from './authenticated-page.js'
 import { createJiraFilterBuilder } from './jira-filter-builder.js'
-import { createJiraTeamBugWidget, createJiraCustomerPlaceholder, JIRA_SELF_TEST_TITLE, JIRA_CUSTOMER_TITLE } from './widgets/jira-team-bugs.js'
+import { createJiraStatisticsCard, JIRA_STATISTICS_CARDS } from './widgets/jira-statistics-card.js'
 
 const api = createJiraAnalyticsApi()
-const teamBugApi = createJiraTeamBugApi({ cardKey: 'self-test' })
+const cards = Object.entries(JIRA_STATISTICS_CARDS).map(([cardKey, metadata]) => ({
+  cardKey, metadata, api: createJiraStatisticsCardApi({ cardKey }),
+}))
 Chart.register(...registerables, ChartDataLabels)
 
 startAuthenticatedPage({ mount: (root, session) => {
-  root.innerHTML = `<div data-page-primary></div><section class="card page-ranking-widget" data-page-widget="jira-team-bugs"><header class="dashboard-widget-head"><strong>${JIRA_SELF_TEST_TITLE}</strong></header><div data-widget-body></div></section><section class="card page-ranking-widget" data-page-widget="jira-customer-statistics"><header class="dashboard-widget-head"><strong>${JIRA_CUSTOMER_TITLE}</strong></header><div data-widget-body data-customer-body></div></section>`
-  const overview = createJiraTeamBugWidget({ chartFactory: (canvas, config) => new Chart(canvas, config) })
-  const filter = createJiraFilterBuilder({ root: root.querySelector('[data-page-primary]'), api, account: session.username, onApplied: () => overview.update({ query: true }) })
-  overview.mount(root.querySelector('[data-widget-body]'), { api: teamBugApi, account: session.username })
-  const customer = createJiraCustomerPlaceholder()
-  customer.mount(root.querySelector('[data-customer-body]'))
-  return { start: () => filter.start(), destroy() { overview.destroy(); customer.destroy(); filter.destroy() } }
+  root.innerHTML = `<div data-page-primary></div>${cards.map(({ cardKey, metadata }) => `<section class="card page-ranking-widget" data-page-widget="jira-${cardKey}"><header class="dashboard-widget-head"><strong>${metadata.title}</strong></header><div data-widget-body="${cardKey}"></div></section>`).join('')}`
+  const widgets = cards.map(({ cardKey, api: cardApi }) => {
+    const widget = createJiraStatisticsCard({ chartFactory: (canvas, config) => new Chart(canvas, config) })
+    widget.mount(root.querySelector(`[data-widget-body="${cardKey}"]`), { api: cardApi, account: session.username, cardKey })
+    return widget
+  })
+  const filter = createJiraFilterBuilder({ root: root.querySelector('[data-page-primary]'), api, account: session.username, onApplied: () => widgets.forEach(widget => widget.update({ query: true })) })
+  return { start: () => filter.start(), destroy() { widgets.forEach(widget => widget.destroy()); filter.destroy() } }
 } })

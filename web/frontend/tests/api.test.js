@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createAuthApi, createJiraAnalyticsApi, createJiraFilterApi, createJiraTeamBugApi, createManualAuditApi, createPreferenceApi, createProjectFactsApi, createReleaseApi, createWifiDatabaseApi } from '../src/api.js'
+import { createAuthApi, createJiraAnalyticsApi, createJiraFilterApi, createJiraStatisticsCardApi, createManualAuditApi, createPreferenceApi, createProjectFactsApi, createReleaseApi, createWifiDatabaseApi } from '../src/api.js'
 
 describe('Jira team bug API contract', () => {
   it('reads the account overview without sending filter state', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ state: 'ready' }) })
-    await createJiraTeamBugApi({ fetchImpl }).getTeamBugOverview()
+    await createJiraStatisticsCardApi({ fetchImpl }).getStatistics()
     expect(fetchImpl).toHaveBeenCalledWith('/api/jira/cards/self-test/statistics', { credentials: 'same-origin' })
   })
 })
@@ -115,8 +115,8 @@ describe('Jira Analytics filter API contract', () => {
     const api = createJiraAnalyticsApi({ fetchImpl })
     await api.getJiraAnalyticsFields(); await api.getJiraAnalyticsSuggestions('assignee', 'co'); await api.getJiraAnalyticsSavedFilters()
     await api.searchJiraAnalytics({ mode: 'advanced', jql: 'project = SH' })
-    const card = createJiraTeamBugApi({ fetchImpl, cardKey: 'self-test' })
-    await card.queryTeamBugOverview(); await card.getTeamBugOverview()
+    const card = createJiraStatisticsCardApi({ fetchImpl, cardKey: 'self-test' })
+    await card.queryStatistics(); await card.getStatistics()
     expect(JSON.parse(fetchImpl.mock.calls[4][1].body)).toEqual({ intent: 'refresh' })
     expect(fetchImpl.mock.calls.map(call => call[0])).toEqual([
       '/api/jira/analytics/fields', '/api/jira/analytics/suggestions?fieldName=assignee&query=co', '/api/jira/analytics/saved-filters',

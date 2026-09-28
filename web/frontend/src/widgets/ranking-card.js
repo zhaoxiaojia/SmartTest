@@ -1,10 +1,17 @@
 import './ranking-card.css'
 import { element } from '../dom.js'
+import { toFont } from 'chart.js/helpers'
 
 export function createRankingCard({ chartFactory } = {}) {
   let root, chart, config
   let activeProductLine = ''
   let activeMode = ''
+  const themeObserver = new MutationObserver(() => {
+    if (chart) {
+      applyPalette(chart.data.datasets)
+      chart.update('none')
+    }
+  })
   const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
     if (root) positionModeBackground(root.querySelector('[data-mode-segments]'))
   }) : null
@@ -45,6 +52,14 @@ export function createRankingCard({ chartFactory } = {}) {
     target.style.setProperty('--segment-width', `${selected.offsetWidth}px`)
   }
 
+  function applyPalette(datasets) {
+    if (config.palette !== 'jira') return
+    const styles = getComputedStyle(root)
+    // Indexable colors avoid Chart.js retaining shared bar options on update('none').
+    datasets[0].backgroundColor = [styles.getPropertyValue('--jira-current-bar').trim()]
+    if (datasets[1]) datasets[1].backgroundColor = [styles.getPropertyValue('--jira-previous-bar').trim()]
+  }
+
   function render() {
     const products = config.productLines ?? []
     const modes = config.modes ?? []
@@ -57,11 +72,15 @@ export function createRankingCard({ chartFactory } = {}) {
 
   function renderChart() {
     const rows = (config.rowsFor?.(activeProductLine, activeMode) ?? [])
-      .filter(row => row.count)
-      .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+      .filter(row => row.count || row.previousCount)
+      .sort((left, right) => right.count - left.count
+        || Number(right.previousCount || 0) - Number(left.previousCount || 0)
+        || left.name.localeCompare(right.name))
     const total = rows.reduce((sum, row) => sum + row.count, 0)
+    const previousTotal = rows.reduce((sum, row) => sum + (row.previousCount || 0), 0)
     const surface = root.querySelector('.workload-chart-surface')
-    surface.style.height = `${rows.length * 36 + 36}px`
+    const comparison = rows.some(row => Object.hasOwn(row, 'previousCount'))
+    surface.style.height = `${rows.length * (comparison ? 52 : 36) + (comparison ? 40 : 36)}px`
     const empty = root.querySelector('[data-ranked-empty]')
     empty.hidden = Boolean(rows.length)
     empty.textContent = config.error || config.emptyText || 'No data in this product line.'
@@ -73,8 +92,36 @@ export function createRankingCard({ chartFactory } = {}) {
       return
     }
     const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const comparisonText = (current, previous) => {
+      const difference = current - previous
+      if (difference === 0) return 'No change'
+      return `${difference > 0 ? '↑' : '↓'} ${Math.abs(difference)}`
+    }
+    const rangeText = period => period ? `${period.start} – ${period.end ?? 'now'}` : ''
+    const quantityLabel = (value, context) => {
+      if (!value) return null
+      const periodTotal = context?.datasetIndex === 1 ? previousTotal : total
+      return `${value} · ${periodTotal ? Math.round(value / periodTotal * 100) : 0}%`
+    }
+    const overflowLabelWidth = context => {
+      const value = context.dataset.data[context.dataIndex]
+      const text = quantityLabel(value, context)
+      if (!text) return 0
+      const { ctx, scales, options } = context.chart
+      ctx.save()
+      ctx.font = toFont(options.font).string
+      const width = ctx.measureText(text).width + 8
+      ctx.restore()
+      const barWidth = Math.abs(scales.x.getPixelForValue(value) - scales.x.getPixelForValue(0))
+      return barWidth < width + 4 ? width : 0
+    }
+    const datasets = [{ label: config.datasetLabel || '', data: rows.map(row => row.count),
+      grouped: comparison, barThickness: comparison ? 12 : undefined, order: 1 }]
+    if (comparison) datasets.push({ label: config.comparisonLabel || 'Previous', data: rows.map(row => row.previousCount),
+      grouped: true, barThickness: 12, order: 2 })
+    applyPalette(datasets)
     const next = {
-      type: 'bar', data: { labels: rows.map(row => row.name), datasets: [{ label: config.datasetLabel || '', data: rows.map(row => row.count) }] },
+      type: 'bar', data: { labels: rows.map(row => row.name), datasets },
       options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
         animation: reducedMotion ? false : { duration: 500, easing: 'easeOutQuart',
           delay: context => context.type === 'data' ? Math.min(context.dataIndex * 40, 400) : 0 },
@@ -86,9 +133,24 @@ export function createRankingCard({ chartFactory } = {}) {
           x: { beginAtZero: true, ticks: { precision: 0 } },
           y: { ticks: { autoSkip: false } },
         },
-        plugins: { legend: { display: false }, datalabels: { labels: {
-          percentage: { anchor: 'end', align: 'left', offset: 4, color: '#fff', formatter: value => `${Math.round(value / total * 100)}%` },
-          value: { anchor: 'end', align: 'right', offset: 4, clip: false, formatter: value => value },
+        plugins: { legend: { display: comparison, labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8 } }, tooltip: { callbacks: {
+          afterBody: items => {
+            if (!comparison || !items?.length) return ''
+            const row = rows[items[0].dataIndex]
+            return `Current: ${rangeText(config.ranges?.current)} · ${row.count}\nPrevious: ${rangeText(config.ranges?.previous)} · ${row.previousCount}\nChange: ${comparisonText(row.count, row.previousCount)}`
+          },
+        } }, datalabels: {
+          color: () => getComputedStyle(root).getPropertyValue('--text-primary').trim(),
+          font: context => context.chart.options.font,
+          labels: {
+          percentage: { anchor: 'end', align: context => overflowLabelWidth(context) ? 'right' : 'left',
+            offset: 4, clip: false, formatter: quantityLabel },
+          value: { anchor: 'end', align: 'right', offset: context => {
+            const width = overflowLabelWidth(context)
+            return width ? width + 12 : 4
+          }, clip: false,
+            formatter: (value, context) => comparison && context.datasetIndex === 0
+              ? comparisonText(value, rows[context.dataIndex].previousCount) : null },
         } } } },
     }
     if (!chart) {
@@ -114,9 +176,10 @@ export function createRankingCard({ chartFactory } = {}) {
       root = target; config = value
       root.innerHTML = `<div class="segmented-ranking"><header class="report-preview-toolbar"><div class="workload-heading">${config.headingHtml || ''}<div class="product-line-segments" data-product-line-segments></div></div><div class="role-segments" data-mode-segments></div></header><div class="workload-chart-scroll"><div class="workload-chart-surface"><canvas data-ranked-chart></canvas><div class="product-space-empty" data-ranked-empty data-workload-empty hidden></div></div></div></div>`
       render()
+      themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
       resizeObserver?.observe(root.querySelector('[data-mode-segments]'))
     },
     update(value) { config = value; if (root) render() },
-    destroy() { resizeObserver?.disconnect(); chart?.destroy(); chart = null; root?.replaceChildren(); root = null },
+    destroy() { themeObserver.disconnect(); resizeObserver?.disconnect(); chart?.destroy(); chart = null; root?.replaceChildren(); root = null },
   }
 }

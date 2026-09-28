@@ -17,13 +17,13 @@ JIRA_STATEMENTS = (
         jql TEXT NOT NULL, basic_json TEXT NOT NULL, source_filter_id TEXT NOT NULL DEFAULT '',
         state TEXT NOT NULL, error TEXT NOT NULL DEFAULT '', created_at REAL NOT NULL, user_jql TEXT,
         card_key TEXT NOT NULL DEFAULT '', statistics_json TEXT,
-        roster_fingerprint TEXT NOT NULL DEFAULT '',
+        roster_fingerprint TEXT NOT NULL DEFAULT '', comparison_jql TEXT NOT NULL DEFAULT '',
         FOREIGN KEY(session_hash) REFERENCES jira_analytics_queries(session_hash) ON DELETE CASCADE
     )""",
     """CREATE TABLE IF NOT EXISTS jira_analytics_snapshot_issues (
         snapshot_id TEXT NOT NULL REFERENCES jira_analytics_snapshots(snapshot_id) ON DELETE CASCADE,
         issue_id TEXT NOT NULL REFERENCES jira_issues(issue_id) ON DELETE CASCADE,
-        ordinal INTEGER NOT NULL, PRIMARY KEY(snapshot_id,issue_id)
+        ordinal INTEGER NOT NULL, period_kind TEXT NOT NULL DEFAULT 'current', PRIMARY KEY(snapshot_id,issue_id,period_kind)
     )""",
     """CREATE TABLE IF NOT EXISTS jira_issues (
         issue_id TEXT PRIMARY KEY, issue_key TEXT NOT NULL UNIQUE,
@@ -127,6 +127,11 @@ def initialize_jira_schema(database: WebDatabase) -> None:
         for column, definition in (("statistics_json", "TEXT"), ("roster_fingerprint", "TEXT NOT NULL DEFAULT ''")):
             if column not in analytics_columns:
                 connection.execute(f"ALTER TABLE jira_analytics_snapshots ADD COLUMN {column} {definition}")
+        if "comparison_jql" not in analytics_columns:
+            connection.execute("ALTER TABLE jira_analytics_snapshots ADD COLUMN comparison_jql TEXT NOT NULL DEFAULT ''")
+        membership_columns = {row[1] for row in connection.execute("PRAGMA table_info(jira_analytics_snapshot_issues)")}
+        if "period_kind" not in membership_columns:
+            connection.execute("ALTER TABLE jira_analytics_snapshot_issues ADD COLUMN period_kind TEXT NOT NULL DEFAULT 'current'")
         query_columns = {row[1] for row in connection.execute("PRAGMA table_info(jira_analytics_queries)")}
         if "card_key" not in query_columns:
             connection.execute("ALTER TABLE jira_analytics_queries ADD COLUMN card_key TEXT NOT NULL DEFAULT ''")

@@ -166,3 +166,51 @@ def test_remote_pagination_progress_is_published_before_sqlite_writes():
     service.search("s", "alice", 100, {"mode": "advanced", "jql": "project = A"})
     tasks.runner(type("Token", (), {"raise_if_cancelled": lambda self: None})(), lambda *args: events.append(args))
     assert events == [(1, 2)]
+
+
+def test_card_search_fetches_both_periods_and_activates_one_combined_result():
+    repo, tasks = Repo(), Tasks()
+    class PairGateway:
+        def __init__(self): self.queries = []
+        def search_all_payloads(self, jql, *, progress=None):
+            self.queries.append(jql)
+            return [{"id": str(len(self.queries)), "key": f"SH-{len(self.queries)}",
+                     "fields": {"summary": "One", "project": {}, "status": {}, "issuetype": {}}}]
+    gateway = PairGateway()
+    service = JiraAnalyticsService(
+        Filter(), gateway, Mapper(), repo, tasks,
+        fixed_conditions='created >= "2026-09-01" AND created <= now()',
+        comparison_conditions='created >= "2026-08-01" AND created < "2026-09-01"',
+        statistics_builder=lambda current, previous: {"currentTotal": len(current), "previousTotal": len(previous)},
+    )
+
+    service.search("s", "alice", 100, {"mode": "advanced", "jql": "project = SH"})
+    tasks.runner(type("Token", (), {"raise_if_cancelled": lambda self: None})(), lambda *_: None)
+
+    assert gateway.queries == [
+        '(project = SH) AND (created >= "2026-09-01" AND created <= now())',
+        '(project = SH) AND (created >= "2026-08-01" AND created < "2026-09-01")',
+    ]
+    assert repo.calls[0][2]["comparison_jql"] == gateway.queries[1]
+    assert [call[1][2] for call in repo.calls if call[0] == "write"] == ["current", "previous"]
+    assert repo.calls[-1] == ("activate", ("snapshot", {"currentTotal": 1, "previousTotal": 1}))
+
+
+def test_comparison_search_reports_monotonic_combined_progress_across_both_queries():
+    repo, tasks, events = Repo(), Tasks(), []
+    class ProgressGateway:
+        def __init__(self): self.call = 0
+        def search_all_payloads(self, _jql, *, progress):
+            self.call += 1
+            if self.call == 1:
+                progress(1, 2); progress(2, 2)
+                return [{"id": "1", "key": "A-1", "fields": {}}, {"id": "2", "key": "A-2", "fields": {}}]
+            progress(1, 3); progress(3, 3)
+            return [{"id": str(index), "key": f"B-{index}", "fields": {}} for index in range(3)]
+    service = JiraAnalyticsService(Filter(), ProgressGateway(), Mapper(), repo, tasks,
+                                   fixed_conditions="current", comparison_conditions="previous")
+    service.search("s", "alice", 100, {"mode": "advanced", "jql": "project = SH"})
+
+    tasks.runner(type("Token", (), {"raise_if_cancelled": lambda self: None})(), lambda *value: events.append(value))
+
+    assert events == [(1, 2), (2, 2), (3, 5), (5, 5)]
