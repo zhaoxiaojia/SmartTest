@@ -5,5 +5,7 @@
 `audit` 保留确定性审查与原格式 XLSX，Web 持有当前态缓存和任务适配。
 
 日报通过 `services.issue_service.JiraIssueService` 查询完整轻量结果；不加载旧字段注册表或详情。
+批量外部取数由 `analyze_source.JiraAnalyzeSource` 拥有：按 JQL 调 Jira_Analytics_Web 的 `/api/analyze`
+取回含 verify/comments 的完整 issue；它不新增直连 Jira 的通道。
 独立 Client Jira 页面及其 workspace、自然语言分析和 MCP 链已删除。
 跨 tracker 的中立创建契约仍由 `core.issues` 管理；各消费者直接导入实际 owner，无兼容 re-export。
