@@ -1,25 +1,47 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 import re
 from typing import Any
 
 
 _ORDER_BY = re.compile(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?P<order>\border\s+by\b)''', re.IGNORECASE)
 
-JIRA_PERIOD_CONDITIONS = {
-    "week": 'created >= "-7d" AND created <= now()',
-    "month": 'created >= "-30d" AND created <= now()',
-    "quarter": 'created >= startOfDay("-3M") AND created <= now()',
-}
-JIRA_PERIODS = frozenset((*JIRA_PERIOD_CONDITIONS, "year"))
+JIRA_PERIODS = frozenset(("week", "month", "quarter", "year"))
+
+
+def _shift_month(start: date, months: int) -> date:
+    month_index = start.year * 12 + start.month - 1 + months
+    return date(month_index // 12, month_index % 12 + 1, 1)
+
+
+def jira_period_ranges(period: str, today: date | None = None) -> dict[str, dict[str, str | None]]:
+    current = today or date.today()
+    if period == "week":
+        current_start = current - timedelta(days=current.weekday())
+        previous_start = current_start - timedelta(days=7)
+    elif period == "month":
+        current_start = current.replace(day=1)
+        previous_start = _shift_month(current_start, -1)
+    elif period == "quarter":
+        current_start = date(current.year, ((current.month - 1) // 3) * 3 + 1, 1)
+        previous_start = _shift_month(current_start, -3)
+    elif period == "year":
+        current_start = date(current.year, 1, 1)
+        previous_start = date(current.year - 1, 1, 1)
+    else:
+        raise KeyError(period)
+    current_iso, previous_iso = current_start.isoformat(), previous_start.isoformat()
+    return {
+        "current": {"start": current_iso, "end": None,
+                    "condition": f'created >= "{current_iso}" AND created <= now()'},
+        "previous": {"start": previous_iso, "end": current_iso,
+                     "condition": f'created >= "{previous_iso}" AND created < "{current_iso}"'},
+    }
 
 
 def jira_period_condition(period: str, today: date | None = None) -> str:
-    if period == "year":
-        current = today or date.today()
-        return f'created >= "{current.year}-01-01" AND created <= now()'
-    return JIRA_PERIOD_CONDITIONS[period]
+    return str(jira_period_ranges(period, today)["current"]["condition"])
 
 
 def compose_jql(user_jql: str, fixed_conditions: str) -> str:

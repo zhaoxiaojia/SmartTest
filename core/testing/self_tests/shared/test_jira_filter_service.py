@@ -78,3 +78,37 @@ def test_year_period_starts_on_current_january_first_and_excludes_prior_december
 
     assert condition == 'created >= "2026-01-01" AND created <= now()'
     assert "2025-12-31" not in condition
+
+
+@pytest.mark.parametrize(("today", "quarter_start"), [
+    (date(2026, 1, 1), "2026-01-01"),
+    (date(2026, 4, 30), "2026-04-01"),
+    (date(2026, 9, 24), "2026-07-01"),
+    (date(2026, 12, 31), "2026-10-01"),
+])
+def test_quarter_period_starts_on_the_current_calendar_quarter(today, quarter_start):
+    from core.jira.services.filter_service import jira_period_condition
+
+    assert jira_period_condition("quarter", today) == (
+        f'created >= "{quarter_start}" AND created <= now()'
+    )
+
+
+@pytest.mark.parametrize(("period", "today", "current_start", "previous_start"), [
+    ("week", date(2026, 9, 24), "2026-09-21", "2026-09-14"),
+    ("week", date(2026, 9, 21), "2026-09-21", "2026-09-14"),
+    ("month", date(2026, 3, 1), "2026-03-01", "2026-02-01"),
+    ("quarter", date(2026, 1, 1), "2026-01-01", "2025-10-01"),
+    ("year", date(2024, 2, 29), "2024-01-01", "2023-01-01"),
+])
+def test_natural_period_pair_has_adjacent_left_closed_right_open_ranges(
+    period, today, current_start, previous_start,
+):
+    from core.jira.services.filter_service import jira_period_ranges
+
+    assert jira_period_ranges(period, today) == {
+        "current": {"start": current_start, "end": None,
+                    "condition": f'created >= "{current_start}" AND created <= now()'},
+        "previous": {"start": previous_start, "end": current_start,
+                     "condition": f'created >= "{previous_start}" AND created < "{current_start}"'},
+    }

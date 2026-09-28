@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import pytest
 from core.confluence.audit import previous_business_week
@@ -166,29 +166,33 @@ def test_jql_without_created_comparisons_is_unchanged_including_quoted_text():
     assert jira_input.weekly_audit_jql(query, previous_business_week()) == query
 
 
-@pytest.mark.parametrize('trigger,start,end,jira_end', [
-    (datetime(2026, 9, 18, 18, 0, tzinfo=ZoneInfo('Asia/Shanghai')), '2026-09-14T00:00:00+08:00', '2026-09-19T00:00:00+08:00', '2026-09-18'),
-    (datetime(2026, 9, 16, 9, 30, tzinfo=ZoneInfo('Asia/Shanghai')), '2026-09-14T00:00:00+08:00', '2026-09-19T00:00:00+08:00', '2026-09-18'),
+@pytest.mark.parametrize('trigger,start,end,commercial_years', [
+    (datetime(2026, 9, 18, 18, 0, tzinfo=ZoneInfo('Asia/Shanghai')), '2026-09-11T18:00:00+08:00', '2026-09-18T18:00:00+08:00', ['2025', '2026']),
+    (datetime(2026, 9, 16, 9, 30, tzinfo=ZoneInfo('Asia/Shanghai')), '2026-09-11T18:00:00+08:00', '2026-09-18T18:00:00+08:00', ['2025', '2026']),
+    (datetime(2027, 1, 1, 18, 0, tzinfo=ZoneInfo('Asia/Shanghai')), '2026-12-25T18:00:00+08:00', '2027-01-01T18:00:00+08:00', ['2026', '2027']),
 ])
-def test_fixed_weekly_scope_is_complete_current_monday_through_friday(trigger, start, end, jira_end):
+def test_fixed_weekly_scope_is_continuous_from_last_friday_18_to_this_friday_18(trigger, start, end, commercial_years):
     scope = fixed_weekly_audit_scope(trigger)
     assert scope['startDate'] == start
     assert scope['endDate'] == end
-    assert scope['previousPeriod'] == {'startDate': '2026-09-07T00:00:00+08:00', 'endDate': '2026-09-12T00:00:00+08:00'}
+    previous_start = datetime.fromisoformat(start) - timedelta(days=7)
+    assert scope['previousPeriod'] == {
+        'startDate': previous_start.isoformat(),
+        'endDate': start,
+    }
     assert scope['jira']['jql'] == (
         'project in (IPTV, SH, TV, OTT,RK) AND issuetype in (Bug, Sub-bug) '
-        f'AND created >= {datetime.fromisoformat(start):%Y-%m-%d} '
-        f'AND created <= {jira_end} order by updated DESC'
+        f'AND created >= "{datetime.fromisoformat(start):%Y-%m-%d %H:%M}" '
+        f'AND created < "{datetime.fromisoformat(end):%Y-%m-%d %H:%M}" order by updated DESC'
     )
-    assert f'{trigger.date().isoformat()}T' not in scope['jira']['jql']
     assert '+08:00' not in scope['jira']['jql']
     assert scope['confluence']['filters'] == {
-        'date of commercial approval': ['2025', '2026'],
+        'date of commercial approval': commercial_years,
         'support mode': ['A', 'B'],
         'project status': ['NORMAL'],
     }
     assert scope['confluence']['excludeCurrentStageAtOrAbove'] == 4
-    assert scope['confluence']['excludeSupportModeBProductLines'] == ['Smart Device']
+    assert scope['confluence']['excludeSupportModeBProductLines'] == ['SDPL']
 
 
 def test_confluence_denominator_counts_all_actual_update_point_statuses_by_product_line():

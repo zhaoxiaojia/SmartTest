@@ -52,7 +52,7 @@ class Confluence:
         assert 'projectIds' not in payload
         assert payload['filters']['support mode'] == ['A', 'B']
         assert payload['excludeCurrentStageAtOrAbove'] == 4
-        assert payload['excludeSupportModeBProductLines'] == ['Smart Device']
+        assert payload['excludeSupportModeBProductLines'] == ['SDPL']
         return manual_audit_period(datetime.fromisoformat(payload['startDate']).date(), datetime.fromisoformat(payload['endDate']).date())
 
     def run(self, period, cancellation, progress):
@@ -255,11 +255,11 @@ def test_trigger_ignores_singleton_snapshots_and_legacy_jira_preference():
         result = trigger(client)
         assert result['state'] == 'completed'
         scope = result['scope']
-        jira_start = datetime.fromisoformat(scope['startDate']).date().isoformat()
-        jira_end = (datetime.fromisoformat(scope['endDate']).date() - timedelta(days=1)).isoformat()
+        jira_start = datetime.fromisoformat(scope['startDate']).strftime('%Y-%m-%d %H:%M')
+        jira_end = datetime.fromisoformat(scope['endDate']).strftime('%Y-%m-%d %H:%M')
         expected = (
             'project in (IPTV, SH, TV, OTT,RK) AND issuetype in (Bug, Sub-bug) '
-            f'AND created >= {jira_start} AND created <= {jira_end} order by updated DESC'
+            f'AND created >= "{jira_start}" AND created < "{jira_end}" order by updated DESC'
         )
         assert scope['jiraInput'] == result['summary']['jira']['scope'] == expected
         assert scope['jiraTemplate'] == expected

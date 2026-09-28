@@ -23,6 +23,7 @@ from core.domain.values import FieldBag, NamedValue, PersonRef
 from core.jira.gateway import JiraGatewayError
 from core.jira.mapper import JiraIssueMapper
 from core.jira.domain import IssueDetails
+from core.weekly_audit import fixed_weekly_audit_scope
 from smarttest_web.audit.confluence_adapter import WebConfluenceAuditOwner
 from smarttest_web.audit.jira_adapter import WebJiraAuditOwner
 from smarttest_web.audit.registry import AuditCancelled
@@ -81,12 +82,11 @@ def test_fixed_confluence_scope_excludes_support_mode_b_only_from_sdpl(tmp_path)
     owner = WebConfluenceAuditOwner(None, Repository(), None, access=confirmed_access(
         WebDatabase(tmp_path / 'access.db'), tuple(project.identity.project_id for project in projects), (),
     ))
-    resolved = owner.resolve({
-        'startDate': '2026-09-04T00:00:00+08:00', 'endDate': '2026-09-08T10:00:00+08:00',
-        'filters': {'date of commercial approval': ['2025', '2026'], 'support mode': ['A', 'B'],
-                    'project status': ['NORMAL']},
-        'excludeCurrentStageAtOrAbove': 4,
-        'excludeSupportModeBProductLines': ['SDPL'],
+    resolved = owner.resolve(fixed_weekly_audit_scope(
+        datetime(2026, 9, 18, 18, tzinfo=ZoneInfo('Asia/Shanghai')),
+    )['confluence'] | {
+        'startDate': '2026-09-11T18:00:00+08:00',
+        'endDate': '2026-09-18T18:00:00+08:00',
     })
     assert [project.identity.project_id for project in resolved.projects] == ['TV-B', 'SDPL-A']
 

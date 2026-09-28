@@ -17,11 +17,11 @@ def fixed_weekly_audit_scope(trigger_at: datetime) -> dict:
     trigger = (trigger_at.replace(tzinfo=_SHANGHAI) if trigger_at.tzinfo is None
                else trigger_at.astimezone(_SHANGHAI))
     this_monday = trigger.date() - timedelta(days=trigger.weekday())
-    start = datetime.combine(this_monday, time.min, _SHANGHAI)
-    end = start + timedelta(days=5)
+    end = datetime.combine(this_monday + timedelta(days=4), time(18), _SHANGHAI)
+    start = end - timedelta(days=7)
     start_text, end_text = start.isoformat(), end.isoformat()
-    jira_start = start.date().isoformat()
-    jira_end = (end.date() - timedelta(days=1)).isoformat()
+    jira_start = start.strftime("%Y-%m-%d %H:%M")
+    jira_end = end.strftime("%Y-%m-%d %H:%M")
     return {
         "startDate": start_text,
         "endDate": end_text,
@@ -31,7 +31,7 @@ def fixed_weekly_audit_scope(trigger_at: datetime) -> dict:
         },
         "jira": {
             "filters": {},
-            "jql": f'{_JIRA_SCOPE} AND created >= {jira_start} AND created <= {jira_end} order by updated DESC',
+            "jql": f'{_JIRA_SCOPE} AND created >= "{jira_start}" AND created < "{jira_end}" order by updated DESC',
         },
         "confluence": {
             "filters": {
@@ -41,7 +41,7 @@ def fixed_weekly_audit_scope(trigger_at: datetime) -> dict:
             },
             "search": "",
             "excludeCurrentStageAtOrAbove": 4,
-            "excludeSupportModeBProductLines": [PRODUCT_LINES[1].name],
+            "excludeSupportModeBProductLines": [PRODUCT_LINES[1].confluence_space_key],
         },
     }
 
