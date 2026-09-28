@@ -17,9 +17,14 @@ def test_registry_defines_all_cards_and_task_uses_the_five_creator_groups():
     assert tuple(service.JIRA_STATISTICS_CARDS) == ("self-test", "task", "customer-feedback")
     task = card_definition("task")
     assert task.first_metric_label == "Tasks"
-    assert task.fixed_jql("month").startswith("issuetype = Task AND (")
+    assert "(issuetype = Task)" in task.fixed_jql("month")
     assert task.fixed_jql("month").count("creator IN membersOf(") == 5
     assert '"Channel of Reporter"' not in task.fixed_jql("month")
+
+
+def test_every_jira_card_restricts_creators_to_the_fae_qa_groups():
+    for definition in service.JIRA_STATISTICS_CARDS.values():
+        assert definition.fixed_jql("month").count("creator IN membersOf(") == 5
 
 
 @pytest.mark.parametrize("card_key", ("self-test", "task", "customer-feedback"))
@@ -54,29 +59,23 @@ def test_customer_definition_has_wireless_priority_and_mutually_exclusive_standa
     assert 'created >= "2026-01-01"' in jql
 
 
-def test_customer_wireless_label_wins_over_project_without_double_counting():
-    wireless = issue(project=TV_LINE.jira_project_keys[0], creator={"name": "qa", "displayName": "QA"})
-    wireless["fields"]["labels"] = ["Customer_W1"]
-    regular = issue(project=TV_LINE.jira_project_keys[0], creator={"name": "qa", "displayName": "QA"})
-    result = aggregate_jira_statistics([wireless, regular], QARoster("fixed"), card_definition("customer-feedback"))
-    assert result.teamTotal == 2
-    assert result.productLines[2].people[0].bugCount == 1
-    assert result.productLines[4].people[0].bugCount == 1
-
-
-def test_self_test_card_fixed_boundary_uses_exact_creator_groups():
-    assert card_definition("self-test").fixed_jql("month") == (
-        'issuetype = Bug AND (creator IN membersOf("fae-wifi-qa") OR creator IN membersOf("fae-SH-qa")'
-        ' OR creator IN membersOf("fae-stb-qa") OR creator IN membersOf("fae-tv-qa")'
-        ' OR creator IN membersOf("fae-iptv-qa")) AND "Channel of Reporter" = "Self-Test"'
-        f' AND {jira_period_condition("month")}'
-    )
+def test_cards_share_qa_group_mapping_even_with_customer_labels():
+    wireless = issue(project=TV_LINE.jira_project_keys[0], creator={"name": "wifi"})
+    regular = issue(project=TV_LINE.jira_project_keys[0], creator={"name": "qa"})
+    regular["fields"]["labels"] = ["Customer_W1"]
+    class Gateway:
+        def user_groups(self, account):
+            return ("fae-wifi-qa",) if account == "wifi" else ("fae-tv-qa",)
+    result = service.build_comparison_statistics(Gateway(), [wireless, regular], [], {})
+    assert result["teamTotal"] == 2
+    assert result["productLines"][2]["people"][0]["identity"] == "qa"
+    assert result["productLines"][4]["people"][0]["identity"] == "wifi"
 
 
 def test_self_test_groups_by_qa_creator_not_non_qa_reporter_or_assignee():
     payload = issue(creator={"name": "qa", "displayName": "QA"}, reporter={"name": "outside"})
     payload["fields"]["assignee"] = {"name": "outside", "displayName": "Outside"}
-    result = aggregate_jira_statistics([payload], roster(qa=(TV_LINE.name,)), card_definition("self-test"))
+    result = aggregate_jira_statistics([payload], roster(qa=(TV_LINE.name,)))
     assert result.productLines[2].people[0].identity == "qa"
     assert result.productLines[2].people[0].displayName == "QA"
 
@@ -85,7 +84,7 @@ def test_wireless_creator_owns_unknown_project_while_other_creator_remains_unmap
     result = aggregate_jira_statistics([
         issue(project='RK', creator={'name': 'wifi', 'displayName': 'WiFi'}),
         issue(project='RK', creator={'name': 'other', 'displayName': 'Other'}),
-    ], roster(wifi=(WIRELESS_CONNECTION.name,), other=(CHINA.name,)), card_definition("self-test"))
+    ], roster(wifi=(WIRELESS_CONNECTION.name,), other=(CHINA.name,)))
     assert result.productLines[4].people[0].bugCount == 1
     assert result.productLines[4].people[0].identity == 'wifi'
     assert result.unmappedCount == 1
@@ -100,13 +99,13 @@ def test_applied_collection_preserves_page_scope_and_creator_grouping():
         issue(),
         issue(project="unknown", creator={"name": "outside"}),
         {},
-    ], roster(wifi=(WIRELESS_CONNECTION.name,)), card_definition("self-test"))
-    assert result.teamTotal == 5
+    ], roster(wifi=(WIRELESS_CONNECTION.name,)))
+    assert result.teamTotal == 3
     assert result.unassignedCount == 2
-    assert result.unmappedCount == 1
+    assert result.unmappedCount == 0
     assert result.teamTotal == sum(person.bugCount for line in result.productLines for person in line.people) + result.unassignedCount + result.unmappedCount
     by_line = {line.id: line.people for line in result.productLines}
-    assert by_line[TV_LINE.name][0].identity == "outside"
+    assert by_line[TV_LINE.name] == ()
     assert by_line[WIRELESS_CONNECTION.name][0].identity == "wifi"
 
 
@@ -158,9 +157,9 @@ def test_aggregate_jira_statistics_uses_exact_jira_names_and_defined_denominator
         issue(creator={"name": "alice", "displayName": "Alice"}, priority="p0", resolution="Invalid"),
         issue(creator={"name": "bob", "displayName": "Bob"}, resolution="Resolved"),
         issue(creator={"name": "ignored", "displayName": "Ignored"}, issue_type="Task", priority="P0"),
-    ], roster(alice=(TV_LINE.name,), bob=(TV_LINE.name,)), card_definition("self-test"))
+    ], roster(alice=(TV_LINE.name,), bob=(TV_LINE.name,)))
 
-    assert rows.teamTotal == 4
+    assert rows.teamTotal == 3
     assert rows.to_payload()["productLines"][2]["people"][0] == {
         "identity": "alice", "displayName": "Alice", "bugCount": 2,
         "resolvedCount": 1, "p0Count": 1, "invalidCount": 1,
@@ -173,10 +172,10 @@ def test_missing_creators_are_counted_and_ties_sort_by_display_name():
         issue(creator={"accountId": "z", "displayName": "Zed"}),
         issue(creator={"accountId": "a", "displayName": "Amy"}),
         issue(creator={"accountId": "outside", "displayName": "Outside"}),
-    ], roster(a=(TV_LINE.name,), z=(TV_LINE.name,)), card_definition("self-test"))
+    ], roster(a=(TV_LINE.name,), z=(TV_LINE.name,)))
 
-    assert [row.displayName for row in rows.productLines[2].people] == ["Amy", "Outside", "Zed"]
-    assert rows.teamTotal == 5
+    assert [row.displayName for row in rows.productLines[2].people] == ["Amy", "Zed"]
+    assert rows.teamTotal == 4
 
 
 def test_project_mapping_keeps_unmapped_issues_in_total_but_not_bars():
@@ -185,7 +184,7 @@ def test_project_mapping_keeps_unmapped_issues_in_total_but_not_bars():
         issue(project=SMART.jira_project_keys[0], creator={"name": "amy", "displayName": "Amy"}, resolution="Resolved"),
         issue(project=GLOBAL.jira_project_keys[0], creator={"name": "zed", "displayName": "Zed"}, priority="P0"),
         issue(project="FQ", creator={"name": "amy", "displayName": "Amy"}),
-    ], roster(amy=(CHINA.name, SMART.name), zed=(GLOBAL.name,)), card_definition("self-test"))
+    ], roster(amy=(CHINA.name, SMART.name), zed=(GLOBAL.name,)))
 
     payload = overview.to_payload()
     assert [line["id"] for line in payload["productLines"]] == [line.name for line in DASHBOARD_PRODUCT_LINES]
@@ -208,13 +207,13 @@ def test_project_mapping_uses_wireless_creator_assignment_precedence():
         issue(project=GLOBAL.jira_project_keys[0], creator={"name": "stb", "displayName": "STB Owner"}, resolution="Invalid"),
         issue(project="FQ", creator={"name": "wifi", "displayName": "WiFi"}),
         issue(project=TV_LINE.jira_project_keys[0], creator={"name": "none", "displayName": "No Assignment"}),
-    ], roster(wifi=(WIRELESS_CONNECTION.name, TV_LINE.name), tv=(TV_LINE.name,), stb=(GLOBAL.name,), none=()), card_definition("self-test"))
+    ], roster(wifi=(WIRELESS_CONNECTION.name, TV_LINE.name), tv=(TV_LINE.name,), stb=(GLOBAL.name,), none=()))
 
     payload = overview.to_payload()
     assert [line["id"] for line in payload["productLines"]] == [line.name for line in DASHBOARD_PRODUCT_LINES]
-    assert payload["teamTotal"] == 7
+    assert payload["teamTotal"] == 6
     assert payload["unmappedCount"] == 0
-    assert {person['displayName'] for person in payload["productLines"][2]["people"]} == {'TV Owner', 'No Assignment'}
+    assert {person['displayName'] for person in payload["productLines"][2]["people"]} == {'TV Owner'}
     assert payload["productLines"][3]["people"][0]["invalidCount"] == 1
     assert payload["productLines"][4]["people"][0] == {
         "identity": "wifi", "displayName": "WiFi", "bugCount": 3,
@@ -231,7 +230,7 @@ def test_comparison_payload_uses_one_roster_and_keeps_both_complete_overviews():
               "previous": {"start": "2026-08-01", "end": "2026-09-01"}}
 
     payload = service.build_comparison_statistics(
-        card_definition("self-test"), Gateway(), current, previous, ranges,
+        Gateway(), current, previous, ranges,
     )
 
     assert payload["ranges"] == ranges

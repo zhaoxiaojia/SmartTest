@@ -13,7 +13,7 @@ from core.jira.services.jql_statistics_cards import (
     card_definition,
     effective_card_jql_pair,
 )
-from core.jira.services.filter_service import compose_jql, jira_period_ranges
+from core.jira.services.filter_service import compose_jql
 
 from .audit.registry import AuditConflictError
 from .audit_http import (
@@ -96,10 +96,9 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
             raise HTTPException(status_code=503, detail={"state": "analytics_unavailable"}) from error
         definition = card_definition(card_key) if card_key else None
         period = jira_card_period(value, card_key) if definition else None
-        ranges = jira_period_ranges(period) if period else None
-        current_fixed = definition.fixed_jql(period) if definition else ""
-        previous_fixed = (current_fixed.replace(str(ranges["current"]["condition"]),
-                                                str(ranges["previous"]["condition"])) if definition else "")
+        query_pair = effective_card_jql_pair(card_key, "", period) if definition else None
+        current_fixed = query_pair["current"]["jql"] if query_pair else ""
+        previous_fixed = query_pair["previous"]["jql"] if query_pair else ""
         return JiraAnalyticsService(
             filters, gateway, JiraIssueMapper(gateway.config.base_url if hasattr(gateway, "config") else ""),
             jira_analytics, JIRA_ANALYTICS_TASKS,
@@ -108,7 +107,7 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
             card_key=card_key,
             roster_fingerprint=f"{definition.fingerprint}:natural-period-comparison-v1" if definition else "",
             statistics_builder=(lambda current, previous: build_comparison_statistics(
-                definition, gateway, current, previous, ranges,
+                gateway, current, previous, query_pair,
             )) if definition else None,
             on_error=lambda error: invalidate_analytics_credentials(value, error),
         )
@@ -158,6 +157,7 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
         summary = jira_analytics.statistics_summary(session_hash, value.username, card_key=card_key)
         expected = effective_card_jql_pair(card_key, query["userJql"] or "", period)
         active_matches = bool(query["activeSnapshotId"] and query["userJql"] is not None and summary is not None
+                              and query["rosterFingerprint"] == f"{card_definition(card_key).fingerprint}:natural-period-comparison-v1"
                               and query["activeJql"] == expected["current"]["jql"]
                               and query["activeComparisonJql"] == expected["previous"]["jql"])
         state = ("loading" if query["pendingSnapshotId"] else query["latestState"]

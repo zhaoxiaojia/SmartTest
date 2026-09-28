@@ -187,7 +187,8 @@ def test_effective_bug_query_validation_execution_sqlite_and_explicit_unmapped_t
     assert statistics['productLines'][4]['people'][0]['identity'] == 'meng.wang1'
     assert statistics['productLines'][4]['people'][0]['bugCount'] == 1
     assert effective == executed[0] == validated[1]
-    assert effective.startswith('(reporter = "meng.wang1" OR reporter = "fan.xu") AND (issuetype = Bug')
+    assert effective.startswith('(reporter = "meng.wang1" OR reporter = "fan.xu") AND (')
+    assert 'issuetype = Bug' in effective
     assert effective.endswith('ORDER BY created DESC')
 
 @pytest.mark.parametrize("terminal", ["failed", "cancelled"])
@@ -363,3 +364,52 @@ def test_suggestions_resolve_the_current_sessions_jira_credentials_on_every_requ
     api.get("/api/jira/analytics/suggestions", params={"fieldName": "status"})
 
     assert calls == [("alice", "first"), ("bob", "second")]
+
+
+@pytest.mark.parametrize("card_key", ["self-test", "task", "customer-feedback"])
+def test_cards_exclude_non_qa_at_task_aggregation_and_reject_old_aggregation_snapshot(tmp_path, monkeypatch, card_key):
+    executed = []
+    rows = [{"id": str(index), "key": f"TV-{index}", "fields": {
+        "project": {"key": "TV"}, "issuetype": {"name": "Bug"},
+        "creator": {"name": account, "displayName": account}, "labels": ["Customer_W1"],
+    }} for index, account in enumerate(["qa", "outside", "wifi"], 1)]
+    monkeypatch.setattr(Gateway, "search_all_payloads", lambda _self, jql, **_kw: executed.append(jql) or rows)
+    monkeypatch.setattr(Gateway, "user_groups", lambda _self, account: {
+        "qa": ("fae-tv-qa",), "outside": ("jira-users",), "wifi": ("fae-wifi-qa",),
+    }[account])
+    api = client(tmp_path)
+    api.post("/api/jira/analytics/search", json={"mode": "advanced", "jql": "status = Open ORDER BY created DESC"})
+    started = api.post(f"/api/jira/cards/{card_key}/query").json()
+    for _ in range(100):
+        task = api.get(f"/api/jira/cards/{card_key}/tasks/{started['taskId']}").json()
+        if task["state"] not in {"queued", "running"}: break
+        time.sleep(.01)
+    assert task["state"] == "completed"
+    assert len(executed) == 2
+    from core.jira.services.jql_statistics_cards import FAE_QA_GROUPS
+    for query in executed:
+        assert all(f'creator IN membersOf("{group}")' in query for group in FAE_QA_GROUPS)
+        assert query.endswith("ORDER BY created DESC")
+    replay = api.get(f"/api/jira/cards/{card_key}/statistics").json()
+    for period in ["current", "previous"]:
+        summary = replay[period]
+        assert {person["identity"] for line in summary["productLines"] for person in line["people"]} == {"qa", "wifi"}
+        assert summary["teamTotal"] == 2
+        assert summary["productLines"][2]["people"][0]["identity"] == "qa"
+        assert summary["productLines"][4]["people"][0]["identity"] == "wifi"
+    with WebDatabase(tmp_path / "web.db").transaction() as connection:
+        connection.execute("UPDATE jira_analytics_snapshots SET roster_fingerprint='old-aggregation' WHERE snapshot_id=?", (started["snapshotId"],))
+    stale = api.get(f"/api/jira/cards/{card_key}/statistics").json()
+    assert stale["state"] == "no_snapshot"
+    assert "productLines" not in stale
+    assert len(executed) == 2
+    replacement = api.post(f"/api/jira/cards/{card_key}/query", json={"intent": "reuse"}).json()
+    assert replacement["snapshotId"] != started["snapshotId"]
+    for _ in range(100):
+        task = api.get(f"/api/jira/cards/{card_key}/tasks/{replacement['taskId']}").json()
+        if task["state"] not in {"queued", "running"}: break
+        time.sleep(.01)
+    assert task["state"] == "completed"
+    reused = api.post(f"/api/jira/cards/{card_key}/query", json={"intent": "reuse"}).json()
+    assert reused["query"]["activeSnapshotId"] == replacement["snapshotId"]
+    assert len(executed) == 4
