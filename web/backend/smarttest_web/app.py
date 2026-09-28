@@ -207,10 +207,12 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
         smart_log(
             f"Web session resolve cookie_present={str(cookie_present).lower()} "
             f"session_found={str(value is not None).lower()} "
+            f"avatar_present={str(bool(value and value.avatar_bytes)).lower()} "
             f"request_id={request.state.request_id}",
             platform="web", domain="auth", source="session_resolve",
             request_id=request.state.request_id,
             extra={"cookie_present": cookie_present, "session_found": value is not None,
+                   "avatar_present": bool(value and value.avatar_bytes),
                    "request_id": request.state.request_id},
             emit_runtime_event=False,
         )
@@ -263,6 +265,17 @@ def create_app(query_owner=default_query_owner, report_owner=ClientAuditReportOw
                 detail={"state": "credential_store_unavailable"},
             ) from error
         else:
+            if not sessions.has_cached_avatar(username):
+                result = auth.authenticate(username, password)
+                if result.get("success"):
+                    return establish_session(
+                        request,
+                        response,
+                        username=result["username"],
+                        password=password,
+                        display_name=result.get("display_name", ""),
+                        avatar_bytes=result.get("avatar_bytes", b""),
+                    )
             return establish_session(
                 request,
                 response,

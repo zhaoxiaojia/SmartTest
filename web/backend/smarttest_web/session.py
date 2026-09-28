@@ -85,12 +85,44 @@ class PersistentSessionStore:
         normalized = str(username).strip().casefold()
         self._credential_store.write(self._account_key(normalized), normalized, password)
         self._credentials[normalized] = password
+        self._store_identity(normalized, display_name, avatar_bytes)
         return self._create_session(normalized, display_name, avatar_bytes)
 
     def create_from_saved(self, username, display_name="", avatar_bytes=b""):
         normalized, _password = self.saved_credentials(username)
         self.cleanup()
-        return self._create_session(normalized, display_name, avatar_bytes)
+        cached_display_name, cached_avatar = self._identity(normalized)
+        return self._create_session(
+            normalized,
+            cached_display_name or display_name,
+            cached_avatar or avatar_bytes,
+        )
+
+    def _store_identity(self, username, display_name, avatar_bytes):
+        clean_name = str(display_name or username).strip() or username
+        avatar = bytes(avatar_bytes) if isinstance(avatar_bytes, (bytes, bytearray)) else b""
+        with self._lock, self._connect() as connection:
+            connection.execute("""
+                INSERT INTO web_account_identities(username,display_name,avatar,updated_at)
+                VALUES(?,?,?,?)
+                ON CONFLICT(username) DO UPDATE SET
+                  display_name=excluded.display_name,
+                  avatar=CASE WHEN excluded.avatar IS NOT NULL THEN excluded.avatar
+                              ELSE web_account_identities.avatar END,
+                  updated_at=excluded.updated_at
+            """, (username, clean_name, avatar or None, self._now()))
+
+    def _identity(self, username):
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT display_name,avatar FROM web_account_identities WHERE username=?", (username,),
+            ).fetchone()
+        return (str(row[0] or "") if row else "", bytes(row[1] or b"") if row else b"")
+
+    def has_cached_avatar(self, username):
+        normalized = str(username or "").strip().casefold()
+        _display_name, avatar = self._identity(normalized)
+        return bool(avatar)
 
     def _create_session(self, username, display_name="", avatar_bytes=b""):
         token = secrets.token_urlsafe(32)

@@ -150,7 +150,7 @@ def test_http_suite_chain_emits_safe_readable_cookie_and_session_logs(tmp_path, 
     assert login.status_code == suites.status_code == 200
     assert any("cookie_action=set secure=false request_id=login-visible" in line
                for line in messages)
-    assert any("cookie_present=true session_found=true request_id=list-visible" in line
+    assert any("cookie_present=true session_found=true avatar_present=false request_id=list-visible" in line
                for line in messages)
     assert any("GET /api/test-suites 200 request_id=list-visible" in line
                for line in messages)

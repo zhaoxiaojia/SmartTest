@@ -94,6 +94,10 @@ def initialize_web_schema(database: WebDatabase) -> None:
                 expires_at REAL NOT NULL, revoked_at REAL
             );
             CREATE INDEX IF NOT EXISTS ix_web_sessions_user ON web_sessions(username);
+            CREATE TABLE IF NOT EXISTS web_account_identities (
+                username TEXT PRIMARY KEY, display_name TEXT NOT NULL,
+                avatar BLOB, updated_at REAL NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS user_preferences (
                 username TEXT NOT NULL, scope TEXT NOT NULL, key TEXT NOT NULL,
                 value_json TEXT NOT NULL, schema_version INTEGER NOT NULL DEFAULT 1,

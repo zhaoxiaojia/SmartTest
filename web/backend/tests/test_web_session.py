@@ -176,16 +176,34 @@ def test_invalid_login_returns_safe_failure(tmp_path):
 
 def test_browser_login_reuses_saved_account_credential_without_ldap(tmp_path):
     first_auth = FakeAuthenticator()
-    first, _ = make_client(tmp_path, authenticator=first_auth)
-    assert first.post("/api/auth/login", json={"username": "coco", "password": "secret"}).status_code == 200
+    first, store = make_client(tmp_path, authenticator=first_auth)
+    initial = first.post("/api/auth/login", json={"username": "coco", "password": "secret"})
+    assert initial.status_code == 200
+    assert initial.json()["avatarUrl"] == "/api/auth/avatar"
     assert first_auth.calls == [("coco", "secret")]
 
     unavailable_ldap = FakeAuthenticator({"success": False, "code": "ldap_unavailable"})
-    restarted, _ = make_client(tmp_path, authenticator=unavailable_ldap)
+    restarted, _ = make_client(tmp_path, authenticator=unavailable_ldap, sessions=store)
     response = restarted.post("/api/auth/login", json={"username": "coco", "password": "secret"})
 
     assert response.status_code == 200
+    assert response.json()["avatarUrl"] == "/api/auth/avatar"
+    assert restarted.get("/api/auth/avatar").content == b"avatar"
     assert unavailable_ldap.calls == []
+
+
+def test_browser_login_refreshes_missing_cached_avatar_from_shared_ldap_owner(tmp_path):
+    store = PersistentSessionStore(tmp_path / "web.db")
+    store.create("coco", "secret")
+    auth = FakeAuthenticator()
+    client, _ = make_client(tmp_path, authenticator=auth, sessions=store)
+
+    response = client.post("/api/auth/login", json={"username": "coco", "password": "secret"})
+
+    assert response.status_code == 200
+    assert response.json()["avatarUrl"] == "/api/auth/avatar"
+    assert client.get("/api/auth/avatar").content == b"avatar"
+    assert auth.calls == [("coco", "secret")]
 
 
 def test_explicit_downstream_basic_auth_rejection_invalidates_account_and_sessions(tmp_path):
