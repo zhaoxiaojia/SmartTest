@@ -78,3 +78,74 @@ def test_status_legend_displays_status_names_and_percentages():
     assert ["30.5%", "30.5%", "22.0%", "16.9%"] == re.findall(
         r'<td class="status-percentage">([^<]+)</td>', legend
     )
+
+
+def test_summary_cards_use_resolved_and_closed_counts_from_current_results():
+    issues = [
+        {
+            "key": key,
+            "summary": key,
+            "status": status,
+            "priority": "P0",
+            "assignee": "Engineer",
+            "components": (),
+            "created": None,
+            "updated": None,
+            "url": "",
+        }
+        for key, status in (
+            ("A9-1", "Resolved"),
+            ("A9-2", "Resolved"),
+            ("A9-3", "Closed"),
+            ("A9-4", "Open"),
+        )
+    ]
+    html = _render_html(
+        {
+            "project_name": "A9 Yocto",
+            "jql": "labels = Linux-A9_Yocto",
+            "stale_days": 7,
+            "trend_days": 14,
+            "detail_priorities": ["P0", "P1"],
+        },
+        issues,
+        [],
+        date(2026, 9, 3),
+        "status",
+        "trend",
+    )
+
+    resolved = re.search(
+        r'data-metric="resolved".*?<div class="metric-value">(\d+)</div>', html
+    )
+    closed = re.search(
+        r'data-metric="closed".*?<div class="metric-value">(\d+)</div>', html
+    )
+    assert resolved and resolved.group(1) == "2"
+    assert closed and closed.group(1) == "1"
+    assert 'data-metric="p0"' not in html
+    assert 'data-metric="stale"' not in html
+
+
+def test_summary_cards_show_zero_when_resolved_and_closed_are_absent():
+    html = _render_html(
+        {
+            "project_name": "A9 Yocto",
+            "jql": "labels = Linux-A9_Yocto",
+            "stale_days": 7,
+            "trend_days": 14,
+            "detail_priorities": ["P0", "P1"],
+        },
+        [],
+        [],
+        date(2026, 9, 3),
+        "status",
+        "trend",
+    )
+
+    assert re.search(
+        r'data-metric="resolved".*?<div class="metric-value">0</div>', html
+    )
+    assert re.search(
+        r'data-metric="closed".*?<div class="metric-value">0</div>', html
+    )
