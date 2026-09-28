@@ -26,7 +26,7 @@ describe('AppShell', () => {
     expect(shell.contentRoot.matches('main.main-content')).toBe(true)
   })
 
-  it('keeps animated navigation routes and labels accessible without exposing decoration', () => {
+  it('keeps bubble-animated navigation routes and labels accessible without decorative content', () => {
     createAppShell({ pageKey: 'jira' })
     for (const item of navigation) {
       const link = document.querySelector(`.nav-menu a[data-page-key="${item.pageKey}"]`)
@@ -34,9 +34,7 @@ describe('AppShell', () => {
       expect(link.textContent.trim()).toBe(item.title)
       expect(link.querySelector('svg').getAttribute('aria-hidden')).toBe('true')
       expect(link.querySelector('.nav-link-text').textContent.trim()).toBe(item.title)
-      const decorations = link.querySelectorAll('.nav-link-drow')
-      expect(decorations).toHaveLength(2)
-      expect([...decorations].every(node => node.getAttribute('aria-hidden') === 'true' && !node.textContent)).toBe(true)
+      expect(link.querySelectorAll('.nav-link-drow')).toHaveLength(0)
     }
     expect(document.querySelectorAll('.mobile-menu-nav .nav-link-drow')).toHaveLength(0)
   })
