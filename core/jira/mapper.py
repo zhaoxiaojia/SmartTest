@@ -10,6 +10,7 @@ from core.jira.domain import (
     Issue,
     IssueAttachment,
     IssueComment,
+    IssueVerification,
     IssueIdentity,
     IssueLink,
     IssueRef,
@@ -61,7 +62,7 @@ class JiraIssueMapper:
             changes["description"] = DetailSection.loaded(RichText(payload.get("description")), source_revision=revision)
         if "comments" in sections:
             changes["comments"] = DetailSection.loaded(
-                tuple(self._comment(item) for item in payload.get("comments") or ()),
+                tuple(self.from_comment(item) for item in payload.get("comments") or ()),
                 source_revision=revision,
             )
         if "attachments" in sections:
@@ -92,7 +93,7 @@ class JiraIssueMapper:
         )
 
     @staticmethod
-    def _comment(payload: dict[str, Any]) -> IssueComment:
+    def from_comment(payload: dict[str, Any]) -> IssueComment:
         return IssueComment(
             id=str(payload.get("id") or ""),
             body=payload.get("body"),
@@ -100,6 +101,18 @@ class JiraIssueMapper:
             created_at=_datetime(payload.get("created")),
             updated_at=_datetime(payload.get("updated")),
         )
+
+    @staticmethod
+    def last_verification(payload: dict[str, Any]) -> IssueVerification | None:
+        verifications = []
+        for history in (payload.get("changelog") or {}).get("histories", ()):
+            if not any(item.get("field") == "status" and "resolved" in str(item.get("fromString") or "").casefold()
+                       and "verified" in str(item.get("toString") or "").casefold() for item in history.get("items", ())):
+                continue
+            created_at = _datetime(history.get("created"))
+            if created_at is not None:
+                verifications.append(IssueVerification(_person(history.get("author")), created_at))
+        return max(verifications, key=lambda item: item.created_at.timestamp(), default=None)
 
     @staticmethod
     def _attachment(payload: dict[str, Any]) -> IssueAttachment:

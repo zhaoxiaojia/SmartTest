@@ -18,8 +18,8 @@ function periodMarkup() {
 
 function metrics(firstMetricLabel) { return Object.freeze([
   Object.freeze({ value: 'bugCount', label: firstMetricLabel }),
-  Object.freeze({ value: 'resolvedCount', label: 'Resolved' }),
-  Object.freeze({ value: 'p0Count', label: 'P0' }),
+  Object.freeze({ value: 'commentCount', label: 'Comments' }),
+  Object.freeze({ value: 'verifyCount', label: 'Verify' }),
   Object.freeze({ value: 'invalidCount', label: 'Invalid' }),
 ]) }
 
@@ -74,6 +74,8 @@ export function createJiraStatisticsCard({ pollDelay = 800, chartFactory } = {})
   function draw(payload) {
     if (payload.period) period = payload.period
     const current = payload.current ?? payload
+    const availability = payload.availability
+    const metricReady = (period, metric) => !availability || Boolean(availability[period]?.[metric === 'verifyCount' ? 'verify' : 'basic'])
     const previous = payload.previous
     const comparison = Boolean(previous || payload.comparison)
     const previousByLine = new Map((previous?.productLines ?? []).map(line => [line.id, line]))
@@ -95,7 +97,7 @@ export function createJiraStatisticsCard({ pollDelay = 800, chartFactory } = {})
         }
       }) }
     })
-    const display = { state: 'ready', period, ranges: payload.ranges, comparison, teamTotal: current.teamTotal,
+    const display = { state: payload.state, availability, period, ranges: payload.ranges, comparison, teamTotal: current.teamTotal,
       previousTeamTotal: previous?.teamTotal ?? payload.previousTeamTotal,
       unmappedCount: Number(current.unmappedCount || 0), unassignedCount: Number(current.unassignedCount || 0),
       productLines: combinedLines.map(line => ({ id: line.id, label: line.label,
@@ -105,14 +107,20 @@ export function createJiraStatisticsCard({ pollDelay = 800, chartFactory } = {})
     const signature = JSON.stringify(display)
     if (displayed && signature === displaySignature) return
     const byLine = new Map(combinedLines.map(line => [line.id, line]))
+    const pendingLabel = ({ failed: 'Failed', cancelled: 'Cancelled' })[payload.state] ?? 'Loading…'
     const presentation = {
       palette: 'jira',
       productLines: combinedLines.map(line => ({ value: line.id, label: line.label })),
-      modes: cardMetrics,
+      modes: cardMetrics.map(metric => ({ ...metric,
+        disabled: !metricReady('current', metric.value),
+        label: !metricReady('current', metric.value) ? `${metric.label} (${pendingLabel})`
+          : comparison && !metricReady('previous', metric.value) ? `${metric.label} (Previous: ${pendingLabel})` : metric.label,
+      })),
+      emptyTextFor: metric => metricReady('current', metric) ? '' : 'Statistics for this metric are not available yet.',
       emptyText: 'No issues in this product line.',
-      rowsFor: (productLine, metric) => (byLine.get(productLine)?.people ?? []).map(person => ({
+      rowsFor: (productLine, metric) => !metricReady('current', metric) ? [] : (byLine.get(productLine)?.people ?? []).map(person => ({
         name: person.displayName, count: Number(person[metric] || 0),
-        ...(comparison ? { previousCount: Number(person[`previous_${metric}`] || 0) } : {}),
+        ...(comparison && metricReady('previous', metric) ? { previousCount: Number(person[`previous_${metric}`] || 0) } : {}),
       })),
       datasetLabel: 'Current period',
       comparisonLabel: 'Previous period',

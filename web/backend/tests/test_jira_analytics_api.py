@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
 import time
+from datetime import date
+from copy import deepcopy
 import pytest
 from threading import Event
 from core.async_tasks import TaskCancelled
@@ -10,7 +12,7 @@ from core.product_lines import PRODUCT_LINES
 from core.jira.services.jql_statistics_cards import card_definition
 
 
-def self_test_jira_conditions(period="month"):
+def self_test_jira_conditions(period="year"):
     return card_definition("self-test").fixed_jql(period)
 
 from smarttest_web.app import create_app
@@ -30,7 +32,7 @@ class FilterOwner:
 
 
 class Gateway:
-    def search_all_payloads(self, _jql, *, progress=None): return []
+    def search_all_payloads(self, _jql, *, fields=None, expand=None, page_size=None, progress=None): return []
     def user_groups(self, account):
         return {
             "meng.wang1": ("fae-wifi-qa",),
@@ -54,7 +56,17 @@ def client(tmp_path):
 
 def query_card(api, payload):
     published = api.post("/api/jira/analytics/search", json=payload)
-    return api.post("/api/jira/cards/self-test/query") if published.json().get("applied") else published
+    return api.post("/api/jira/cards/self-test/query", json={"period": "year"}) if published.json().get("applied") else published
+
+
+def dated_rows(rows, query):
+    year = date.today().year - (1 if f'created >= "{date.today().year - 1}-01-01"' in query else 0)
+    result = deepcopy(rows)
+    for row in result:
+        row['id'] = f"{row['id']}-{year}"
+        row['key'] = f"{row['key']}-{year}"
+        row.setdefault('fields', {})['created'] = f"{year}-01-01T00:00:00+08:00"
+    return result
 
 
 def wait_terminal(api, task_id):
@@ -78,14 +90,14 @@ def test_public_search_only_publishes_conditions_and_card_queries_its_own_effect
     assert started["validation"]["valid"] is True
     assert wait_terminal(api, started["taskId"]) == "completed"
     assert queries[0] == self_test_jira_conditions()
-    assert len(queries) == 2
+    assert len(queries) == 4
     assert 'creator IN membersOf("fae-wifi-qa")' in queries[0]
     assert 'reporter IN (' not in queries[0]
     assert 'assignee IN (' not in queries[0]
     assert api.post("/api/jira/cards/unknown/query").status_code == 404
     replay = api.get("/api/jira/cards/self-test/statistics").json()
     assert replay["state"] == "ready"
-    assert len(queries) == 2
+    assert len(queries) == 4
 
 
 @pytest.mark.parametrize("card_key,expected", [
@@ -99,7 +111,7 @@ def test_registered_cards_share_query_task_and_snapshot_flow(tmp_path, monkeypat
     api = client(tmp_path)
     api.post("/api/jira/analytics/search", json={"mode": "basic", "basic": {}})
     assert api.get(f"/api/jira/cards/{card_key}/statistics").json()["state"] == "no_snapshot"
-    started = api.post(f"/api/jira/cards/{card_key}/query").json()
+    started = api.post(f"/api/jira/cards/{card_key}/query", json={"period": "year"}).json()
     for _ in range(100):
         task = api.get(f"/api/jira/cards/{card_key}/tasks/{started['taskId']}").json()
         if task["state"] not in {"queued", "running"}:
@@ -163,12 +175,12 @@ def test_effective_bug_query_validation_execution_sqlite_and_explicit_unmapped_t
             'reporter': {'name': reporter, 'displayName': reporter},
             'creator': {'name': reporter, 'displayName': reporter},
         }})
-    def collect(_self, jql, *, progress=None):
+    def collect(_self, jql, *, fields=None, expand=None, page_size=None, progress=None):
         executed.append(jql)
         assert 'issuetype = Bug' in jql
         rows = [row for row in candidates if row['fields']['issuetype']['name'] == 'Bug']
         if progress: progress(len(rows), len(rows))
-        return rows
+        return dated_rows(rows, jql)
     monkeypatch.setattr(FilterOwner, 'validate', validate)
     monkeypatch.setattr(Gateway, 'search_all_payloads', collect)
     api = client(tmp_path)
@@ -198,10 +210,10 @@ def test_statistics_exposes_query_terminal_state_and_retains_previous_snapshot(t
     if previous:
         initial = query_card(api, {"mode": "basic", "basic": {}}).json()
         assert wait_terminal(api, initial["taskId"]) == "completed"
-    def broken(_self, _jql, *, progress=None):
+    def broken(_self, _jql, *, fields=None, expand=None, page_size=None, progress=None):
         raise TaskCancelled() if terminal == "cancelled" else RuntimeError("offline")
     monkeypatch.setattr(Gateway, "search_all_payloads", broken)
-    started = query_card(api, {"mode": "advanced", "jql": "project = A"}).json()
+    started = query_card(api, {"mode": "basic", "basic": {}}).json()
     assert wait_terminal(api, started["taskId"]) == terminal
     payload = api.get("/api/jira/cards/self-test/statistics").json()
     assert payload["state"] == terminal
@@ -219,7 +231,7 @@ def test_lost_task_is_interrupted_without_requery_and_previous_progress_does_not
     restored = api.get("/api/jira/cards/self-test/statistics").json()["query"]
     assert restored["activeSnapshotId"] == first["snapshotId"]
     entered, release = Event(), Event()
-    def blocked(_self, _jql, *, progress=None):
+    def blocked(_self, _jql, *, fields=None, expand=None, page_size=None, progress=None):
         entered.set()
         assert release.wait(3)
         return []
@@ -242,7 +254,10 @@ def test_lost_task_is_interrupted_without_requery_and_previous_progress_does_not
         session_hash, account, expires = connection.execute(
             "SELECT session_hash,account,expires_at FROM jira_analytics_queries WHERE card_key=\'\'").fetchone()
     repo = JiraAnalyticsRepository(database)
-    snapshot = repo.begin(session_hash, account, "scope", {}, "", expires_at=expires, user_jql="", card_key="self-test")
+    active = repo.state(session_hash, account, card_key="self-test")
+    snapshot = repo.begin(session_hash, account, active["activeJql"], {}, "", expires_at=expires,
+                          user_jql=active["userJql"], card_key="self-test", roster_fingerprint=active["rosterFingerprint"],
+                          comparison_jql=active["activeComparisonJql"])
     from smarttest_web.app import _session_owner
     repo.set_task(snapshot, "lost-process-task", session_hash=_session_owner(api.cookies.get('smarttest_session')))
     payload = api.get("/api/jira/cards/self-test/statistics").json()
@@ -304,16 +319,16 @@ def test_analytics_state_is_not_visible_to_another_account(tmp_path):
 def test_statistics_replays_only_the_applied_jql_collection_without_extra_scope(tmp_path, monkeypatch):
     queries = []
     project = PRODUCT_LINES[0].jira_project_keys[0]
-    def search(_self, jql, *, progress=None):
+    def search(_self, jql, *, fields=None, expand=None, page_size=None, progress=None):
         queries.append(jql)
-        return [{"id": "1", "key": "ONE-1", "fields": {
+        return dated_rows([{"id": "1", "key": "ONE-1", "fields": {
             "summary": "One", "project": {"id": "1", "key": project, "name": "One"},
             "issuetype": {"id": "2", "name": "Bug"}, "status": {"id": "1", "name": "Open"},
             "reporter": {"name": "outside", "displayName": "Outside"},
             "creator": {"name": "fan.xu", "displayName": "Fan Xu"},
             "assignee": {"name": "outside.qa", "displayName": "Outside QA"},
             "priority": {"id": "1", "name": "P0"}, "resolution": {"id": "1", "name": "Resolved"},
-        }}] if jql.startswith("(first)") else []
+        }}], jql) if jql.startswith("(first)") else []
     monkeypatch.setattr(Gateway, "search_all_payloads", search)
     api = client(tmp_path)
     assert api.get("/api/jira/cards/self-test/statistics").json() == {"state": "no_snapshot", "period": "month"}
@@ -325,7 +340,7 @@ def test_statistics_replays_only_the_applied_jql_collection_without_extra_scope(
     assert payload["state"] == "ready"
     assert payload["teamTotal"] == 1
     assert payload["productLines"][0]["people"] == [{"identity": "fan.xu", "displayName": "Fan Xu",
-        "bugCount": 1, "resolvedCount": 1, "p0Count": 1, "invalidCount": 0}]
+        "bugCount": 1, "commentCount": 0, "verifyCount": 0, "invalidCount": 0}]
     monkeypatch.setattr(Gateway, "user_groups", lambda _self, _account: (_ for _ in ()).throw(AssertionError("reuse queried Jira")))
     reused = api.post("/api/jira/cards/self-test/query", json={"intent": "reuse"}).json()
     assert reused["state"] == "ready"
@@ -336,8 +351,8 @@ def test_statistics_replays_only_the_applied_jql_collection_without_extra_scope(
     assert api.get("/api/jira/cards/self-test/statistics").json()["teamTotal"] == 0
     fixed = self_test_jira_conditions()
     assert queries[0] == f'(first) AND ({fixed})'
-    assert queries[2] == f'(second) AND ({fixed})'
-    assert len(queries) == 4
+    assert queries[4] == f'(second) AND ({fixed})'
+    assert len(queries) == 8
 
 
 def test_suggestions_resolve_the_current_sessions_jira_credentials_on_every_request(tmp_path):
@@ -373,19 +388,19 @@ def test_cards_exclude_non_qa_at_task_aggregation_and_reject_old_aggregation_sna
         "project": {"key": "TV"}, "issuetype": {"name": "Bug"},
         "creator": {"name": account, "displayName": account}, "labels": ["Customer_W1"],
     }} for index, account in enumerate(["qa", "outside", "wifi"], 1)]
-    monkeypatch.setattr(Gateway, "search_all_payloads", lambda _self, jql, **_kw: executed.append(jql) or rows)
+    monkeypatch.setattr(Gateway, "search_all_payloads", lambda _self, jql, **_kw: executed.append(jql) or dated_rows(rows, jql))
     monkeypatch.setattr(Gateway, "user_groups", lambda _self, account: {
         "qa": ("fae-tv-qa",), "outside": ("jira-users",), "wifi": ("fae-wifi-qa",),
     }[account])
     api = client(tmp_path)
     api.post("/api/jira/analytics/search", json={"mode": "advanced", "jql": "status = Open ORDER BY created DESC"})
-    started = api.post(f"/api/jira/cards/{card_key}/query").json()
+    started = api.post(f"/api/jira/cards/{card_key}/query", json={"period": "year"}).json()
     for _ in range(100):
         task = api.get(f"/api/jira/cards/{card_key}/tasks/{started['taskId']}").json()
         if task["state"] not in {"queued", "running"}: break
         time.sleep(.01)
     assert task["state"] == "completed"
-    assert len(executed) == 2
+    assert len(executed) == 4
     from core.jira.services.jql_statistics_cards import FAE_QA_GROUPS
     for query in executed:
         assert all(f'creator IN membersOf("{group}")' in query for group in FAE_QA_GROUPS)
@@ -402,8 +417,10 @@ def test_cards_exclude_non_qa_at_task_aggregation_and_reject_old_aggregation_sna
     stale = api.get(f"/api/jira/cards/{card_key}/statistics").json()
     assert stale["state"] == "no_snapshot"
     assert "productLines" not in stale
-    assert len(executed) == 2
-    replacement = api.post(f"/api/jira/cards/{card_key}/query", json={"intent": "reuse"}).json()
+    assert len(executed) == 4
+    missing = api.post(f"/api/jira/cards/{card_key}/query", json={"intent": "reuse"}).json()
+    assert missing["state"] == "no_snapshot" and "taskId" not in missing
+    replacement = api.post(f"/api/jira/cards/{card_key}/query", json={"intent": "refresh"}).json()
     assert replacement["snapshotId"] != started["snapshotId"]
     for _ in range(100):
         task = api.get(f"/api/jira/cards/{card_key}/tasks/{replacement['taskId']}").json()
@@ -412,4 +429,125 @@ def test_cards_exclude_non_qa_at_task_aggregation_and_reject_old_aggregation_sna
     assert task["state"] == "completed"
     reused = api.post(f"/api/jira/cards/{card_key}/query", json={"intent": "reuse"}).json()
     assert reused["query"]["activeSnapshotId"] == replacement["snapshotId"]
-    assert len(executed) == 4
+    assert len(executed) == 8
+
+
+@pytest.mark.parametrize("card_key", ["self-test", "task", "customer-feedback"])
+def test_card_bulk_query_requests_comments_and_replays_comment_authors(tmp_path, monkeypatch, card_key):
+    from core.jira.gateway import JiraGateway
+    requested = []
+    def search(_self, _query, *, fields=None, expand=None, page_size=None, progress=None):
+        requested.append((fields, expand, page_size))
+        return dated_rows([{"id": "1", "key": "TV-1", "fields": {
+            "project": {"key": "TV"}, "creator": {"name": "fan.xu"},
+            "comment": {"comments": [{"id": "c1", "author": {"name": "meng.wang1"}, "created": "2020-01-01T00:00:00Z"}]},
+        }, "changelog": {"histories": [{"author": {"name": "meng.wang1"},
+            "created": "2026-09-01T00:00:00Z", "items": [{"field": "status", "fromString": "Resolved", "toString": "Verified"}]}]}}], _query)
+    monkeypatch.setattr(Gateway, "search_all_payloads", search)
+    api = client(tmp_path)
+    api.post("/api/jira/analytics/search", json={"mode": "basic", "basic": {}})
+    started = api.post(f"/api/jira/cards/{card_key}/query", json={"period": "year"}).json()
+    for _ in range(100):
+        task = api.get(f"/api/jira/cards/{card_key}/tasks/{started['taskId']}").json()
+        if task["state"] not in {"queued", "running"}: break
+        time.sleep(.01)
+    assert task["state"] == "completed"
+    assert requested == ([([*JiraGateway.CORE_FIELDS, "comment"], None, 100)] * 2
+                         + [(["key"], ["changelog"], 100)] * 2)
+    replay = api.get(f"/api/jira/cards/{card_key}/statistics").json()
+    for period in ["current", "previous"]:
+        people = replay[period]["productLines"][2]["people"]
+        commenter = next(person for person in people if person["identity"] == "meng.wang1")
+        assert commenter["commentCount"] == 1
+        assert commenter["verifyCount"] == 1
+        assert all("p0Count" not in person for person in people)
+        assert all("resolvedCount" not in person for person in people)
+    assert len(requested) == 4
+
+
+def test_card_replays_each_persisted_layer_while_later_layers_are_running(tmp_path, monkeypatch):
+    gates = [Event() for _ in range(3)]
+    entered = [Event() for _ in range(3)]
+    calls = []
+    def search(_self, query, **kwargs):
+        index = len(calls)
+        calls.append((query, kwargs))
+        if index:
+            entered[index - 1].set()
+            assert gates[index - 1].wait(5)
+        if index < 2:
+            return dated_rows([{"id": "1", "key": "TV-1", "fields": {"project": {"key": "TV"},
+                "creator": {"name": "fan.xu"}, "comment": {"comments": []}}}], query)
+        return dated_rows([{"id": "1", "key": "TV-1", "changelog": {"histories": [{
+            "author": {"name": "meng.wang1"}, "created": "2026-09-01T00:00:00Z",
+            "items": [{"field": "status", "fromString": "Resolved", "toString": "Verified"}],
+        }]}}], query)
+    monkeypatch.setattr(Gateway, "search_all_payloads", search)
+    api = client(tmp_path)
+    try:
+        started = query_card(api, {"mode": "basic", "basic": {}}).json()
+        for stage in range(3):
+            assert entered[stage].wait(2)
+            response = api.get("/api/jira/cards/self-test/statistics").json()
+            assert response["state"] == "loading"
+            assert response["current"]["teamTotal"] == 1
+            assert response["availability"]["current"] == {"basic": True, "verify": stage == 2}
+            assert response["availability"]["previous"] == {"basic": stage >= 1, "verify": False}
+            assert all("verifyCount" not in person for line in response["previous"]["productLines"] for person in line["people"])
+            gates[stage].set()
+        assert wait_terminal(api, started["taskId"]) == "completed"
+        ready = api.get("/api/jira/cards/self-test/statistics").json()
+        assert all(value["verify"] for value in ready["availability"].values())
+        assert ready["current"]["teamTotal"] == ready["previous"]["teamTotal"] == 1
+        assert [kwargs["expand"] for _, kwargs in calls] == [None, None, ["changelog"], ["changelog"]]
+        assert len(calls) == 4
+    finally:
+        for gate in gates: gate.set()
+
+
+@pytest.mark.parametrize("terminal", ["failed", "cancelled"])
+@pytest.mark.parametrize("has_active", [False, True])
+def test_interrupted_layers_restore_complete_active_or_keep_first_basic_preview(tmp_path, monkeypatch, terminal, has_active):
+    calls = []
+    def search(_self, _query, **kwargs):
+        calls.append(kwargs)
+        if len(calls) == (7 if has_active else 3):
+            raise TaskCancelled() if terminal == "cancelled" else RuntimeError("offline")
+        return dated_rows([{"id": "1", "key": "TV-1", "fields": {
+            "project": {"key": "TV"}, "creator": {"name": "fan.xu"}}}], _query)
+    monkeypatch.setattr(Gateway, "search_all_payloads", search)
+    api = client(tmp_path)
+    if has_active:
+        first = query_card(api, {"mode": "basic", "basic": {}}).json()
+        assert wait_terminal(api, first["taskId"]) == "completed"
+    started = query_card(api, {"mode": "basic", "basic": {}}).json()
+    assert wait_terminal(api, started["taskId"]) == terminal
+    payload = api.get("/api/jira/cards/self-test/statistics").json()
+    assert payload["state"] == terminal
+    assert payload["teamTotal"] == 1
+    assert payload["availability"]["current"] == {"basic": True, "verify": has_active}
+    assert payload["availability"]["previous"] == {"basic": True, "verify": has_active}
+    people = [person for line in payload["productLines"] for person in line["people"]]
+    assert all(("verifyCount" in person) == has_active for person in people)
+    assert bool(payload["query"]["activeSnapshotId"]) == has_active
+
+
+def test_incremental_card_aggregation_loads_each_account_groups_once_per_task(tmp_path, monkeypatch):
+    groups = []
+    def user_groups(_self, account):
+        groups.append(account)
+        return ("fae-tv-qa",) if account != "outside" else ()
+    monkeypatch.setattr(Gateway, "user_groups", user_groups)
+    monkeypatch.setattr(Gateway, "search_all_payloads", lambda _self, _query, **kwargs: [{
+        "id": "1", "key": "TV-1", "fields": {"project": {"key": "TV"}, "creator": {"name": "creator"},
+            "comment": {"comments": [{"author": {"name": "outside"}, "created": "2026-09-01T00:00:00Z"}]}},
+        "changelog": {"histories": [{"author": {"name": "verifier"}, "created": "2026-09-01T00:00:00Z",
+            "items": [{"field": "status", "fromString": "Resolved", "toString": "Verified"}]}]}
+            if kwargs.get("expand") else {},
+    }])
+    api = client(tmp_path)
+    for completed_tasks in (1, 2):
+        started = query_card(api, {"mode": "basic", "basic": {}}).json()
+        assert wait_terminal(api, started["taskId"]) == "completed"
+        assert {account: groups.count(account) for account in groups} == {
+            "creator": completed_tasks, "outside": completed_tasks, "verifier": completed_tasks}

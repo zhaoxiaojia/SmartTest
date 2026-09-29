@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from time import monotonic
+
+from core.logging import smart_log
 from core.async_tasks import TaskCancelled
+from core.jira.gateway import JiraGateway
 from core.jira.services.filter_service import build_basic_jql, compose_jql
 
 
@@ -62,40 +66,84 @@ class JiraAnalyticsService:
         )
 
         def run(token, progress):
+            started = monotonic()
+            outcome = "failed"
+            processed = 0
+            def log_stage(stage, since, *, period="both", layer="basic", page_count=0, processed=0, outcome="completed"):
+                smart_log("Jira card load stage", platform="web", domain="jira", extra={
+                    "card_key": self.card_key, "stage": stage, "period": period, "layer": layer,
+                    "duration_ms": round((monotonic() - since) * 1000, 3),
+                    "page_count": page_count, "processed": processed, "outcome": outcome,
+                })
             try:
                 token.raise_if_cancelled()
-                def current_progress(processed, total):
-                    token.raise_if_cancelled()
-                    progress(processed, total)
-                rows_by_period = {"current": self.gateway.search_all_payloads(jql, progress=current_progress)}
-                if comparison_jql:
-                    token.raise_if_cancelled()
-                    current_total = len(rows_by_period["current"])
-                    def comparison_progress(processed, total):
+                layered = bool(self.statistics_builder and comparison_jql)
+                rows_by_period = {"current": [], "previous": []}
+                availability = {period: {"basic": False, "verify": False} for period in rows_by_period}
+                queries = {"current": jql, **({"previous": comparison_jql} if comparison_jql else {})}
+                statistics = None
+                for layer in (["basic", "verify"] if layered else ["basic"]):
+                    for period, query in queries.items():
                         token.raise_if_cancelled()
-                        progress(current_total + processed, current_total + total)
-                    rows_by_period["previous"] = self.gateway.search_all_payloads(
-                        comparison_jql, progress=comparison_progress,
-                    )
-                for period_kind, rows in rows_by_period.items():
-                    for start in range(0, len(rows), 500):
+                        since = monotonic()
+                        observed_total = 0
+                        def report(count, total):
+                            nonlocal observed_total
+                            observed_total = max(observed_total, total)
+                            token.raise_if_cancelled()
+                            progress(processed + count, processed + total)
+                        fields = [*JiraGateway.CORE_FIELDS, "comment"] if layer == "basic" else ["key"]
+                        rows = self.gateway.search_all_payloads(
+                            query, fields=fields, expand=["changelog"] if layer == "verify" else None,
+                            page_size=100, progress=report,
+                        )
+                        processed += len(rows)
+                        log_stage("search", since, period=period, layer=layer,
+                                  page_count=max(1, (observed_total + 99) // 100), processed=len(rows))
                         token.raise_if_cancelled()
-                        batch = [self.mapper.from_search(item) for item in rows[start:start + 500]]
-                        self.repository.write_batch(snapshot_id, batch, period_kind)
-                token.raise_if_cancelled()
-                if self.statistics_builder and comparison_jql:
-                    statistics = self.statistics_builder(rows_by_period["current"], rows_by_period["previous"])
-                else:
+                        since = monotonic()
+                        if layer == "basic":
+                            rows_by_period[period] = rows
+                            for start in range(0, len(rows), 500):
+                                token.raise_if_cancelled()
+                                self.repository.write_batch(snapshot_id, [self.mapper.from_search(item)
+                                    for item in rows[start:start + 500]], period)
+                        else:
+                            histories = {str(row.get("key") or row.get("id")): row.get("changelog") for row in rows}
+                            rows_by_period[period] = [{**row, "changelog": histories.get(str(row.get("key") or row.get("id")))}
+                                                     for row in rows_by_period[period]]
+                        availability[period][layer] = True
+                        log_stage("persist", since, period=period, layer=layer, processed=len(rows))
+                        token.raise_if_cancelled()
+                        if layered:
+                            since = monotonic()
+                            statistics = self.statistics_builder(rows_by_period["current"], rows_by_period["previous"])
+                            statistics["availability"] = {key: dict(value) for key, value in availability.items()}
+                            for key, ready in availability.items():
+                                if not ready["verify"]:
+                                    for line in statistics.get(key, {}).get("productLines", []):
+                                        for person in line.get("people", []):
+                                            person.pop("verifyCount", None)
+                            token.raise_if_cancelled()
+                            facts = statistics.pop("_facts", None)
+                            if not self.repository.update_statistics(snapshot_id, statistics, **({"facts": facts} if facts is not None else {})):
+                                raise TaskCancelled()
+                            log_stage("aggregate", since, period=period, layer=layer, processed=len(rows))
+                if not layered:
                     statistics = self.statistics_builder(rows_by_period["current"]) if self.statistics_builder else None
                 token.raise_if_cancelled()
                 self.repository.activate(snapshot_id, statistics)
+                outcome = "completed"
             except TaskCancelled:
+                outcome = "cancelled"
                 self.repository.finish(snapshot_id, "cancelled")
                 raise
             except Exception as error:
                 self.repository.finish(snapshot_id, "failed", getattr(error, "code", type(error).__name__))
                 self.on_error(error)
                 raise
+            finally:
+                log_stage("complete", started, processed=processed, outcome=outcome)
 
         task_id = self.tasks.submit(session_hash, run, card_key=self.card_key)
         self.repository.set_task(snapshot_id, task_id, session_hash=session_hash)

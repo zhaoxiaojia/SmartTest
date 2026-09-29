@@ -150,10 +150,12 @@ class JiraGateway:
         fields: list[str] | None = None,
         expand: list[str] | None = None,
         progress: Callable[[int, int], None] | None = None,
+        page_size: int | None = None,
     ) -> list[dict[str, Any]]:
         requested_fields = fields or list(self.CORE_FIELDS)
+        requested_page_size = self.FULL_SEARCH_PAGE_SIZE if page_size is None else page_size
         pages = {0: self._full_search_executor.submit(
-            self._search_full_page, query, 0, requested_fields, expand,
+            self._search_full_page, query, 0, requested_fields, expand, requested_page_size,
         ).result()}
         observed_total = int(pages[0].get("total") or 0)
         completed_count = len(pages[0].get("issues") or ())
@@ -163,11 +165,11 @@ class JiraGateway:
         pending = {}
 
         def schedule(total: int) -> None:
-            for start in range(self.FULL_SEARCH_PAGE_SIZE, total, self.FULL_SEARCH_PAGE_SIZE):
+            for start in range(requested_page_size, total, requested_page_size):
                 if start not in scheduled:
                     scheduled.add(start)
                     future = self._full_search_executor.submit(
-                        self._search_full_page, query, start, requested_fields, expand,
+                        self._search_full_page, query, start, requested_fields, expand, requested_page_size,
                     )
                     pending[future] = start
 
@@ -206,6 +208,7 @@ class JiraGateway:
         start: int,
         fields: list[str],
         expand: list[str] | None,
+        page_size: int,
     ) -> dict[str, Any]:
         api = self._thread_api()
         for attempt in range(len(self._RETRY_DELAYS) + 1):
@@ -214,7 +217,7 @@ class JiraGateway:
                     query,
                     fields=fields,
                     start=start,
-                    limit=self.FULL_SEARCH_PAGE_SIZE,
+                    limit=page_size,
                     expand=",".join(expand) if expand else None,
                     validate_query="strict",
                 )

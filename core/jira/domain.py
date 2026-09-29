@@ -37,6 +37,12 @@ class IssueComment:
 
 
 @dataclass(frozen=True)
+class IssueVerification:
+    author: domain_values.PersonRef | None
+    created_at: datetime
+
+
+@dataclass(frozen=True)
 class IssueAttachment:
     id: str
     filename: str

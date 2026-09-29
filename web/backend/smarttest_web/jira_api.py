@@ -9,11 +9,10 @@ from core.jira.domain import IssueDetails
 from core.jira.mapper import JiraIssueMapper
 from core.jira.services.jql_statistics_cards import (
     JIRA_STATISTICS_CARDS,
-    build_comparison_statistics,
+    build_annual_facts,
     card_definition,
     effective_card_jql_pair,
 )
-from core.jira.services.filter_service import compose_jql
 
 from .audit.registry import AuditConflictError
 from .audit_http import (
@@ -95,19 +94,20 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
         except Exception as error:
             raise HTTPException(status_code=503, detail={"state": "analytics_unavailable"}) from error
         definition = card_definition(card_key) if card_key else None
-        period = jira_card_period(value, card_key) if definition else None
+        period = "year" if definition else None
         query_pair = effective_card_jql_pair(card_key, "", period) if definition else None
         current_fixed = query_pair["current"]["jql"] if query_pair else ""
         previous_fixed = query_pair["previous"]["jql"] if query_pair else ""
+        groups_cache = {}
         return JiraAnalyticsService(
             filters, gateway, JiraIssueMapper(gateway.config.base_url if hasattr(gateway, "config") else ""),
             jira_analytics, JIRA_ANALYTICS_TASKS,
             fixed_conditions=current_fixed,
             comparison_conditions=previous_fixed,
             card_key=card_key,
-            roster_fingerprint=f"{definition.fingerprint}:natural-period-comparison-v1" if definition else "",
-            statistics_builder=(lambda current, previous: build_comparison_statistics(
-                gateway, current, previous, query_pair,
+            roster_fingerprint=f"{definition.fingerprint}:annual-facts-v1" if definition else "",
+            statistics_builder=(lambda current, previous: build_annual_facts(
+                gateway, current, previous, groups_cache=groups_cache,
             )) if definition else None,
             on_error=lambda error: invalidate_analytics_credentials(value, error),
         )
@@ -154,14 +154,21 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
         session_hash = audit_session(request)
         query, task = analytics_query_state(session_hash, value.username, card_key)
         period = jira_card_period(value, card_key)
-        summary = jira_analytics.statistics_summary(session_hash, value.username, card_key=card_key)
-        expected = effective_card_jql_pair(card_key, query["userJql"] or "", period)
-        active_matches = bool(query["activeSnapshotId"] and query["userJql"] is not None and summary is not None
-                              and query["rosterFingerprint"] == f"{card_definition(card_key).fingerprint}:natural-period-comparison-v1"
-                              and query["activeJql"] == expected["current"]["jql"]
-                              and query["activeComparisonJql"] == expected["previous"]["jql"])
-        state = ("loading" if query["pendingSnapshotId"] else query["latestState"]
-                 if query["latestState"] in {"failed", "cancelled"} else "ready"
+        summary = jira_analytics.local_statistics(query["activeSnapshotId"], period)
+        conditions = jira_analytics.published_conditions(session_hash, value.username)
+        applied_jql = (conditions or {}).get("userJql")
+        expected = effective_card_jql_pair(card_key, applied_jql or "", "year")
+        fingerprint = f"{card_definition(card_key).fingerprint}:annual-facts-v1"
+        def matches(jql, comparison_jql, user_jql, version):
+            return (user_jql is not None and user_jql == applied_jql and version == fingerprint
+                    and jql == expected["current"]["jql"] and comparison_jql == expected["previous"]["jql"])
+        active_matches = summary is not None and matches(query["activeJql"], query["activeComparisonJql"],
+                                                        query["userJql"], query["rosterFingerprint"])
+        preview = jira_analytics.statistics_preview(session_hash, value.username, card_key=card_key)
+        preview_matches = preview is not None and matches(preview["jql"], preview["comparisonJql"],
+                                                         preview["userJql"], preview["fingerprint"])
+        state = ("loading" if query["pendingSnapshotId"] and preview_matches else query["latestState"]
+                 if preview_matches and query["latestState"] in {"failed", "cancelled"} else "ready"
                  if active_matches else "no_snapshot")
         payload = {"state": state, "period": period}
         if query["activeSnapshotId"] or query["pendingSnapshotId"] or query["latestState"]:
@@ -170,7 +177,11 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
             payload["task"] = task
         if state in {"failed", "cancelled"}:
             payload["error"] = query["error"] or ("query_cancelled" if state == "cancelled" else "query_failed")
-        if active_matches:
+        if preview_matches and preview["statistics"] and (state == "loading" or not active_matches):
+            partial = jira_analytics.local_statistics(preview["snapshotId"], period)
+            if partial is not None:
+                payload.update(partial)
+        elif active_matches:
             payload.update(summary)
         return payload
 
@@ -239,16 +250,9 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
         conditions = jira_analytics.published_conditions(audit_session(request), value.username)
         if conditions is None:
             return {"state": "no_snapshot", "period": period}
-        service = resolve_jira_analytics(value, card_key=card_key)
-        published_user_jql = str(conditions.get("userJql") or "")
-        composed_jql = compose_jql(published_user_jql, service.fixed_conditions)
-        comparison_jql = compose_jql(published_user_jql, service.comparison_conditions)
         if intent == "reuse":
-            if "userJql" in conditions:
-                if jira_analytics.reuse(audit_session(request), value.username, composed_jql,
-                                        comparison_jql=comparison_jql,
-                                        card_key=card_key, roster_fingerprint=service.roster_fingerprint):
-                    return jira_analytics_statistics(card_key, request, value)
+            return jira_analytics_statistics(card_key, request, value)
+        service = resolve_jira_analytics(value, card_key=card_key)
         try:
             started = service.search(
                 audit_session(request), value.username, value.expires_at, conditions)

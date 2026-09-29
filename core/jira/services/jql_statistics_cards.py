@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import date
 from dataclasses import asdict, dataclass
 import hashlib
 import json
 from typing import Any, Iterable
 
+from core.jira.mapper import JiraIssueMapper
 from core.jira.services.filter_service import compose_jql, jira_period_condition, jira_period_ranges
 from core.product_lines import (
     CHINA_OPERATOR_BUSINESS,
@@ -69,7 +71,7 @@ class JiraStatisticsCardDefinition:
     @property
     def fingerprint(self) -> str:
         encoded = json.dumps({"definition": asdict(self), "groups": FAE_QA_GROUPS,
-                              "aggregation": "qa-creators-v2"}, sort_keys=True, separators=(",", ":")).encode()
+                              "aggregation": "qa-creators-comments-verify-v4"}, sort_keys=True, separators=(",", ":")).encode()
         return hashlib.sha256(encoded).hexdigest()
 
 
@@ -110,7 +112,7 @@ class QARoster:
     assignments: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
 
-def creator_accounts(issues) -> tuple[str, ...]:
+def statistics_accounts(issues) -> tuple[str, ...]:
     accounts = set()
     for issue in issues:
         fields = issue.get("fields") if isinstance(issue, dict) else None
@@ -119,16 +121,30 @@ def creator_accounts(issues) -> tuple[str, ...]:
             account = str(creator.get("name") or creator.get("accountId") or creator.get("key") or "").strip().casefold()
             if account:
                 accounts.add(account)
+        if isinstance(fields, dict):
+            for comment in _comments(fields):
+                if comment.author:
+                    account = (comment.author.account or comment.author.identity).strip().casefold()
+                    if account:
+                        accounts.add(account)
+        verification = JiraIssueMapper.last_verification(issue) if isinstance(issue, dict) else None
+        if verification and verification.author:
+            account = (verification.author.account or verification.author.identity).strip().casefold()
+            if account:
+                accounts.add(account)
     return tuple(sorted(accounts))
 
 
-def load_fae_qa_roster(gateway, accounts) -> QARoster:
+def load_fae_qa_roster(gateway, accounts, *, groups_cache=None) -> QARoster:
+    groups_cache = {} if groups_cache is None else groups_cache
     by_account: dict[str, set[str]] = defaultdict(set)
     product_line_by_group = dict(FAE_QA_GROUP_PRODUCT_LINES)
     for account in sorted({str(value or "").strip().casefold() for value in accounts if str(value or "").strip()}):
+        if account not in groups_cache:
+            groups_cache[account] = tuple(gateway.user_groups(account))
         by_account[account].update(
             product_line_by_group[group].name
-            for group in gateway.user_groups(account) if group in product_line_by_group
+            for group in groups_cache[account] if group in product_line_by_group
         )
     assignments = tuple((account, tuple(sorted(lines))) for account, lines in sorted(by_account.items()))
     fingerprint = hashlib.sha256(json.dumps(assignments, separators=(",", ":")).encode()).hexdigest()
@@ -140,8 +156,8 @@ class JiraStatisticsPerson:
     identity: str
     displayName: str
     bugCount: int
-    resolvedCount: int
-    p0Count: int
+    commentCount: int
+    verifyCount: int
     invalidCount: int
 
 
@@ -176,6 +192,10 @@ def _name(value: Any) -> str:
     return str(value.get("name") or "") if isinstance(value, dict) else ""
 
 
+def _comments(fields):
+    return tuple(JiraIssueMapper.from_comment(item) for item in (fields.get("comment") or {}).get("comments", ()))
+
+
 def _product_line(fields: dict[str, Any], assignments: set[str]):
     if WIRELESS_CONNECTION.name in assignments:
         return WIRELESS_CONNECTION.name
@@ -191,7 +211,7 @@ def aggregate_jira_statistics(
     assignments = {account: set(lines) for account, lines in roster.assignments}
     people: dict[str, dict[str, dict[str, Any]]] = defaultdict(lambda: defaultdict(lambda: {
         "identity": "", "displayName": "", "bugCount": 0,
-        "resolvedCount": 0, "p0Count": 0, "invalidCount": 0,
+        "commentCount": 0, "verifyCount": 0, "invalidCount": 0,
     }))
     total = unassigned = unmapped = 0
     for issue in issues:
@@ -208,6 +228,28 @@ def aggregate_jira_statistics(
         if not assignments.get(identity):
             total -= 1
             continue
+        comment_line = _product_line(fields, set())
+        if comment_line:
+            for comment in _comments(fields):
+                author = comment.author
+                if not author:
+                    continue
+                account = (author.account or author.identity).strip().casefold()
+                if not assignments.get(account):
+                    continue
+                comment_row = people[comment_line][account]
+                comment_row["identity"] = account
+                comment_row["displayName"] = author.display_name or account
+                comment_row["commentCount"] += 1
+        verification = JiraIssueMapper.last_verification(issue)
+        if comment_line and verification and verification.author:
+            author = verification.author
+            account = (author.account or author.identity).strip().casefold()
+            if assignments.get(account):
+                verify_row = people[comment_line][account]
+                verify_row["identity"] = account
+                verify_row["displayName"] = author.display_name or account
+                verify_row["verifyCount"] += 1
         product_line = _product_line(fields, assignments[identity])
         if not product_line:
             unmapped += 1
@@ -216,8 +258,6 @@ def aggregate_jira_statistics(
         row["identity"] = identity
         row["displayName"] = str(creator.get("displayName") or identity)
         row["bugCount"] += 1
-        row["resolvedCount"] += _name(fields.get("resolution")) == "Resolved"
-        row["p0Count"] += _name(fields.get("priority")) == "P0"
         row["invalidCount"] += _name(fields.get("resolution")) == "Invalid"
 
     product_lines = []
@@ -228,9 +268,9 @@ def aggregate_jira_statistics(
     return JiraStatisticsOverview(total, tuple(product_lines), unassigned, unmapped)
 
 
-def build_comparison_statistics(gateway, current_rows, previous_rows, ranges) -> dict[str, Any]:
+def build_comparison_statistics(gateway, current_rows, previous_rows, ranges, *, groups_cache=None) -> dict[str, Any]:
     all_rows = [*current_rows, *previous_rows]
-    roster = load_fae_qa_roster(gateway, creator_accounts(all_rows))
+    roster = load_fae_qa_roster(gateway, statistics_accounts(all_rows), groups_cache=groups_cache)
     clean_ranges = {
         key: {name: value for name, value in period.items() if name in {"start", "end"}}
         for key, period in ranges.items()
@@ -243,3 +283,61 @@ def build_comparison_statistics(gateway, current_rows, previous_rows, ranges) ->
         "current": current,
         "previous": previous,
     }
+
+
+def build_annual_facts(gateway, current_rows, previous_rows, *, groups_cache=None):
+    rows = [*current_rows, *previous_rows]
+    roster = load_fae_qa_roster(gateway, statistics_accounts(rows), groups_cache=groups_cache)
+    facts = []
+    for issue in rows:
+        statistics = aggregate_jira_statistics([issue], roster).to_payload()
+        statistics["productLines"] = [line for line in statistics["productLines"] if line["people"]]
+        verification = JiraIssueMapper.last_verification(issue)
+        fields = issue.get("fields", {})
+        creator = fields.get("creator") or {}
+        facts.append({"issueId": str(issue["id"]), "createdAt": str(fields.get("created") or ""),
+                      "creator": {key: creator[key] for key in ("name", "accountId", "key", "displayName") if key in creator},
+                      "projectKey": (fields.get("project") or {}).get("key", ""), "statistics": statistics,
+                      "verification": {"author": asdict(verification.author) if verification.author else None,
+                                       "createdAt": verification.created_at.isoformat()} if verification else None})
+    return {"_facts": facts, "roster": asdict(roster), "annual": True}
+
+
+def aggregate_annual_facts(facts, metadata, period, today=None):
+    today = today or date.today()
+    ranges = jira_period_ranges(period, today)
+    output = {}
+    availability = {}
+    for key, window in ranges.items():
+        start, end = window["start"], window["end"]
+        years = (["previous"] if start < f"{today.year}-01-01" else [])
+        if end is None or end > f"{today.year}-01-01":
+            years.append("current")
+        availability[key] = {metric: all(metadata["availability"][year][metric] for year in years)
+                             for metric in ("basic", "verify")}
+        summary = aggregate_jira_statistics([], QARoster("", ())).to_payload()
+        by_line = {line["id"]: {} for line in summary["productLines"]}
+        for fact in facts:
+            created = fact["createdAt"][:10]
+            if not created or created < start or (end is not None and created >= end):
+                continue
+            contribution = fact["statistics"]
+            for count in ("teamTotal", "unassignedCount", "unmappedCount"):
+                summary[count] += contribution[count]
+            for line in contribution["productLines"]:
+                for person in line["people"]:
+                    target = by_line[line["id"]].setdefault(person["identity"], {
+                        "identity": person["identity"], "displayName": person["displayName"],
+                        "bugCount": 0, "commentCount": 0, "verifyCount": 0, "invalidCount": 0})
+                    for metric in ("bugCount", "commentCount", "verifyCount", "invalidCount"):
+                        target[metric] += person[metric]
+        for line in summary["productLines"]:
+            line["people"] = sorted(by_line[line["id"]].values(),
+                                    key=lambda person: (-person["bugCount"], person["displayName"].casefold(), person["identity"]))
+            if not availability[key]["verify"]:
+                for person in line["people"]:
+                    person.pop("verifyCount")
+        output[key] = summary
+    return {**output["current"], **output, "availability": availability,
+            "ranges": {key: {name: value for name, value in window.items() if name != "condition"}
+                       for key, window in ranges.items()}}

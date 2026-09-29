@@ -162,7 +162,7 @@ def test_aggregate_jira_statistics_uses_exact_jira_names_and_defined_denominator
     assert rows.teamTotal == 3
     assert rows.to_payload()["productLines"][2]["people"][0] == {
         "identity": "alice", "displayName": "Alice", "bugCount": 2,
-        "resolvedCount": 1, "p0Count": 1, "invalidCount": 1,
+        "commentCount": 0, "verifyCount": 0, "invalidCount": 1,
     }
 
 
@@ -193,9 +193,9 @@ def test_project_mapping_keeps_unmapped_issues_in_total_but_not_bars():
     assert payload["teamTotal"] == 4
     assert payload["unmappedCount"] == 1
     assert payload["productLines"][0]["people"][0]["bugCount"] == 1
-    assert payload["productLines"][1]["people"][0]["resolvedCount"] == 1
+    assert payload["productLines"][1]["people"][0]["commentCount"] == 0
     assert payload["productLines"][2]["people"] == []
-    assert payload["productLines"][3]["people"][0]["p0Count"] == 1
+    assert payload["productLines"][3]["people"][0]["verifyCount"] == 0
 
 
 def test_project_mapping_uses_wireless_creator_assignment_precedence():
@@ -217,7 +217,7 @@ def test_project_mapping_uses_wireless_creator_assignment_precedence():
     assert payload["productLines"][3]["people"][0]["invalidCount"] == 1
     assert payload["productLines"][4]["people"][0] == {
         "identity": "wifi", "displayName": "WiFi", "bugCount": 3,
-        "resolvedCount": 1, "p0Count": 1, "invalidCount": 0,
+        "commentCount": 0, "verifyCount": 0, "invalidCount": 0,
     }
 
 
@@ -237,4 +237,95 @@ def test_comparison_payload_uses_one_roster_and_keeps_both_complete_overviews():
     assert payload["current"]["teamTotal"] == 1
     assert payload["previous"]["teamTotal"] == 1
     assert payload["current"]["productLines"][2]["people"][0]["displayName"] == "Alice"
-    assert payload["previous"]["productLines"][2]["people"][0]["resolvedCount"] == 1
+    assert payload["previous"]["productLines"][2]["people"][0]["commentCount"] == 0
+
+
+def test_comments_count_qa_authors_in_issue_project_not_author_product_line():
+    current = issue(creator={"name": "creator"})
+    current["fields"]["comment"] = {"comments": [
+        {"id": "1", "author": {"name": "commenter", "displayName": "Commenter"}, "created": "2020-01-01T00:00:00.000+0000"},
+        {"id": "2", "author": {"name": "commenter", "displayName": "Commenter"}, "created": "2026-09-01T00:00:00.000+0000"},
+        {"id": "3", "author": {"name": "outside"}, "created": "2026-09-01T00:00:00.000+0000"},
+        {"id": "4", "created": "2026-09-01T00:00:00.000+0000"},
+    ]}
+    previous = issue(creator={"name": "creator"})
+    previous["fields"]["comment"] = {"comments": [current["fields"]["comment"]["comments"][0]]}
+    calls = []
+    class Gateway:
+        def user_groups(self, account):
+            calls.append(account)
+            return {"creator": ("fae-tv-qa",), "commenter": ("fae-wifi-qa",), "outside": ()}[account]
+    payload = service.build_comparison_statistics(Gateway(), [current], [previous], {})
+    assert set(calls) == {"creator", "commenter", "outside"}
+    assert len(calls) == 3
+    for period, count in [("current", 2), ("previous", 1)]:
+        summary = payload[period]
+        people = {person["identity"]: person for person in summary["productLines"][2]["people"]}
+        assert people["commenter"]["commentCount"] == count
+        assert people["commenter"]["bugCount"] == 0
+        assert people["creator"]["bugCount"] == 1
+        assert people["creator"]["commentCount"] == 0
+        assert "outside" not in people
+        assert summary["productLines"][4]["people"] == []
+        assert all("resolvedCount" not in person for person in people.values())
+
+
+def test_verify_uses_last_transition_and_qa_author_under_issue_project():
+    def history(author, created, before="Resolved", after="Verified"):
+        return {"author": {"name": author, "displayName": author}, "created": created,
+                "items": [{"field": "status", "fromString": before, "toString": after}]}
+    accepted = issue(creator={"name": "creator"})
+    accepted["changelog"] = {"histories": [
+        history("wifi", "2026-09-20T08:00:00+0800"),
+        history("early", "2026-09-01T08:00:00+0800"),
+        history("outside", "2026-09-21T08:00:00+0800", "Open"),
+    ]}
+    rejected = issue(creator={"name": "creator"})
+    rejected["changelog"] = {"histories": [
+        history("early", "2026-09-01T08:00:00+0800"),
+        history("outside", "2026-09-20T08:00:00+0800"),
+    ]}
+    class Gateway:
+        def user_groups(self, account):
+            return {"creator": ("fae-tv-qa",), "wifi": ("fae-wifi-qa",), "early": ("fae-tv-qa",), "outside": ()}[account]
+    result = service.build_comparison_statistics(Gateway(), [accepted, rejected], [accepted], {})
+    for period in ["current", "previous"]:
+        people = result[period]["productLines"][2]["people"]
+        assert {person["identity"]: person["verifyCount"] for person in people} == {"creator": 0, "wifi": 1}
+        assert all("p0Count" not in person for person in people)
+        assert result[period]["productLines"][4]["people"] == []
+
+
+def test_annual_facts_match_period_aggregation_across_new_year_without_sensitive_content():
+    from datetime import date
+    from core.jira.services import jql_statistics_cards as service
+    from core.jira.services.filter_service import jira_period_ranges
+    rows = []
+    for index, created in enumerate(["2026-01-01", "2026-12-21", "2026-12-28", "2027-01-01"]):
+        row = issue(creator={"name": "qa"}, resolution={"name": "Invalid"})
+        row["id"] = str(index)
+        row["fields"]["created"] = created + "T00:00:00+08:00"
+        row["fields"]["comment"] = {"comments": [{"author": {"name": "qa"},
+            "body": "secret-comment", "created": "2020-01-01T00:00:00Z"}]}
+        row["changelog"] = {"histories": [{"author": {"name": "qa"}, "created": "2027-01-02T00:00:00Z",
+            "items": [{"field": "status", "fromString": "Resolved", "toString": "Verified"}]}]}
+        rows.append(row)
+    class Gateway:
+        def user_groups(self, _account): return ("fae-tv-qa",)
+    metadata = service.build_annual_facts(Gateway(), rows[-1:], rows[:-1])
+    facts = metadata.pop("_facts")
+    assert "secret-comment" not in str(facts) and "histories" not in str(facts)
+    metadata["availability"] = {key: {"basic": True, "verify": True} for key in ("current", "previous")}
+    today = date(2027, 1, 2)
+    for period in ("week", "month", "quarter", "year"):
+        windows = jira_period_ranges(period, today)
+        selected = {key: [row for row in rows if row["fields"]["created"][:10] >= window["start"]
+                    and (window["end"] is None or row["fields"]["created"][:10] < window["end"])]
+                    for key, window in windows.items()}
+        expected = service.build_comparison_statistics(Gateway(), selected["current"], selected["previous"], windows)
+        actual = service.aggregate_annual_facts(facts, metadata, period, today)
+        assert {key: value for key, value in actual.items() if key != "availability"} == expected
+    metadata["availability"]["previous"]["verify"] = False
+    partial = service.aggregate_annual_facts(facts, metadata, "week", today)
+    assert partial["availability"]["current"] == {"basic": True, "verify": False}
+    assert all("verifyCount" not in person for line in partial["current"]["productLines"] for person in line["people"])

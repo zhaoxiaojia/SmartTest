@@ -9,6 +9,10 @@ import re
 
 
 _EMAIL = re.compile(r"^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$")
+_UNCLOSED_STATUS_FILTER = re.compile(
+    r"\bstatus\s+(?:was\s+)?not\s+in\s*\([^)]*\)(?:\s+on\s+\"[^\"]+\")?",
+    re.IGNORECASE,
+)
 
 
 def _named(value):
@@ -76,17 +80,20 @@ def _history_jql(day, jql):
     historical_status = (
         f'status WAS NOT IN (Closed, Done, Verified) ON "{day.isoformat()}"'
     )
-    status_filter = re.compile(
-        r"\bstatus\s+(?:was\s+)?not\s+in\s*\([^)]*\)(?:\s+on\s+\"[^\"]+\")?",
-        re.IGNORECASE,
-    )
-    if status_filter.search(jql):
-        return status_filter.sub(historical_status, jql, count=1)
+    if _UNCLOSED_STATUS_FILTER.search(jql):
+        return _UNCLOSED_STATUS_FILTER.sub(historical_status, jql, count=1)
     return f"{historical_status} AND ({jql})"
 
 
 def _metric_jql(jql, condition):
     return f"({jql.strip()}) AND {condition}"
+
+
+def _transition_jql(jql, status):
+    condition = f'status CHANGED TO "{status}" AFTER startOfDay()'
+    if _UNCLOSED_STATUS_FILTER.search(jql):
+        return _UNCLOSED_STATUS_FILTER.sub(condition, jql, count=1)
+    return _metric_jql(jql, condition)
 
 
 def _jql_string(value):
@@ -332,7 +339,7 @@ def _chart_data_uri(wf, tool_name, arguments):
 def _render_html(
     config, issues, trend, today, status_image, trend_image, *,
     created_today_keys=None, updated_today_keys=None, stale_keys=None,
-    component_counts=None,
+    component_counts=None, resolved_today_keys=(), closed_today_keys=(),
 ):
     trend = list(trend)
     priorities = Counter(issue["priority"] or "未设置" for issue in issues)
@@ -371,13 +378,11 @@ def _render_html(
     p0 = priorities.get("P0", 0)
     p1 = priorities.get("P1", 0)
     p2 = priorities.get("P2", 0)
-    resolved = statuses.get("Resolved", 0)
-    closed = statuses.get("Closed", 0)
     metric_rows = "".join((
         metric("今日创建", created_today, "本地日期", "created"),
         metric("今日更新", updated_today, "本地日期", "updated"),
-        metric("Resolved", resolved, "当前查询结果", "resolved"),
-        metric("Closed", closed, "当前查询结果", "closed"),
+        metric("今日解决", len(resolved_today_keys), "当天转为 Resolved", "resolved"),
+        metric("今日关闭", len(closed_today_keys), "当天转为 Closed", "closed"),
     ))
     priority_rows = _bar_rows((("P0", p0), ("P1", p1), ("P2", p2), (f"停滞 ≥ {config['stale_days']} 天", len(stale))))
     status_chart = (
@@ -401,7 +406,7 @@ def _render_html(
 <table class="paired-row row-b" role="presentation" width="100%"><tr><td class="paired-cell" width="100%"><div class="panel"><h3>模块分布 · Top 5</h3><table class="bar-table" width="100%">{_bar_rows(modules.most_common(5))}</table></div></td></tr></table>
 <div class="panel trend-panel"><h3>每日未关闭趋势 · 近 {config['trend_days']} 日未关闭趋势</h3>{trend_chart}<div class="muted">{trend_note}</div></div></div>
 <div class="section"><div class="section-title">02 Issue 明细 · {sum(issue['priority'].casefold() in selected for issue in issues)} 条</div><div class="muted">展示优先级：{shown_priorities}</div><table class="detail" width="100%"><tr><th>Key</th><th>Summary</th><th>Status</th><th>Priority</th><th>Assignee</th><th>停滞</th></tr>{details}</table></div>
-<div class="section"><div class="section-title">03 口径与附件</div><p>当前值为配置 JQL 返回的唯一 Issue 数，仅按查询条件排除状态。</p><p>今日创建/更新按本地日期；停滞为最后更新时间距今日至少 {config['stale_days']} 个日历日。本工作流生成 HTML 报告文件，不生成附件。</p></div>
+<div class="section"><div class="section-title">03 口径与附件</div><p>当前值为配置 JQL 返回的唯一 Issue 数，仅按查询条件排除状态。</p><p>今日创建/更新按本地日期；今日解决/关闭按 Jira 当天转为 Resolved/Closed 的唯一 Issue 数；停滞为最后更新时间距今日至少 {config['stale_days']} 个日历日。本工作流生成 HTML 报告文件，不生成附件。</p></div>
 </div></body></html>"""
 
 
@@ -417,6 +422,8 @@ def main(wf):
         updated_today = _search_issues(
             wf, _metric_jql(config["jql"], "updated >= startOfDay()")
         )
+        resolved_today = _search_issues(wf, _transition_jql(config["jql"], "Resolved"))
+        closed_today = _search_issues(wf, _transition_jql(config["jql"], "Closed"))
         stale_boundary = config["stale_days"] - 1
         stale = _search_issues(
             wf,
@@ -462,6 +469,8 @@ def main(wf):
             trend_image,
             created_today_keys={issue["key"] for issue in created_today},
             updated_today_keys={issue["key"] for issue in updated_today},
+            resolved_today_keys={issue["key"] for issue in resolved_today},
+            closed_today_keys={issue["key"] for issue in closed_today},
             stale_keys={issue["key"] for issue in stale},
             component_counts=component_counts,
         )

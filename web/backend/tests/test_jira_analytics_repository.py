@@ -4,26 +4,19 @@ from smarttest_web.database import WebDatabase
 from smarttest_web.jira.analytics_repository import JiraAnalyticsRepository
 
 
-def test_reuse_selects_exact_valid_history_after_failure_and_old_task_cannot_override(tmp_path):
+def test_failed_refresh_preserves_active_and_superseded_task_cannot_activate(tmp_path):
     repo = JiraAnalyticsRepository(WebDatabase(tmp_path / 'web.db'))
-    cached = repo.begin('first', 'alice', 'month effective', {}, '', expires_at=100,
-                        user_jql='', card_key='self-test', roster_fingerprint='roster')
+    cached = repo.begin('first', 'alice', 'annual', {}, '', expires_at=100, user_jql='', card_key='self-test')
     repo.write_batch(cached, [issue('A-1')]); repo.activate(cached)
-    failed = repo.begin('first', 'alice', 'month effective', {}, '', expires_at=100,
-                        user_jql='', card_key='self-test', roster_fingerprint='roster')
+    failed = repo.begin('first', 'alice', 'annual', {}, '', expires_at=100, user_jql='', card_key='self-test')
     repo.finish(failed, 'failed', 'query_failed')
-    assert repo.state('second', 'alice', card_key='self-test')['latestState'] == 'failed'
-    assert repo.reuse('second', 'alice', 'month effective', card_key='self-test', roster_fingerprint='roster')
-    assert repo.state('second', 'alice', card_key='self-test')['latestState'] == 'active'
     assert repo.issue_keys('second', 'alice', card_key='self-test') == ['A-1']
-    assert not repo.reuse('second', 'alice', 'month effective', card_key='self-test', roster_fingerprint='changed')
-    assert not repo.reuse('second', 'bob', 'month effective', card_key='self-test', roster_fingerprint='roster')
-    assert not repo.reuse('second', 'alice', 'different condition', card_key='self-test', roster_fingerprint='roster')
-    old = repo.begin('first', 'alice', 'week effective', {}, '', expires_at=100, card_key='self-test')
-    assert repo.reuse('second', 'alice', 'month effective', card_key='self-test', roster_fingerprint='roster')
+    old = repo.begin('first', 'alice', 'annual', {}, '', expires_at=100, card_key='self-test')
+    new = repo.begin('second', 'alice', 'annual', {}, '', expires_at=100, card_key='self-test')
     assert not repo.activate(old)
-    assert repo.state('second', 'alice', card_key='self-test')['activeSnapshotId'] == cached
-    assert repo.state('second', 'alice', card_key='self-test')['latestState'] == 'active'
+    state = repo.state('second', 'alice', card_key='self-test')
+    assert state['activeSnapshotId'] == cached and state['pendingSnapshotId'] == new
+
 
 
 def issue(key):
@@ -151,7 +144,23 @@ def test_comparison_query_and_memberships_are_persisted_and_reused_atomically(tm
     assert state["activeComparisonJql"] == "previous"
     assert repo.issue_keys("new", "alice", card_key="self-test", period_kind="current") == ["CUR-1"]
     assert repo.issue_keys("new", "alice", card_key="self-test", period_kind="previous") == ["PREV-1"]
-    assert repo.reuse("new", "alice", "current", comparison_jql="previous",
-                      card_key="self-test", roster_fingerprint="definition")
-    assert not repo.reuse("new", "alice", "current", comparison_jql="different",
-                          card_key="self-test", roster_fingerprint="definition")
+
+
+def test_partial_statistics_persist_without_replacing_valid_result_and_reject_stale_writes(tmp_path):
+    repo = JiraAnalyticsRepository(WebDatabase(tmp_path / "web.db"))
+    old = repo.begin("s", "alice", "scope", {}, "", expires_at=100, card_key="task")
+    repo.activate(old, {"value": "valid"})
+    partial = repo.begin("s", "alice", "scope", {}, "", expires_at=100, card_key="task")
+    assert repo.update_statistics(partial, {"value": "basic"})
+    reopened = JiraAnalyticsRepository(WebDatabase(tmp_path / "web.db"))
+    assert reopened.statistics_preview("s", "alice", card_key="task")["statistics"] == {"value": "basic"}
+    assert reopened.state("s", "alice", card_key="task")["activeSnapshotId"] == old
+    replacement = repo.begin("s", "alice", "scope", {}, "", expires_at=100, card_key="task")
+    assert not repo.update_statistics(partial, {"value": "stale"}, facts=[{"issueId": "stale"}])
+    with repo.database.connect() as connection:
+        assert connection.execute("SELECT count(*) FROM jira_analytics_facts WHERE snapshot_id=?", (partial,)).fetchone()[0] == 0
+    assert repo.update_statistics(replacement, {"value": "new"})
+    repo.finish(partial, "cancelled")
+    assert repo.statistics_preview("s", "alice", card_key="task")["statistics"] == {"value": "new"}
+    repo.finish(replacement, "failed")
+    assert repo.state("s", "alice", card_key="task")["activeSnapshotId"] == old

@@ -103,3 +103,24 @@ def test_issue_repository_loads_only_declared_section() -> None:
     assert loaded.comments.value[0].body == "Loaded comment"
     assert loaded.attachments.state is DetailState.UNLOADED
     assert loaded.description.state is DetailState.UNLOADED
+
+
+def test_bulk_comment_mapping_preserves_author_and_creation_time():
+    comment = JiraIssueMapper.from_comment({
+        "id": "c1", "author": {"accountId": "qa-id", "displayName": "QA"},
+        "created": "2020-01-01T12:30:00.000+0800",
+    })
+    assert comment.author == PersonRef("qa-id", "", "QA")
+    assert comment.created_at.isoformat() == "2020-01-01T12:30:00+08:00"
+
+
+def test_last_verification_matches_status_text_case_insensitively_with_suffixes():
+    payload = {"changelog": {"histories": [
+        {"author": {"name": "latest"}, "created": "2026-09-02T00:00:00Z", "items": [
+            {"field": "status", "fromString": "rEsOlVeD - Pending QA", "toString": "vErIfIeD (QA)"}]},
+        {"author": {"name": "earlier"}, "created": "2026-09-01T00:00:00Z", "items": [
+            {"field": "status", "fromString": "Resolved", "toString": "Verified"}]},
+    ]}}
+    verification = JiraIssueMapper.last_verification(payload)
+    assert verification.author.account == "latest"
+    assert verification.created_at.isoformat() == "2026-09-02T00:00:00+00:00"

@@ -4,14 +4,14 @@ import { createJiraStatisticsCard, JIRA_STATISTICS_CARDS } from '../src/widgets/
 
 const productLines = [
   { id: 'China Operator', label: 'China Operator', people: [
-    { identity: 'a', displayName: 'Alice', bugCount: 2, resolvedCount: 1, p0Count: 0, invalidCount: 1 },
-    { identity: 'b', displayName: 'Bob', bugCount: 3, resolvedCount: 0, p0Count: 2, invalidCount: 0 },
+    { identity: 'a', displayName: 'Alice', bugCount: 2, commentCount: 1, verifyCount: 0, invalidCount: 1 },
+    { identity: 'b', displayName: 'Bob', bugCount: 3, commentCount: 0, verifyCount: 2, invalidCount: 0 },
   ] },
   { id: 'Smart Device', label: 'Smart Device', people: [] },
   { id: 'TV', label: 'TV', people: [] },
   { id: 'Global Operator & STB', label: 'Global Operator & STB', people: [] },
   { id: 'Wireless Connection', label: 'Wireless Connection', people: [
-    { identity: 'w', displayName: 'WiFi Owner', bugCount: 4, resolvedCount: 2, p0Count: 1, invalidCount: 0 },
+    { identity: 'w', displayName: 'WiFi Owner', bugCount: 4, commentCount: 2, verifyCount: 1, invalidCount: 0 },
   ] },
 ]
 
@@ -96,7 +96,7 @@ describe('Jira statistics card', () => {
     await vi.waitFor(() => expect(document.querySelector('[data-ranked-chart]')).not.toBeNull())
     expect(document.body.textContent).not.toContain('aggregate query')
     document.querySelector('[data-product-line-segments] button[data-value="TV"]').click()
-    document.querySelector('[data-mode-segments] button[data-value="p0Count"]').click()
+    document.querySelector('[data-mode-segments] button[data-value="verifyCount"]').click()
     expect(api.getStatistics).toHaveBeenCalledTimes(1)
     widget.destroy()
   })
@@ -186,7 +186,7 @@ describe('Jira statistics card', () => {
     expect(bugsChart.options.plugins.datalabels.labels.percentage.formatter(3)).toBe('3 · 60%')
     expect(bugsChart.options.plugins.datalabels.labels.value.formatter(3)).toBeNull()
     expect(bugsChart.options.plugins.datalabels.labels.value.align).toBe('right')
-    ;[...document.querySelectorAll('[data-mode-segments] button')].find(button => button.textContent === 'P0').click()
+    ;[...document.querySelectorAll('[data-mode-segments] button')].find(button => button.textContent === 'Verify').click()
     expect(chartFactory.mock.results[0].value.destroy).not.toHaveBeenCalled()
     expect(chartFactory.mock.results[0].value.reset).toHaveBeenCalledOnce()
     expect(chartFactory.mock.calls.at(-1)[1].data.labels).toEqual(['Bob'])
@@ -203,8 +203,8 @@ describe('Jira statistics card', () => {
 
   it('groups current and previous values with readable comparison labels and ranges', async () => {
     const previousLines = productLines.map(line => ({ ...line, people: line.id === 'China Operator' ? [
-      { identity: 'a', displayName: 'Alice', bugCount: 5, resolvedCount: 2, p0Count: 0, invalidCount: 0 },
-      { identity: 'c', displayName: 'Carol', bugCount: 4, resolvedCount: 1, p0Count: 0, invalidCount: 0 },
+      { identity: 'a', displayName: 'Alice', bugCount: 5, commentCount: 2, verifyCount: 0, invalidCount: 0 },
+      { identity: 'c', displayName: 'Carol', bugCount: 4, commentCount: 1, verifyCount: 0, invalidCount: 0 },
     ] : [] }))
     const api = { getStatistics: vi.fn().mockResolvedValue({ state: 'ready', period: 'month',
       ranges: { current: { start: '2026-09-01', end: null }, previous: { start: '2026-08-01', end: '2026-09-01' } },
@@ -234,4 +234,71 @@ describe('Jira statistics card', () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain('jira_search_failed'))
     expect(api.getStatistics).toHaveBeenCalledTimes(2)
   })
+})
+
+
+it.each(['self-test', 'task', 'customer-feedback'])('shows Comments instead of Resolved for %s', async cardKey => {
+  const api = { getStatistics: vi.fn().mockResolvedValue({ state: 'ready', productLines: [{ id: 'TV', label: 'TV', people: [
+    { identity: 'creator', displayName: 'Creator', bugCount: 2, commentCount: 0, verifyCount: 1, invalidCount: 0 },
+    { identity: 'author', displayName: 'Author', bugCount: 0, commentCount: 3, verifyCount: 0, invalidCount: 0 },
+  ] }] }) }
+  const { widget, chartFactory } = mount(api, vi.fn(chartMock), 'coco', cardKey)
+  await vi.waitFor(() => expect(chartFactory).toHaveBeenCalled())
+  expect([...document.querySelectorAll('[data-mode-segments] button')].map(button => button.textContent)).not.toContain('Resolved')
+  const comments = [...document.querySelectorAll('button')].find(button => button.textContent === 'Comments')
+  expect(comments).toBeTruthy()
+  comments.click()
+  const chart = chartFactory.mock.calls.at(-1)[1]
+  expect(chart.data.labels).toEqual(['Author'])
+  expect(chart.data.datasets[0].data).toEqual([3])
+  widget.destroy()
+})
+
+
+it('renders Verify authors instead of P0', async () => {
+  const api = { getStatistics: vi.fn().mockResolvedValue({ state: 'ready', productLines: [{ id: 'TV', label: 'TV', people: [
+    { identity: 'verifier', displayName: 'Verifier', bugCount: 0, commentCount: 0, verifyCount: 2, invalidCount: 0 },
+  ] }] }) }
+  const { widget, chartFactory } = mount(api)
+  await vi.waitFor(() => expect([...document.querySelectorAll('[data-mode-segments] button')].map(button => button.textContent)).toContain('Verify'))
+  const buttons = [...document.querySelectorAll('[data-mode-segments] button')]
+  expect(buttons.map(button => button.textContent)).not.toContain('P0')
+  buttons.find(button => button.textContent === 'Verify').click()
+  expect(chartFactory.mock.calls.at(-1)[1].data.labels).toEqual(['Verifier'])
+  expect(chartFactory.mock.calls.at(-1)[1].data.datasets[0].data).toEqual([2])
+  widget.destroy()
+})
+
+
+it('renders available layers without treating pending Verify or previous period as zero', async () => {
+  const line = count => [{ id: 'TV', label: 'TV', people: [{ identity: 'qa', displayName: 'QA', bugCount: 2, commentCount: 1, verifyCount: count, invalidCount: 0 }] }]
+  let payload = { state: 'loading', current: { productLines: line(undefined) }, previous: { productLines: line(undefined) },
+    availability: { current: { basic: true, verify: false }, previous: { basic: false, verify: false } } }
+  const chartFactory = vi.fn(chartMock)
+  const widget = createJiraStatisticsCard({ pollDelay: 60000, chartFactory })
+  document.body.innerHTML = '<div id="root"></div>'
+  widget.mount(document.querySelector('#root'), { api: { getStatistics: async () => payload }, account: 'layers' })
+  await vi.waitFor(() => expect(chartFactory).toHaveBeenCalled())
+  const verify = () => document.querySelector('[data-mode-segments] button[data-value="verifyCount"]')
+  expect(verify().disabled).toBe(true)
+  expect(verify().textContent).toContain('Loading')
+  expect(chartFactory.mock.calls.at(-1)[1].data.datasets).toHaveLength(1)
+  payload = { ...payload, state: 'failed' }
+  widget.update()
+  await vi.waitFor(() => expect(verify().textContent).toContain('Failed'))
+  expect(verify().disabled).toBe(true)
+  payload = { ...payload, state: 'loading', current: { productLines: line(3) },
+    availability: { current: { basic: true, verify: true }, previous: { basic: true, verify: false } } }
+  widget.update()
+  await vi.waitFor(() => expect(verify().disabled).toBe(false))
+  expect(verify().textContent).toContain('Previous: Loading')
+  verify().click()
+  expect(chartFactory.mock.calls.at(-1)[1].data.datasets).toHaveLength(1)
+  expect(chartFactory.mock.calls.at(-1)[1].data.datasets[0].data).toEqual([3])
+  payload = { ...payload, state: 'ready', previous: { productLines: line(1) },
+    availability: { current: { basic: true, verify: true }, previous: { basic: true, verify: true } } }
+  widget.update()
+  await vi.waitFor(() => expect(chartFactory.mock.calls.at(-1)[1].data.datasets).toHaveLength(2))
+  expect(chartFactory.mock.calls.at(-1)[1].data.datasets[1].data).toEqual([1])
+  widget.destroy()
 })

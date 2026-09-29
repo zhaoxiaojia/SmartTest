@@ -193,7 +193,8 @@ def test_filter_suggestions_come_from_jql_autocomplete_with_the_requested_field_
     )
 
 
-def test_full_search_uses_1000_item_pages_with_bounded_independent_clients_and_stable_deduplication() -> None:
+@pytest.mark.parametrize("include_comments", [False, True])
+def test_full_search_uses_1000_item_pages_with_bounded_independent_clients_and_stable_deduplication(include_comments) -> None:
     lock = Lock()
     active = 0
     peak = 0
@@ -231,7 +232,9 @@ def test_full_search_uses_1000_item_pages_with_bounded_independent_clients_and_s
         "https://jira.example", "u", "p", api=PagedApi(), api_factory=PagedApi,
     )
     progress = []
-    rows = gateway.search_all_payloads("project = SH", progress=lambda completed, total: progress.append((completed, total)))
+    fields = [*JiraGateway.CORE_FIELDS, "comment"] if include_comments else None
+    rows = gateway.search_all_payloads("project = SH", fields=fields, progress=lambda completed, total: progress.append((completed, total)))
+    assert all(requested == tuple(fields or JiraGateway.CORE_FIELDS) for _, _, _, requested, _, _ in calls)
 
     assert [row["key"] for row in rows] == ["SH-2", "SH-1", "SH-3", "SH-4", "SH-5", "SH-6"]
     assert sorted(start for _, _, _, _, start, _ in calls) == [0, 1000, 2000, 3000, 4000]
@@ -354,3 +357,30 @@ def test_jira_gateway_logs_issue_request_operations_without_response_content(mon
     assert requests[1]["sections"] == ["description"]
     assert all(item["duration_ms"] >= 0 for item in requests)
     assert all("body" not in item for item in requests)
+
+
+def test_explicit_card_page_size_keeps_four_workers_and_default_unchanged():
+    lock = Lock()
+    active = peak = 0
+    calls = []
+    class Api:
+        def jql(self, query, *, start, limit, fields, expand, **_kwargs):
+            nonlocal active, peak
+            with lock:
+                active += 1
+                peak = max(peak, active)
+                calls.append((query, start, limit, fields, expand))
+            try:
+                pause(.01)
+                return {"total": 550, "issues": [{"key": f"TV-{start}"}]}
+            finally:
+                with lock: active -= 1
+    gateway = JiraGateway("https://jira.example", "u", "p", api=Api(), api_factory=Api)
+    fields = [*gateway.CORE_FIELDS, "comment"]
+    gateway.search_all_payloads("card", fields=fields, expand=["changelog"], page_size=100)
+    assert sorted(call[1] for call in calls) == [0, 100, 200, 300, 400, 500]
+    assert all(call[2:] == (100, fields, "changelog") for call in calls)
+    assert 1 < peak <= 4
+    calls.clear()
+    gateway.search_all_payloads("default")
+    assert len(calls) == 1 and calls[0][2] == 1000

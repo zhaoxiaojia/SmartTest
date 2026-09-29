@@ -25,6 +25,10 @@ JIRA_STATEMENTS = (
         issue_id TEXT NOT NULL REFERENCES jira_issues(issue_id) ON DELETE CASCADE,
         ordinal INTEGER NOT NULL, period_kind TEXT NOT NULL DEFAULT 'current', PRIMARY KEY(snapshot_id,issue_id,period_kind)
     )""",
+    """CREATE TABLE IF NOT EXISTS jira_analytics_facts (
+        snapshot_id TEXT NOT NULL REFERENCES jira_analytics_snapshots(snapshot_id) ON DELETE CASCADE,
+        issue_id TEXT NOT NULL, fact_json TEXT NOT NULL, PRIMARY KEY(snapshot_id,issue_id)
+    )""",
     """CREATE TABLE IF NOT EXISTS jira_issues (
         issue_id TEXT PRIMARY KEY, issue_key TEXT NOT NULL UNIQUE,
         web_url TEXT NOT NULL DEFAULT '', summary TEXT NOT NULL DEFAULT '',
@@ -112,7 +116,7 @@ def initialize_jira_schema(database: WebDatabase) -> None:
     ensure_component_schema(
         database,
         component="jira_cache",
-        version=4,
+        version=5,
         statements=JIRA_STATEMENTS,
     )
     with database.transaction() as connection:

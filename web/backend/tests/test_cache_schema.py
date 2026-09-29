@@ -27,6 +27,7 @@ def test_current_cache_schema_initializes_both_components_idempotently(tmp_path)
     assert {
         "smarttest_schema",
         "jira_issues",
+        "jira_analytics_facts",
         "jira_issue_detail_states",
         "confluence_projects",
         "confluence_project_detail_states",
@@ -35,7 +36,7 @@ def test_current_cache_schema_initializes_both_components_idempotently(tmp_path)
         assert connection.execute("PRAGMA foreign_keys").fetchone()[0] == 1
         assert connection.execute(
             "SELECT component,version FROM smarttest_schema ORDER BY component"
-        ).fetchall() == [("confluence_cache", 4), ("jira_cache", 4)]
+        ).fetchall() == [("confluence_cache", 4), ("jira_cache", 5)]
 
 
 def test_component_version_mismatch_preserves_cached_and_persistent_data(tmp_path) -> None:

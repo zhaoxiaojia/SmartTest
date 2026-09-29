@@ -71,6 +71,43 @@ class JiraAnalyticsRepository:
                     (snapshot_id,issue_id,ordinal,period_kind) VALUES(?,?,?,?)""",
                     (snapshot_id, issue.identity.id, index, str(period_kind)))
 
+    def update_statistics(self, snapshot_id, statistics, *, facts=None):
+        with self.database.transaction() as connection:
+            cursor = connection.execute("""UPDATE jira_analytics_snapshots SET statistics_json=?
+                WHERE snapshot_id=? AND state='pending' AND snapshot_id IN
+                (SELECT pending_snapshot_id FROM jira_analytics_queries)""",
+                (json.dumps(statistics, ensure_ascii=False, sort_keys=True), str(snapshot_id)))
+            if cursor.rowcount and facts is not None:
+                connection.executemany("""INSERT INTO jira_analytics_facts(snapshot_id,issue_id,fact_json) VALUES(?,?,?)
+                    ON CONFLICT(snapshot_id,issue_id) DO UPDATE SET fact_json=excluded.fact_json""",
+                    [(snapshot_id, fact["issueId"], json.dumps(fact, ensure_ascii=False)) for fact in facts])
+            return bool(cursor.rowcount)
+
+    def local_statistics(self, snapshot_id, period):
+        from core.jira.services.jql_statistics_cards import aggregate_annual_facts
+        with self.database.connect() as connection:
+            if not connection.in_transaction:
+                connection.execute("BEGIN")
+            row = connection.execute("SELECT statistics_json FROM jira_analytics_snapshots WHERE snapshot_id=?",
+                                     (snapshot_id,)).fetchone()
+            metadata = json.loads(row[0]) if row and row[0] else {}
+            if not metadata.get("annual"):
+                return None
+            facts = [json.loads(item[0]) for item in connection.execute(
+                "SELECT fact_json FROM jira_analytics_facts WHERE snapshot_id=? ORDER BY rowid", (snapshot_id,))]
+        return aggregate_annual_facts(facts, metadata, period)
+
+    def statistics_preview(self, session_hash, account, *, card_key):
+        with self.database.connect() as connection:
+            row = connection.execute("""SELECT s.jql,s.comparison_jql,s.user_jql,s.roster_fingerprint,s.statistics_json,s.snapshot_id
+                FROM jira_analytics_queries q JOIN jira_analytics_snapshots s
+                ON s.snapshot_id=COALESCE(NULLIF(q.pending_snapshot_id,''),q.last_snapshot_id)
+                WHERE q.session_hash=? AND q.account=? AND s.state IN ('pending','failed','cancelled')
+                """,
+                (self._scope(session_hash, card_key, account), str(account).casefold())).fetchone()
+        return {"jql": row[0], "comparisonJql": row[1], "userJql": row[2],
+                "fingerprint": row[3], "statistics": json.loads(row[4]) if row[4] else None, "snapshotId": row[5]} if row else None
+
     def activate(self, snapshot_id, statistics=None):
         with self.database.transaction() as connection:
             cursor = connection.execute("""UPDATE jira_analytics_queries
@@ -84,21 +121,6 @@ class JiraAnalyticsRepository:
                 None if statistics is None else json.dumps(statistics, ensure_ascii=False, sort_keys=True),
                 snapshot_id,
             ))
-            return True
-
-    def reuse(self, session_hash, account, jql, *, card_key, roster_fingerprint, comparison_jql=""):
-        scope = self._scope(session_hash, card_key, account)
-        with self.database.transaction() as connection:
-            row = connection.execute("""SELECT snapshot_id FROM jira_analytics_snapshots
-                WHERE session_hash=? AND account=? AND card_key=? AND jql=? AND comparison_jql=?
-                AND roster_fingerprint=? AND state='active' AND user_jql IS NOT NULL
-                ORDER BY created_at DESC,rowid DESC LIMIT 1""",
-                (scope, str(account).casefold(), card_key, jql, comparison_jql, roster_fingerprint)).fetchone()
-            if not row:
-                return False
-            connection.execute("""UPDATE jira_analytics_queries SET active_snapshot_id=?,last_snapshot_id=?,
-                pending_snapshot_id='',task_id='',task_session_hash='' WHERE session_hash=? AND account=?""",
-                (row[0], row[0], scope, str(account).casefold()))
             return True
 
     def finish(self, snapshot_id, state, error=""):
@@ -160,15 +182,6 @@ class JiraAnalyticsRepository:
                 WHERE pending_snapshot_id!='')""")
             connection.execute("""UPDATE jira_analytics_queries SET pending_snapshot_id='',task_id=''
                 WHERE pending_snapshot_id!=''""")
-
-    def statistics_summary(self, session_hash, account, *, card_key):
-        """Legacy count-only summaries are never authoritative resource collections."""
-        with self.database.connect() as connection:
-            row = connection.execute("""SELECT s.statistics_json FROM jira_analytics_queries q
-                JOIN jira_analytics_snapshots s ON s.snapshot_id=q.active_snapshot_id
-                WHERE q.session_hash=? AND q.account=?""",
-                (self._scope(session_hash, card_key, account), str(account).casefold())).fetchone()
-        return json.loads(row[0]) if row and row[0] else None
 
     def delete_account(self, account):
         with self.database.transaction() as connection:

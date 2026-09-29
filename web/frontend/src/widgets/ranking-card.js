@@ -32,7 +32,10 @@ export function createRankingCard({ chartFactory } = {}) {
         target.append(button)
       }
     }
-    ;[...target.children].forEach((button, index) => { button.textContent = options[index].label })
+    ;[...target.children].forEach((button, index) => {
+      button.textContent = options[index].label
+      button.disabled = Boolean(options[index].disabled)
+    })
     selectSegment(target, active)
   }
 
@@ -83,7 +86,7 @@ export function createRankingCard({ chartFactory } = {}) {
     surface.style.height = `${rows.length * (comparison ? 52 : 36) + (comparison ? 40 : 36)}px`
     const empty = root.querySelector('[data-ranked-empty]')
     empty.hidden = Boolean(rows.length)
-    empty.textContent = config.error || config.emptyText || 'No data in this product line.'
+    empty.textContent = config.error || config.emptyTextFor?.(activeMode) || config.emptyText || 'No data in this product line.'
     const canvas = root.querySelector('[data-ranked-chart]')
     canvas.hidden = !rows.length
     if (!rows.length || !chartFactory) {
