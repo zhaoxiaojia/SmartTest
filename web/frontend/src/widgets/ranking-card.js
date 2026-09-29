@@ -74,7 +74,8 @@ export function createRankingCard({ chartFactory } = {}) {
   }
 
   function renderChart() {
-    const rows = (config.rowsFor?.(activeProductLine, activeMode) ?? [])
+    const summary = config.summaryRowsFor?.(activeProductLine, activeMode)
+    const rows = summary ?? (config.rowsFor?.(activeProductLine, activeMode) ?? [])
       .filter(row => row.count || row.previousCount)
       .sort((left, right) => right.count - left.count
         || Number(right.previousCount || 0) - Number(left.previousCount || 0)
@@ -102,6 +103,7 @@ export function createRankingCard({ chartFactory } = {}) {
     }
     const rangeText = period => period ? `${period.start} – ${period.end ?? 'now'}` : ''
     const quantityLabel = (value, context) => {
+      if (summary) return rows[context.dataIndex].valueLabel
       if (!value) return null
       const periodTotal = context?.datasetIndex === 1 ? previousTotal : total
       return `${value} · ${periodTotal ? Math.round(value / periodTotal * 100) : 0}%`

@@ -305,6 +305,7 @@ def test_annual_facts_match_period_aggregation_across_new_year_without_sensitive
         row = issue(creator={"name": "qa"}, resolution={"name": "Invalid"})
         row["id"] = str(index)
         row["fields"]["created"] = created + "T00:00:00+08:00"
+        row["fields"]["components"] = [{"name": "Audio"}, {"name": "Video"}]
         row["fields"]["comment"] = {"comments": [{"author": {"name": "qa"},
             "body": "secret-comment", "created": "2020-01-01T00:00:00Z"}]}
         row["changelog"] = {"histories": [{"author": {"name": "qa"}, "created": "2027-01-02T00:00:00Z",
@@ -329,3 +330,19 @@ def test_annual_facts_match_period_aggregation_across_new_year_without_sensitive
     partial = service.aggregate_annual_facts(facts, metadata, "week", today)
     assert partial["availability"]["current"] == {"basic": True, "verify": False}
     assert all("verifyCount" not in person for line in partial["current"]["productLines"] for person in line["people"])
+
+
+def test_components_count_each_module_once_and_totals_count_unique_issues():
+    first = issue(creator={"name": "qa"}, resolution="Invalid")
+    first["id"] = "1"
+    first["fields"]["components"] = [{"name": "Audio"}, {"name": "Video"}, {"name": "Audio"}]
+    second = issue(creator={"name": "qa"})
+    second["id"] = "2"
+    second["fields"]["components"] = [{"name": "Audio"}]
+    third = issue(creator={"name": "qa"})
+    third["id"] = "3"
+    payload = aggregate_jira_statistics([first, second, third, first], roster(qa=(TV_LINE.name,))).to_payload()
+    line = payload["productLines"][2]
+    assert line["issueCount"] == 3
+    assert line["invalidCount"] == 1
+    assert line["components"] == [{"name": "Audio", "count": 2}, {"name": "Video", "count": 1}]

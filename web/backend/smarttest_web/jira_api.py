@@ -154,7 +154,6 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
         session_hash = audit_session(request)
         query, task = analytics_query_state(session_hash, value.username, card_key)
         period = jira_card_period(value, card_key)
-        summary = jira_analytics.local_statistics(query["activeSnapshotId"], period)
         conditions = jira_analytics.published_conditions(session_hash, value.username)
         applied_jql = (conditions or {}).get("userJql")
         expected = effective_card_jql_pair(card_key, applied_jql or "", "year")
@@ -162,8 +161,10 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
         def matches(jql, comparison_jql, user_jql, version):
             return (user_jql is not None and user_jql == applied_jql and version == fingerprint
                     and jql == expected["current"]["jql"] and comparison_jql == expected["previous"]["jql"])
-        active_matches = summary is not None and matches(query["activeJql"], query["activeComparisonJql"],
-                                                        query["userJql"], query["rosterFingerprint"])
+        active_matches = matches(query["activeJql"], query["activeComparisonJql"],
+                                 query["userJql"], query["rosterFingerprint"])
+        summary = jira_analytics.local_statistics(query["activeSnapshotId"], period) if active_matches else None
+        active_matches = active_matches and summary is not None
         preview = jira_analytics.statistics_preview(session_hash, value.username, card_key=card_key)
         preview_matches = preview is not None and matches(preview["jql"], preview["comparisonJql"],
                                                          preview["userJql"], preview["fingerprint"])

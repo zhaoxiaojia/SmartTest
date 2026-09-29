@@ -5,7 +5,7 @@ export const JIRA_STATISTICS_CARD_LAYOUT = Object.freeze({ defaultW: 24 })
 export const JIRA_STATISTICS_CARDS = Object.freeze({
   'self-test': Object.freeze({ title: 'Self-Test Jira Statistics by Product Line', firstMetricLabel: 'Bugs' }),
   task: Object.freeze({ title: 'Task Jira Statistics by Product Line', firstMetricLabel: 'Tasks' }),
-  'customer-feedback': Object.freeze({ title: 'Customer Feedback Jira Statistics by Product Line', firstMetricLabel: 'Bugs' }),
+  'customer-feedback': Object.freeze({ title: 'Customer Feedback Jira Statistics by Product Line', firstMetricLabel: 'Component/s' }),
 })
 
 const PERIODS = [{ value: 'week', label: 'Weekly' }, { value: 'month', label: 'Monthly' },
@@ -80,12 +80,19 @@ export function createJiraStatisticsCard({ pollDelay = 800, chartFactory } = {})
     const comparison = Boolean(previous || payload.comparison)
     const previousByLine = new Map((previous?.productLines ?? []).map(line => [line.id, line]))
     const combinedLines = (current.productLines ?? []).map(line => {
+      const priorComponents = previousByLine.get(line.id)?.components ?? []
+      const componentsByName = new Map((line.components ?? []).map(component => [component.name, { ...component }]))
+      for (const component of priorComponents) {
+        const current = componentsByName.get(component.name) ?? { name: component.name, count: 0 }
+        componentsByName.set(component.name, { ...current, previousCount: component.count })
+      }
       const priorPeople = previousByLine.get(line.id)?.people ?? []
       const priorByIdentity = new Map(priorPeople.map(person => [person.identity || person.displayName, person]))
       const currentByIdentity = new Map((line.people ?? []).map(person => [person.identity || person.displayName, person]))
       const currentKeys = new Set((line.people ?? []).map(person => person.identity || person.displayName))
       const people = [...(line.people ?? []), ...priorPeople.filter(person => !currentKeys.has(person.identity || person.displayName))]
-      return { id: line.id, label: line.label, people: people.map(person => {
+      return { id: line.id, label: line.label, components: [...componentsByName.values()],
+        issueCount: line.issueCount, invalidCount: line.invalidCount, people: people.map(person => {
         const key = person.identity || person.displayName
         const currentPerson = currentByIdentity.get(key) ?? {}
         const prior = priorByIdentity.get(key) ?? {}
@@ -100,9 +107,7 @@ export function createJiraStatisticsCard({ pollDelay = 800, chartFactory } = {})
     const display = { state: payload.state, availability, period, ranges: payload.ranges, comparison, teamTotal: current.teamTotal,
       previousTeamTotal: previous?.teamTotal ?? payload.previousTeamTotal,
       unmappedCount: Number(current.unmappedCount || 0), unassignedCount: Number(current.unassignedCount || 0),
-      productLines: combinedLines.map(line => ({ id: line.id, label: line.label,
-        people: line.people,
-      })),
+      productLines: combinedLines,
     }
     const signature = JSON.stringify(display)
     if (displayed && signature === displaySignature) return
@@ -114,14 +119,31 @@ export function createJiraStatisticsCard({ pollDelay = 800, chartFactory } = {})
       modes: cardMetrics.map(metric => ({ ...metric,
         disabled: !metricReady('current', metric.value),
         label: !metricReady('current', metric.value) ? `${metric.label} (${pendingLabel})`
-          : comparison && !metricReady('previous', metric.value) ? `${metric.label} (Previous: ${pendingLabel})` : metric.label,
+          : comparison && !(cardKey === 'customer-feedback' && metric.value === 'invalidCount')
+            && !metricReady('previous', metric.value) ? `${metric.label} (Previous: ${pendingLabel})` : metric.label,
       })),
       emptyTextFor: metric => metricReady('current', metric) ? '' : 'Statistics for this metric are not available yet.',
       emptyText: 'No issues in this product line.',
-      rowsFor: (productLine, metric) => !metricReady('current', metric) ? [] : (byLine.get(productLine)?.people ?? []).map(person => ({
-        name: person.displayName, count: Number(person[metric] || 0),
-        ...(comparison && metricReady('previous', metric) ? { previousCount: Number(person[`previous_${metric}`] || 0) } : {}),
-      })),
+      summaryRowsFor: (productLine, metric) => {
+        if (cardKey !== 'customer-feedback' || metric !== 'invalidCount' || !metricReady('current', metric)) return null
+        const line = byLine.get(productLine)
+        const total = line?.issueCount ?? 0
+        const invalid = line?.invalidCount ?? 0
+        return [{ name: 'Total', count: total, valueLabel: String(total) },
+          { name: 'Invalid', count: invalid, valueLabel: `${invalid} · ${total ? Number((invalid / total * 100).toFixed(2)) : 0}%` }]
+      },
+      rowsFor: (productLine, metric) => {
+        if (!metricReady('current', metric)) return []
+        if (cardKey === 'customer-feedback' && metric === 'bugCount') {
+          return (byLine.get(productLine)?.components ?? []).map(component => ({ name: component.name, count: component.count,
+            ...(comparison && metricReady('previous', metric) ? { previousCount: component.previousCount ?? 0 } : {}),
+          }))
+        }
+        return (byLine.get(productLine)?.people ?? []).map(person => ({
+          name: person.displayName, count: Number(person[metric] || 0),
+          ...(comparison && metricReady('previous', metric) ? { previousCount: Number(person[`previous_${metric}`] || 0) } : {}),
+        }))
+      },
       datasetLabel: 'Current period',
       comparisonLabel: 'Previous period',
       ranges: payload.ranges,
@@ -171,7 +193,8 @@ export function createJiraStatisticsCard({ pollDelay = 800, chartFactory } = {})
       displayed = false
       displayCache = createDisposableDisplayCache('jiraStatistics', config.account, cardKey)
       const cached = displayCache.read()
-      if (cached?.productLines) draw(cached)
+      if (cached?.productLines && (cardKey !== 'customer-feedback'
+        || cached.productLines.every(line => Array.isArray(line.components) && Number.isFinite(line.issueCount) && Number.isFinite(line.invalidCount)))) draw(cached)
       else message('Loading Jira issues…')
       if (!config.api) { message('Jira statistics card API is unavailable.', 'inline-status-error'); return }
       api = config.api

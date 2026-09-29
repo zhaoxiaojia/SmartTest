@@ -71,7 +71,8 @@ class JiraStatisticsCardDefinition:
     @property
     def fingerprint(self) -> str:
         encoded = json.dumps({"definition": asdict(self), "groups": FAE_QA_GROUPS,
-                              "aggregation": "qa-creators-comments-verify-v4"}, sort_keys=True, separators=(",", ":")).encode()
+                              "aggregation": "qa-creators-components-summary-v5" if self.card_key == "customer-feedback"
+                              else "qa-creators-comments-verify-v4"}, sort_keys=True, separators=(",", ":")).encode()
         return hashlib.sha256(encoded).hexdigest()
 
 
@@ -85,7 +86,7 @@ JIRA_STATISTICS_CARDS = {
             "task", "Product Lines Task Jiras Statistics", "Tasks", "issuetype = Task",
         ),
         JiraStatisticsCardDefinition(
-            "customer-feedback", "Product Lines Customer Feedback Jiras Statistics", "Bugs", _customer_jql(),
+            "customer-feedback", "Product Lines Customer Feedback Jiras Statistics", "Component/s", _customer_jql(),
         ),
     )
 }
@@ -166,6 +167,9 @@ class JiraStatisticsProductLine:
     id: str
     label: str
     people: tuple[JiraStatisticsPerson, ...]
+    components: tuple[dict[str, Any], ...] = ()
+    issueCount: int = 0
+    invalidCount: int = 0
 
 
 @dataclass(frozen=True)
@@ -184,6 +188,9 @@ class JiraStatisticsOverview:
                 "id": line.id,
                 "label": line.label,
                 "people": [asdict(person) for person in line.people],
+                "components": list(line.components),
+                "issueCount": line.issueCount,
+                "invalidCount": line.invalidCount,
             } for line in self.productLines],
         }
 
@@ -214,7 +221,16 @@ def aggregate_jira_statistics(
         "commentCount": 0, "verifyCount": 0, "invalidCount": 0,
     }))
     total = unassigned = unmapped = 0
+    components = defaultdict(lambda: defaultdict(int))
+    issue_counts = defaultdict(int)
+    invalid_counts = defaultdict(int)
+    seen = set()
     for issue in issues:
+        issue_id = issue.get("id") or issue.get("key")
+        if issue_id:
+            if issue_id in seen:
+                continue
+            seen.add(issue_id)
         total += 1
         fields = issue.get("fields") if isinstance(issue, dict) else None
         creator = fields.get("creator") if isinstance(fields, dict) else None
@@ -254,6 +270,10 @@ def aggregate_jira_statistics(
         if not product_line:
             unmapped += 1
             continue
+        issue_counts[product_line] += 1
+        invalid_counts[product_line] += _name(fields.get("resolution")) == "Invalid"
+        for name in {_name(component) for component in fields.get("components") or ()} - {""}:
+            components[product_line][name] += 1
         row = people[product_line][identity]
         row["identity"] = identity
         row["displayName"] = str(creator.get("displayName") or identity)
@@ -264,7 +284,11 @@ def aggregate_jira_statistics(
     for line in DASHBOARD_PRODUCT_LINES:
         rows = [JiraStatisticsPerson(**row) for row in people[line.name].values()]
         rows.sort(key=lambda row: (-row.bugCount, row.displayName.casefold(), row.identity))
-        product_lines.append(JiraStatisticsProductLine(line.name, line.name, tuple(rows)))
+        product_lines.append(JiraStatisticsProductLine(
+            line.name, line.name, tuple(rows),
+            tuple({"name": name, "count": count} for name, count in sorted(components[line.name].items())),
+            issue_counts[line.name], invalid_counts[line.name],
+        ))
     return JiraStatisticsOverview(total, tuple(product_lines), unassigned, unmapped)
 
 
@@ -317,6 +341,8 @@ def aggregate_annual_facts(facts, metadata, period, today=None):
                              for metric in ("basic", "verify")}
         summary = aggregate_jira_statistics([], QARoster("", ())).to_payload()
         by_line = {line["id"]: {} for line in summary["productLines"]}
+        summaries = {line["id"]: line for line in summary["productLines"]}
+        components = defaultdict(lambda: defaultdict(int))
         for fact in facts:
             created = fact["createdAt"][:10]
             if not created or created < start or (end is not None and created >= end):
@@ -325,6 +351,11 @@ def aggregate_annual_facts(facts, metadata, period, today=None):
             for count in ("teamTotal", "unassignedCount", "unmappedCount"):
                 summary[count] += contribution[count]
             for line in contribution["productLines"]:
+                for count in ("issueCount", "invalidCount"):
+                    if count in line:
+                        summaries[line["id"]][count] += line[count]
+                for component in line.get("components", ()):
+                    components[line["id"]][component["name"]] += component["count"]
                 for person in line["people"]:
                     target = by_line[line["id"]].setdefault(person["identity"], {
                         "identity": person["identity"], "displayName": person["displayName"],
@@ -332,6 +363,8 @@ def aggregate_annual_facts(facts, metadata, period, today=None):
                     for metric in ("bugCount", "commentCount", "verifyCount", "invalidCount"):
                         target[metric] += person[metric]
         for line in summary["productLines"]:
+            line["components"] = [{"name": name, "count": count}
+                                  for name, count in sorted(components[line["id"]].items())]
             line["people"] = sorted(by_line[line["id"]].values(),
                                     key=lambda person: (-person["bugCount"], person["displayName"].casefold(), person["identity"]))
             if not availability[key]["verify"]:

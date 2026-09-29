@@ -243,7 +243,7 @@ it.each(['self-test', 'task', 'customer-feedback'])('shows Comments instead of R
     { identity: 'author', displayName: 'Author', bugCount: 0, commentCount: 3, verifyCount: 0, invalidCount: 0 },
   ] }] }) }
   const { widget, chartFactory } = mount(api, vi.fn(chartMock), 'coco', cardKey)
-  await vi.waitFor(() => expect(chartFactory).toHaveBeenCalled())
+  await vi.waitFor(() => expect(document.querySelector('[data-mode-segments] button')).not.toBeNull())
   expect([...document.querySelectorAll('[data-mode-segments] button')].map(button => button.textContent)).not.toContain('Resolved')
   const comments = [...document.querySelectorAll('button')].find(button => button.textContent === 'Comments')
   expect(comments).toBeTruthy()
@@ -251,6 +251,58 @@ it.each(['self-test', 'task', 'customer-feedback'])('shows Comments instead of R
   const chart = chartFactory.mock.calls.at(-1)[1]
   expect(chart.data.labels).toEqual(['Author'])
   expect(chart.data.datasets[0].data).toEqual([3])
+  widget.destroy()
+})
+
+it('shows Customer components and current Invalid bars and restores both from display cache', async () => {
+  const current = { productLines: [{ ...productLines[0], issueCount: 5, invalidCount: 1,
+    components: [{ name: 'Audio', count: 4 }, { name: 'Video', count: 3 }] },
+    { ...productLines[1], issueCount: 0, invalidCount: 0, components: [] },
+    { ...productLines[4], issueCount: 17, invalidCount: 0, components: [] }] }
+  const previous = { productLines: [{ ...productLines[0], issueCount: 10, invalidCount: 4,
+    components: [{ name: 'Audio', count: 2 }, { name: 'Camera', count: 1 }] }] }
+  const api = { getStatistics: async () => ({ state: 'ready', current, previous }) }
+  let mounted = mount(api, undefined, 'customer', 'customer-feedback')
+  await vi.waitFor(() => expect(mounted.chartFactory).toHaveBeenCalled())
+  const inspect = () => {
+    expect(document.querySelector('[data-mode-segments] button').textContent).toBe('Component/s')
+    const config = mounted.chartFactory.mock.calls.at(-1)[1]
+    expect(config.data.labels).toEqual(['Audio', 'Video', 'Camera'])
+    expect(config.data.datasets.map(item => item.data)).toEqual([[4, 3, 0], [2, 0, 1]])
+    document.querySelector('[data-value="invalidCount"]').click()
+    expect(document.querySelector('[data-ranked-chart]').hidden).toBe(false)
+    expect(config.data.labels).toEqual(['Total', 'Invalid'])
+    expect(config.data.datasets.map(item => item.data)).toEqual([[5, 1]])
+    expect(config.options.plugins.datalabels.labels.percentage.formatter(5, { dataIndex: 0 })).toBe('5')
+    expect(config.options.plugins.datalabels.labels.percentage.formatter(1, { dataIndex: 1 })).toBe('1 · 20%')
+    document.querySelector('[data-product-line-segments] button[data-value="Smart Device"]').click()
+    expect(document.querySelector('[data-ranked-chart]').hidden).toBe(false)
+    expect(config.data.labels).toEqual(['Total', 'Invalid'])
+    expect(config.data.datasets.map(item => item.data)).toEqual([[0, 0]])
+    expect(config.options.plugins.datalabels.labels.percentage.formatter(0, { dataIndex: 1 })).toBe('0 · 0%')
+    document.querySelector('[data-product-line-segments] button[data-value="Wireless Connection"]').click()
+    expect(config.data.labels).toEqual(['Total', 'Invalid'])
+    expect(config.data.datasets.map(item => item.data)).toEqual([[17, 0]])
+    expect(config.options.plugins.datalabels.labels.percentage.formatter(0, { dataIndex: 1 })).toBe('0 · 0%')
+    document.querySelector('[data-product-line-segments] button[data-value="China Operator"]').click()
+    document.querySelector('[data-value="commentCount"]').click()
+    expect(config.data.labels).toEqual(['Alice'])
+    document.querySelector('[data-value="verifyCount"]').click()
+    expect(config.data.labels).toEqual(['Bob'])
+  }
+  inspect()
+  mounted.widget.destroy()
+  mounted = mount({ getStatistics: () => new Promise(() => {}) }, undefined, 'customer', 'customer-feedback')
+  inspect()
+  mounted.widget.destroy()
+})
+
+it('does not render obsolete Customer personnel cache as component or Invalid statistics', () => {
+  sessionStorage.setItem('smarttest:jira-statistics-display:legacy:customer-feedback', JSON.stringify({ state: 'ready', productLines }))
+  const { widget, chartFactory } = mount({ getStatistics: () => new Promise(() => {}) }, undefined, 'legacy', 'customer-feedback')
+  expect(chartFactory).not.toHaveBeenCalled()
+  expect(document.querySelector('[data-mode-segments]')).toBeNull()
+  expect(document.body.textContent).toContain('Loading Jira')
   widget.destroy()
 })
 

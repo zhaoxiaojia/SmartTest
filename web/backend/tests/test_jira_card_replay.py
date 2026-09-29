@@ -69,6 +69,21 @@ def test_card_period_defaults_to_month_and_restores_independently_without_get_fe
     assert len(calls) == 16
 
 
+def test_stale_statistics_version_is_rejected_before_decoding_annual_facts(tmp_path, monkeypatch):
+    from core.jira.services.jql_statistics_cards import JiraStatisticsCardDefinition
+    from smarttest_web.jira.analytics_repository import JiraAnalyticsRepository
+    api = client(tmp_path)
+    started = query_card(api, {'mode': 'basic', 'basic': {}}).json()
+    assert wait_terminal(api, started['taskId']) == 'completed'
+    monkeypatch.setattr(JiraStatisticsCardDefinition, 'fingerprint', property(lambda _self: 'new-schema'))
+    def reject(*_args, **_kwargs):
+        raise AssertionError('stale facts must not be decoded and GET must not query Jira')
+    monkeypatch.setattr(JiraAnalyticsRepository, 'local_statistics', reject)
+    monkeypatch.setattr(Gateway, 'search_all_payloads', reject)
+    payload = api.get('/api/jira/cards/self-test/statistics').json()
+    assert payload['state'] == 'no_snapshot'
+
+
 def test_same_account_relogin_restores_conditions_and_card_without_remote_fetch(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(Gateway, 'search_all_payloads', lambda _self, jql, **_kw: calls.append(jql) or [])
@@ -159,6 +174,15 @@ def test_annual_facts_survive_restart_and_periods_only_slice_issue_created_at(tm
     with WebDatabase(tmp_path / 'web.db').connect() as connection:
         facts = str(connection.execute('SELECT fact_json FROM jira_analytics_facts').fetchall())
         assert 'never-store' not in facts and 'histories' not in facts
+        # Existing Self-Test snapshots predate the Customer Feedback fields.
+        import json
+        for row in connection.execute('SELECT rowid, fact_json FROM jira_analytics_facts').fetchall():
+            fact = json.loads(row[1])
+            for line in fact['statistics']['productLines']:
+                for field in ('components', 'issueCount', 'invalidCount'):
+                    line.pop(field)
+            connection.execute('UPDATE jira_analytics_facts SET fact_json=? WHERE rowid=?',
+                               (json.dumps(fact), row[0]))
     def reject(*_args, **_kwargs): raise AssertionError('restart/period switch called Jira')
     monkeypatch.setattr(Gateway, 'search_all_payloads', reject)
     monkeypatch.setattr(Gateway, 'user_groups', reject)
