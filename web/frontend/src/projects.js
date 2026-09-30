@@ -16,6 +16,7 @@ import { createDisposableDisplayCache } from './disposable-display.js'
 import { element as node } from './dom.js'
 import { createTaskController } from './task-polling.js'
 import { bindProjectStage, bindProjectStatus, bindProjectStatusText } from './project-semantics.js'
+import { bindProductLine } from './product-line-semantics.js'
 
 export function createProjects({ root, api, waitForPreferences, account,
   pollDelay = ms => new Promise(resolve => setTimeout(resolve, ms)), downloadNavigate,
@@ -264,8 +265,9 @@ export function createProjects({ root, api, waitForPreferences, account,
       rootNode.append(row)
       return row
     }
-    const createProjectCard = project => {
+    const createProjectCard = (project, productLine) => {
       const card = node('article', 'kanban-card project-card project-list-row')
+      bindProductLine(card, productLine, 'disclosure')
       card.dataset.projectId = projectKey(project)
       const summary = node('div', 'project-card-summary')
       const primary = node('div', 'project-list-primary')
@@ -318,7 +320,7 @@ export function createProjects({ root, api, waitForPreferences, account,
       return [...groups.values()].sort((left, right) => right.projects.length - left.projects.length)
     }
 
-    const appendStageGroups = (container, projects) => {
+    const appendStageGroups = (container, projects, productLine) => {
       for (const stage of groupByStage(projects)) {
         const stageGroup = node('details', 'stage-group'); stageGroup.dataset.stageGroup = ''
         const stageSummary = node('summary', 'stage-summary')
@@ -328,7 +330,7 @@ export function createProjects({ root, api, waitForPreferences, account,
         const cards = node('div', 'project-list')
         stage.projects.sort((left, right) => comparePresentAsc(left.support_mode, right.support_mode)
           || comparePresentDesc(left.status, right.status))
-          .forEach(project => cards.append(createProjectCard(project)))
+          .forEach(project => cards.append(createProjectCard(project, productLine)))
         stageGroup.append(stageSummary, cards); container.append(stageGroup)
       }
     }
@@ -373,6 +375,8 @@ export function createProjects({ root, api, waitForPreferences, account,
       const spaceProjects = uniqueProjects.filter(project => project.space_key === productSpaceKey)
       const group = node('section', 'product-space-group'); group.dataset.productSpaceGroup = ''
       const summary = node('button', 'product-space-summary'); summary.type = 'button'; summary.dataset.productSpaceToggle = ''
+      bindProductLine(group, productSpaceLabel, 'card')
+      bindProductLine(summary, productSpaceLabel, 'button')
       summary.setAttribute('aria-expanded', 'true')
       const count = node('span', 'kanban-count', spaceProjects.length); count.dataset.productCount = ''
       summary.append(node('strong', 'kanban-title', productSpaceLabel), createProjectStatusSummary(spaceProjects), count)
@@ -385,11 +389,11 @@ export function createProjects({ root, api, waitForPreferences, account,
             const launchCount = node('span', 'kanban-count', launchOs.projects.length); launchCount.dataset.launchOsProjectCount = ''
             launchSummary.append(node('strong', '', launchOs.name), launchCount)
             const launchStages = node('div', 'launch-os-stage-groups')
-            appendStageGroups(launchStages, launchOs.projects)
+            appendStageGroups(launchStages, launchOs.projects, productSpaceLabel)
             launchGroup.append(launchSummary, launchStages); stageGroups.append(launchGroup)
           }
         } else {
-          appendStageGroups(stageGroups, spaceProjects)
+          appendStageGroups(stageGroups, spaceProjects, productSpaceLabel)
         }
       } else stageGroups.append(node('div', 'product-space-empty', 'No projects.'))
       summary.addEventListener('click', () => {

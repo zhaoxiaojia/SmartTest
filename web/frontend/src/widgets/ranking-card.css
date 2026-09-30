@@ -14,8 +14,8 @@
 .jira-period-button-group input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .jira-period-button-group label { transition: none; } }
 .product-line-segments { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .375rem; }
-.product-line-segment { padding: .4rem .7rem; border: 1px solid var(--border-color); border-radius: .45rem; color: var(--text-secondary); background: var(--bg-primary); font-size: .75rem; font-weight: 600; }
-.product-line-segment:hover,.product-line-segment.active { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+.product-line-segment { font-size: .75rem; }
+
 .role-segments { display: flex; flex-wrap: wrap; gap: .375rem; }
 .role-segment { padding: .4rem .7rem; border: 1px solid var(--border-color); border-radius: 999px; color: var(--text-secondary); background: var(--bg-primary); font-size: .75rem; font-weight: 600; }
 .role-segment:hover,.role-segment.active { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
@@ -46,202 +46,9 @@
   gap: 0.5rem;
 }
 
-
-
-
-
 .segmented-ranking .product-line-segment {
-  display: flex;
-  cursor: pointer;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.7rem;
-  border: none;
-  padding: 0.7rem 0.8rem;
-  color: var(--text-primary);
-  font-weight: 500;
-  font-family: inherit;
-  background: linear-gradient(145deg, var(--bg-primary), var(--bg-surface));
-  box-shadow:
-    3px 3px 6px rgba(0, 0, 0, 0.1),
-    -3px -3px 6px rgba(255, 255, 255, 0.7);
-  transition: all 0.2s ease;
-  overflow: hidden;
-}
-
-.segmented-ranking .product-line-segment.active {
-  background: linear-gradient(145deg, var(--accent), var(--accent-hover));
-  color: white;
-  font-weight: 600;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  box-shadow:
-    inset 2px 2px 5px rgba(0, 0, 0, 0.2),
-    inset -2px -2px 5px rgba(255, 255, 255, 0.1),
-    3px 3px 8px color-mix(in srgb, var(--accent) 30%, transparent);
-  transform: translateY(2px);
-}
-
-/* Hover effect */
-.segmented-ranking .product-line-segment:hover {
-  transform: translateY(-1px);
-  box-shadow:
-    4px 4px 8px rgba(0, 0, 0, 0.1),
-    -4px -4px 8px rgba(255, 255, 255, 0.8);
-}
-
-.segmented-ranking .product-line-segment.active:hover {
-  transform: translateY(1px);
-}
-
-/* Animation */
-.segmented-ranking .product-line-segment.active {
-  animation: ranking-select 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Particles */
-.segmented-ranking .product-line-segment::before,
-.segmented-ranking .product-line-segment::after {
-  content: "";
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.segmented-ranking .product-line-segment.active::before,
-.segmented-ranking .product-line-segment.active::after {
-  animation: ranking-particles 0.8s ease-out forwards;
-}
-
-.segmented-ranking .product-line-segment::before {
-  box-shadow: 0 0 6px var(--accent);
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.segmented-ranking .product-line-segment::after {
-  box-shadow: 0 0 8px var(--accent);
-  bottom: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-/* Sparkles */
-.segmented-ranking .product-line-segment::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: radial-gradient(
-    circle at var(--x, 50%) var(--y, 50%),
-    color-mix(in srgb, var(--accent) 30%, transparent) 0%,
-    transparent 50%
-  );
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.segmented-ranking .product-line-segment.active::after {
-  opacity: 1;
-}
-
-/* Multiple ranking-particles */
-.segmented-ranking .product-line-segment.active {
-  overflow: visible;
-}
-
-.segmented-ranking .product-line-segment.active::before {
-  box-shadow:
-    0 0 6px var(--accent),
-    10px -10px 0 var(--accent),
-    -10px -10px 0 var(--accent);
-}
-
-.segmented-ranking .product-line-segment.active::after {
-  box-shadow:
-    0 0 8px var(--accent),
-    10px 10px 0 var(--accent),
-    -10px 10px 0 var(--accent);
-}
-
-@keyframes ranking-select {
-  0% {
-    transform: scale(0.95) translateY(2px);
-  }
-  50% {
-    transform: scale(1.05) translateY(-1px);
-  }
-  100% {
-    transform: scale(1) translateY(2px);
-  }
-}
-
-/* Ripple effect */
-.segmented-ranking .product-line-segment::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(
-    circle at var(--x, 50%) var(--y, 50%),
-    rgba(255, 255, 255, 0.5) 0%,
-    transparent 50%
-  );
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.segmented-ranking .product-line-segment.active::before {
-  animation: ranking-ripple 0.8s ease-out;
-}
-
-@keyframes ranking-ripple {
-  0% {
-    opacity: 1;
-    transform: scale(0.2);
-  }
-  50% {
-    opacity: 0.5;
-  }
-  100% {
-    opacity: 0;
-    transform: scale(2.5);
-  }
-}
-
-/* Glowing border */
-.segmented-ranking .product-line-segment.active {
-  position: relative;
-}
-
-.segmented-ranking .product-line-segment.active::after {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: inherit;
-  background: linear-gradient(
-    45deg,
-    color-mix(in srgb, var(--accent) 50%, transparent),
-    color-mix(in srgb, var(--accent-hover) 50%, transparent)
-  );
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  animation: ranking-border-glow 1.5s ease-in-out infinite alternate;
-}
-
-@keyframes ranking-border-glow {
-  0% {
-    opacity: 0.5;
-  }
-  100% {
-    opacity: 1;
-  }
+  display: flex; align-items: center; justify-content: center;
+  padding: .7rem .8rem; font-weight: 500; font-family: inherit;
 }
 /* From Uiverse.io by Xtenso; option-count independent sliding pill. */
 .segmented-ranking .role-segments {
@@ -288,7 +95,55 @@
 @media (prefers-reduced-motion: reduce) {
   .segmented-ranking .role-segments::before,
   .segmented-ranking .role-segment { transition: none; }
-  .segmented-ranking .product-line-segment,
-  .segmented-ranking .product-line-segment::before,
-  .segmented-ranking .product-line-segment::after { animation: none !important; transition: none; }
+}
+
+/* Rank decorations use Chart.js row coordinates; data and period colors remain on the canvas. */
+.ranking-medal {
+  position: absolute;
+  left: 2px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-top: -12px;
+  border: 1px solid var(--medal-edge);
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--medal-light), var(--medal-base));
+  color: var(--medal-ink);
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--medal-edge) 12%, transparent), inset 0 1px 2px #ffffffa0;
+  overflow: hidden;
+  animation: ranking-medal-enter 420ms ease-out var(--rank-delay) both;
+  transition: filter .2s;
+}
+.ranking-medal--gold { --medal-light: #fff1aa; --medal-base: #e6b63d; --medal-edge: #b88616; --medal-ink: #634400; }
+.ranking-medal--silver { --medal-light: #f2f5fa; --medal-base: #b9c5d4; --medal-edge: #8492a6; --medal-ink: #334155; }
+.ranking-medal--bronze { --medal-light: #f9dcc5; --medal-base: #dba173; --medal-edge: #af7547; --medal-ink: #653913; }
+.dark-theme .ranking-medal--gold { --medal-light: #edce70; --medal-base: #bb8a28; --medal-edge: #f3d581; --medal-ink: #352400; }
+.dark-theme .ranking-medal--silver { --medal-light: #d2dbe6; --medal-base: #93a4b8; --medal-edge: #d7e1ed; --medal-ink: #1e293b; }
+.dark-theme .ranking-medal--bronze { --medal-light: #e6bc98; --medal-base: #b78056; --medal-edge: #ecc5a2; --medal-ink: #39200c; }
+.ranking-medal--gold::after {
+  content: '';
+  position: absolute;
+  inset: -35%;
+  background: linear-gradient(110deg, transparent 35%, #ffffff90 50%, transparent 65%);
+  animation: ranking-medal-shine 4s ease-in-out infinite;
+  pointer-events: none;
+}
+.ranking-medal:hover { filter: brightness(1.12); }
+@keyframes ranking-medal-enter { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: scale(1); } }
+@keyframes ranking-medal-shine { 0%, 55% { transform: translateX(-100%); } 85%, 100% { transform: translateX(100%); } }
+[data-page-widget="role-workload"] > .async-feedback {
+  margin: 0 1rem .5rem;
+  padding: .5rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+[data-page-widget="role-workload"] > .async-feedback[data-state="success"] { display: none; }
+[data-page-widget="role-workload"] > .async-feedback .async-feedback__track { height: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  .ranking-medal, .ranking-medal--gold::after { animation: none; transition: none; }
+  .ranking-medal--gold::after { display: none; }
 }

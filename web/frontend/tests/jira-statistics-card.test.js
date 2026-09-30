@@ -354,3 +354,14 @@ it('renders available layers without treating pending Verify or previous period 
   expect(chartFactory.mock.calls.at(-1)[1].data.datasets[1].data).toEqual([1])
   widget.destroy()
 })
+
+it('binds the five Jira visual identities using full names', async () => {
+  const { widget } = mount({ getStatistics: vi.fn().mockResolvedValue({ state: 'ready', productLines }) })
+  try {
+    await vi.waitFor(() => expect(document.querySelectorAll('[data-product-line-segments] button')).toHaveLength(5))
+    const buttons = [...document.querySelectorAll('[data-product-line-segments] button')]
+    expect(buttons.map(button => button.dataset.productLine)).toEqual(['China Operator', 'Smart Device', 'TV', 'Global Operator & STB', 'Wireless Connection'])
+    buttons[4].click()
+    expect(document.querySelector('.workload-chart-scroll').dataset.productLine).toBe('Wireless Connection')
+  } finally { widget.destroy() }
+})

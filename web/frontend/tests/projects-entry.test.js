@@ -49,6 +49,10 @@ it('mounts the persisted Projects snapshot, preserves filters, and has no migrat
     const form = document.querySelector('main form')
     const workload = document.querySelector('[data-page-widget="role-workload"]')
     expect(workload).not.toBeNull()
+    const feedback = workload.querySelector('[data-async-feedback]')
+    expect(feedback).not.toBeNull()
+    expect(workload.querySelector('header').nextElementSibling).toBe(feedback)
+    expect(document.querySelectorAll('[data-async-feedback]')).toHaveLength(1)
     expect(workload.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
     expect(charts.at(-1).data.datasets[0].data).toEqual([1])
     const select = form.elements['field.__product_space__']

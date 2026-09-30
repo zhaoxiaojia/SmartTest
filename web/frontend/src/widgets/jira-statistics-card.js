@@ -115,7 +115,7 @@ export function createJiraStatisticsCard({ pollDelay = 800, chartFactory } = {})
     const pendingLabel = ({ failed: 'Failed', cancelled: 'Cancelled' })[payload.state] ?? 'Loading…'
     const presentation = {
       palette: 'jira',
-      productLines: combinedLines.map(line => ({ value: line.id, label: line.label })),
+      productLines: combinedLines.map(line => ({ value: line.id, label: line.label, productLine: line.label })),
       modes: cardMetrics.map(metric => ({ ...metric,
         disabled: !metricReady('current', metric.value),
         label: !metricReady('current', metric.value) ? `${metric.label} (${pendingLabel})`

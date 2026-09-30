@@ -26,6 +26,7 @@ startAuthenticatedPage({
       onSnapshot: payload => workload.update({ ownerHierarchy: payload.ownerHierarchy ?? [], productSpaces: payload.productSpaces ?? [], shellTitle: true }),
     })
     root.querySelector('form').after(root.querySelector('[data-page-widget="role-workload"]'))
+    root.querySelector('[data-page-widget="role-workload"] > header').after(root.querySelector('[data-async-feedback]'))
     return { start: () => projects.start(), destroy() { workload.destroy(); projects.destroy() } }
   },
 })

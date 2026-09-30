@@ -319,3 +319,74 @@ it('applies theme palette changes to real Chart.js bar elements', async () => {
     card.destroy(); root.remove(); document.documentElement.classList.remove('dark-theme')
   }
 })
+
+it('keeps Top3 medals aligned with real chart rows and clears them for summaries and empty data', async () => {
+  const { Chart, registerables, BasicPlatform } = await import('chart.js')
+  Chart.register(...registerables)
+  const root = document.createElement('div')
+  let chart
+  const card = createRankingCard({ chartFactory: (_canvas, config) => {
+    const canvas = { width: 800, height: 200, style: {}, getContext: () => context }
+    const context = new Proxy({ canvas, measureText: text => ({ width: String(text).length * 7 }) }, {
+      get: (target, key) => key in target ? target[key] : () => {},
+    })
+    chart = new Chart(canvas, { ...config, platform: BasicPlatform,
+      options: { ...config.options, responsive: false },
+      plugins: [...(config.plugins ?? []), { id: 'skip-rasterization', beforeDraw: () => false }],
+    })
+    return chart
+  } })
+  let rows = ['A', 'B', 'C', 'D'].map((name, index) => ({ name, count: 4 - index }))
+  const config = { rowsFor: () => rows }
+  try {
+    card.mount(root, config)
+    const medals = [...root.querySelectorAll('[data-ranking-medal]')]
+    expect(medals.map(medal => medal.textContent)).toEqual(['1', '2', '3'])
+    expect(medals.map(medal => medal.getAttribute('aria-label'))).toEqual(['Rank 1: A', 'Rank 2: B', 'Rank 3: C'])
+    medals.forEach((medal, index) => expect(parseFloat(medal.style.top)).toBe(chart.scales.y.getPixelForValue(index)))
+    chart.resize(800, 260)
+    medals.forEach((medal, index) => expect(parseFloat(medal.style.top)).toBe(chart.scales.y.getPixelForValue(index)))
+    card.update(config)
+    expect(root.querySelector('[data-ranking-medal]')).toBe(medals[0])
+    rows = [{ name: 'B', count: 9 }]
+    card.update(config)
+    expect(root.querySelectorAll('[data-ranking-medal]')).toHaveLength(1)
+    expect(root.querySelector('[data-ranking-medal]').getAttribute('aria-label')).toBe('Rank 1: B')
+    card.update({ ...config, summaryRowsFor: () => [{ name: 'Total', count: 9, valueLabel: '9' }] })
+    expect(root.querySelectorAll('[data-ranking-medal]')).toHaveLength(0)
+    rows = []; card.update(config)
+    expect(root.querySelectorAll('[data-ranking-medal]')).toHaveLength(0)
+  } finally { card.destroy() }
+  expect(root.childElementCount).toBe(0)
+})
+
+it('binds product visuals independently from business values and clears stale identities', () => {
+  const firstRoot = document.createElement('div'), secondRoot = document.createElement('div')
+  const first = createRankingCard(), second = createRankingCard()
+  const rowsFor = vi.fn(() => [])
+  const products = [
+    { value: 'DOPL', label: 'China Operator', productLine: 'China Operator' },
+    { value: 'OOPL', label: 'Global Operator & STB', productLine: 'Global Operator & STB' },
+  ]
+  const config = { productLines: products, rowsFor }
+  try {
+    first.mount(firstRoot, config); second.mount(secondRoot, config)
+    const buttons = [...firstRoot.querySelectorAll('[data-product-line-segments] button')]
+    const content = firstRoot.querySelector('.workload-chart-scroll')
+    expect(buttons.map(button => button.dataset.productLine)).toEqual(['China Operator', 'Global Operator & STB'])
+    expect(buttons.map(button => button.textContent)).toEqual(['China Operator', 'Global Operator & STB'])
+    expect(content.dataset.productLine).toBe('China Operator')
+    expect(content.dataset.productSurface).toBe('card')
+    buttons[1].click()
+    expect(rowsFor).toHaveBeenLastCalledWith('OOPL', '')
+    expect(content.dataset.productLine).toBe('Global Operator & STB')
+    expect(secondRoot.querySelector('.workload-chart-scroll').dataset.productLine).toBe('China Operator')
+    first.update({ ...config, productLines: [products[0]] })
+    expect(content.dataset.productLine).toBe('China Operator')
+    first.update({ ...config, productLines: [{ value: 'DOPL', label: 'China Operator' }] })
+    expect(content.hasAttribute('data-product-line')).toBe(false)
+    expect(firstRoot.querySelector('[data-product-line-segments] button').hasAttribute('data-product-line')).toBe(false)
+    first.update({ ...config, productLines: [] })
+    expect(content.hasAttribute('data-product-surface')).toBe(false)
+  } finally { first.destroy(); second.destroy() }
+})

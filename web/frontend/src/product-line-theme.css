@@ -1,0 +1,294 @@
+/* Explicit visual identities only; these are presentation tokens, not a business catalog.
+   Theme variables handle light/dark; approved product artwork is defined below. */
+:where([data-product-line][data-product-surface]) {
+  --product-line-foreground: initial;
+  --product-line-background: initial;
+  --product-line-border: initial;
+  --product-line-accent: initial;
+  --product-line-texture: initial;
+  --product-line-animation: initial;
+  --product-line-icon: initial;
+  --product-line-title: initial;
+  --product-line-tone: initial;
+}
+[data-product-line="China Operator"],
+[data-product-line="Smart Device"],
+[data-product-line="TV"],
+[data-product-line="Global Operator & STB"],
+[data-product-line="Wireless Connection"] {
+  --product-line-foreground: var(--text-primary);
+  --product-line-background: initial;
+  --product-line-border: var(--border-color);
+  --product-line-accent: var(--accent);
+  --product-line-texture: none;
+  --product-line-animation: none;
+}
+[data-product-line][data-product-surface="card"] {
+  background-color: var(--product-line-background, transparent);
+  color: var(--product-line-foreground, var(--text-primary));
+  border-color: var(--product-line-border, var(--border-color));
+  background-image: var(--product-line-texture, none);
+  animation: var(--product-line-animation, none);
+}
+[data-product-line][data-product-surface="card"].product-space-group {
+  border: 1px solid var(--product-line-border, var(--border-color));
+  border-radius: .75rem;
+  background-color: var(--product-line-background, var(--bg-surface));
+}
+[data-product-line][data-product-surface="button"] {
+  color: var(--product-line-foreground, var(--text-primary));
+  border: 0;
+  background-color: var(--product-line-background, transparent);
+  background-image: var(--product-line-texture, none);
+  cursor: pointer;
+  animation: var(--product-line-animation, none);
+}
+[data-product-line][data-product-surface="badge"] {
+  color: var(--product-line-foreground, var(--text-primary));
+  background: var(--product-line-texture, none), var(--product-line-background, var(--bg-primary));
+  border: 1px solid var(--product-line-border, var(--border-color));
+  border-radius: 999px;
+  animation: var(--product-line-animation, none);
+}
+[data-product-line][data-product-surface="button"]:focus-visible {
+  outline: 2px solid var(--product-line-accent, var(--accent));
+  outline-offset: 3px;
+}
+[data-product-line][data-product-surface="button"]:disabled {
+  cursor: default;
+  opacity: .5;
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-product-line][data-product-surface],
+  [data-product-line][data-product-surface]::before,
+  [data-product-line][data-product-surface]::after { animation: none !important; transition: none !important; }
+}
+[data-product-line][data-product-surface="button"]:disabled::before,
+[data-product-line][data-product-surface="button"]:disabled::after { animation: none; opacity: 0; }
+/* Smart Device — audio technology. Speaker: Lucide (ISC), public/icons/lucide-LICENSE.txt.
+   Source: https://github.com/lucide-icons/lucide/blob/main/icons/speaker.svg */
+[data-product-line="Smart Device"][data-product-surface] {
+  --product-line-foreground: #123c56;
+  --product-line-background: #f8fcff;
+  --product-line-border: #88c4dc;
+  --product-line-accent: #0891b2;
+  --product-line-texture: radial-gradient(ellipse at 100% 0%, #0891b214, transparent 65%);
+}
+.dark-theme [data-product-line="Smart Device"][data-product-surface] {
+  --product-line-foreground: #dbf6ff;
+  --product-line-background: #091826;
+  --product-line-border: #26738d;
+  --product-line-texture: radial-gradient(ellipse at 100% 0%, #36cfff14, transparent 65%);
+}
+[data-product-line="Smart Device"][data-product-surface="card"] {
+  border-top: 2px solid var(--product-line-border);
+  box-shadow: inset 0 0 24px #0891b209;
+}
+[data-product-line="Smart Device"][data-product-surface="button"],
+[data-product-line="Smart Device"][data-product-surface="badge"] {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--product-line-border);
+  border-radius: 7px;
+  background: linear-gradient(135deg, #e8f5fb, var(--product-line-background));
+  color: var(--product-line-foreground);
+  box-shadow: inset 0 1px 0 #ffffff40;
+  transition: background .2s, box-shadow .2s, transform .2s;
+}
+.dark-theme [data-product-line="Smart Device"][data-product-surface="button"],
+.dark-theme [data-product-line="Smart Device"][data-product-surface="badge"] {
+  background: linear-gradient(135deg, #102b3c, var(--product-line-background));
+}
+[data-product-line="Smart Device"][data-product-surface="button"][aria-pressed="true"],
+[data-product-line="Smart Device"][data-product-surface="button"].product-space-summary {
+  background-color: #091d30;
+  background-image: linear-gradient(100deg, #091d30, #0d3044);
+  background-size: 100% 100%;
+  color: #e2f6ff;
+  border-color: #24768c;
+  text-shadow: none;
+  box-shadow: inset 0 1px 0 #a7efff26, 0 0 13px #0891b226;
+}
+[data-product-line="Smart Device"][data-product-surface="button"].product-space-summary {
+  border-radius: 0;
+  border-width: 0 0 1px;
+  padding-left: 3rem;
+}
+[data-product-line="Smart Device"][data-product-surface="button"].product-space-summary::before { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); }
+[data-product-line="Smart Device"][data-product-surface="button"]::before,
+[data-product-line="Smart Device"][data-product-surface="badge"]::before {
+  content: '';
+  display: inline-block;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 20px;
+  margin-right: 8px;
+  vertical-align: middle;
+  background: currentColor;
+  mask: url('/icons/speaker.svg') center / contain no-repeat;
+  pointer-events: none;
+}
+[data-product-line="Smart Device"][data-product-surface="button"]:disabled::before { opacity: 1; }
+[data-product-line="Smart Device"][data-product-surface="badge"] { border-left: 3px solid var(--product-line-accent); }
+[data-product-line="Smart Device"][data-product-surface="button"].product-space-summary > .kanban-title { color: inherit; }
+
+/* Disclosure surfaces decorate the existing hover-revealed project row as a whole.
+   The summary/detail visibility and stage/launch-OS folding remain page-owned. */
+[data-product-line][data-product-surface="disclosure"] {
+  color: var(--product-line-foreground, var(--text-primary));
+  background-color: var(--product-line-background, var(--bg-primary));
+  background-image: var(--product-line-texture, none);
+  border-color: var(--product-line-border, var(--border-color));
+}
+[data-product-line][data-product-surface="disclosure"]:is(:hover, :focus-within) {
+  border-color: var(--product-line-accent, var(--accent));
+}
+[data-product-line="Smart Device"][data-product-surface="disclosure"] {
+  --product-line-texture: linear-gradient(110deg, #0891b208, transparent 70%);
+  border-left: 2px solid var(--product-line-border);
+}
+.dark-theme [data-product-line="Smart Device"][data-product-surface="disclosure"] {
+  --product-line-texture: linear-gradient(110deg, #36cfff0a, transparent 70%);
+}
+[data-product-line="Smart Device"][data-product-surface="disclosure"] > .project-card-details {
+  border-top-color: var(--product-line-border);
+}
+/* Approved product artwork. Icons: Lucide (ISC), public/icons/lucide-LICENSE.txt.
+   Sources: https://github.com/lucide-icons/lucide/tree/main/icons */
+[data-product-line="China Operator"] {
+  --product-line-tone: #c45d4b; --product-line-title: #291d23;
+  --product-line-icon: url('/icons/radio-tower.svg');
+}
+[data-product-line="TV"] {
+  --product-line-tone: #8762d5; --product-line-title: #201631;
+  --product-line-icon: url('/icons/tv.svg');
+}
+[data-product-line="Global Operator & STB"] {
+  --product-line-tone: #4d79ce; --product-line-title: #13233c;
+  --product-line-icon: url('/icons/globe.svg');
+}
+[data-product-line="Wireless Connection"] {
+  --product-line-tone: #198c72; --product-line-title: #102a27;
+  --product-line-icon: url('/icons/wifi.svg');
+}
+/* Shared surfaces for these four identities; Smart Device keeps its accepted artwork. */
+:is([data-product-line="China Operator"], [data-product-line="TV"], [data-product-line="Global Operator & STB"], [data-product-line="Wireless Connection"])[data-product-surface] {
+  --product-line-foreground: #243342;
+  --product-line-background: color-mix(in srgb, var(--product-line-tone) 4%, #fbfcfe);
+  --product-line-border: color-mix(in srgb, var(--product-line-tone) 40%, #d9e2ec);
+  --product-line-accent: var(--product-line-tone);
+  --product-line-texture: linear-gradient(110deg, color-mix(in srgb, var(--product-line-tone) 7%, transparent), transparent 70%);
+}
+.dark-theme :is([data-product-line="China Operator"], [data-product-line="TV"], [data-product-line="Global Operator & STB"], [data-product-line="Wireless Connection"])[data-product-surface] {
+  --product-line-foreground: #e2eaf2;
+  --product-line-background: color-mix(in srgb, var(--product-line-tone) 5%, #101b27);
+  --product-line-border: color-mix(in srgb, var(--product-line-tone) 55%, #304256);
+}
+:is([data-product-line="China Operator"], [data-product-line="TV"], [data-product-line="Global Operator & STB"], [data-product-line="Wireless Connection"]) {
+  &[data-product-surface="card"] { border-top: 2px solid var(--product-line-border); }
+  &[data-product-surface="disclosure"] { border-left: 2px solid var(--product-line-border); }
+  &[data-product-surface="disclosure"] > .project-card-details { border-top-color: var(--product-line-border); }
+  &[data-product-surface="badge"], &[data-product-surface="button"] {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--product-line-border);
+    border-radius: 7px;
+    transition: box-shadow .2s, transform .2s;
+  }
+  &[data-product-surface="badge"] { border-left: 3px solid var(--product-line-tone); }
+  &[data-product-surface="button"][aria-pressed="true"], &[data-product-surface="button"].product-space-summary {
+    background-color: var(--product-line-title);
+    color: #f2f7fc;
+    border-color: var(--product-line-tone);
+    box-shadow: inset 0 1px 0 #ffffff20, 0 3px 12px color-mix(in srgb, var(--product-line-tone) 20%, transparent);
+  }
+  &[data-product-surface="button"].product-space-summary { border-radius: 0; border-width: 0 0 1px; padding-left: 3rem; }
+  &[data-product-surface="button"].product-space-summary > .kanban-title { color: inherit; }
+  &[data-product-surface="badge"]::before, &[data-product-surface="button"]::before {
+    content: ''; display: inline-block; flex: 0 0 18px; width: 18px; height: 20px;
+    margin-right: 8px; vertical-align: middle; background: currentColor;
+    mask: var(--product-line-icon) center / contain no-repeat; pointer-events: none;
+  }
+  &[data-product-surface="button"].product-space-summary::before { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); }
+  &[data-product-surface="button"]:is(:hover, :focus-visible):not(:disabled) { box-shadow: 0 0 0 3px color-mix(in srgb, var(--product-line-tone) 16%, transparent); }
+  &[data-product-surface="button"]:disabled::before { opacity: 1; }
+}
+/* Independent CSS interpretation of the approved rain / particles / aurora concepts.
+   Visual references (no source code copied): uiverse.io/SelfMadeSystem/quiet-snail-9,
+   uiverse.io/jaykdoe/tasty-dragon-12, uiverse.io/risabbir/giant-mole-44.
+   Background layers never introduce an overlay, hit target, or content opacity. */
+@property --product-wave-radius { syntax: '<length>'; inherits: false; initial-value: 24px; }
+@property --product-wave-alpha { syntax: '<number>'; inherits: false; initial-value: .45; }
+@property --product-particle-glow { syntax: '<percentage>'; inherits: false; initial-value: 50%; }
+:is([data-product-line="China Operator"], [data-product-line="Smart Device"], [data-product-line="TV"], [data-product-line="Global Operator & STB"], [data-product-line="Wireless Connection"])[data-product-surface]:is([data-product-surface="card"], [data-product-surface="button"], [data-product-surface="badge"], [data-product-surface="disclosure"]) {
+  --product-pattern-color: color-mix(in srgb, var(--product-line-accent) 40%, transparent);
+  background-image: var(--product-motion-pattern);
+  background-size: var(--product-motion-size);
+  background-position: 0 0;
+  animation: var(--product-motion);
+}
+.dark-theme [data-product-line][data-product-surface],
+[data-product-line][data-product-surface="button"]:is([aria-pressed="true"], .product-space-summary) {
+  --product-pattern-color: color-mix(in srgb, var(--product-line-accent) 65%, #ffffff35);
+}
+/* Compact surfaces show fewer local particles, with slower travel and no content motion. */
+[data-product-line][data-product-surface]:is([data-product-surface="button"], [data-product-surface="badge"], [data-product-surface="disclosure"]) {
+  animation-duration: 24s;
+}
+[data-product-line][data-product-surface="button"]:disabled { animation: none; }
+[data-product-line="China Operator"][data-product-surface] {
+  --product-motion-pattern: radial-gradient(ellipse 1.2px 6px at 19px 31px, var(--product-pattern-color) 12%, transparent 100%),
+    radial-gradient(ellipse 1.3px 4px at 83px 77px, var(--product-pattern-color) 15%, transparent 100%),
+    radial-gradient(ellipse 1px 8px at 47px 113px, var(--product-pattern-color) 10%, transparent 100%);
+  --product-motion-size: 137px 173px, 211px 127px, 283px 229px;
+  --product-motion: product-data-rain 18s linear infinite;
+}
+[data-product-line="Smart Device"][data-product-surface] {
+  --product-motion-pattern: radial-gradient(circle at 24px 28px, var(--product-pattern-color) 1px, transparent 3px),
+    radial-gradient(circle at 109px 83px, color-mix(in srgb, var(--product-pattern-color) var(--product-particle-glow), transparent) 2px, transparent 6px),
+    radial-gradient(circle at 61px 143px, var(--product-pattern-color) 1px, transparent 2px);
+  --product-motion-size: 167px 151px, 241px 193px, 307px 233px;
+  --product-motion: product-float 20s ease-in-out infinite alternate;
+}
+[data-product-line="TV"][data-product-surface] {
+  --product-motion-pattern: radial-gradient(ellipse at 20% 70%, var(--product-pattern-color), transparent 55%),
+    radial-gradient(ellipse at 78% 25%, color-mix(in srgb, var(--product-pattern-color) 65%, transparent), transparent 60%);
+  --product-motion-size: 160% 180%, 170% 160%;
+  --product-motion: product-aurora 18s ease-in-out infinite alternate;
+  background-repeat: no-repeat;
+}
+[data-product-line="Global Operator & STB"][data-product-surface] {
+  --product-motion-pattern: radial-gradient(circle at 17px 29px, var(--product-pattern-color) .7px, transparent 1.2px),
+    radial-gradient(circle at 83px 61px, var(--product-pattern-color) 1px, transparent 1.8px),
+    radial-gradient(circle at 137px 97px, var(--product-pattern-color) 1.4px, transparent 3px);
+  --product-motion-size: 97px 113px, 173px 157px, 251px 211px;
+  --product-motion: product-star-depth 36s linear infinite;
+}
+[data-product-line="Global Operator & STB"][data-product-surface]:is([data-product-surface="button"], [data-product-surface="badge"], [data-product-surface="disclosure"]) { animation-duration: 48s; }
+[data-product-line="Wireless Connection"][data-product-surface] {
+  --product-motion-pattern: radial-gradient(circle at 78% 38%, transparent calc(var(--product-wave-radius) - 6px), color-mix(in srgb, var(--product-pattern-color) calc(var(--product-wave-alpha) * 100%), transparent) var(--product-wave-radius), transparent calc(var(--product-wave-radius) + 6px)),
+    radial-gradient(circle at 23% 72%, transparent calc(var(--product-wave-radius) * .7 + 10px), color-mix(in srgb, var(--product-pattern-color) calc(var(--product-wave-alpha) * 70%), transparent) calc(var(--product-wave-radius) * .7 + 16px), transparent calc(var(--product-wave-radius) * .7 + 22px));
+  --product-motion-size: 100% 100%;
+  --product-motion: product-soft-waves 7s ease-out infinite;
+  background-repeat: no-repeat;
+}
+[data-product-line="Wireless Connection"][data-product-surface]:is([data-product-surface="button"], [data-product-surface="badge"], [data-product-surface="disclosure"]) { animation-duration: 10s; }
+@keyframes product-data-rain {
+  to { background-position: 0 346px, 0 508px, 0 229px; }
+}
+@keyframes product-float {
+  from { background-position: 0 0, 0 0, 0 0; --product-particle-glow: 35%; }
+  to { background-position: 14px -26px, -20px -12px, 8px -38px; --product-particle-glow: 85%; }
+}
+@keyframes product-aurora {
+  from { background-position: 0% 20%, 100% 70%; background-size: 160% 180%, 170% 160%; }
+  to { background-position: 100% 65%, 0% 20%; background-size: 190% 150%, 145% 190%; }
+}
+@keyframes product-star-depth {
+  to { background-position: -97px 113px, -346px 314px, -753px 633px; }
+}
+@keyframes product-soft-waves {
+  from { --product-wave-radius: 5px; --product-wave-alpha: .9; }
+  to { --product-wave-radius: 100px; --product-wave-alpha: 0; }
+}

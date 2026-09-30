@@ -1,11 +1,21 @@
 import './ranking-card.css'
 import { element } from '../dom.js'
+import { bindProductLine } from '../product-line-semantics.js'
 import { toFont } from 'chart.js/helpers'
 
 export function createRankingCard({ chartFactory } = {}) {
   let root, chart, config
   let activeProductLine = ''
   let activeMode = ''
+  let medalSignature = ''
+  const medalLayout = {
+    id: 'ranking-medals',
+    afterLayout(current) {
+      root.querySelectorAll('[data-ranking-medal]').forEach((medal, index) => {
+        medal.style.top = `${current.scales.y.getPixelForValue(index)}px`
+      })
+    },
+  }
   const themeObserver = new MutationObserver(() => {
     if (chart) {
       applyPalette(chart.data.datasets)
@@ -35,6 +45,7 @@ export function createRankingCard({ chartFactory } = {}) {
     ;[...target.children].forEach((button, index) => {
       button.textContent = options[index].label
       button.disabled = Boolean(options[index].disabled)
+      if (target.matches('[data-product-line-segments]')) bindProductLine(button, options[index].productLine, 'button')
     })
     selectSegment(target, active)
   }
@@ -74,6 +85,8 @@ export function createRankingCard({ chartFactory } = {}) {
   }
 
   function renderChart() {
+    bindProductLine(root.querySelector('.workload-chart-scroll'),
+      config.productLines?.find(item => item.value === activeProductLine)?.productLine, 'card')
     const summary = config.summaryRowsFor?.(activeProductLine, activeMode)
     const rows = summary ?? (config.rowsFor?.(activeProductLine, activeMode) ?? [])
       .filter(row => row.count || row.previousCount)
@@ -90,6 +103,19 @@ export function createRankingCard({ chartFactory } = {}) {
     empty.textContent = config.error || config.emptyTextFor?.(activeMode) || config.emptyText || 'No data in this product line.'
     const canvas = root.querySelector('[data-ranked-chart]')
     canvas.hidden = !rows.length
+    const medalRows = summary || !chartFactory ? [] : rows.slice(0, 3)
+    const signature = JSON.stringify([activeProductLine, activeMode, medalRows.map(row => row.name)])
+    if (signature !== medalSignature) {
+      const medals = root.querySelector('[data-ranking-medals]')
+      medals.replaceChildren(...medalRows.map((row, index) => {
+        const medal = element('span', `ranking-medal ranking-medal--${['gold', 'silver', 'bronze'][index]}`, String(index + 1))
+        medal.dataset.rankingMedal = String(index + 1)
+        medal.setAttribute('aria-label', `Rank ${index + 1}: ${row.name}`)
+        medal.style.setProperty('--rank-delay', `${index * 40}ms`)
+        return medal
+      }))
+      medalSignature = signature
+    }
     if (!rows.length || !chartFactory) {
       chart?.destroy()
       chart = null
@@ -127,6 +153,7 @@ export function createRankingCard({ chartFactory } = {}) {
     applyPalette(datasets)
     const next = {
       type: 'bar', data: { labels: rows.map(row => row.name), datasets },
+      plugins: [medalLayout],
       options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
         animation: reducedMotion ? false : { duration: 500, easing: 'easeOutQuart',
           delay: context => context.type === 'data' ? Math.min(context.dataIndex * 40, 400) : 0 },
@@ -134,9 +161,9 @@ export function createRankingCard({ chartFactory } = {}) {
         animations: { y: { duration: 0 }, width: {
           from: context => Number.isFinite(context.element?.width) ? context.element.width : 0,
         } },
-        layout: { padding: { right: 28 } }, scales: {
-          x: { beginAtZero: true, ticks: { precision: 0 } },
-          y: { ticks: { autoSkip: false } },
+        layout: { padding: { left: medalRows.length ? 32 : 0, right: 28 } }, scales: {
+          x: { beginAtZero: true, ticks: { precision: 0 }, grid: { display: false }, border: { display: false } },
+          y: { ticks: { autoSkip: false }, grid: { display: false }, border: { display: false } },
         },
         plugins: { legend: { display: comparison, labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8 } }, tooltip: { callbacks: {
           afterBody: items => {
@@ -179,7 +206,8 @@ export function createRankingCard({ chartFactory } = {}) {
   return {
     mount(target, value) {
       root = target; config = value
-      root.innerHTML = `<div class="segmented-ranking"><header class="report-preview-toolbar"><div class="workload-heading">${config.headingHtml || ''}<div class="product-line-segments" data-product-line-segments></div></div><div class="role-segments" data-mode-segments></div></header><div class="workload-chart-scroll"><div class="workload-chart-surface"><canvas data-ranked-chart></canvas><div class="product-space-empty" data-ranked-empty data-workload-empty hidden></div></div></div></div>`
+      medalSignature = ''
+      root.innerHTML = `<div class="segmented-ranking"><header class="report-preview-toolbar"><div class="workload-heading">${config.headingHtml || ''}<div class="product-line-segments" data-product-line-segments></div></div><div class="role-segments" data-mode-segments></div></header><div class="workload-chart-scroll"><div class="workload-chart-surface"><canvas data-ranked-chart></canvas><div data-ranking-medals></div><div class="product-space-empty" data-ranked-empty data-workload-empty hidden></div></div></div></div>`
       render()
       themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
       resizeObserver?.observe(root.querySelector('[data-mode-segments]'))

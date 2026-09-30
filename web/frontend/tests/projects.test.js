@@ -1000,3 +1000,48 @@ describe('Projects', () => {
     expect(document.querySelector('[role="status"]').textContent).toContain(message)
   })
 })
+
+it('binds Projects group and expand controls to full names without changing catalog identity', async () => {
+  const root = document.createElement('div')
+  const page = createProjects({ root, api: { getProjectFacts: vi.fn().mockResolvedValue(payload) } })
+  try {
+    await page.start()
+    const groups = [...root.querySelectorAll('[data-product-space-group]')]
+    expect(groups.map(group => group.dataset.productLine)).toEqual(['China Operator', 'Smart Device', 'TV', 'Global Operator & STB'])
+    expect(groups.every(group => group.dataset.productSurface === 'card')).toBe(true)
+    const toggle = groups[0].querySelector('[data-product-space-toggle]')
+    expect(toggle.dataset.productLine).toBe('China Operator')
+    expect(toggle.dataset.productSurface).toBe('button')
+    expect(toggle.textContent).toContain('China Operator')
+    expect(toggle.textContent).not.toContain('DOPL')
+    toggle.click()
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(groups[0].querySelector('[data-product-grid]').hidden).toBe(true)
+  } finally { page.destroy() }
+})
+
+it('binds each project disclosure to its catalog name without changing hover details or stage semantics', async () => {
+  const root = document.createElement('div')
+  const page = createProjects({ root, api: { getProjectFacts: vi.fn().mockResolvedValue({ ...payload,
+    projects: [
+      { identity: 'SD-1', project_id: 'SD-1', name: 'Speaker One', space_key: 'SDPL', status: 'NORMAL', stage: '2 IN DEVELOPMENT', page_url: 'https://example.com/speaker', roles: {}, fields: { owner: 'Alice' } },
+      { identity: 'TV-1', project_id: 'TV-1', name: 'TV One', space_key: 'TV', status: 'WARNING', stage: '2 IN DEVELOPMENT', roles: {}, fields: {} },
+    ],
+  }) } })
+  try {
+    await page.start()
+    const speaker = root.querySelector('[data-project-id="SD-1"]')
+    const tv = root.querySelector('[data-project-id="TV-1"]')
+    expect(speaker.dataset.productLine).toBe('Smart Device')
+    expect(tv.dataset.productLine).toBe('TV')
+    expect([speaker, tv].map(row => row.dataset.productSurface)).toEqual(['disclosure', 'disclosure'])
+    expect(speaker.tagName).toBe('ARTICLE')
+    expect(speaker.querySelector('.project-card-details').textContent).toContain('Alice')
+    expect(speaker.querySelector('a').href).toBe('https://example.com/speaker')
+    expect(speaker.querySelector('[data-project-status]').dataset.projectStatus).toBe('NORMAL')
+    const stage = speaker.closest('details')
+    expect(stage.open).toBe(false)
+    expect(stage.querySelector('summary').dataset.projectStage).toBe('2 IN DEVELOPMENT')
+    expect(stage.hasAttribute('data-product-surface')).toBe(false)
+  } finally { page.destroy() }
+})

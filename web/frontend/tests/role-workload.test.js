@@ -92,3 +92,13 @@ describe('RoleWorkloadWidget', () => {
     expect(document.querySelector('[data-workload-empty]').textContent).toBe('Local project facts API is unavailable.')
   })
 })
+
+it('passes full product names as visual identities while matching internal project values', () => {
+  const root = document.createElement('div')
+  const widget = createRoleWorkloadWidget()
+  widget.mount(root, { productSpaces, ownerHierarchy: [] })
+  expect([...root.querySelectorAll('[data-product-line-segments] button')].map(button => [button.dataset.value, button.dataset.productLine])).toEqual([
+    ['DOPL', 'China Operator'], ['SDPL', 'Smart Device'], ['TV', 'TV'], ['OOPL', 'Global Operator & STB'],
+  ])
+  widget.destroy()
+})
