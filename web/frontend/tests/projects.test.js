@@ -1001,14 +1001,14 @@ describe('Projects', () => {
   })
 })
 
-it('binds Projects group and expand controls to full names without changing catalog identity', async () => {
+it('binds each Projects product layout as the single product background owner', async () => {
   const root = document.createElement('div')
   const page = createProjects({ root, api: { getProjectFacts: vi.fn().mockResolvedValue(payload) } })
   try {
     await page.start()
     const groups = [...root.querySelectorAll('[data-product-space-group]')]
     expect(groups.map(group => group.dataset.productLine)).toEqual(['China Operator', 'Smart Device', 'TV', 'Global Operator & STB'])
-    expect(groups.every(group => group.dataset.productSurface === 'card')).toBe(true)
+    expect(groups.every(group => group.dataset.productSurface === 'layout')).toBe(true)
     const toggle = groups[0].querySelector('[data-product-space-toggle]')
     expect(toggle.dataset.productLine).toBe('China Operator')
     expect(toggle.dataset.productSurface).toBe('button')

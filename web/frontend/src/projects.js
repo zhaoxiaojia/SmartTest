@@ -375,7 +375,7 @@ export function createProjects({ root, api, waitForPreferences, account,
       const spaceProjects = uniqueProjects.filter(project => project.space_key === productSpaceKey)
       const group = node('section', 'product-space-group'); group.dataset.productSpaceGroup = ''
       const summary = node('button', 'product-space-summary'); summary.type = 'button'; summary.dataset.productSpaceToggle = ''
-      bindProductLine(group, productSpaceLabel, 'card')
+      bindProductLine(group, productSpaceLabel, 'layout')
       bindProductLine(summary, productSpaceLabel, 'button')
       summary.setAttribute('aria-expanded', 'true')
       const count = node('span', 'kanban-count', spaceProjects.length); count.dataset.productCount = ''

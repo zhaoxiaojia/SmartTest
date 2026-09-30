@@ -23,14 +23,14 @@
   --product-line-texture: none;
   --product-line-animation: none;
 }
-[data-product-line][data-product-surface="card"] {
+[data-product-line][data-product-surface]:is([data-product-surface="card"], [data-product-surface="layout"]) {
   background-color: var(--product-line-background, transparent);
   color: var(--product-line-foreground, var(--text-primary));
   border-color: var(--product-line-border, var(--border-color));
   background-image: var(--product-line-texture, none);
   animation: var(--product-line-animation, none);
 }
-[data-product-line][data-product-surface="card"].product-space-group {
+[data-product-line][data-product-surface="layout"].product-space-group {
   border: 1px solid var(--product-line-border, var(--border-color));
   border-radius: .75rem;
   background-color: var(--product-line-background, var(--bg-surface));
@@ -186,7 +186,7 @@
   --product-line-border: color-mix(in srgb, var(--product-line-tone) 55%, #304256);
 }
 :is([data-product-line="China Operator"], [data-product-line="TV"], [data-product-line="Global Operator & STB"], [data-product-line="Wireless Connection"]) {
-  &[data-product-surface="card"] { border-top: 2px solid var(--product-line-border); }
+  &:is([data-product-surface="card"], [data-product-surface="layout"]) { border-top: 2px solid var(--product-line-border); }
   &[data-product-surface="disclosure"] { border-left: 2px solid var(--product-line-border); }
   &[data-product-surface="disclosure"] > .project-card-details { border-top-color: var(--product-line-border); }
   &[data-product-surface="badge"], &[data-product-surface="button"] {
@@ -218,19 +218,24 @@
    Visual references (no source code copied): uiverse.io/SelfMadeSystem/quiet-snail-9,
    uiverse.io/jaykdoe/tasty-dragon-12, uiverse.io/risabbir/giant-mole-44.
    Background layers never introduce an overlay, hit target, or content opacity. */
-@property --product-wave-radius { syntax: '<length>'; inherits: false; initial-value: 24px; }
-@property --product-wave-alpha { syntax: '<number>'; inherits: false; initial-value: .45; }
 @property --product-particle-glow { syntax: '<percentage>'; inherits: false; initial-value: 50%; }
-:is([data-product-line="China Operator"], [data-product-line="Smart Device"], [data-product-line="TV"], [data-product-line="Global Operator & STB"], [data-product-line="Wireless Connection"])[data-product-surface]:is([data-product-surface="card"], [data-product-surface="button"], [data-product-surface="badge"], [data-product-surface="disclosure"]) {
-  --product-pattern-color: color-mix(in srgb, var(--product-line-accent) 40%, transparent);
+:is([data-product-line="China Operator"], [data-product-line="Smart Device"], [data-product-line="TV"], [data-product-line="Global Operator & STB"], [data-product-line="Wireless Connection"])[data-product-surface]:is([data-product-surface="layout"], [data-product-surface="card"], [data-product-surface="button"], [data-product-surface="badge"], [data-product-surface="disclosure"]) {
+  --product-pattern-tone: var(--product-line-accent);
+  --product-pattern-strength: 40%;
+  --product-pattern-color: color-mix(in srgb, var(--product-pattern-tone) var(--product-pattern-strength), transparent);
   background-image: var(--product-motion-pattern);
   background-size: var(--product-motion-size);
   background-position: 0 0;
   animation: var(--product-motion);
 }
-.dark-theme [data-product-line][data-product-surface],
+.dark-theme [data-product-line][data-product-surface] {
+  --product-pattern-strength: 62%;
+}
 [data-product-line][data-product-surface="button"]:is([aria-pressed="true"], .product-space-summary) {
-  --product-pattern-color: color-mix(in srgb, var(--product-line-accent) 65%, #ffffff35);
+  --product-pattern-strength: 65%;
+}
+.dark-theme [data-product-line][data-product-surface="button"]:is([aria-pressed="true"], .product-space-summary) {
+  --product-pattern-strength: 72%;
 }
 /* Compact surfaces show fewer local particles, with slower travel and no content motion. */
 [data-product-line][data-product-surface]:is([data-product-surface="button"], [data-product-surface="badge"], [data-product-surface="disclosure"]) {
@@ -252,12 +257,13 @@
   --product-motion: product-float 20s ease-in-out infinite alternate;
 }
 [data-product-line="TV"][data-product-surface] {
-  --product-motion-pattern: radial-gradient(ellipse at 20% 70%, var(--product-pattern-color), transparent 55%),
-    radial-gradient(ellipse at 78% 25%, color-mix(in srgb, var(--product-pattern-color) 65%, transparent), transparent 60%);
-  --product-motion-size: 160% 180%, 170% 160%;
-  --product-motion: product-aurora 18s ease-in-out infinite alternate;
+  --product-motion-pattern: radial-gradient(ellipse at center, var(--product-pattern-color), color-mix(in srgb, var(--product-pattern-color) 55%, transparent) 38%, transparent 72%),
+    radial-gradient(ellipse at center, color-mix(in srgb, var(--product-pattern-color) 78%, white 8%), transparent 68%);
+  --product-motion-size: 54% 180%, 38% 145%;
+  --product-motion: product-screen-bloom 10s ease-in-out infinite alternate;
   background-repeat: no-repeat;
 }
+[data-product-line="TV"][data-product-surface]:is([data-product-surface="button"], [data-product-surface="badge"], [data-product-surface="disclosure"]) { animation-duration: 11s; }
 [data-product-line="Global Operator & STB"][data-product-surface] {
   --product-motion-pattern: radial-gradient(circle at 17px 29px, var(--product-pattern-color) .7px, transparent 1.2px),
     radial-gradient(circle at 83px 61px, var(--product-pattern-color) 1px, transparent 1.8px),
@@ -267,13 +273,45 @@
 }
 [data-product-line="Global Operator & STB"][data-product-surface]:is([data-product-surface="button"], [data-product-surface="badge"], [data-product-surface="disclosure"]) { animation-duration: 48s; }
 [data-product-line="Wireless Connection"][data-product-surface] {
-  --product-motion-pattern: radial-gradient(circle at 78% 38%, transparent calc(var(--product-wave-radius) - 6px), color-mix(in srgb, var(--product-pattern-color) calc(var(--product-wave-alpha) * 100%), transparent) var(--product-wave-radius), transparent calc(var(--product-wave-radius) + 6px)),
-    radial-gradient(circle at 23% 72%, transparent calc(var(--product-wave-radius) * .7 + 10px), color-mix(in srgb, var(--product-pattern-color) calc(var(--product-wave-alpha) * 70%), transparent) calc(var(--product-wave-radius) * .7 + 16px), transparent calc(var(--product-wave-radius) * .7 + 22px));
-  --product-motion-size: 100% 100%;
-  --product-motion: product-soft-waves 7s ease-out infinite;
-  background-repeat: no-repeat;
+  --product-ofdm-period: 480px;
+  --product-ofdm-shift: -480px;
+  --product-motion-pattern: url('/patterns/wireless-ofdm-light.svg');
+  --product-motion-size: 480px 120px;
+  --product-motion: product-ofdm-flow 9.5s linear infinite;
+  background-repeat: repeat-x;
+  background-position: 0 50%;
 }
-[data-product-line="Wireless Connection"][data-product-surface]:is([data-product-surface="button"], [data-product-surface="badge"], [data-product-surface="disclosure"]) { animation-duration: 10s; }
+[data-product-line="Wireless Connection"][data-product-surface="layout"] {
+  --product-motion-size: 480px 120px;
+  background-repeat: repeat-x;
+  background-position: 0 50%;
+}
+.dark-theme [data-product-line="Wireless Connection"][data-product-surface] {
+  --product-motion-pattern: url('/patterns/wireless-ofdm-dark.svg');
+}
+[data-product-line="Wireless Connection"][data-product-surface]:is([data-product-surface="button"], [data-product-surface="badge"], [data-product-surface="disclosure"]) {
+  --product-ofdm-period: 240px;
+  --product-ofdm-shift: -240px;
+  --product-motion-size: 240px 60px;
+  animation-duration: 9.5s;
+}
+/* A composite layout owns one continuous product background. Nested controls retain
+   their semantic colors and borders without starting independent animation tiles. */
+[data-product-surface="layout"] [data-product-line][data-product-surface]:not([data-product-surface="layout"]) {
+  --product-motion: none;
+  --product-motion-pattern: none;
+  background-image: none;
+  animation: none;
+}
+[data-product-surface="layout"] > [data-product-surface="button"].product-space-summary {
+  background-color: color-mix(in srgb, var(--product-line-title, #091d30) 88%, transparent);
+}
+[data-product-surface="layout"] [data-product-surface="disclosure"] {
+  background-color: transparent;
+}
+[data-product-surface="layout"] :is(.stage-group, .launch-os-group, .stage-summary, .launch-os-summary) {
+  background: transparent;
+}
 @keyframes product-data-rain {
   to { background-position: 0 346px, 0 508px, 0 229px; }
 }
@@ -281,14 +319,24 @@
   from { background-position: 0 0, 0 0, 0 0; --product-particle-glow: 35%; }
   to { background-position: 14px -26px, -20px -12px, 8px -38px; --product-particle-glow: 85%; }
 }
-@keyframes product-aurora {
-  from { background-position: 0% 20%, 100% 70%; background-size: 160% 180%, 170% 160%; }
-  to { background-position: 100% 65%, 0% 20%; background-size: 190% 150%, 145% 190%; }
+@keyframes product-screen-bloom {
+  0% { background-position: -65% 55%, 135% 18%; }
+  50% { background-position: 38% 20%, 58% 82%; }
+  100% { background-position: 145% 48%, -48% 36%; }
 }
 @keyframes product-star-depth {
   to { background-position: -97px 113px, -346px 314px, -753px 633px; }
 }
-@keyframes product-soft-waves {
-  from { --product-wave-radius: 5px; --product-wave-alpha: .9; }
-  to { --product-wave-radius: 100px; --product-wave-alpha: 0; }
+@keyframes product-ofdm-flow {
+  from { background-position: 0 50%; }
+  to { background-position: var(--product-ofdm-shift) 50%; }
+}
+
+/* TV's wide aurora shapes cover more area than the particle patterns.
+   Keep the motion in selectors, but use a lighter product tint until selected. */
+[data-product-line="TV"][data-product-surface="button"][aria-pressed="false"] {
+  --product-pattern-strength: 12%;
+}
+.dark-theme [data-product-line="TV"][data-product-surface="button"][aria-pressed="false"] {
+  --product-pattern-strength: 20%;
 }
