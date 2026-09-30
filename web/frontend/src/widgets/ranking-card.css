@@ -28,6 +28,7 @@
 .segmented-ranking .product-line-segment,
 .segmented-ranking .role-segment { white-space: nowrap; flex-shrink: 0; }
 .workload-chart-scroll { max-height: min(32rem,60vh); padding: 1rem; overflow-y: auto; }
+[data-jira-ranking] .workload-chart-scroll { min-height: 12rem; }
 .workload-chart-surface { position: relative; width: 100%; }
 /* From Uiverse.io by 00Kubi; scoped to ranking-card product dimensions. */ 
 .segmented-ranking .product-line-segments {

@@ -301,7 +301,7 @@ it('does not render obsolete Customer personnel cache as component or Invalid st
   sessionStorage.setItem('smarttest:jira-statistics-display:legacy:customer-feedback', JSON.stringify({ state: 'ready', productLines }))
   const { widget, chartFactory } = mount({ getStatistics: () => new Promise(() => {}) }, undefined, 'legacy', 'customer-feedback')
   expect(chartFactory).not.toHaveBeenCalled()
-  expect(document.querySelector('[data-mode-segments]')).toBeNull()
+  expect(document.querySelector('[data-mode-segments] button').disabled).toBe(true)
   expect(document.body.textContent).toContain('Loading Jira')
   widget.destroy()
 })
@@ -352,6 +352,37 @@ it('renders available layers without treating pending Verify or previous period 
   widget.update()
   await vi.waitFor(() => expect(chartFactory.mock.calls.at(-1)[1].data.datasets).toHaveLength(2))
   expect(chartFactory.mock.calls.at(-1)[1].data.datasets[1].data).toEqual([1])
+  widget.destroy()
+})
+it('keeps the initial loading skeleton and fills its existing nodes in place', async () => {
+  let payload = { state: 'loading', task: { progress: { processed: 2, total: 10 } },
+    productLines: productLines.map(line => ({ ...line, people: [] })),
+    availability: { current: { basic: false, verify: false }, previous: { basic: false, verify: false } } }
+  document.body.innerHTML = '<div id="root"></div>'
+  const chartFactory = vi.fn(chartMock)
+  const widget = createJiraStatisticsCard({ pollDelay: 60000, chartFactory })
+  widget.mount(document.querySelector('#root'), { account: 'initial-loading', api: { getStatistics: async () => payload } })
+  const canvas = document.querySelector('[data-ranked-chart]')
+  expect(canvas).not.toBeNull()
+  const surface = document.querySelector('.workload-chart-scroll')
+  await vi.waitFor(() => expect(document.querySelectorAll('[data-product-line-segments] button')).toHaveLength(5))
+  const product = document.querySelector('[data-product-line-segments] button')
+  const metric = document.querySelector('[data-mode-segments] button')
+  expect(metric.disabled).toBe(true)
+  expect(surface.textContent).toContain('2/10')
+  payload = { state: 'loading', task: { progress: { processed: 3, total: 10 } } }
+  widget.update()
+  await vi.waitFor(() => expect(surface.textContent).toContain('3/10'))
+  expect(document.querySelector('[data-ranked-chart]')).toBe(canvas)
+  expect(document.querySelector('[data-product-line-segments] button')).toBe(product)
+  payload = { state: 'ready', productLines }
+  widget.update()
+  await vi.waitFor(() => expect(chartFactory).toHaveBeenCalledOnce())
+  expect(document.querySelector('[data-ranked-chart]')).toBe(canvas)
+  expect(document.querySelector('.workload-chart-scroll')).toBe(surface)
+  expect(document.querySelector('[data-mode-segments] button')).toBe(metric)
+  expect(document.querySelector('[data-product-line-segments] button')).toBe(product)
+  expect(metric.disabled).toBe(false)
   widget.destroy()
 })
 

@@ -39,13 +39,14 @@ export function createJiraStatisticsCard({ pollDelay = 800, chartFactory } = {})
   const ranking = createRankingCard({ chartFactory })
 
   function message(text, kind = '') {
-    if (!displayed) rankingHost.replaceChildren()
     let status = root.querySelector('[data-jira-statistics-state]')
     if (!status) {
       status = document.createElement('div')
       status.dataset.jiraStatisticsState = ''
-      root.append(status)
+      ;(rankingHost.querySelector('.workload-chart-scroll') ?? root).append(status)
     }
+    const empty = rankingHost.querySelector('[data-ranked-empty]')
+    if (empty) empty.hidden = true
     status.className = `jira-statistics-state${kind ? ` ${kind}` : ''}`
     status.textContent = text
   }
@@ -195,7 +196,11 @@ export function createJiraStatisticsCard({ pollDelay = 800, chartFactory } = {})
       const cached = displayCache.read()
       if (cached?.productLines && (cardKey !== 'customer-feedback'
         || cached.productLines.every(line => Array.isArray(line.components) && Number.isFinite(line.issueCount) && Number.isFinite(line.invalidCount)))) draw(cached)
-      else message('Loading Jira issues…')
+      else {
+        draw({ state: 'loading', productLines: [],
+          availability: { current: { basic: false, verify: false }, previous: { basic: false, verify: false } } })
+        message('Loading Jira issues…')
+      }
       if (!config.api) { message('Jira statistics card API is unavailable.', 'inline-status-error'); return }
       api = config.api
       void load()

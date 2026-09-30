@@ -244,6 +244,10 @@ def test_lost_task_is_interrupted_without_requery_and_previous_progress_does_not
         loading = api.get("/api/jira/cards/self-test/statistics").json()
         assert loading["query"]["pendingSnapshotId"] == current["snapshotId"]
         assert loading["query"]["activeSnapshotId"] == first["snapshotId"]
+        from core.product_lines import DASHBOARD_PRODUCT_LINES
+        assert [line["id"] for line in loading["productLines"]] == [line.name for line in DASHBOARD_PRODUCT_LINES]
+        assert all(not line["people"] for line in loading["productLines"])
+        assert loading["availability"]["current"] == {"basic": False, "verify": False}
     finally:
         release.set()
     assert wait_terminal(api, current["taskId"]) == "completed"
@@ -402,8 +406,8 @@ def test_cards_exclude_non_qa_at_task_aggregation_and_reject_old_aggregation_sna
     assert task["state"] == "completed"
     assert len(executed) == 4
     from core.jira.services.jql_statistics_cards import FAE_QA_GROUPS
-    for query in executed:
-        assert all(f'creator IN membersOf("{group}")' in query for group in FAE_QA_GROUPS)
+    for index, query in enumerate(executed):
+        assert all((f'creator IN membersOf("{group}")' in query) == (index < 2) for group in FAE_QA_GROUPS)
         assert query.endswith("ORDER BY created DESC")
     replay = api.get(f"/api/jira/cards/{card_key}/statistics").json()
     for period in ["current", "previous"]:
@@ -453,7 +457,7 @@ def test_card_bulk_query_requests_comments_and_replays_comment_authors(tmp_path,
         time.sleep(.01)
     assert task["state"] == "completed"
     assert requested == ([([*JiraGateway.CORE_FIELDS, "comment"], None, 100)] * 2
-                         + [(["key"], ["changelog"], 100)] * 2)
+                         + [(["key", "created", "project"], ["changelog"], 100)] * 2)
     replay = api.get(f"/api/jira/cards/{card_key}/statistics").json()
     for period in ["current", "previous"]:
         people = replay[period]["productLines"][2]["people"]
@@ -551,3 +555,59 @@ def test_incremental_card_aggregation_loads_each_account_groups_once_per_task(tm
         assert wait_terminal(api, started["taskId"]) == "completed"
         assert {account: groups.count(account) for account in groups} == {
             "creator": completed_tasks, "outside": completed_tasks, "verifier": completed_tasks}
+
+
+@pytest.mark.parametrize("card_key", ["self-test", "task", "customer-feedback"])
+def test_verify_uses_independent_annual_scope_and_includes_non_qa_creators(tmp_path, monkeypatch, card_key):
+    calls = []
+    def search(_self, query, **kwargs):
+        calls.append((query, kwargs))
+        if not kwargs.get("expand"):
+            assert 'creator IN membersOf(' in query
+            return dated_rows([{"id": "1", "key": "TV-1", "fields": {
+                "project": {"key": "TV"}, "creator": {"name": "fan.xu"}}}], query)
+        assert 'creator IN membersOf(' not in query
+        assert {'created', 'project'} <= set(kwargs['fields'])
+        rows = []
+        for issue_id, verifier in [("2", "meng.wang1"), ("3", "outside")]:
+            rows.append({"id": issue_id, "key": f"TV-{issue_id}", "fields": {
+                "project": {"key": "TV"}, "creator": {"name": "outside"},
+                "comment": {"comments": [{"author": {"name": "meng.wang1"}}]}},
+                "changelog": {"histories": [{"author": {"name": verifier}, "created": "2020-01-01T00:00:00Z",
+                    "items": [{"field": "status", "fromString": "Resolved", "toString": "Verified"}]}]}})
+        return dated_rows(rows, query)
+    monkeypatch.setattr(Gateway, 'search_all_payloads', search)
+    monkeypatch.setattr(Gateway, 'user_groups', lambda _self, account: {
+        'fan.xu': ('fae-iptv-qa',), 'meng.wang1': ('fae-wifi-qa',), 'outside': ()}[account])
+    api = client(tmp_path)
+    api.post('/api/jira/analytics/search', json={'mode': 'advanced', 'jql': 'status = Closed ORDER BY created DESC'})
+    started = api.post(f'/api/jira/cards/{card_key}/query', json={'period': 'year'}).json()
+    for _ in range(100):
+        state = api.get(f"/api/jira/cards/{card_key}/tasks/{started['taskId']}").json()['state']
+        if state not in {'queued', 'running'}: break
+        time.sleep(.01)
+    assert state == 'completed'
+    assert len(calls) == 4
+    from core.jira.services.jql_statistics_cards import effective_card_jql_pair
+    expected = [item['jql'] for include_creator_qa in (True, False)
+                for item in effective_card_jql_pair(card_key, 'status = Closed ORDER BY created DESC', 'year',
+                                                    include_creator_qa=include_creator_qa).values()]
+    assert [query for query, _ in calls] == expected
+    assert [bool(kwargs['expand']) for _, kwargs in calls] == [False, False, True, True]
+    for query, _ in calls:
+        assert 'status = Closed' in query and card_definition(card_key).custom_jql in query
+        assert query.endswith('ORDER BY created DESC')
+    replay = api.get(f'/api/jira/cards/{card_key}/statistics').json()
+    for period in ('current', 'previous'):
+        people = [person for line in replay[period]['productLines'] for person in line['people']]
+        assert replay[period]['teamTotal'] == 1
+        assert sum(person['bugCount'] for person in people) == 1
+        assert sum(person['commentCount'] for person in people) == 0
+        assert sum(person['verifyCount'] for person in people) == 1
+        assert 'outside' not in {person['identity'] for person in people}
+        assert next(person for person in replay[period]['productLines'][2]['people']
+                    if person['identity'] == 'meng.wang1')['verifyCount'] == 1
+    for period in ('week', 'month', 'quarter'):
+        local = api.post(f'/api/jira/cards/{card_key}/query', json={'intent': 'reuse', 'period': period}).json()
+        assert local['state'] == 'ready' and 'taskId' not in local
+    assert len(calls) == 4

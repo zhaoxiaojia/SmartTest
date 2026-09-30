@@ -10,7 +10,7 @@ from core.jira.services.filter_service import build_basic_jql, compose_jql
 
 class JiraAnalyticsService:
     def __init__(self, filters, gateway, mapper, repository, tasks, *, fixed_conditions="", card_key="",
-                 roster_fingerprint="", statistics_builder=None, comparison_conditions="",
+                 roster_fingerprint="", statistics_builder=None, comparison_conditions="", verification_conditions=None,
                  on_error=lambda _error: None):
         self.filters, self.gateway, self.mapper = filters, gateway, mapper
         self.repository, self.tasks = repository, tasks
@@ -20,6 +20,7 @@ class JiraAnalyticsService:
         self.roster_fingerprint = roster_fingerprint
         self.statistics_builder = statistics_builder
         self.comparison_conditions = comparison_conditions
+        self.verification_conditions = verification_conditions or {}
 
     def schema(self):
         fields = self.filters.fields()
@@ -51,8 +52,9 @@ class JiraAnalyticsService:
         jql, user_jql = preview["jql"], preview["userJql"]
         comparison_jql = compose_jql(user_jql, self.comparison_conditions) if self.comparison_conditions else ""
         validation = {key: value for key, value in preview.items() if key not in {"jql", "userJql"}}
-        if comparison_jql:
-            comparison_validation = self.filters.validate(comparison_jql)
+        verification_queries = {period: compose_jql(user_jql, fixed) for period, fixed in self.verification_conditions.items()}
+        for query in ([comparison_jql] if comparison_jql else []) + list(verification_queries.values()):
+            comparison_validation = self.filters.validate(query)
             if not comparison_validation.get("valid"):
                 validation = comparison_validation
         current = self.repository.state(session_hash, account, card_key=self.card_key)
@@ -92,9 +94,10 @@ class JiraAnalyticsService:
                             observed_total = max(observed_total, total)
                             token.raise_if_cancelled()
                             progress(processed + count, processed + total)
-                        fields = [*JiraGateway.CORE_FIELDS, "comment"] if layer == "basic" else ["key"]
+                        fields = [*JiraGateway.CORE_FIELDS, "comment"] if layer == "basic" else ["key", "created", "project"]
                         rows = self.gateway.search_all_payloads(
-                            query, fields=fields, expand=["changelog"] if layer == "verify" else None,
+                            (query if layer == "basic" else verification_queries[period]),
+                            fields=fields, expand=["changelog"] if layer == "verify" else None,
                             page_size=100, progress=report,
                         )
                         processed += len(rows)
@@ -109,9 +112,13 @@ class JiraAnalyticsService:
                                 self.repository.write_batch(snapshot_id, [self.mapper.from_search(item)
                                     for item in rows[start:start + 500]], period)
                         else:
-                            histories = {str(row.get("key") or row.get("id")): row.get("changelog") for row in rows}
-                            rows_by_period[period] = [{**row, "changelog": histories.get(str(row.get("key") or row.get("id")))}
-                                                     for row in rows_by_period[period]]
+                            history_rows = {str(row.get("id") or row.get("key")): row for row in rows}
+                            basic_rows = rows_by_period[period]
+                            basic_ids = {str(row.get("id") or row.get("key")) for row in basic_rows}
+                            rows_by_period[period] = [
+                                {**row, "changelog": history_rows.get(str(row.get("id") or row.get("key")), {}).get("changelog")}
+                                for row in basic_rows
+                            ] + [{**row, "_verifyOnly": True} for identity, row in history_rows.items() if identity not in basic_ids]
                         availability[period][layer] = True
                         log_stage("persist", since, period=period, layer=layer, processed=len(rows))
                         token.raise_if_cancelled()

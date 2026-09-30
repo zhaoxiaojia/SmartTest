@@ -65,12 +65,13 @@ class JiraStatisticsCardDefinition:
     first_metric_label: str
     custom_jql: str
 
-    def fixed_jql(self, period: str) -> str:
-        return f"({_creator_group_jql()}) AND ({self.custom_jql}) AND {jira_period_condition(period)}"
+    def fixed_jql(self, period: str, *, include_creator_qa=True) -> str:
+        creator = f"({_creator_group_jql()}) AND " if include_creator_qa else ""
+        return f"{creator}({self.custom_jql}) AND {jira_period_condition(period)}"
 
     @property
     def fingerprint(self) -> str:
-        encoded = json.dumps({"definition": asdict(self), "groups": FAE_QA_GROUPS,
+        encoded = json.dumps({"definition": asdict(self), "groups": FAE_QA_GROUPS, "verify_scope": "independent-v1",
                               "aggregation": "qa-creators-components-summary-v5" if self.card_key == "customer-feedback"
                               else "qa-creators-comments-verify-v4"}, sort_keys=True, separators=(",", ":")).encode()
         return hashlib.sha256(encoded).hexdigest()
@@ -96,12 +97,12 @@ def card_definition(card_key: str) -> JiraStatisticsCardDefinition:
     return JIRA_STATISTICS_CARDS[card_key]
 
 
-def effective_card_jql_pair(card_key: str, user_jql: str, period: str, today=None) -> dict[str, dict[str, Any]]:
+def effective_card_jql_pair(card_key: str, user_jql: str, period: str, today=None, *, include_creator_qa=True) -> dict[str, dict[str, Any]]:
     definition = card_definition(card_key)
     ranges = jira_period_ranges(period, today)
     result = {}
     for key, value in ranges.items():
-        fixed = definition.fixed_jql(period)
+        fixed = definition.fixed_jql(period, include_creator_qa=include_creator_qa)
         fixed = fixed.replace(jira_period_condition(period), str(value["condition"]))
         result[key] = {**value, "jql": compose_jql(user_jql, fixed)}
     return result
@@ -213,7 +214,7 @@ def _product_line(fields: dict[str, Any], assignments: set[str]):
 
 
 def aggregate_jira_statistics(
-    issues: Iterable[dict[str, Any]], roster: QARoster,
+    issues: Iterable[dict[str, Any]], roster: QARoster, *, verify_only=False,
 ) -> JiraStatisticsOverview:
     assignments = {account: set(lines) for account, lines in roster.assignments}
     people: dict[str, dict[str, dict[str, Any]]] = defaultdict(lambda: defaultdict(lambda: {
@@ -231,8 +232,20 @@ def aggregate_jira_statistics(
             if issue_id in seen:
                 continue
             seen.add(issue_id)
-        total += 1
         fields = issue.get("fields") if isinstance(issue, dict) else None
+        verification = JiraIssueMapper.last_verification(issue)
+        verify_line = _product_line(fields, set()) if isinstance(fields, dict) else ""
+        if verify_line and verification and verification.author:
+            author = verification.author
+            account = (author.account or author.identity).strip().casefold()
+            if assignments.get(account):
+                verify_row = people[verify_line][account]
+                verify_row["identity"] = account
+                verify_row["displayName"] = author.display_name or account
+                verify_row["verifyCount"] += 1
+        if verify_only:
+            continue
+        total += 1
         creator = fields.get("creator") if isinstance(fields, dict) else None
         if not isinstance(fields, dict) or not isinstance(creator, dict):
             unassigned += 1
@@ -257,15 +270,6 @@ def aggregate_jira_statistics(
                 comment_row["identity"] = account
                 comment_row["displayName"] = author.display_name or account
                 comment_row["commentCount"] += 1
-        verification = JiraIssueMapper.last_verification(issue)
-        if comment_line and verification and verification.author:
-            author = verification.author
-            account = (author.account or author.identity).strip().casefold()
-            if assignments.get(account):
-                verify_row = people[comment_line][account]
-                verify_row["identity"] = account
-                verify_row["displayName"] = author.display_name or account
-                verify_row["verifyCount"] += 1
         product_line = _product_line(fields, assignments[identity])
         if not product_line:
             unmapped += 1
@@ -314,7 +318,7 @@ def build_annual_facts(gateway, current_rows, previous_rows, *, groups_cache=Non
     roster = load_fae_qa_roster(gateway, statistics_accounts(rows), groups_cache=groups_cache)
     facts = []
     for issue in rows:
-        statistics = aggregate_jira_statistics([issue], roster).to_payload()
+        statistics = aggregate_jira_statistics([issue], roster, verify_only=issue.get("_verifyOnly", False)).to_payload()
         statistics["productLines"] = [line for line in statistics["productLines"] if line["people"]]
         verification = JiraIssueMapper.last_verification(issue)
         fields = issue.get("fields", {})

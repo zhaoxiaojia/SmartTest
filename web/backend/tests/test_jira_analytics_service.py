@@ -175,13 +175,14 @@ def test_card_search_fetches_both_periods_and_activates_one_combined_result():
         def __init__(self): self.queries = []
         def search_all_payloads(self, jql, *, fields=None, expand=None, page_size=None, progress=None):
             self.queries.append(jql)
-            return [{"id": str(len(self.queries)), "key": f"SH-{len(self.queries)}",
+            return [{"id": str((len(self.queries) - 1) % 2), "key": f"SH-{(len(self.queries) - 1) % 2}",
                      "fields": {"summary": "One", "project": {}, "status": {}, "issuetype": {}}}]
     gateway = PairGateway()
     service = JiraAnalyticsService(
         Filter(), gateway, Mapper(), repo, tasks,
         fixed_conditions='created >= "2026-09-01" AND created <= now()',
         comparison_conditions='created >= "2026-08-01" AND created < "2026-09-01"',
+        verification_conditions={"current": "verify-current", "previous": "verify-previous"},
         statistics_builder=lambda current, previous: {"currentTotal": len(current), "previousTotal": len(previous)},
     )
 
@@ -191,7 +192,8 @@ def test_card_search_fetches_both_periods_and_activates_one_combined_result():
     assert gateway.queries == [
         '(project = SH) AND (created >= "2026-09-01" AND created <= now())',
         '(project = SH) AND (created >= "2026-08-01" AND created < "2026-09-01")',
-    ] * 2
+        "(project = SH) AND (verify-current)", "(project = SH) AND (verify-previous)",
+    ]
     assert repo.calls[0][2]["comparison_jql"] == gateway.queries[1]
     assert [call[1][2] for call in repo.calls if call[0] == "write"] == ["current", "previous"]
     assert repo.calls[-1] == ("activate", ("snapshot", {"currentTotal": 1, "previousTotal": 1,
@@ -230,7 +232,7 @@ def test_card_load_logs_safe_stage_timings_and_uses_history_paging(monkeypatch):
             return [{"id": "1", "fields": {"summary": "private-content"}}]
     tasks = Tasks()
     service = JiraAnalyticsService(Filter(), Gateway(), Mapper(), Repo(), tasks, card_key="task",
-                                   comparison_conditions="previous", statistics_builder=lambda *_: {})
+                                   comparison_conditions="previous", verification_conditions={"current": "verify-current", "previous": "verify-previous"}, statistics_builder=lambda *_: {})
     service.search("session-secret", "account-secret", 100, {"mode": "advanced", "jql": "private-query"})
     tasks.runner(type("Token", (), {"raise_if_cancelled": lambda self: None})(), lambda *_: None)
     assert all(request["page_size"] == 100 for request in requests)
@@ -263,11 +265,12 @@ def test_card_layers_publish_basic_before_history_in_strict_period_order():
         return {**overview(current), "current": overview(current), "previous": overview(previous)}
     repo, tasks = PartialRepo(), Tasks()
     service = JiraAnalyticsService(Filter(), LayerGateway(), Mapper(), repo, tasks,
-        card_key="task", comparison_conditions="previous", statistics_builder=build)
+        card_key="task", comparison_conditions="previous", verification_conditions={"current": "verify-current", "previous": "verify-previous"}, statistics_builder=build)
     service.search("s", "alice", 100, {"mode": "advanced", "jql": "scope"})
     tasks.runner(type("Token", (), {"raise_if_cancelled": lambda self: None})(), lambda *_: None)
     assert [expand for _query, expand in calls] == [None, None, ["changelog"], ["changelog"]]
-    assert calls[0][0] == calls[2][0] and calls[1][0] == calls[3][0]
+    assert calls[0][0] != calls[2][0] and calls[1][0] != calls[3][0]
+    assert calls[2][0].endswith("(verify-current)") and calls[3][0].endswith("(verify-previous)")
     assert len(previews) == 4
     assert previews[0]["availability"] == {"current": {"basic": True, "verify": False}, "previous": {"basic": False, "verify": False}}
     assert "verifyCount" not in previews[0]["current"]["productLines"][0]["people"][0]

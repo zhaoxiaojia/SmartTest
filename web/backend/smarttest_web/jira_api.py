@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import APIRouter
 from fastapi import Body, Depends, HTTPException, Request
 
+from core.product_lines import DASHBOARD_PRODUCT_LINES
 from core.jira.domain import IssueDetails
 from core.jira.mapper import JiraIssueMapper
 from core.jira.services.jql_statistics_cards import (
@@ -96,6 +97,7 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
         definition = card_definition(card_key) if card_key else None
         period = "year" if definition else None
         query_pair = effective_card_jql_pair(card_key, "", period) if definition else None
+        verify_pair = effective_card_jql_pair(card_key, "", period, include_creator_qa=False) if definition else None
         current_fixed = query_pair["current"]["jql"] if query_pair else ""
         previous_fixed = query_pair["previous"]["jql"] if query_pair else ""
         groups_cache = {}
@@ -104,6 +106,7 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
             jira_analytics, JIRA_ANALYTICS_TASKS,
             fixed_conditions=current_fixed,
             comparison_conditions=previous_fixed,
+            verification_conditions={key: item["jql"] for key, item in verify_pair.items()} if verify_pair else None,
             card_key=card_key,
             roster_fingerprint=f"{definition.fingerprint}:annual-facts-v1" if definition else "",
             statistics_builder=(lambda current, previous: build_annual_facts(
@@ -184,6 +187,10 @@ def create_router(authenticated_session, sessions, cache_database, jira_cache_ow
                 payload.update(partial)
         elif active_matches:
             payload.update(summary)
+        if state == "loading" and "productLines" not in payload:
+            payload["productLines"] = [{"id": line.name, "label": line.name, "people": []}
+                                       for line in DASHBOARD_PRODUCT_LINES]
+            payload["availability"] = {key: {"basic": False, "verify": False} for key in ("current", "previous")}
         return payload
 
     @router.get("/api/jira/analytics/fields")
