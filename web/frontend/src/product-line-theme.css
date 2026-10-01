@@ -242,12 +242,15 @@
   animation-duration: 24s;
 }
 [data-product-line][data-product-surface="button"]:disabled { animation: none; }
+/* Uiverse.io by solowzrd: independent logo cells replace the character matrix. */
 [data-product-line="China Operator"][data-product-surface] {
-  --product-motion-pattern: radial-gradient(ellipse 1.2px 6px at 19px 31px, var(--product-pattern-color) 12%, transparent 100%),
-    radial-gradient(ellipse 1.3px 4px at 83px 77px, var(--product-pattern-color) 15%, transparent 100%),
-    radial-gradient(ellipse 1px 8px at 47px 113px, var(--product-pattern-color) 10%, transparent 100%);
-  --product-motion-size: 137px 173px, 211px 127px, 283px 229px;
-  --product-motion: product-data-rain 18s linear infinite;
+  --product-motion-pattern: none;
+  --product-motion: none;
+}
+.operator-matrix-surface { position: relative; isolation: isolate; }
+.operator-matrix {
+  position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%;
+  pointer-events: none; border-radius: inherit;
 }
 [data-product-line="Smart Device"][data-product-surface] {
   --product-motion-pattern: radial-gradient(circle at 24px 28px, var(--product-pattern-color) 1px, transparent 3px),
@@ -311,9 +314,6 @@
 }
 [data-product-surface="layout"] :is(.stage-group, .launch-os-group, .stage-summary, .launch-os-summary) {
   background: transparent;
-}
-@keyframes product-data-rain {
-  to { background-position: 0 346px, 0 508px, 0 229px; }
 }
 @keyframes product-float {
   from { background-position: 0 0, 0 0, 0 0; --product-particle-glow: 35%; }
