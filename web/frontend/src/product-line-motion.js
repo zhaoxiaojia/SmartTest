@@ -1,8 +1,9 @@
 import mobile from '../public/icons/operators/china-mobile.svg?url'
 import telecom from '../public/icons/operators/china-telecom.svg?url'
 import unicom from '../public/icons/operators/china-unicom.svg?url'
+import { smartDeviceArtwork, createSmartDeviceProduct } from './smart-device-artwork.js'
 
-const selector = '[data-product-line="China Operator"][data-product-surface]'
+const selector = ':is([data-product-line="China Operator"], [data-product-line="Smart Device"])[data-product-surface]'
 const colors = ['#0064b4', '#0096ff', '#64c8ff', '#ff69b4', '#ffffff']
 const ease = value => (1 - Math.cos(Math.PI * value)) / 2
 
@@ -85,14 +86,31 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
     schedule()
   }
   function changed() {
-    for (const state of surfaces.values()) state.dirty = true
+    for (const state of surfaces.values()) {
+      state.dirty = true
+      if (state.deviceLayer) updateDeviceMotion(state)
+    }
     if (frameId) { cancelAnimationFrame(frameId); frameId = undefined }
     schedule()
+  }
+  function updateDeviceMotion(state) {
+    state.deviceLayer.classList.toggle('smart-motion-paused', !state.visible || document.visibilityState !== 'visible' || media.matches || state.element.matches(':disabled'))
+  }
+  function layoutDevice(state) {
+    const count = state.width >= 600 && state.height >= 160 ? smartDeviceArtwork.length : state.width >= 300 && state.height >= 100 ? 5 : 1
+    while (state.deviceLayer.children.length > count) state.deviceLayer.lastElementChild.remove()
+    while (state.deviceLayer.children.length < count) {
+      const index = state.deviceLayer.children.length
+      state.deviceLayer.append(createSmartDeviceProduct(smartDeviceArtwork[index], index))
+    }
+    state.deviceLayer.style.setProperty('--device-scale', count === 1 ? Math.min(1, state.height / 70) : Math.min(1, state.height / 300, state.width / 800))
+    state.deviceLayer.classList.toggle('smart-device-compact', count === 1)
+    updateDeviceMotion(state)
   }
   const intersection = new IntersectionObserver(entries => {
     for (const entry of entries) {
       const state = surfaces.get(entry.target)
-      if (state) { state.visible = entry.isIntersecting; state.dirty = true }
+      if (state) { state.visible = entry.isIntersecting; state.dirty = true; if (state.deviceLayer) updateDeviceMotion(state) }
     }
     if (frameId && !hasWork()) { cancelAnimationFrame(frameId); frameId = undefined }
     schedule()
@@ -103,6 +121,7 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
       if (!state) continue
       state.width = target.clientWidth || contentRect.width
       state.height = target.clientHeight || contentRect.height
+      if (state.deviceLayer) { layoutDevice(state); continue }
       state.columns = Math.ceil(state.width / 40)
       const count = state.columns * Math.ceil(state.height / 40)
       state.cells.length = Math.min(state.cells.length, count)
@@ -122,16 +141,29 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
   function reconcile() {
     const eligible = new Set([...document.querySelectorAll(selector)].filter(element => !element.parentElement.closest('[data-product-surface="layout"]')))
     for (const [element, state] of surfaces) {
-      if (eligible.has(element)) continue
+      if (eligible.has(element) && Boolean(state.deviceLayer) === (element.dataset.productLine === 'Smart Device')) continue
       resize.unobserve(element)
       intersection.unobserve(element)
-      state.canvas.remove()
+      ;(state.deviceLayer || state.canvas).remove()
       state.error?.remove()
-      element.classList.remove('operator-matrix-surface')
+      element.classList.remove('operator-matrix-surface', 'smart-device-surface')
       surfaces.delete(element)
     }
     for (const element of eligible) {
       if (surfaces.has(element)) continue
+      if (element.dataset.productLine === 'Smart Device') {
+        const deviceLayer = document.createElement('div')
+        deviceLayer.className = 'smart-device-art'
+        deviceLayer.setAttribute('aria-hidden', 'true')
+        const state = { element, deviceLayer, cells: [], visible: true, dirty: true }
+        element.classList.add('smart-device-surface')
+        element.prepend(deviceLayer)
+        surfaces.set(element, state)
+        resize.observe(element)
+        intersection.observe(element)
+        updateDeviceMotion(state)
+        continue
+      }
       const canvas = document.createElement('canvas')
       canvas.className = 'operator-matrix'
       canvas.setAttribute('aria-hidden', 'true')
@@ -162,7 +194,7 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
   })).then(loaded => { if (!stopped) { images = loaded; changed() } }).catch(error => {
     if (stopped) return
     loadError = error
-    for (const state of surfaces.values()) showError(state)
+    for (const state of surfaces.values()) if (!state.deviceLayer) showError(state)
   })
   return () => {
     stopped = true
@@ -173,6 +205,6 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
     document.removeEventListener('visibilitychange', changed)
     window.removeEventListener('resize', changed)
     media.removeEventListener('change', changed)
-    for (const [element, state] of surfaces) { state.canvas.remove(); state.error?.remove(); element.classList.remove('operator-matrix-surface') }
+    for (const [element, state] of surfaces) { (state.deviceLayer || state.canvas).remove(); state.error?.remove(); element.classList.remove('operator-matrix-surface', 'smart-device-surface') }
   }
 }

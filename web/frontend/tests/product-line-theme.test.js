@@ -188,3 +188,53 @@ it('resumes the operator canvas after a disabled button is re-enabled', async ()
   expect(environment.contexts.get(document.querySelector('canvas')).draws.length).toBeGreaterThan(2)
   stop()
 })
+
+it('mounts bounded independent Smart Device products and pauses their lifecycle without a canvas', async () => {
+  const environment = canvasEnvironment()
+  const { initializeProductLineMotion } = await import('../src/product-line-motion.js')
+  document.body.innerHTML = '<section data-product-line="Smart Device" data-product-surface="layout"><button data-product-line="Smart Device" data-product-surface="button">Content</button></section>'
+  const layout = document.querySelector('section')
+  const stop = initializeProductLineMotion(environment)
+  environment.resize([{ target: layout, contentRect: { width: 1334, height: 436 } }])
+  const layer = layout.querySelector('.smart-device-art')
+  expect(layer).not.toBeNull()
+  expect(new Set([...layer.querySelectorAll('[data-smart-device]')].map(svg => svg.dataset.smartDevice)).size).toBe(13)
+  expect(new Set([...layer.children].map(product => product.style.getPropertyValue('--device-period'))).size).toBeGreaterThan(1)
+  expect(document.querySelectorAll('.smart-device-art')).toHaveLength(1)
+  expect(document.querySelector('canvas')).toBeNull()
+  expect(layer.getAttribute('aria-hidden')).toBe('true')
+  environment.intersection([{ target: layout, isIntersecting: false }])
+  expect(layer.classList.contains('smart-motion-paused')).toBe(true)
+  environment.intersection([{ target: layout, isIntersecting: true }])
+  expect(layer.classList.contains('smart-motion-paused')).toBe(false)
+  environment.media.matches = true
+  environment.media.dispatchEvent(new Event('change'))
+  expect(layer.classList.contains('smart-motion-paused')).toBe(true)
+  layout.remove()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(environment.observed.has(layout)).toBe(false)
+  stop()
+})
+
+it('replaces China canvas with Smart Device artwork when the same surface changes product line', async () => {
+  const environment = canvasEnvironment()
+  const { initializeProductLineMotion } = await import('../src/product-line-motion.js')
+  document.body.innerHTML = '<button data-product-line="China Operator" data-product-surface="button">Product</button>'
+  const button = document.querySelector('button')
+  const stop = initializeProductLineMotion(environment)
+  expect(button.querySelector('canvas')).not.toBeNull()
+  button.dataset.productLine = 'Smart Device'
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(button.querySelector('canvas')).toBeNull()
+  environment.resize([{ target: button, contentRect: { width: 140, height: 42 } }])
+  const layer = button.querySelector('.smart-device-art')
+  expect(layer.children).toHaveLength(1)
+  button.disabled = true
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(layer.classList.contains('smart-motion-paused')).toBe(true)
+  button.disabled = false
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(layer.classList.contains('smart-motion-paused')).toBe(false)
+  stop()
+  expect(button.querySelector('.smart-device-art')).toBeNull()
+})
