@@ -1,16 +1,10 @@
 export function createAuthShell({ root = document, desktopHost, mobileHost, api,
-  onChanging = () => {}, onSession = () => {} }) {
+  onChanging = () => {}, onSession = () => {}, navigate = path => window.location.assign(path) }) {
   let state = { authenticated: false }
   let generation = 0
   let confirmed = false
+  const signIn = () => navigate(`/login.html?next=${encodeURIComponent(`${window.location.pathname}${window.location.search}${window.location.hash}`)}`)
   const userNode = () => {
-    if (!state.authenticated) {
-      const login = document.createElement('a')
-      const current = `${window.location.pathname}${window.location.search}${window.location.hash}`
-      login.className = 'button button-secondary user-login'; login.dataset.login = ''
-      login.href = `/login.html?next=${encodeURIComponent(current)}`; login.textContent = 'Sign in'
-      return login
-    }
     const label = `${state.displayName || state.username || ''}`
     const menu = document.createElement('div'); menu.className = 'user-menu'
     const trigger = document.createElement('button'); trigger.className = 'user-trigger'; trigger.dataset.userTrigger = ''; trigger.type = 'button'
@@ -40,7 +34,7 @@ export function createAuthShell({ root = document, desktopHost, mobileHost, api,
   root.addEventListener('click', async event => {
     const trigger = event.target.closest('[data-user-trigger]')
     if (trigger) { const dropdown = trigger.parentElement.querySelector('[data-user-dropdown]'); dropdown.hidden = !dropdown.hidden }
-    if (event.target.closest('[data-logout]') && api) { await api.logout(); state = { authenticated: false }; render() }
+    if (event.target.closest('[data-logout]') && api) { await api.logout(); generation++; signIn() }
   })
   async function start() {
     const current = ++generation
@@ -48,9 +42,11 @@ export function createAuthShell({ root = document, desktopHost, mobileHost, api,
     if (api) { try { next = await api.session() } catch { /* Unauthenticated shell. */ } }
     if (current !== generation) return
     const unchanged = confirmed && state.authenticated === next.authenticated && state.username === next.username
-    state = next; render()
+    state = next
+    if (state.authenticated) render()
     confirmed = true
     if (!unchanged) await onSession(state)
+    if (!state.authenticated) signIn()
     return state
   }
   function changed(event) {

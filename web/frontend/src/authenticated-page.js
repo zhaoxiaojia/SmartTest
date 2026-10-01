@@ -19,10 +19,7 @@ export function startAuthenticatedPage({ mount }) {
     if (account === nextAccount) return
     account = nextAccount
     clear()
-    if (!session?.authenticated) {
-      section.textContent = 'Please sign in.'
-      return
-    }
+    if (!session?.authenticated) return
     page = mount(section, session)
     void page?.start?.()
   }
