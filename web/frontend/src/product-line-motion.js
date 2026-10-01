@@ -4,9 +4,8 @@ import unicom from '../public/icons/operators/china-unicom.svg?url'
 import { smartDeviceArtwork, createSmartDeviceProduct } from './smart-device-artwork.js'
 import { createTvProduct } from './tv-artwork.js'
 import { createGlobalGlobe } from './global-globe.js'
-import { createLoginBoard, boardCover } from './login-board-motion.js'
 
-const selector = ':is([data-product-line="China Operator"], [data-product-line="Smart Device"], [data-product-line="TV"], [data-product-line="Global Operator & STB"])[data-product-surface], [data-login-board]'
+const selector = ':is([data-product-line="China Operator"], [data-product-line="Smart Device"], [data-product-line="TV"], [data-product-line="Global Operator & STB"])[data-product-surface]'
 const colors = ['#0064b4', '#0096ff', '#64c8ff', '#ff69b4', '#ffffff']
 const ease = value => (1 - Math.cos(Math.PI * value)) / 2
 
@@ -53,11 +52,6 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
     context.clearRect(0, 0, state.width, state.height)
     const dark = document.documentElement.classList.contains('dark-theme')
     const animate = !media.matches && !state.element.matches(':disabled')
-    if (state.board) {
-      state.board(state.mapping, now, dark, dpr, animate)
-      state.dirty = false
-      return
-    }
     if (state.globe) {
       if (animate) state.globeTime = now
       state.globe(state.width, state.height, state.globeTime || 0, dark)
@@ -85,7 +79,7 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
     state.dirty = false
   }
   function hasWork() {
-    return !stopped && document.visibilityState === 'visible' && ([...surfaces.values()].some(state => state.visible && ((state.globe || state.board) ? state.width > 0 && state.height > 0 : images && state.cells.length) &&
+    return !stopped && document.visibilityState === 'visible' && ([...surfaces.values()].some(state => state.visible && (state.globe ? state.width > 0 && state.height > 0 : images && state.cells.length) &&
       (state.dirty || !media.matches && !state.element.matches(':disabled'))))
   }
   function schedule() { if (!frameId && hasWork()) frameId = requestAnimationFrame(frame) }
@@ -94,7 +88,7 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
     const dpr = devicePixelRatio || 1
     if (images && dpr !== cachedDpr) prepareSprites(dpr)
     for (const state of surfaces.values()) {
-      if (!state.visible || !((state.globe || state.board) ? state.width > 0 && state.height > 0 : images && state.cells.length)) continue
+      if (!state.visible || !(state.globe ? state.width > 0 && state.height > 0 : images && state.cells.length)) continue
       if (state.dirty || !media.matches && !state.element.matches(':disabled')) draw(state, now, dpr)
     }
     schedule()
@@ -102,7 +96,6 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
   function changed() {
     for (const state of surfaces.values()) {
       state.dirty = true
-      if (state.board) state.mapping = boardCover(state.width, state.height, getComputedStyle(state.element).backgroundPosition || '50% 50%')
       if (state.deviceLayer) updateDeviceMotion(state)
     }
     if (frameId) { cancelAnimationFrame(frameId); frameId = undefined }
@@ -138,8 +131,7 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
       state.width = target.clientWidth || contentRect.width
       state.height = target.clientHeight || contentRect.height
       if (state.deviceLayer) { layoutDevice(state); continue }
-      if (state.board) state.mapping = boardCover(state.width, state.height, getComputedStyle(target).backgroundPosition || '50% 50%')
-      if (state.globe || state.board) { state.dirty = true; continue }
+      if (state.globe) { state.dirty = true; continue }
       state.columns = Math.ceil(state.width / 40)
       const count = state.columns * Math.ceil(state.height / 40)
       state.cells.length = Math.min(state.cells.length, count)
@@ -183,17 +175,16 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
         continue
       }
       const canvas = document.createElement('canvas')
-      canvas.className = element.hasAttribute('data-login-board') ? 'login-board-signal' : element.dataset.productLine === 'Global Operator & STB' ? 'global-globe' : 'operator-matrix'
+      canvas.className = element.dataset.productLine === 'Global Operator & STB' ? 'global-globe' : 'operator-matrix'
       canvas.setAttribute('aria-hidden', 'true')
       const state = { element, line: element.dataset.productLine, canvas, context: canvas.getContext('2d'), cells: [], visible: true, dirty: true, width: 0, height: 0 }
-      if (element.hasAttribute('data-login-board')) state.board = createLoginBoard(state.context)
       if (state.line === 'Global Operator & STB') state.globe = createGlobalGlobe(state.context)
-      if (!state.board) element.classList.add(state.globe ? 'global-globe-surface' : 'operator-matrix-surface')
+      element.classList.add(state.globe ? 'global-globe-surface' : 'operator-matrix-surface')
       element.prepend(canvas)
       surfaces.set(element, state)
       resize.observe(element)
       intersection.observe(element)
-      if (loadError && !state.globe && !state.board) showError(state)
+      if (loadError && !state.globe) showError(state)
     }
     changed()
   }
@@ -202,7 +193,7 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
     if (records.some(record => record.type === 'attributes' && [document.documentElement, document.body].includes(record.target))) changed()
   })
   reconcile()
-  mutations.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-product-line', 'data-product-surface', 'data-login-board', 'class', 'disabled'] })
+  mutations.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-product-line', 'data-product-surface', 'class', 'disabled'] })
   document.addEventListener('visibilitychange', changed)
   window.addEventListener('resize', changed)
   media.addEventListener('change', changed)

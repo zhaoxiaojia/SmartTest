@@ -1493,29 +1493,34 @@ tr:hover td {
 /* ===== Login Page ===== */
 /* Static semiconductor artwork; the existing login owner and theme controls remain. */
 .login-screen {
-    --login-art: url('/images/login-chip-light.webp');
+    --login-art: none;
     --login-panel: #ffffffed;
     --login-edge: #b8d6ef;
     --login-field: #ffffffdc;
     background: #f4faff;
 }
 html.dark-theme .login-screen {
-    --login-art: url('/images/login-chip-dark.webp');
+    --login-art: none;
     --login-panel: #0c2034ed;
     --login-edge: #355971;
     --login-field: #10283ee0;
     background: #071827;
 }
+.login-page[data-login-background="pcb"] { --login-art: url('/images/login-pcb-white-v1.png'); background-color: var(--bg-secondary); }
+html.dark-theme .login-page[data-login-background="pcb"] { --login-art: url('/images/login-pcb-dark-v1.png'); }
 .login-page {
     position: relative;
     min-height: 100vh;
     min-height: 100svh;
     display: grid;
     grid-template-columns: 64% 36%;
-    background: var(--login-art) center / cover no-repeat;
+    background-image: var(--login-art);
+    background-position: left center;
+    /* Native artwork is 1672 × 941: shrink to fit, never upscale. */
+    background-size: min(100vw, 1672px, 177.68svh) auto;
+    background-repeat: no-repeat;
 }
 .login-brand { position: absolute; top: 1.75rem; left: 2.5rem; z-index: 1; font-size: clamp(1.125rem, 1.7vw, 1.75rem); font-weight: 700; }
-.login-board-signal { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .login-container { position: relative; z-index: 1; grid-column: 2; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 6.5rem 2.5rem 3rem 0; }
 .login-card { width: 100%; max-width: 520px; min-height: 620px; display: flex; flex-direction: column; justify-content: center; padding: clamp(1.5rem, 3.2vw, 3.25rem); background: var(--login-panel); border: 1px solid var(--login-edge); border-radius: 14px; }
 .login-header { margin-bottom: 2.5rem; }

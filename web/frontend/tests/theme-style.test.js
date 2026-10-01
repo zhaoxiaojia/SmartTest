@@ -10,21 +10,26 @@ function mountTheme() {
   return style.sheet
 }
 
-it('selects the login artwork from the document theme before the body receives a theme class', () => {
+it('selects the static PCB artwork using the document theme', () => {
   const previousHtml = document.documentElement.className
   const previousBody = document.body.className
   mountTheme()
   const style = document.head.lastElementChild
+  const surface = document.createElement('main')
+  surface.className = 'login-page'
+  surface.dataset.loginBackground = 'pcb'
+  document.body.append(surface)
   try {
     document.body.className = 'login-screen'
     document.documentElement.classList.add('dark-theme')
-    expect(getComputedStyle(document.body).getPropertyValue('--login-art')).toContain('login-chip-dark.webp')
+    expect(getComputedStyle(surface).getPropertyValue('--login-art')).toContain('login-pcb-dark-v1.png')
     document.documentElement.classList.remove('dark-theme')
-    expect(getComputedStyle(document.body).getPropertyValue('--login-art')).toContain('login-chip-light.webp')
+    expect(getComputedStyle(surface).getPropertyValue('--login-art')).toContain('login-pcb-white-v1.png')
   } finally {
     document.documentElement.className = previousHtml
     document.body.className = previousBody
     style.remove()
+    surface.remove()
   }
 })
 

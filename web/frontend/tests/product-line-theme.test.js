@@ -176,14 +176,21 @@ function canvasEnvironment(reduced = false) {
   vi.stubGlobal('cancelAnimationFrame', id => frames.delete(id))
   const media = Object.assign(new EventTarget(), { matches: reduced })
   vi.stubGlobal('matchMedia', () => media)
-  vi.stubGlobal('Image', class { naturalWidth = 32; naturalHeight = 32; set src(value) { this.url = value } decode() { return Promise.resolve() } })
+  vi.stubGlobal('Image', class {
+    naturalWidth = 32
+    naturalHeight = 32
+    listeners = new Map()
+    addEventListener(type, callback) { this.listeners.set(type, callback) }
+    set src(value) { this.url = value; this.listeners.get('load')?.() }
+    decode() { return Promise.resolve() }
+  })
   const contexts = new Map()
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function () {
     if (!contexts.has(this)) {
       const draws = []
       const labels = []
       const gradient = { addColorStop() {} }
-      const context = { draws, labels, globalAlpha: 1, clearRect() { draws.length = 0; labels.length = 0 }, setTransform() {}, fillRect() {}, drawImage(...args) { draws.push({ alpha: this.globalAlpha, args }) }, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, arc() {}, fill() {}, stroke() {}, save() {}, restore() {}, clip() {}, createRadialGradient() { return gradient }, fillText(text) { labels.push(text) }, measureText(text) { return { width: text.length * 6 } } }
+      const context = { draws, labels, globalAlpha: 1, clearRect() { draws.length = 0; labels.length = 0 }, setTransform() {}, fillRect() {}, drawImage(...args) { draws.push({ alpha: this.globalAlpha, args }) }, getImageData() { return { data: new Uint8ClampedArray([8, 190, 244, 255]) } }, putImageData() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, arc() {}, fill() {}, stroke() {}, save() {}, restore() {}, clip() {}, createRadialGradient() { return gradient }, fillText(text) { labels.push(text) }, measureText(text) { return { width: text.length * 6 } } }
       contexts.set(this, context)
     }
     return contexts.get(this)
@@ -334,37 +341,4 @@ it('replaces China canvas with Smart Device artwork when the same surface change
   expect(layer.classList.contains('smart-motion-paused')).toBe(false)
   stop()
   expect(button.querySelector('.smart-device-art')).toBeNull()
-})
-
-it('shares the login board canvas lifecycle without changing form content', async () => {
-  Object.defineProperty(SVGElement.prototype, 'getTotalLength', { configurable: true, value: () => 100 })
-  Object.defineProperty(SVGElement.prototype, 'getPointAtLength', { configurable: true, value: distance => ({ x: distance, y: distance }) })
-  onTestFinished(() => { delete SVGElement.prototype.getTotalLength; delete SVGElement.prototype.getPointAtLength })
-  const environment = canvasEnvironment()
-  const { initializeProductLineMotion } = await import('../src/product-line-motion.js')
-  document.body.innerHTML = '<main data-login-board><form><input name="username"><button>Sign in</button></form></main>'
-  const page = document.querySelector('main')
-  const stop = initializeProductLineMotion(environment)
-  onTestFinished(stop)
-  const canvas = page.querySelector('canvas')
-  expect(canvas).not.toBeNull()
-  environment.resize([{ target: page, contentRect: { width: 1672, height: 941 } }])
-  environment.frame(1800)
-  expect(environment.contexts.get(canvas).draws.length).toBeGreaterThan(0)
-  environment.intersection([{ target: page, isIntersecting: false }])
-  expect(environment.frames.size).toBe(0)
-  environment.intersection([{ target: page, isIntersecting: true }])
-  expect(environment.frames.size).toBe(1)
-  environment.media.matches = true
-  environment.media.dispatchEvent(new Event('change'))
-  environment.frame(2000)
-  expect(environment.frames.size).toBe(0)
-  expect(environment.contexts.get(canvas).draws).toHaveLength(0)
-  environment.media.matches = false
-  environment.media.dispatchEvent(new Event('change'))
-  expect(environment.frames.size).toBe(1)
-  expect(page.querySelector('input').name).toBe('username')
-  stop()
-  expect(page.querySelector('canvas')).toBeNull()
-  expect(environment.frames.size).toBe(0)
 })
