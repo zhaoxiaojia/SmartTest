@@ -2,8 +2,11 @@ import mobile from '../public/icons/operators/china-mobile.svg?url'
 import telecom from '../public/icons/operators/china-telecom.svg?url'
 import unicom from '../public/icons/operators/china-unicom.svg?url'
 import { smartDeviceArtwork, createSmartDeviceProduct } from './smart-device-artwork.js'
+import { createTvProduct } from './tv-artwork.js'
+import { createGlobalGlobe } from './global-globe.js'
+import { createLoginBoard, boardCover } from './login-board-motion.js'
 
-const selector = ':is([data-product-line="China Operator"], [data-product-line="Smart Device"])[data-product-surface]'
+const selector = ':is([data-product-line="China Operator"], [data-product-line="Smart Device"], [data-product-line="TV"], [data-product-line="Global Operator & STB"])[data-product-surface], [data-login-board]'
 const colors = ['#0064b4', '#0096ff', '#64c8ff', '#ff69b4', '#ffffff']
 const ease = value => (1 - Math.cos(Math.PI * value)) / 2
 
@@ -50,6 +53,17 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
     context.clearRect(0, 0, state.width, state.height)
     const dark = document.documentElement.classList.contains('dark-theme')
     const animate = !media.matches && !state.element.matches(':disabled')
+    if (state.board) {
+      state.board(state.mapping, now, dark, dpr, animate)
+      state.dirty = false
+      return
+    }
+    if (state.globe) {
+      if (animate) state.globeTime = now
+      state.globe(state.width, state.height, state.globeTime || 0, dark)
+      state.dirty = false
+      return
+    }
     for (const [index, cell] of cells.entries()) {
       const x = index % columns * 40 - 12
       const y = Math.floor(index / columns) * 40 - 12
@@ -71,16 +85,16 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
     state.dirty = false
   }
   function hasWork() {
-    return !stopped && images && document.visibilityState === 'visible' && ([...surfaces.values()].some(state => state.visible && state.cells.length &&
+    return !stopped && document.visibilityState === 'visible' && ([...surfaces.values()].some(state => state.visible && ((state.globe || state.board) ? state.width > 0 && state.height > 0 : images && state.cells.length) &&
       (state.dirty || !media.matches && !state.element.matches(':disabled'))))
   }
   function schedule() { if (!frameId && hasWork()) frameId = requestAnimationFrame(frame) }
   function frame(now) {
     frameId = undefined
     const dpr = devicePixelRatio || 1
-    if (dpr !== cachedDpr) prepareSprites(dpr)
+    if (images && dpr !== cachedDpr) prepareSprites(dpr)
     for (const state of surfaces.values()) {
-      if (!state.visible || !state.cells.length) continue
+      if (!state.visible || !((state.globe || state.board) ? state.width > 0 && state.height > 0 : images && state.cells.length)) continue
       if (state.dirty || !media.matches && !state.element.matches(':disabled')) draw(state, now, dpr)
     }
     schedule()
@@ -88,6 +102,7 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
   function changed() {
     for (const state of surfaces.values()) {
       state.dirty = true
+      if (state.board) state.mapping = boardCover(state.width, state.height, getComputedStyle(state.element).backgroundPosition || '50% 50%')
       if (state.deviceLayer) updateDeviceMotion(state)
     }
     if (frameId) { cancelAnimationFrame(frameId); frameId = undefined }
@@ -97,14 +112,15 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
     state.deviceLayer.classList.toggle('smart-motion-paused', !state.visible || document.visibilityState !== 'visible' || media.matches || state.element.matches(':disabled'))
   }
   function layoutDevice(state) {
-    const count = state.width >= 600 && state.height >= 160 ? smartDeviceArtwork.length : state.width >= 300 && state.height >= 100 ? 5 : 1
+    const tv = state.line === 'TV'
+    const count = tv ? (state.width >= 600 && state.height >= 160 ? 3 : state.width >= 300 && state.height >= 100 ? 2 : 1) : state.width >= 600 && state.height >= 160 ? smartDeviceArtwork.length : state.width >= 300 && state.height >= 100 ? 5 : 1
     while (state.deviceLayer.children.length > count) state.deviceLayer.lastElementChild.remove()
     while (state.deviceLayer.children.length < count) {
       const index = state.deviceLayer.children.length
-      state.deviceLayer.append(createSmartDeviceProduct(smartDeviceArtwork[index], index))
+      state.deviceLayer.append(tv ? createTvProduct(index) : createSmartDeviceProduct(smartDeviceArtwork[index], index))
     }
-    state.deviceLayer.style.setProperty('--device-scale', count === 1 ? Math.min(1, state.height / 70) : Math.min(1, state.height / 300, state.width / 800))
-    state.deviceLayer.classList.toggle('smart-device-compact', count === 1)
+    state.deviceLayer.style.setProperty(tv ? '--tv-scale' : '--device-scale', count === 1 ? Math.min(1, state.height / 70) : Math.min(1, state.height / 300, state.width / 800))
+    state.deviceLayer.classList.toggle(tv ? 'tv-compact' : 'smart-device-compact', count === 1)
     updateDeviceMotion(state)
   }
   const intersection = new IntersectionObserver(entries => {
@@ -122,6 +138,8 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
       state.width = target.clientWidth || contentRect.width
       state.height = target.clientHeight || contentRect.height
       if (state.deviceLayer) { layoutDevice(state); continue }
+      if (state.board) state.mapping = boardCover(state.width, state.height, getComputedStyle(target).backgroundPosition || '50% 50%')
+      if (state.globe || state.board) { state.dirty = true; continue }
       state.columns = Math.ceil(state.width / 40)
       const count = state.columns * Math.ceil(state.height / 40)
       state.cells.length = Math.min(state.cells.length, count)
@@ -141,22 +159,22 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
   function reconcile() {
     const eligible = new Set([...document.querySelectorAll(selector)].filter(element => !element.parentElement.closest('[data-product-surface="layout"]')))
     for (const [element, state] of surfaces) {
-      if (eligible.has(element) && Boolean(state.deviceLayer) === (element.dataset.productLine === 'Smart Device')) continue
+      if (eligible.has(element) && state.line === element.dataset.productLine) continue
       resize.unobserve(element)
       intersection.unobserve(element)
       ;(state.deviceLayer || state.canvas).remove()
       state.error?.remove()
-      element.classList.remove('operator-matrix-surface', 'smart-device-surface')
+      element.classList.remove('operator-matrix-surface', 'smart-device-surface', 'tv-surface', 'global-globe-surface')
       surfaces.delete(element)
     }
     for (const element of eligible) {
       if (surfaces.has(element)) continue
-      if (element.dataset.productLine === 'Smart Device') {
+      if (['Smart Device', 'TV'].includes(element.dataset.productLine)) {
         const deviceLayer = document.createElement('div')
-        deviceLayer.className = 'smart-device-art'
+        deviceLayer.className = element.dataset.productLine === 'TV' ? 'tv-art' : 'smart-device-art'
         deviceLayer.setAttribute('aria-hidden', 'true')
-        const state = { element, deviceLayer, cells: [], visible: true, dirty: true }
-        element.classList.add('smart-device-surface')
+        const state = { element, line: element.dataset.productLine, deviceLayer, cells: [], visible: true, dirty: true }
+        element.classList.add(element.dataset.productLine === 'TV' ? 'tv-surface' : 'smart-device-surface')
         element.prepend(deviceLayer)
         surfaces.set(element, state)
         resize.observe(element)
@@ -165,15 +183,17 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
         continue
       }
       const canvas = document.createElement('canvas')
-      canvas.className = 'operator-matrix'
+      canvas.className = element.hasAttribute('data-login-board') ? 'login-board-signal' : element.dataset.productLine === 'Global Operator & STB' ? 'global-globe' : 'operator-matrix'
       canvas.setAttribute('aria-hidden', 'true')
-      const state = { element, canvas, context: canvas.getContext('2d'), cells: [], visible: true, dirty: true, width: 0, height: 0 }
-      element.classList.add('operator-matrix-surface')
+      const state = { element, line: element.dataset.productLine, canvas, context: canvas.getContext('2d'), cells: [], visible: true, dirty: true, width: 0, height: 0 }
+      if (element.hasAttribute('data-login-board')) state.board = createLoginBoard(state.context)
+      if (state.line === 'Global Operator & STB') state.globe = createGlobalGlobe(state.context)
+      if (!state.board) element.classList.add(state.globe ? 'global-globe-surface' : 'operator-matrix-surface')
       element.prepend(canvas)
       surfaces.set(element, state)
       resize.observe(element)
       intersection.observe(element)
-      if (loadError) showError(state)
+      if (loadError && !state.globe && !state.board) showError(state)
     }
     changed()
   }
@@ -182,7 +202,7 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
     if (records.some(record => record.type === 'attributes' && [document.documentElement, document.body].includes(record.target))) changed()
   })
   reconcile()
-  mutations.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-product-line', 'data-product-surface', 'class', 'disabled'] })
+  mutations.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-product-line', 'data-product-surface', 'data-login-board', 'class', 'disabled'] })
   document.addEventListener('visibilitychange', changed)
   window.addEventListener('resize', changed)
   media.addEventListener('change', changed)
@@ -194,7 +214,7 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
   })).then(loaded => { if (!stopped) { images = loaded; changed() } }).catch(error => {
     if (stopped) return
     loadError = error
-    for (const state of surfaces.values()) if (!state.deviceLayer) showError(state)
+    for (const state of surfaces.values()) if (state.line === 'China Operator') showError(state)
   })
   return () => {
     stopped = true
@@ -205,6 +225,6 @@ export function initializeProductLineMotion({ ResizeObserver = globalThis.Resize
     document.removeEventListener('visibilitychange', changed)
     window.removeEventListener('resize', changed)
     media.removeEventListener('change', changed)
-    for (const [element, state] of surfaces) { (state.deviceLayer || state.canvas).remove(); state.error?.remove(); element.classList.remove('operator-matrix-surface', 'smart-device-surface') }
+    for (const [element, state] of surfaces) { (state.deviceLayer || state.canvas).remove(); state.error?.remove(); element.classList.remove('operator-matrix-surface', 'smart-device-surface', 'tv-surface', 'global-globe-surface') }
   }
 }

@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 import { createLoginPage, safeReturnPath } from '../src/login-page.js'
 
 describe('SmartTest login page', () => {
   beforeEach(() => {
-    document.body.innerHTML = `<form data-login-form>
-      <input name="username"><input name="password" type="password">
-      <div data-auth-status></div><button type="submit">Sign in</button>
-    </form>`
+    const html = readFileSync(resolve(import.meta.dirname, '../login.html'), 'utf8')
+    document.body.innerHTML = new DOMParser().parseFromString(html, 'text/html').body.innerHTML
     window.history.replaceState({}, '', '/login.html')
   })
 
@@ -18,6 +18,8 @@ describe('SmartTest login page', () => {
     const navigate = vi.fn()
     await createLoginPage({ root: document, api, navigate }).start()
     const form = document.querySelector('form')
+    expect(form.elements.username.autocomplete).toBe('username')
+    expect(form.elements.password.autocomplete).toBe('current-password')
     form.elements.username.value = 'coco'; form.elements.password.value = 'secret'
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith('/projects.html?view=owners'))

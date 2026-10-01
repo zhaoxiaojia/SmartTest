@@ -10,6 +10,24 @@ function mountTheme() {
   return style.sheet
 }
 
+it('selects the login artwork from the document theme before the body receives a theme class', () => {
+  const previousHtml = document.documentElement.className
+  const previousBody = document.body.className
+  mountTheme()
+  const style = document.head.lastElementChild
+  try {
+    document.body.className = 'login-screen'
+    document.documentElement.classList.add('dark-theme')
+    expect(getComputedStyle(document.body).getPropertyValue('--login-art')).toContain('login-chip-dark.webp')
+    document.documentElement.classList.remove('dark-theme')
+    expect(getComputedStyle(document.body).getPropertyValue('--login-art')).toContain('login-chip-light.webp')
+  } finally {
+    document.documentElement.className = previousHtml
+    document.body.className = previousBody
+    style.remove()
+  }
+})
+
 it('uses the document root as the conditional page-scroll owner', () => {
   const style = document.createElement('style')
   style.textContent = readFileSync(resolve(import.meta.dirname, '../src/smarttest-theme.css'), 'utf8')

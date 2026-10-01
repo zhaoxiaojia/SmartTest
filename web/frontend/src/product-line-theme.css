@@ -315,22 +315,32 @@
 @keyframes smart-device-volume { from { transform: scaleY(.12); } to { transform: scaleY(1); } }
 @keyframes smart-device-ring { from { transform: scale(.85); opacity: 1; } to { transform: scale(1.2); opacity: 0; } }
 @keyframes smart-device-wave { from { transform: translateX(-3px) scale(.8); opacity: 1; } to { transform: translateX(8px) scale(1.18); opacity: 0; } }
-[data-product-line="TV"][data-product-surface] {
-  --product-motion-pattern: radial-gradient(ellipse at center, var(--product-pattern-color), color-mix(in srgb, var(--product-pattern-color) 55%, transparent) 38%, transparent 72%),
-    radial-gradient(ellipse at center, color-mix(in srgb, var(--product-pattern-color) 78%, white 8%), transparent 68%);
-  --product-motion-size: 54% 180%, 38% 145%;
-  --product-motion: product-screen-bloom 10s ease-in-out infinite alternate;
-  background-repeat: no-repeat;
+[data-product-line="TV"][data-product-surface] { --product-motion-pattern: none; --product-motion: none; }
+.tv-surface { position: relative; isolation: isolate; }
+.tv-art { position: absolute; inset: 0; z-index: -1; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.tv-product { position: absolute; width: calc(var(--tv-width) * var(--tv-scale)); opacity: .42; }
+.dark-theme .tv-product, [aria-pressed="true"] > .tv-art .tv-product, .product-space-summary > .tv-art .tv-product { opacity: .62; }
+.tv-product > svg { display: block; width: 100%; overflow: visible; transform: translate(-50%, -50%) rotate(var(--tv-angle)); }
+.tv-compact .tv-product { left: 78% !important; top: 52% !important; opacity: .3; }
+.tv-ribbon, .tv-highlight { transform-box: view-box; transform-origin: 120px 71px; }
+.tv-ribbon { animation: tv-silk-flow var(--tv-period) ease-in-out infinite var(--tv-phase) alternate; }
+.tv-ribbon-back { opacity: .65; }
+.tv-ribbon-front { animation-duration: calc(var(--tv-period) * .77); animation-delay: calc(var(--tv-phase) - 5s); }
+.tv-highlight { animation: tv-silk-highlight calc(var(--tv-period) * .6) ease-in-out infinite var(--tv-phase) alternate; }
+.tv-art.smart-motion-paused *, [data-product-surface="button"]:disabled .tv-art * { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .tv-art * { animation: none !important; } }
+@keyframes tv-silk-flow {
+  from { transform: translate(-15px, 13px) rotate(-8deg) scale(1.05, .8); }
+  to { transform: translate(17px, -10px) rotate(7deg) scale(1.18, 1.12); }
 }
-[data-product-line="TV"][data-product-surface]:is([data-product-surface="button"], [data-product-surface="badge"], [data-product-surface="disclosure"]) { animation-duration: 11s; }
-[data-product-line="Global Operator & STB"][data-product-surface] {
-  --product-motion-pattern: radial-gradient(circle at 17px 29px, var(--product-pattern-color) .7px, transparent 1.2px),
-    radial-gradient(circle at 83px 61px, var(--product-pattern-color) 1px, transparent 1.8px),
-    radial-gradient(circle at 137px 97px, var(--product-pattern-color) 1.4px, transparent 3px);
-  --product-motion-size: 97px 113px, 173px 157px, 251px 211px;
-  --product-motion: product-star-depth 36s linear infinite;
+@keyframes tv-silk-highlight {
+  from { transform: translate(-13px, 9px) scale(.96); opacity: .12; }
+  to { transform: translate(18px, -5px) scale(1.08); opacity: .9; }
 }
-[data-product-line="Global Operator & STB"][data-product-surface]:is([data-product-surface="button"], [data-product-surface="badge"], [data-product-surface="disclosure"]) { animation-duration: 48s; }
+[data-product-line="Global Operator & STB"][data-product-surface] { --product-motion-pattern: none; --product-motion: none; }
+.global-globe-surface { position: relative; isolation: isolate; }
+.global-globe { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; border-radius: inherit; pointer-events: none; opacity: .65; }
+.dark-theme .global-globe { opacity: .8; }
 [data-product-line="Wireless Connection"][data-product-surface] {
   --product-ofdm-period: 480px;
   --product-ofdm-shift: -480px;
@@ -371,24 +381,7 @@
 [data-product-surface="layout"] :is(.stage-group, .launch-os-group, .stage-summary, .launch-os-summary) {
   background: transparent;
 }
-@keyframes product-screen-bloom {
-  0% { background-position: -65% 55%, 135% 18%; }
-  50% { background-position: 38% 20%, 58% 82%; }
-  100% { background-position: 145% 48%, -48% 36%; }
-}
-@keyframes product-star-depth {
-  to { background-position: -97px 113px, -346px 314px, -753px 633px; }
-}
 @keyframes product-ofdm-flow {
   from { background-position: 0 50%; }
   to { background-position: var(--product-ofdm-shift) 50%; }
-}
-
-/* TV's wide aurora shapes cover more area than the particle patterns.
-   Keep the motion in selectors, but use a lighter product tint until selected. */
-[data-product-line="TV"][data-product-surface="button"][aria-pressed="false"] {
-  --product-pattern-strength: 12%;
-}
-.dark-theme [data-product-line="TV"][data-product-surface="button"][aria-pressed="false"] {
-  --product-pattern-strength: 20%;
 }

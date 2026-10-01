@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 
 function mountProductLineTheme() {
   const source = readFileSync(resolve(import.meta.dirname, '../src/product-line-theme.css'), 'utf8')
@@ -26,6 +26,47 @@ afterEach(() => {
   document.head.innerHTML = ''
   document.body.innerHTML = ''
   document.documentElement.className = ''
+})
+
+it('bounds TV artwork and shares its pause, resize, replacement and cleanup lifecycle', async () => {
+  const environment = canvasEnvironment()
+  const { initializeProductLineMotion } = await import('../src/product-line-motion.js')
+  document.body.innerHTML = '<section data-product-line="TV" data-product-surface="layout"><button data-product-line="TV" data-product-surface="button">Content</button></section>'
+  const layout = document.querySelector('section')
+  const stop = initializeProductLineMotion(environment)
+  onTestFinished(stop)
+  environment.resize([{ target: layout, contentRect: { width: 1300, height: 430 } }])
+  const layer = layout.querySelector('.tv-art')
+  expect(layer).not.toBeNull()
+  expect(layer.children).toHaveLength(3)
+  expect(document.querySelectorAll('.tv-art')).toHaveLength(1)
+  expect(new Set([...layer.children].map(tv => tv.style.getPropertyValue('--tv-period'))).size).toBe(3)
+  expect(layer.getAttribute('aria-hidden')).toBe('true')
+  environment.intersection([{ target: layout, isIntersecting: false }])
+  expect(layer.classList.contains('smart-motion-paused')).toBe(true)
+  environment.intersection([{ target: layout, isIntersecting: true }])
+  expect(layer.classList.contains('smart-motion-paused')).toBe(false)
+  const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+  document.dispatchEvent(new Event('visibilitychange'))
+  expect(layer.classList.contains('smart-motion-paused')).toBe(true)
+  visibility.mockReturnValue('visible')
+  document.dispatchEvent(new Event('visibilitychange'))
+  expect(layer.classList.contains('smart-motion-paused')).toBe(false)
+  environment.media.matches = true
+  environment.media.dispatchEvent(new Event('change'))
+  expect(layer.classList.contains('smart-motion-paused')).toBe(true)
+  layout.dataset.productLine = 'Smart Device'
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(layout.querySelector('.tv-art')).toBeNull()
+  expect(layout.querySelector('.smart-device-art')).not.toBeNull()
+  layout.dataset.productLine = 'TV'
+  await new Promise(resolve => setTimeout(resolve, 0))
+  environment.resize([{ target: layout, contentRect: { width: 140, height: 42 } }])
+  expect(layout.querySelector('.tv-art').children).toHaveLength(1)
+  expect(layout.querySelector('button').textContent).toBe('Content')
+  stop()
+  expect(layout.querySelector('.tv-art')).toBeNull()
+  expect(environment.observed.size).toBe(0)
 })
 
 it('uses the Wireless OFDM motion across every supported product surface', () => {
@@ -74,6 +115,60 @@ it('uses the Wireless OFDM motion across every supported product surface', () =>
   expect(getComputedStyle(child).backgroundImage).toBe('none')
 })
 
+it('draws one clipped global globe and stops, resumes and removes it with the surface', async () => {
+  const environment = canvasEnvironment()
+  const { initializeProductLineMotion } = await import('../src/product-line-motion.js')
+  document.body.innerHTML = '<button data-product-line="Global Operator & STB" data-product-surface="button">Global</button>'
+  const button = document.querySelector('button')
+  const stop = initializeProductLineMotion(environment)
+  onTestFinished(stop)
+  const canvas = button.querySelector('.global-globe')
+  expect(canvas).not.toBeNull()
+  environment.resize([{ target: button, contentRect: { width: 140, height: 42 } }])
+  environment.frame(1000)
+  expect(environment.contexts.get(canvas).labels).toHaveLength(0)
+  button.disabled = true
+  await new Promise(resolve => setTimeout(resolve, 0))
+  environment.frame(2000)
+  expect(environment.frames.size).toBe(0)
+  button.disabled = false
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(environment.frames.size).toBe(1)
+  environment.intersection([{ target: button, isIntersecting: false }])
+  expect(environment.frames.size).toBe(0)
+  environment.intersection([{ target: button, isIntersecting: true }])
+  expect(environment.frames.size).toBe(1)
+  stop()
+  expect(document.querySelector('canvas')).toBeNull()
+})
+
+it('keeps nested global controls on one static reduced-motion globe and releases detached layouts', async () => {
+  const environment = canvasEnvironment(true)
+  const { initializeProductLineMotion } = await import('../src/product-line-motion.js')
+  document.body.innerHTML = '<section data-product-line="Global Operator & STB" data-product-surface="layout"><button data-product-line="Global Operator & STB" data-product-surface="button">Content</button></section>'
+  const layout = document.querySelector('section')
+  const stop = initializeProductLineMotion(environment)
+  onTestFinished(stop)
+  environment.resize([{ target: layout, contentRect: { width: 900, height: 430 } }])
+  expect(document.querySelectorAll('canvas')).toHaveLength(1)
+  environment.frame(1000)
+  expect(environment.frames.size).toBe(0)
+  const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+  document.dispatchEvent(new Event('visibilitychange'))
+  expect(environment.frames.size).toBe(0)
+  visibility.mockReturnValue('visible')
+  document.dispatchEvent(new Event('visibilitychange'))
+  environment.frame(2000)
+  expect(environment.frames.size).toBe(0)
+  environment.media.matches = false
+  environment.media.dispatchEvent(new Event('change'))
+  expect(environment.frames.size).toBe(1)
+  layout.remove()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(environment.frames.size).toBe(0)
+  expect(environment.observed.has(layout)).toBe(false)
+})
+
 function canvasEnvironment(reduced = false) {
   const frames = new Map()
   let nextFrame = 0
@@ -86,7 +181,9 @@ function canvasEnvironment(reduced = false) {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function () {
     if (!contexts.has(this)) {
       const draws = []
-      const context = { draws, globalAlpha: 1, clearRect() { draws.length = 0 }, setTransform() {}, fillRect() {}, drawImage(...args) { draws.push({ alpha: this.globalAlpha, args }) } }
+      const labels = []
+      const gradient = { addColorStop() {} }
+      const context = { draws, labels, globalAlpha: 1, clearRect() { draws.length = 0; labels.length = 0 }, setTransform() {}, fillRect() {}, drawImage(...args) { draws.push({ alpha: this.globalAlpha, args }) }, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, arc() {}, fill() {}, stroke() {}, save() {}, restore() {}, clip() {}, createRadialGradient() { return gradient }, fillText(text) { labels.push(text) }, measureText(text) { return { width: text.length * 6 } } }
       contexts.set(this, context)
     }
     return contexts.get(this)
@@ -237,4 +334,37 @@ it('replaces China canvas with Smart Device artwork when the same surface change
   expect(layer.classList.contains('smart-motion-paused')).toBe(false)
   stop()
   expect(button.querySelector('.smart-device-art')).toBeNull()
+})
+
+it('shares the login board canvas lifecycle without changing form content', async () => {
+  Object.defineProperty(SVGElement.prototype, 'getTotalLength', { configurable: true, value: () => 100 })
+  Object.defineProperty(SVGElement.prototype, 'getPointAtLength', { configurable: true, value: distance => ({ x: distance, y: distance }) })
+  onTestFinished(() => { delete SVGElement.prototype.getTotalLength; delete SVGElement.prototype.getPointAtLength })
+  const environment = canvasEnvironment()
+  const { initializeProductLineMotion } = await import('../src/product-line-motion.js')
+  document.body.innerHTML = '<main data-login-board><form><input name="username"><button>Sign in</button></form></main>'
+  const page = document.querySelector('main')
+  const stop = initializeProductLineMotion(environment)
+  onTestFinished(stop)
+  const canvas = page.querySelector('canvas')
+  expect(canvas).not.toBeNull()
+  environment.resize([{ target: page, contentRect: { width: 1672, height: 941 } }])
+  environment.frame(1800)
+  expect(environment.contexts.get(canvas).draws.length).toBeGreaterThan(0)
+  environment.intersection([{ target: page, isIntersecting: false }])
+  expect(environment.frames.size).toBe(0)
+  environment.intersection([{ target: page, isIntersecting: true }])
+  expect(environment.frames.size).toBe(1)
+  environment.media.matches = true
+  environment.media.dispatchEvent(new Event('change'))
+  environment.frame(2000)
+  expect(environment.frames.size).toBe(0)
+  expect(environment.contexts.get(canvas).draws).toHaveLength(0)
+  environment.media.matches = false
+  environment.media.dispatchEvent(new Event('change'))
+  expect(environment.frames.size).toBe(1)
+  expect(page.querySelector('input').name).toBe('username')
+  stop()
+  expect(page.querySelector('canvas')).toBeNull()
+  expect(environment.frames.size).toBe(0)
 })
