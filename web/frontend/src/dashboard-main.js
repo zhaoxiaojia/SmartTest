@@ -1,4 +1,5 @@
 import { Chart, registerables } from 'chart.js'
+import { initializeChartTheme } from './theme.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { GridStack } from 'gridstack'
 import 'gridstack/dist/gridstack.min.css'
@@ -11,6 +12,7 @@ import { createJiraStatisticsCard, JIRA_STATISTICS_CARDS, JIRA_STATISTICS_CARD_L
 
 if (!window.location.pathname.startsWith('/wifi-database/')) {
   Chart.register(...registerables, ChartDataLabels)
+  initializeChartTheme(Chart)
   const preferenceApi = createPreferenceApi()
   const projectFactsApi = createProjectFactsApi()
   startAuthenticatedPage({ mount: (root, session) => {

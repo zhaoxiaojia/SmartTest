@@ -11,7 +11,7 @@ vi.mock('../src/dashboard/dashboard-grid.js', () => ({
   createDashboardGrid: vi.fn(options => { state.dashboard = options; return { start() {}, destroy() {} } }),
 }))
 vi.mock('gridstack', () => ({ GridStack: { init: vi.fn() } }))
-vi.mock('chart.js', () => ({ Chart: Object.assign(vi.fn(), { register: vi.fn() }), registerables: [] }))
+vi.mock('chart.js', () => ({ Chart: Object.assign(vi.fn(), { register: vi.fn(), defaults: { color: '#666' }, instances: {} }), registerables: [] }))
 vi.mock('chartjs-plugin-datalabels', () => ({ default: {} }))
 
 describe('Dashboard page', () => {

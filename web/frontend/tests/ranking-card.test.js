@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest'
 import { createRankingCard } from '../src/widgets/ranking-card.js'
+import { initializeTheme, initializeChartTheme } from '../src/theme.js'
 
 // Chart.js captures RAF when its helpers load; keep scheduling controllable before imports.
 const animationFrame = vi.hoisted(() => {
@@ -234,10 +235,16 @@ it('keeps short-bar labels complete to the right and places the difference after
 it('recolors Jira on theme changes without querying rows or resetting selection and animation', async () => {
   const root = document.createElement('div')
   document.body.append(root)
-  const chartFactory = vi.fn((_canvas, config) => ({
-    data: config.data, options: config.options,
-    update: vi.fn(), reset: vi.fn(), stop: vi.fn(), destroy: vi.fn(),
-  }))
+  initializeTheme()
+  const Charts = { defaults: { color: '#666' }, instances: {} }
+  const stopTheme = initializeChartTheme(Charts)
+  const chartFactory = vi.fn((_canvas, config) => {
+    const chart = { data: config.data, options: config.options,
+      update: vi.fn(() => config.plugins.forEach(plugin => plugin.beforeUpdate?.(chart))),
+      reset: vi.fn(), stop: vi.fn(), destroy: vi.fn(() => delete Charts.instances.current) }
+    Charts.instances.current = chart
+    return chart
+  })
   const card = createRankingCard({ chartFactory })
   const rowsFor = vi.fn(() => [{ name: 'Alice', count: 3, previousCount: 2 }])
   root.style.setProperty('--jira-current-bar', '#9DD5FA')
@@ -255,7 +262,7 @@ it('recolors Jira on theme changes without querying rows or resetting selection 
     for (const [dark, colors] of [[true, ['#789AAF', '#B99B85']], [false, ['#9DD5FA', '#FFD3AE']]]) {
       root.style.setProperty('--jira-current-bar', colors[0])
       root.style.setProperty('--jira-previous-bar', colors[1])
-      document.documentElement.classList.toggle('dark-theme', dark)
+      globalThis.SmartTestTheme.apply(dark ? 'dark' : 'light')
       await Promise.resolve()
       expect(chart.data.datasets.map(dataset => dataset.backgroundColor)).toEqual(colors.map(color => [color]))
       expect(chart.data.datasets.map(dataset => dataset.data)).toEqual(previousData)
@@ -265,11 +272,11 @@ it('recolors Jira on theme changes without querying rows or resetting selection 
       expect(chart.update).toHaveBeenLastCalledWith('none')
     }
     card.destroy(); chart.update.mockClear()
-    document.documentElement.classList.add('dark-theme')
+    globalThis.SmartTestTheme.apply('dark')
     await Promise.resolve()
     expect(chart.update).not.toHaveBeenCalled()
   } finally {
-    card.destroy(); root.remove(); document.documentElement.classList.remove('dark-theme')
+    stopTheme(); card.destroy(); root.remove(); document.documentElement.classList.remove('dark-theme')
   }
 })
 
@@ -277,6 +284,8 @@ it('applies theme palette changes to real Chart.js bar elements', async () => {
   const { Chart, registerables, BasicPlatform } = await import('chart.js')
   const { default: ChartDataLabels } = await import('chartjs-plugin-datalabels')
   Chart.register(...registerables, ChartDataLabels)
+  initializeTheme()
+  const stopTheme = initializeChartTheme(Chart)
   const root = document.createElement('div')
   document.body.append(root)
   const textDraws = []
@@ -308,7 +317,7 @@ it('applies theme palette changes to real Chart.js bar elements', async () => {
     root.style.setProperty('--jira-previous-bar', '#B99B85')
     root.style.setProperty('--text-primary', '#F5F5F5')
     textDraws.length = 0
-    document.documentElement.classList.add('dark-theme')
+    globalThis.SmartTestTheme.apply('dark')
     await Promise.resolve()
     expect(chart.getDatasetMeta(0).data[0].options.backgroundColor).toBe('#789AAF')
     expect(chart.getDatasetMeta(1).data[0].options.backgroundColor).toBe('#B99B85')
@@ -316,7 +325,7 @@ it('applies theme palette changes to real Chart.js bar elements', async () => {
     expect(chart.getDatasetMeta(0).data[0]).toBe(bar)
     expect({ x: bar.x, y: bar.y, width: bar.width, height: bar.height }).toEqual(geometry)
   } finally {
-    card.destroy(); root.remove(); document.documentElement.classList.remove('dark-theme')
+    stopTheme(); card.destroy(); root.remove(); document.documentElement.classList.remove('dark-theme')
   }
 })
 

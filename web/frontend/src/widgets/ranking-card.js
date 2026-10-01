@@ -10,18 +10,13 @@ export function createRankingCard({ chartFactory } = {}) {
   let medalSignature = ''
   const medalLayout = {
     id: 'ranking-medals',
+    beforeUpdate(current) { applyPalette(current.data.datasets) },
     afterLayout(current) {
       root.querySelectorAll('[data-ranking-medal]').forEach((medal, index) => {
         medal.style.top = `${current.scales.y.getPixelForValue(index)}px`
       })
     },
   }
-  const themeObserver = new MutationObserver(() => {
-    if (chart) {
-      applyPalette(chart.data.datasets)
-      chart.update('none')
-    }
-  })
   const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
     if (root) positionModeBackground(root.querySelector('[data-mode-segments]'))
   }) : null
@@ -209,10 +204,9 @@ export function createRankingCard({ chartFactory } = {}) {
       medalSignature = ''
       root.innerHTML = `<div class="segmented-ranking"><header class="report-preview-toolbar"><div class="workload-heading">${config.headingHtml || ''}<div class="product-line-segments" data-product-line-segments></div></div><div class="role-segments" data-mode-segments></div></header><div class="workload-chart-scroll"><div class="workload-chart-surface"><canvas data-ranked-chart></canvas><div data-ranking-medals></div><div class="product-space-empty" data-ranked-empty data-workload-empty hidden></div></div></div></div>`
       render()
-      themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
       resizeObserver?.observe(root.querySelector('[data-mode-segments]'))
     },
     update(value) { config = value; if (root) render() },
-    destroy() { themeObserver.disconnect(); resizeObserver?.disconnect(); chart?.destroy(); chart = null; root?.replaceChildren(); root = null },
+    destroy() { resizeObserver?.disconnect(); chart?.destroy(); chart = null; root?.replaceChildren(); root = null },
   }
 }

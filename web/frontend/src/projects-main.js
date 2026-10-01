@@ -1,4 +1,5 @@
 import { Chart, registerables } from 'chart.js'
+import { initializeChartTheme } from './theme.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { createManualAuditApi, createProjectFactsApi } from './api.js'
 import { startAuthenticatedPage } from './authenticated-page.js'
@@ -9,6 +10,7 @@ import { createRoleWorkloadWidget } from './widgets/role-workload.js'
 const projectFactsApi = createProjectFactsApi()
 const manualAuditApi = createManualAuditApi()
 Chart.register(...registerables, ChartDataLabels)
+initializeChartTheme(Chart)
 startAuthenticatedPage({
   mount: (root, session) => {
     root.innerHTML = `<section class="card page-ranking-widget" data-page-widget="role-workload"><header class="dashboard-widget-head"><strong>Project Resource Statistics</strong></header><div data-widget-body></div></section><div data-page-primary></div>`

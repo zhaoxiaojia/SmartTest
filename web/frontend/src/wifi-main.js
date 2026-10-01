@@ -1,10 +1,12 @@
 import { Chart, registerables } from 'chart.js'
+import { initializeChartTheme } from './theme.js'
 
 import { createWifiDatabaseApi } from './api.js'
 import { mountWifiDatabase } from './wifi-database.js'
 import { createChartController, exportPerformanceExcel, exportVisibleChartsPdf } from './dashboard.js'
 
 Chart.register(...registerables)
+initializeChartTheme(Chart)
 
 export function startWifiData() {
   const root = document.querySelector('main.main-content')

@@ -49,8 +49,8 @@ body.dark-theme {
     --bg-secondary: #171717;
     --bg-surface: #1F1F1F;
     --border-color: #2E2E2E;
-    --text-primary: #F5F5F5;
-    --text-secondary: #A3A3A3;
+    --text-primary: #FFFFFF;
+    --text-secondary: #E2E8F0;
     --accent: #38BDF8;
     --accent-hover: #7DD3FC;
     --accent-light: rgba(56, 189, 248, 0.15);
@@ -107,6 +107,7 @@ a {
 
 button {
     font-family: inherit;
+    color: inherit;
     cursor: pointer;
     border: none;
     background: none;
@@ -114,6 +115,7 @@ button {
 
 input, select, textarea {
     font-family: inherit;
+    color: inherit;
     font-size: 0.9375rem;
 }
 

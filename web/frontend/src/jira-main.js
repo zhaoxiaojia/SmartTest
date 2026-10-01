@@ -1,4 +1,5 @@
 import { Chart, registerables } from 'chart.js'
+import { initializeChartTheme } from './theme.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { createJiraAnalyticsApi, createJiraStatisticsCardApi } from './api.js'
 import { startAuthenticatedPage } from './authenticated-page.js'
@@ -10,6 +11,7 @@ const cards = Object.entries(JIRA_STATISTICS_CARDS).map(([cardKey, metadata]) =>
   cardKey, metadata, api: createJiraStatisticsCardApi({ cardKey }),
 }))
 Chart.register(...registerables, ChartDataLabels)
+initializeChartTheme(Chart)
 
 startAuthenticatedPage({ mount: (root, session) => {
   root.innerHTML = `<div data-page-primary></div>${cards.map(({ cardKey, metadata }) => `<section class="card page-ranking-widget" data-page-widget="jira-${cardKey}"><header class="dashboard-widget-head"><strong>${metadata.title}</strong></header><div data-widget-body="${cardKey}"></div></section>`).join('')}`

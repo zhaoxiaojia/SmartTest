@@ -9,6 +9,8 @@ vi.mock('chart.js', () => {
     charts.push(this)
   })
   Chart.register = vi.fn()
+  Chart.defaults = { color: '#666' }
+  Chart.instances = {}
   return { Chart, registerables: [] }
 })
 
