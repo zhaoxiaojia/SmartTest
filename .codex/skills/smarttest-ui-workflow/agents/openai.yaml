@@ -1,0 +1,4 @@
+interface:
+  display_name: "SmartTest UI Workflow"
+  short_description: "SmartTest UI/QML workflow rules"
+  default_prompt: "Use this skill when modifying or debugging SmartTest UI, QML, FluentUI controls, translations, or QRC resources."
