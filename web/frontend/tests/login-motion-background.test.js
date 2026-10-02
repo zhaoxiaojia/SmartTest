@@ -4,6 +4,7 @@ import { readFileSync, existsSync } from 'node:fs'
 
 it('runs the PCB pulse on the login page with shared sizing, theme and hidden-page pause', async () => {
   document.body.innerHTML = readFileSync('login.html', 'utf8')
+  sessionStorage.setItem('smarttest.login.background', 'pcb')
   const style = document.createElement('style')
   style.textContent = readFileSync('src/smarttest-theme.css', 'utf8') + readFileSync('src/login-motion.css', 'utf8')
   document.head.append(style)
