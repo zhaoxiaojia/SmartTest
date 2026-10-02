@@ -25,9 +25,9 @@ export function applyLoginBackground({ root = document, backgrounds = LOGIN_BACK
   return id
 }
 
-const PCB_MARKUP = `<svg class="pcb-motion" viewBox="0 0 1672 941" aria-hidden="true">
-      <image class="pcb-light" href="/images/login-pcb-white-cutout.png" width="1672" height="941"/>
-      <image class="pcb-dark" href="/images/login-pcb-dark-cutout.png" width="1672" height="941"/>
+const PCB_MARKUP = `<svg class="pcb-motion" viewBox="0 0 1120 942" aria-hidden="true">
+      <image class="pcb-light" href="/images/login-pcb-white-cutout.png" width="1120" height="941"/>
+      <image class="pcb-dark" href="/images/login-pcb-dark-cutout.png" width="1120" height="942"/>
       <!-- Coordinates follow the shared artwork's cyan traces, ending at chip pins. -->
       <g class="trace-motion" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path d="M 111 205 L 251 248 L 296 336 L 352 353" pathLength="100"/>

@@ -1,5 +1,5 @@
 .login-motion { background-image: none; }
-.pcb-motion { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: min(100vw, 1672px, 177.68svh); height: auto; pointer-events: none; }
+.pcb-motion { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: min(100vw, 1120px, 118.89svh); height: auto; pointer-events: none; }
 .pcb-dark { display: none; }
 html.dark-theme .pcb-light { display: none; }
 html.dark-theme .pcb-dark { display: block; }
