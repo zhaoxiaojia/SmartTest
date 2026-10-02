@@ -22,9 +22,9 @@ it('selects the static PCB artwork using the document theme', () => {
   try {
     document.body.className = 'login-screen'
     document.documentElement.classList.add('dark-theme')
-    expect(getComputedStyle(surface).getPropertyValue('--login-art')).toContain('login-pcb-dark-v1.png')
+    expect(getComputedStyle(surface).getPropertyValue('--login-art')).toContain('login-pcb-dark-cutout.png')
     document.documentElement.classList.remove('dark-theme')
-    expect(getComputedStyle(surface).getPropertyValue('--login-art')).toContain('login-pcb-white-v1.png')
+    expect(getComputedStyle(surface).getPropertyValue('--login-art')).toContain('login-pcb-white-cutout.png')
   } finally {
     document.documentElement.className = previousHtml
     document.body.className = previousBody

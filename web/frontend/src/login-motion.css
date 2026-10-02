@@ -1,0 +1,33 @@
+.login-motion { background-image: none; }
+.pcb-motion { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: min(100vw, 1672px, 177.68svh); height: auto; pointer-events: none; }
+.pcb-dark { display: none; }
+html.dark-theme .pcb-light { display: none; }
+html.dark-theme .pcb-dark { display: block; }
+.login-motion { --trace-color: #008ad9; --chip-color: #32bfff; }
+html.dark-theme .login-motion { --trace-color: #95edff; --chip-color: #55dfff; }
+.trace-motion path { stroke: var(--trace-color); stroke-width: 2; stroke-dasharray: 9 91; animation: pcb-flow 5s linear infinite; opacity: .65; }
+.trace-motion path:nth-child(2n) { animation-delay: -1.7s; }
+.trace-motion path:nth-child(3n) { animation-delay: -3.3s; }
+[data-motion="subtle"] .trace-motion path:nth-child(n+5) { display: none; }
+[data-motion="vivid"] { --pulse-color: #ffffff; }
+html.dark-theme [data-motion="vivid"] { --pulse-color: #dbfaff; }
+/* Existing paths run toward the chip: increasing dashoffset sends the pulse outward. */
+[data-motion="vivid"] .trace-motion path { stroke: var(--pulse-color); stroke-width: 3; stroke-dasharray: 18 182; animation: pcb-pulse 5s linear infinite; animation-delay: 0s; opacity: 0; filter: drop-shadow(0 0 4px var(--pulse-color)); }
+.chip-trigger { display: none; fill: none; stroke: var(--pulse-color); stroke-width: 3; filter: drop-shadow(0 0 5px var(--pulse-color)); animation: pcb-trigger 5s ease-in-out infinite; opacity: 0; }
+[data-motion="vivid"] .chip-trigger { display: block; }
+.chip-breath { display: none; fill: var(--chip-color); fill-opacity: .1; stroke: var(--chip-color); stroke-width: 3; transform-origin: 462px 434px; animation: pcb-breath 4.8s ease-in-out infinite; }
+[data-motion="breath"] .trace-motion { display: none; }
+[data-motion="breath"] .chip-breath { display: block; }
+.login-motion.motion-paused .pcb-motion *, .login-motion.motion-hidden .pcb-motion * { animation-play-state: paused; }
+@keyframes pcb-flow { to { stroke-dashoffset: -100; } }
+@keyframes pcb-trigger { 0%, 18%, 100% { opacity: 0; } 7% { opacity: 1; } 10% { opacity: .8; } }
+@keyframes pcb-pulse {
+  0%, 10% { stroke-dashoffset: -100; opacity: 0; }
+  13% { opacity: 1; }
+  45% { opacity: 1; }
+  52% { stroke-dashoffset: 18; opacity: 0; }
+  100% { stroke-dashoffset: 18; opacity: 0; }
+}
+@keyframes pcb-breath { 0%, 100% { opacity: .16; } 50% { opacity: .9; } }
+@media (max-width: 760px) { .pcb-motion { left: 25%; transform: translate(-25%, -50%); } }
+@media (prefers-reduced-motion: reduce) { .login-motion .pcb-motion * { animation-play-state: paused; } }

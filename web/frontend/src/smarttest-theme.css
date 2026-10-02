@@ -1506,14 +1506,14 @@ html.dark-theme .login-screen {
     --login-field: #10283ee0;
     background: #071827;
 }
-.login-page[data-login-background="pcb"] { --login-art: url('/images/login-pcb-white-v1.png'); background-color: var(--bg-secondary); }
-html.dark-theme .login-page[data-login-background="pcb"] { --login-art: url('/images/login-pcb-dark-v1.png'); }
+.login-page[data-login-background="pcb"] { --login-art: url('/images/login-pcb-white-cutout.png'); background-color: var(--bg-secondary); }
+html.dark-theme .login-page[data-login-background="pcb"] { --login-art: url('/images/login-pcb-dark-cutout.png'); }
 .login-page {
     position: relative;
     min-height: 100vh;
     min-height: 100svh;
     display: grid;
-    grid-template-columns: 64% 36%;
+    grid-template-columns: 56% 44%;
     background-image: var(--login-art);
     background-position: left center;
     /* Native artwork is 1672 × 941: shrink to fit, never upscale. */

@@ -30,7 +30,8 @@ export default defineConfig({
         auditEmail: resolve(import.meta.dirname, 'audit-email.html'),
         jira: resolve(import.meta.dirname, 'jira.html'),
         tools: resolve(import.meta.dirname, 'tools.html'),
-        login: resolve(import.meta.dirname, 'login.html')
+        login: resolve(import.meta.dirname, 'login.html'),
+        loginMotionPreview: resolve(import.meta.dirname, 'login-motion-preview.html')
       }
     }
   },
